@@ -8,13 +8,13 @@ from unittest.mock import Mock
 import pytest
 
 from kreuzberg._pandoc import (
-    PANDOC_MIMETYPE_TO_FORMAT_MAPPING,
+    MIMETYPE_TO_PANDOC_TYPE_MAPPING,
     PandocResult,
-    _get_extension_from_mime_type,
-    extract_metadata,
+    _get_pandoc_type_from_mime_type,
+    _handle_extract_metadata,
+    _validate_pandoc_version,
     process_content,
     process_file,
-    validate_pandoc_version,
 )
 from kreuzberg.exceptions import MissingDependencyError, ParsingError, ValidationError
 
@@ -70,30 +70,30 @@ def reset_version_ref(mocker: MockerFixture) -> None:
 
 
 async def test_validate_pandoc_version(mock_subprocess_run: Mock) -> None:
-    await validate_pandoc_version()
+    await _validate_pandoc_version()
     mock_subprocess_run.assert_called_with(["pandoc", "--version"], capture_output=True)
 
 
 async def test_validate_pandoc_version_invalid(mock_subprocess_run_invalid: Mock) -> None:
     with pytest.raises(MissingDependencyError, match="Pandoc version 3 or above is required"):
-        await validate_pandoc_version()
+        await _validate_pandoc_version()
 
 
 async def test_validate_pandoc_version_missing(mock_subprocess_run_error: Mock) -> None:
     with pytest.raises(MissingDependencyError, match="Pandoc is not installed"):
-        await validate_pandoc_version()
+        await _validate_pandoc_version()
 
 
-async def test_get_extension_from_mime_type_valid() -> None:
-    for mime_type in PANDOC_MIMETYPE_TO_FORMAT_MAPPING:
-        extension = _get_extension_from_mime_type(mime_type)
+async def test_get_pandoc_type_from_mime_type_valid() -> None:
+    for mime_type in MIMETYPE_TO_PANDOC_TYPE_MAPPING:
+        extension = _get_pandoc_type_from_mime_type(mime_type)
         assert isinstance(extension, str)
         assert extension
 
 
-async def test_get_extension_from_mime_type_invalid() -> None:
+async def test_get_pandoc_type_from_mime_type_invalid() -> None:
     with pytest.raises(ValidationError, match="Unsupported mime type"):
-        _get_extension_from_mime_type("invalid/mime-type")
+        _get_pandoc_type_from_mime_type("invalid/mime-type")
 
 
 async def test_process_file_success(mock_subprocess_run: Mock, docx_document: Path) -> None:
@@ -149,7 +149,7 @@ async def test_extract_metadata_error(mock_subprocess_run: Mock, docx_document: 
     mock_subprocess_run.return_value.stderr = b"Error extracting metadata"
 
     with pytest.raises(ParsingError, match="Failed to extract file data"):
-        await extract_metadata(
+        await _handle_extract_metadata(
             docx_document, mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
 
@@ -158,13 +158,13 @@ async def test_extract_metadata_runtime_error(mock_subprocess_run: Mock, docx_do
     mock_subprocess_run.side_effect = RuntimeError("Command failed")
 
     with pytest.raises(ParsingError, match="Failed to extract file data"):
-        await extract_metadata(
+        await _handle_extract_metadata(
             docx_document, mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
         )
 
 
 async def test_integration_validate_pandoc_version() -> None:
-    await validate_pandoc_version()
+    await _validate_pandoc_version()
 
 
 async def test_integration_process_file(markdown_document: Path) -> None:
@@ -183,7 +183,7 @@ async def test_integration_process_content() -> None:
 
 
 async def test_integration_extract_metadata(markdown_document: Path) -> None:
-    result = await extract_metadata(markdown_document, mime_type="text/x-markdown")
+    result = await _handle_extract_metadata(markdown_document, mime_type="text/x-markdown")
     assert isinstance(result, dict)
 
 
