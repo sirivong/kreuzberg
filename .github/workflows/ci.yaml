@@ -41,7 +41,7 @@ jobs:
   test:
     strategy:
       matrix:
-        os: [ ubuntu-latest, macOS-latest ]
+        os: [ ubuntu-latest, macOS-latest, windows-latest ]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -55,7 +55,7 @@ jobs:
       - name: Install Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.9
+          python-version-file: "pyproject.toml"
 
       - name: Install Dependencies
         run: uv sync --all-extras --dev
