@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -13,10 +14,22 @@ from kreuzberg._mime_types import (
     POWER_POINT_MIME_TYPE,
 )
 from kreuzberg.exceptions import ValidationError
-from kreuzberg.extraction import extract_bytes, extract_bytes_sync, extract_file, extract_file_sync
+from kreuzberg.extraction import (
+    batch_extract_bytes,
+    batch_extract_bytes_sync,
+    batch_extract_file,
+    batch_extract_file_sync,
+    extract_bytes,
+    extract_bytes_sync,
+    extract_file,
+    extract_file_sync,
+)
 
 if TYPE_CHECKING:
     from kreuzberg._types import ExtractionResult
+
+if sys.version_info < (3, 11):  # pragma: no cover
+    from exceptiongroup import ExceptionGroup
 
 
 @pytest.mark.timeout(timeout=60)
@@ -208,3 +221,107 @@ def assert_extraction_result(result: ExtractionResult, *, mime_type: str) -> Non
     assert result.content.strip()
     assert result.mime_type == mime_type
     assert isinstance(result.metadata, dict)
+
+
+async def test_batch_extract_file_mixed() -> None:
+    """Test batch extraction of multiple files of different types."""
+    # Get paths to different types of files
+    test_files = list((Path(__file__).parent / "source").glob("*.pdf"))
+    test_files.extend((Path(__file__).parent / "source").glob("*.docx"))
+    test_files.extend((Path(__file__).parent / "source").glob("*.xlsx"))
+
+    results = await batch_extract_file(test_files)
+    assert len(results) == len(test_files)
+    for path, result in zip(test_files, results):
+        if path.suffix in [".docx", ".xlsx"]:
+            assert_extraction_result(result, mime_type=MARKDOWN_MIME_TYPE)
+        else:
+            assert_extraction_result(result, mime_type=PLAIN_TEXT_MIME_TYPE)
+
+
+async def test_batch_extract_file_empty() -> None:
+    """Test batch extraction with empty input."""
+    results = await batch_extract_file([])
+    assert len(results) == 0
+
+
+async def test_batch_extract_file_invalid() -> None:
+    """Test batch extraction with an invalid file."""
+    with pytest.raises(ExceptionGroup) as exc_info:
+        await batch_extract_file([Path("/invalid/file.xyz")])
+    assert isinstance(exc_info.value.exceptions[0], ValidationError)
+    assert "Unsupported mime type" in str(exc_info.value.exceptions[0])
+
+
+async def test_batch_extract_bytes_mixed() -> None:
+    """Test batch extraction of multiple byte contents of different types."""
+    # Create test content pairs
+    contents = [
+        (b"This is plain text", PLAIN_TEXT_MIME_TYPE),
+        (
+            (Path(__file__).parent / "source" / "document.docx").read_bytes(),
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ),
+        ((Path(__file__).parent / "source" / "searchable.pdf").read_bytes(), PDF_MIME_TYPE),
+    ]
+
+    results = await batch_extract_bytes(contents)
+    assert len(results) == len(contents)
+    for i, result in enumerate(results):
+        if i == 0:
+            assert_extraction_result(result, mime_type=PLAIN_TEXT_MIME_TYPE)
+            assert result.content.strip() == "This is plain text"
+        else:
+            assert_extraction_result(result, mime_type=MARKDOWN_MIME_TYPE if i == 1 else PLAIN_TEXT_MIME_TYPE)
+
+
+async def test_batch_extract_bytes_empty() -> None:
+    """Test batch extraction with empty input."""
+    results = await batch_extract_bytes([])
+    assert len(results) == 0
+
+
+async def test_batch_extract_bytes_invalid() -> None:
+    """Test batch extraction with an invalid mime type."""
+    with pytest.raises(ExceptionGroup) as exc_info:
+        await batch_extract_bytes([(b"content", "application/invalid")])
+    assert isinstance(exc_info.value.exceptions[0], ValidationError)
+    assert "Unsupported mime type" in str(exc_info.value.exceptions[0])
+
+
+def test_batch_extract_file_sync_mixed() -> None:
+    """Test synchronous batch extraction of multiple files of different types."""
+    # Get paths to different types of files
+    test_files = list((Path(__file__).parent / "source").glob("*.pdf"))
+    test_files.extend((Path(__file__).parent / "source").glob("*.docx"))
+    test_files.extend((Path(__file__).parent / "source").glob("*.xlsx"))
+
+    results = batch_extract_file_sync(test_files)
+    assert len(results) == len(test_files)
+    for path, result in zip(test_files, results):
+        if path.suffix in [".docx", ".xlsx"]:
+            assert_extraction_result(result, mime_type=MARKDOWN_MIME_TYPE)
+        else:
+            assert_extraction_result(result, mime_type=PLAIN_TEXT_MIME_TYPE)
+
+
+def test_batch_extract_bytes_sync_mixed() -> None:
+    """Test synchronous batch extraction of multiple byte contents of different types."""
+    # Create test content pairs
+    contents = [
+        (b"This is plain text", PLAIN_TEXT_MIME_TYPE),
+        (
+            (Path(__file__).parent / "source" / "document.docx").read_bytes(),
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ),
+        ((Path(__file__).parent / "source" / "searchable.pdf").read_bytes(), PDF_MIME_TYPE),
+    ]
+
+    results = batch_extract_bytes_sync(contents)
+    assert len(results) == len(contents)
+    for i, result in enumerate(results):
+        if i == 0:
+            assert_extraction_result(result, mime_type=PLAIN_TEXT_MIME_TYPE)
+            assert result.content.strip() == "This is plain text"
+        else:
+            assert_extraction_result(result, mime_type=MARKDOWN_MIME_TYPE if i == 1 else PLAIN_TEXT_MIME_TYPE)

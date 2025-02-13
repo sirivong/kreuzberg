@@ -1,31 +1,18 @@
 # Kreuzberg
 
-Kreuzberg is a modern Python library for text extraction from documents, designed for simplicity and efficiency. It provides a unified async interface for extracting text from a wide range of file formats including PDFs, images, office documents, and more.
+Kreuzberg is a Python library for text extraction from documents. It provides a unified async interface for extracting text from PDFs, images, office documents, and more.
 
 ## Why Kreuzberg?
 
 - **Simple and Hassle-Free**: Clean API that just works, without complex configuration
 - **Local Processing**: No external API calls or cloud dependencies required
 - **Resource Efficient**: Lightweight processing without GPU requirements
+- **Lightweight**: Has few curated dependencies and a minimal footprint
 - **Format Support**: Comprehensive support for documents, images, and text formats
-- **Modern Python**: Built with async/await, type hints, and current best practices
+- **Modern Python**: Built with async/await, type hints, and functional first approach
+- **Permissive OSS**: Kreuzberg and its dependencies have a permissive OSS license
 
-Kreuzberg was created to solve text extraction needs in RAG (Retrieval Augmented Generation) applications.
-Unlike many commercial solutions that require API calls or complex setups, Kreuzberg focuses on local processing with minimal dependencies.
-
-## Features
-
-- **Universal Text Extraction**: Extract text from PDFs (both searchable and scanned), images, office documents, and more
-- **Smart Processing**: Automatic OCR for scanned documents, encoding detection for text files
-- **Modern Python Design**:
-  - Async-first API using `anyio` for multi-loop compatibility
-  - Comprehensive type hints and full API documentation
-  - Detailed error handling with context information
-- **Production Ready**:
-  - Robust error handling
-  - Detailed debugging information
-  - Memory efficient processing
-  - Extensive test coverage
+Kreuzberg was built for RAG (Retrieval Augmented Generation) applications, focusing on local processing with minimal dependencies. Its designed for modern async applications, serverless functions, and dockerized applications.
 
 ## Installation
 
@@ -46,7 +33,7 @@ Please install these using their respective installation guides.
 
 ## Architecture
 
-Kreuzberg is designed as a high-level async abstraction over established open-source tools. It integrates:
+Kreuzberg integrates:
 
 - **PDF Processing**:
   - `pdfium2` for searchable PDFs
@@ -64,7 +51,7 @@ Kreuzberg is designed as a high-level async abstraction over established open-so
 
 #### Document Formats
 
-- PDF (`.pdf`, both searchable and scanned documents)
+- PDF (`.pdf`, both searchable and scanned)
 - Microsoft Word (`.docx`)
 - PowerPoint presentations (`.pptx`)
 - OpenDocument Text (`.odt`)
@@ -87,15 +74,14 @@ Kreuzberg is designed as a high-level async abstraction over established open-so
 
 #### Data and Research Formats
 
-- Excel spreadsheets (`.xlsx`)
+- Spreadsheets (`.xlsx`, `.xls`, `.xlsm`, `.xlsb`, `.xlam`, `.xla`, `.ods`)
 - CSV (`.csv`) and TSV (`.tsv`) files
 - OPML files (`.opml`)
 - Jupyter Notebooks (`.ipynb`)
 - BibTeX (`.bib`) and BibLaTeX (`.bib`)
 - CSL-JSON (`.json`)
-- EndNote XML (`.xml`)
+- EndNote and JATS XML (`.xml`)
 - RIS (`.ris`)
-- JATS XML (`.xml`)
 
 #### Image Formats
 
@@ -106,30 +92,24 @@ Kreuzberg is designed as a high-level async abstraction over established open-so
 - GIF (`.gif`)
 - JPEG 2000 family (`.jp2`, `.jpm`, `.jpx`, `.mj2`)
 - WebP (`.webp`)
-- Portable anymap formats:
-  - Portable Anymap (`.pnm`)
-  - Portable Bitmap (`.pbm`)
-  - Portable Graymap (`.pgm`)
-  - Portable Pixmap (`.ppm`)
+- Portable anymap formats (`.pbm`, `.pgm`, `.ppm`, `.pnm`)
 
 ## Usage
 
-Kreuzberg provides both async and sync APIs for text extraction. The library exports four main functions:
+Kreuzberg provides both async and sync APIs for text extraction, including batch processing. The library exports the following main functions:
 
-- `extract_file()`: Async function to extract text from a file (accepts string path or `pathlib.Path`)
-- `extract_bytes()`: Async function to extract text from bytes (accepts a byte string)
-- `extract_file_sync()`: Synchronous version of `extract_file()`
-- `extract_bytes_sync()`: Synchronous version of `extract_bytes()`
+- Single Item Processing:
 
-### Why Async?
+  - `extract_file()`: Async function to extract text from a file (accepts string path or `pathlib.Path`)
+  - `extract_bytes()`: Async function to extract text from bytes (accepts a byte string)
+  - `extract_file_sync()`: Synchronous version of `extract_file()`
+  - `extract_bytes_sync()`: Synchronous version of `extract_bytes()`
 
-Kreuzberg is designed with an async-first approach for several reasons:
-
-1. **I/O Operations**: Text extraction often involves heavy I/O operations (reading files, OCR processing, etc.). Async allows other tasks to run while waiting for these operations.
-2. **Scalability**: In web applications or batch processing scenarios, async enables handling multiple extractions concurrently without blocking.
-3. **Resource Efficiency**: Async operations make better use of system resources by avoiding thread blocking during I/O-bound operations.
-
-However, we also provide sync methods for simpler use cases or when working in synchronous contexts.
+- Batch Processing:
+  - `batch_extract_file()`: Async function to extract text from multiple files concurrently
+  - `batch_extract_bytes()`: Async function to extract text from multiple byte contents concurrently
+  - `batch_extract_file_sync()`: Synchronous version of `batch_extract_file()`
+  - `batch_extract_bytes_sync()`: Synchronous version of `batch_extract_bytes()`
 
 ### Quick Start
 
@@ -144,7 +124,6 @@ async def extract_document():
     # Extract from a PDF file
     pdf_result: ExtractionResult = await extract_file("document.pdf")
     print(f"Content: {pdf_result.content}")
-
 
     # Extract from an image
     img_result = await extract_file("scan.png")
@@ -191,9 +170,47 @@ async def handle_uploads(docx_bytes: bytes, pdf_bytes: bytes, image_bytes: bytes
     print(f"Word content: {docx_result.content}")
 ```
 
-### Advanced Features
+### Batch Processing
 
-#### Smart PDF Processing
+Kreuzberg supports efficient batch processing of multiple files or byte contents:
+
+```python
+from pathlib import Path
+from kreuzberg import batch_extract_file, batch_extract_bytes
+
+
+# Process multiple files concurrently
+async def process_documents(file_paths: list[Path]) -> None:
+    # Extract from multiple files
+    results = await batch_extract_file(file_paths)
+    for path, result in zip(file_paths, results):
+        print(f"File {path}: {result.content[:100]}...")
+
+
+# Process multiple uploaded files concurrently
+async def process_uploads(contents: list[tuple[bytes, str]]) -> None:
+    # Each item is a tuple of (content, mime_type)
+    results = await batch_extract_bytes(contents)
+    for (_, mime_type), result in zip(contents, results):
+        print(f"Upload {mime_type}: {result.content[:100]}...")
+
+
+# Synchronous batch processing is also available
+def process_documents_sync(file_paths: list[Path]) -> None:
+    results = batch_extract_file_sync(file_paths)
+    for path, result in zip(file_paths, results):
+        print(f"File {path}: {result.content[:100]}...")
+```
+
+Features:
+
+- Ordered results
+- Concurrent processing
+- Error handling per item
+- Async and sync interfaces
+- Same options as single extraction
+
+### PDF Processing
 
 Kreuzberg employs a smart approach to PDF text extraction:
 
@@ -208,9 +225,9 @@ Kreuzberg employs a smart approach to PDF text extraction:
 
 3. **Automatic OCR Fallback**: If the extracted text appears corrupted or if the PDF is image-based, automatically falls back to OCR using Tesseract.
 
-This approach ensures optimal text quality while minimizing unnecessary OCR processing.
+This approach works well for searchable PDFs and standard text documents. For complex OCR (e.g., handwriting, photographs), use a specialized tool.
 
-#### PDF Processing Options
+### PDF Processing Options
 
 You can control PDF processing behavior using optional parameters:
 
@@ -242,25 +259,26 @@ async def process_pdf():
     print(result.content)
 ```
 
-#### ExtractionResult Object
+### ExtractionResult Object
 
-All extraction functions return an `ExtractionResult` containing:
+All extraction functions return an `ExtractionResult` or a list thereof (for batch functions). The `ExtractionResult` object is a `NamedTuple`:
 
 - `content`: The extracted text (str)
 - `mime_type`: Output format ("text/plain" or "text/markdown" for Pandoc conversions)
+- `metadata`: A metadata dictionary. Currently this dictionary is only populated when extracting documents using pandoc.
 
 ```python
-from kreuzberg import extract_file, ExtractionResult
+from kreuzberg import extract_file, ExtractionResult, Metadata
 
-async def process_document(path: str) -> tuple[str, str]:
+async def process_document(path: str) -> tuple[str, str, Metadata]:
     # Access as a named tuple
     result: ExtractionResult = await extract_file(path)
     print(f"Content: {result.content}")
     print(f"Format: {result.mime_type}")
 
     # Or unpack as a tuple
-    content, mime_type = await extract_file(path)
-    return content, mime_type
+    content, mime_type, metadata = await extract_file(path)
+    return content, mime_type, metadata
 ```
 
 ### Error Handling
@@ -311,26 +329,12 @@ async def safe_extract(path: str) -> str:
     return ""
 ```
 
-All exceptions provide:
+All exceptions include:
 
-- A descriptive error message
-- Relevant context in the `context` attribute
-- String representation with both message and context
-- Proper exception chaining for debugging
-
-## Roadmap
-
-V1:
-
-- [x] - html file text extraction
-- [ ] - better PDF table extraction
-- [ ] - batch APIs
-- [ ] - sync APIs
-
-V2:
-
-- [ ] - metadata extraction (breaking change)
-- [ ] - TBD
+- Error message
+- Context in the `context` attribute
+- String representation
+- Exception chaining
 
 ## Contribution
 
@@ -343,9 +347,11 @@ submitting PRs to avoid disappointment.
 2. Install the system dependencies
 3. Install the full dependencies with `uv sync`
 4. Install the pre-commit hooks with:
+
    ```shell
    pre-commit install && pre-commit install --hook-type commit-msg
    ```
+
 5. Make your changes and submit a PR
 
 ## License
