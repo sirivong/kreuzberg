@@ -30,9 +30,11 @@ def test_safe_decode_with_invalid_encoding() -> None:
     # Create bytes that will fail UTF-8 and charset detection
     byte_data = bytes([0xFF, 0xFE, 0xFD])
     result = safe_decode(byte_data)
-    # Just verify we get a string back and no errors
+    # Verify we get a valid string back
     assert isinstance(result, str)
-    assert len(result) == 3  # Each byte becomes one character
+    assert len(result) == 3
+    # Verify that we can decode it again without errors
+    assert safe_decode(byte_data) == result
 
 
 def test_safe_decode_with_fallback_encodings() -> None:

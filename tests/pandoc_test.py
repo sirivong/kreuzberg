@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -11,11 +11,13 @@ from kreuzberg import ExtractionResult
 from kreuzberg._pandoc import (
     MIMETYPE_TO_PANDOC_TYPE_MAPPING,
     _get_pandoc_type_from_mime_type,
+    _handle_extract_file,
     _handle_extract_metadata,
     _validate_pandoc_version,
     process_content_with_pandoc,
     process_file_with_pandoc,
 )
+from kreuzberg._tmp import create_temp_file
 from kreuzberg.exceptions import MissingDependencyError, ParsingError, ValidationError
 
 if TYPE_CHECKING:
@@ -246,3 +248,33 @@ async def test_process_file_invalid_mime_type(mock_subprocess_run: Mock, docx_do
 async def test_process_content_invalid_mime_type(mock_subprocess_run: Mock) -> None:
     with pytest.raises(ValidationError, match="Unsupported mime type"):
         await process_content_with_pandoc(b"content", mime_type="invalid/mime-type")
+
+
+async def test_handle_extract_metadata_os_error(
+    mock_subprocess_run: Mock, mocker: MockerFixture, docx_document: Path
+) -> None:
+    await create_temp_file(".json")
+    mock_path = Mock(read_text=AsyncMock(side_effect=OSError))
+
+    mocker.patch("kreuzberg._pandoc.AsyncPath", return_value=mock_path)
+    with pytest.raises(ParsingError) as exc_info:
+        await _handle_extract_metadata(
+            docx_document, mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+
+    assert "Failed to extract file data" in str(exc_info.value)
+
+
+async def test_handle_extract_file_os_error(
+    mock_subprocess_run: Mock, mocker: MockerFixture, docx_document: Path
+) -> None:
+    await create_temp_file(".md")
+    mock_path = Mock(read_text=AsyncMock(side_effect=OSError))
+
+    mocker.patch("kreuzberg._pandoc.AsyncPath", return_value=mock_path)
+    with pytest.raises(ParsingError) as exc_info:
+        await _handle_extract_file(
+            docx_document, mime_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+
+    assert "Failed to extract file data" in str(exc_info.value)
