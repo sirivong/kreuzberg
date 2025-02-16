@@ -118,6 +118,7 @@ async def test_process_file_with_options(mock_subprocess_run: Mock, ocr_image: P
 @pytest.mark.anyio
 async def test_process_file_error(mock_subprocess_run: Mock, ocr_image: Path) -> None:
     mock_subprocess_run.return_value.returncode = 1
+    mock_subprocess_run.return_value.stderr = b"Error processing file"
     mock_subprocess_run.side_effect = None
     with pytest.raises(OCRError, match="OCR failed with a non-0 return code"):
         await process_file(ocr_image, language="eng", psm=PSMMode.AUTO)

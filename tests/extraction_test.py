@@ -42,7 +42,7 @@ async def test_extract_bytes_pdf(scanned_pdf: Path) -> None:
 @pytest.mark.anyio
 async def test_extract_bytes_force_ocr_pdf(non_ascii_pdf: Path) -> None:
     content = non_ascii_pdf.read_bytes()
-    result = await extract_bytes(content, PDF_MIME_TYPE, force_ocr=True)
+    result = await extract_bytes(content, PDF_MIME_TYPE, force_ocr=True, language="deu")
     assert_extraction_result(result, mime_type=PLAIN_TEXT_MIME_TYPE)
     assert result.content.startswith("AMTSBLATT")
 

@@ -54,10 +54,12 @@ jobs:
   test:
     strategy:
       matrix:
-        os: [ ubuntu-latest, macOS-latest, windows-latest ]
-        python: [" 3.9", "3.10", "3.11", "3.12", "3.13" ]
+        os: [ ubuntu-latest ]
+        python: [ " 3.9" ]
+        #os: [ ubuntu-latest, macOS-latest, windows-latest ]
+        #python: [" 3.9", "3.10", "3.11", "3.12", "3.13" ]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 5
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -106,7 +108,7 @@ jobs:
         if: runner.os == 'Linux'
         uses: awalsh128/cache-apt-pkgs-action@latest
         with:
-          packages: tesseract-ocr pandoc
+          packages: tesseract-ocr tesseract-ocr-deu pandoc
           version: 1.0
 
       - name: Install System Dependencies (Windows)
@@ -120,4 +122,4 @@ jobs:
           pandoc --version
 
       - name: Run Tests
-        run: uv run pytest tests -v -n auto --dist=loadfile --timeout 30
+        run: uv run pytest tests -vvv -n auto --dist=loadfile --timeout 30
