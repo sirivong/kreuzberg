@@ -32,6 +32,15 @@ def test_safe_decode_with_detected_encoding() -> None:
     assert safe_decode(byte_data) == text
 
 
+def test_safe_decode_with_all_encodings_failing() -> None:
+    # Create invalid UTF-8 data that will fail all encoding attempts except latin-1
+    invalid_bytes = bytes([0xFF, 0xFE, 0xFD])
+    result = safe_decode(invalid_bytes, encoding="invalid-encoding")
+    assert result is not None  # Should fall back to latin-1
+    assert isinstance(result, str)
+    assert len(result) == 3  # Should decode each byte to a character
+
+
 def test_safe_decode_with_invalid_encoding() -> None:
     # Create bytes that will fail UTF-8 and charset detection
     byte_data = bytes([0xFF, 0xFE, 0xFD])

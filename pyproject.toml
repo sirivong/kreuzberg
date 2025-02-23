@@ -135,3 +135,6 @@ disable_error_code = 'import-untyped'
 implicit_reexport = false
 show_error_codes = true
 strict = true
+
+[tool.uv.sources]
+playa-pdf = { git = "https://github.com/dhdaines/playa", rev = "main" }
