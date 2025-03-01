@@ -26,6 +26,14 @@ async def test_extract_pdf_searchable_text(searchable_pdf: Path) -> None:
 
 
 @pytest.mark.anyio
+async def test_extract_pdf_searchable_not_fallback_to_ocr(test_contract: Path) -> None:
+    result = await extract_pdf_file(test_contract, force_ocr=False, max_processes=1)
+    assert result.content.startswith(
+        "Page 1 Sample Contract Contract No.___________ PROFESSIONAL SERVICES AGREEMENT THIS AGREEMENT made and entered into this"
+    )
+
+
+@pytest.mark.anyio
 async def test_extract_pdf_text_with_ocr(scanned_pdf: Path) -> None:
     """Test extracting text from a scanned PDF using OCR."""
     result = await _extract_pdf_text_with_ocr(scanned_pdf, max_processes=1)
