@@ -129,6 +129,7 @@ nav:
   - User Guide:
       - user-guide/index.md
       - Basic Usage: user-guide/basic-usage.md
+      - Extraction Configuration: user-guide/extraction-configuration.md
       - OCR Configuration: user-guide/ocr-configuration.md
       - OCR Backends: user-guide/ocr-backends.md
       - Supported Formats: user-guide/supported-formats.md
@@ -140,10 +141,12 @@ nav:
       - Extraction Functions: api-reference/extraction-functions.md
       - Types: api-reference/types.md
       - OCR Configuration: api-reference/ocr-configuration.md
+      - Extractor Registry: api-reference/extractor-registry.md
       - Exceptions: api-reference/exceptions.md
   - Advanced:
       - advanced/index.md
       - Error Handling: advanced/error-handling.md
       - Custom Hooks: advanced/custom-hooks.md
+      - Custom Extractors: advanced/custom-extractors.md
   - Contributing: contributing.md
   - Changelog: changelog.md

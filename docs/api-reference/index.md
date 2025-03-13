@@ -7,6 +7,7 @@ This section provides detailed documentation for the Kreuzberg public API.
 - [Extraction Functions](extraction-functions.md) - Functions for extracting text from files and bytes
 - [Types](types.md) - Data structures for extraction results and configuration
 - [OCR Configuration](ocr-configuration.md) - Configuration options for OCR engines
+- [Extractor Registry](extractor-registry.md) - Managing and customizing document extractors
 - [Exceptions](exceptions.md) - Error types and handling
 
 ## Public API

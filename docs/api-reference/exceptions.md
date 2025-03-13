@@ -31,31 +31,3 @@ Raised when document parsing fails:
 Raised when validation of extraction configuration or results fails:
 
 ::: kreuzberg.ValidationError
-
-## Error Handling Example
-
-```python
-from kreuzberg import extract_file, ExtractionConfig
-from kreuzberg import KreuzbergError, MissingDependencyError, OCRError, ParsingError, ValidationError
-
-async def safe_extract(file_path):
-    try:
-        config = ExtractionConfig()
-        result = await extract_file(file_path, config=config)
-        return result.content
-    except MissingDependencyError as e:
-        print(f"Missing dependency: {e}")
-        print("Install required dependencies and try again.")
-    except OCRError as e:
-        print(f"OCR processing failed: {e}")
-    except ParsingError as e:
-        print(f"Document parsing failed: {e}")
-    except ValidationError as e:
-        print(f"Configuration validation failed: {e}")
-    except KreuzbergError as e:
-        print(f"Extraction error: {e}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-
-    return None
-```
