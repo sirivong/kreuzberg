@@ -84,8 +84,6 @@ async def extract_with_ocr():
         ),
     )
     print(result.content)
-
-asyncio.run(extract_with_ocr())
 ```
 
 ### Batch processing
@@ -100,8 +98,6 @@ async def process_documents():
     for path, result in zip(file_paths, results):
         print(f"File: {path}")
         print(f"Content: {result.content[:100]}...")  # First 100 chars
-
-asyncio.run(process_documents())
 ```
 
 ### Synchronous API
