@@ -70,3 +70,6 @@ def excel_document() -> Path:
 @pytest.fixture(scope="session")
 def excel_multi_sheet_document() -> Path:
     return test_source_files_folder / "excel-multi-sheet.xlsx"
+
+
+pdfs_with_tables = list((test_source_files_folder / "pdfs_with_tables").glob("*.pdf"))

@@ -64,6 +64,9 @@ optional-dependencies.chunking = [
 optional-dependencies.easyocr = [
   "easyocr>=1.7.2",
 ]
+optional-dependencies.gmft = [
+  "gmft>=0.4.0",
+]
 optional-dependencies.paddleocr = [
   "numpy>=2.0.2",
   "paddleocr>=2.10.0",
