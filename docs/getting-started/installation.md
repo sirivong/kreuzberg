@@ -100,7 +100,7 @@ pip install "kreuzberg[chunking]"
 
 ### Table Extraction
 
-Table extraction is an optional feature that allows Kreuzberg to extract tables from PDFs. It uses the Google Machine Learning for Tables (GMFT) package. To install Kreuzberg with table extraction support, you can use:
+Table extraction is an optional feature that allows Kreuzberg to extract tables from PDFs. It uses the [GMFT](https://github.com/conjuncts/gmft) package. To install Kreuzberg with table extraction support, you can use:
 
 ```shell
 pip install "kreuzberg[gmft]"

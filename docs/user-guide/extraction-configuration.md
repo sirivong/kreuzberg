@@ -66,7 +66,7 @@ result = await extract_file(
 
 ### Table Extraction
 
-Kreuzberg can extract tables from PDF documents using the Google Machine Learning for Tables (GMFT) package:
+Kreuzberg can extract tables from PDF documents using the [GMFT](https://github.com/conjuncts/gmft) package:
 
 ```python
 from kreuzberg import extract_file, ExtractionConfig, GMFTConfig
