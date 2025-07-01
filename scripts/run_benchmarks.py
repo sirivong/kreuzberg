@@ -153,17 +153,21 @@ def print_summary(results: list[dict[str, Any]], _system_info: dict[str, Any]) -
 
     if sync_results:
         sync_avg = sum(r["duration_seconds"] for r in sync_results) / len(sync_results)
+        print(f"Sync average: {sync_avg:.3f}s")  # noqa: T201
 
     if async_results:
         async_avg = sum(r["duration_seconds"] for r in async_results) / len(async_results)
+        print(f"Async average: {async_avg:.3f}s")  # noqa: T201
 
     if sync_results and async_results:
-        async_avg - sync_avg
+        improvement = async_avg - sync_avg
+        print(f"Async improvement: {improvement:.3f}s")  # noqa: T201
 
     for result in results:
-        "✓" if result["success"] else "✗"
-        result["duration_seconds"]
-        result.get("memory_mb", 0)
+        status = "✓" if result["success"] else "✗"
+        duration = result["duration_seconds"]
+        memory = result.get("memory_mb", 0)
+        print(f"{status} {result['name']}: {duration:.3f}s, {memory:.1f}MB")  # noqa: T201
 
 
 def save_results(
@@ -192,13 +196,14 @@ async def main() -> None:
 
     start_time = time.perf_counter()
     results = await run_comparison_benchmarks()
-    time.perf_counter() - start_time
+    total_time = time.perf_counter() - start_time
+    print(f"Total benchmark time: {total_time:.3f}s")  # noqa: T201
 
     if results:
         print_summary(results, system_info)
         save_results(results, system_info)
     else:
-        pass
+        print("No benchmark results to display")  # noqa: T201
 
 
 if __name__ == "__main__":

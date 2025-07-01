@@ -16,7 +16,8 @@ def load_benchmark_results(file_path: Path) -> dict[str, Any]:
         with file_path.open() as f:
             data: dict[str, Any] = json.load(f)
             return data
-    except (FileNotFoundError, json.JSONDecodeError):
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error loading benchmark results: {e}")  # noqa: T201
         sys.exit(1)
 
 
@@ -60,18 +61,17 @@ def compare_benchmarks(baseline: dict[str, Any], current: dict[str, Any], thresh
                 regressions.append((name, change_percent, baseline_duration, current_duration))
             elif change_ratio < improvement_threshold:
                 improvements.append((name, abs(change_percent), baseline_duration, current_duration))
-            else:
-                pass
 
     # Print summary
+    print(f"Found {len(improvements)} improvements and {len(regressions)} regressions")  # noqa: T201
 
     if improvements:
-        for _name, _improvement, _baseline_dur, _current_dur in improvements:
-            pass
+        for name, improvement, baseline_dur, current_dur in improvements:
+            print(f"IMPROVEMENT: {name} {improvement:.1f}% faster ({baseline_dur:.3f}s -> {current_dur:.3f}s)")  # noqa: T201
 
     if regressions:
-        for _name, _regression, _baseline_dur, _current_dur in regressions:
-            pass
+        for name, regression, baseline_dur, current_dur in regressions:
+            print(f"REGRESSION: {name} {regression:.1f}% slower ({baseline_dur:.3f}s -> {current_dur:.3f}s)")  # noqa: T201
         return False
 
     return True
