@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import time
 import traceback
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
@@ -39,7 +39,7 @@ class BenchmarkRunner:
     def run_sync_benchmark(
         self,
         name: str,
-        func: Callable[[], Any],
+        func: Callable[..., Any],
         metadata: dict[str, Any] | None = None,
     ) -> BenchmarkResult:
         """Run a single synchronous benchmark."""
@@ -94,7 +94,7 @@ class BenchmarkRunner:
     async def run_async_benchmark(
         self,
         name: str,
-        func: Callable[[], Any],
+        func: Callable[..., Any],
         metadata: dict[str, Any] | None = None,
     ) -> BenchmarkResult:
         """Run a single asynchronous benchmark."""
@@ -152,8 +152,10 @@ class BenchmarkRunner:
     def run_benchmark_suite(
         self,
         suite_name: str,
-        benchmarks: list[tuple[str, Callable[[], Any], dict[str, Any] | None]],
-        async_benchmarks: list[tuple[str, Callable[[], Any], dict[str, Any] | None]]
+        benchmarks: Sequence[tuple[str, Callable[..., Any], dict[str, Any] | None]],
+        async_benchmarks: Sequence[
+            tuple[str, Callable[..., Any], dict[str, Any] | None]
+        ]
         | None = None,
     ) -> BenchmarkSuite:
         """Run a complete benchmark suite with both sync and async tests."""
@@ -189,7 +191,7 @@ class BenchmarkRunner:
             # Run asynchronous benchmarks
             if async_benchmarks:
 
-                async def run_async_suite():
+                async def run_async_suite() -> list[BenchmarkResult]:
                     async_results = []
                     for name, func, metadata in async_benchmarks:
                         progress.update(task, description=f"Running async: {name}")
@@ -256,9 +258,13 @@ class BenchmarkRunner:
         # Print summary statistics
         successful = suite.successful_results
         if successful:
-            total_time = sum(r.performance.duration_seconds for r in successful)
+            total_time = sum(
+                r.performance.duration_seconds for r in successful if r.performance
+            )
             avg_time = total_time / len(successful)
-            max_memory = max(r.performance.memory_peak_mb for r in successful)
+            max_memory = max(
+                r.performance.memory_peak_mb for r in successful if r.performance
+            )
 
             self.console.print("\n[bold]Summary:[/bold]")
             self.console.print(f"  Success Rate: {suite.success_rate:.1f}%")
