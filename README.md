@@ -14,6 +14,7 @@ Kreuzberg is a Python library for text extraction from documents. It provides a 
 - **Resource Efficient**: Lightweight processing without GPU requirements
 - **Format Support**: Comprehensive support for documents, images, and text formats
 - **Multiple OCR Engines**: Support for Tesseract, EasyOCR, and PaddleOCR
+- **Command Line Interface**: Powerful CLI for batch processing and automation
 - **Metadata Extraction**: Get document metadata alongside text content
 - **Table Extraction**: Extract tables from documents using the excellent GMFT library
 - **Modern Python**: Built with async/await, type hints, and a functional-first approach
@@ -23,6 +24,9 @@ Kreuzberg is a Python library for text extraction from documents. It provides a 
 
 ```bash
 pip install kreuzberg
+
+# Or install with CLI support
+pip install "kreuzberg[cli]"
 ```
 
 Install pandoc:
@@ -72,12 +76,53 @@ async def main():
 asyncio.run(main())
 ```
 
+## Command Line Interface
+
+Kreuzberg includes a powerful CLI for processing documents from the command line:
+
+```bash
+# Extract text from a file
+kreuzberg extract document.pdf
+
+# Extract with JSON output and metadata
+kreuzberg extract document.pdf --output-format json --show-metadata
+
+# Extract from stdin
+cat document.html | kreuzberg extract
+
+# Use specific OCR backend
+kreuzberg extract image.png --ocr-backend easyocr --easyocr-languages en,de
+
+# Extract with configuration file
+kreuzberg extract document.pdf --config config.toml
+```
+
+### CLI Configuration
+
+Configure via `pyproject.toml`:
+
+```toml
+[tool.kreuzberg]
+force_ocr = true
+chunk_content = false
+extract_tables = true
+max_chars = 4000
+ocr_backend = "tesseract"
+
+[tool.kreuzberg.tesseract]
+language = "eng+deu"
+psm = 3
+```
+
+For full CLI documentation, see the [CLI Guide](https://goldziher.github.io/kreuzberg/cli/).
+
 ## Documentation
 
 For comprehensive documentation, visit our [GitHub Pages](https://goldziher.github.io/kreuzberg/):
 
 - [Getting Started](https://goldziher.github.io/kreuzberg/getting-started/) - Installation and basic usage
 - [User Guide](https://goldziher.github.io/kreuzberg/user-guide/) - In-depth usage information
+- [CLI Guide](https://goldziher.github.io/kreuzberg/cli/) - Command-line interface documentation
 - [API Reference](https://goldziher.github.io/kreuzberg/api-reference/) - Detailed API documentation
 - [Examples](https://goldziher.github.io/kreuzberg/examples/) - Code examples for common use cases
 - [OCR Configuration](https://goldziher.github.io/kreuzberg/user-guide/ocr-configuration/) - Configure OCR engines
