@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import base64
+import os
+import sys
 from typing import TYPE_CHECKING
 from unittest.mock import patch
 
@@ -135,6 +137,10 @@ def test_extract_bytes_basic(searchable_pdf: Path) -> None:
     assert "Sample PDF" in result["content"]
 
 
+@pytest.mark.xfail(
+    sys.platform == "darwin" and sys.version_info[:2] == (3, 12) and os.environ.get("CI") == "true",
+    reason="Segmentation fault in CI on macOS Python 3.12",
+)
 def test_extract_bytes_with_options(searchable_pdf: Path) -> None:
     """Test bytes extraction with various options."""
     with searchable_pdf.open("rb") as f:
