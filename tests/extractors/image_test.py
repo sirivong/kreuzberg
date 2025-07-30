@@ -305,44 +305,45 @@ def test_extract_bytes_sync_temp_file_creation() -> None:
 
 @pytest.mark.anyio
 async def test_extract_bytes_async_delegation() -> None:
-    """Test that async extraction properly delegates to sync method."""
+    """Test that async extraction properly delegates through extract_path_async."""
     config = ExtractionConfig(ocr_backend="tesseract")
     extractor = ImageExtractor(mime_type="image/png", config=config)
 
-    with patch.object(extractor, "extract_bytes_sync") as mock_sync:
+    with patch.object(extractor, "extract_path_async") as mock_async:
         expected_result = ExtractionResult(
             content="async extracted text",
             mime_type="text/plain",
             metadata={},
         )
-        mock_sync.return_value = expected_result
+        mock_async.return_value = expected_result
 
         result = await extractor.extract_bytes_async(b"fake image data")
 
         assert result.content == "async extracted text"
-        mock_sync.assert_called_once_with(b"fake image data")
+        mock_async.assert_called_once()
+        # Verify it was called with a Path object
+        assert isinstance(mock_async.call_args[0][0], Path)
 
 
 @pytest.mark.anyio
-async def test_extract_path_async_delegation() -> None:
-    """Test that async path extraction properly delegates to sync method."""
+async def test_extract_path_async_delegation(mock_ocr_backend: MagicMock) -> None:
+    """Test that async path extraction properly uses OCR backend."""
     config = ExtractionConfig(ocr_backend="tesseract")
     extractor = ImageExtractor(mime_type="image/png", config=config)
 
     test_path = Path("test_image.png")
 
-    with patch.object(extractor, "extract_path_sync") as mock_sync:
-        expected_result = ExtractionResult(
-            content="async path extracted text",
-            mime_type="text/plain",
-            metadata={},
-        )
-        mock_sync.return_value = expected_result
+    expected_result = ExtractionResult(
+        content="async path extracted text",
+        mime_type="text/plain",
+        metadata={},
+    )
+    mock_ocr_backend.process_file.return_value = expected_result
 
-        result = await extractor.extract_path_async(test_path)
+    result = await extractor.extract_path_async(test_path)
 
-        assert result.content == "async path extracted text"
-        mock_sync.assert_called_once_with(test_path)
+    assert result.content == "async path extracted text"
+    mock_ocr_backend.process_file.assert_called_once_with(test_path, **config.get_config_dict())
 
 
 def test_extract_path_sync_with_tesseract_config(mock_ocr_backend: MagicMock) -> None:
