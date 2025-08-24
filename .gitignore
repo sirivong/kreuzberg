@@ -39,3 +39,4 @@ requirements.txt
 site/
 .cache/
 dist/
+.task/
