@@ -77,7 +77,6 @@ async def test_extract_from_file_extraction_error(test_client: AsyncTestClient[A
 
 @pytest.mark.anyio
 async def test_extract_validation_error_response(test_client: AsyncTestClient[Any], tmp_path: Path) -> None:
-    """Test that ValidationError is properly handled by the API."""
     test_file = tmp_path / "test.txt"
     test_file.write_text("hello world")
 
@@ -94,7 +93,6 @@ async def test_extract_validation_error_response(test_client: AsyncTestClient[An
 
 @pytest.mark.anyio
 async def test_extract_parsing_error_response(test_client: AsyncTestClient[Any], tmp_path: Path) -> None:
-    """Test that ParsingError is properly handled by the API."""
     test_file = tmp_path / "test.txt"
     test_file.write_text("hello world")
 
@@ -111,7 +109,6 @@ async def test_extract_parsing_error_response(test_client: AsyncTestClient[Any],
 
 @pytest.mark.anyio
 async def test_extract_ocr_error_response(test_client: AsyncTestClient[Any], tmp_path: Path) -> None:
-    """Test that OCRError is properly handled by the API."""
     test_file = tmp_path / "test.txt"
     test_file.write_text("hello world")
 
@@ -302,7 +299,6 @@ async def test_extract_non_ascii_pdf(test_client: AsyncTestClient[Any], non_asci
 
 
 def test_exception_handler_validation_error() -> None:
-    """Test exception handler with ValidationError."""
     mock_request = Mock()
     mock_request.method = "POST"
     mock_request.url = "http://test.com/extract"
@@ -326,7 +322,6 @@ def test_exception_handler_validation_error() -> None:
 
 
 def test_exception_handler_parsing_error() -> None:
-    """Test exception handler with ParsingError."""
     mock_request = Mock()
     mock_request.method = "GET"
     mock_request.url = "http://test.com/health"
@@ -344,7 +339,6 @@ def test_exception_handler_parsing_error() -> None:
 
 
 def test_exception_handler_other_error() -> None:
-    """Test exception handler with other KreuzbergError (OCRError)."""
     mock_request = Mock()
     mock_request.method = "POST"
     mock_request.url = "http://test.com/extract"
@@ -362,7 +356,6 @@ def test_exception_handler_other_error() -> None:
 
 
 def test_exception_handler_no_logger() -> None:
-    """Test exception handler when request.app.logger is None."""
     mock_request = Mock()
     mock_request.method = "POST"
     mock_request.url = "http://test.com/extract"
@@ -379,7 +372,6 @@ def test_exception_handler_no_logger() -> None:
 
 
 def test_import_error_handling() -> None:
-    """Test that ImportError handling works correctly."""
     from kreuzberg.exceptions import MissingDependencyError
 
     import_error = ImportError("No module named 'litestar'")
@@ -398,7 +390,6 @@ def test_import_error_handling() -> None:
 async def test_get_configuration_no_config(
     test_client: AsyncTestClient[Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Test GET /config when no configuration file exists."""
     with patch("kreuzberg._api.main.try_discover_config", return_value=None):
         response = await test_client.get("/config")
 
@@ -410,7 +401,6 @@ async def test_get_configuration_no_config(
 
 @pytest.mark.anyio
 async def test_get_configuration_with_config(test_client: AsyncTestClient[Any]) -> None:
-    """Test GET /config when configuration file exists."""
     from kreuzberg import ExtractionConfig
     from kreuzberg._ocr._tesseract import PSMMode, TesseractConfig
 
@@ -439,7 +429,6 @@ async def test_get_configuration_with_config(test_client: AsyncTestClient[Any]) 
 
 @pytest.mark.anyio
 async def test_extract_with_discovered_config(test_client: AsyncTestClient[Any], searchable_pdf: Path) -> None:
-    """Test that extraction uses discovered config."""
     from kreuzberg import ExtractionConfig
 
     test_config = ExtractionConfig(chunk_content=True, max_chars=1000, max_overlap=200)
@@ -467,7 +456,6 @@ async def test_extract_with_discovered_config(test_client: AsyncTestClient[Any],
 
 @pytest.mark.anyio
 async def test_extract_without_discovered_config(test_client: AsyncTestClient[Any], searchable_pdf: Path) -> None:
-    """Test that extraction uses default config when none discovered."""
     with patch("kreuzberg._api.main.try_discover_config", return_value=None):
         with patch("kreuzberg._api.main.batch_extract_bytes", new_callable=AsyncMock) as mock_extract:
             mock_extract.return_value = [
@@ -490,7 +478,6 @@ async def test_extract_without_discovered_config(test_client: AsyncTestClient[An
 
 @pytest.mark.anyio
 async def test_extract_large_file_list(test_client: AsyncTestClient[Any], tmp_path: Path) -> None:
-    """Test extraction with many files."""
     files = []
     for i in range(20):
         test_file = tmp_path / f"test_{i}.txt"
@@ -509,7 +496,6 @@ async def test_extract_large_file_list(test_client: AsyncTestClient[Any], tmp_pa
 
 @pytest.mark.anyio
 async def test_extract_with_custom_mime_types(test_client: AsyncTestClient[Any], tmp_path: Path) -> None:
-    """Test extraction with various MIME type scenarios."""
     test_file = tmp_path / "test.bin"
     test_file.write_bytes(b"binary content")
 
@@ -521,7 +507,6 @@ async def test_extract_with_custom_mime_types(test_client: AsyncTestClient[Any],
 
 @pytest.mark.anyio
 async def test_extract_file_with_none_content_type(test_client: AsyncTestClient[Any], tmp_path: Path) -> None:
-    """Test extraction when content_type is None."""
     test_file = tmp_path / "test.txt"
     test_file.write_text("Hello world")
 
@@ -545,7 +530,6 @@ async def test_extract_file_with_none_content_type(test_client: AsyncTestClient[
 
 @pytest.mark.anyio
 async def test_health_check_idempotent(test_client: AsyncTestClient[Any]) -> None:
-    """Test that health check is idempotent."""
     responses = []
     for _ in range(5):
         response = await test_client.get("/health")
@@ -558,7 +542,6 @@ async def test_health_check_idempotent(test_client: AsyncTestClient[Any]) -> Non
 
 @pytest.mark.anyio
 async def test_extract_memory_error_handling(test_client: AsyncTestClient[Any], tmp_path: Path) -> None:
-    """Test handling of MemoryError during extraction."""
     test_file = tmp_path / "test.txt"
     test_file.write_text("test content")
 
@@ -572,7 +555,6 @@ async def test_extract_memory_error_handling(test_client: AsyncTestClient[Any], 
 
 
 def test_exception_handler_with_empty_context() -> None:
-    """Test exception handler with empty context."""
     mock_request = Mock()
     mock_request.method = "POST"
     mock_request.url = "http://test.com/extract"
@@ -590,7 +572,6 @@ def test_exception_handler_with_empty_context() -> None:
 
 
 def test_exception_handler_context_serialization() -> None:
-    """Test exception handler with complex context that needs JSON serialization."""
     mock_request = Mock()
     mock_request.method = "POST"
     mock_request.url = "http://test.com/extract"
@@ -615,7 +596,6 @@ def test_exception_handler_context_serialization() -> None:
 
 @pytest.mark.anyio
 async def test_api_routes_registration(test_client: AsyncTestClient[Any]) -> None:
-    """Test that all expected routes are registered."""
     from kreuzberg._api.main import app
 
     routes = [(route.path, route.methods) for route in app.routes if hasattr(route, "path")]
@@ -635,7 +615,6 @@ async def test_api_routes_registration(test_client: AsyncTestClient[Any]) -> Non
 
 @pytest.mark.anyio
 async def test_opentelemetry_plugin_loaded() -> None:
-    """Test that OpenTelemetry plugin is loaded."""
     from kreuzberg._api.main import app
 
     plugin_types = [type(plugin).__name__ for plugin in app.plugins]
@@ -644,7 +623,6 @@ async def test_opentelemetry_plugin_loaded() -> None:
 
 @pytest.mark.anyio
 async def test_structured_logging_configured() -> None:
-    """Test that structured logging is configured."""
     from kreuzberg._api.main import app
 
     assert app.logging_config is not None
@@ -653,7 +631,6 @@ async def test_structured_logging_configured() -> None:
 
 @pytest.mark.anyio
 async def test_exception_handlers_registered() -> None:
-    """Test that exception handlers are properly registered."""
     from kreuzberg._api.main import app
     from kreuzberg.exceptions import KreuzbergError
 
@@ -662,7 +639,6 @@ async def test_exception_handlers_registered() -> None:
 
 @pytest.mark.anyio
 async def test_msgspec_serialization_deterministic(test_client: AsyncTestClient[Any]) -> None:
-    """Test that msgspec serialization is deterministic."""
     import msgspec
 
     from kreuzberg import ExtractionConfig
@@ -677,3 +653,137 @@ async def test_msgspec_serialization_deterministic(test_client: AsyncTestClient[
         serialized_results.append(str(serialized))
 
     assert all(s == serialized_results[0] for s in serialized_results)
+
+
+@pytest.mark.anyio
+async def test_extract_with_invalid_config_file(test_client: AsyncTestClient[Any], tmp_path: Path) -> None:
+    from kreuzberg.exceptions import ValidationError
+
+    with patch("kreuzberg._api.main.try_discover_config") as mock_discover:
+        mock_discover.side_effect = ValidationError(
+            "Invalid TOML in configuration file: Expected '=' after key",
+            context={"file": "/path/to/kreuzberg.toml", "error": "TOML parse error"},
+        )
+
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("test content")
+
+        with test_file.open("rb") as f:
+            response = await test_client.post("/extract", files=[("data", (test_file.name, f.read(), "text/plain"))])
+
+    assert response.status_code == 400
+    error_response = response.json()
+    assert "Invalid TOML in configuration file" in error_response["message"]
+    assert "TOML parse error" in error_response["details"]
+    assert "/path/to/kreuzberg.toml" in error_response["details"]
+
+
+@pytest.mark.anyio
+async def test_get_config_with_invalid_config_file(test_client: AsyncTestClient[Any]) -> None:
+    from kreuzberg.exceptions import ValidationError
+
+    with patch("kreuzberg._api.main.try_discover_config") as mock_discover:
+        mock_discover.side_effect = ValidationError(
+            "Invalid OCR backend: unknown. Must be one of: easyocr, paddleocr, tesseract or 'none'",
+            context={"provided": "unknown", "valid": ["easyocr", "paddleocr", "tesseract"]},
+        )
+
+        response = await test_client.get("/config")
+
+    assert response.status_code == 400
+    error_response = response.json()
+    assert "Invalid OCR backend: unknown" in error_response["message"]
+    assert '"provided": "unknown"' in error_response["details"]
+    assert "easyocr" in error_response["details"]
+
+
+@pytest.mark.anyio
+async def test_extract_with_invalid_ocr_config(test_client: AsyncTestClient[Any], tmp_path: Path) -> None:
+    from kreuzberg.exceptions import ValidationError
+
+    with patch("kreuzberg._api.main.try_discover_config") as mock_discover:
+        mock_discover.side_effect = ValidationError(
+            "Invalid configuration for OCR backend 'tesseract': Invalid PSM mode value: 99",
+            context={"psm_value": 99, "error": "99 is not a valid PSMMode"},
+        )
+
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("test content")
+
+        with test_file.open("rb") as f:
+            response = await test_client.post("/extract", files=[("data", (test_file.name, f.read(), "text/plain"))])
+
+    assert response.status_code == 400
+    error_response = response.json()
+    assert "Invalid PSM mode value: 99" in error_response["message"]
+    assert '"psm_value": 99' in error_response["details"]
+
+
+@pytest.mark.anyio
+async def test_extract_with_invalid_gmft_config(test_client: AsyncTestClient[Any], tmp_path: Path) -> None:
+    from kreuzberg.exceptions import ValidationError
+
+    with patch("kreuzberg._api.main.try_discover_config") as mock_discover:
+        mock_discover.side_effect = ValidationError(
+            "Invalid GMFT configuration: Invalid parameter 'invalid_param'",
+            context={"gmft_config": {"invalid_param": "value"}, "error": "Unknown parameter"},
+        )
+
+        test_file = tmp_path / "test.pdf"
+        test_file.write_bytes(b"%PDF-1.4")
+
+        with test_file.open("rb") as f:
+            response = await test_client.post(
+                "/extract", files=[("data", (test_file.name, f.read(), "application/pdf"))]
+            )
+
+    assert response.status_code == 400
+    error_response = response.json()
+    assert "Invalid GMFT configuration" in error_response["message"]
+    assert "invalid_param" in error_response["details"]
+
+
+@pytest.mark.anyio
+async def test_extract_with_unreadable_config_file(test_client: AsyncTestClient[Any], tmp_path: Path) -> None:
+    from kreuzberg.exceptions import ValidationError
+
+    with patch("kreuzberg._api.main.try_discover_config") as mock_discover:
+        mock_discover.side_effect = ValidationError(
+            "Failed to read pyproject.toml: Permission denied",
+            context={"file": "/path/to/pyproject.toml", "error": "Permission denied"},
+        )
+
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("test content")
+
+        with test_file.open("rb") as f:
+            response = await test_client.post("/extract", files=[("data", (test_file.name, f.read(), "text/plain"))])
+
+    assert response.status_code == 400
+    error_response = response.json()
+    assert "Failed to read pyproject.toml" in error_response["message"]
+    assert "Permission denied" in error_response["details"]
+    assert "/path/to/pyproject.toml" in error_response["details"]
+
+
+@pytest.mark.anyio
+async def test_extract_with_invalid_extraction_config(test_client: AsyncTestClient[Any], tmp_path: Path) -> None:
+    from kreuzberg.exceptions import ValidationError
+
+    with patch("kreuzberg._api.main.try_discover_config") as mock_discover:
+        mock_discover.side_effect = ValidationError(
+            "Invalid extraction configuration: max_chars must be positive",
+            context={"config": {"max_chars": -100}, "error": "Negative max_chars"},
+        )
+
+        test_file = tmp_path / "test.txt"
+        test_file.write_text("test content")
+
+        with test_file.open("rb") as f:
+            response = await test_client.post("/extract", files=[("data", (test_file.name, f.read(), "text/plain"))])
+
+    assert response.status_code == 400
+    error_response = response.json()
+    assert "Invalid extraction configuration" in error_response["message"]
+    assert "max_chars must be positive" in error_response["message"]
+    assert '"max_chars": -100' in error_response["details"]
