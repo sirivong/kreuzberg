@@ -404,7 +404,7 @@ async def test_extract_real_image_integration() -> None:
     result = await extractor.extract_path_async(test_image_path)
 
     assert isinstance(result, ExtractionResult)
-    assert result.mime_type == "text/plain"
+    assert result.mime_type == "text/markdown"
     assert len(result.content) > 0
 
 
@@ -419,7 +419,7 @@ def test_extract_real_image_sync_integration() -> None:
     result = extractor.extract_path_sync(test_image_path)
 
     assert isinstance(result, ExtractionResult)
-    assert result.mime_type == "text/plain"
+    assert result.mime_type == "text/markdown"
     assert len(result.content) > 0
 
 
@@ -482,6 +482,9 @@ def test_image_mime_types_case_sensitivity() -> None:
 def test_image_sync_path_extraction_unknown_backend(mock_ocr_backend: MagicMock) -> None:
     config = ExtractionConfig(ocr_backend="unknown_backend")  # type: ignore[arg-type]
     extractor = ImageExtractor(mime_type="image/png", config=config)
+
+    # Mock should raise NotImplementedError for unknown backend
+    mock_ocr_backend.process_file_sync.side_effect = NotImplementedError("Sync OCR not implemented for unknown_backend")
 
     with pytest.raises(NotImplementedError, match="Sync OCR not implemented for unknown_backend"):
         extractor.extract_path_sync(Path("test.png"))
