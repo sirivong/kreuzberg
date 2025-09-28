@@ -26,11 +26,21 @@ jobs:
       - name: Skip benchmark on push
         run: echo "Comparative benchmarks only run on manual dispatch"
 
-  comparative-benchmark:
+  framework-benchmark:
     # Only run on manual dispatch to avoid expensive automated runs
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        framework:
+          - kreuzberg_sync
+          - kreuzberg_async
+          - docling
+          - markitdown
+          - unstructured
+          - extractous
 
     steps:
       - name: Checkout Repository
@@ -84,26 +94,109 @@ jobs:
           rm -rf ~/.kreuzberg .kreuzberg benchmarks/.kreuzberg
           echo "Cache cleared"
 
-      - name: Run Benchmarks
+      - name: Run Framework Benchmark
         id: benchmark
         run: |
           cd benchmarks
 
           ITERATIONS="${{ github.event.inputs.iterations }}"
           TIMEOUT="${{ github.event.inputs.timeout }}"
+          FRAMEWORK="${{ matrix.framework }}"
 
-          echo "=== Starting Benchmark Suite ==="
+          echo "=== Starting Benchmark for $FRAMEWORK ==="
+          echo "Framework: $FRAMEWORK"
           echo "Iterations: $ITERATIONS"
           echo "Timeout: ${TIMEOUT}s per file"
-          echo "Running all frameworks and categories"
 
-          # Run benchmarks and generate aggregated JSON directly
+          # Create results directory for this framework
+          mkdir -p results/$FRAMEWORK
+
+          # Run benchmarks for specific framework
           uv run python -m src.cli \
             --iterations "$ITERATIONS" \
             --timeout "$TIMEOUT" \
-            --output aggregated-results/aggregated_results.json
+            --framework "$FRAMEWORK" \
+            --output "results/$FRAMEWORK/results.json"
 
-          echo "Benchmark execution completed"
+          echo "Benchmark execution completed for $FRAMEWORK"
+
+      - name: Upload Framework Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ matrix.framework }}-${{ github.run_id }}
+          path: benchmarks/results/${{ matrix.framework }}/
+          retention-days: 90
+
+  aggregate-results:
+    if: github.event_name == 'workflow_dispatch'
+    needs: framework-benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Dependencies
+        run: |
+          uv sync --all-extras --all-packages --all-groups
+
+      - name: Download All Framework Results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: benchmark-results-*-${{ github.run_id }}
+          path: benchmarks/individual-results/
+          merge-multiple: true
+
+      - name: Aggregate Results
+        run: |
+          cd benchmarks
+          echo "=== Aggregating Results from All Frameworks ==="
+
+          mkdir -p aggregated-results
+
+          # Find all individual result files
+          find individual-results -name "results.json" -type f | while read file; do
+            framework=$(basename $(dirname "$file"))
+            echo "Found results for framework: $framework"
+          done
+
+          # Run aggregation script
+          uv run python -c "
+          import json
+          import glob
+          from pathlib import Path
+
+          all_results = []
+
+          # Collect all individual results
+          for result_file in glob.glob('individual-results/*/results.json'):
+              try:
+                  with open(result_file) as f:
+                      data = json.load(f)
+                      if isinstance(data, list):
+                          all_results.extend(data)
+                      else:
+                          all_results.append(data)
+              except Exception as e:
+                  print(f'Error reading {result_file}: {e}')
+
+          # Save aggregated results
+          with open('aggregated-results/aggregated_results.json', 'w') as f:
+              json.dump(all_results, f, indent=2)
+
+          print(f'Aggregated {len(all_results)} results')
+          "
 
       - name: Generate Visualizations
         if: always()
@@ -118,7 +211,7 @@ jobs:
 
             echo "✅ Visualizations generated successfully"
           else
-            echo "⚠️ No results for visualization"
+            echo "⚠️ No aggregated results for visualization"
           fi
 
       - name: Generate Documentation
@@ -134,7 +227,7 @@ jobs:
 
             echo "✅ Documentation generated successfully"
           else
-            echo "⚠️ No results for documentation"
+            echo "⚠️ No aggregated results for documentation"
           fi
 
       - name: Create Summary
@@ -151,16 +244,16 @@ jobs:
           # Add summary from aggregated results if available
           if [ -f "benchmarks/aggregated-results/aggregated_results.json" ]; then
             echo "### Results Summary" >> $GITHUB_STEP_SUMMARY
-            python -c 'import json; data=json.load(open("benchmarks/aggregated-results/aggregated_results.json")); print(f"- **Total Files**: {data.get(\"total_files_processed\", 0)}") if "error" not in data else print("❌ " + data.get("error", "Unknown error"))' >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "⚠️ Could not parse results" >> $GITHUB_STEP_SUMMARY
+            python -c 'import json; data=json.load(open("benchmarks/aggregated-results/aggregated_results.json")); print(f"- **Total Results**: {len(data) if isinstance(data, list) else 1}") if "error" not in str(data) else print("❌ Error in results")' >> $GITHUB_STEP_SUMMARY 2>/dev/null || echo "⚠️ Could not parse results" >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️ No results file found" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ No aggregated results file found" >> $GITHUB_STEP_SUMMARY
           fi
 
       - name: Upload Aggregated Results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-results-${{ github.run_id }}
+          name: benchmark-results-aggregated-${{ github.run_id }}
           path: benchmarks/aggregated-results/
           retention-days: 90
 

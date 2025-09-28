@@ -32,22 +32,33 @@ logger = get_logger(__name__)
     help="Timeout in seconds for each extraction",
 )
 @click.option(
+    "--framework",
+    "-f",
+    type=click.Choice([f.value for f in Framework]),
+    help="Specific framework to benchmark (if not specified, runs all frameworks)",
+)
+@click.option(
     "--output",
     "-o",
     type=click.Path(dir_okay=False, path_type=Path),
     default="results/aggregated.json",
     help="Output file for aggregated results",
 )
-def main(iterations: int, timeout: int, output: Path) -> None:
-    """Run benchmarks for all frameworks and categories."""
+def main(iterations: int, timeout: int, framework: str | None, output: Path) -> None:
+    """Run benchmarks for specified framework(s) and categories."""
     console.print("[bold]Starting Benchmark Suite[/bold]")
     console.print(f"  Iterations: {iterations}")
     console.print(f"  Timeout: {timeout}s")
+    if framework:
+        console.print(f"  Framework: {framework}")
+    else:
+        console.print("  Frameworks: all")
     console.print(f"  Output: {output}")
     console.print()
 
-    # Always use all frameworks and categories
-    frameworks = list(Framework)
+    # Use specified framework or all frameworks
+    frameworks = [Framework(framework)] if framework else list(Framework)
+
     categories = list(DocumentCategory)
 
     output_dir = Path("results")
