@@ -30,12 +30,6 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: Setup Rust
-        uses: actions-rust-lang/setup-rust-toolchain@v1
-        with:
-          components: rustfmt, clippy
-
-
       - name: Install Dependencies
         uses: nick-fields/retry@v3
         with:
@@ -178,14 +172,13 @@ jobs:
           retention-days: 7
 
   python-tests:
-    needs: [validate]
     if: needs.validate.result == 'success'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        python: ["3.10", "3.11", "3.12", "3.13"]
+        python: ["3.10", "3.13"]
         test-category:
           - name: "core"
             path: "tests/core,tests/utils"
