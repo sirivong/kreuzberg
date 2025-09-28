@@ -76,8 +76,14 @@ jobs:
             echo "Installing entire workspace with all packages and extras..."
             # Install everything for benchmarks - all extras, all packages, all groups
             uv sync --all-extras --all-packages --all-groups
-            uv pip install maturin
-            uv run maturin develop --release --features extension-module
+            # Build Rust extension if Cargo.toml exists
+            if [ -f "Cargo.toml" ]; then
+              echo "Building Rust extension module..."
+              uv pip install maturin
+              uv run maturin develop --release --features extension-module
+            else
+              echo "No Cargo.toml found, skipping Rust extension build"
+            fi
           shell: bash
 
       - name: Clear Kreuzberg Cache
