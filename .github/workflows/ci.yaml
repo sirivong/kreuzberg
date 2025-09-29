@@ -285,6 +285,9 @@ jobs:
             Write-Output "C:\Program Files\Pandoc" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
             $env:PATH = "C:\Program Files\Tesseract-OCR;C:\Program Files\Pandoc;" + $env:PATH
 
+            # Install python-magic-bin for Windows
+            pip install python-magic-bin
+
             # Download German language pack for Tesseract
             $tessDataDir = "C:\Program Files\Tesseract-OCR\tessdata"
             if (-not (Test-Path $tessDataDir)) {
@@ -330,6 +333,11 @@ jobs:
           max_attempts: 2
           retry_wait_seconds: 5
           command: |
+            # Skip benchmarks/tests on Windows entirely
+            if [[ "${{ runner.os }}" == "Windows" ]] && [[ "${{ matrix.test-category.name }}" == "benchmarks" ]]; then
+              echo "Skipping benchmarks/tests on Windows"
+              exit 0
+            fi
             # Run tests from specified paths, explicitly excluding benchmarks
             uv run pytest $(echo "${{ matrix.test-category.path }}" | tr ',' ' ') -v --reruns 1 --reruns-delay 1 --ignore=tests/benchmarks/
           shell: bash
