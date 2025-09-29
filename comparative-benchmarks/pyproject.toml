@@ -54,6 +54,14 @@ dev = [
   "uv-bump",
 ]
 
+[tool.ruff]
+lint.ignore = [
+  "BLE001",  # Allow catching Exception in benchmark code for error handling
+  "D",       # No docstring requirements for benchmark/internal code
+  "PERF203", # Allow try-except in loops for benchmark warmup
+  "PLC0415", # Allow imports inside functions for optional dependencies
+]
+
 [tool.uv.sources]
 kreuzberg = { workspace = true }
 uv-bump = { git = "https://github.com/Goldziher/uv-bump" }
