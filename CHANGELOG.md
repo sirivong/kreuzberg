@@ -43,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Gracefully handles missing ONNX Runtime for operations that don't require embeddings
 - **Smoke tests**: All 7 tests now passing across all three language bindings (Java, Python, Node.js)
   - PDF, DOCX, XLSX, JPG, PNG extraction + OCR tests all working
+- **WASM**: Added PDF support to `wasm-target` feature for browser and Node.js WASM targets
+  - Fixed build.rs to use bundled-pdfium for WASM instead of system-pdfium
+  - Fixed PDF extractor to handle WASM synchronously (no tokio::spawn_blocking in WASM context)
+  - Fixed PDF bindings initialization for WASM using system library binding
+- **WASM test generator**: Fixed hardcoded "application/pdf" MIME types in generated tests
+  - Now correctly uses actual fixture media_type for each document format (DOCX, XLSX, HTML, etc.)
+  - Regenerated all WASM e2e tests with correct MIME types
 
 ## [Unreleased]
 
