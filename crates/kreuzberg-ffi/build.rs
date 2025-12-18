@@ -115,7 +115,11 @@ fn copy_pdfium_to_profile_dir(profile_dir: &Path) -> Result<(), String> {
     if let Ok(entries) = fs::read_dir(&build_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_dir() && path.file_name().map_or(false, |n| n.to_string_lossy().starts_with("kreuzberg-")) {
+            if path.is_dir()
+                && path
+                    .file_name()
+                    .map_or(false, |n| n.to_string_lossy().starts_with("kreuzberg-"))
+            {
                 let out_dir = path.join("out");
                 if out_dir.exists() {
                     // Try to copy PDFium from this build directory
@@ -140,8 +144,8 @@ fn copy_pdfium_to_profile_dir(profile_dir: &Path) -> Result<(), String> {
 /// Copy PDFium library files from source directory to destination.
 fn copy_pdfium_from_dir(src_dir: &Path, dest_dir: &Path) -> Result<(), String> {
     // Read all files in the source directory
-    let entries = fs::read_dir(src_dir)
-        .map_err(|e| format!("Failed to read {}: {}", src_dir.display(), e))?;
+    let entries =
+        fs::read_dir(src_dir).map_err(|e| format!("Failed to read {}: {}", src_dir.display(), e))?;
 
     // Look for libpdfium.* files
     for entry in entries.flatten() {
