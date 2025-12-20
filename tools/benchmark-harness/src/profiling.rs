@@ -13,21 +13,20 @@
 //! # Usage
 //!
 //! ```rust,no_run
-//! # #[cfg(all(feature = "profiling", not(target_os = "windows")))]
-//! # {
 //! use benchmark_harness::profiling::ProfileGuard;
 //! use std::path::Path;
 //!
-//! // Create a profiler guard
-//! let mut guard = ProfileGuard::new(1000)?;
+//! fn example() -> Result<(), Box<dyn std::error::Error>> {
+//!     // Create a profiler guard
+//!     let guard = ProfileGuard::new(1000)?;
 //!
-//! // ... run code to profile ...
+//!     // ... run code to profile ...
 //!
-//! // Finish profiling and generate flamegraph
-//! let result = guard.finish()?;
-//! result.generate_flamegraph(Path::new("profile.svg"))?;
-//! # Ok::<(), Box<dyn std::error::Error>>(())
-//! # }
+//!     // Finish profiling and generate flamegraph
+//!     let result = guard.finish()?;
+//!     result.generate_flamegraph(Path::new("profile.svg"))?;
+//!     Ok(())
+//! }
 //! ```
 //!
 //! # Overhead
@@ -63,15 +62,19 @@ pub struct ProfileGuard {
     guard: Option<pprof::ProfilerGuard<'static>>,
     /// Start time for duration calculation
     start_time: std::time::Instant,
+    /// Configured sampling frequency in Hz
+    sampling_frequency: i32,
 }
 
 #[cfg(all(feature = "profiling", not(target_os = "windows")))]
 impl ProfileGuard {
     /// Create a new CPU profiler with the specified frequency
     ///
+    /// The frequency is automatically clamped to the valid range (100-10000 Hz).
+    ///
     /// # Arguments
     ///
-    /// * `frequency` - Sampling frequency in Hz (typically 1000)
+    /// * `frequency` - Sampling frequency in Hz (clamped to 100-10000)
     ///
     /// # Returns
     ///
@@ -81,9 +84,12 @@ impl ProfileGuard {
     ///
     /// Returns [`Error::Profiling`](crate::Error::Profiling) if the profiler cannot be initialized.
     pub fn new(frequency: i32) -> Result<Self> {
+        // Clamp frequency to valid range (100-10000 Hz)
+        let clamped_frequency = frequency.clamp(100, 10000);
+
         // Build profiler with blocklist for system libraries
         let guard = pprof::ProfilerGuardBuilder::default()
-            .frequency(frequency)
+            .frequency(clamped_frequency)
             .blocklist(&["libc", "libpthread", "libgcc", "libm"])
             .build()
             .map_err(|e| crate::Error::Profiling(format!("Failed to initialize profiler: {}", e)))?;
@@ -91,7 +97,30 @@ impl ProfileGuard {
         Ok(Self {
             guard: Some(guard),
             start_time: std::time::Instant::now(),
+            sampling_frequency: clamped_frequency,
         })
+    }
+
+    /// Get the configured sampling frequency in Hz
+    ///
+    /// # Returns
+    ///
+    /// The sampling frequency that was used for this profiler
+    pub fn sampling_frequency(&self) -> i32 {
+        self.sampling_frequency
+    }
+
+    /// Calculate expected sample count for the given duration
+    ///
+    /// Provides an estimate of samples collected based on sampling frequency and elapsed time.
+    /// Actual sample count may vary due to system load and profiler overhead.
+    ///
+    /// # Returns
+    ///
+    /// Estimated number of samples collected so far
+    pub fn estimated_sample_count(&self) -> usize {
+        let elapsed_ms = self.start_time.elapsed().as_millis() as u64;
+        (elapsed_ms as f64 * self.sampling_frequency as f64 / 1000.0).ceil() as usize
     }
 
     /// Finish profiling and consume self
@@ -110,6 +139,7 @@ impl ProfileGuard {
     /// cannot be generated.
     pub fn finish(mut self) -> Result<ProfilingResult> {
         let duration = self.start_time.elapsed();
+        let estimated_samples = self.estimated_sample_count();
 
         // Take ownership of guard and generate report
         let guard = self
@@ -124,7 +154,7 @@ impl ProfileGuard {
 
         Ok(ProfilingResult {
             duration,
-            sample_count: 0, // pprof doesn't expose sample count directly
+            sample_count: estimated_samples,
             report,
         })
     }
@@ -212,12 +242,26 @@ pub mod noop {
     use std::path::Path;
 
     /// Stub ProfileGuard for when profiling is disabled
-    pub struct ProfileGuard;
+    pub struct ProfileGuard {
+        sampling_frequency: i32,
+    }
 
     impl ProfileGuard {
         /// Create a no-op profiler (always succeeds)
-        pub fn new(_frequency: i32) -> Result<Self> {
-            Ok(ProfileGuard)
+        pub fn new(frequency: i32) -> Result<Self> {
+            Ok(ProfileGuard {
+                sampling_frequency: frequency.max(100).min(10000),
+            })
+        }
+
+        /// Get the configured sampling frequency in Hz
+        pub fn sampling_frequency(&self) -> i32 {
+            self.sampling_frequency
+        }
+
+        /// Calculate expected sample count (always returns 0 for no-op)
+        pub fn estimated_sample_count(&self) -> usize {
+            0
         }
 
         /// Finish no-op profiling

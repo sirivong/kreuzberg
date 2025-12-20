@@ -151,7 +151,7 @@ public final class Kreuzberg {
                 cStrings[i] = KreuzbergFFI.allocateCString(arena, paths.get(i));
             }
             MemorySegment arraySegment = arena.allocate(
-                ValueLayout.ADDRESS.byteSize() * paths.size(),
+                ValueLayout.ADDRESS.byteSize() * cStrings.length,
                 ValueLayout.ADDRESS.byteAlignment()
             );
             for (int i = 0; i < cStrings.length; i++) {
@@ -418,6 +418,11 @@ public final class Kreuzberg {
     /**
      * Register a post-processor with explicit priority and stage.
      *
+     * <p>Warning: The processor implementation must be thread-safe and hold references to any
+     * data it needs, as it may be invoked during extraction from multiple threads. The underlying
+     * Arena lifecycle is managed automatically by the garbage collector and will be cleaned up
+     * when the callback is no longer referenced.</p>
+     *
      * @param name unique processor name
      * @param processor processor implementation
      * @param priority order within the stage (higher runs first)
@@ -435,7 +440,7 @@ public final class Kreuzberg {
         ProcessingStage effectiveStage = stage == null ? ProcessingStage.MIDDLE : stage;
         String normalizedName = validatePluginName(name, "PostProcessor");
 
-        Arena arena = Arena.ofShared();
+        Arena arena = Arena.ofAuto();
         boolean registered = false;
         try {
             MemorySegment callback = createPostProcessorCallback(processor, arena);
@@ -550,6 +555,11 @@ public final class Kreuzberg {
     /**
      * Register a validator with explicit priority.
      *
+     * <p>Warning: The validator implementation must be thread-safe and hold references to any
+     * data it needs, as it may be invoked during extraction from multiple threads. The underlying
+     * Arena lifecycle is managed automatically by the garbage collector and will be cleaned up
+     * when the callback is no longer referenced.</p>
+     *
      * @param name validator name
      * @param validator validator implementation
      * @param priority order (higher runs earlier)
@@ -560,7 +570,7 @@ public final class Kreuzberg {
         Objects.requireNonNull(validator, "validator must not be null");
         String normalizedName = validatePluginName(name, "Validator");
 
-        Arena arena = Arena.ofShared();
+        Arena arena = Arena.ofAuto();
         boolean registered = false;
         try {
             MemorySegment callback = createValidatorCallback(validator, arena);
@@ -673,6 +683,11 @@ public final class Kreuzberg {
     /**
      * Register an OCR backend with optional language filtering.
      *
+     * <p>Warning: The backend implementation must be thread-safe and hold references to any
+     * data it needs, as it may be invoked during extraction from multiple threads. The underlying
+     * Arena lifecycle is managed automatically by the garbage collector and will be cleaned up
+     * when the callback is no longer referenced.</p>
+     *
      * @param name backend name
      * @param backend backend implementation
      * @param supportedLanguages languages supported by the backend (empty for all)
@@ -688,7 +703,7 @@ public final class Kreuzberg {
         String normalizedName = validatePluginName(name, "OCR backend");
         List<String> languages = supportedLanguages == null ? List.of() : supportedLanguages;
 
-        Arena arena = Arena.ofShared();
+        Arena arena = Arena.ofAuto();
         boolean registered = false;
         try {
             MemorySegment callback = createOcrCallback(backend, arena);

@@ -247,7 +247,8 @@ impl FrameworkAdapter for SubprocessAdapter {
             Ok(result) => result,
             Err(e) => {
                 let samples = monitor.stop().await;
-                let resource_stats = ResourceMonitor::calculate_stats(&samples);
+                let snapshots = monitor.get_snapshots().await;
+                let resource_stats = ResourceMonitor::calculate_stats(&samples, &snapshots);
 
                 return Ok(BenchmarkResult {
                     framework: self.name.clone(),
@@ -282,7 +283,8 @@ impl FrameworkAdapter for SubprocessAdapter {
         };
 
         let samples = monitor.stop().await;
-        let resource_stats = ResourceMonitor::calculate_stats(&samples);
+        let snapshots = monitor.get_snapshots().await;
+        let resource_stats = ResourceMonitor::calculate_stats(&samples, &snapshots);
 
         let parsed = match self.parse_output(&stdout) {
             Ok(value) => value,
@@ -394,7 +396,8 @@ impl FrameworkAdapter for SubprocessAdapter {
             Ok(result) => result,
             Err(e) => {
                 let samples = monitor.stop().await;
-                let resource_stats = ResourceMonitor::calculate_stats(&samples);
+                let snapshots = monitor.get_snapshots().await;
+                let resource_stats = ResourceMonitor::calculate_stats(&samples, &snapshots);
 
                 return Ok(vec![BenchmarkResult {
                     framework: self.name.clone(),
@@ -425,7 +428,8 @@ impl FrameworkAdapter for SubprocessAdapter {
         };
 
         let samples = monitor.stop().await;
-        let resource_stats = ResourceMonitor::calculate_stats(&samples);
+        let snapshots = monitor.get_snapshots().await;
+        let resource_stats = ResourceMonitor::calculate_stats(&samples, &snapshots);
 
         let batch_throughput = if duration.as_secs_f64() > 0.0 {
             total_file_size as f64 / duration.as_secs_f64()

@@ -217,14 +217,13 @@ impl BenchmarkRunner {
         config: &BenchmarkConfig,
         cold_start_duration: Option<Duration>,
     ) -> Result<BenchmarkResult> {
-        let total_iterations = config.warmup_iterations + config.benchmark_iterations;
         let mut all_results = Vec::new();
 
         // Estimate task duration from first warmup iteration for adaptive profiling
         let estimated_task_duration_ms = if config.profiling.enabled {
             let warmup_start = std::time::Instant::now();
             let warmup_result = adapter.extract(file_path, config.timeout).await?;
-            let warmup_duration = warmup_start.elapsed();
+            let _warmup_duration = warmup_start.elapsed();
             warmup_result.duration.as_millis() as u64
         } else {
             config.profiling.task_duration_ms
@@ -256,7 +255,7 @@ impl BenchmarkRunner {
 
         // Run warmup iterations if needed and not already completed for profiling
         let warmup_start = if config.profiling.enabled { 1 } else { 0 };
-        for iteration in warmup_start..config.warmup_iterations {
+        for _iteration in warmup_start..config.warmup_iterations {
             let result = adapter.extract(file_path, config.timeout).await?;
             // Warmup iterations are discarded
             drop(result);
@@ -321,15 +320,15 @@ impl BenchmarkRunner {
 
                         // Write HTML report
                         let report_file_path = Path::new(&report_path);
-                        if let Some(parent) = report_file_path.parent() {
-                            if !parent.as_os_str().is_empty() {
-                                if let Err(e) = std::fs::create_dir_all(parent) {
-                                    eprintln!("Warning: Failed to create report directory: {}", e);
-                                } else if let Err(e) = std::fs::write(report_file_path, html_report) {
-                                    eprintln!("Warning: Failed to write HTML report: {}", e);
-                                } else {
-                                    eprintln!("Profile report written to: {}", report_path);
-                                }
+                        if let Some(parent) = report_file_path.parent()
+                            && !parent.as_os_str().is_empty()
+                        {
+                            if let Err(e) = std::fs::create_dir_all(parent) {
+                                eprintln!("Warning: Failed to create report directory: {}", e);
+                            } else if let Err(e) = std::fs::write(report_file_path, html_report) {
+                                eprintln!("Warning: Failed to write HTML report: {}", e);
+                            } else {
+                                eprintln!("Profile report written to: {}", report_path);
                             }
                         }
                     }

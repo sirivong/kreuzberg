@@ -12,7 +12,10 @@ enum InitializationState {
     /// Not yet initialized
     Uninitialized,
     /// Initialization succeeded; can create bindings from this path
-    Initialized { lib_dir: Option<PathBuf> },
+    Initialized {
+        #[allow(dead_code)]
+        lib_dir: Option<PathBuf>,
+    },
     /// Initialization failed with this error message
     Failed(String),
 }
@@ -109,13 +112,24 @@ fn bind_pdfium_impl() -> Result<(Option<PathBuf>, Box<dyn PdfiumLibraryBindings>
 ///
 /// This defers Pdfium initialization until first PDF is processed, improving cold start
 /// for non-PDF workloads by 8-12ms. See Phase 3A Optimization #4 in profiling plan.
+///
+/// # Lock Poisoning Recovery
+///
+/// If a previous holder panicked while holding `PDFIUM_STATE`, the lock becomes poisoned.
+/// Instead of failing permanently, we recover by extracting the inner value from the
+/// poisoned lock and proceeding. This ensures PDF extraction can continue even if an
+/// earlier panic occurred, as long as the state is consistent.
 pub(crate) fn bind_pdfium(
     map_err: fn(String) -> PdfError,
     context: &'static str,
 ) -> Result<Box<dyn PdfiumLibraryBindings>, PdfError> {
-    let mut state = PDFIUM_STATE
-        .lock()
-        .map_err(|e| map_err(format!("Failed to acquire lock on Pdfium state ({}): {}", context, e)))?;
+    let mut state = PDFIUM_STATE.lock().unwrap_or_else(|poisoned| {
+        // SAFETY: Recovering from a poisoned lock is safe here because:
+        // 1. The poisoned state still contains valid data (just a guard from a panicked thread)
+        // 2. We assume the state was set to a valid value before the panic
+        // 3. The state is immutable after initialization, so poisoning cannot corrupt it
+        poisoned.into_inner()
+    });
 
     // Initialize on first call
     match &*state {

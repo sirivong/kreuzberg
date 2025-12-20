@@ -1085,6 +1085,77 @@ ExtractionConfig *kreuzberg_config_from_file(const char *path);
 char *kreuzberg_config_discover(void);
 
 /**
+ * Get supported languages for an OCR backend.
+ *
+ * Returns a JSON array of supported language codes for the given backend.
+ * Supported backends: "easyocr", "paddleocr", "tesseract"
+ *
+ * # Safety
+ *
+ * - The returned string must be freed with `kreuzberg_free_string`
+ * - Returns NULL if backend not found or on error (check `kreuzberg_last_error`)
+ *
+ * # Example (C)
+ *
+ * ```c
+ * char* languages = kreuzberg_get_ocr_languages("easyocr");
+ * if (languages != NULL) {
+ *     printf("EasyOCR languages: %s\n", languages);
+ *     kreuzberg_free_string(languages);
+ * }
+ * ```
+ */
+char *kreuzberg_get_ocr_languages(const char *backend);
+
+/**
+ * Check if a language is supported by an OCR backend.
+ *
+ * Returns 1 (true) if the language is supported, 0 (false) otherwise.
+ *
+ * # Arguments
+ *
+ * * `backend` - Backend name (e.g., "easyocr", "paddleocr", "tesseract")
+ * * `language` - Language code to check
+ *
+ * # Returns
+ *
+ * 1 if supported, 0 if not supported or backend not found.
+ *
+ * # Example (C)
+ *
+ * ```c
+ * int is_supported = kreuzberg_is_language_supported("easyocr", "en");
+ * if (is_supported) {
+ *     printf("English is supported by EasyOCR\n");
+ * }
+ * ```
+ */
+int32_t kreuzberg_is_language_supported(const char *backend, const char *language);
+
+/**
+ * Get list of all registered OCR backends with language support.
+ *
+ * Returns a JSON object mapping backend names to language counts.
+ * Example: `{"easyocr": 80, "paddleocr": 14, "tesseract": 100}`
+ *
+ * # Safety
+ *
+ * - The returned string must be freed with `kreuzberg_free_string`
+ * - Returns NULL on error (check `kreuzberg_last_error`)
+ *
+ * # Example (C)
+ *
+ * ```c
+ * char* backends = kreuzberg_list_ocr_backends_with_languages();
+ * if (backends != NULL) {
+ *     printf("Available backends: %s\n", backends);
+ *     kreuzberg_free_string(backends);
+ * }
+ * ```
+ */
+char *kreuzberg_list_ocr_backends_with_languages(void);
+
+/**
  * Parse an ExtractionConfig from a JSON string.
  *
  * This is the primary FFI entry point for all language bindings to parse
@@ -1179,5 +1250,157 @@ void kreuzberg_config_free(ExtractionConfig *config);
  * ```
  */
 int32_t kreuzberg_config_is_valid(const char *json_config);
+
+/**
+ * Returns the validation error code (0).
+ *
+ * # C Signature
+ *
+ * ```c
+ * uint32_t kreuzberg_error_code_validation(void);
+ * ```
+ */
+uint32_t kreuzberg_error_code_validation(void);
+
+/**
+ * Returns the parsing error code (1).
+ *
+ * # C Signature
+ *
+ * ```c
+ * uint32_t kreuzberg_error_code_parsing(void);
+ * ```
+ */
+uint32_t kreuzberg_error_code_parsing(void);
+
+/**
+ * Returns the OCR error code (2).
+ *
+ * # C Signature
+ *
+ * ```c
+ * uint32_t kreuzberg_error_code_ocr(void);
+ * ```
+ */
+uint32_t kreuzberg_error_code_ocr(void);
+
+/**
+ * Returns the missing dependency error code (3).
+ *
+ * # C Signature
+ *
+ * ```c
+ * uint32_t kreuzberg_error_code_missing_dependency(void);
+ * ```
+ */
+uint32_t kreuzberg_error_code_missing_dependency(void);
+
+/**
+ * Returns the I/O error code (4).
+ *
+ * # C Signature
+ *
+ * ```c
+ * uint32_t kreuzberg_error_code_io(void);
+ * ```
+ */
+uint32_t kreuzberg_error_code_io(void);
+
+/**
+ * Returns the plugin error code (5).
+ *
+ * # C Signature
+ *
+ * ```c
+ * uint32_t kreuzberg_error_code_plugin(void);
+ * ```
+ */
+uint32_t kreuzberg_error_code_plugin(void);
+
+/**
+ * Returns the unsupported format error code (6).
+ *
+ * # C Signature
+ *
+ * ```c
+ * uint32_t kreuzberg_error_code_unsupported_format(void);
+ * ```
+ */
+uint32_t kreuzberg_error_code_unsupported_format(void);
+
+/**
+ * Returns the internal error code (7).
+ *
+ * # C Signature
+ *
+ * ```c
+ * uint32_t kreuzberg_error_code_internal(void);
+ * ```
+ */
+uint32_t kreuzberg_error_code_internal(void);
+
+/**
+ * Returns the total count of valid error codes.
+ *
+ * Currently 8 error codes (0-7). This helps bindings validate error codes.
+ *
+ * # C Signature
+ *
+ * ```c
+ * uint32_t kreuzberg_error_code_count(void);
+ * ```
+ */
+uint32_t kreuzberg_error_code_count(void);
+
+/**
+ * Returns the name of an error code as a C string.
+ *
+ * # Arguments
+ *
+ * - `code`: Numeric error code (0-7)
+ *
+ * # Returns
+ *
+ * Pointer to a null-terminated C string with the error name (e.g., "validation", "ocr").
+ * Returns a pointer to "unknown" if the code is invalid.
+ *
+ * The returned pointer is valid for the lifetime of the program and should not be freed.
+ *
+ * # Examples
+ *
+ * ```c
+ * const char* name = kreuzberg_error_code_name(0);
+ * printf("%s\n", name);  // prints: validation
+ * ```
+ *
+ * # C Signature
+ *
+ * ```c
+ * const char* kreuzberg_error_code_name(uint32_t code);
+ * ```
+ */
+const char *kreuzberg_error_code_name(uint32_t code);
+
+/**
+ * Returns the description of an error code as a C string.
+ *
+ * # Arguments
+ *
+ * - `code`: Numeric error code (0-7)
+ *
+ * # Returns
+ *
+ * Pointer to a null-terminated C string with a description (e.g., "Input validation error").
+ * Returns a pointer to "Unknown error code" if the code is invalid.
+ *
+ * The returned pointer is valid for the lifetime of the program and should not be freed.
+ *
+ * # C Signature
+ *
+ * ```c
+ * const char* kreuzberg_error_code_description(uint32_t code);
+ * ```
+ */
+const char *kreuzberg_error_code_description(uint32_t code);
 
 #endif  /* KREUZBERG_FFI_H */

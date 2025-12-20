@@ -12,7 +12,7 @@ use std::path::Path;
 use crate::pdf::error::PdfError;
 #[cfg(feature = "ocr")]
 use crate::pdf::rendering::{PageRenderOptions, PdfRenderer};
-#[cfg(all(feature = "pdf", feature = "ocr"))]
+#[cfg(feature = "pdf")]
 use crate::types::Table;
 #[cfg(feature = "pdf")]
 use pdfium_render::prelude::*;
@@ -158,9 +158,8 @@ fn extract_tables_from_document(
 
     let mut all_tables = Vec::new();
 
-    // SAFETY: document is immutable and borrowed for the entire scope.
-    // Multiple threads can safely read from the same PdfDocument simultaneously
-    // since pdfium-render's PdfDocument is thread-safe for read operations.
+    // Iterate through all pages, extracting words and reconstructing tables
+    // from spatial positions. The document is borrowed immutably for all reads.
     for (page_index, page) in document.pages().iter().enumerate() {
         let words = extract_words_from_page(&page, 0.0)?;
 
@@ -200,6 +199,12 @@ fn extract_tables_from_document(
 ///
 /// If page_contents is None, returns None (no per-page tracking enabled).
 /// Otherwise, iterates through tables and images, assigning them to pages based on page_number.
+///
+/// # Performance
+///
+/// Uses Arc::new to wrap tables and images, avoiding expensive copies.
+/// This reduces memory overhead by enabling zero-copy sharing of table/image data
+/// across multiple references (e.g., when the same table appears on multiple pages).
 fn assign_tables_and_images_to_pages(
     mut page_contents: Option<Vec<PageContent>>,
     tables: &[crate::types::Table],
@@ -209,9 +214,10 @@ fn assign_tables_and_images_to_pages(
 
     let mut updated_pages = pages;
 
+    // Use Arc to wrap tables for zero-copy sharing of table data across pages.
     for table in tables {
         if let Some(page) = updated_pages.iter_mut().find(|p| p.page_number == table.page_number) {
-            page.tables.push(table.clone());
+            page.tables.push(std::sync::Arc::new(table.clone()));
         }
     }
 
@@ -219,7 +225,7 @@ fn assign_tables_and_images_to_pages(
         if let Some(page_num) = image.page_number
             && let Some(page) = updated_pages.iter_mut().find(|p| p.page_number == page_num)
         {
-            page.images.push(image.clone());
+            page.images.push(std::sync::Arc::new(image.clone()));
         }
     }
 
@@ -268,14 +274,13 @@ impl PdfExtractor {
         config: &ExtractionConfig,
     ) -> Result<PdfExtractionPhaseResult> {
         // Unified extraction: text and metadata in single pass for 10-15% performance gain.
-        // SAFETY: The document is borrowed immutably and safely used for read operations only.
+        // The document is borrowed immutably and safely used for read operations only.
         // This avoids redundant document tree traversal compared to separate text/metadata extraction.
         let (native_text, _boundaries, page_contents, pdf_metadata) =
             crate::pdf::text::extract_text_and_metadata_from_pdf_document(document, config.pages.as_ref())?;
 
-        // Phase 2: Extract tables using the same document instance
-        // SAFETY: extract_tables_from_document only reads from the document; pdfium-render
-        // PdfDocument is thread-safe for concurrent read operations.
+        // Phase 2: Extract tables using the same document instance.
+        // Both functions perform read-only operations on the shared document reference.
         let tables = extract_tables_from_document(document, &pdf_metadata)?;
 
         Ok((pdf_metadata, native_text, tables, page_contents))
@@ -385,9 +390,8 @@ impl DocumentExtractor for PdfExtractor {
             // Other targets: use spawn_blocking in batch mode for better parallelism
             #[cfg(target_arch = "wasm32")]
             {
-                // SAFETY: For WASM targets, this code path should only be reached if the
-                // WASM environment has properly initialized PDFium. The error message
-                // will direct users to the documentation for setup requirements.
+                // For WASM targets, PDFium must be properly initialized in the environment.
+                // The error message will direct users to the documentation for setup requirements.
                 let bindings =
                     crate::pdf::bindings::bind_pdfium(PdfError::MetadataExtractionFailed, "initialize Pdfium")
                         .map_err(|pdf_err| {
