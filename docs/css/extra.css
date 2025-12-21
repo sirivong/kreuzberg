@@ -1012,6 +1012,26 @@ nav.md-nav--secondary > .md-nav__list > .md-nav__item > .md-nav > .md-nav__list 
 	--md-default-fg-color--lighter: rgba(220, 220, 230, 0.5);
 }
 
+.md-icon svg {
+	fill: #da2ae0;
+}
+
+.md-social__link svg {
+	fill: #da2ae0;
+}
+
+.md-header__button svg {
+	fill: #da2ae0;
+}
+
+[data-md-color-scheme="default"] .md-top {
+	background-color: #ffffff;
+}
+
+[data-md-color-scheme="default"] .md-top svg {
+	fill: #323040;
+}
+
 /* Benchmark dashboard styling */
 .benchmark-dashboard {
 	margin: 2rem 0;
