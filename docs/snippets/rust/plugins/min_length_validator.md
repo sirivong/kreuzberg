@@ -32,7 +32,7 @@ impl Validator for MinLengthValidator {
     }
 
     fn priority(&self) -> i32 {
-        100  // Run early - fast check
+        100
     }
 }
 ```

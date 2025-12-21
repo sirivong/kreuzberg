@@ -2,7 +2,7 @@
 use kreuzberg::ExtractionConfig;
 
 let config = ExtractionConfig {
-    enable_quality_processing: true,  // Default
+    enable_quality_processing: true,
     ..Default::default()
 };
 ```
