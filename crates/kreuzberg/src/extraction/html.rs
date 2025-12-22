@@ -205,20 +205,6 @@ fn extract_panic_reason(panic: &Box<dyn Any + Send + 'static>) -> String {
 }
 
 // WASM implementations skip dedicated stack (not supported) and process inline
-#[cfg(target_arch = "wasm32")]
-fn convert_html_with_options_large_stack(html: String, options: ConversionOptions) -> Result<String> {
-    convert_html_with_options(&html, options)
-}
-
-#[cfg(target_arch = "wasm32")]
-fn convert_inline_images_with_large_stack(
-    html: String,
-    options: ConversionOptions,
-    image_config: LibInlineImageConfig,
-) -> Result<HtmlExtraction> {
-    convert_inline_images_with_options(&html, options, image_config)
-}
-
 /// Convert HTML to markdown with optional configuration.
 ///
 /// Uses sensible defaults if no configuration is provided:
