@@ -142,6 +142,25 @@ enum Commands {
         #[arg(long, default_value = "kreuzberg-native")]
         baseline: String,
     },
+
+    /// Visualize benchmark results from existing runs
+    Visualize {
+        /// Input directories containing benchmark results
+        #[arg(short, long, value_delimiter = ',')]
+        inputs: Vec<PathBuf>,
+
+        /// Output directory for visualization assets
+        #[arg(short, long)]
+        output: PathBuf,
+
+        /// Output format: json, html, or both
+        #[arg(long, value_enum, default_value = "html")]
+        format: OutputFormat,
+
+        /// Benchmark execution date (e.g., "2025-12-13 14:30:00 UTC")
+        #[arg(long)]
+        benchmark_date: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -633,6 +652,73 @@ async fn main() -> Result<()> {
                     let html_file = output.join("consolidated.html");
                     write_simple_html(&consolidated, &html_file)?;
                     println!("Consolidated HTML report written to: {}", html_file.display());
+                }
+            }
+
+            Ok(())
+        }
+
+        Commands::Visualize {
+            inputs,
+            output,
+            format,
+            benchmark_date,
+        } => {
+            use benchmark_harness::{load_run_results, write_by_extension_analysis, write_html, write_json};
+
+            if inputs.is_empty() {
+                return Err(benchmark_harness::Error::Benchmark(
+                    "No input directories specified".to_string(),
+                ));
+            }
+
+            let mut results = Vec::new();
+            for input in &inputs {
+                if !input.is_dir() {
+                    return Err(benchmark_harness::Error::Benchmark(format!(
+                        "Input path is not a directory: {}",
+                        input.display()
+                    )));
+                }
+                let mut run_results = load_run_results(input)?;
+                results.append(&mut run_results);
+            }
+
+            if results.is_empty() {
+                return Err(benchmark_harness::Error::Benchmark(
+                    "No benchmark results found to visualize".to_string(),
+                ));
+            }
+
+            std::fs::create_dir_all(&output).map_err(benchmark_harness::Error::Io)?;
+
+            match format {
+                OutputFormat::Json => {
+                    let output_file = output.join("results.json");
+                    write_json(&results, &output_file)?;
+                    println!("\nResults written to: {}", output_file.display());
+
+                    let by_ext_file = output.join("by-extension.json");
+                    write_by_extension_analysis(&results, &by_ext_file)?;
+                    println!("Per-extension analysis written to: {}", by_ext_file.display());
+                }
+                OutputFormat::Html => {
+                    let html_file = output.join("index.html");
+                    write_html(&results, &html_file, benchmark_date.as_deref())?;
+                    println!("\nHTML report written to: {}", html_file.display());
+                }
+                OutputFormat::Both => {
+                    let output_file = output.join("results.json");
+                    write_json(&results, &output_file)?;
+                    println!("\nResults written to: {}", output_file.display());
+
+                    let by_ext_file = output.join("by-extension.json");
+                    write_by_extension_analysis(&results, &by_ext_file)?;
+                    println!("Per-extension analysis written to: {}", by_ext_file.display());
+
+                    let html_file = output.join("index.html");
+                    write_html(&results, &html_file, benchmark_date.as_deref())?;
+                    println!("HTML report written to: {}", html_file.display());
                 }
             }
 
