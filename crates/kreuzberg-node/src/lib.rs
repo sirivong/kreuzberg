@@ -1,6 +1,6 @@
 #![deny(clippy::all)]
 
-use base64::{Engine, engine::general_purpose::STANDARD as BASE64};
+use base64::Engine;
 use html_to_markdown_rs::options::{
     CodeBlockStyle, ConversionOptions, HeadingStyle, HighlightStyle, ListIndentType, NewlineStyle,
     PreprocessingOptions as HtmlPreprocessingOptions, PreprocessingPreset, WhitespaceMode,
@@ -135,12 +135,28 @@ unsafe extern "C" {
     pub fn kreuzberg_error_code_count() -> u32;
 }
 
+// Global Tokio runtime for async operations in Node.js bindings.
+//
+// Worker thread count can be controlled via `KREUZBERG_WORKER_THREADS` environment variable.
+// If not set, defaults to the number of logical CPU cores (`num_cpus::get()`).
+//
+// Examples:
+// - Default (auto-detect): Uses all available CPU cores
+// - `KREUZBERG_WORKER_THREADS=4`: Forces 4 worker threads
+// - `KREUZBERG_WORKER_THREADS=16`: Uses 16 worker threads on 16+ core systems
 lazy_static! {
-    static ref WORKER_POOL: tokio::runtime::Runtime = tokio::runtime::Builder::new_multi_thread()
-        .worker_threads(4)
-        .enable_all()
-        .build()
-        .expect("Failed to create Tokio worker thread pool");
+    static ref WORKER_POOL: tokio::runtime::Runtime = {
+        let worker_count = std::env::var("KREUZBERG_WORKER_THREADS")
+            .ok()
+            .and_then(|s| s.parse::<usize>().ok())
+            .unwrap_or_else(num_cpus::get);
+
+        tokio::runtime::Builder::new_multi_thread()
+            .worker_threads(worker_count)
+            .enable_all()
+            .build()
+            .expect("Failed to create Tokio worker thread pool")
+    };
 }
 
 /// Helper function to retrieve panic context from FFI.
@@ -2216,15 +2232,16 @@ impl RustPostProcessor for JsPostProcessor {
                 message: format!("Failed to convert result for JavaScript PostProcessor: {}", e),
                 plugin_name: self.name.clone(),
             })?;
-        let encoded = rmp_serde::to_vec(&js_result).map_err(|e| kreuzberg::KreuzbergError::Plugin {
-            message: format!("Failed to encode result for JavaScript PostProcessor: {}", e),
+
+        // JSON serialization only (faster, no Base64 overhead)
+        let json_string = serde_json::to_string(&js_result).map_err(|e| kreuzberg::KreuzbergError::Plugin {
+            message: format!("Failed to serialize result to JSON for JavaScript PostProcessor: {}", e),
             plugin_name: self.name.clone(),
         })?;
-        let encoded_b64 = BASE64.encode(&encoded);
 
-        let output_b64 = self
+        let output_json = self
             .process_fn
-            .call_async(encoded_b64)
+            .call_async(json_string)
             .await
             .map_err(|e| kreuzberg::KreuzbergError::Plugin {
                 message: format!("JavaScript PostProcessor '{}' call failed: {}", self.name, e),
@@ -2236,16 +2253,10 @@ impl RustPostProcessor for JsPostProcessor {
                 plugin_name: self.name.clone(),
             })?;
 
-        let decoded = BASE64
-            .decode(output_b64.as_bytes())
-            .map_err(|e| kreuzberg::KreuzbergError::Plugin {
-                message: format!("Failed to decode result from JavaScript PostProcessor: {}", e),
-                plugin_name: self.name.clone(),
-            })?;
         let updated: JsExtractionResult =
-            rmp_serde::from_slice(&decoded).map_err(|e| kreuzberg::KreuzbergError::Plugin {
+            serde_json::from_str(&output_json).map_err(|e| kreuzberg::KreuzbergError::Plugin {
                 message: format!(
-                    "Failed to deserialize result from JavaScript PostProcessor '{}': {}",
+                    "Failed to deserialize JSON result from JavaScript PostProcessor '{}': {}",
                     self.name, e
                 ),
                 plugin_name: self.name.clone(),
@@ -2258,6 +2269,7 @@ impl RustPostProcessor for JsPostProcessor {
             })?;
 
         *result = rust_result;
+
         Ok(())
     }
 
@@ -2473,8 +2485,10 @@ impl RustValidator for JsValidator {
                 message: format!("Failed to convert result for JavaScript Validator: {}", e),
                 plugin_name: self.name.clone(),
             })?;
+
+        // JSON serialization only (faster, no Base64 overhead)
         let json_string = serde_json::to_string(&js_result).map_err(|e| kreuzberg::KreuzbergError::Plugin {
-            message: format!("Failed to encode result for JavaScript Validator: {}", e),
+            message: format!("Failed to serialize result to JSON for JavaScript Validator: {}", e),
             plugin_name: self.name.clone(),
         })?;
 
@@ -2720,7 +2734,8 @@ impl RustOcrBackend for JsOcrBackend {
         let language = config.language.clone();
         let backend_name = self.name.clone();
 
-        let output_b64 = self
+        // JSON serialization only (faster, no Base64 overhead)
+        let output_json = self
             .process_image_fn
             .call_async((encoded, language))
             .await
@@ -2734,19 +2749,10 @@ impl RustOcrBackend for JsOcrBackend {
                 source: Some(Box::new(e)),
             })?;
 
-        let decoded = BASE64
-            .decode(output_b64.as_bytes())
-            .map_err(|e| kreuzberg::KreuzbergError::Ocr {
-                message: format!(
-                    "Failed to decode result from JavaScript OCR backend '{}': {}",
-                    backend_name, e
-                ),
-                source: Some(Box::new(e)),
-            })?;
         let wire_result: serde_json::Value =
-            rmp_serde::from_slice(&decoded).map_err(|e| kreuzberg::KreuzbergError::Ocr {
+            serde_json::from_str(&output_json).map_err(|e| kreuzberg::KreuzbergError::Ocr {
                 message: format!(
-                    "Failed to deserialize result from JavaScript OCR backend '{}': {}",
+                    "Failed to deserialize JSON result from JavaScript OCR backend '{}': {}",
                     backend_name, e
                 ),
                 source: Some(Box::new(e)),

@@ -5,56 +5,20 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 /// Cached state for lazy Pdfium initialization.
-///
-/// Stores either the initialization error (if failed) or the library path
-/// (for bundled Pdfium) to enable subsequent fast binding.
 enum InitializationState {
-    /// Not yet initialized
     Uninitialized,
-    /// Initialization succeeded; can create bindings from this path
     Initialized {
         #[allow(dead_code)]
         lib_dir: Option<PathBuf>,
     },
-    /// Initialization failed with this error message
     Failed(String),
 }
 
-/// Lazily initialized Pdfium state.
-///
-/// This static ensures Pdfium is only initialized once, on first use. Subsequent calls
-/// retrieve cached state and create fresh bindings, eliminating cold start overhead for
-/// non-PDF workloads.
-///
-/// # Thread Safety
-///
-/// Initialization is protected by a `Mutex` to ensure only one thread performs binding
-/// while others wait for completion. Once initialized, the state is immutable and safe
-/// to share across threads.
-///
-/// # Design
-///
-/// We cache the initialization state (lib_dir or error) rather than the bindings themselves.
-/// This allows us to create fresh bindings on each call without requiring `Clone` on
-/// `Box<dyn PdfiumLibraryBindings>`. Subsequent bindings are created quickly since
-/// `extract_bundled_pdfium()` is cached internally via its own mutex.
-///
-/// # Performance
-///
-/// - **First call**: Performs extraction (8-12ms) and binding.
-/// - **Subsequent calls**: Only creates new binding from cached state (< 0.1ms) since
-///   library is already extracted.
 static PDFIUM_STATE: Lazy<Mutex<InitializationState>> = Lazy::new(|| Mutex::new(InitializationState::Uninitialized));
 
-/// Perform Pdfium binding.
-///
-/// For bundled Pdfium: extracts library to temp dir, binds to it.
-/// For system Pdfium: binds to system library.
-/// For WASM: binds to WASM module.
 fn bind_pdfium_impl() -> Result<(Option<PathBuf>, Box<dyn PdfiumLibraryBindings>), String> {
     #[cfg(all(feature = "pdf", feature = "bundled-pdfium"))]
     {
-        // WASM target: use dynamic binding to WASM module
         #[cfg(target_arch = "wasm32")]
         {
             let bindings =
@@ -62,7 +26,6 @@ fn bind_pdfium_impl() -> Result<(Option<PathBuf>, Box<dyn PdfiumLibraryBindings>
             Ok((None, bindings))
         }
 
-        // Non-WASM targets: extract and link dynamically
         #[cfg(not(target_arch = "wasm32"))]
         {
             let lib_path =

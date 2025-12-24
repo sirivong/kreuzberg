@@ -19,7 +19,7 @@ use crate::plugins::DocumentExtractor;
 use crate::types::ExtractionResult;
 #[cfg(feature = "office")]
 use crate::types::LibreOfficeConversionResult;
-use crate::utils::intern_mime_type;
+use crate::utils::{PoolSizeHint, estimate_pool_size, intern_mime_type};
 use crate::{KreuzbergError, Result};
 #[cfg(feature = "tokio-runtime")]
 use once_cell::sync::Lazy;
@@ -127,6 +127,34 @@ fn get_extractor(mime_type: &str) -> Result<Arc<dyn DocumentExtractor>> {
         .read()
         .map_err(|e| KreuzbergError::Other(format!("Document extractor registry lock poisoned: {}", e)))?;
     registry_read.get(mime_type)
+}
+
+/// Get optimal pool sizing hint for a document.
+///
+/// This function calculates recommended pool sizes based on the document's
+/// file size and MIME type. The hint can be used to create appropriately
+/// sized thread pools for extraction, reducing memory waste from over-allocation.
+///
+/// # Arguments
+///
+/// * `file_size` - The size of the file in bytes
+/// * `mime_type` - The MIME type of the document
+///
+/// # Returns
+///
+/// A `PoolSizeHint` with recommended pool configurations
+///
+/// # Example
+///
+/// ```rust,ignore
+/// use kreuzberg::core::extractor::get_pool_sizing_hint;
+///
+/// let hint = get_pool_sizing_hint(5_000_000, "application/pdf");
+/// println!("Recommended string buffers: {}", hint.string_buffer_count);
+/// ```
+#[inline]
+pub fn get_pool_sizing_hint(file_size: u64, mime_type: &str) -> PoolSizeHint {
+    estimate_pool_size(file_size, mime_type)
 }
 
 /// Extract content from a file.
@@ -339,7 +367,12 @@ pub async fn batch_extract_file(
 
     let config = Arc::new(config.clone());
 
-    let max_concurrent = config.max_concurrent_extractions.unwrap_or_else(|| num_cpus::get() * 2);
+    // Conservative concurrency multiplier (1.5x instead of 2.0x) to reduce contention
+    // on external libraries (pdfium, tesseract) which have their own internal threading.
+    // Users can override via config.max_concurrent_extractions if needed.
+    let max_concurrent = config
+        .max_concurrent_extractions
+        .unwrap_or_else(|| (num_cpus::get() as f64 * 1.5).ceil() as usize);
     let semaphore = Arc::new(Semaphore::new(max_concurrent));
 
     let mut tasks = JoinSet::new();
@@ -438,7 +471,12 @@ pub async fn batch_extract_bytes(
     let batch_config = config.clone();
     let config = Arc::new(batch_config);
 
-    let max_concurrent = config.max_concurrent_extractions.unwrap_or_else(|| num_cpus::get() * 2);
+    // Conservative concurrency multiplier (1.5x instead of 2.0x) to reduce contention
+    // on external libraries (pdfium, tesseract) which have their own internal threading.
+    // Users can override via config.max_concurrent_extractions if needed.
+    let max_concurrent = config
+        .max_concurrent_extractions
+        .unwrap_or_else(|| (num_cpus::get() as f64 * 1.5).ceil() as usize);
     let semaphore = Arc::new(Semaphore::new(max_concurrent));
 
     let owned_contents: Vec<(Vec<u8>, String)> = contents

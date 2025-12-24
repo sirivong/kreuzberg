@@ -174,6 +174,14 @@ type ImageExtractionConfig struct {
 	MaxDPI *int `json:"max_dpi,omitempty"`
 }
 
+// FontConfig exposes font provider configuration for PDF extraction.
+type FontConfig struct {
+	// Enabled enables the custom font provider.
+	Enabled bool `json:"enabled"`
+	// CustomFontDirs provides additional font directories beyond system fonts.
+	CustomFontDirs []string `json:"custom_font_dirs,omitempty"`
+}
+
 // PdfConfig exposes PDF-specific options.
 type PdfConfig struct {
 	// ExtractImages enables image extraction from PDFs.
@@ -182,6 +190,8 @@ type PdfConfig struct {
 	Passwords []string `json:"passwords,omitempty"`
 	// ExtractMetadata enables extraction of PDF metadata.
 	ExtractMetadata *bool `json:"extract_metadata,omitempty"`
+	// FontConfig configures the font provider for PDF extraction.
+	FontConfig *FontConfig `json:"font_config,omitempty"`
 }
 
 // TokenReductionConfig governs token pruning before embeddings.
@@ -364,7 +374,7 @@ type PageConfig struct {
 // This is the primary method for converting JSON to a config structure.
 func ConfigFromJSON(jsonStr string) (*ExtractionConfig, error) {
 	if jsonStr == "" {
-		return nil, newValidationError("JSON string cannot be empty", nil)
+		return nil, newValidationErrorWithContext("JSON string cannot be empty", nil, ErrorCodeValidation, nil)
 	}
 
 	cJSON := C.CString(jsonStr)
@@ -379,7 +389,7 @@ func ConfigFromJSON(jsonStr string) (*ExtractionConfig, error) {
 	// Parse the config back from JSON to populate Go struct
 	cfg := &ExtractionConfig{}
 	if err := json.Unmarshal([]byte(jsonStr), cfg); err != nil {
-		return nil, newSerializationError("failed to decode config JSON", err)
+		return nil, newSerializationErrorWithContext("failed to decode config JSON", err, ErrorCodeValidation, nil)
 	}
 	return cfg, nil
 }
@@ -401,13 +411,13 @@ func IsValidJSON(jsonStr string) bool {
 // ConfigToJSON serializes an ExtractionConfig to a JSON string via FFI.
 func ConfigToJSON(config *ExtractionConfig) (string, error) {
 	if config == nil {
-		return "", newValidationError("config cannot be nil", nil)
+		return "", newValidationErrorWithContext("config cannot be nil", nil, ErrorCodeValidation, nil)
 	}
 
 	// Serialize to JSON first
 	data, err := json.Marshal(config)
 	if err != nil {
-		return "", newSerializationError("failed to encode config", err)
+		return "", newSerializationErrorWithContext("failed to encode config", err, ErrorCodeValidation, nil)
 	}
 
 	// Create a C config from JSON to get the serialized representation
@@ -436,16 +446,16 @@ func ConfigToJSON(config *ExtractionConfig) (string, error) {
 // Returns the field value as a JSON string, or an error if the field doesn't exist.
 func ConfigGetField(config *ExtractionConfig, fieldName string) (interface{}, error) {
 	if config == nil {
-		return nil, newValidationError("config cannot be nil", nil)
+		return nil, newValidationErrorWithContext("config cannot be nil", nil, ErrorCodeValidation, nil)
 	}
 	if fieldName == "" {
-		return nil, newValidationError("field name cannot be empty", nil)
+		return nil, newValidationErrorWithContext("field name cannot be empty", nil, ErrorCodeValidation, nil)
 	}
 
 	// Serialize config to JSON first
 	data, err := json.Marshal(config)
 	if err != nil {
-		return nil, newSerializationError("failed to encode config", err)
+		return nil, newSerializationErrorWithContext("failed to encode config", err, ErrorCodeValidation, nil)
 	}
 
 	cJSON := C.CString(string(data))
@@ -462,14 +472,14 @@ func ConfigGetField(config *ExtractionConfig, fieldName string) (interface{}, er
 
 	cValue := C.kreuzberg_config_get_field(ptr, cFieldName)
 	if cValue == nil {
-		return nil, newValidationError(fmt.Sprintf("field not found: %s", fieldName), nil)
+		return nil, newValidationErrorWithContext(fmt.Sprintf("field not found: %s", fieldName), nil, ErrorCodeValidation, nil)
 	}
 	defer C.kreuzberg_free_string(cValue)
 
 	jsonStr := C.GoString(cValue)
 	var value interface{}
 	if err := json.Unmarshal([]byte(jsonStr), &value); err != nil {
-		return nil, newSerializationError("failed to parse field value", err)
+		return nil, newSerializationErrorWithContext("failed to parse field value", err, ErrorCodeValidation, nil)
 	}
 	return value, nil
 }
@@ -479,10 +489,10 @@ func ConfigGetField(config *ExtractionConfig, fieldName string) (interface{}, er
 // Returns an error if the merge fails.
 func ConfigMerge(base, override *ExtractionConfig) error {
 	if base == nil {
-		return newValidationError("base config cannot be nil", nil)
+		return newValidationErrorWithContext("base config cannot be nil", nil, ErrorCodeValidation, nil)
 	}
 	if override == nil {
-		return newValidationError("override config cannot be nil", nil)
+		return newValidationErrorWithContext("override config cannot be nil", nil, ErrorCodeValidation, nil)
 	}
 
 	// Merge in Go to preserve pointer semantics (nil = "not set").

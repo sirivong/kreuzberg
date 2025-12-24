@@ -21,6 +21,9 @@ default = ["tokio-runtime", "simd-utf8"]
 
 profiling = ["dep:pprof"]
 
+# Instrumentation and metrics
+pool-metrics = []
+
 # Performance features
 simd-utf8 = ["dep:simdutf8"]
 
@@ -29,13 +32,9 @@ tokio-runtime = ["dep:tokio"]
 
 # Format extractors
 pdf = ["dep:pdfium-render", "dep:lopdf", "dep:image"]
-static-pdfium = ["pdf"]                               # Static link (no runtime dep) - requires PDFIUM_STATIC_LIB_PATH env var
-bundled-pdfium = ["pdf"]                              # Embed library in binary (self-contained, dynamic link)
-system-pdfium = ["pdf"]                               # Use system-installed pdfium via pkg-config
-# Legacy names for backward compatibility
-pdf-static = ["static-pdfium"]
-pdf-bundled = ["bundled-pdfium"]
-pdf-system = ["system-pdfium"]
+static-pdfium = ["pdf"] # Static link (no runtime dep) - requires PDFIUM_STATIC_LIB_PATH env var
+bundled-pdfium = ["pdf"] # Embed library in binary (self-contained, dynamic link)
+system-pdfium = ["pdf"] # Use system-installed pdfium via pkg-config
 excel = ["dep:calamine", "dep:polars", "tokio-runtime"]
 office = [
     "dep:roxmltree",
@@ -140,6 +139,7 @@ base64 = { workspace = true }
 base64-simd = "0.8"
 bitvec = "1.0"
 dashmap = "6.1"
+dirs = "5.0"
 simdutf8 = { version = "0.1", optional = true }
 hex = { workspace = true }
 lazy_static = "1.5.0"
@@ -147,6 +147,7 @@ libc = { workspace = true }
 memchr = "2.7.6"
 num_cpus = { workspace = true }
 once_cell = { workspace = true }
+parking_lot = { workspace = true }
 pastey = "0.2"
 rayon = "1.11.0"
 regex = "1.12.2"
@@ -166,7 +167,7 @@ reqwest = { workspace = true, default-features = false, features = [
     "rustls-tls",
 ], optional = true }
 # Format extractors (optional)
-pdfium-render = { version = "0.8.37", features = ["thread_safe", "image"], optional = true }
+pdfium-render = { version = "0.8.37", features = ["thread_safe", "image_latest"], optional = true }
 lopdf = { version = "0.38.0", optional = true }
 calamine = { version = "0.32.0", features = ["dates"], optional = true }
 polars = { version = "0.52.0", default-features = false, features = ["ipc"], optional = true }

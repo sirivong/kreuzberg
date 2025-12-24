@@ -245,10 +245,6 @@ pub struct Metadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pages: Option<PageStructure>,
 
-    /// Document date (DEPRECATED - use created_at/modified_at instead)
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub date: Option<String>,
-
     /// Format-specific metadata (discriminated union)
     ///
     /// Contains detailed metadata specific to the document format.
@@ -754,6 +750,11 @@ pub struct ExcelSheet {
     pub col_count: usize,
     /// Total number of non-empty cells
     pub cell_count: usize,
+    /// Pre-extracted table cells (2D vector of cell values)
+    /// Populated during markdown generation to avoid re-parsing markdown.
+    /// None for empty sheets.
+    #[serde(skip)]
+    pub table_cells: Option<Vec<Vec<String>>>,
 }
 
 /// XML extraction result.
