@@ -253,7 +253,7 @@ if (Test-Path $goMod) {
 
 if (Test-Path $goModDir) {
 	Write-Status "INFO" "Go source files in v4:"
-	Get-ChildItem -Path $goModDir -MaxDepth 1 -Filter "*.go" | ForEach-Object { Write-Host "  - $($_.Name)" }
+	Get-ChildItem -Path $goModDir -Depth 1 -Filter "*.go" | ForEach-Object { Write-Host "  - $($_.Name)" }
 }
 Write-Host ""
 
