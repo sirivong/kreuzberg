@@ -109,7 +109,6 @@ pub struct Metadata {
     pub created_by: Option<String>,
     pub modified_by: Option<String>,
     pub pages: Option<PageStructure>,
-    pub date: Option<String>,
     pub format: Option<FormatMetadata>,
     pub image_preprocessing: Option<ImagePreprocessingMetadata>,
     pub json_schema: Option<serde_json::Value>,
@@ -147,7 +146,6 @@ class Metadata(TypedDict, total=False):
     created_by: str | None
     modified_by: str | None
     pages: PageStructure | None
-    date: str | None
     format_type: Literal["pdf", "excel", "email", "pptx", "archive", "image", "xml", "text", "html", "ocr"]
     # Format-specific fields are included at root level based on format_type
     image_preprocessing: ImagePreprocessingMetadata | None
@@ -169,7 +167,6 @@ export interface Metadata {
     createdBy?: string | null;
     modifiedBy?: string | null;
     pages?: PageStructure | null;
-    date?: string | null;
     format_type?: "pdf" | "excel" | "email" | "pptx" | "archive" | "image" | "xml" | "text" | "html" | "ocr";
     // Format-specific fields are included at root level based on format_type
     image_preprocessing?: ImagePreprocessingMetadata | null;
@@ -202,7 +199,6 @@ public final class Metadata {
     private final Optional<String> createdBy;
     private final Optional<String> modifiedBy;
     private final Optional<PageStructure> pages;
-    private final Optional<String> date;
     private final Optional<FormatMetadata> format;
     private final Optional<ImagePreprocessingMetadata> imagePreprocessing;
     private final Optional<Map<String, Object>> jsonSchema;
@@ -232,7 +228,6 @@ type Metadata struct {
     CreatedBy          *string                     `json:"created_by,omitempty"`
     ModifiedBy         *string                     `json:"modified_by,omitempty"`
     Pages              *PageStructure              `json:"pages,omitempty"`
-    Date               *string                     `json:"date,omitempty"`
     Format             FormatMetadata              `json:"-"`
     ImagePreprocessing *ImagePreprocessingMetadata `json:"image_preprocessing,omitempty"`
     JSONSchema         json.RawMessage             `json:"json_schema,omitempty"`

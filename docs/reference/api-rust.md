@@ -715,23 +715,21 @@ Document metadata with format-specific fields.
 #[derive(Debug, Clone, Default)]
 pub struct Metadata {
     // Common fields
-    pub language: Option<String>,
-    pub date: Option<String>,
-    pub subject: Option<String>,
-    pub format_type: Option<String>,
-
-    // PDF-specific fields
     pub title: Option<String>,
-    pub author: Option<String>,
-    pub page_count: Option<usize>,
-    pub creation_date: Option<String>,
-    pub modification_date: Option<String>,
-    pub creator: Option<String>,
-    pub producer: Option<String>,
-    pub keywords: Option<String>,
-
-    // Additional fields via HashMap
-    pub extra: HashMap<String, serde_json::Value>,
+    pub subject: Option<String>,
+    pub authors: Option<Vec<String>>,
+    pub keywords: Option<Vec<String>>,
+    pub language: Option<String>,
+    pub created_at: Option<String>,
+    pub modified_at: Option<String>,
+    pub created_by: Option<String>,
+    pub modified_by: Option<String>,
+    pub pages: Option<PageStructure>,
+    pub format: Option<FormatMetadata>,
+    pub image_preprocessing: Option<ImagePreprocessingMetadata>,
+    pub json_schema: Option<serde_json::Value>,
+    pub error: Option<ErrorMetadata>,
+    pub additional: HashMap<String, serde_json::Value>,
 }
 ```
 

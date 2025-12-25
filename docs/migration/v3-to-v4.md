@@ -759,6 +759,146 @@ kreuzberg mcp
 
 ## Breaking Changes
 
+### Metadata Field Names: `date` → `created_at`
+
+The legacy `date` field in metadata has been replaced with `created_at` for consistency across all document formats.
+
+#### What Changed
+
+- **Old (deprecated)**: `metadata.date` - Generic date field with ambiguous meaning
+- **New (standard)**: `metadata.created_at` - Document creation timestamp (ISO 8601 format)
+- **Also available**: `metadata.modified_at` - Last modification timestamp (ISO 8601 format)
+
+The `date` field was inconsistently used across different document formats. The new `created_at` and `modified_at` fields provide clear semantics that match industry standards.
+
+#### Migration Guide
+
+**Rust:**
+```rust title="Rust"
+// Before (v3/early v4)
+if let Some(date) = metadata.date {
+    println!("Date: {}", date);
+}
+
+// After (v4.0.0-rc.19+)
+if let Some(created_at) = metadata.created_at {
+    println!("Created: {}", created_at);
+}
+if let Some(modified_at) = metadata.modified_at {
+    println!("Modified: {}", modified_at);
+}
+```
+
+**Python:**
+```python title="Python"
+# Before (v3/early v4)
+date = result.metadata.get("date")
+if date:
+    print(f"Date: {date}")
+
+# After (v4.0.0-rc.19+)
+created_at = result.metadata.get("created_at")
+if created_at:
+    print(f"Created: {created_at}")
+
+modified_at = result.metadata.get("modified_at")
+if modified_at:
+    print(f"Modified: {modified_at}")
+```
+
+**TypeScript:**
+```typescript title="TypeScript"
+// Before (v3/early v4)
+if (metadata.date) {
+    console.log("Date:", metadata.date);
+}
+
+// After (v4.0.0-rc.19+)
+if (metadata.createdAt) {
+    console.log("Created:", metadata.createdAt);
+}
+if (metadata.modifiedAt) {
+    console.log("Modified:", metadata.modifiedAt);
+}
+```
+
+**Java:**
+```java title="Java"
+// Before (v3/early v4)
+metadata.date().ifPresent(date ->
+    System.out.println("Date: " + date)
+);
+
+// After (v4.0.0-rc.19+)
+metadata.createdAt().ifPresent(created ->
+    System.out.println("Created: " + created)
+);
+metadata.modifiedAt().ifPresent(modified ->
+    System.out.println("Modified: " + modified)
+);
+```
+
+**Go:**
+```go title="Go"
+// Before (v3/early v4)
+if metadata.Date != nil {
+    fmt.Println("Date:", *metadata.Date)
+}
+
+// After (v4.0.0-rc.19+)
+if metadata.CreatedAt != nil {
+    fmt.Println("Created:", *metadata.CreatedAt)
+}
+if metadata.ModifiedAt != nil {
+    fmt.Println("Modified:", *metadata.ModifiedAt)
+}
+```
+
+**Ruby:**
+```ruby title="Ruby"
+# Before (v3/early v4)
+if result.metadata["date"]
+  puts "Date: #{result.metadata["date"]}"
+end
+
+# After (v4.0.0-rc.19+)
+if result.metadata["created_at"]
+  puts "Created: #{result.metadata["created_at"]}"
+end
+if result.metadata["modified_at"]
+  puts "Modified: #{result.metadata["modified_at"]}"
+end
+```
+
+**C#:**
+```csharp title="C#"
+// Before (v3/early v4)
+if (metadata.Date != null)
+{
+    Console.WriteLine($"Date: {metadata.Date}");
+}
+
+// After (v4.0.0-rc.19+)
+if (metadata.CreatedAt != null)
+{
+    Console.WriteLine($"Created: {metadata.CreatedAt}");
+}
+if (metadata.ModifiedAt != null)
+{
+    Console.WriteLine($"Modified: {metadata.ModifiedAt}");
+}
+```
+
+#### Format-Specific Metadata
+
+Note that format-specific metadata (like `PdfMetadata`) may have their own date fields with more specific names:
+
+- `PdfMetadata.creation_date` - PDF document creation date (from PDF metadata)
+- `PdfMetadata.modification_date` - PDF document modification date (from PDF metadata)
+- Top-level `Metadata.created_at` and `Metadata.modified_at` - Normalized across all formats
+
+The format-specific fields preserve the original metadata from the document, while the top-level fields provide a consistent interface across all document types.
+
 ### Page Tracking and Byte Offsets
 
 v4 introduces a complete redesign of page tracking and text positioning with several critical breaking changes:

@@ -49,7 +49,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - TypeScript: `KREUZBERG_LEGACY_SERIALIZATION` environment variable
   - Go: 7 legacy error codes
   - Ruby: `Ocr = OCR` alias
-  - Rust: Deprecated `Metadata.date` field
+  - Rust: Deprecated `Metadata.date` field (replaced by `created_at` - see Migration Guide)
   - Cargo: 3 legacy feature aliases
 
 ### Security
