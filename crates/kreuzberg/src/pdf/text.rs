@@ -31,7 +31,7 @@ impl PdfTextExtractor {
 
     pub fn extract_text_with_password(&self, pdf_bytes: &[u8], password: Option<&str>) -> Result<String> {
         let document = self.pdfium.load_pdf_from_byte_slice(pdf_bytes, password).map_err(|e| {
-            let err_msg = e.to_string();
+            let err_msg = format!("{:?}", e);
             if (err_msg.contains("password") || err_msg.contains("Password")) && password.is_some() {
                 PdfError::InvalidPassword
             } else if err_msg.contains("password") || err_msg.contains("Password") {
@@ -67,7 +67,7 @@ impl PdfTextExtractor {
 
     pub fn get_page_count(&self, pdf_bytes: &[u8]) -> Result<usize> {
         let document = self.pdfium.load_pdf_from_byte_slice(pdf_bytes, None).map_err(|e| {
-            let err_msg = e.to_string();
+            let err_msg = format!("{:?}", e);
             if err_msg.contains("password") || err_msg.contains("Password") {
                 PdfError::PasswordRequired
             } else {

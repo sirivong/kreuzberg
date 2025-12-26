@@ -56,7 +56,7 @@ impl PdfRenderer {
         password: Option<&str>,
     ) -> Result<DynamicImage> {
         let document = self.pdfium.load_pdf_from_byte_slice(pdf_bytes, password).map_err(|e| {
-            let err_msg = e.to_string();
+            let err_msg = format!("{:?}", e);
             if (err_msg.contains("password") || err_msg.contains("Password")) && password.is_some() {
                 PdfError::InvalidPassword
             } else if err_msg.contains("password") || err_msg.contains("Password") {
@@ -114,7 +114,7 @@ impl PdfRenderer {
         password: Option<&str>,
     ) -> Result<Vec<DynamicImage>> {
         let document = self.pdfium.load_pdf_from_byte_slice(pdf_bytes, password).map_err(|e| {
-            let err_msg = e.to_string();
+            let err_msg = format!("{:?}", e);
             if (err_msg.contains("password") || err_msg.contains("Password")) && password.is_some() {
                 PdfError::InvalidPassword
             } else if err_msg.contains("password") || err_msg.contains("Password") {
