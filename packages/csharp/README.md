@@ -1,50 +1,51 @@
 # Kreuzberg
 
-[![Rust](https://img.shields.io/crates/v/kreuzberg?label=Rust)](https://crates.io/crates/kreuzberg)
-[![Python](https://img.shields.io/pypi/v/kreuzberg?label=Python)](https://pypi.org/project/kreuzberg/)
-[![TypeScript](https://img.shields.io/npm/v/@kreuzberg/node?label=TypeScript)](https://www.npmjs.com/package/@kreuzberg/node)
-[![WASM](https://img.shields.io/npm/v/@kreuzberg/wasm?label=WASM)](https://www.npmjs.com/package/@kreuzberg/wasm)
-[![Ruby](https://img.shields.io/gem/v/kreuzberg?label=Ruby)](https://rubygems.org/gems/kreuzberg)
-[![Java](https://img.shields.io/maven-central/v/dev.kreuzberg/kreuzberg?label=Java)](https://central.sonatype.com/artifact/dev.kreuzberg/kreuzberg)
-[![Go](https://img.shields.io/github/v/tag/kreuzberg-dev/kreuzberg?label=Go)](https://pkg.go.dev/github.com/kreuzberg-dev/kreuzberg)
-[![C#](https://img.shields.io/nuget/v/Goldziher.Kreuzberg?label=C%23)](https://www.nuget.org/packages/Goldziher.Kreuzberg/)
+[![Rust](https://img.shields.io/crates/v/kreuzberg?label=Rust&color=007ec6)](https://crates.io/crates/kreuzberg)
+[![Python](https://img.shields.io/pypi/v/kreuzberg?label=Python&color=007ec6)](https://pypi.org/project/kreuzberg/)
+[![TypeScript](https://img.shields.io/npm/v/@kreuzberg/node?label=TypeScript&color=007ec6)](https://www.npmjs.com/package/@kreuzberg/node)
+[![WASM](https://img.shields.io/npm/v/@kreuzberg/wasm?label=WASM&color=007ec6)](https://www.npmjs.com/package/@kreuzberg/wasm)
+[![Ruby](https://img.shields.io/gem/v/kreuzberg?label=Ruby&color=007ec6)](https://rubygems.org/gems/kreuzberg)
+[![Java](https://img.shields.io/maven-central/v/dev.kreuzberg/kreuzberg?label=Java&color=007ec6)](https://central.sonatype.com/artifact/dev.kreuzberg/kreuzberg)
+[![Go](https://img.shields.io/github/v/tag/kreuzberg-dev/kreuzberg?label=Go&color=007ec6)](https://pkg.go.dev/github.com/kreuzberg-dev/kreuzberg)
+[![C#](https://img.shields.io/nuget/v/Goldziher.Kreuzberg?label=C%23&color=007ec6)](https://www.nuget.org/packages/Goldziher.Kreuzberg/)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Documentation](https://img.shields.io/badge/docs-kreuzberg.dev-blue)](https://kreuzberg.dev/)
-[![Discord](https://img.shields.io/badge/Discord-Join%20our%20community-7289da)](https://discord.gg/pXxagNK2zN)
+[![Documentation](https://img.shields.io/badge/docs-kreuzberg.dev-007ec6)](https://kreuzberg.dev/)
+[![Discord](https://img.shields.io/badge/Discord-Join%20our%20community-007ec6)](https://discord.gg/pXxagNK2zN)
 
 High-performance document intelligence for .NET. Extract text, metadata, and structured information from PDFs, Office documents, images, and 56 formats.
 
 **Powered by a Rust core** – Native performance for document extraction with safe P/Invoke bindings.
 
 > **Version 4.0.0 Release Candidate**
-> This is a pre-release version. We invite you to test the library and [report any issues](https://github.com/kreuzberg-dev/kreuzberg/issues) you encounter.
+> This is a pre-release version. Please test the library and [report any issues](https://github.com/kreuzberg-dev/kreuzberg/issues) you encounter.
 
 ## Features
 
-- **56 File Formats**: PDF, DOCX, PPTX, XLSX, images, HTML, Markdown, XML, JSON, and more
-- **OCR Support**: Built-in Tesseract OCR for scanned documents and images
-- **High Performance**: Rust-powered extraction for native-level performance
-- **Table Extraction**: Extract structured tables from documents
-- **Language Detection**: Automatic language detection for extracted text
-- **Text Chunking**: Split long documents into manageable chunks
-- **Image Extraction**: Extract images embedded in documents
-- **Metadata**: Comprehensive format-specific metadata extraction
-- **Thread-Safe**: Concurrent extraction with safe P/Invoke patterns
-- **Fully Async**: Task-based async API alongside sync methods
+- **56 file formats** – PDF, DOCX, PPTX, XLSX, images, HTML, Markdown, XML, JSON, and more
+- **OCR support** – Built-in Tesseract OCR for scanned documents and images
+- **High performance** – Rust-powered extraction
+- **Table extraction** – Extract structured tables from documents
+- **Language detection** – Automatic language detection for extracted text
+- **Text chunking** – Split long documents into manageable chunks
+- **Image extraction** – Extract images embedded in documents
+- **Metadata** – Comprehensive format-specific metadata extraction
+- **Thread-safe** – Concurrent extraction with safe P/Invoke patterns
+- **Fully async** – Task-based async API alongside sync methods
 
 ## Installation
 
 ```bash
 dotnet add package Kreuzberg
 ```
-Published under the `kreuzberg.dev` organization.
 
-	```xml
-	<ItemGroup>
-		    <PackageReference Include="Kreuzberg" Version="4.0.0-rc.21" />
-	</ItemGroup>
-	```
+Or add directly to your project file:
+
+```xml
+<ItemGroup>
+    <PackageReference Include="Kreuzberg" Version="4.0.0-rc.21" />
+</ItemGroup>
+```
 
 ## Requirements
 

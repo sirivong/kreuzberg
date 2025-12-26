@@ -1,24 +1,24 @@
 # Kreuzberg
 
-[![Rust](https://img.shields.io/crates/v/kreuzberg?label=Rust)](https://crates.io/crates/kreuzberg)
-[![Python](https://img.shields.io/pypi/v/kreuzberg?label=Python)](https://pypi.org/project/kreuzberg/)
-[![TypeScript](https://img.shields.io/npm/v/@kreuzberg/node?label=TypeScript)](https://www.npmjs.com/package/@kreuzberg/node)
-[![WASM](https://img.shields.io/npm/v/@kreuzberg/wasm?label=WASM)](https://www.npmjs.com/package/@kreuzberg/wasm)
-[![Ruby](https://img.shields.io/gem/v/kreuzberg?label=Ruby)](https://rubygems.org/gems/kreuzberg)
-[![Java](https://img.shields.io/maven-central/v/dev.kreuzberg/kreuzberg?label=Java)](https://central.sonatype.com/artifact/dev.kreuzberg/kreuzberg)
-[![Go](https://img.shields.io/github/v/tag/kreuzberg-dev/kreuzberg?label=Go)](https://pkg.go.dev/github.com/kreuzberg-dev/kreuzberg)
-[![C#](https://img.shields.io/nuget/v/Goldziher.Kreuzberg?label=C%23)](https://www.nuget.org/packages/Goldziher.Kreuzberg/)
+[![Rust](https://img.shields.io/crates/v/kreuzberg?label=Rust&color=007ec6)](https://crates.io/crates/kreuzberg)
+[![Python](https://img.shields.io/pypi/v/kreuzberg?label=Python&color=007ec6)](https://pypi.org/project/kreuzberg/)
+[![TypeScript](https://img.shields.io/npm/v/@kreuzberg/node?label=TypeScript&color=007ec6)](https://www.npmjs.com/package/@kreuzberg/node)
+[![WASM](https://img.shields.io/npm/v/@kreuzberg/wasm?label=WASM&color=007ec6)](https://www.npmjs.com/package/@kreuzberg/wasm)
+[![Ruby](https://img.shields.io/gem/v/kreuzberg?label=Ruby&color=007ec6)](https://rubygems.org/gems/kreuzberg)
+[![Java](https://img.shields.io/maven-central/v/dev.kreuzberg/kreuzberg?label=Java&color=007ec6)](https://central.sonatype.com/artifact/dev.kreuzberg/kreuzberg)
+[![Go](https://img.shields.io/github/v/tag/kreuzberg-dev/kreuzberg?label=Go&color=007ec6)](https://pkg.go.dev/github.com/kreuzberg-dev/kreuzberg)
+[![C#](https://img.shields.io/nuget/v/Goldziher.Kreuzberg?label=C%23&color=007ec6)](https://www.nuget.org/packages/Goldziher.Kreuzberg/)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Documentation](https://img.shields.io/badge/docs-kreuzberg.dev-blue)](https://kreuzberg.dev/)
-[![Discord](https://img.shields.io/badge/Discord-Join%20our%20community-7289da)](https://discord.gg/pXxagNK2zN)
+[![Documentation](https://img.shields.io/badge/docs-kreuzberg.dev-007ec6)](https://kreuzberg.dev/)
+[![Discord](https://img.shields.io/badge/Discord-Join%20our%20community-007ec6)](https://discord.gg/pXxagNK2zN)
 
 High-performance document intelligence for Python. Extract text, metadata, and structured information from PDFs, Office documents, images, and 56 formats.
 
 **Powered by a Rust core** – Native performance for document extraction.
 
-> **🚀 Version 4.0.0 Release Candidate**
-> This is a pre-release version. We invite you to test the library and [report any issues](https://github.com/kreuzberg-dev/kreuzberg/issues) you encounter.
+> **Version 4.0.0 Release Candidate**
+> This is a pre-release version. Please test the library and [report any issues](https://github.com/kreuzberg-dev/kreuzberg/issues) you encounter.
 
 ## Installation
 
@@ -38,26 +38,6 @@ pip install "kreuzberg[paddleocr]"
 ```bash
 pip install "kreuzberg[all]"
 ```
-
-## System Requirements
-
-### ONNX Runtime (for embeddings)
-
-If using embeddings functionality, ONNX Runtime must be installed:
-
-```bash
-# macOS
-brew install onnxruntime
-
-# Ubuntu/Debian
-sudo apt install libonnxruntime libonnxruntime-dev
-
-# Windows (MSVC)
-scoop install onnxruntime
-# OR download from https://github.com/microsoft/onnxruntime/releases
-```
-
-Without ONNX Runtime, embeddings will raise `MissingDependencyError` with installation instructions.
 
 ## Quick Start
 
@@ -482,16 +462,6 @@ config = ExtractionConfig(
 )
 ```
 
-## Complete Documentation
-
-**[https://kreuzberg.dev](https://kreuzberg.dev)**
-
-- [Installation Guide](https://kreuzberg.dev/getting-started/installation/)
-- [User Guide](https://kreuzberg.dev/guides/extraction/)
-- [API Reference](https://kreuzberg.dev/reference/api-python/)
-- [Format Support](https://kreuzberg.dev/reference/formats/)
-- [OCR Backends](https://kreuzberg.dev/guides/ocr/)
-
 ## PDFium Integration
 
 PDF extraction is powered by PDFium, which is automatically bundled with this package. No system installation required.
@@ -508,6 +478,10 @@ PDF extraction is powered by PDFium, which is automatically bundled with this pa
 ### Binary Size Impact
 
 PDFium adds approximately 8-15 MB to the package size depending on platform. This ensures consistent PDF extraction across all environments without external dependencies.
+
+## Documentation
+
+For comprehensive documentation, visit [https://kreuzberg.dev](https://kreuzberg.dev)
 
 ## License
 

@@ -13,10 +13,10 @@
 [![Documentation](https://img.shields.io/badge/docs-kreuzberg.dev-blue)](https://kreuzberg.dev/)
 [![Discord](https://img.shields.io/badge/Discord-Join%20our%20community-7289da)](https://discord.gg/pXxagNK2zN)
 
-**A polyglot document intelligence framework with a Rust core.** Extract text, metadata, and structured information from PDFs, Office documents, images, and 56 formats. Available for Rust, Python, TypeScript/Node.js, Ruby, Go, Java, and C#—or use via CLI, REST API, or MCP server.
+A polyglot document intelligence framework with a Rust core. Extract text, metadata, and structured information from PDFs, Office documents, images, and 56 formats. Available for Rust, Python, TypeScript/Node.js, Ruby, Go, Java, and C#—or use via CLI, REST API, or MCP server.
 
-> **🚀 Version 4.0.0 Release Candidate**
-> This is a pre-release version. We invite you to test the library and [report any issues](https://github.com/kreuzberg-dev/kreuzberg/issues) you encounter. Help us make the stable release better!
+> **Version 4.0.0 Release Candidate**
+> This is a pre-release version. Please test the library and [report any issues](https://github.com/kreuzberg-dev/kreuzberg/issues) you encounter.
 
 > **⚠️ BREAKING CHANGE in RC.11**
 >
@@ -26,16 +26,15 @@
 > - **No action needed**: If you don't use embeddings
 > - [Installation Guide](#embeddings-support-optional)
 
-## Why use Kreuzberg
+## Key Features
 
-- **Truly polyglot** – Native bindings for Rust, Python, TypeScript/Node.js, Ruby, Go, Java, C#
-- **Production-ready** – Battle-tested with comprehensive error handling and validation
-- **56 formats** – PDF, Office documents, images, HTML, XML, emails, archives, and more
-- **OCR built-in** – Multiple backends (Tesseract, EasyOCR, PaddleOCR) with table extraction support
+- **Polyglot** – Native bindings for Rust, Python, TypeScript/Node.js, Ruby, Go, Java, C#
+- **56 file formats** – PDF, Office documents, images, HTML, XML, emails, archives, and more
+- **OCR support** – Multiple backends (Tesseract, EasyOCR, PaddleOCR) with table extraction
 - **Flexible deployment** – Use as library, CLI tool, REST API server, or MCP server
-- **Memory efficient** – Streaming parsers with constant memory usage for multi-GB files
+- **Memory efficient** – Streaming parsers for multi-GB files
 
-📖 **[Complete Documentation](https://kreuzberg.dev/)** • 🚀 **[Installation Guides](#installation)**
+**[Complete Documentation](https://kreuzberg.dev/)** | **[Installation Guides](#installation)**
 
 ## Kreuzberg Cloud (Coming Soon)
 
@@ -52,8 +51,8 @@ Each language binding provides comprehensive documentation with examples and bes
 
 ### JavaScript/TypeScript
 
-- **[@kreuzberg/node](crates/kreuzberg-node/README.md)** (Recommended for Node.js/Bun) – Native NAPI-RS bindings, fastest performance, direct system calls
-- **[@kreuzberg/wasm](packages/typescript/README.md)** (Browser/Workers/Deno) – Pure WebAssembly, no native dependencies, cross-platform consistency
+- **[@kreuzberg/node](https://github.com/kreuzberg-dev/kreuzberg/tree/main/crates/kreuzberg-node)** (Recommended for Node.js/Bun) – Native NAPI-RS bindings, fastest performance, direct system calls
+- **[@kreuzberg/wasm](https://github.com/kreuzberg-dev/kreuzberg/tree/main/packages/typescript)** (Browser/Workers/Deno) – Pure WebAssembly, no native dependencies, cross-platform consistency
 
 **TypeScript Decision Matrix:**
 
@@ -67,13 +66,13 @@ Each language binding provides comprehensive documentation with examples and bes
 
 ### Other Languages
 
-- **[Python](packages/python/README.md)** – Installation, basic usage, async/sync APIs
-- **[Ruby](packages/ruby/README.md)** – Installation, basic usage, configuration
-- **[Go](packages/go/README.md)** – Installation, native library setup, sync/async extraction + batch APIs
+- **[Python](https://github.com/kreuzberg-dev/kreuzberg/tree/main/packages/python)** – Installation, basic usage, async/sync APIs
+- **[Ruby](https://github.com/kreuzberg-dev/kreuzberg/tree/main/packages/ruby)** – Installation, basic usage, configuration
+- **[Go](https://github.com/kreuzberg-dev/kreuzberg/tree/main/packages/go)** – Installation, native library setup, sync/async extraction + batch APIs
   _Note: Windows builds use MinGW and don't support embeddings (ONNX Runtime requires MSVC)_
-- **[Java](packages/java/README.md)** – Installation, FFM API usage, Maven/Gradle setup
-- **[C#](packages/csharp/README.md)** – Installation, P/Invoke usage, NuGet package
-- **[Rust](crates/kreuzberg/README.md)** – Crate usage, features, async/sync APIs
+- **[Java](https://github.com/kreuzberg-dev/kreuzberg/tree/main/packages/java)** – Installation, FFM API usage, Maven/Gradle setup
+- **[C#](https://github.com/kreuzberg-dev/kreuzberg/tree/main/packages/csharp)** – Installation, P/Invoke usage, NuGet package
+- **[Rust](https://github.com/kreuzberg-dev/kreuzberg/tree/main/crates/kreuzberg)** – Crate usage, features, async/sync APIs
 - **[CLI](https://kreuzberg.dev/cli/usage/)** – Command-line usage, batch processing, options
 
 ### Embeddings Support (Optional)
@@ -299,7 +298,4 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details. Kreuzberg’s open-source is released under the MIT license, one of the most permissive licenses available ❤️
-This means you can use it freely in both commercial and closed-source products with no obligations, no viral effects, and no licensing restrictions.
-
-Unlike AGPL-licensed PDF engines like MuPDF (which require you to open-source your entire codebase unless you buy a commercial license), MIT is safe for enterprise adoption and creates zero legal friction.
+MIT License - see [LICENSE](LICENSE) for details. You can use Kreuzberg freely in both commercial and closed-source products with no obligations, no viral effects, and no licensing restrictions.

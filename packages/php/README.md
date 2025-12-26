@@ -1,26 +1,37 @@
-# Kreuzberg PHP
+# Kreuzberg
+
+[![Rust](https://img.shields.io/crates/v/kreuzberg?label=Rust&color=007ec6)](https://crates.io/crates/kreuzberg)
+[![Python](https://img.shields.io/pypi/v/kreuzberg?label=Python&color=007ec6)](https://pypi.org/project/kreuzberg/)
+[![TypeScript](https://img.shields.io/npm/v/@kreuzberg/node?label=TypeScript&color=007ec6)](https://www.npmjs.com/package/@kreuzberg/node)
+[![WASM](https://img.shields.io/npm/v/@kreuzberg/wasm?label=WASM&color=007ec6)](https://www.npmjs.com/package/@kreuzberg/wasm)
+[![Ruby](https://img.shields.io/gem/v/kreuzberg?label=Ruby&color=007ec6)](https://rubygems.org/gems/kreuzberg)
+[![Java](https://img.shields.io/maven-central/v/dev.kreuzberg/kreuzberg?label=Java&color=007ec6)](https://central.sonatype.com/artifact/dev.kreuzberg/kreuzberg)
+[![Go](https://img.shields.io/github/v/tag/kreuzberg-dev/kreuzberg?label=Go&color=007ec6)](https://pkg.go.dev/github.com/kreuzberg-dev/kreuzberg)
+[![C#](https://img.shields.io/nuget/v/Goldziher.Kreuzberg?label=C%23&color=007ec6)](https://www.nuget.org/packages/Goldziher.Kreuzberg/)
+[![Packagist](https://img.shields.io/packagist/v/kreuzberg/kreuzberg?color=007ec6)](https://packagist.org/packages/kreuzberg/kreuzberg)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Documentation](https://img.shields.io/badge/docs-kreuzberg.dev-blue)](https://kreuzberg.dev/)
+[![Documentation](https://img.shields.io/badge/docs-kreuzberg.dev-007ec6)](https://kreuzberg.dev/)
+[![Discord](https://img.shields.io/badge/Discord-Join%20our%20community-007ec6)](https://discord.gg/pXxagNK2zN)
 
 High-performance document intelligence for PHP. Extract text, metadata, and structured information from PDFs, Office documents, images, and 56 formats.
 
 **Powered by a Rust core** – Native performance for document extraction.
 
-> **🚀 Version 4.0.0 Release Candidate**
-> This is a pre-release version. We invite you to test the library and [report any issues](https://github.com/kreuzberg-dev/kreuzberg/issues) you encounter.
+> **Version 4.0.0 Release Candidate**
+> This is a pre-release version. Please test the library and [report any issues](https://github.com/kreuzberg-dev/kreuzberg/issues) you encounter.
 
 ## Features
 
-- **56+ File Formats**: PDF, DOCX, XLSX, PPTX, images, HTML, XML, email, archives, and more
-- **OCR Support**: Tesseract integration for scanned documents and images
-- **Table Extraction**: Extract structured tables from PDFs and documents
-- **Metadata Extraction**: Rich metadata for all supported formats
-- **High Performance**: 10-50x faster than pure PHP solutions (Rust core)
-- **Batch Processing**: Process multiple documents in parallel
-- **Text Chunking**: Intelligent text segmentation for RAG applications
-- **Embeddings**: Generate vector embeddings for semantic search
-- **Type Safe**: Full PHP 8.2+ type hints and readonly classes
+- **56+ file formats** – PDF, DOCX, XLSX, PPTX, images, HTML, XML, email, archives, and more
+- **OCR support** – Tesseract integration for scanned documents and images
+- **Table extraction** – Extract structured tables from PDFs and documents
+- **Metadata extraction** – Rich metadata for all supported formats
+- **High performance** – Rust-powered extraction
+- **Batch processing** – Process multiple documents in parallel
+- **Text chunking** – Intelligent text segmentation for RAG applications
+- **Embeddings** – Generate vector embeddings for semantic search
+- **Type-safe** – Full PHP 8.2+ type hints and readonly classes
 
 ## System Requirements
 
@@ -726,17 +737,10 @@ composer format
 composer format:check
 ```
 
+## Documentation
+
+For comprehensive documentation, visit [https://kreuzberg.dev](https://kreuzberg.dev)
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
-## Links
-
-- **Documentation**: https://kreuzberg.dev
-- **GitHub**: https://github.com/kreuzberg-dev/kreuzberg
-- **Issues**: https://github.com/kreuzberg-dev/kreuzberg/issues
-- **Discord**: https://discord.gg/pXxagNK2zN
-
-## Credits
-
-Created by [Na'aman Hirschfeld](https://github.com/Goldziher)
