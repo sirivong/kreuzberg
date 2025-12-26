@@ -35,25 +35,31 @@ readonly class PageContent
     public static function fromArray(array $data): self
     {
         $pageNumber = $data['page_number'] ?? 0;
+        /** @var int $pageNumber */
         assert(is_int($pageNumber));
 
         $content = $data['content'] ?? '';
+        /** @var string $content */
         assert(is_string($content));
 
         $tablesData = $data['tables'] ?? [];
+        /** @var array<array<string, mixed>> $tablesData */
         assert(is_array($tablesData));
 
         $imagesData = $data['images'] ?? [];
+        /** @var array<array<string, mixed>> $imagesData */
         assert(is_array($imagesData));
 
         return new self(
             pageNumber: $pageNumber,
             content: $content,
             tables: array_map(
+                /** @param array<string, mixed> $table */
                 static fn (array $table): Table => Table::fromArray($table),
                 $tablesData,
             ),
             images: array_map(
+                /** @param array<string, mixed> $image */
                 static fn (array $image): ExtractedImage => ExtractedImage::fromArray($image),
                 $imagesData,
             ),

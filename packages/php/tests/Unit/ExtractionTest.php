@@ -42,7 +42,7 @@ final class ExtractionTest extends TestCase
     {
         $config = new ExtractionConfig(
             extractImages: true,
-            extractTables: false
+            extractTables: false,
         );
 
         $kreuzberg = new Kreuzberg($config);

@@ -29,12 +29,15 @@ readonly class Table
     public static function fromArray(array $data): self
     {
         $cells = $data['cells'] ?? [];
+        /** @var array<array<string>> $cells */
         assert(is_array($cells));
 
         $markdown = $data['markdown'] ?? '';
+        /** @var string $markdown */
         assert(is_string($markdown));
 
         $pageNumber = $data['page_number'] ?? 0;
+        /** @var int $pageNumber */
         assert(is_int($pageNumber));
 
         return new self(

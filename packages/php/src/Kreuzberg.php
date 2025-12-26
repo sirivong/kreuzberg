@@ -56,7 +56,7 @@ final readonly class Kreuzberg
         ?string $mimeType = null,
         ?ExtractionConfig $config = null,
     ): ExtractionResult {
-        $config = $config ?? $this->defaultConfig ?? new ExtractionConfig();
+        $config ??= $this->defaultConfig ?? new ExtractionConfig();
 
         return \Kreuzberg\extract_file($filePath, $mimeType, $config);
     }
@@ -75,7 +75,7 @@ final readonly class Kreuzberg
         string $mimeType,
         ?ExtractionConfig $config = null,
     ): ExtractionResult {
-        $config = $config ?? $this->defaultConfig ?? new ExtractionConfig();
+        $config ??= $this->defaultConfig ?? new ExtractionConfig();
 
         return \Kreuzberg\extract_bytes($data, $mimeType, $config);
     }
@@ -92,7 +92,7 @@ final readonly class Kreuzberg
         array $paths,
         ?ExtractionConfig $config = null,
     ): array {
-        $config = $config ?? $this->defaultConfig ?? new ExtractionConfig();
+        $config ??= $this->defaultConfig ?? new ExtractionConfig();
 
         return \Kreuzberg\batch_extract_files($paths, $config);
     }
@@ -111,7 +111,7 @@ final readonly class Kreuzberg
         array $mimeTypes,
         ?ExtractionConfig $config = null,
     ): array {
-        $config = $config ?? $this->defaultConfig ?? new ExtractionConfig();
+        $config ??= $this->defaultConfig ?? new ExtractionConfig();
 
         return \Kreuzberg\batch_extract_bytes($dataList, $mimeTypes, $config);
     }

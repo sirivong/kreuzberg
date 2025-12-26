@@ -64,7 +64,7 @@ final class ConfigTest extends TestCase
             extractImages: true,
             extractTables: false,
             preserveFormatting: true,
-            outputFormat: 'markdown'
+            outputFormat: 'markdown',
         );
 
         $this->assertTrue($config->extractImages);
@@ -80,7 +80,7 @@ final class ConfigTest extends TestCase
             extractImages: true,
             extractTables: false,
             preserveFormatting: true,
-            outputFormat: 'markdown'
+            outputFormat: 'markdown',
         );
 
         $array = $config->toArray();
@@ -98,7 +98,7 @@ final class ConfigTest extends TestCase
         $config = new OcrConfig(
             backend: 'tesseract',
             language: 'eng',
-            enabled: true
+            enabled: true,
         );
 
         $array = $config->toArray();
@@ -115,7 +115,7 @@ final class ConfigTest extends TestCase
         $config = new PdfConfig(
             extractImages: true,
             extractText: true,
-            preserveLayout: false
+            preserveLayout: false,
         );
 
         $array = $config->toArray();
@@ -132,7 +132,7 @@ final class ConfigTest extends TestCase
         $config = new ChunkingConfig(
             maxChunkSize: 1000,
             chunkOverlap: 200,
-            strategy: 'sentence'
+            strategy: 'sentence',
         );
 
         $array = $config->toArray();
@@ -149,7 +149,7 @@ final class ConfigTest extends TestCase
         $config = new TesseractConfig(
             psm: 3,
             oem: 3,
-            language: 'eng+fra'
+            language: 'eng+fra',
         );
 
         $array = $config->toArray();
@@ -171,7 +171,7 @@ final class ConfigTest extends TestCase
             ocr: $ocrConfig,
             pdf: $pdfConfig,
             chunking: $chunkingConfig,
-            extractImages: true
+            extractImages: true,
         );
 
         $array = $config->toArray();
@@ -190,7 +190,7 @@ final class ConfigTest extends TestCase
     {
         $config = new ExtractionConfig(
             extractImages: false,
-            extractTables: true
+            extractTables: true,
         );
 
         $array = $config->toArray();
@@ -207,7 +207,7 @@ final class ConfigTest extends TestCase
         $config = new PageConfig(
             startPage: 1,
             endPage: 10,
-            pageNumbers: [1, 3, 5, 7]
+            pageNumbers: [1, 3, 5, 7],
         );
 
         $array = $config->toArray();
@@ -223,7 +223,7 @@ final class ConfigTest extends TestCase
     {
         $config = new LanguageDetectionConfig(
             enabled: true,
-            minConfidence: 0.8
+            minConfidence: 0.8,
         );
 
         $array = $config->toArray();
@@ -239,7 +239,7 @@ final class ConfigTest extends TestCase
         $config = new KeywordConfig(
             enabled: true,
             maxKeywords: 10,
-            minScore: 0.5
+            minScore: 0.5,
         );
 
         $array = $config->toArray();

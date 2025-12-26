@@ -33,7 +33,7 @@ final class ExtensionTest extends TestCase
         if (!extension_loaded('kreuzberg')) {
             $this->markTestSkipped(
                 'Kreuzberg extension is not loaded. ' .
-                'These integration tests require the compiled extension.'
+                'These integration tests require the compiled extension.',
             );
         }
     }
@@ -69,7 +69,7 @@ final class ExtensionTest extends TestCase
         foreach ($requiredFunctions as $function) {
             $this->assertTrue(
                 function_exists($function),
-                "Extension function '{$function}' should exist"
+                "Extension function '{$function}' should exist",
             );
         }
     }
@@ -113,7 +113,7 @@ final class ExtensionTest extends TestCase
         $config = new ExtractionConfig(
             ocr: new OcrConfig(backend: 'tesseract', language: 'eng'),
             pdf: new PdfConfig(extractImages: true),
-            extractTables: true
+            extractTables: true,
         );
 
         $array = $config->toArray();
@@ -138,7 +138,7 @@ final class ExtensionTest extends TestCase
         $config = new ExtractionConfig(
             extractImages: true,
             extractTables: false,
-            preserveFormatting: true
+            preserveFormatting: true,
         );
 
         $kreuzberg = new Kreuzberg($config);
@@ -158,19 +158,19 @@ final class ExtensionTest extends TestCase
         // Check for required properties
         $expectedProperties = [
             'content',
+            'mimeType',
             'metadata',
             'tables',
+            'detectedLanguages',
             'chunks',
             'images',
             'pages',
-            'detectedLanguage',
-            'keywords',
         ];
 
         foreach ($expectedProperties as $property) {
             $this->assertTrue(
                 $reflection->hasProperty($property),
-                "ExtractionResult should have property: {$property}"
+                "ExtractionResult should have property: {$property}",
             );
         }
     }
@@ -190,7 +190,7 @@ final class ExtensionTest extends TestCase
         foreach ($proceduralFunctions as $function) {
             $this->assertTrue(
                 function_exists($function),
-                "Procedural function '{$function}' should exist"
+                "Procedural function '{$function}' should exist",
             );
         }
     }

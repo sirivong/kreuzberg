@@ -15,7 +15,7 @@ $autoloader = dirname(__DIR__) . '/vendor/autoload.php';
 if (!file_exists($autoloader)) {
     fwrite(
         STDERR,
-        'Composer autoloader not found. Please run: composer install' . PHP_EOL
+        'Composer autoloader not found. Please run: composer install' . PHP_EOL,
     );
     exit(1);
 }
@@ -28,8 +28,8 @@ if (PHP_VERSION_ID < 80200) {
         STDERR,
         sprintf(
             'Kreuzberg requires PHP 8.2 or higher. Current version: %s' . PHP_EOL,
-            PHP_VERSION
-        )
+            PHP_VERSION,
+        ),
     );
     exit(1);
 }
@@ -40,13 +40,13 @@ if (extension_loaded('kreuzberg')) {
         STDOUT,
         sprintf(
             '✓ Kreuzberg extension loaded (version %s)' . PHP_EOL,
-            phpversion('kreuzberg') ?: 'unknown'
-        )
+            phpversion('kreuzberg') ?: 'unknown',
+        ),
     );
 } else {
     fwrite(
         STDOUT,
-        '⚠ Kreuzberg extension not loaded - some tests will be skipped' . PHP_EOL
+        '⚠ Kreuzberg extension not loaded - some tests will be skipped' . PHP_EOL,
     );
 }
 

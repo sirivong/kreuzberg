@@ -42,38 +42,49 @@ readonly class ExtractedImage
     public static function fromArray(array $data): self
     {
         $imageData = $data['data'] ?? '';
+        /** @var string $imageData */
         assert(is_string($imageData));
 
         $format = $data['format'] ?? '';
+        /** @var string $format */
         assert(is_string($format));
 
         $imageIndex = $data['image_index'] ?? 0;
+        /** @var int $imageIndex */
         assert(is_int($imageIndex));
 
         $pageNumber = $data['page_number'] ?? null;
+        /** @var int|null $pageNumber */
         assert($pageNumber === null || is_int($pageNumber));
 
         $width = $data['width'] ?? null;
+        /** @var int|null $width */
         assert($width === null || is_int($width));
 
         $height = $data['height'] ?? null;
+        /** @var int|null $height */
         assert($height === null || is_int($height));
 
         $colorspace = $data['colorspace'] ?? null;
+        /** @var string|null $colorspace */
         assert($colorspace === null || is_string($colorspace));
 
         $bitsPerComponent = $data['bits_per_component'] ?? null;
+        /** @var int|null $bitsPerComponent */
         assert($bitsPerComponent === null || is_int($bitsPerComponent));
 
         $isMask = $data['is_mask'] ?? false;
+        /** @var bool $isMask */
         assert(is_bool($isMask));
 
         $description = $data['description'] ?? null;
+        /** @var string|null $description */
         assert($description === null || is_string($description));
 
         $ocrResult = null;
         if (isset($data['ocr_result'])) {
             $ocrResultData = $data['ocr_result'];
+            /** @var array<string, mixed> $ocrResultData */
             assert(is_array($ocrResultData));
             $ocrResult = ExtractionResult::fromArray($ocrResultData);
         }

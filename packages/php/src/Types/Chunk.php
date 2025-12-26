@@ -29,12 +29,15 @@ readonly class Chunk
     public static function fromArray(array $data): self
     {
         $content = $data['content'] ?? '';
+        /** @var string $content */
         assert(is_string($content));
 
         $embedding = $data['embedding'] ?? null;
+        /** @var array<float>|null $embedding */
         assert($embedding === null || is_array($embedding));
 
         $metadata = $data['metadata'] ?? [];
+        /** @var array<string, mixed> $metadata */
         assert(is_array($metadata));
 
         return new self(

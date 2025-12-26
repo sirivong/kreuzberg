@@ -38,10 +38,11 @@ function extract_file(
     ?string $mimeType = null,
     ?ExtractionConfig $config = null,
 ): ExtractionResult {
-    $config = $config ?? new ExtractionConfig();
+    $config ??= new ExtractionConfig();
 
     // Call the native extension function
     $resultArray = \kreuzberg_extract_file($filePath, $mimeType, $config->toArray());
+    /** @var array<string, mixed> $resultArray */
     assert(is_array($resultArray));
 
     return ExtractionResult::fromArray($resultArray);
@@ -70,10 +71,11 @@ function extract_bytes(
     string $mimeType,
     ?ExtractionConfig $config = null,
 ): ExtractionResult {
-    $config = $config ?? new ExtractionConfig();
+    $config ??= new ExtractionConfig();
 
     // Call the native extension function
     $resultArray = \kreuzberg_extract_bytes($data, $mimeType, $config->toArray());
+    /** @var array<string, mixed> $resultArray */
     assert(is_array($resultArray));
 
     return ExtractionResult::fromArray($resultArray);
@@ -103,13 +105,15 @@ function batch_extract_files(
     array $paths,
     ?ExtractionConfig $config = null,
 ): array {
-    $config = $config ?? new ExtractionConfig();
+    $config ??= new ExtractionConfig();
 
     // Call the native extension function
     $resultArrays = \kreuzberg_batch_extract_files($paths, $config->toArray());
+    /** @var array<array<string, mixed>> $resultArrays */
     assert(is_array($resultArrays));
 
     return array_map(
+        /** @param array<string, mixed> $resultArray */
         static fn (array $resultArray): ExtractionResult => ExtractionResult::fromArray($resultArray),
         $resultArrays,
     );
@@ -142,13 +146,15 @@ function batch_extract_bytes(
     array $mimeTypes,
     ?ExtractionConfig $config = null,
 ): array {
-    $config = $config ?? new ExtractionConfig();
+    $config ??= new ExtractionConfig();
 
     // Call the native extension function
     $resultArrays = \kreuzberg_batch_extract_bytes($dataList, $mimeTypes, $config->toArray());
+    /** @var array<array<string, mixed>> $resultArrays */
     assert(is_array($resultArrays));
 
     return array_map(
+        /** @param array<string, mixed> $resultArray */
         static fn (array $resultArray): ExtractionResult => ExtractionResult::fromArray($resultArray),
         $resultArrays,
     );
@@ -172,6 +178,7 @@ function batch_extract_bytes(
 function detect_mime_type(string $data): string
 {
     $result = \kreuzberg_detect_mime_type($data);
+    /** @var string $result */
     assert(is_string($result));
 
     return $result;
@@ -194,6 +201,7 @@ function detect_mime_type(string $data): string
 function detect_mime_type_from_path(string $path): string
 {
     $result = \kreuzberg_detect_mime_type_from_path($path);
+    /** @var string $result */
     assert(is_string($result));
 
     return $result;

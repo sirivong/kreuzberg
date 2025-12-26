@@ -45,25 +45,32 @@ readonly class ExtractionResult
     public static function fromArray(array $data): self
     {
         $content = $data['content'] ?? '';
+        /** @var string $content */
         assert(is_string($content));
 
         $mimeType = $data['mime_type'] ?? 'application/octet-stream';
+        /** @var string $mimeType */
         assert(is_string($mimeType));
 
         $metadataData = $data['metadata'] ?? [];
+        /** @var array<string, mixed> $metadataData */
         assert(is_array($metadataData));
 
         $tablesData = $data['tables'] ?? [];
+        /** @var array<array<string, mixed>> $tablesData */
         assert(is_array($tablesData));
 
         $detectedLanguages = $data['detected_languages'] ?? null;
+        /** @var array<string>|null $detectedLanguages */
         assert($detectedLanguages === null || is_array($detectedLanguages));
 
         $chunks = null;
         if (isset($data['chunks'])) {
             $chunksData = $data['chunks'];
+            /** @var array<array<string, mixed>> $chunksData */
             assert(is_array($chunksData));
             $chunks = array_map(
+                /** @param array<string, mixed> $chunk */
                 static fn (array $chunk): Chunk => Chunk::fromArray($chunk),
                 $chunksData,
             );
@@ -72,8 +79,10 @@ readonly class ExtractionResult
         $images = null;
         if (isset($data['images'])) {
             $imagesData = $data['images'];
+            /** @var array<array<string, mixed>> $imagesData */
             assert(is_array($imagesData));
             $images = array_map(
+                /** @param array<string, mixed> $image */
                 static fn (array $image): ExtractedImage => ExtractedImage::fromArray($image),
                 $imagesData,
             );
@@ -82,8 +91,10 @@ readonly class ExtractionResult
         $pages = null;
         if (isset($data['pages'])) {
             $pagesData = $data['pages'];
+            /** @var array<array<string, mixed>> $pagesData */
             assert(is_array($pagesData));
             $pages = array_map(
+                /** @param array<string, mixed> $page */
                 static fn (array $page): PageContent => PageContent::fromArray($page),
                 $pagesData,
             );
@@ -94,6 +105,7 @@ readonly class ExtractionResult
             mimeType: $mimeType,
             metadata: Metadata::fromArray($metadataData),
             tables: array_map(
+                /** @param array<string, mixed> $table */
                 static fn (array $table): Table => Table::fromArray($table),
                 $tablesData,
             ),
