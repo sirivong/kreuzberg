@@ -44,27 +44,63 @@ readonly class ExtractionResult
      */
     public static function fromArray(array $data): self
     {
+        $content = $data['content'] ?? '';
+        assert(is_string($content));
+
+        $mimeType = $data['mime_type'] ?? 'application/octet-stream';
+        assert(is_string($mimeType));
+
+        $metadataData = $data['metadata'] ?? [];
+        assert(is_array($metadataData));
+
+        $tablesData = $data['tables'] ?? [];
+        assert(is_array($tablesData));
+
+        $detectedLanguages = $data['detected_languages'] ?? null;
+        assert($detectedLanguages === null || is_array($detectedLanguages));
+
+        $chunks = null;
+        if (isset($data['chunks'])) {
+            $chunksData = $data['chunks'];
+            assert(is_array($chunksData));
+            $chunks = array_map(
+                static fn (array $chunk): Chunk => Chunk::fromArray($chunk),
+                $chunksData,
+            );
+        }
+
+        $images = null;
+        if (isset($data['images'])) {
+            $imagesData = $data['images'];
+            assert(is_array($imagesData));
+            $images = array_map(
+                static fn (array $image): ExtractedImage => ExtractedImage::fromArray($image),
+                $imagesData,
+            );
+        }
+
+        $pages = null;
+        if (isset($data['pages'])) {
+            $pagesData = $data['pages'];
+            assert(is_array($pagesData));
+            $pages = array_map(
+                static fn (array $page): PageContent => PageContent::fromArray($page),
+                $pagesData,
+            );
+        }
+
         return new self(
-            content: $data['content'] ?? '',
-            mimeType: $data['mime_type'] ?? 'application/octet-stream',
-            metadata: Metadata::fromArray($data['metadata'] ?? []),
+            content: $content,
+            mimeType: $mimeType,
+            metadata: Metadata::fromArray($metadataData),
             tables: array_map(
                 static fn (array $table): Table => Table::fromArray($table),
-                $data['tables'] ?? [],
+                $tablesData,
             ),
-            detectedLanguages: $data['detected_languages'] ?? null,
-            chunks: isset($data['chunks']) ? array_map(
-                static fn (array $chunk): Chunk => Chunk::fromArray($chunk),
-                $data['chunks'],
-            ) : null,
-            images: isset($data['images']) ? array_map(
-                static fn (array $image): ExtractedImage => ExtractedImage::fromArray($image),
-                $data['images'],
-            ) : null,
-            pages: isset($data['pages']) ? array_map(
-                static fn (array $page): PageContent => PageContent::fromArray($page),
-                $data['pages'],
-            ) : null,
+            detectedLanguages: $detectedLanguages,
+            chunks: $chunks,
+            images: $images,
+            pages: $pages,
         );
     }
 }

@@ -41,20 +41,55 @@ readonly class ExtractedImage
      */
     public static function fromArray(array $data): self
     {
+        $imageData = $data['data'] ?? '';
+        assert(is_string($imageData));
+
+        $format = $data['format'] ?? '';
+        assert(is_string($format));
+
+        $imageIndex = $data['image_index'] ?? 0;
+        assert(is_int($imageIndex));
+
+        $pageNumber = $data['page_number'] ?? null;
+        assert($pageNumber === null || is_int($pageNumber));
+
+        $width = $data['width'] ?? null;
+        assert($width === null || is_int($width));
+
+        $height = $data['height'] ?? null;
+        assert($height === null || is_int($height));
+
+        $colorspace = $data['colorspace'] ?? null;
+        assert($colorspace === null || is_string($colorspace));
+
+        $bitsPerComponent = $data['bits_per_component'] ?? null;
+        assert($bitsPerComponent === null || is_int($bitsPerComponent));
+
+        $isMask = $data['is_mask'] ?? false;
+        assert(is_bool($isMask));
+
+        $description = $data['description'] ?? null;
+        assert($description === null || is_string($description));
+
+        $ocrResult = null;
+        if (isset($data['ocr_result'])) {
+            $ocrResultData = $data['ocr_result'];
+            assert(is_array($ocrResultData));
+            $ocrResult = ExtractionResult::fromArray($ocrResultData);
+        }
+
         return new self(
-            data: $data['data'] ?? '',
-            format: $data['format'] ?? '',
-            imageIndex: $data['image_index'] ?? 0,
-            pageNumber: $data['page_number'] ?? null,
-            width: $data['width'] ?? null,
-            height: $data['height'] ?? null,
-            colorspace: $data['colorspace'] ?? null,
-            bitsPerComponent: $data['bits_per_component'] ?? null,
-            isMask: $data['is_mask'] ?? false,
-            description: $data['description'] ?? null,
-            ocrResult: isset($data['ocr_result'])
-                ? ExtractionResult::fromArray($data['ocr_result'])
-                : null,
+            data: $imageData,
+            format: $format,
+            imageIndex: $imageIndex,
+            pageNumber: $pageNumber,
+            width: $width,
+            height: $height,
+            colorspace: $colorspace,
+            bitsPerComponent: $bitsPerComponent,
+            isMask: $isMask,
+            description: $description,
+            ocrResult: $ocrResult,
         );
     }
 }

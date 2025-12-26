@@ -40,7 +40,6 @@ return (new PhpCsFixer\Config())
         'no_trailing_comma_in_singleline' => true,
         'no_whitespace_in_blank_line' => true,
         'return_type_declaration' => ['space_before' => 'none'],
-        'single_blank_line_before_namespace' => true,
         'visibility_required' => ['elements' => ['property', 'method', 'const']],
     ])
     ->setRiskyAllowed(true)

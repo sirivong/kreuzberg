@@ -28,10 +28,19 @@ readonly class Chunk
      */
     public static function fromArray(array $data): self
     {
+        $content = $data['content'] ?? '';
+        assert(is_string($content));
+
+        $embedding = $data['embedding'] ?? null;
+        assert($embedding === null || is_array($embedding));
+
+        $metadata = $data['metadata'] ?? [];
+        assert(is_array($metadata));
+
         return new self(
-            content: $data['content'] ?? '',
-            embedding: $data['embedding'] ?? null,
-            metadata: ChunkMetadata::fromArray($data['metadata'] ?? []),
+            content: $content,
+            embedding: $embedding,
+            metadata: ChunkMetadata::fromArray($metadata),
         );
     }
 }

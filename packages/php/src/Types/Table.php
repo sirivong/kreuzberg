@@ -28,10 +28,19 @@ readonly class Table
      */
     public static function fromArray(array $data): self
     {
+        $cells = $data['cells'] ?? [];
+        assert(is_array($cells));
+
+        $markdown = $data['markdown'] ?? '';
+        assert(is_string($markdown));
+
+        $pageNumber = $data['page_number'] ?? 0;
+        assert(is_int($pageNumber));
+
         return new self(
-            cells: $data['cells'] ?? [],
-            markdown: $data['markdown'] ?? '',
-            pageNumber: $data['page_number'] ?? 0,
+            cells: $cells,
+            markdown: $markdown,
+            pageNumber: $pageNumber,
         );
     }
 }

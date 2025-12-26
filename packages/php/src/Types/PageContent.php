@@ -34,16 +34,28 @@ readonly class PageContent
      */
     public static function fromArray(array $data): self
     {
+        $pageNumber = $data['page_number'] ?? 0;
+        assert(is_int($pageNumber));
+
+        $content = $data['content'] ?? '';
+        assert(is_string($content));
+
+        $tablesData = $data['tables'] ?? [];
+        assert(is_array($tablesData));
+
+        $imagesData = $data['images'] ?? [];
+        assert(is_array($imagesData));
+
         return new self(
-            pageNumber: $data['page_number'] ?? 0,
-            content: $data['content'] ?? '',
+            pageNumber: $pageNumber,
+            content: $content,
             tables: array_map(
                 static fn (array $table): Table => Table::fromArray($table),
-                $data['tables'] ?? [],
+                $tablesData,
             ),
             images: array_map(
                 static fn (array $image): ExtractedImage => ExtractedImage::fromArray($image),
-                $data['images'] ?? [],
+                $imagesData,
             ),
         );
     }

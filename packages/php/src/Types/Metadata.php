@@ -71,21 +71,42 @@ readonly class Metadata
             'page_count',
         ];
 
-        // Extract known fields
-        $metadata = [
-            'language' => $data['language'] ?? null,
-            'date' => $data['date'] ?? null,
-            'subject' => $data['subject'] ?? null,
-            'formatType' => $data['format_type'] ?? null,
-            'title' => $data['title'] ?? null,
-            'authors' => $data['authors'] ?? null,
-            'keywords' => $data['keywords'] ?? null,
-            'createdAt' => $data['created_at'] ?? null,
-            'modifiedAt' => $data['modified_at'] ?? null,
-            'createdBy' => $data['created_by'] ?? null,
-            'producer' => $data['producer'] ?? null,
-            'pageCount' => $data['page_count'] ?? null,
-        ];
+        // Extract and validate known fields
+        $language = $data['language'] ?? null;
+        assert($language === null || is_string($language));
+
+        $date = $data['date'] ?? null;
+        assert($date === null || is_string($date));
+
+        $subject = $data['subject'] ?? null;
+        assert($subject === null || is_string($subject));
+
+        $formatType = $data['format_type'] ?? null;
+        assert($formatType === null || is_string($formatType));
+
+        $title = $data['title'] ?? null;
+        assert($title === null || is_string($title));
+
+        $authors = $data['authors'] ?? null;
+        assert($authors === null || is_array($authors));
+
+        $keywords = $data['keywords'] ?? null;
+        assert($keywords === null || is_array($keywords));
+
+        $createdAt = $data['created_at'] ?? null;
+        assert($createdAt === null || is_string($createdAt));
+
+        $modifiedAt = $data['modified_at'] ?? null;
+        assert($modifiedAt === null || is_string($modifiedAt));
+
+        $createdBy = $data['created_by'] ?? null;
+        assert($createdBy === null || is_string($createdBy));
+
+        $producer = $data['producer'] ?? null;
+        assert($producer === null || is_string($producer));
+
+        $pageCount = $data['page_count'] ?? null;
+        assert($pageCount === null || is_int($pageCount));
 
         // Collect custom fields (anything not in known fields)
         $custom = [];
@@ -95,7 +116,21 @@ readonly class Metadata
             }
         }
 
-        return new self(...$metadata, custom: $custom);
+        return new self(
+            language: $language,
+            date: $date,
+            subject: $subject,
+            formatType: $formatType,
+            title: $title,
+            authors: $authors,
+            keywords: $keywords,
+            createdAt: $createdAt,
+            modifiedAt: $modifiedAt,
+            createdBy: $createdBy,
+            producer: $producer,
+            pageCount: $pageCount,
+            custom: $custom,
+        );
     }
 
     /**

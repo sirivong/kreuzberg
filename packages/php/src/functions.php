@@ -42,6 +42,7 @@ function extract_file(
 
     // Call the native extension function
     $resultArray = \kreuzberg_extract_file($filePath, $mimeType, $config->toArray());
+    assert(is_array($resultArray));
 
     return ExtractionResult::fromArray($resultArray);
 }
@@ -73,6 +74,7 @@ function extract_bytes(
 
     // Call the native extension function
     $resultArray = \kreuzberg_extract_bytes($data, $mimeType, $config->toArray());
+    assert(is_array($resultArray));
 
     return ExtractionResult::fromArray($resultArray);
 }
@@ -105,6 +107,7 @@ function batch_extract_files(
 
     // Call the native extension function
     $resultArrays = \kreuzberg_batch_extract_files($paths, $config->toArray());
+    assert(is_array($resultArrays));
 
     return array_map(
         static fn (array $resultArray): ExtractionResult => ExtractionResult::fromArray($resultArray),
@@ -143,6 +146,7 @@ function batch_extract_bytes(
 
     // Call the native extension function
     $resultArrays = \kreuzberg_batch_extract_bytes($dataList, $mimeTypes, $config->toArray());
+    assert(is_array($resultArrays));
 
     return array_map(
         static fn (array $resultArray): ExtractionResult => ExtractionResult::fromArray($resultArray),
@@ -167,7 +171,10 @@ function batch_extract_bytes(
  */
 function detect_mime_type(string $data): string
 {
-    return \kreuzberg_detect_mime_type($data);
+    $result = \kreuzberg_detect_mime_type($data);
+    assert(is_string($result));
+
+    return $result;
 }
 
 /**
@@ -186,5 +193,8 @@ function detect_mime_type(string $data): string
  */
 function detect_mime_type_from_path(string $path): string
 {
-    return \kreuzberg_detect_mime_type_from_path($path);
+    $result = \kreuzberg_detect_mime_type_from_path($path);
+    assert(is_string($result));
+
+    return $result;
 }
