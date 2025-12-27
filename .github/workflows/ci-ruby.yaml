@@ -300,6 +300,9 @@ jobs:
           RB_SYS_VERBOSE: "1"
           CARGO_BUILD_JOBS: "1"
 
+      - name: Install Task
+        uses: ./.github/actions/install-task
+
       - name: Print post-FFI build status (Windows)
         if: runner.os == 'Windows'
         shell: pwsh

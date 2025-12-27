@@ -185,6 +185,9 @@ jobs:
           build-profile: release
           verbose: true
 
+      - name: Install Task
+        uses: ./.github/actions/install-task
+
       - name: Build PHP extension
         shell: bash
         run: task php:build:ci

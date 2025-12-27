@@ -206,6 +206,9 @@ jobs:
           build-profile: release
           verbose: true
 
+      - name: Install Task
+        uses: ./.github/actions/install-task
+
       - name: Build Python wheels
         shell: bash
         env:
@@ -245,6 +248,9 @@ jobs:
         with:
           python-version: "3.13"
           cache-prefix: sdist
+
+      - name: Install Task
+        uses: ./.github/actions/install-task
 
       - name: Build sdist
         shell: bash

@@ -78,6 +78,9 @@ jobs:
         with:
           ort-version: ${{ env.ORT_VERSION }}
 
+      - name: Install Task
+        uses: ./.github/actions/install-task
+
       - name: Build workspace (native libs + harness)
         run: task rust:build:release
 
@@ -205,6 +208,9 @@ jobs:
         with:
           ort-version: ${{ env.ORT_VERSION }}
 
+      - name: Install Task
+        uses: ./.github/actions/install-task
+
       - name: Build Python bindings
         run: task python:build:bindings
 
@@ -273,6 +279,9 @@ jobs:
         uses: ./.github/actions/setup-onnx-runtime
         with:
           ort-version: ${{ env.ORT_VERSION }}
+
+      - name: Install Task
+        uses: ./.github/actions/install-task
 
       - name: Build Python bindings
         run: task python:build:bindings
@@ -343,6 +352,9 @@ jobs:
         with:
           ort-version: ${{ env.ORT_VERSION }}
 
+      - name: Install Task
+        uses: ./.github/actions/install-task
+
       - name: Build Python bindings
         run: task python:build:bindings
 
@@ -411,6 +423,9 @@ jobs:
         uses: ./.github/actions/setup-onnx-runtime
         with:
           ort-version: ${{ env.ORT_VERSION }}
+
+      - name: Install Task
+        uses: ./.github/actions/install-task
 
       - name: Build Node bindings and install locally
         env:
@@ -483,6 +498,9 @@ jobs:
         with:
           ort-version: ${{ env.ORT_VERSION }}
 
+      - name: Install Task
+        uses: ./.github/actions/install-task
+
       - name: Build Node bindings and install locally
         env:
           TARGET: x86_64-unknown-linux-gnu
@@ -546,6 +564,9 @@ jobs:
       - name: Setup Node
         uses: ./.github/actions/setup-node-workspace
 
+      - name: Install Task
+        uses: ./.github/actions/install-task
+
       - name: Build WASM bindings
         run: task wasm:build:bindings
 
@@ -606,6 +627,9 @@ jobs:
 
       - name: Setup Node
         uses: ./.github/actions/setup-node-workspace
+
+      - name: Install Task
+        uses: ./.github/actions/install-task
 
       - name: Build WASM bindings
         run: task wasm:build:bindings
@@ -677,6 +701,9 @@ jobs:
 
       - name: Vendor kreuzberg core for Ruby
         run: scripts/ci/ruby/vendor-kreuzberg-core.sh
+
+      - name: Install Task
+        uses: ./.github/actions/install-task
 
       - name: Build Ruby native gem
         env:
@@ -750,6 +777,9 @@ jobs:
 
       - name: Vendor kreuzberg core for Ruby
         run: scripts/ci/ruby/vendor-kreuzberg-core.sh
+
+      - name: Install Task
+        uses: ./.github/actions/install-task
 
       - name: Build Ruby native gem
         env:
@@ -826,6 +856,9 @@ jobs:
         working-directory: packages/go/v4
         run: go mod download
 
+      - name: Install Task
+        uses: ./.github/actions/install-task
+
       - name: Build Go bindings
         run: task go:build:bindings
 
@@ -900,6 +933,9 @@ jobs:
         working-directory: packages/go/v4
         run: go mod download
 
+      - name: Install Task
+        uses: ./.github/actions/install-task
+
       - name: Build Go bindings
         run: task go:build:bindings
 
@@ -970,6 +1006,9 @@ jobs:
         with:
           ort-version: ${{ env.ORT_VERSION }}
 
+      - name: Install Task
+        uses: ./.github/actions/install-task
+
       - name: Build Java bindings
         run: task java:build:bindings
 
@@ -1037,6 +1076,9 @@ jobs:
         uses: ./.github/actions/setup-onnx-runtime
         with:
           ort-version: ${{ env.ORT_VERSION }}
+
+      - name: Install Task
+        uses: ./.github/actions/install-task
 
       - name: Build C# bindings
         run: task csharp:build:bindings

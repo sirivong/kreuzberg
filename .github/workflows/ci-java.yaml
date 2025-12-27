@@ -182,6 +182,9 @@ jobs:
           ort-version: ${{ env.ORT_VERSION }}
           dest-dir: target/release
 
+      - name: Install Task
+        uses: ./.github/actions/install-task
+
       - name: Build Rust FFI library (C API)
         shell: bash
         run: task rust:ffi:build:ci

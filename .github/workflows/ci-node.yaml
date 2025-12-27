@@ -222,6 +222,9 @@ jobs:
           build-profile: release
           verbose: true
 
+      - name: Install Task
+        uses: ./.github/actions/install-task
+
       - name: Report Rust build artifacts size
         shell: bash
         run: |
