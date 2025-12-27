@@ -193,7 +193,7 @@ for path in "$@"; do
 			# Validate shared library
 			if [[ "$artifact" == *.so || "$artifact" == *.dylib || "$artifact" == *.dll ]]; then
 				# Check if it's a valid binary (has ELF/Mach-O/PE magic bytes)
-				if file "$artifact" | grep -qE "(shared object|shared library|Mach-O|PE32|DLL)"; then
+				if file "$artifact" 2>/dev/null | grep -qE "(shared object|shared library|Mach-O|PE32|DLL)"; then
 					info "✓ Valid FFI library: $artifact ($SIZE)"
 					((VALID_COUNT++))
 				else
@@ -202,7 +202,7 @@ for path in "$@"; do
 				fi
 			elif [[ "$artifact" == *.a || "$artifact" == *.lib ]]; then
 				# Static library
-				if file "$artifact" | grep -qE "(archive|library)"; then
+				if file "$artifact" 2>/dev/null | grep -qE "(archive|library)"; then
 					info "✓ Valid static library: $artifact ($SIZE)"
 					((VALID_COUNT++))
 				else
@@ -220,7 +220,7 @@ for path in "$@"; do
 			# Validate Python wheels
 			if [[ "$artifact" == *.whl ]]; then
 				# Check if it's a valid ZIP archive
-				if file "$artifact" | grep -q "Zip archive"; then
+				if file "$artifact" 2>/dev/null | grep -q "Zip archive"; then
 					info "✓ Valid Python wheel: $artifact ($SIZE)"
 					((VALID_COUNT++))
 				else
@@ -229,7 +229,7 @@ for path in "$@"; do
 				fi
 			elif [[ "$artifact" == *.tar.gz ]]; then
 				# Check if it's a valid tarball
-				if file "$artifact" | grep -q "gzip compressed"; then
+				if file "$artifact" 2>/dev/null | grep -q "gzip compressed"; then
 					info "✓ Valid Python sdist: $artifact ($SIZE)"
 					((VALID_COUNT++))
 				else
@@ -245,7 +245,7 @@ for path in "$@"; do
 		ruby)
 			# Validate Ruby gems
 			if [[ "$artifact" == *.gem ]]; then
-				if file "$artifact" | grep -q "tar archive"; then
+				if file "$artifact" 2>/dev/null | grep -q "tar archive"; then
 					info "✓ Valid Ruby gem: $artifact ($SIZE)"
 					((VALID_COUNT++))
 				else
@@ -253,7 +253,7 @@ for path in "$@"; do
 					((INVALID_COUNT++))
 				fi
 			elif [[ "$artifact" == *.bundle || "$artifact" == *.so ]]; then
-				if file "$artifact" | grep -qE "(shared object|shared library|Mach-O|bundle)"; then
+				if file "$artifact" 2>/dev/null | grep -qE "(shared object|shared library|Mach-O|bundle)"; then
 					info "✓ Valid Ruby extension: $artifact ($SIZE)"
 					((VALID_COUNT++))
 				else
@@ -269,7 +269,7 @@ for path in "$@"; do
 		node)
 			# Validate Node.js native modules
 			if [[ "$artifact" == *.node ]]; then
-				if file "$artifact" | grep -qE "(shared object|shared library|Mach-O|DLL)"; then
+				if file "$artifact" 2>/dev/null | grep -qE "(shared object|shared library|Mach-O|DLL)"; then
 					info "✓ Valid Node.js module: $artifact ($SIZE)"
 					((VALID_COUNT++))
 				else
@@ -277,7 +277,7 @@ for path in "$@"; do
 					((INVALID_COUNT++))
 				fi
 			elif [[ "$artifact" == *.tgz || "$artifact" == *.tar.gz ]]; then
-				if file "$artifact" | grep -q "gzip compressed"; then
+				if file "$artifact" 2>/dev/null | grep -q "gzip compressed"; then
 					info "✓ Valid npm package: $artifact ($SIZE)"
 					((VALID_COUNT++))
 				else
@@ -293,9 +293,8 @@ for path in "$@"; do
 		wasm)
 			# Validate WebAssembly modules
 			if [[ "$artifact" == *.wasm ]]; then
-				# Check for WASM magic bytes (\0asm)
-				if xxd -l 4 -p "$artifact" 2>/dev/null | grep -q "0061736d" ||
-					file "$artifact" | grep -q "WebAssembly"; then
+				# Check for WASM magic bytes (\0asm) using check_wasm_magic function
+				if check_wasm_magic "$artifact"; then
 					info "✓ Valid WASM module: $artifact ($SIZE)"
 					((VALID_COUNT++))
 				else
@@ -311,7 +310,7 @@ for path in "$@"; do
 		java)
 			# Validate Java JARs
 			if [[ "$artifact" == *.jar ]]; then
-				if file "$artifact" | grep -q "Zip archive"; then
+				if file "$artifact" 2>/dev/null | grep -q "Zip archive"; then
 					info "✓ Valid JAR file: $artifact ($SIZE)"
 					((VALID_COUNT++))
 				else
@@ -327,7 +326,7 @@ for path in "$@"; do
 		csharp)
 			# Validate .NET packages
 			if [[ "$artifact" == *.nupkg ]]; then
-				if file "$artifact" | grep -q "Zip archive"; then
+				if file "$artifact" 2>/dev/null | grep -q "Zip archive"; then
 					info "✓ Valid NuGet package: $artifact ($SIZE)"
 					((VALID_COUNT++))
 				else
@@ -335,7 +334,7 @@ for path in "$@"; do
 					((INVALID_COUNT++))
 				fi
 			elif [[ "$artifact" == *.dll || "$artifact" == *.so || "$artifact" == *.dylib ]]; then
-				if file "$artifact" | grep -qE "(shared object|shared library|Mach-O|DLL|PE32)"; then
+				if file "$artifact" 2>/dev/null | grep -qE "(shared object|shared library|Mach-O|DLL|PE32)"; then
 					info "✓ Valid native library: $artifact ($SIZE)"
 					((VALID_COUNT++))
 				else
