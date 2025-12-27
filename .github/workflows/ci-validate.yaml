@@ -3,39 +3,39 @@ name: CI Validate
 on:
   pull_request:
     branches: [main]
-    paths:
+#    paths:
       # All Rust crates
-      - 'crates/kreuzberg/**'
-      - 'crates/kreuzberg-cli/**'
-      - 'crates/kreuzberg-py/**'
-      - 'crates/kreuzberg-node/**'
-      - 'crates/kreuzberg-ffi/**'
-      - 'crates/kreuzberg-tesseract/**'
-      - 'crates/kreuzberg-wasm/**'
+#      - 'crates/kreuzberg/**'
+#      - 'crates/kreuzberg-cli/**'
+#      - 'crates/kreuzberg-py/**'
+#      - 'crates/kreuzberg-node/**'
+#      - 'crates/kreuzberg-ffi/**'
+#      - 'crates/kreuzberg-tesseract/**'
+#      - 'crates/kreuzberg-wasm/**'
       # All language packages
-      - 'packages/python/**'
-      - 'packages/typescript/**'
-      - 'packages/ruby/**'
-      - 'packages/java/**'
-      - 'packages/go/v4/**'
-      - 'packages/csharp/**'
-      - 'packages/wasm/**'
+#      - 'packages/python/**'
+#      - 'packages/typescript/**'
+#      - 'packages/ruby/**'
+#      - 'packages/java/**'
+#      - 'packages/go/v4/**'
+#      - 'packages/csharp/**'
+#      - 'packages/wasm/**'
       # All tools
-      - 'tools/benchmark-harness/**'
-      - 'tools/e2e-generator/**'
+#      - 'tools/benchmark-harness/**'
+#      - 'tools/e2e-generator/**'
       # All scripts
-      - 'scripts/**'
+#      - 'scripts/**'
       # CI infrastructure
-      - '.github/actions/**'
+#      - '.github/actions/**'
       # Config files
-      - '.cargo/config.toml'
-      - '.pre-commit-config.yaml'
-      - '.golangci.yml'
-      - 'pyproject.toml'
-      - 'pnpm-lock.yaml'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - '.github/workflows/ci-validate.yaml'
+#      - '.cargo/config.toml'
+#      - '.pre-commit-config.yaml'
+#      - '.golangci.yml'
+#      - 'pyproject.toml'
+#      - 'pnpm-lock.yaml'
+#      - 'Cargo.toml'
+#      - 'Cargo.lock'
+#      - '.github/workflows/ci-validate.yaml'
 
 concurrency:
   group: ci-validate-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
