@@ -209,11 +209,29 @@ jobs:
       - name: Install Task
         uses: ./.github/actions/install-task
 
-      - name: Build Python wheels
+      - name: Build and cache Python wheels
         shell: bash
         env:
           TARGET: ${{ matrix.target }}
         run: task python:build:ci
+
+      - name: Report cache statistics
+        if: always()
+        shell: bash
+        run: |
+          echo "=== Python Build Cache Statistics ==="
+          echo "Platform: ${{ matrix.platform }}"
+          echo "Target: ${{ matrix.target }}"
+          if [ -d "target/wheels" ]; then
+            echo "Wheels artifacts:"
+            du -sh target/wheels || echo "target/wheels: empty"
+            find target/wheels -maxdepth 1 -name "*.whl" -exec ls -lh {} \; 2>/dev/null | awk '{print $9, $5}' || echo "No wheel files found"
+          fi
+          if [ -d "packages/python/dist" ]; then
+            echo "Python dist artifacts:"
+            du -sh packages/python/dist || echo "packages/python/dist: empty"
+            find packages/python/dist -maxdepth 1 -name "*.whl" -exec ls -lh {} \; 2>/dev/null | awk '{print $9, $5}' || echo "No dist wheel files found"
+          fi
 
       - name: Upload wheels
         uses: actions/upload-artifact@v6
