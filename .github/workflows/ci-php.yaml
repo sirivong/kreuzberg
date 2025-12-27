@@ -145,12 +145,23 @@ jobs:
           extensions: ffi
           tools: composer
 
+      - name: Export PHP build config
+        shell: bash
+        run: |
+          PHP_CONFIG_BIN="$(command -v php-config || true)"
+          if [ -z "$PHP_CONFIG_BIN" ]; then
+            echo "php-config not found in PATH" >&2
+            exit 1
+          fi
+          echo "PHP_CONFIG=$PHP_CONFIG_BIN" >> "$GITHUB_ENV"
+
       - name: Print PHP environment
         shell: bash
         run: |
           echo "=== PHP Environment ==="
           echo "PHP version: $(php --version)"
-          echo "PHP config: $(php --ini)"
+          echo "PHP config (php-config): $(php-config --version)"
+          echo "PHP ini: $(php --ini)"
           echo "Composer version: $(composer --version)"
 
       - name: Install Composer dependencies
