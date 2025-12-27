@@ -29,6 +29,65 @@ warn() {
 	echo -e "${YELLOW}$*${NC}" >&2
 }
 
+# Cross-platform file size function
+# Gets file size in bytes, works on Linux, macOS, and Windows
+get_file_size() {
+	local file="$1"
+
+	# Try macOS/BSD stat first
+	if stat -f%z "$file" 2>/dev/null; then
+		return 0
+	fi
+
+	# Try Linux stat
+	if stat -c%s "$file" 2>/dev/null; then
+		return 0
+	fi
+
+	# Try Windows PowerShell
+	if command -v powershell &>/dev/null; then
+		powershell -NoProfile -Command "if (Test-Path '$file') { (Get-Item '$file').Length }"
+		return 0
+	fi
+
+	# Fallback: use wc -c if available
+	if command -v wc &>/dev/null; then
+		wc -c <"$file" 2>/dev/null
+		return 0
+	fi
+
+	# If all else fails, return 0 (will be treated as unknown)
+	echo "0"
+	return 0
+}
+
+# Check WASM magic bytes - works cross-platform
+check_wasm_magic() {
+	local file="$1"
+
+	# Try xxd first (Linux/macOS)
+	if command -v xxd &>/dev/null && xxd -l 4 -p "$file" 2>/dev/null | grep -q "0061736d"; then
+		return 0
+	fi
+
+	# Try od command (available on all Unix-like systems including macOS and Windows git bash)
+	if command -v od &>/dev/null && od -A n -t x1 -N 4 "$file" 2>/dev/null | grep -q "00 61 73 6d"; then
+		return 0
+	fi
+
+	# Try hexdump (might be available)
+	if command -v hexdump &>/dev/null && hexdump -C -n 4 "$file" 2>/dev/null | grep -q "00 61 73 6d"; then
+		return 0
+	fi
+
+	# Fallback to file command if available
+	if command -v file &>/dev/null && file "$file" 2>/dev/null | grep -q "WebAssembly"; then
+		return 0
+	fi
+
+	return 1
+}
+
 if [[ $# -lt 2 ]]; then
 	error "Usage: $0 <artifact-type> <path...>"
 fi
@@ -56,7 +115,7 @@ for path in "$@"; do
 				while IFS= read -r artifact; do
 					# File exists, check size
 					SIZE=$(du -sh "$artifact" 2>/dev/null | cut -f1 || echo "unknown")
-					FILE_SIZE=$(stat -f%z "$artifact" 2>/dev/null || stat -c%s "$artifact" 2>/dev/null || echo "0")
+					FILE_SIZE=$(get_file_size "$artifact")
 
 					if [[ "$FILE_SIZE" -eq 0 ]]; then
 						warn "Empty file: $artifact"
@@ -65,8 +124,7 @@ for path in "$@"; do
 					fi
 
 					# Check for WASM magic bytes (\0asm)
-					if xxd -l 4 -p "$artifact" 2>/dev/null | grep -q "0061736d" ||
-						file "$artifact" | grep -q "WebAssembly"; then
+					if check_wasm_magic "$artifact"; then
 						info "✓ Valid WASM module: $artifact ($SIZE)"
 						((VALID_COUNT++))
 					else
@@ -75,8 +133,36 @@ for path in "$@"; do
 					fi
 				done <<<"$wasm_files"
 			fi
+		# For Node artifacts, look for .node files recursively in the directory
+		elif [[ "$ARTIFACT_TYPE" == "node" ]]; then
+			node_files=$(find "$path" -type f -name "*.node" 2>/dev/null || true)
+			if [[ -z "$node_files" ]]; then
+				warn "No Node.js modules found in directory: $path"
+				((MISSING_COUNT++))
+			else
+				while IFS= read -r artifact; do
+					# File exists, check size
+					SIZE=$(du -sh "$artifact" 2>/dev/null | cut -f1 || echo "unknown")
+					FILE_SIZE=$(get_file_size "$artifact")
+
+					if [[ "$FILE_SIZE" -eq 0 ]]; then
+						warn "Empty file: $artifact"
+						((INVALID_COUNT++))
+						continue
+					fi
+
+					# Check for valid Node.js native module
+					if file "$artifact" | grep -qE "(shared object|shared library|Mach-O|DLL)"; then
+						info "✓ Valid Node.js module: $artifact ($SIZE)"
+						((VALID_COUNT++))
+					else
+						warn "Invalid .node format: $artifact"
+						((INVALID_COUNT++))
+					fi
+				done <<<"$node_files"
+			fi
 		else
-			# For non-WASM, just check that the directory exists
+			# For non-WASM/non-Node, just check that the directory exists
 			info "✓ Directory exists: $path"
 			((VALID_COUNT++))
 		fi
@@ -93,7 +179,7 @@ for path in "$@"; do
 
 		# File exists, check size
 		SIZE=$(du -sh "$artifact" 2>/dev/null | cut -f1 || echo "unknown")
-		FILE_SIZE=$(stat -f%z "$artifact" 2>/dev/null || stat -c%s "$artifact" 2>/dev/null || echo "0")
+		FILE_SIZE=$(get_file_size "$artifact")
 
 		if [[ "$FILE_SIZE" -eq 0 ]]; then
 			warn "Empty file: $artifact"
