@@ -241,12 +241,10 @@ runs:
 
         echo "=== Validating FFI Artifacts ==="
 
-        # Define cache paths to check
-        # Note: .pc file is optional and may be in repo root or different location
-        CACHE_PATHS="target/release/libkreuzberg_ffi.* target/release/kreuzberg_ffi.*"
-
-        # Run validation script
-        scripts/ci/cache/validate-cache.sh ffi $CACHE_PATHS || {
+        # Run validation script with quoted patterns to allow proper expansion
+        scripts/ci/cache/validate-cache.sh ffi \
+          "target/release/libkreuzberg_ffi.*" \
+          "target/release/kreuzberg_ffi.*" || {
           echo "❌ Validation failed"
           exit 1
         }
