@@ -1,0 +1,44 @@
+### Supported File Formats (56+)
+
+| Category | Formats |
+|----------|---------|
+| **Documents** | PDF, DOCX, DOC, XLSX, XLS, PPTX, PPT, ODS, ODT, ODP |
+| **Web & Data** | HTML, XML, JSON, YAML, TOML, CSV, SVG |
+| **Archives** | ZIP, TAR, GZIP, 7Z, RAR, Bzip2 |
+| **Images** | PNG, JPG/JPEG, GIF, BMP, TIFF, WebP, ICO |
+| **Documents (cont.)** | RTF, TXT, Markdown, LaTeX |
+| **Email** | EML, MSG, MBOX |
+| **Other** | WASM, ICS, VCF, and more |
+
+### Key Capabilities
+
+- **Text Extraction** - Extract all text content with position and formatting information
+- **Metadata Extraction** - Retrieve document properties, creation date, author, etc.
+- **Table Extraction** - Parse tables with structure and cell content preservation
+- **Image Extraction** - Extract embedded images and render page previews
+- **OCR Support** - Integrate multiple OCR backends for scanned documents
+{% if features.async %}
+- **Async/Await** - Non-blocking document processing with concurrent operations
+{% endif %}
+{% if features.plugin_system %}
+- **Plugin System** - Extensible post-processing for custom text transformation
+{% endif %}
+{% if features.embeddings %}
+- **Embeddings** - Generate vector embeddings using ONNX Runtime models
+{% endif %}
+- **Batch Processing** - Efficiently process multiple documents in parallel
+- **Memory Efficient** - Stream large files without loading entirely into memory
+- **Language Detection** - Detect and support multiple languages in documents
+- **Configuration** - Fine-grained control over extraction behavior
+
+### Performance Characteristics
+
+| Format | Speed | Memory | Notes |
+|--------|-------|--------|-------|
+| **PDF (text)** | 10-100 MB/s | ~50MB per doc | Fastest extraction |
+| **Office docs** | 20-200 MB/s | ~100MB per doc | DOCX, XLSX, PPTX |
+| **Images (OCR)** | 1-5 MB/s | Variable | Depends on OCR backend |
+| **Archives** | 5-50 MB/s | ~200MB per doc | ZIP, TAR, etc. |
+| **Web formats** | 50-200 MB/s | Streaming | HTML, XML, JSON |
+
+All speeds based on modern hardware. See [Benchmarks](https://kreuzberg.dev/benchmarks/) for detailed metrics.

@@ -13,14 +13,11 @@
 [![Documentation](https://img.shields.io/badge/docs-kreuzberg.dev-007ec6)](https://kreuzberg.dev/)
 [![Discord](https://img.shields.io/badge/Discord-Join%20our%20community-007ec6)](https://discord.gg/pXxagNK2zN)
 
-High-performance document intelligence for Python. Extract text, metadata, and structured information from PDFs, Office documents, images, and 56 formats.
-
-Powered by a Rust core for native performance in document extraction.
-
+{{ description }}
 
 **Powered by a Rust core** – Native performance for document extraction.
 
-> **Version  Release Candidate**
+> **Version {{ version }} Release Candidate**
 > This is a pre-release version. Please test the library and [report any issues](https://github.com/kreuzberg-dev/kreuzberg/issues) you encounter.
 
 ## Installation
@@ -46,87 +43,21 @@ pip install "kreuzberg[all]"
 
 ### Basic Usage
 
-```python
-import asyncio
-from kreuzberg import extract_file, ExtractionConfig
-
-async def main() -> None:
-    config = ExtractionConfig(
-        use_cache=True,
-        enable_quality_processing=True
-    )
-    result = await extract_file("document.pdf", config=config)
-    print(result.content)
-
-asyncio.run(main())
-```
-
+{{ include_snippet('getting-started/basic_usage.md', 'python') }}
 
 ### Simple Extraction
 
-```python
-import asyncio
-from pathlib import Path
-from kreuzberg import extract_file
-
-async def main() -> None:
-    file_path: Path = Path("document.pdf")
-
-    result = await extract_file(file_path)
-
-    print(f"Content: {result.content}")
-    print(f"MIME Type: {result.metadata.format_type}")
-    print(f"Tables: {len(result.tables)}")
-
-asyncio.run(main())
-```
-
+{{ include_snippet('getting-started/extract_file.md', 'python') }}
 
 ### Reading Content
 
-```python
-import asyncio
-from kreuzberg import extract_file
-
-async def main() -> None:
-    result = await extract_file("document.pdf")
-
-    content: str = result.content
-    tables: int = len(result.tables)
-    format_type: str | None = result.metadata.format_type
-
-    print(f"Content length: {len(content)} characters")
-    print(f"Tables found: {tables}")
-    print(f"Format: {format_type}")
-
-asyncio.run(main())
-```
-
+{{ include_snippet('getting-started/read_content.md', 'python') }}
 
 ## OCR Support
 
 ### Using OCR
 
-```python
-import asyncio
-from kreuzberg import extract_file, ExtractionConfig, OcrConfig, TesseractConfig
-
-async def main() -> None:
-    config = ExtractionConfig(
-        force_ocr=True,
-        ocr=OcrConfig(
-            backend="tesseract",
-            language="eng",
-            tesseract_config=TesseractConfig(psm=3)
-        )
-    )
-    result = await extract_file("scanned.pdf", config=config)
-    print(result.content)
-    print(f"Detected Languages: {result.detected_languages}")
-
-asyncio.run(main())
-```
-
+{{ include_snippet('getting-started/extract_with_ocr.md', 'python') }}
 
 ### EasyOCR (GPU-Accelerated)
 
@@ -431,19 +362,20 @@ if result.detected_languages and "en" in result.detected_languages:
 
 ### ONNX Runtime (for embeddings)
 
-If using embeddings functionality, ONNX Runtime must be installed:
+If using embeddings functionality, ONNX Runtime version 1.21 or lower must be installed:
 
 ```bash
-# macOS
-brew install onnxruntime
+# macOS (pinned to version 1.21)
+brew install onnxruntime@1.21
 
-# Ubuntu/Debian
+# Ubuntu/Debian (ensure version ≤ 1.21)
 sudo apt install libonnxruntime libonnxruntime-dev
 
-# Windows (MSVC)
-scoop install onnxruntime
-# OR download from https://github.com/microsoft/onnxruntime/releases
+# Windows (download version 1.21 or lower)
+# Download from https://github.com/microsoft/onnxruntime/releases
 ```
+
+**Important:** Kreuzberg requires ONNX Runtime version 1.21 or lower. Newer versions may not be compatible.
 
 Without ONNX Runtime, embeddings will raise `MissingDependencyError` with installation instructions.
 
@@ -528,4 +460,4 @@ For comprehensive documentation, visit [https://kreuzberg.dev](https://kreuzberg
 
 ## License
 
- License - see [LICENSE](../../LICENSE) for details.
+{{ license }} License - see [LICENSE](../../LICENSE) for details.

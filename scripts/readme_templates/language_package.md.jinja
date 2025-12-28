@@ -1,0 +1,144 @@
+# {{ name }}
+
+{% include 'partials/badges.html.jinja' %}
+
+{{ description }}
+
+## Installation
+
+{% include 'partials/installation.md.jinja' %}
+
+## Quick Start
+
+{% include 'partials/quick_start.md.jinja' %}
+
+## Features
+
+{% include 'partials/features.md.jinja' %}
+
+{% if features.ocr %}
+## OCR Support
+
+Kreuzberg supports multiple OCR backends for extracting text from scanned documents and images:
+
+{% for backend in ocr_backends %}
+- **{{ backend | title }}**
+{% endfor %}
+
+### OCR Configuration Example
+
+{{ snippets.ocr_configuration | include_snippet(language) }}
+
+{% endif %}
+
+{% if features.async %}
+## Async Support
+
+This binding provides full async/await support for non-blocking document processing:
+
+{{ snippets.async_extraction | include_snippet(language) }}
+
+{% endif %}
+
+{% if features.plugin_system %}
+## Plugin System
+
+Kreuzberg supports extensible post-processing plugins for custom text transformation and filtering.
+
+For detailed plugin documentation, visit [Plugin System Guide](https://kreuzberg.dev/plugins/).
+
+{% if snippets.plugin_system %}
+### Plugin Example
+
+{{ snippets.plugin_system | include_snippet(language) }}
+
+{% endif %}
+{% endif %}
+
+{% if features.embeddings %}
+## Embeddings Support
+
+Generate embeddings for extracted text using the built-in ONNX Runtime support:
+
+```python
+from kreuzberg import Extractor, EmbeddingsConfig
+
+config = EmbeddingsConfig(
+    enabled=True,
+    model_name="all-MiniLM-L6-v2"
+)
+
+extractor = Extractor(config)
+result = extractor.extract("document.pdf")
+embeddings = result.embeddings
+```
+
+Requires ONNX Runtime installation - see [Embeddings Guide](https://kreuzberg.dev/features/#embeddings).
+
+{% endif %}
+
+## Batch Processing
+
+Process multiple documents efficiently:
+
+{{ snippets.batch_processing | include_snippet(language) }}
+
+## Configuration
+
+For advanced configuration options like language detection, table extraction, and OCR settings:
+
+```
+# See docs/snippets/{{ language }}/config/ for detailed examples
+```
+
+Visit [Configuration Guide](https://kreuzberg.dev/configuration/) for comprehensive options.
+
+## Performance
+
+Kreuzberg is built on a Rust core for native performance. Typical extraction speeds:
+
+- **PDF (text-based)**: 10-100 MB/s
+- **Images (with OCR)**: 1-5 MB/s (backend dependent)
+- **Office documents**: 20-200 MB/s
+
+See [Benchmarks](https://kreuzberg.dev/benchmarks/) for detailed performance metrics.
+
+## Supported Formats
+
+Kreuzberg supports **56+ file formats** including:
+
+**Documents**: PDF, DOCX, DOC, XLSX, XLS, PPTX, PPT, ODS, ODT, ODP
+
+**Archives**: ZIP, TAR, GZIP, 7Z, RAR
+
+**Web**: HTML, XML, JSON, YAML, TOML
+
+**Images**: PNG, JPG, GIF, BMP, TIFF, WebP
+
+**Other**: EML, MSG, TXT, Markdown, RTF, CSV, and more
+
+Full list at [Supported Formats](https://kreuzberg.dev/formats/).
+
+## Documentation
+
+- **[Official Documentation](https://kreuzberg.dev/)**
+- **[API Reference](https://kreuzberg.dev/api/)**
+- **[Example Code](https://github.com/kreuzberg-dev/kreuzberg/tree/main/docs/snippets/{{ language }})**
+
+## Troubleshooting
+
+For common issues and solutions, visit [Troubleshooting Guide](https://kreuzberg.dev/troubleshooting/).
+
+## Contributing
+
+Contributions are welcome! See [Contributing Guide](https://github.com/kreuzberg-dev/kreuzberg/blob/main/CONTRIBUTING.md).
+
+## License
+
+MIT License - see LICENSE file for details.
+
+## Support
+
+- **Discord Community**: [Join our Discord](https://discord.gg/pXxagNK2zN)
+- **GitHub Issues**: [Report bugs](https://github.com/kreuzberg-dev/kreuzberg/issues)
+- **Discussions**: [Ask questions](https://github.com/kreuzberg-dev/kreuzberg/discussions)

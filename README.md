@@ -1,35 +1,56 @@
 # Kreuzberg.dev
 
-[![Rust](https://img.shields.io/crates/v/kreuzberg?label=Rust)](https://crates.io/crates/kreuzberg)
-[![Elixir/Hex](https://img.shields.io/hexpm/v/kreuzberg?label=Elixir)](https://hex.pm/packages/kreuzberg)
-[![Python](https://img.shields.io/pypi/v/kreuzberg?label=Python)](https://pypi.org/project/kreuzberg/)
-[![TypeScript/Node.js](https://img.shields.io/npm/v/@kreuzberg/node?label=TypeScript%2FNode.js&color=3178c6)](https://www.npmjs.com/package/@kreuzberg/node)
-[![Browser/WASM](https://img.shields.io/npm/v/@kreuzberg/wasm?label=Browser%2FWASM&color=654ff0)](https://www.npmjs.com/package/@kreuzberg/wasm)
-[![Ruby](https://img.shields.io/gem/v/kreuzberg?label=Ruby)](https://rubygems.org/gems/kreuzberg)
-[![Java](https://img.shields.io/maven-central/v/dev.kreuzberg/kreuzberg?label=Java)](https://central.sonatype.com/artifact/dev.kreuzberg/kreuzberg)
-[![Go](https://img.shields.io/github/v/tag/kreuzberg-dev/kreuzberg?label=Go)](https://pkg.go.dev/github.com/kreuzberg-dev/kreuzberg)
-[![C#](https://img.shields.io/nuget/v/Goldziher.Kreuzberg?label=C%23)](https://www.nuget.org/packages/Goldziher.Kreuzberg/)
+<div align="center" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0;">
+  <!-- Language Bindings -->
+  <a href="https://crates.io/crates/kreuzberg">
+    <img src="https://img.shields.io/crates/v/kreuzberg?label=Rust&color=007ec6" alt="Rust">
+  </a>
+  <a href="https://hex.pm/packages/kreuzberg">
+    <img src="https://img.shields.io/hexpm/v/kreuzberg?label=Elixir&color=007ec6" alt="Elixir">
+  </a>
+  <a href="https://pypi.org/project/kreuzberg/">
+    <img src="https://img.shields.io/pypi/v/kreuzberg?label=Python&color=007ec6" alt="Python">
+  </a>
+  <a href="https://www.npmjs.com/package/@kreuzberg/node">
+    <img src="https://img.shields.io/npm/v/@kreuzberg/node?label=Node.js&color=007ec6" alt="Node.js">
+  </a>
+  <a href="https://www.npmjs.com/package/@kreuzberg/wasm">
+    <img src="https://img.shields.io/npm/v/@kreuzberg/wasm?label=WASM&color=007ec6" alt="WASM">
+  </a>
+  <a href="https://rubygems.org/gems/kreuzberg">
+    <img src="https://img.shields.io/gem/v/kreuzberg?label=Ruby&color=007ec6" alt="Ruby">
+  </a>
+  <a href="https://central.sonatype.com/artifact/dev.kreuzberg/kreuzberg">
+    <img src="https://img.shields.io/maven-central/v/dev.kreuzberg/kreuzberg?label=Java&color=007ec6" alt="Java">
+  </a>
+  <a href="https://github.com/kreuzberg-dev/kreuzberg/releases">
+    <img src="https://img.shields.io/github/v/tag/kreuzberg-dev/kreuzberg?label=Go&color=007ec6&filter=v4.0.0-*" alt="Go">
+  </a>
+  <a href="https://www.nuget.org/packages/Kreuzberg/">
+    <img src="https://img.shields.io/nuget/v/Kreuzberg?label=C%23&color=007ec6" alt="C#">
+  </a>
+  <a href="https://packagist.org/packages/kreuzberg/kreuzberg">
+    <img src="https://img.shields.io/packagist/v/kreuzberg/kreuzberg?label=PHP&color=007ec6" alt="PHP">
+  </a>
+
+  <!-- Project Info -->
+  <a href="https://github.com/kreuzberg-dev/kreuzberg/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
+  </a>
+  <a href="https://docs.kreuzberg.dev">
+    <img src="https://img.shields.io/badge/docs-kreuzberg.dev-blue" alt="Documentation">
+  </a>
+  <a href="https://discord.gg/pXxagNK2zN">
+    <img src="https://img.shields.io/badge/Discord-Join%20our%20community-7289da" alt="Discord">
+  </a>
+</div>
 
 <img width="1128" height="191" alt="Banner2" src="https://github.com/user-attachments/assets/419fc06c-8313-4324-b159-4b4d3cfce5c0" />
 
-
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Documentation](https://img.shields.io/badge/docs-kreuzberg.dev-blue)](https://kreuzberg.dev/)
-[![Discord](https://img.shields.io/badge/Discord-Join%20our%20community-7289da)](https://discord.gg/pXxagNK2zN)
-
 A polyglot document intelligence framework with a Rust core. Extract text, metadata, and structured information from PDFs, Office documents, images, and 56 formats. Available for Rust, Python, TypeScript/Node.js, Ruby, Go, Java, and C#—or use via CLI, REST API, or MCP server.
 
-> **Version 4.0.0 Release Candidate**
+> Note - Kreuzberg v4.0.0 is in **Release Candidate** stage. Bugs and breaking changes are expected.
 > This is a pre-release version. Please test the library and [report any issues](https://github.com/kreuzberg-dev/kreuzberg/issues) you encounter.
-
-> **⚠️ BREAKING CHANGE in RC.11**
->
-> Embeddings now require separate ONNX Runtime installation. This reduces package sizes and enables Windows MSVC support.
->
-> - **Action required**: Install ONNX Runtime if you use embeddings
-> - **No action needed**: If you don't use embeddings
-> - [Installation Guide](#embeddings-support-optional)
 
 ## Key Features
 
@@ -41,40 +62,15 @@ A polyglot document intelligence framework with a Rust core. Extract text, metad
 
 **[Complete Documentation](https://kreuzberg.dev/)** | **[Installation Guides](#installation)**
 
-## Kreuzberg Cloud (Coming Soon)
-
-Don't want to manage Rust infrastructure? **Kreuzberg Cloud** is a managed document extraction API launching at the beginning of 2026.
-
-- Hosted REST API with async jobs and webhooks
-- Built-in chunking and embeddings for RAG pipelines
-- Premium OCR backends for 95%+ accuracy
-- No infrastructure to maintain
-
 ## Installation
 
 Each language binding provides comprehensive documentation with examples and best practices. Choose your platform to get started:
 
-### JavaScript/TypeScript
-
 - **[@kreuzberg/node](https://github.com/kreuzberg-dev/kreuzberg/tree/main/crates/kreuzberg-node)** (Recommended for Node.js/Bun) – Native NAPI-RS bindings, fastest performance, direct system calls
 - **[@kreuzberg/wasm](https://github.com/kreuzberg-dev/kreuzberg/tree/main/packages/typescript)** (Browser/Workers/Deno) – Pure WebAssembly, no native dependencies, cross-platform consistency
-
-**TypeScript Decision Matrix:**
-
-| Platform | Package | Performance | Setup | Use Case |
-|----------|---------|-------------|-------|----------|
-| Node.js | `@kreuzberg/node` | Fastest (100%) | Native build toolchain | Production servers, backends |
-| Bun | `@kreuzberg/node` | Fastest (100%) | Native build toolchain | High-performance backends |
-| Browser | `@kreuzberg/wasm` | Good (60-80% of native) | Zero dependencies | Web apps, no build complexity |
-| Cloudflare Workers | `@kreuzberg/wasm` | Good (60-80% of native) | Zero dependencies | Serverless edge computing |
-| Deno | `@kreuzberg/wasm` | Good (60-80% of native) | Zero dependencies | Deno runtime |
-
-### Other Languages
-
 - **[Python](https://github.com/kreuzberg-dev/kreuzberg/tree/main/packages/python)** – Installation, basic usage, async/sync APIs
 - **[Ruby](https://github.com/kreuzberg-dev/kreuzberg/tree/main/packages/ruby)** – Installation, basic usage, configuration
 - **[Go](https://github.com/kreuzberg-dev/kreuzberg/tree/main/packages/go)** – Installation, native library setup, sync/async extraction + batch APIs
-  _Note: Windows builds use MinGW and don't support embeddings (ONNX Runtime requires MSVC)_
 - **[Java](https://github.com/kreuzberg-dev/kreuzberg/tree/main/packages/java)** – Installation, FFM API usage, Maven/Gradle setup
 - **[C#](https://github.com/kreuzberg-dev/kreuzberg/tree/main/packages/csharp)** – Installation, P/Invoke usage, NuGet package
 - **[Rust](https://github.com/kreuzberg-dev/kreuzberg/tree/main/crates/kreuzberg)** – Crate usage, features, async/sync APIs
@@ -84,45 +80,14 @@ Each language binding provides comprehensive documentation with examples and bes
 
 To use embeddings functionality:
 
-1. **Install ONNX Runtime**:
-   - Linux: `apt install libonnxruntime`
-   - macOS: `brew install onnxruntime`
-   - Windows: `scoop install onnxruntime` or `winget install onnxruntime`
+1. **Install ONNX Runtime 1.21 or lower**:
+   - Linux: `apt install libonnxruntime` (ensure version ≤ 1.21) or download from [ONNX Runtime releases](https://github.com/microsoft/onnxruntime/releases)
+   - macOS: `brew install onnxruntime@1.21`
+   - Windows: Download version 1.21 or lower from [ONNX Runtime releases](https://github.com/microsoft/onnxruntime/releases)
 
 2. Use embeddings in your code - see [Embeddings Guide](https://kreuzberg.dev/features/#embeddings)
 
-Note: All other Kreuzberg features work without ONNX Runtime.
-
-## PDFium Linking Options (Rust Crate Only)
-
-The Rust crate offers flexible PDFium linking strategies for different deployment scenarios. Language bindings (Python, TypeScript, Ruby, Java, Go, C#) always bundle PDFium automatically—no configuration needed.
-
-| Strategy | Feature Flag | Use Case |
-|----------|--------------|----------|
-| **Default (Dynamic)** | None | Download at build time, link dynamically. Simplest option. |
-| **Static** | `pdf-static` | Download at build time, link statically. Useful for isolated deployments. |
-| **Bundled** | `pdf-bundled` | Embed PDFium in binary. Largest binary, but zero external dependencies. |
-| **System** | `pdf-system` | Use system-installed PDFium via `pkg-config`. Best for package managers. |
-
-**Example Cargo.toml configurations:**
-
-```toml
-# Default (dynamic linking)
-[dependencies]
-kreuzberg = "4.0"
-
-# Static linking
-[dependencies]
-kreuzberg = { version = "4.0", features = ["pdf-static"] }
-
-# Bundled in binary
-[dependencies]
-kreuzberg = { version = "4.0", features = ["pdf-bundled"] }
-
-# System library
-[dependencies]
-kreuzberg = { version = "4.0", features = ["pdf-system"] }
-```
+**Note:** Kreuzberg requires ONNX Runtime version 1.21 or lower for embeddings. Newer versions may not be compatible. All other Kreuzberg features work without ONNX Runtime.
 
 ## Supported Formats
 
@@ -196,33 +161,6 @@ Extract comprehensive metadata from all supported formats: authors, titles, crea
 
 **[Metadata Guide →](https://kreuzberg.dev/reference/types/#metadata)**
 
-## Performance: Native vs WASM Bindings
-
-Kreuzberg offers two JavaScript/TypeScript options with different performance characteristics:
-
-| Metric | @kreuzberg/node (Native) | @kreuzberg/wasm (WASM) |
-|--------|--------------------------|------------------------|
-| **Single document extraction** | ~150ms (PDF, 10 pages) | ~240-250ms (60-80% of native) |
-| **Batch processing (10 docs)** | ~850ms | ~1400-1800ms |
-| **Memory usage** | Direct system calls | Browser/WASM runtime overhead |
-| **Native dependencies** | Required (OS libraries) | None |
-| **Browser support** | Node.js, Bun only | Browser, Workers, Deno |
-| **Setup complexity** | Native build toolchain | Zero dependencies |
-
-**Use @kreuzberg/node when:**
-- Running on Node.js or Bun backend servers
-- Performance is critical (2-3x faster than WASM)
-- You have or can install native build toolchain
-- Processing high document volumes
-
-**Use @kreuzberg/wasm when:**
-- Running in browser or web workers
-- Deploying to serverless edge (Cloudflare, Vercel)
-- Using Deno or similar runtimes
-- Need absolute zero native dependencies
-- Cross-platform consistency is important
-- Trade-off: ~20-40% slower but still good performance
-
 ## Deployment Options
 
 ### REST API Server
@@ -233,7 +171,7 @@ Production-ready API server with OpenAPI documentation, health checks, and telem
 
 ### MCP Server (AI Integration)
 
-Model Context Protocol server for Claude and other AI assistants. Enables AI agents to extract and process documents directly with full configuration support.
+Model Context Protocol server for AI assistants. Enables AI agents to extract and process documents directly with full configuration support.
 
 **[MCP Server Documentation →](https://kreuzberg.dev/guides/api-server/#mcp-server_1)**
 
@@ -241,7 +179,7 @@ Model Context Protocol server for Claude and other AI assistants. Enables AI age
 
 Official Docker images available in multiple variants:
 
-- **Core** (~1.0-1.3GB): Tesseract OCR, modern Office formats
+- **Core** (~1.0-1.3GB): Full featured core, including API, CLI, MCP and Embedding with ONNX runtime
 - **Full** (~1.5-2.1GB): Adds LibreOffice for legacy Office formats (.doc, .ppt)
 
 All images support API server, CLI, and MCP server modes with automatic platform detection for linux/amd64 and linux/arm64.
@@ -261,19 +199,6 @@ All images support API server, CLI, and MCP server modes with automatic platform
 | **Chunking** | ✅ Built-in | ❌ No | ✅ Yes | ❌ No |
 | **Cost** | Free (MIT) | Free (MIT) | Free (Apache 2.0) | $0.003/page |
 | **Air-gap deployments** | ✅ Yes | ✅ Yes | ✅ Yes | ❌ No |
-
-**When to use Kreuzberg:**
-- ✅ Need high throughput (thousands of documents)
-- ✅ Memory-constrained environments
-- ✅ Non-Python ecosystems (Ruby, TypeScript, Java, Go)
-- ✅ RAG pipelines (built-in chunking + embeddings)
-- ✅ Self-hosted or air-gapped deployments
-- ✅ Multi-GB files requiring streaming
-
-**When to consider alternatives:**
-- **LlamaParse**: If you need best-in-class table extraction and only process PDFs (requires internet, paid)
-- **docling**: If you're Python-only and don't need extreme performance
-- **unstructured**: If you need extensive pre-built integrations with vector databases
 
 ## Architecture
 

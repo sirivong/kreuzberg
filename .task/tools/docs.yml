@@ -51,3 +51,18 @@ tasks:
     desc: Publish documentation to GitHub Pages
     cmds:
       - uv run mike deploy --push 4.0 latest
+
+  generate-readme:
+    desc: Generate language package READMEs from templates
+    cmds:
+      - python3 scripts/generate_readme.py
+
+  generate-readme:check:
+    desc: Validate READMEs match templates (CI mode)
+    cmds:
+      - python3 scripts/generate_readme.py --validate
+
+  generate-readme:dry-run:
+    desc: Preview README generation without writing files
+    cmds:
+      - python3 scripts/generate_readme.py --dry-run

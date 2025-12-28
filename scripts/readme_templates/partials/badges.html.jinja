@@ -1,0 +1,16 @@
+<div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 20px;">
+  <a href="{{ docs_url }}">
+    <img alt="Documentation" src="https://img.shields.io/badge/docs-kreuzberg.dev-blue" />
+  </a>
+  {% if badge_url %}
+  <a href="https://www.npmjs.com/package/{{ package_name }}" title="{{ name }} Package">
+    <img alt="{{ name }}" src="{{ badge_url }}" />
+  </a>
+  {% endif %}
+  <a href="https://github.com/kreuzberg-dev/kreuzberg">
+    <img alt="GitHub" src="https://img.shields.io/badge/GitHub-kreuzberg--dev-black" />
+  </a>
+  <a href="https://discord.gg/pXxagNK2zN">
+    <img alt="Discord" src="https://img.shields.io/badge/Discord-Join%20our%20community-7289da" />
+  </a>
+</div>

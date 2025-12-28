@@ -1,0 +1,256 @@
+languages:
+  python:
+    name: Python
+    package_manager:
+      - pip
+    package_name: kreuzberg
+    badge_url: https://img.shields.io/pypi/v/kreuzberg?label=Python
+    docs_url: https://kreuzberg.dev/
+    description: |
+      High-performance document intelligence for Python. Extract text, metadata, and structured information from PDFs, Office documents, images, and 56 formats.
+
+      Powered by a Rust core for native performance in document extraction.
+    features:
+      ocr: true
+      async: true
+      plugin_system: true
+      embeddings: true
+    ocr_backends:
+      - tesseract
+      - easyocr
+      - paddleocr
+    optional_sections:
+      - async_vs_sync_performance
+      - ocr_backends
+      - system_requirements
+    snippets:
+      basic_extraction: docs/snippets/python/getting-started/01_basic_extraction.py
+      async_extraction: docs/snippets/python/getting-started/02_async_extraction.py
+      batch_processing: docs/snippets/python/getting-started/03_batch_processing.py
+      ocr_configuration: docs/snippets/python/ocr/01_tesseract.py
+      table_extraction: docs/snippets/python/config/01_table_extraction.py
+
+  typescript:
+    name: TypeScript (Node.js)
+    package_manager:
+      - npm
+      - pnpm
+      - yarn
+    package_name: "@kreuzberg/node"
+    badge_url: https://img.shields.io/npm/v/@kreuzberg/node?label=TypeScript
+    docs_url: https://kreuzberg.dev/
+    description: |
+      High-performance document intelligence for Node.js and TypeScript, powered by Rust.
+
+      Extract text, tables, images, and metadata from 56 file formats including PDF, DOCX, PPTX, XLSX, images, and more. Native NAPI-RS bindings provide 2-3x better performance than WASM.
+    features:
+      ocr: true
+      async: true
+      plugin_system: true
+      embeddings: true
+    ocr_backends:
+      - tesseract
+      - guten
+    optional_sections:
+      - native_vs_wasm_comparison
+      - ocr_support
+      - performance
+    snippets:
+      basic_extraction: docs/snippets/typescript/getting-started/01_basic_extraction.ts
+      async_extraction: docs/snippets/typescript/getting-started/02_async_extraction.ts
+      batch_processing: docs/snippets/typescript/getting-started/03_batch_processing.ts
+      ocr_configuration: docs/snippets/typescript/ocr/01_tesseract.ts
+      table_extraction: docs/snippets/typescript/config/01_table_extraction.ts
+
+  go:
+    name: Go
+    package_manager:
+      - go get
+    package_name: github.com/kreuzberg-dev/kreuzberg/packages/go/v4
+    badge_url: https://img.shields.io/github/v/tag/kreuzberg-dev/kreuzberg?label=Go
+    docs_url: https://kreuzberg.dev/
+    description: |
+      High-performance document intelligence for Go backed by the Rust core that powers every Kreuzberg binding.
+
+      Extract text, tables, images, and metadata with native Go API and context-aware async support.
+    features:
+      ocr: true
+      async: true
+      plugin_system: true
+      embeddings: false
+    ocr_backends:
+      - tesseract
+    optional_sections:
+      - system_requirements
+      - ffi_build_instructions
+    snippets:
+      basic_extraction: docs/snippets/go/getting-started/01_basic_extraction.go
+      async_extraction: docs/snippets/go/getting-started/02_async_extraction.go
+      batch_processing: docs/snippets/go/getting-started/03_batch_processing.go
+      ocr_configuration: docs/snippets/go/ocr/01_tesseract.go
+
+  java:
+    name: Java
+    package_manager:
+      - maven
+      - gradle
+    package_name: dev.kreuzberg:kreuzberg
+    badge_url: https://img.shields.io/maven-central/v/dev.kreuzberg/kreuzberg?label=Java
+    docs_url: https://kreuzberg.dev/
+    description: |
+      High-performance document intelligence for Java applications.
+
+      Extract text, tables, images, and metadata from 56 file formats with type-safe Java API and native performance.
+    features:
+      ocr: true
+      async: true
+      plugin_system: true
+      embeddings: true
+    ocr_backends:
+      - tesseract
+    optional_sections:
+      - maven_gradle_setup
+      - system_requirements
+    snippets:
+      basic_extraction: docs/snippets/java/getting-started/01_basic_extraction.java
+      async_extraction: docs/snippets/java/getting-started/02_async_extraction.java
+      batch_processing: docs/snippets/java/getting-started/03_batch_processing.java
+      configuration: docs/snippets/java/config/01_configuration.java
+
+  php:
+    name: PHP
+    package_manager:
+      - composer
+    package_name: kreuzberg/kreuzberg
+    badge_url: https://img.shields.io/badge/Packagist-kreuzberg-blue
+    docs_url: https://kreuzberg.dev/
+    description: |
+      High-performance document intelligence for PHP applications.
+
+      Extract text, tables, images, and metadata from 56 file formats with PHP bindings built on the Rust core.
+    features:
+      ocr: true
+      async: false
+      plugin_system: true
+      embeddings: true
+    ocr_backends:
+      - tesseract
+    optional_sections:
+      - composer_installation
+      - system_requirements
+    snippets:
+      basic_extraction: docs/snippets/php/getting-started/01_basic_extraction.php
+      batch_processing: docs/snippets/php/getting-started/02_batch_processing.php
+      ocr_configuration: docs/snippets/php/ocr/01_tesseract.php
+
+  ruby:
+    name: Ruby
+    package_manager:
+      - rubygems
+      - bundler
+    package_name: kreuzberg
+    badge_url: https://img.shields.io/gem/v/kreuzberg?label=Ruby
+    docs_url: https://kreuzberg.dev/
+    description: |
+      High-performance document intelligence for Ruby, powered by Rust.
+
+      Extract text, tables, images, and metadata from 56 file formats including PDF, DOCX, PPTX, XLSX, images, and more.
+    features:
+      ocr: true
+      async: true
+      plugin_system: true
+      embeddings: true
+    ocr_backends:
+      - tesseract
+    optional_sections:
+      - system_requirements
+      - development_setup
+    snippets:
+      basic_extraction: docs/snippets/ruby/getting-started/01_basic_extraction.rb
+      batch_processing: docs/snippets/ruby/getting-started/02_batch_processing.rb
+      ocr_configuration: docs/snippets/ruby/ocr/01_tesseract.rb
+
+  csharp:
+    name: C#
+    package_manager:
+      - nuget
+    package_name: Goldziher.Kreuzberg
+    badge_url: https://img.shields.io/nuget/v/Goldziher.Kreuzberg?label=C%23
+    docs_url: https://kreuzberg.dev/
+    description: |
+      High-performance document intelligence for .NET and C#.
+
+      Extract text, tables, images, and metadata from 56 file formats with full type safety and async/await support.
+    features:
+      ocr: true
+      async: true
+      plugin_system: true
+      embeddings: true
+    ocr_backends:
+      - tesseract
+    optional_sections:
+      - dotnet_installation
+      - system_requirements
+    snippets:
+      basic_extraction: docs/snippets/csharp/getting-started/01_basic_extraction.cs
+      async_extraction: docs/snippets/csharp/getting-started/02_async_extraction.cs
+      batch_processing: docs/snippets/csharp/getting-started/03_batch_processing.cs
+
+  elixir:
+    name: Elixir
+    package_manager:
+      - mix
+    package_name: kreuzberg
+    badge_url: https://img.shields.io/badge/Hex-kreuzberg-purple
+    docs_url: https://kreuzberg.dev/
+    description: |
+      High-performance document intelligence for Elixir, powered by Rust.
+
+      Extract text, tables, images, and metadata from 56 file formats with native BEAM concurrency and OTP integration.
+    features:
+      ocr: true
+      async: true
+      plugin_system: true
+      embeddings: true
+    ocr_backends:
+      - tesseract
+    optional_sections:
+      - mix_installation
+      - async_with_tasks
+      - plugin_system
+    snippets:
+      basic_extraction: docs/snippets/elixir/getting-started/01_basic_extraction.exs
+      async_extraction: docs/snippets/elixir/getting-started/02_async_extraction.exs
+      batch_processing: docs/snippets/elixir/getting-started/03_batch_processing.exs
+      plugin_system: docs/snippets/elixir/plugins/01_post_processors.exs
+
+  wasm:
+    name: WebAssembly
+    package_manager:
+      - npm
+      - pnpm
+      - yarn
+    package_name: "@kreuzberg/wasm"
+    badge_url: https://img.shields.io/npm/v/@kreuzberg/wasm?label=WASM
+    docs_url: https://kreuzberg.dev/
+    description: |
+      High-performance document intelligence for browsers, Deno, and Cloudflare Workers, powered by WebAssembly.
+
+      Extract text, tables, images, and metadata from 50+ file formats with portable WASM bindings and multi-threading support.
+    features:
+      ocr: true
+      async: true
+      plugin_system: true
+      embeddings: false
+    ocr_backends:
+      - tesseract-wasm
+    optional_sections:
+      - pdfium_initialization
+      - multi_threading
+      - ocr_support
+      - performance_comparison
+    snippets:
+      browser_extraction: docs/snippets/wasm/getting-started/01_browser_extraction.ts
+      node_extraction: docs/snippets/wasm/getting-started/02_node_extraction.ts
+      cloudflare_workers: docs/snippets/wasm/getting-started/03_cloudflare_workers.ts
+      batch_processing: docs/snippets/wasm/getting-started/04_batch_processing.ts
