@@ -22,7 +22,7 @@ kreuzberg-tesseract = { path = "crates/kreuzberg-tesseract" }
 kreuzberg-pdfium-render = { path = "../pdfium-render" }
 
 [workspace.package]
-version = "4.0.0-rc.22"
+version = "4.0.0-rc.23"
 edition = "2024"
 rust-version = "1.91"
 authors = ["Na'aman Hirschfeld <nhirschfeld@gmail.com>"]
