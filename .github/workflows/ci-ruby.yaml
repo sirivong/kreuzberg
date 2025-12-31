@@ -233,7 +233,7 @@ jobs:
         uses: ./.github/actions/build-and-cache-ffi
         with:
           platform: ${{ matrix.os }}
-          ffi-crate: kreuzberg-rb
+          ffi-crate: kreuzberg-ffi
           cache-version: v1
           pdfium-version: ${{ env.PDFIUM_VERSION }}
           ort-version: ${{ env.ORT_VERSION }}

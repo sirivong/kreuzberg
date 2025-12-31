@@ -252,10 +252,8 @@ function loadNativeBinding(): NativeBinding {
 	} else {
 		// In ESM, we need to create require from import.meta.url
 		try {
-			// Use eval to avoid esbuild warnings about import.meta in CJS builds
 			// @ts-ignore - import.meta is only available in ESM
-			const url = eval("import.meta.url");
-			localRequire = createRequire(url);
+			localRequire = createRequire(import.meta.url);
 		} catch {
 			localRequire = undefined;
 		}

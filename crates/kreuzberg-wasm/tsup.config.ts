@@ -23,6 +23,13 @@ export default defineConfig({
 	shims: false,
 	platform: "neutral",
 	target: "es2022",
+	esbuildOptions(options) {
+		// Enable top-level await support for CJS by using async wrapper
+		options.supported = {
+			...options.supported,
+			"top-level-await": true,
+		};
+	},
 	external: [
 		"@kreuzberg/core",
 		"tesseract-wasm",
