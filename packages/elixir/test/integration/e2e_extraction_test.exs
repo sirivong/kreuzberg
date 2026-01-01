@@ -651,7 +651,8 @@ defmodule KreuzbergTest.Integration.E2EExtractionTest do
 
       # Validate all results
       Enum.each(results, fn result ->
-        assert is_tuple(result)
+        assert %Kreuzberg.ExtractionResult{} = result
+        assert is_binary(result.content)
       end)
     end
 
