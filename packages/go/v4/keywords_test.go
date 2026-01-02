@@ -397,6 +397,8 @@ func TestBatchKeywordExtractionMultipleTexts(t *testing.T) {
 		WithKeywords(
 			WithKeywordAlgorithm("yake"),
 			WithMaxKeywords(5),
+			WithKeywordMinScore(0.0),
+			WithNgramRange(1, 3),
 		),
 	)
 
@@ -425,6 +427,8 @@ func TestBatchKeywordExtractionConsistency(t *testing.T) {
 		WithKeywords(
 			WithKeywordAlgorithm("yake"),
 			WithMaxKeywords(10),
+			WithKeywordMinScore(0.0),
+			WithNgramRange(1, 3),
 		),
 	)
 

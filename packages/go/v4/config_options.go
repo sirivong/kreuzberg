@@ -765,7 +765,13 @@ func WithEmbeddingDimensions(dimensions int) EmbeddingModelTypeOption {
 
 // NewEmbeddingConfig creates a new EmbeddingConfig with the given options.
 func NewEmbeddingConfig(opts ...EmbeddingOption) *EmbeddingConfig {
-	cfg := &EmbeddingConfig{}
+	// Provide default model (balanced preset) if not specified
+	cfg := &EmbeddingConfig{
+		Model: &EmbeddingModelType{
+			Type: "preset",
+			Name: "balanced",
+		},
+	}
 	for _, opt := range opts {
 		opt(cfg)
 	}
@@ -813,7 +819,18 @@ func WithCacheDir(dir string) EmbeddingOption {
 
 // NewKeywordConfig creates a new KeywordConfig with the given options.
 func NewKeywordConfig(opts ...KeywordOption) *KeywordConfig {
-	cfg := &KeywordConfig{}
+	// Provide default values matching Rust defaults
+	minScore := 0.0
+	maxKeywords := 10
+	ngramRange := [2]int{1, 3}
+	language := "en"
+
+	cfg := &KeywordConfig{
+		MinScore:    &minScore,
+		MaxKeywords: &maxKeywords,
+		NgramRange:  &ngramRange,
+		Language:    &language,
+	}
 	for _, opt := range opts {
 		opt(cfg)
 	}
