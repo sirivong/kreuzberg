@@ -654,6 +654,7 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           cache-key-prefix: publish-node-${{ matrix.settings.target }}
+          use-sccache: 'false'
 
       - name: Add Rust target
         if: ${{ matrix.settings.rust_target != '' }}

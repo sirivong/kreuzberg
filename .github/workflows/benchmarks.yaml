@@ -412,6 +412,7 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           cache-key-prefix: benchmarks-node-async
+          use-sccache: 'false'
 
       - name: Setup Node
         uses: ./.github/actions/setup-node-workspace
@@ -486,6 +487,7 @@ jobs:
         uses: ./.github/actions/setup-rust
         with:
           cache-key-prefix: benchmarks-node-batch
+          use-sccache: 'false'
 
       - name: Setup Node
         uses: ./.github/actions/setup-node-workspace

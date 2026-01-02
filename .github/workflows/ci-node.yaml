@@ -124,6 +124,7 @@ jobs:
         with:
           cache-key-prefix: node-${{ matrix.platform }}
           target: ${{ matrix.target }}
+          use-sccache: 'false'
 
       - name: Setup Node
         uses: ./.github/actions/setup-node-workspace
