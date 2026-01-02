@@ -2043,10 +2043,10 @@ fn batch_extract_bytes_sync(args: &[Value]) -> Result<RArray, Error> {
         )));
     }
 
-    let contents: Vec<(&[u8], &str)> = bytes_vec
+    let contents: Vec<(Vec<u8>, String)> = bytes_vec
         .iter()
         .zip(mime_types.iter())
-        .map(|(bytes, mime)| (unsafe { bytes.as_slice() }, mime.as_str()))
+        .map(|(bytes, mime)| (unsafe { bytes.as_slice() }.to_vec(), mime.clone()))
         .collect();
 
     let results = kreuzberg::batch_extract_bytes_sync(contents, &config).map_err(kreuzberg_error)?;
@@ -2088,10 +2088,10 @@ fn batch_extract_bytes(args: &[Value]) -> Result<RArray, Error> {
         )));
     }
 
-    let contents: Vec<(&[u8], &str)> = bytes_vec
+    let contents: Vec<(Vec<u8>, String)> = bytes_vec
         .iter()
         .zip(mime_types.iter())
-        .map(|(bytes, mime)| (unsafe { bytes.as_slice() }, mime.as_str()))
+        .map(|(bytes, mime)| (unsafe { bytes.as_slice() }.to_vec(), mime.clone()))
         .collect();
 
     let runtime =
@@ -3025,7 +3025,7 @@ fn validate_token_reduction_level(level: String) -> Result<i32, Error> {
 /// @param psm [Integer] The PSM value (0-13)
 /// @return [Integer] 1 if valid, 0 if invalid
 fn validate_tesseract_psm(psm: i32) -> Result<i32, Error> {
-    Ok(unsafe { kreuzberg_validate_tesseract_psm(psm) })
+    Ok(kreuzberg_validate_tesseract_psm(psm))
 }
 
 /// Validates a tesseract OEM (OCR Engine Mode) value
@@ -3033,7 +3033,7 @@ fn validate_tesseract_psm(psm: i32) -> Result<i32, Error> {
 /// @param oem [Integer] The OEM value (0-3)
 /// @return [Integer] 1 if valid, 0 if invalid
 fn validate_tesseract_oem(oem: i32) -> Result<i32, Error> {
-    Ok(unsafe { kreuzberg_validate_tesseract_oem(oem) })
+    Ok(kreuzberg_validate_tesseract_oem(oem))
 }
 
 /// Validates an output format string
@@ -3051,7 +3051,7 @@ fn validate_output_format(format: String) -> Result<i32, Error> {
 /// @param confidence [Float] The confidence value (0.0-1.0)
 /// @return [Integer] 1 if valid, 0 if invalid
 fn validate_confidence(confidence: f64) -> Result<i32, Error> {
-    Ok(unsafe { kreuzberg_validate_confidence(confidence) })
+    Ok(kreuzberg_validate_confidence(confidence))
 }
 
 /// Validates a DPI (dots per inch) value
@@ -3059,7 +3059,7 @@ fn validate_confidence(confidence: f64) -> Result<i32, Error> {
 /// @param dpi [Integer] The DPI value
 /// @return [Integer] 1 if valid, 0 if invalid
 fn validate_dpi(dpi: i32) -> Result<i32, Error> {
-    Ok(unsafe { kreuzberg_validate_dpi(dpi) })
+    Ok(kreuzberg_validate_dpi(dpi))
 }
 
 /// Validates chunking parameters
@@ -3068,14 +3068,14 @@ fn validate_dpi(dpi: i32) -> Result<i32, Error> {
 /// @param max_overlap [Integer] Maximum overlap between chunks
 /// @return [Integer] 1 if valid, 0 if invalid
 fn validate_chunking_params(max_chars: usize, max_overlap: usize) -> Result<i32, Error> {
-    Ok(unsafe { kreuzberg_validate_chunking_params(max_chars, max_overlap) })
+    Ok(kreuzberg_validate_chunking_params(max_chars, max_overlap))
 }
 
 /// Gets valid binarization methods as a JSON string
 ///
 /// @return [String] JSON array of valid binarization methods
 fn get_valid_binarization_methods(_ruby: &Ruby) -> Result<String, Error> {
-    let ptr = unsafe { kreuzberg_get_valid_binarization_methods() };
+    let ptr = kreuzberg_get_valid_binarization_methods();
     if ptr.is_null() {
         return Err(runtime_error("Failed to get valid binarization methods"));
     }
@@ -3097,7 +3097,7 @@ fn get_valid_binarization_methods(_ruby: &Ruby) -> Result<String, Error> {
 ///
 /// @return [String] JSON array of valid language codes
 fn get_valid_language_codes(_ruby: &Ruby) -> Result<String, Error> {
-    let ptr = unsafe { kreuzberg_get_valid_language_codes() };
+    let ptr = kreuzberg_get_valid_language_codes();
     if ptr.is_null() {
         return Err(runtime_error("Failed to get valid language codes"));
     }
@@ -3119,7 +3119,7 @@ fn get_valid_language_codes(_ruby: &Ruby) -> Result<String, Error> {
 ///
 /// @return [String] JSON array of valid OCR backends
 fn get_valid_ocr_backends(_ruby: &Ruby) -> Result<String, Error> {
-    let ptr = unsafe { kreuzberg_get_valid_ocr_backends() };
+    let ptr = kreuzberg_get_valid_ocr_backends();
     if ptr.is_null() {
         return Err(runtime_error("Failed to get valid OCR backends"));
     }
@@ -3141,7 +3141,7 @@ fn get_valid_ocr_backends(_ruby: &Ruby) -> Result<String, Error> {
 ///
 /// @return [String] JSON array of valid token reduction levels
 fn get_valid_token_reduction_levels(_ruby: &Ruby) -> Result<String, Error> {
-    let ptr = unsafe { kreuzberg_get_valid_token_reduction_levels() };
+    let ptr = kreuzberg_get_valid_token_reduction_levels();
     if ptr.is_null() {
         return Err(runtime_error("Failed to get valid token reduction levels"));
     }
@@ -3372,7 +3372,7 @@ fn result_metadata_field(ruby: &Ruby, result_ptr: i64, field_name: String) -> Re
 /// Get structured error details from FFI
 /// @return [Hash] Error details with keys: :message, :error_code, :error_type, :source_file, :source_function, :source_line, :context_info, :is_panic
 fn get_error_details_native(ruby: &Ruby) -> Result<Value, Error> {
-    let details = unsafe { kreuzberg_get_error_details() };
+    let details = kreuzberg_get_error_details();
 
     let hash = ruby.hash_new();
 
@@ -3471,7 +3471,7 @@ fn classify_error_native(ruby: &Ruby, message: String) -> Result<Value, Error> {
 /// @param code [Integer] Numeric error code (0-7)
 /// @return [String] Human-readable error code name
 fn error_code_name_native(ruby: &Ruby, code: u32) -> Result<Value, Error> {
-    let name_ptr = unsafe { kreuzberg_error_code_name(code) };
+    let name_ptr = kreuzberg_error_code_name(code);
 
     if name_ptr.is_null() {
         return Ok(ruby.str_new("unknown").as_value());
@@ -3487,7 +3487,7 @@ fn error_code_name_native(ruby: &Ruby, code: u32) -> Result<Value, Error> {
 /// @param code [Integer] Numeric error code (0-7)
 /// @return [String] Description of the error code
 fn error_code_description_native(ruby: &Ruby, code: u32) -> Result<Value, Error> {
-    let desc_ptr = unsafe { kreuzberg_error_code_description(code) };
+    let desc_ptr = kreuzberg_error_code_description(code);
 
     if desc_ptr.is_null() {
         return Ok(ruby.str_new("Unknown error code").as_value());
