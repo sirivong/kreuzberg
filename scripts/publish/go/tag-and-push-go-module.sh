@@ -7,7 +7,13 @@ version="${tag#v}"
 module_tag="packages/go/v4/v${version}"
 
 if git rev-parse "$module_tag" >/dev/null 2>&1; then
-  echo "::notice::Go module tag $module_tag already exists; skipping."
+  echo "::notice::Go module tag $module_tag already exists locally; skipping."
+  exit 0
+fi
+
+# Check if tag exists on remote
+if git ls-remote --tags origin | grep -q "refs/tags/${module_tag}$"; then
+  echo "::notice::Go module tag $module_tag already exists on remote; skipping."
   exit 0
 fi
 
