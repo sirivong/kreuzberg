@@ -240,6 +240,17 @@ jobs:
       - name: Install Task
         uses: ./.github/actions/install-task
 
+      - name: Export macOS PHP linker flags
+        if: matrix.os == 'macos-latest'
+        shell: bash
+        run: |
+          EXTRA_FLAGS="-C link-arg=-Wl,-undefined,dynamic_lookup"
+          if [ -n "${RUSTFLAGS:-}" ]; then
+            echo "RUSTFLAGS=${RUSTFLAGS} ${EXTRA_FLAGS}" >> "$GITHUB_ENV"
+          else
+            echo "RUSTFLAGS=${EXTRA_FLAGS}" >> "$GITHUB_ENV"
+          fi
+
       - name: Build FFI library
         id: ffi
         shell: bash
