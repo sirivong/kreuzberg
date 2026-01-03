@@ -70,7 +70,7 @@ EOF
   cat "$INI_FILE"
   echo ""
   echo "To use this file with PHPUnit:"
-  echo "  php -n -c $INI_FILE vendor/bin/phpunit"
+  echo "  php -c $INI_FILE vendor/bin/phpunit"
   echo ""
   echo "Or pass it to task:"
   echo "  task php:test:ci"

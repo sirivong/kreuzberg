@@ -64,7 +64,7 @@ tasks:
     cmds:
       - cmd: bash ../../scripts/ci/php/create-ci-php-ini.sh
         platforms: [linux, darwin, windows]
-      - cmd: php -n -c ../../php-kreuzberg.ini vendor/bin/phpunit
+      - cmd: php -c ../../php-kreuzberg.ini vendor/bin/phpunit
         platforms: [linux, darwin, windows]
 
   test:quick:
@@ -164,9 +164,9 @@ tasks:
     cmds:
       - cmd: bash ../../scripts/ci/php/create-ci-php-ini.sh
         platforms: [linux, darwin, windows]
-      - cmd: php -n -c ../../php-kreuzberg.ini ./vendor/bin/phpunit
+      - cmd: php -c ../../php-kreuzberg.ini ./vendor/bin/phpunit
         platforms: [linux, darwin]
-      - cmd: php -n -c ../../php-kreuzberg.ini .\vendor\bin\phpunit.bat
+      - cmd: php -c ../../php-kreuzberg.ini .\vendor\bin\phpunit.bat
         platforms: [windows]
 
   e2e:verify:
