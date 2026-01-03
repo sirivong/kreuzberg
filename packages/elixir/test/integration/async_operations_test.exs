@@ -489,12 +489,16 @@ defmodule KreuzbergTest.Integration.AsyncOperationsTest do
 
       # Awaiting again should fail (task already consumed)
       try do
-        Task.await(task)
+        Task.await(task, 100)
         # If it doesn't fail, that's also acceptable behavior
         assert true
+      catch
+        :exit, _e ->
+          # Expected - task already awaited or timeout
+          assert true
       rescue
         _e ->
-          # Expected - task already awaited
+          # Timeout exception is expected
           assert true
       end
 

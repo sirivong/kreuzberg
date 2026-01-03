@@ -35,8 +35,8 @@ defmodule Kreuzberg.Unit.TablesTest do
       table = List.first(result.tables)
       assert is_map(table)
 
-      assert Map.has_key?(table, "cells") or Map.has_key?(table, "rows") or
-               Map.has_key?(table, "headers")
+      assert Map.has_key?(table, :cells) or Map.has_key?(table, :rows) or
+               Map.has_key?(table, :headers)
     end
 
     test "identifies table headers correctly" do
@@ -50,9 +50,9 @@ defmodule Kreuzberg.Unit.TablesTest do
 
         # Should have either headers field or first row identifiable as headers
         has_headers =
-          Map.has_key?(table, "headers") or
-            Map.has_key?(table, "header_row") or
-            (Map.has_key?(table, "cells") and is_list(Map.get(table, "cells")))
+          Map.has_key?(table, :headers) or
+            Map.has_key?(table, :header_row) or
+            (Map.has_key?(table, :cells) and is_list(Map.get(table, :cells)))
 
         assert has_headers
       end

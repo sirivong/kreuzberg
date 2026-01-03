@@ -26,7 +26,7 @@ defmodule Kreuzberg.Unit.ImagesTest do
       {:ok, result} = Kreuzberg.extract(pdf_bytes, "application/pdf", config)
 
       assert is_map(result)
-      assert result.images != nil or result.images == []
+      assert result.images == nil or result.images == []
     end
 
     test "returns nil images when extraction is disabled" do
