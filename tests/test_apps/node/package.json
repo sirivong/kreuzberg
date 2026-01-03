@@ -19,8 +19,10 @@
   "engines": {
     "node": ">=22"
   },
+  "dependencies": {
+    "@kreuzberg/node": "4.0.0-rc.25"
+  },
   "devDependencies": {
-    "@kreuzberg/node": "4.0.0-rc.25",
     "@types/node": "^25.0.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.16"
