@@ -279,12 +279,9 @@ jobs:
         run: |
           Write-Host "Cleaning Cargo fingerprints (Windows MAX_PATH mitigation uses different target dir)"
 
-          # Clean packages/ruby/tmp
-          $rubyTmpPath = "packages\ruby\tmp"
-          if (Test-Path $rubyTmpPath) {
-            Write-Host "Cleaning $rubyTmpPath..."
-            Remove-Item -Path $rubyTmpPath -Recurse -Force -ErrorAction SilentlyContinue
-          }
+          # DO NOT clean packages/ruby/tmp - rb_sys needs its build state there
+          # The fingerprint errors occur because rb_sys uses packages/ruby/tmp as its target dir
+          # and deleting it causes Cargo to fail finding expected fingerprints
 
           # Clean regular target directory fingerprints
           $targetPath = "target\.fingerprint"
@@ -313,7 +310,7 @@ jobs:
             Write-Host "C:\t not found (will be created during build)"
           }
 
-          Write-Host "Done"
+          Write-Host "Done (kept packages/ruby/tmp for rb_sys build state)"
 
       - name: Build FFI library
         id: ffi
