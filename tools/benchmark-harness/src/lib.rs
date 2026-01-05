@@ -11,7 +11,6 @@ pub mod config;
 pub mod consolidate;
 pub mod error;
 pub mod fixture;
-pub mod html;
 pub mod monitoring;
 pub mod output;
 pub mod pool_metrics;
@@ -35,7 +34,6 @@ pub use consolidate::{
 };
 pub use error::{Error, Result};
 pub use fixture::{Fixture, FixtureManager};
-pub use html::{generate_flamegraph_index, write_aggregated_html, write_html};
 pub use monitoring::{ResourceMonitor, ResourceSample, ResourceStats};
 pub use output::{write_by_extension_analysis, write_json};
 pub use pool_metrics::{FilePoolMetrics, PoolMetricsReport};

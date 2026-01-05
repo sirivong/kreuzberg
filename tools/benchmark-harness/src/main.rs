@@ -62,17 +62,6 @@ enum Commands {
         fixtures: PathBuf,
     },
 
-    /// Generate an HTML index gallery for flamegraphs
-    GenerateFlamegraphIndex {
-        /// Directory containing flamegraph SVG files
-        #[arg(long)]
-        flamegraphs: PathBuf,
-
-        /// Output path for the HTML gallery file
-        #[arg(long)]
-        output: PathBuf,
-    },
-
     /// Run benchmarks
     Run {
         /// Directory or file pattern to search for fixtures
@@ -143,25 +132,6 @@ enum Commands {
         #[arg(long, default_value = "kreuzberg-native")]
         baseline: String,
     },
-
-    /// Visualize benchmark results from existing runs
-    Visualize {
-        /// Input directories containing benchmark results
-        #[arg(short, long, value_delimiter = ',')]
-        inputs: Vec<PathBuf>,
-
-        /// Output directory for visualization assets
-        #[arg(short, long)]
-        output: PathBuf,
-
-        /// Output format: json, html, or both
-        #[arg(long, value_enum, default_value = "html")]
-        format: OutputFormat,
-
-        /// Benchmark execution date (e.g., "2025-12-13 14:30:00 UTC")
-        #[arg(long)]
-        benchmark_date: Option<String>,
-    },
 }
 
 #[tokio::main]
@@ -204,13 +174,6 @@ async fn main() -> Result<()> {
             Ok(())
         }
 
-        Commands::GenerateFlamegraphIndex { flamegraphs, output } => {
-            use benchmark_harness::generate_flamegraph_index;
-            generate_flamegraph_index(&flamegraphs, &output)?;
-            println!("✓ Flamegraph index generated: {}", output.display());
-            Ok(())
-        }
-
         Commands::Run {
             fixtures,
             frameworks,
@@ -222,8 +185,8 @@ async fn main() -> Result<()> {
             iterations,
             ocr,
             measure_quality,
-            format,
-            benchmark_date,
+            format: _,
+            benchmark_date: _,
         } => {
             use benchmark_harness::{AdapterRegistry, BenchmarkRunner, NativeAdapter};
             use kreuzberg::{ExtractionConfig, OcrConfig};
@@ -387,49 +350,26 @@ async fn main() -> Result<()> {
             println!("  Failed: {}", failure_count);
             println!("  Total: {}", results.len());
 
-            use benchmark_harness::{write_by_extension_analysis, write_html, write_json};
+            use benchmark_harness::{write_by_extension_analysis, write_json};
 
-            match format {
-                OutputFormat::Json => {
-                    let output_file = output.join("results.json");
-                    write_json(&results, &output_file)?;
-                    println!("\nResults written to: {}", output_file.display());
+            // Always output JSON format
+            let output_file = output.join("results.json");
+            write_json(&results, &output_file)?;
+            println!("\nResults written to: {}", output_file.display());
 
-                    let by_ext_file = output.join("by-extension.json");
-                    write_by_extension_analysis(&results, &by_ext_file)?;
-                    println!("Per-extension analysis written to: {}", by_ext_file.display());
-                }
-                OutputFormat::Html => {
-                    let html_file = output.join("index.html");
-                    write_html(&results, &html_file, benchmark_date.as_deref())?;
-                    println!("\nHTML report written to: {}", html_file.display());
-                }
-                OutputFormat::Both => {
-                    let output_file = output.join("results.json");
-                    write_json(&results, &output_file)?;
-                    println!("\nResults written to: {}", output_file.display());
-
-                    let by_ext_file = output.join("by-extension.json");
-                    write_by_extension_analysis(&results, &by_ext_file)?;
-                    println!("Per-extension analysis written to: {}", by_ext_file.display());
-
-                    let html_file = output.join("index.html");
-                    write_html(&results, &html_file, benchmark_date.as_deref())?;
-                    println!("HTML report written to: {}", html_file.display());
-                }
-            }
+            let by_ext_file = output.join("by-extension.json");
+            write_by_extension_analysis(&results, &by_ext_file)?;
+            println!("Per-extension analysis written to: {}", by_ext_file.display());
 
             Ok(())
         }
         Commands::Consolidate {
             inputs,
             output,
-            format,
+            format: _,
             baseline: _baseline,
         } => {
-            use benchmark_harness::{
-                consolidate_runs, load_run_results, write_aggregated_html, write_consolidated_json,
-            };
+            use benchmark_harness::{consolidate_runs, load_run_results, write_consolidated_json};
 
             if inputs.is_empty() {
                 return Err(benchmark_harness::Error::Benchmark(
@@ -491,245 +431,19 @@ async fn main() -> Result<()> {
 
             std::fs::create_dir_all(&output).map_err(benchmark_harness::Error::Io)?;
 
-            match format {
-                OutputFormat::Json => {
-                    let output_file = output.join("consolidated.json");
-                    write_consolidated_json(&consolidated, &output_file)?;
-                    println!("\nConsolidated results written to: {}", output_file.display());
+            // Always output JSON format
+            let output_file = output.join("consolidated.json");
+            write_consolidated_json(&consolidated, &output_file)?;
+            println!("\nConsolidated results written to: {}", output_file.display());
 
-                    let aggregated_file = output.join("aggregated.json");
-                    let json = serde_json::to_string_pretty(&aggregated).map_err(|e| {
-                        benchmark_harness::Error::Benchmark(format!("Failed to serialize aggregated results: {}", e))
-                    })?;
-                    std::fs::write(&aggregated_file, json).map_err(benchmark_harness::Error::Io)?;
-                    println!("Aggregated metrics written to: {}", aggregated_file.display());
-
-                    let aggregated_html = output.join("aggregated.html");
-                    write_aggregated_html(&aggregated, &aggregated_html)?;
-                    println!("Aggregated HTML report written to: {}", aggregated_html.display());
-                }
-                OutputFormat::Html => {
-                    let html_file = output.join("consolidated.html");
-                    write_simple_html(&consolidated, &html_file)?;
-                    println!("\nConsolidated HTML report written to: {}", html_file.display());
-
-                    let aggregated_file = output.join("aggregated.json");
-                    let json = serde_json::to_string_pretty(&aggregated).map_err(|e| {
-                        benchmark_harness::Error::Benchmark(format!("Failed to serialize aggregated results: {}", e))
-                    })?;
-                    std::fs::write(&aggregated_file, json).map_err(benchmark_harness::Error::Io)?;
-                    println!("Aggregated metrics written to: {}", aggregated_file.display());
-
-                    let aggregated_html = output.join("aggregated.html");
-                    write_aggregated_html(&aggregated, &aggregated_html)?;
-                    println!("Aggregated HTML report written to: {}", aggregated_html.display());
-                }
-                OutputFormat::Both => {
-                    let output_file = output.join("consolidated.json");
-                    write_consolidated_json(&consolidated, &output_file)?;
-                    println!("\nConsolidated results written to: {}", output_file.display());
-
-                    let html_file = output.join("consolidated.html");
-                    write_simple_html(&consolidated, &html_file)?;
-                    println!("Consolidated HTML report written to: {}", html_file.display());
-
-                    let aggregated_file = output.join("aggregated.json");
-                    let json = serde_json::to_string_pretty(&aggregated).map_err(|e| {
-                        benchmark_harness::Error::Benchmark(format!("Failed to serialize aggregated results: {}", e))
-                    })?;
-                    std::fs::write(&aggregated_file, json).map_err(benchmark_harness::Error::Io)?;
-                    println!("Aggregated metrics written to: {}", aggregated_file.display());
-
-                    let aggregated_html = output.join("aggregated.html");
-                    write_aggregated_html(&aggregated, &aggregated_html)?;
-                    println!("Aggregated HTML report written to: {}", aggregated_html.display());
-                }
-            }
-
-            Ok(())
-        }
-
-        Commands::Visualize {
-            inputs,
-            output,
-            format,
-            benchmark_date,
-        } => {
-            use benchmark_harness::{
-                load_run_results, write_aggregated_html, write_by_extension_analysis, write_html, write_json,
-            };
-
-            if inputs.is_empty() {
-                return Err(benchmark_harness::Error::Benchmark(
-                    "No input directories specified".to_string(),
-                ));
-            }
-
-            let mut results = Vec::new();
-            for input in &inputs {
-                if !input.is_dir() {
-                    return Err(benchmark_harness::Error::Benchmark(format!(
-                        "Input path is not a directory: {}",
-                        input.display()
-                    )));
-                }
-                let mut run_results = load_run_results(input)?;
-                results.append(&mut run_results);
-            }
-
-            // Create new aggregation format
-            println!("\nCreating new aggregation format...");
-            let aggregated = benchmark_harness::aggregate_new_format(&results);
-            println!(
-                "  Aggregated {} frameworks across {} file types",
-                aggregated.by_framework_mode.len(),
-                aggregated
-                    .by_framework_mode
-                    .values()
-                    .flat_map(|fm| fm.by_file_type.keys())
-                    .collect::<HashSet<_>>()
-                    .len()
-            );
-
-            if results.is_empty() {
-                return Err(benchmark_harness::Error::Benchmark(
-                    "No benchmark results found to visualize".to_string(),
-                ));
-            }
-
-            std::fs::create_dir_all(&output).map_err(benchmark_harness::Error::Io)?;
-
-            match format {
-                OutputFormat::Json => {
-                    let output_file = output.join("results.json");
-                    write_json(&results, &output_file)?;
-                    println!("\nResults written to: {}", output_file.display());
-
-                    let by_ext_file = output.join("by-extension.json");
-                    write_by_extension_analysis(&results, &by_ext_file)?;
-                    println!("Per-extension analysis written to: {}", by_ext_file.display());
-
-                    let aggregated_file = output.join("aggregated.json");
-                    let json = serde_json::to_string_pretty(&aggregated).map_err(|e| {
-                        benchmark_harness::Error::Benchmark(format!("Failed to serialize aggregated results: {}", e))
-                    })?;
-                    std::fs::write(&aggregated_file, json).map_err(benchmark_harness::Error::Io)?;
-                    println!("Aggregated metrics written to: {}", aggregated_file.display());
-
-                    let aggregated_html = output.join("aggregated.html");
-                    write_aggregated_html(&aggregated, &aggregated_html)?;
-                    println!("Aggregated HTML report written to: {}", aggregated_html.display());
-                }
-                OutputFormat::Html => {
-                    let html_file = output.join("index.html");
-                    write_html(&results, &html_file, benchmark_date.as_deref())?;
-                    println!("\nHTML report written to: {}", html_file.display());
-
-                    let aggregated_file = output.join("aggregated.json");
-                    let json = serde_json::to_string_pretty(&aggregated).map_err(|e| {
-                        benchmark_harness::Error::Benchmark(format!("Failed to serialize aggregated results: {}", e))
-                    })?;
-                    std::fs::write(&aggregated_file, json).map_err(benchmark_harness::Error::Io)?;
-                    println!("Aggregated metrics written to: {}", aggregated_file.display());
-
-                    let aggregated_html = output.join("aggregated.html");
-                    write_aggregated_html(&aggregated, &aggregated_html)?;
-                    println!("Aggregated HTML report written to: {}", aggregated_html.display());
-                }
-                OutputFormat::Both => {
-                    let output_file = output.join("results.json");
-                    write_json(&results, &output_file)?;
-                    println!("\nResults written to: {}", output_file.display());
-
-                    let by_ext_file = output.join("by-extension.json");
-                    write_by_extension_analysis(&results, &by_ext_file)?;
-                    println!("Per-extension analysis written to: {}", by_ext_file.display());
-
-                    let html_file = output.join("index.html");
-                    write_html(&results, &html_file, benchmark_date.as_deref())?;
-                    println!("HTML report written to: {}", html_file.display());
-
-                    let aggregated_file = output.join("aggregated.json");
-                    let json = serde_json::to_string_pretty(&aggregated).map_err(|e| {
-                        benchmark_harness::Error::Benchmark(format!("Failed to serialize aggregated results: {}", e))
-                    })?;
-                    std::fs::write(&aggregated_file, json).map_err(benchmark_harness::Error::Io)?;
-                    println!("Aggregated metrics written to: {}", aggregated_file.display());
-
-                    let aggregated_html = output.join("aggregated.html");
-                    write_aggregated_html(&aggregated, &aggregated_html)?;
-                    println!("Aggregated HTML report written to: {}", aggregated_html.display());
-                }
-            }
+            let aggregated_file = output.join("aggregated.json");
+            let json = serde_json::to_string_pretty(&aggregated).map_err(|e| {
+                benchmark_harness::Error::Benchmark(format!("Failed to serialize aggregated results: {}", e))
+            })?;
+            std::fs::write(&aggregated_file, json).map_err(benchmark_harness::Error::Io)?;
+            println!("Aggregated metrics written to: {}", aggregated_file.display());
 
             Ok(())
         }
     }
-}
-
-/// Write simple consolidated HTML report
-fn write_simple_html(consolidated: &benchmark_harness::ConsolidatedResults, path: &PathBuf) -> Result<()> {
-    let mut html = String::from(
-        r#"<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Consolidated Benchmark Report</title>
-    <style>
-        body { font-family: system-ui, -apple-system, sans-serif; margin: 20px; line-height: 1.6; }
-        h1 { color: #333; border-bottom: 2px solid #0066cc; padding-bottom: 10px; }
-        h2 { color: #0066cc; margin-top: 30px; }
-        table { border-collapse: collapse; width: 100%; margin: 15px 0; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
-        th { background-color: #0066cc; color: white; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        .summary { background-color: #e7f3ff; padding: 15px; border-radius: 5px; margin: 15px 0; }
-    </style>
-</head>
-<body>
-    <h1>Consolidated Benchmark Report</h1>
-"#,
-    );
-
-    html.push_str(&format!(
-        r#"    <div class="summary">
-        <h3>Summary</h3>
-        <p>Total files processed: <strong>{}</strong></p>
-        <p>Number of runs: <strong>{}</strong></p>
-        <p>Frameworks analyzed: <strong>{}</strong></p>
-    </div>
-"#,
-        consolidated.total_files, consolidated.run_count, consolidated.framework_count
-    ));
-
-    html.push_str("<h2>Framework Performance</h2>\n");
-    html.push_str("<table>\n");
-    html.push_str("    <tr><th>Framework</th><th>Files</th><th>Avg Duration (ms)</th><th>Std Dev (ms)</th><th>Success Rate</th><th>Avg Throughput (MB/s)</th></tr>\n");
-
-    for (framework, agg) in &consolidated.by_framework {
-        html.push_str(&format!(
-            r#"    <tr>
-        <td>{}</td>
-        <td>{}</td>
-        <td>{:.2}</td>
-        <td>{:.2}</td>
-        <td>{:.1}%</td>
-        <td>{:.2}</td>
-    </tr>
-"#,
-            framework,
-            agg.total_files,
-            agg.mean_duration_ms,
-            agg.duration_std_dev_ms,
-            agg.success_rate * 100.0,
-            agg.mean_throughput_bps / 1_000_000.0
-        ));
-    }
-
-    html.push_str("</table>\n");
-    html.push_str("</body>\n</html>");
-
-    std::fs::write(path, html).map_err(benchmark_harness::Error::Io)?;
-    Ok(())
 }

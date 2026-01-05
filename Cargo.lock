@@ -491,9 +491,7 @@ dependencies = [
  "chrono",
  "clap",
  "kreuzberg",
- "minijinja",
  "num_cpus",
- "pathdiff",
  "pprof",
  "serde",
  "serde_json",
@@ -3674,16 +3672,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "minijinja"
-version = "2.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12ea9ac0a51fb5112607099560fdf0f90366ab088a2a9e6e8ae176794e9806aa"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4392,12 +4380,6 @@ name = "pastey"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b867cad97c0791bbd3aaa6472142568c6c9e8f71937e98379f584cfb0cf35bec"
-
-[[package]]
-name = "pathdiff"
-version = "0.2.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df94ce210e5bc13cb6651479fa48d14f601d9858cfe0467f43ae157023b938d3"
 
 [[package]]
 name = "pbkdf2"
