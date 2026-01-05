@@ -2315,16 +2315,14 @@ jobs:
           path: benchmark-results/
           merge-multiple: true
 
-      - name: Setup Rust
-        uses: ./.github/actions/setup-rust
+      - name: Download benchmark harness binary
+        uses: actions/download-artifact@v7
         with:
-          cache-key-prefix: benchmarks-aggregate
+          name: benchmark-harness-binary
+          path: target/release
 
-      - name: Install Task
-        uses: ./.github/actions/install-task
-
-      - name: Build benchmark harness
-        run: task rust:build:release
+      - name: Restore benchmark binary permissions
+        run: scripts/benchmarks/restore-binary-permissions.sh
 
       - name: Generate HTML visualization
         run: scripts/ci/benchmarks/generate-html-visualization.sh
