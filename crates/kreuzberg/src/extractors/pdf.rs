@@ -168,7 +168,7 @@ fn extract_tables_from_document(
         let column_threshold = 50;
         let row_threshold_ratio = 0.5;
 
-        let table_cells = reconstruct_table(&words, column_threshold, row_threshold_ratio, true);
+        let table_cells = reconstruct_table(&words, column_threshold, row_threshold_ratio);
 
         if !table_cells.is_empty() {
             let markdown = table_to_markdown(&table_cells);

@@ -107,13 +107,13 @@
     "@types/which": "^3.0.4",
     "@vitest/coverage-v8": "^4.0.16",
     "archiver": "^7.0.1",
-    "oxlint": "^1.36.0",
+    "oxlint": "^1.37.0",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "vitest": "^4.0.16"
   },
   "dependencies": {
-    "@emnapi/runtime": "1.7.1",
+    "@emnapi/runtime": "1.8.1",
     "which": "^6.0.0"
   }
 }

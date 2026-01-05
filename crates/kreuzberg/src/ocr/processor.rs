@@ -453,12 +453,7 @@ impl OcrProcessor {
             let words = extract_words_from_tsv(&tsv_data, config.table_min_confidence)?;
 
             if !words.is_empty() {
-                let table = reconstruct_table(
-                    &words,
-                    config.table_column_threshold,
-                    config.table_row_threshold_ratio,
-                    true,
-                );
+                let table = reconstruct_table(&words, config.table_column_threshold, config.table_row_threshold_ratio);
                 if !table.is_empty() {
                     metadata.insert("table_count".to_string(), serde_json::Value::String("1".to_string()));
                     metadata.insert(
