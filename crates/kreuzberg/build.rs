@@ -367,21 +367,20 @@ fn download_and_extract_pdfium(url: &str, dest_dir: &Path) {
         thread::sleep(Duration::from_secs(delay_secs));
     }
 
-    let file_type = Command::new("file")
-        .arg(archive_path.to_str().unwrap())
-        .output()
-        .expect("Failed to check file type");
+    // Validate gzip magic bytes (0x1f 0x8b) instead of using external 'file' command
+    // This is more portable and works correctly on Windows
+    let is_valid_gzip = fs::read(&archive_path)
+        .map(|bytes| bytes.len() >= 2 && bytes[0] == 0x1f && bytes[1] == 0x8b)
+        .unwrap_or(false);
 
-    let file_type_output = String::from_utf8_lossy(&file_type.stdout);
-    tracing::debug!("Downloaded file type: {}", file_type_output.trim());
-
-    if !file_type_output.to_lowercase().contains("gzip") && !file_type_output.to_lowercase().contains("compressed") {
+    if !is_valid_gzip {
         fs::remove_file(&archive_path).ok();
         panic!(
             "Downloaded file is not a valid gzip archive. URL may be incorrect or version unavailable: {}",
             url
         );
     }
+    tracing::debug!("Downloaded file validated as gzip archive");
 
     tracing::debug!("Extracting Pdfium archive...");
     let status = Command::new("tar")

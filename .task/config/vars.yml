@@ -87,3 +87,69 @@ vars:
           echo "release"
           ;;
       esac
+
+  # CMake path for Windows (used to set CMAKE env var for build scripts)
+  CMAKE_PATH:
+    sh: |
+      if [ "{{.OS}}" != "windows" ]; then
+        echo ""
+        exit 0
+      fi
+      # Use PowerShell to reliably find cmake on Windows
+      powershell -NoProfile -Command '
+        $cmakePath = "C:\Program Files\CMake\bin\cmake.exe"
+        if (Test-Path $cmakePath) {
+          $cmakePath
+        }
+      ' 2>/dev/null || echo ""
+
+  # Windows build tools paths (MSVC link.exe and CMake)
+  # Used to fix link.exe PATH conflicts with Git Bash
+  MSVC_BIN_PATH:
+    sh: |
+      # Only needed on Windows
+      if [ "{{.OS}}" != "windows" ]; then
+        echo ""
+        exit 0
+      fi
+
+      # Use vswhere to find MSVC, then construct paths
+      # Note: Using PowerShell for reliable path handling on Windows
+      powershell -NoProfile -Command '
+        $paths = @()
+
+        # Add CMake if installed
+        $cmakePath = "C:\Program Files\CMake\bin"
+        if (Test-Path $cmakePath) {
+          $paths += $cmakePath
+        }
+
+        # Find MSVC via vswhere
+        $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+        if (Test-Path $vswhere) {
+          $vsPath = & $vswhere -latest -products * -property installationPath 2>$null
+          if ($vsPath) {
+            $msvcBase = Join-Path $vsPath "VC\Tools\MSVC"
+            if (Test-Path $msvcBase) {
+              $msvcVersion = Get-ChildItem $msvcBase -Directory | Sort-Object Name | Select-Object -Last 1
+              if ($msvcVersion) {
+                $msvcBin = Join-Path $msvcVersion.FullName "bin\Hostx64\x64"
+                if (Test-Path $msvcBin) {
+                  $paths += $msvcBin
+                }
+              }
+            }
+          }
+        }
+
+        # Convert to Unix-style paths for Git Bash and join with colons
+        $unixPaths = $paths | ForEach-Object {
+          $p = $_ -replace "\\", "/"
+          if ($p -match "^([A-Za-z]):") {
+            "/" + $matches[1].ToLower() + $p.Substring(2)
+          } else {
+            $p
+          }
+        }
+        $unixPaths -join ":"
+      ' 2>/dev/null || echo ""
