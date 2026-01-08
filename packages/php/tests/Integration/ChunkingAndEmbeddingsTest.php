@@ -63,14 +63,15 @@ final class ChunkingAndEmbeddingsTest extends TestCase
             $result->chunks,
             'Chunks should be an array',
         );
-
-        if (!empty($result->chunks)) {
-            $this->assertGreaterThan(
-                0,
-                count($result->chunks),
-                'Should produce at least one chunk',
-            );
-        }
+        $this->assertNotEmpty(
+            $result->chunks,
+            'Should produce at least one chunk',
+        );
+        $this->assertGreaterThan(
+            0,
+            count($result->chunks),
+            'Should produce at least one chunk',
+        );
     }
 
     #[Test]
@@ -93,18 +94,24 @@ final class ChunkingAndEmbeddingsTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($filePath);
 
-        if (!empty($result->chunks)) {
-            foreach ($result->chunks as $chunk) {
-                $this->assertObjectHasProperty(
-                    'content',
-                    $chunk,
-                    'Chunk should have content property',
-                );
-                $this->assertIsString(
-                    $chunk->content,
-                    'Chunk content should be a string',
-                );
-            }
+        $this->assertNotNull($result->chunks, 'Chunks should not be null');
+        $this->assertNotEmpty($result->chunks, 'Should produce chunks');
+
+        foreach ($result->chunks as $chunk) {
+            $this->assertObjectHasProperty(
+                'content',
+                $chunk,
+                'Chunk should have content property',
+            );
+            $this->assertIsString(
+                $chunk->content,
+                'Chunk content should be a string',
+            );
+            $this->assertLessThanOrEqual(
+                $maxChunkSize + 100,
+                strlen($chunk->content),
+                'Chunk size should respect max chars configuration (with some tolerance)',
+            );
         }
     }
 
@@ -131,10 +138,13 @@ final class ChunkingAndEmbeddingsTest extends TestCase
             $result->chunks,
             'Should produce chunks with overlap',
         );
-
-        if (!empty($result->chunks)) {
-            $this->assertIsArray($result->chunks);
-        }
+        $this->assertIsArray($result->chunks, 'Chunks should be an array');
+        $this->assertNotEmpty($result->chunks, 'Should produce at least one chunk');
+        $this->assertGreaterThan(
+            1,
+            count($result->chunks),
+            'Should produce multiple chunks for overlapping to be meaningful',
+        );
     }
 
     #[Test]
@@ -156,13 +166,14 @@ final class ChunkingAndEmbeddingsTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($filePath);
 
-        if (!empty($result->chunks)) {
-            foreach ($result->chunks as $chunk) {
-                $this->assertNotEmpty(
-                    $chunk->content,
-                    'Chunk content should not be empty',
-                );
-            }
+        $this->assertNotNull($result->chunks, 'Chunks should not be null');
+        $this->assertNotEmpty($result->chunks, 'Should produce chunks');
+
+        foreach ($result->chunks as $chunk) {
+            $this->assertNotEmpty(
+                $chunk->content,
+                'Chunk content should not be empty',
+            );
         }
     }
 
@@ -193,26 +204,28 @@ final class ChunkingAndEmbeddingsTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($filePath);
 
-        if (!empty($result->chunks)) {
-            $chunk = $result->chunks[0];
+        $this->assertNotNull($result->chunks, 'Chunks should not be null');
+        $this->assertNotEmpty($result->chunks, 'Should produce chunks');
 
-            $this->assertObjectHasProperty(
-                'embedding',
-                $chunk,
-                'Chunk should have embedding when embedding config is provided',
-            );
+        $chunk = $result->chunks[0];
 
-            if ($chunk->embedding !== null) {
-                $this->assertIsArray(
-                    $chunk->embedding,
-                    'Embedding should be an array of floats',
-                );
-                $this->assertNotEmpty(
-                    $chunk->embedding,
-                    'Embedding should not be empty',
-                );
-            }
-        }
+        $this->assertObjectHasProperty(
+            'embedding',
+            $chunk,
+            'Chunk should have embedding when embedding config is provided',
+        );
+        $this->assertNotNull(
+            $chunk->embedding,
+            'Chunk embedding should not be null when embedding config is provided',
+        );
+        $this->assertIsArray(
+            $chunk->embedding,
+            'Embedding should be an array of floats',
+        );
+        $this->assertNotEmpty(
+            $chunk->embedding,
+            'Embedding should not be empty',
+        );
     }
 
     #[Test]
@@ -233,19 +246,20 @@ final class ChunkingAndEmbeddingsTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($filePath);
 
-        if (!empty($result->chunks)) {
-            $chunk = $result->chunks[0];
+        $this->assertNotNull($result->chunks, 'Chunks should not be null');
+        $this->assertNotEmpty($result->chunks, 'Should produce chunks');
 
-            $this->assertObjectHasProperty(
-                'metadata',
-                $chunk,
-                'Chunk should have metadata',
-            );
-            $this->assertNotNull(
-                $chunk->metadata,
-                'Chunk metadata should not be null',
-            );
-        }
+        $chunk = $result->chunks[0];
+
+        $this->assertObjectHasProperty(
+            'metadata',
+            $chunk,
+            'Chunk should have metadata',
+        );
+        $this->assertNotNull(
+            $chunk->metadata,
+            'Chunk metadata should not be null',
+        );
     }
 
     #[Test]
@@ -274,14 +288,13 @@ final class ChunkingAndEmbeddingsTest extends TestCase
             $result->chunks,
             'Should produce chunks even without embeddings',
         );
+        $this->assertNotEmpty($result->chunks, 'Should produce chunks');
 
-        if (!empty($result->chunks)) {
-            foreach ($result->chunks as $chunk) {
-                $this->assertIsString(
-                    $chunk->content,
-                    'Chunk should have content string',
-                );
-            }
+        foreach ($result->chunks as $chunk) {
+            $this->assertIsString(
+                $chunk->content,
+                'Chunk should have content string',
+            );
         }
     }
 
@@ -303,13 +316,13 @@ final class ChunkingAndEmbeddingsTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($filePath);
 
-        if (!empty($result->chunks)) {
-            $this->assertGreaterThanOrEqual(
-                1,
-                count($result->chunks),
-                'Should have at least one chunk',
-            );
-        }
+        $this->assertNotNull($result->chunks, 'Chunks should not be null');
+        $this->assertNotEmpty($result->chunks, 'Should produce chunks');
+        $this->assertGreaterThanOrEqual(
+            1,
+            count($result->chunks),
+            'Should have at least one chunk',
+        );
     }
 
     #[Test]
@@ -336,18 +349,31 @@ final class ChunkingAndEmbeddingsTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($filePath);
 
-        if (!empty($result->chunks) && !empty($result->chunks[0]->embedding)) {
-            $embedding = $result->chunks[0]->embedding;
+        $this->assertNotNull($result->chunks, 'Chunks should not be null');
+        $this->assertNotEmpty($result->chunks, 'Should produce chunks');
+        $this->assertNotNull(
+            $result->chunks[0]->embedding,
+            'First chunk should have embedding',
+        );
 
-            $this->assertIsArray(
-                $embedding,
-                'Normalized embedding should be an array',
-            );
-            $this->assertNotEmpty(
-                $embedding,
-                'Normalized embedding should not be empty',
-            );
-        }
+        $embedding = $result->chunks[0]->embedding;
+
+        $this->assertIsArray(
+            $embedding,
+            'Normalized embedding should be an array',
+        );
+        $this->assertNotEmpty(
+            $embedding,
+            'Normalized embedding should not be empty',
+        );
+
+        $magnitude = sqrt(array_sum(array_map(fn ($v) => $v * $v, $embedding)));
+        $this->assertEqualsWithDelta(
+            1.0,
+            $magnitude,
+            0.01,
+            'Normalized embedding should have unit magnitude',
+        );
     }
 
     #[Test]
@@ -380,12 +406,18 @@ final class ChunkingAndEmbeddingsTest extends TestCase
         );
 
         foreach ($results as $result) {
-            if (!empty($result->chunks)) {
-                $this->assertIsArray(
-                    $result->chunks,
-                    'Each result should have chunks array',
-                );
-            }
+            $this->assertNotNull(
+                $result->chunks,
+                'Each result should have chunks',
+            );
+            $this->assertIsArray(
+                $result->chunks,
+                'Each result should have chunks array',
+            );
+            $this->assertNotEmpty(
+                $result->chunks,
+                'Each result should produce chunks',
+            );
         }
     }
 
@@ -403,13 +435,14 @@ final class ChunkingAndEmbeddingsTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($filePath);
 
-        if (!empty($result->chunks)) {
-            foreach ($result->chunks as $chunk) {
-                $this->assertTrue(
-                    mb_check_encoding($chunk->content, 'UTF-8'),
-                    'Chunk content should be valid UTF-8',
-                );
-            }
+        $this->assertNotNull($result->chunks, 'Chunks should not be null');
+        $this->assertNotEmpty($result->chunks, 'Should produce chunks');
+
+        foreach ($result->chunks as $chunk) {
+            $this->assertTrue(
+                mb_check_encoding($chunk->content, 'UTF-8'),
+                'Chunk content should be valid UTF-8',
+            );
         }
     }
 }

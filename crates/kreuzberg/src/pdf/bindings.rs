@@ -19,7 +19,13 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 /// 2. `FPDF_InitLibrary()` is called exactly once
 /// 3. The `Pdfium` instance is never dropped, so `FPDF_DestroyLibrary()` is never called
 /// 4. All callers share the same `Pdfium` instance safely
-static PDFIUM_SINGLETON: OnceLock<Result<Pdfium, String>> = OnceLock::new();
+///
+/// CRITICAL: We use `&'static Pdfium` (a leaked reference) instead of `Pdfium` to prevent
+/// the instance from being dropped during process exit. Without this, when Rust's runtime
+/// cleans up static variables during process teardown, the Pdfium destructor runs and calls
+/// `FPDF_DestroyLibrary()`, which can cause segfaults/SIGTRAP (exit code 201 on macOS) in
+/// FFI scenarios, especially in Go tests where cgo cleanup happens in a specific order.
+static PDFIUM_SINGLETON: OnceLock<Result<&'static Pdfium, String>> = OnceLock::new();
 
 /// Global mutex to serialize all PDFium operations.
 ///
@@ -98,10 +104,15 @@ fn create_pdfium_bindings(lib_dir: &Option<PathBuf>) -> Result<Box<dyn PdfiumLib
 /// This function performs the one-time initialization:
 /// 1. Extracts bundled library if using `bundled-pdfium` feature
 /// 2. Creates bindings to the Pdfium library
-/// 3. Creates and returns the `Pdfium` instance
+/// 3. Creates and leaks the `Pdfium` instance to prevent cleanup during process exit
 ///
 /// This is only called once, on first access to the singleton.
-fn initialize_pdfium() -> Result<Pdfium, String> {
+///
+/// CRITICAL: We intentionally leak the Pdfium instance using `Box::leak()` to prevent
+/// it from being dropped during process exit. If the instance were dropped, it would call
+/// `FPDF_DestroyLibrary()` which causes segfaults/SIGTRAP in FFI scenarios (exit code 201
+/// on macOS), particularly visible in Go tests where cgo cleanup order matters.
+fn initialize_pdfium() -> Result<&'static Pdfium, String> {
     // Step 1: Extract bundled library (if applicable)
     let lib_dir = extract_and_get_lib_dir()?;
 
@@ -109,7 +120,11 @@ fn initialize_pdfium() -> Result<Pdfium, String> {
     let bindings = create_pdfium_bindings(&lib_dir)?;
 
     // Step 3: Create Pdfium instance (this calls FPDF_InitLibrary)
-    Ok(Pdfium::new(bindings))
+    let pdfium = Pdfium::new(bindings);
+
+    // Step 4: Leak the instance to prevent Drop from being called during process exit
+    // This is intentional and necessary for FFI safety across language boundaries
+    Ok(Box::leak(Box::new(pdfium)))
 }
 
 /// A handle to the global Pdfium instance with exclusive access.
@@ -149,6 +164,7 @@ impl Deref for PdfiumHandle<'_> {
         // the singleton, so this unwrap is guaranteed to succeed.
         // The Result inside is also guaranteed to be Ok because bind_pdfium()
         // only returns PdfiumHandle on success.
+        // Since we now store &'static Pdfium, we can directly dereference it.
         PDFIUM_SINGLETON.get().unwrap().as_ref().unwrap()
     }
 }

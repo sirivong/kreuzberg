@@ -595,7 +595,13 @@ fn main() -> Result<()> {
 
             // Load server config from same file or defaults
             let mut server_config = if let Some(path) = &config_path {
-                ServerConfig::from_file(path).unwrap_or_default()
+                ServerConfig::from_file(path).with_context(|| {
+                    format!(
+                        "Failed to load server configuration from '{}'. \
+                         Ensure the file contains valid server settings under [server] section or at root level.",
+                        path.display()
+                    )
+                })?
             } else {
                 ServerConfig::default()
             };

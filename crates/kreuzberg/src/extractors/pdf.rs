@@ -529,7 +529,7 @@ impl DocumentExtractor for PdfExtractor {
             }
         }
 
-        let images = if config.images.is_some() {
+        let images = if config.images.as_ref().map(|c| c.extract_images).unwrap_or(false) {
             // Image extraction is enabled, extract images if present
             match crate::pdf::images::extract_images_from_pdf(content) {
                 Ok(pdf_images) => Some(

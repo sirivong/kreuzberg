@@ -340,6 +340,10 @@ impl ServerConfig {
     /// - `.yaml` or `.yml` - YAML format
     /// - `.json` - JSON format
     ///
+    /// This function handles two config file formats:
+    /// 1. Flat format: Server config at root level
+    /// 2. Nested format: Server config under `[server]` section (combined with ExtractionConfig)
+    ///
     /// # Arguments
     ///
     /// * `path` - Path to the configuration file
@@ -375,12 +379,75 @@ impl ServerConfig {
         })?;
 
         let mut config = match extension.to_lowercase().as_str() {
-            "toml" => toml::from_str::<Self>(&content)
-                .map_err(|e| KreuzbergError::validation(format!("Invalid TOML in {}: {}", path.display(), e)))?,
-            "yaml" | "yml" => serde_yaml_ng::from_str::<Self>(&content)
-                .map_err(|e| KreuzbergError::validation(format!("Invalid YAML in {}: {}", path.display(), e)))?,
-            "json" => serde_json::from_str::<Self>(&content)
-                .map_err(|e| KreuzbergError::validation(format!("Invalid JSON in {}: {}", path.display(), e)))?,
+            "toml" => {
+                // Try nested format first (with [server] section)
+                #[derive(Deserialize)]
+                struct RootConfig {
+                    #[serde(default)]
+                    server: Option<ServerConfig>,
+                }
+
+                if let Ok(root) = toml::from_str::<RootConfig>(&content) {
+                    if let Some(server) = root.server {
+                        server
+                    } else {
+                        // No [server] section, try flat format
+                        toml::from_str::<Self>(&content).map_err(|e| {
+                            KreuzbergError::validation(format!("Invalid TOML in {}: {}", path.display(), e))
+                        })?
+                    }
+                } else {
+                    // Fall back to flat format
+                    toml::from_str::<Self>(&content)
+                        .map_err(|e| KreuzbergError::validation(format!("Invalid TOML in {}: {}", path.display(), e)))?
+                }
+            }
+            "yaml" | "yml" => {
+                // Try nested format first (with server: section)
+                #[derive(Deserialize)]
+                struct RootConfig {
+                    #[serde(default)]
+                    server: Option<ServerConfig>,
+                }
+
+                if let Ok(root) = serde_yaml_ng::from_str::<RootConfig>(&content) {
+                    if let Some(server) = root.server {
+                        server
+                    } else {
+                        // No server section, try flat format
+                        serde_yaml_ng::from_str::<Self>(&content).map_err(|e| {
+                            KreuzbergError::validation(format!("Invalid YAML in {}: {}", path.display(), e))
+                        })?
+                    }
+                } else {
+                    // Fall back to flat format
+                    serde_yaml_ng::from_str::<Self>(&content)
+                        .map_err(|e| KreuzbergError::validation(format!("Invalid YAML in {}: {}", path.display(), e)))?
+                }
+            }
+            "json" => {
+                // Try nested format first (with "server" key)
+                #[derive(Deserialize)]
+                struct RootConfig {
+                    #[serde(default)]
+                    server: Option<ServerConfig>,
+                }
+
+                if let Ok(root) = serde_json::from_str::<RootConfig>(&content) {
+                    if let Some(server) = root.server {
+                        server
+                    } else {
+                        // No server key, try flat format
+                        serde_json::from_str::<Self>(&content).map_err(|e| {
+                            KreuzbergError::validation(format!("Invalid JSON in {}: {}", path.display(), e))
+                        })?
+                    }
+                } else {
+                    // Fall back to flat format
+                    serde_json::from_str::<Self>(&content)
+                        .map_err(|e| KreuzbergError::validation(format!("Invalid JSON in {}: {}", path.display(), e)))?
+                }
+            }
             _ => {
                 return Err(KreuzbergError::validation(format!(
                     "Unsupported config file format: .{}. Supported formats: .toml, .yaml, .yml, .json",
@@ -1040,5 +1107,114 @@ max_multipart_field_bytes = 150000000
         assert_eq!(config.max_multipart_field_bytes, 150_000_000);
         assert_eq!(config.max_request_body_mb(), 191);
         assert_eq!(config.max_multipart_field_mb(), 144);
+    }
+
+    #[test]
+    fn test_from_file_with_nested_server_section_toml() {
+        let dir = tempdir().unwrap();
+        let config_path = dir.path().join("kreuzberg.toml");
+
+        // Config file with [server] section and other sections (like ExtractionConfig)
+        fs::write(
+            &config_path,
+            r#"
+[server]
+host = "0.0.0.0"
+port = 3000
+cors_origins = ["https://example.com"]
+
+[ocr]
+backend = "tesseract"
+language = "eng"
+
+[extraction]
+enabled = true
+        "#,
+        )
+        .unwrap();
+
+        let config = ServerConfig::from_file(&config_path).unwrap();
+        assert_eq!(config.host, "0.0.0.0");
+        assert_eq!(config.port, 3000);
+        assert_eq!(config.cors_origins.len(), 1);
+        assert_eq!(config.cors_origins[0], "https://example.com");
+    }
+
+    #[test]
+    fn test_from_file_with_nested_server_section_yaml() {
+        let dir = tempdir().unwrap();
+        let config_path = dir.path().join("kreuzberg.yaml");
+
+        // Config file with server: section and other sections
+        fs::write(
+            &config_path,
+            r#"
+server:
+  host: 0.0.0.0
+  port: 4000
+  cors_origins:
+    - https://example.com
+
+ocr:
+  backend: tesseract
+  language: eng
+        "#,
+        )
+        .unwrap();
+
+        let config = ServerConfig::from_file(&config_path).unwrap();
+        assert_eq!(config.host, "0.0.0.0");
+        assert_eq!(config.port, 4000);
+        assert_eq!(config.cors_origins.len(), 1);
+    }
+
+    #[test]
+    fn test_from_file_with_nested_server_section_json() {
+        let dir = tempdir().unwrap();
+        let config_path = dir.path().join("kreuzberg.json");
+
+        // Config file with "server" key and other sections
+        fs::write(
+            &config_path,
+            r#"
+{
+  "server": {
+    "host": "0.0.0.0",
+    "port": 5000,
+    "cors_origins": ["https://example.com"]
+  },
+  "ocr": {
+    "backend": "tesseract",
+    "language": "eng"
+  }
+}
+        "#,
+        )
+        .unwrap();
+
+        let config = ServerConfig::from_file(&config_path).unwrap();
+        assert_eq!(config.host, "0.0.0.0");
+        assert_eq!(config.port, 5000);
+        assert_eq!(config.cors_origins.len(), 1);
+    }
+
+    #[test]
+    fn test_from_file_flat_format_still_works() {
+        let dir = tempdir().unwrap();
+        let config_path = dir.path().join("server.toml");
+
+        // Old flat format without [server] section
+        fs::write(
+            &config_path,
+            r#"
+host = "192.168.1.1"
+port = 6000
+        "#,
+        )
+        .unwrap();
+
+        let config = ServerConfig::from_file(&config_path).unwrap();
+        assert_eq!(config.host, "192.168.1.1");
+        assert_eq!(config.port, 6000);
     }
 }

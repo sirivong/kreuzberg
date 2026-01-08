@@ -191,11 +191,13 @@ final class ImageExtractionTest extends TestCase
 
         // Test multiple files to find one with images in different formats
         $detectedFormats = [];
+        $totalImages = 0;
 
         foreach ($pdfFiles as $pdfFile) {
             $result = $kreuzberg->extractFile($pdfFile);
 
             if (!empty($result->images)) {
+                $totalImages += count($result->images);
                 foreach ($result->images as $image) {
                     $format = strtoupper($image->format);
                     if (!in_array($format, $detectedFormats, true)) {
@@ -211,15 +213,18 @@ final class ImageExtractionTest extends TestCase
         }
 
         // Format detection should be working (at least one format found from PDFs)
-        if (!empty($detectedFormats)) {
-            foreach ($detectedFormats as $format) {
-                $this->assertNotEmpty($format, 'Detected format should not be empty');
-                $this->assertStringNotContainsString(
-                    ' ',
-                    $format,
-                    'Format should not contain spaces',
-                );
-            }
+        $this->assertNotEmpty(
+            $detectedFormats,
+            'Should detect at least one image format from test PDFs',
+        );
+
+        foreach ($detectedFormats as $format) {
+            $this->assertNotEmpty($format, 'Detected format should not be empty');
+            $this->assertStringNotContainsString(
+                ' ',
+                $format,
+                'Format should not contain spaces',
+            );
         }
     }
 
@@ -245,43 +250,47 @@ final class ImageExtractionTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($pdfFiles[0]);
 
-        if (!empty($result->images)) {
-            foreach ($result->images as $image) {
-                // Page number should be set if available
-                if ($image->pageNumber !== null) {
-                    $this->assertGreaterThan(
-                        0,
-                        $image->pageNumber,
-                        'Page number should be positive integer',
-                    );
-                }
+        $this->assertNotNull($result->images, 'Images should not be null');
 
-                // Dimensions should be positive if present
-                if ($image->width !== null && $image->height !== null) {
-                    $this->assertGreaterThan(
-                        0,
-                        $image->width,
-                        'Image width should be positive',
-                    );
-                    $this->assertGreaterThan(
-                        0,
-                        $image->height,
-                        'Image height should be positive',
-                    );
+        if (empty($result->images)) {
+            $this->markTestSkipped('Test PDF does not contain images');
+        }
 
-                    // Validate aspect ratio is reasonable (between 0.1 and 10)
-                    $aspectRatio = $image->width / $image->height;
-                    $this->assertGreaterThan(
-                        0.1,
-                        $aspectRatio,
-                        'Image aspect ratio should be reasonable',
-                    );
-                    $this->assertLessThan(
-                        10,
-                        $aspectRatio,
-                        'Image aspect ratio should be reasonable',
-                    );
-                }
+        foreach ($result->images as $image) {
+            // Page number should be set if available
+            if ($image->pageNumber !== null) {
+                $this->assertGreaterThan(
+                    0,
+                    $image->pageNumber,
+                    'Page number should be positive integer',
+                );
+            }
+
+            // Dimensions should be positive if present
+            if ($image->width !== null && $image->height !== null) {
+                $this->assertGreaterThan(
+                    0,
+                    $image->width,
+                    'Image width should be positive',
+                );
+                $this->assertGreaterThan(
+                    0,
+                    $image->height,
+                    'Image height should be positive',
+                );
+
+                // Validate aspect ratio is reasonable (between 0.1 and 10)
+                $aspectRatio = $image->width / $image->height;
+                $this->assertGreaterThan(
+                    0.1,
+                    $aspectRatio,
+                    'Image aspect ratio should be reasonable',
+                );
+                $this->assertLessThan(
+                    10,
+                    $aspectRatio,
+                    'Image aspect ratio should be reasonable',
+                );
             }
         }
     }
@@ -444,6 +453,10 @@ final class ImageExtractionTest extends TestCase
             $result->images,
             'ImageExtractionConfig should enable image extraction',
         );
+        $this->assertIsArray(
+            $result->images,
+            'Images should be an array',
+        );
     }
 
     /**
@@ -468,34 +481,38 @@ final class ImageExtractionTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($pdfFiles[0]);
 
-        if (!empty($result->images)) {
-            foreach ($result->images as $image) {
-                // Image data should not be empty
-                $this->assertNotEmpty(
-                    $image->data,
-                    'Image data should be present and non-empty',
-                );
+        $this->assertNotNull($result->images, 'Images should not be null');
 
-                // Image data should be a valid string (binary safe)
-                $this->assertIsString(
-                    $image->data,
-                    'Image data must be a string',
-                );
+        if (empty($result->images)) {
+            $this->markTestSkipped('Test PDF does not contain images');
+        }
 
-                // Image format should be identifiable
-                $this->assertNotEmpty(
-                    $image->format,
-                    'Image format should be identifiable',
-                );
+        foreach ($result->images as $image) {
+            // Image data should not be empty
+            $this->assertNotEmpty(
+                $image->data,
+                'Image data should be present and non-empty',
+            );
 
-                // Format should match expected values
-                $validFormats = ['png', 'jpeg', 'jpg', 'webp', 'gif', 'tiff', 'bmp'];
-                $this->assertContains(
-                    strtolower($image->format),
-                    $validFormats,
-                    "Format '{$image->format}' should be a supported image format",
-                );
-            }
+            // Image data should be a valid string (binary safe)
+            $this->assertIsString(
+                $image->data,
+                'Image data must be a string',
+            );
+
+            // Image format should be identifiable
+            $this->assertNotEmpty(
+                $image->format,
+                'Image format should be identifiable',
+            );
+
+            // Format should match expected values
+            $validFormats = ['png', 'jpeg', 'jpg', 'webp', 'gif', 'tiff', 'bmp'];
+            $this->assertContains(
+                strtolower($image->format),
+                $validFormats,
+                "Format '{$image->format}' should be a supported image format",
+            );
         }
     }
 
@@ -587,31 +604,39 @@ final class ImageExtractionTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($pdfFiles[0]);
 
-        if (!empty($result->images) && count($result->images) > 1) {
-            // Verify all images have unique indices
-            $indices = array_map(
-                static fn ($image) => $image->imageIndex,
-                $result->images,
-            );
+        $this->assertNotNull($result->images, 'Images should not be null');
 
-            $this->assertCount(
-                count($result->images),
-                array_unique($indices),
-                'Each image should have unique index within document',
-            );
+        if (empty($result->images)) {
+            $this->markTestSkipped('Test PDF does not contain images');
+        }
 
-            // Verify indices are sequential or properly ordered
-            foreach ($result->images as $index => $image) {
-                $this->assertIsInt(
-                    $image->imageIndex,
-                    "Image at position {$index} should have integer index",
-                );
-                $this->assertGreaterThanOrEqual(
-                    0,
-                    $image->imageIndex,
-                    'Image index should be non-negative',
-                );
-            }
+        if (count($result->images) === 1) {
+            $this->markTestSkipped('Test PDF only contains one image, need multiple for indexing test');
+        }
+
+        // Verify all images have unique indices
+        $indices = array_map(
+            static fn ($image) => $image->imageIndex,
+            $result->images,
+        );
+
+        $this->assertCount(
+            count($result->images),
+            array_unique($indices),
+            'Each image should have unique index within document',
+        );
+
+        // Verify indices are sequential or properly ordered
+        foreach ($result->images as $index => $image) {
+            $this->assertIsInt(
+                $image->imageIndex,
+                "Image at position {$index} should have integer index",
+            );
+            $this->assertGreaterThanOrEqual(
+                0,
+                $image->imageIndex,
+                'Image index should be non-negative',
+            );
         }
     }
 }

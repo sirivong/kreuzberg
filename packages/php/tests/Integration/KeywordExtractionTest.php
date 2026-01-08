@@ -139,14 +139,18 @@ final class KeywordExtractionTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($filePath);
 
-        if (!empty($result->keywords)) {
-            foreach ($result->keywords as $keyword) {
-                $this->assertGreaterThanOrEqual(
-                    $minScore,
-                    $keyword->score,
-                    "Keyword score should be at least {$minScore}",
-                );
-            }
+        $this->assertNotNull($result->keywords, 'Keywords should not be null');
+
+        if (empty($result->keywords)) {
+            $this->markTestSkipped('No keywords with score >= 0.5 found in test document');
+        }
+
+        foreach ($result->keywords as $keyword) {
+            $this->assertGreaterThanOrEqual(
+                $minScore,
+                $keyword->score,
+                "Keyword score should be at least {$minScore}",
+            );
         }
     }
 
@@ -380,8 +384,14 @@ final class KeywordExtractionTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($filePath);
 
-        $this->assertNotNull($result->keywords);
-        $this->assertIsArray($result->keywords);
+        $this->assertNotNull($result->keywords, 'Keywords should not be null');
+        $this->assertIsArray($result->keywords, 'Keywords should be an array');
+        $this->assertNotEmpty($result->keywords, 'Should produce keywords');
+        $this->assertLessThanOrEqual(
+            1000,
+            count($result->keywords),
+            'Should not exceed max keywords limit',
+        );
     }
 
     /**
@@ -403,11 +413,12 @@ final class KeywordExtractionTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($filePath);
 
-        if (!empty($result->keywords)) {
-            foreach ($result->keywords as $keyword) {
-                $this->assertIsFloat($keyword->score, 'Keyword score should be a float');
-                $this->assertGreaterThanOrEqual(0, $keyword->score, 'Keyword score should be non-negative');
-            }
+        $this->assertNotNull($result->keywords, 'Keywords should not be null');
+        $this->assertNotEmpty($result->keywords, 'Should produce keywords');
+
+        foreach ($result->keywords as $keyword) {
+            $this->assertIsFloat($keyword->score, 'Keyword score should be a float');
+            $this->assertGreaterThanOrEqual(0, $keyword->score, 'Keyword score should be non-negative');
         }
     }
 

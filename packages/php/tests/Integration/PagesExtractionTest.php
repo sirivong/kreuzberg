@@ -95,19 +95,20 @@ final class PagesExtractionTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($filePath);
 
-        if (!empty($result->pages)) {
-            foreach ($result->pages as $page) {
-                $this->assertIsObject($page, 'Each page should be an object');
+        $this->assertNotNull($result->pages, 'Pages should not be null');
+        $this->assertNotEmpty($result->pages, 'Should produce pages');
 
-                // Check for expected page properties
-                if (isset($page->content)) {
-                    $this->assertIsString($page->content, 'Page content should be a string');
-                }
+        foreach ($result->pages as $page) {
+            $this->assertIsObject($page, 'Each page should be an object');
 
-                if (isset($page->pageNumber)) {
-                    $this->assertIsInt($page->pageNumber, 'Page number should be an integer');
-                    $this->assertGreaterThan(0, $page->pageNumber, 'Page number should be positive');
-                }
+            // Check for expected page properties
+            if (isset($page->content)) {
+                $this->assertIsString($page->content, 'Page content should be a string');
+            }
+
+            if (isset($page->pageNumber)) {
+                $this->assertIsInt($page->pageNumber, 'Page number should be an integer');
+                $this->assertGreaterThan(0, $page->pageNumber, 'Page number should be positive');
             }
         }
     }
@@ -306,13 +307,13 @@ final class PagesExtractionTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($filePath);
 
-        if (!empty($result->pages)) {
-            $this->assertGreaterThan(
-                0,
-                count($result->pages),
-                'Multi-page document should produce multiple pages',
-            );
-        }
+        $this->assertNotNull($result->pages, 'Pages should not be null');
+        $this->assertNotEmpty($result->pages, 'Should produce pages');
+        $this->assertGreaterThan(
+            0,
+            count($result->pages),
+            'Multi-page document should produce multiple pages',
+        );
     }
 
     /**
@@ -335,13 +336,15 @@ final class PagesExtractionTest extends TestCase
         $result1 = $kreuzberg->extractFile($filePath, config: $config);
         $result2 = $kreuzberg->extractFile($filePath, config: $config);
 
-        if (!empty($result1->pages) && !empty($result2->pages)) {
-            $this->assertSame(
-                count($result1->pages),
-                count($result2->pages),
-                'Multiple extractions should produce same page count',
-            );
-        }
+        $this->assertNotNull($result1->pages, 'First result pages should not be null');
+        $this->assertNotNull($result2->pages, 'Second result pages should not be null');
+        $this->assertNotEmpty($result1->pages, 'First result should produce pages');
+        $this->assertNotEmpty($result2->pages, 'Second result should produce pages');
+        $this->assertSame(
+            count($result1->pages),
+            count($result2->pages),
+            'Multiple extractions should produce same page count',
+        );
     }
 
     /**

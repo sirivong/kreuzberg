@@ -29,6 +29,9 @@ use super::{
 /// 2. Environment variables (via apply_env_overrides)
 /// 3. Defaults
 ///
+/// The config file can be in flat format (server settings at root) or nested format
+/// (server settings under [server] section alongside other configs like [ocr]).
+///
 /// # Arguments
 ///
 /// * `config_path` - Optional path to a ServerConfig file (TOML, YAML, or JSON)
@@ -39,7 +42,10 @@ use super::{
 ///
 /// # Errors
 ///
-/// Returns an error if the config file cannot be read or parsed.
+/// Returns an error if:
+/// - The config file path is provided but cannot be read
+/// - The config file contains invalid server configuration
+/// - Environment variable overrides contain invalid values
 ///
 /// # Examples
 ///
@@ -58,13 +64,7 @@ use super::{
 /// ```
 pub fn load_server_config(config_path: Option<&std::path::Path>) -> Result<ServerConfig> {
     let mut config = if let Some(path) = config_path {
-        match ServerConfig::from_file(path) {
-            Ok(cfg) => cfg,
-            Err(e) => {
-                tracing::warn!("Failed to load server config from file: {}, using defaults", e);
-                ServerConfig::default()
-            }
-        }
+        ServerConfig::from_file(path)?
     } else {
         ServerConfig::default()
     };

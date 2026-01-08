@@ -95,21 +95,21 @@ final class EmbeddingGenerationTest extends TestCase
         $kreuzberg = new Kreuzberg($config);
         $result = $kreuzberg->extractFile($filePath);
 
-        if (!empty($result->embeddings)) {
-            foreach ($result->embeddings as $embedding) {
-                $this->assertIsObject($embedding, 'Each embedding should be an object');
-                $this->assertObjectHasProperty('vector', $embedding, 'Embedding should have vector property');
+        $this->assertNotNull($result->embeddings, 'Embeddings should not be null');
+        $this->assertNotEmpty($result->embeddings, 'Should produce embeddings');
 
-                if (isset($embedding->vector)) {
-                    $this->assertIsArray($embedding->vector, 'Vector should be an array');
+        foreach ($result->embeddings as $embedding) {
+            $this->assertIsObject($embedding, 'Each embedding should be an object');
+            $this->assertObjectHasProperty('vector', $embedding, 'Embedding should have vector property');
+            $this->assertNotNull($embedding->vector, 'Vector should not be null');
+            $this->assertIsArray($embedding->vector, 'Vector should be an array');
+            $this->assertNotEmpty($embedding->vector, 'Vector should not be empty');
 
-                    foreach ($embedding->vector as $value) {
-                        $this->assertTrue(
-                            is_float($value) || is_int($value),
-                            'Vector values should be numeric',
-                        );
-                    }
-                }
+            foreach ($embedding->vector as $value) {
+                $this->assertTrue(
+                    is_float($value) || is_int($value),
+                    'Vector values should be numeric',
+                );
             }
         }
     }
@@ -287,12 +287,14 @@ final class EmbeddingGenerationTest extends TestCase
         $result1 = $kreuzberg->extractFile($filePath, config: $config);
         $result2 = $kreuzberg->extractFile($filePath, config: $config);
 
-        if (!empty($result1->embeddings) && !empty($result2->embeddings)) {
-            $this->assertSame(
-                count($result1->embeddings),
-                count($result2->embeddings),
-                'Multiple extractions should produce same embedding count',
-            );
-        }
+        $this->assertNotNull($result1->embeddings, 'First result embeddings should not be null');
+        $this->assertNotNull($result2->embeddings, 'Second result embeddings should not be null');
+        $this->assertNotEmpty($result1->embeddings, 'First result should produce embeddings');
+        $this->assertNotEmpty($result2->embeddings, 'Second result should produce embeddings');
+        $this->assertSame(
+            count($result1->embeddings),
+            count($result2->embeddings),
+            'Multiple extractions should produce same embedding count',
+        );
     }
 }
