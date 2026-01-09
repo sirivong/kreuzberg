@@ -75,6 +75,10 @@ typedef struct CExtractionResult {
    */
   char *page_structure_json;
   /**
+   * Per-page content as JSON array (null-terminated string, or NULL if not available, must be freed with kreuzberg_free_string)
+   */
+  char *pages_json;
+  /**
    * Whether extraction was successful
    */
   bool success;
