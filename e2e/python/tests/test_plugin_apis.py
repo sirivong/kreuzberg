@@ -8,11 +8,13 @@ To regenerate: cargo run -p kreuzberg-e2e-generator -- generate --lang python
 
 from __future__ import annotations
 
-import os
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import kreuzberg
 from kreuzberg import ExtractionConfig
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 # Configuration Tests
