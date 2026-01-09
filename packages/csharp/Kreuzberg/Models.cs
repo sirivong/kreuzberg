@@ -362,7 +362,7 @@ public sealed class Metadata
     [JsonPropertyName("format_type")]
     public FormatType FormatType { get; set; } = FormatType.Unknown;
 
-    [JsonIgnore]
+    [JsonPropertyName("format")]
     public FormatMetadata Format { get; set; } = new();
 
     [JsonPropertyName("image_preprocessing")]

@@ -147,6 +147,9 @@ export function ColdStartChart({
         <p className="text-sm text-muted-foreground mt-2">
           Comparing p50 (median), p95, and p99 (worst case) cold start times across frameworks
         </p>
+        <p className="mt-1 text-sm font-medium text-foreground">
+          Lower is better
+        </p>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={400}>

@@ -35,7 +35,17 @@ function Retry-Command {
 
 $tesseractCacheHit = $env:TESSERACT_CACHE_HIT -eq "true"
 $llvmCacheHit = $env:LLVM_CACHE_HIT -eq "true"
+$cmakeCacheHit = $env:CMAKE_CACHE_HIT -eq "true"
 $libreofficeInstalled = Test-Path "C:\Program Files\LibreOffice\program\soffice.exe"
+$cmakeInstalled = $false
+try {
+  & cmake --version 2>$null
+  Write-Host "✓ CMake already installed"
+  $cmakeInstalled = $true
+}
+catch {
+  Write-Host "CMake not found, will attempt to install"
+}
 
 if (-not $tesseractCacheHit) {
   Write-Host "Tesseract cache miss, installing..."
@@ -108,8 +118,21 @@ catch {
   }
 }
 
+Write-Host "Installing CMake..."
+if (-not $cmakeCacheHit) {
+  Write-Host "CMake cache miss, installing..."
+  if (-not (Retry-Command { choco install -y cmake --no-progress } -MaxAttempts 3)) {
+    throw "Failed to install CMake after 3 attempts"
+  }
+  Write-Host "✓ CMake installed"
+}
+else {
+  Write-Host "✓ CMake found in cache"
+}
+
 Write-Host "Configuring PATH..."
 $paths = @(
+  "C:\Program Files\CMake\bin",
   "C:\Program Files\LibreOffice\program",
   "C:\Program Files\Tesseract-OCR",
   "C:\Program Files\LLVM\bin",
@@ -153,6 +176,17 @@ if ($tesseractPath) {
 }
 else {
   Write-Host "  ⚠ Could not determine tesseract path"
+}
+
+Write-Host ""
+Write-Host "CMake:"
+try {
+  & cmake --version
+  Write-Host "✓ CMake available"
+}
+catch {
+  Write-Host "::error::CMake not found after installation"
+  throw "CMake verification failed"
 }
 
 Write-Host ""

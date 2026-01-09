@@ -106,10 +106,21 @@ runs:
           C:\ProgramData\chocolatey\lib\llvm
         key: llvm-windows-${{ runner.arch }}-v1
 
+    - name: Cache CMake (Windows)
+      if: runner.os == 'Windows'
+      id: cache-cmake-windows
+      uses: actions/cache@v5
+      with:
+        path: |
+          C:\Program Files\CMake
+          C:\ProgramData\chocolatey\lib\cmake
+        key: cmake-windows-${{ runner.arch }}-v1
+
     - name: Install dependencies (Windows)
       if: runner.os == 'Windows'
       shell: pwsh
       env:
         TESSERACT_CACHE_HIT: ${{ steps.cache-tesseract-windows.outputs.cache-hit }}
         LLVM_CACHE_HIT: ${{ steps.cache-llvm-windows.outputs.cache-hit }}
+        CMAKE_CACHE_HIT: ${{ steps.cache-cmake-windows.outputs.cache-hit }}
       run: pwsh -File scripts/ci/install-system-deps/install-windows.ps1

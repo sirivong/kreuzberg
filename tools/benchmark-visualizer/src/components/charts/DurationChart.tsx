@@ -130,7 +130,10 @@ export function DurationChart({ fileType, ocrMode }: DurationChartProps) {
       <CardHeader>
         <CardTitle>Duration (ms) - p50, p95, p99 Percentiles</CardTitle>
         <p className="text-sm text-muted-foreground mt-2">
-          Lower is better. Percentiles show performance distribution across benchmark runs.
+          Percentiles show performance distribution across benchmark runs.
+        </p>
+        <p className="mt-1 text-sm font-medium text-foreground">
+          Lower is better
         </p>
       </CardHeader>
       <CardContent>

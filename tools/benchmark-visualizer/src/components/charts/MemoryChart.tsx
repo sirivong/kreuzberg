@@ -153,6 +153,9 @@ export function MemoryChart({
         <p className="text-sm text-muted-foreground mt-2">
           Shows p50 (median), p95, and p99 percentiles for memory consumption
         </p>
+        <p className="mt-1 text-sm font-medium text-foreground">
+          Lower is better
+        </p>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={400} data-testid="memory-responsive-container">

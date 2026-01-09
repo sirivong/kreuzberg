@@ -406,10 +406,6 @@ func convertCResult(cRes *C.CExtractionResult) (*ExtractionResult, error) {
 		return nil, newSerializationErrorWithContext("failed to decode images", err, ErrorCodeValidation, nil)
 	}
 
-	if err := decodeJSONCString(cRes.pages_json, &result.Pages); err != nil {
-		return nil, newSerializationErrorWithContext("failed to decode pages", err, ErrorCodeValidation, nil)
-	}
-
 	return result, nil
 }
 

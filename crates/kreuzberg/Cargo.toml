@@ -231,7 +231,7 @@ reqwest = { workspace = true, default-features = false, features = [
     "rustls",
 ], optional = true }
 # Use rustls-tls for fastembed on non-Windows platforms
-fastembed = { version = "5.6", default-features = false, features = [
+fastembed = { version = "5.7", default-features = false, features = [
     "hf-hub-rustls-tls",
     "ort-load-dynamic",
 ], optional = true }
@@ -245,7 +245,7 @@ reqwest = { workspace = true, default-features = false, features = [
     "native-tls",
 ], optional = true }
 # Use native-tls for fastembed on Windows
-fastembed = { version = "5.6", default-features = false, features = [
+fastembed = { version = "5.7", default-features = false, features = [
     "hf-hub-native-tls",
     "ort-load-dynamic",
 ], optional = true }

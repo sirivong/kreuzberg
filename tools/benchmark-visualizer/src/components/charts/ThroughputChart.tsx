@@ -190,6 +190,9 @@ export function ThroughputChart({
         <p className="mt-2 text-sm text-muted-foreground">
           Median (p50), 95th percentile (p95), and 99th percentile (p99) throughput values
         </p>
+        <p className="mt-1 text-sm font-medium text-foreground">
+          Higher is better
+        </p>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={400}>

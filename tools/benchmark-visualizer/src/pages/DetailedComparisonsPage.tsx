@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { FileTypeFilter } from '@/components/filters/FileTypeFilter'
 import { formatFramework } from '@/transformers/chartTransformers'
+import { getFrameworkCapabilities, filterFrameworksByFileType } from '@/utils/frameworkCapabilities'
 
 type SortField = 'framework' | 'mode' | 'fileType' | 'ocrMode' | 'throughputP50' | 'throughputP95' | 'throughputP99' | 'memoryP50' | 'memoryP95' | 'memoryP99' | 'durationP50' | 'durationP95' | 'durationP99' | 'coldStart' | 'diskSize'
 type SortOrder = 'asc' | 'desc'
@@ -51,7 +52,10 @@ export function DetailedComparisonsPage() {
 
     const rows: TableRow[] = []
 
-    Object.entries(data.by_framework_mode).forEach(([, frameworkData]) => {
+    // Get framework capabilities for filtering
+    const capabilities = getFrameworkCapabilities(data)
+
+    Object.entries(data.by_framework_mode).forEach(([frameworkModeKey, frameworkData]) => {
       // Filter by framework name
       if (frameworkFilter && !frameworkData.framework.toLowerCase().includes(frameworkFilter.toLowerCase())) {
         return
@@ -60,6 +64,14 @@ export function DetailedComparisonsPage() {
       Object.entries(frameworkData.by_file_type).forEach(([fileType, fileTypeMetrics]) => {
         // Filter by selected file types
         if (selectedFileTypes.length > 0 && !selectedFileTypes.includes(fileType)) {
+          return
+        }
+
+        // Filter out frameworks that don't support this file type
+        // Check if this framework-mode supports the file type
+        const supportedFileTypes = capabilities.get(frameworkModeKey)
+        if (supportedFileTypes && !supportedFileTypes.has(fileType)) {
+          // Skip this framework-file type combination as it's not supported
           return
         }
 

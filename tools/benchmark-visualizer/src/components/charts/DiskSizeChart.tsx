@@ -140,7 +140,10 @@ export function DiskSizeChart() {
       <CardHeader>
         <CardTitle>Disk Size Comparison</CardTitle>
         <p className="text-sm text-muted-foreground mt-2">
-          Framework disk sizes sorted from smallest to largest. Smaller is better for deployment.
+          Framework disk sizes sorted from smallest to largest.
+        </p>
+        <p className="mt-1 text-sm font-medium text-foreground">
+          Lower is better
         </p>
       </CardHeader>
       <CardContent>

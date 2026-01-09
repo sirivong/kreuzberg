@@ -1,5 +1,8 @@
 # Latest Benchmark Results
 
+!!! note "Page Moved"
+    This page has moved to [/benchmarks/](index.md). This page is kept for backwards compatibility and shows the same content.
+
 <div class="benchmark-dashboard" markdown="1">
 
 ## Interactive Dashboard

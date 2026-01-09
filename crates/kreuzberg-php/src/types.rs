@@ -32,11 +32,18 @@ pub(crate) fn json_value_to_php(value: &serde_json::Value) -> PhpResult<Zval> {
             Ok(php_arr.into_zval(false)?)
         }
         serde_json::Value::Object(obj) => {
-            let mut map = HashMap::new();
+            // Create a proper PHP object (stdClass) for JSON objects
+            use ext_php_rs::boxed::ZBox;
+            use ext_php_rs::types::ZendObject;
+
+            let mut std_obj = ZendObject::new_stdclass();
+
+            // Set properties on the stdClass object
             for (k, v) in obj {
-                map.insert(k.clone(), json_value_to_php(v)?);
+                std_obj.set_property(k.as_str(), json_value_to_php(v)?)?;
             }
-            Ok(map.into_zval(false)?)
+
+            Ok(std_obj.into_zval(false)?)
         }
     }
 }
@@ -129,11 +136,16 @@ impl ExtractionResult {
             "embeddings" => {
                 // Extract embeddings from chunks if available
                 if let Some(chunks) = &self.chunks {
+                    use ext_php_rs::boxed::ZBox;
+                    use ext_php_rs::types::ZendObject;
+
                     let mut php_embeddings = Vec::new();
                     for chunk in chunks {
                         if let Some(embedding) = &chunk.embedding {
-                            let mut embedding_obj = HashMap::new();
-                            embedding_obj.insert("vector", embedding.clone().into_zval(false)?);
+                            // Create a proper PHP object (stdClass) with vector property
+                            let mut embedding_obj = ZendObject::new_stdclass();
+                            embedding_obj.set_property("vector", embedding.clone().into_zval(false)?)?;
+
                             php_embeddings.push(embedding_obj.into_zval(false)?);
                         }
                     }
@@ -163,13 +175,18 @@ impl ExtractionResult {
             }
             "keywords" => {
                 if let Some(keywords) = &self.keywords {
-                    // Convert keywords to PHP array of associative arrays
+                    use ext_php_rs::boxed::ZBox;
+                    use ext_php_rs::types::ZendObject;
+
+                    // Convert keywords to PHP array of objects (stdClass)
                     let mut php_keywords = Vec::new();
                     for kw in keywords {
-                        let mut kw_map = HashMap::new();
-                        kw_map.insert("text", kw.text.as_str().into_zval(false)?);
-                        kw_map.insert("score", kw.score.into_zval(false)?);
-                        php_keywords.push(kw_map.into_zval(false)?);
+                        // Create a proper PHP object with text and score properties
+                        let mut kw_obj = ZendObject::new_stdclass();
+                        kw_obj.set_property("text", kw.text.as_str().into_zval(false)?)?;
+                        kw_obj.set_property("score", kw.score.into_zval(false)?)?;
+
+                        php_keywords.push(kw_obj.into_zval(false)?);
                     }
                     Ok(Some(php_keywords.into_zval(false)?))
                 } else {
