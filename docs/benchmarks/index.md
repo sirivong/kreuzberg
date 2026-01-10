@@ -1,5 +1,4 @@
-# Benchmarks
-{: style="display: none;" }
+# Benchmarks {: style="display: none;" }
 
 <div class="full-width-iframe" markdown="1">
 <iframe src="/benchmarks/app/"
