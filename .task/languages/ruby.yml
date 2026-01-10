@@ -46,12 +46,13 @@ tasks:
       - "{{.BUNDLE}} exec rake compile"
 
   build:ci:
-    desc: Build Ruby native extension in CI mode
+    desc: Build Ruby native extension and gem package in CI mode
     dir: packages/ruby
     env:
       CFLAGS: "-O3 -g"
     cmds:
       - "{{.BUNDLE}} exec rake compile"
+      - "{{.BUNDLE}} exec rake build"
 
   build:bindings:
     desc: Build Ruby gem for benchmarking
