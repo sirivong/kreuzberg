@@ -699,6 +699,16 @@ label[for="__palette_1"] svg {
 	color: #58FBDA;
 }
 
+.md-content a,
+.md-typeset .md-content a {
+	color: #DA2AE0;
+}
+
+[data-md-color-scheme="slate"] .md-content a,
+[data-md-color-scheme="slate"] .md-typeset .md-content a {
+	color: #58FBDA;
+}
+
 [data-md-color-scheme="slate"] .md-typeset a code {
 	color: #ffffff;
 }
