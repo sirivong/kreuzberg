@@ -54,7 +54,7 @@
 
 High-performance document intelligence for Go backed by the Rust core that powers every Kreuzberg binding.
 
-> **Version 4.0.0**
+> **Version 4.0.2**
 > Report issues at [github.com/kreuzberg-dev/kreuzberg](https://github.com/kreuzberg-dev/kreuzberg/issues).
 
 ## Install
@@ -89,7 +89,7 @@ To use this package via `go get`:
 go get github.com/kreuzberg-dev/kreuzberg/packages/go/v4@latest
 
 # Or a specific version
-go get github.com/kreuzberg-dev/kreuzberg/packages/go/v4@v4.0.0
+go get github.com/kreuzberg-dev/kreuzberg/packages/go/v4@v4.0.2
 ```
 
 You'll need to provide the static library at build time. See [Building with Static Libraries](#building-with-static-libraries) below.
@@ -104,7 +104,7 @@ Download the static library for your platform from [GitHub Releases](https://git
 
 ```bash
 # Example: Linux x86_64
-curl -LO https://github.com/kreuzberg-dev/kreuzberg/releases/download/v4.0.0/go-ffi-linux-x86_64.tar.gz
+curl -LO https://github.com/kreuzberg-dev/kreuzberg/releases/download/v4.0.2/go-ffi-linux-x86_64.tar.gz
 tar -xzf go-ffi-linux-x86_64.tar.gz
 
 # Copy to a permanent location

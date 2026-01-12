@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.0.2] - 2026-01-12
+
+### Fixed
+
+#### Go Module Installation
+- **Fixed Go module tag format**: Go modules now install correctly with `go get github.com/kreuzberg-dev/kreuzberg/packages/go/v4@v4.0.2` ([#264](https://github.com/kreuzberg-dev/kreuzberg/issues/264))
+  - Changed tag format from `packages/go/v4/v4.x.x` to `packages/go/v4.x.x` to match Go module path requirements
+  - Updated `scripts/publish/go/tag-and-push-go-module.sh` to use correct format for future releases
+
+#### CI Stability
+- **Go CI Windows builds**: Made `choco install pkgconfiglite` step non-blocking since MSYS2 provides pkg-config as fallback
+- **Rust tooling cache**: Extended cargo-llvm-cov cache clearing to all platforms (not just Windows) to prevent corrupted binary issues on ARM64 Linux
+- **Bumped cache key version**: Invalidated potentially corrupted cargo-llvm-cov caches (v3 → v4)
+
+#### Elixir Publish Workflow
+- **Fixed macOS native library extension**: Elixir NIF packaging now correctly uses `.dylib` extension on macOS instead of `.so`
+
+---
+
 ## [4.0.1] - 2026-01-11
 
 ### Fixed

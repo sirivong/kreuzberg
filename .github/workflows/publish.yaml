@@ -2151,6 +2151,9 @@ jobs:
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             EXT="dll"
             LIB_NAME="kreuzberg_rustler.dll"
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            EXT="dylib"
+            LIB_NAME="libkreuzberg_rustler.dylib"
           else
             EXT="so"
             LIB_NAME="libkreuzberg_rustler.so"
@@ -2177,6 +2180,9 @@ jobs:
           if [[ "${{ runner.os }}" == "Windows" ]]; then
             EXT="dll"
             LIB_NAME="kreuzberg_rustler.dll"
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            EXT="dylib"
+            LIB_NAME="libkreuzberg_rustler.dylib"
           else
             EXT="so"
             LIB_NAME="libkreuzberg_rustler.so"
