@@ -110,6 +110,11 @@ RUN apt-get update && \
         libgl1 \
         libxrender1 \
         libsm6 \
+        libssl3 \
+        libnss3 \
+        libnspr4 \
+        libdbus-1-3 \
+        libcups2 \
         && \
     # Download and install LibreOffice (arch-aware)
     if [ "$TARGETARCH" = "arm64" ]; then \
@@ -125,6 +130,12 @@ RUN apt-get update && \
     tar -xzf /tmp/libreoffice.tar.gz -C /tmp/libreoffice --strip-components=1 && \
     (dpkg -i /tmp/libreoffice/DEBS/*.deb || apt-get install -f -y) && \
     rm -rf /tmp/libreoffice* && \
+    # Create symlinks for LibreOffice executables (handles any version)
+    LO_DIR=$(find /opt -maxdepth 1 -type d -name 'libreoffice*' | head -1) && \
+    if [ -n "$LO_DIR" ] && [ -f "$LO_DIR/program/soffice" ]; then \
+        ln -sf "$LO_DIR/program/soffice" /usr/local/bin/soffice && \
+        ln -sf "$LO_DIR/program/soffice" /usr/local/bin/libreoffice; \
+    fi && \
     # Clean up
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
