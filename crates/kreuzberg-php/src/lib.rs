@@ -75,8 +75,10 @@ pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
         .class::<types::Metadata>()
         .class::<types::ExtractedImage>()
         .class::<types::ExtractedTable>()
+        .class::<types::ChunkMetadata>()      // Must be registered before TextChunk
         .class::<types::TextChunk>()
         .class::<types::PageResult>()
+        .class::<types::Keyword>()            // Must be registered before ExtractionResult
         .class::<types::ExtractionResult>();
 
     // Note: Config classes are pure PHP (packages/php/src/Config/*.php)
