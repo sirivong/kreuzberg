@@ -338,10 +338,13 @@ pub fn supported_mime_types(&self) -> Vec<&str> {
 
 ## Benchmarks
 
-For detailed performance comparisons against alternative libraries, see:
 
+Detailed performance benchmarks comparing Kreuzberg against alternative libraries are coming soon. The benchmark suite will include:
+
+<!-- Coming soon:
 - [Benchmark Overview](../benchmarks/index.md) - Introduction to benchmark suite
 - [Latest Results](../benchmarks/latest.md) - Interactive charts and data visualization
+-->
 
 Interactive charts show:
 
