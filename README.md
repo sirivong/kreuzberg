@@ -56,13 +56,13 @@
   </a>
 </div>
 
-Extract text and metadata from a wide range of file formats (56+), generate embeddings and post-process at native speeds without needing a GPU.
+Extract text and metadata from a wide range of file formats (57+), generate embeddings and post-process at native speeds without needing a GPU.
 
 ## Key Features
 
 - **Extensible architecture** – Plugin system for custom OCR backends, validators, post-processors, and document extractors
 - **Polyglot** – Native bindings for Rust, Python, TypeScript/Node.js, Ruby, Go, Java, C#, PHP, and Elixir
-- **56 file formats** – PDF, Office documents, images, HTML, XML, emails, archives, academic formats across 8 categories
+- **57 file formats** – PDF, Office documents, images, HTML, XML, emails, archives, academic formats across 8 categories
 - **OCR support** – Tesseract (all languages via native binding), EasyOCR/PaddleOCR (Python), Guten (Node.js), extensible via plugin API
 - **High performance** – Rust core with native PDFium, SIMD optimizations and full parallelism
 - **Flexible deployment** – Use as library, CLI tool, REST API server, or MCP server
@@ -135,7 +135,7 @@ To use embeddings functionality:
 
 ## Supported Formats
 
-56 file formats across 8 major categories with intelligent format detection and comprehensive metadata extraction.
+57 file formats across 8 major categories with intelligent format detection and comprehensive metadata extraction.
 
 ### Office Documents
 
@@ -161,7 +161,7 @@ To use embeddings functionality:
 |----------|---------|----------|
 | **Markup** | `.html`, `.htm`, `.xhtml`, `.xml`, `.svg` | DOM parsing, metadata (Open Graph, Twitter Card), link extraction |
 | **Structured Data** | `.json`, `.yaml`, `.yml`, `.toml`, `.csv`, `.tsv` | Schema detection, nested structures, validation |
-| **Text & Markdown** | `.txt`, `.md`, `.markdown`, `.rst`, `.org`, `.rtf` | CommonMark, GFM, reStructuredText, Org Mode |
+| **Text & Markdown** | `.txt`, `.md`, `.markdown`, `.djot`, `.rst`, `.org`, `.rtf` | CommonMark, GFM, Djot, reStructuredText, Org Mode |
 
 ### Email & Archives
 

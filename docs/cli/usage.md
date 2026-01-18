@@ -76,6 +76,26 @@ kreuzberg batch documents/*.pdf --format json
 kreuzberg extract document.pdf --format json
 ```
 
+### Content Output Format
+
+Control the formatting of extracted text content:
+
+```bash title="Terminal"
+# Extract as plain text (default)
+kreuzberg extract document.pdf --content-format plain
+
+# Extract as Markdown
+kreuzberg extract document.pdf --content-format markdown
+
+# Extract as Djot markup
+kreuzberg extract document.pdf --content-format djot
+
+# Extract as HTML
+kreuzberg extract document.pdf --content-format html
+```
+
+The `--content-format` flag controls how the extracted text is formatted. This is different from `--format` which controls the output structure (text vs JSON).
+
 ## OCR Extraction
 
 ### Enable OCR
@@ -222,6 +242,19 @@ kreuzberg batch documents/*.pdf --force-ocr true
 
 # Batch extract with quality processing
 kreuzberg batch documents/*.pdf --quality true
+```
+
+### Batch with Content Format
+
+```bash title="Terminal"
+# Batch extract with djot formatting
+kreuzberg batch documents/*.pdf --content-format djot --format json
+
+# Batch extract as Markdown
+kreuzberg batch documents/*.pdf --content-format markdown --format json
+
+# Batch extract as HTML
+kreuzberg batch documents/*.pdf --content-format html --format json
 ```
 
 ## Advanced Features

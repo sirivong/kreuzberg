@@ -1,6 +1,6 @@
 # Format Support
 
-Kreuzberg supports 56 file formats across major categories, providing comprehensive document intelligence capabilities through native Rust extractors and LibreOffice conversion.
+Kreuzberg supports 57 file formats across major categories, providing comprehensive document intelligence capabilities through native Rust extractors and LibreOffice conversion.
 
 ## Overview
 
@@ -38,6 +38,7 @@ All formats support async/await and batch processing. Image formats and PDFs sup
 | reStructuredText | `.rst` | `text/x-rst` | Native (rst-parser) | No | Full reST syntax support |
 | Org Mode | `.org` | `text/x-org` | Native (org) | No | Emacs Org mode support |
 | Rich Text Format | `.rtf` | `application/rtf`, `text/rtf` | Native (rtf-parser) | No | RTF 1.x support |
+| Djot | `.djot` | `text/x-djot` | Native Rust (jotdown) | No | Smart punctuation, tables, code blocks, YAML frontmatter, footnotes, math blocks |
 
 ### Structured Data
 
@@ -105,6 +106,7 @@ All image formats support OCR when configured with `ocr` parameter in `Extractio
 | GitHub Flavored Markdown | `text/x-gfm` | Native (pulldown-cmark) | GFM extensions (tables, strikethrough, etc.) |
 | MultiMarkdown | `text/x-multimarkdown` | Native (pulldown-cmark) | MMD extensions |
 | Markdown Extra | `text/x-markdown-extra` | Native (pulldown-cmark) | PHP Markdown Extra extensions |
+| Djot | `text/x-djot` | Native (jotdown) | Djot markup format with extended features |
 
 ### Other Formats
 
@@ -244,7 +246,7 @@ sudo dnf install libreoffice
 
 Kreuzberg automatically detects file formats using:
 
-1. **File Extension Mapping**: 56 formats mapped to MIME types
+1. **File Extension Mapping**: 57 formats mapped to MIME types
 2. **mime_guess Crate**: Fallback for unknown extensions
 3. **Manual Override**: Explicit MIME type can be provided
 

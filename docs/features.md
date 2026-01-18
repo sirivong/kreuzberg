@@ -1,18 +1,18 @@
 # Features
 
-Kreuzberg is a comprehensive document intelligence library supporting 56 file formats with advanced extraction, OCR, and processing capabilities. This page documents all features and their availability across language bindings.
+Kreuzberg is a comprehensive document intelligence library supporting 57 file formats with advanced extraction, OCR, and processing capabilities. This page documents all features and their availability across language bindings.
 
 ## Core Extraction Features
 
 ### File Format Support
 
-Kreuzberg extracts text, tables, and metadata from 56 file formats:
+Kreuzberg extracts text, tables, and metadata from 57 file formats:
 
 **Documents**
 - PDF (`.pdf`) - Native text extraction with optional OCR fallback
 - Microsoft Word (`.docx`, `.doc`) - Modern and legacy formats
 - LibreOffice Writer (`.odt`) - OpenDocument text
-- Plain text (`.txt`, `.md`, `.markdown`) - With metadata extraction for Markdown
+- Plain text (`.txt`, `.md`, `.markdown`, `.djot`) - With metadata extraction for Markdown and Djot
 
 **Spreadsheets**
 - Excel (`.xlsx`, `.xls`, `.xlsm`, `.xlsb`) - Modern and legacy formats

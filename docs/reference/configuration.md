@@ -246,6 +246,20 @@ Main extraction configuration controlling all aspects of document processing.
 | `postprocessor` | `PostProcessorConfig?` | `None` | Post-processing pipeline configuration |
 | `pages` | `PageConfig?` | `None` | Page extraction and tracking configuration |
 | `max_concurrent_extractions` | `int?` | `None` | Maximum concurrent batch extractions (defaults to num_cpus * 2) |
+| `output_format` | `OutputFormat` | `Plain` | Output format for extracted text content (Plain, Markdown, Djot, Html) |
+
+### OutputFormat
+
+Output format for extraction content. Controls how extracted text is formatted in the result.
+
+| Value | Description |
+|-------|-------------|
+| `plain` | Plain text content only (default) |
+| `markdown` | Markdown formatted output |
+| `djot` | Djot markup format |
+| `html` | HTML formatted output |
+
+**Environment Variable:** `KREUZBERG_OUTPUT_FORMAT` - Set output format via environment (plain, markdown, djot, html)
 
 ### Example
 
