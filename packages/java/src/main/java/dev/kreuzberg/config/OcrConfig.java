@@ -18,11 +18,13 @@ public final class OcrConfig {
 	private final String backend;
 	private final String language;
 	private final TesseractConfig tesseractConfig;
+	private final OutputFormat outputFormat;
 
 	private OcrConfig(Builder builder) {
 		this.backend = builder.backend;
 		this.language = builder.language;
 		this.tesseractConfig = builder.tesseractConfig;
+		this.outputFormat = builder.outputFormat;
 	}
 
 	/**
@@ -62,6 +64,15 @@ public final class OcrConfig {
 	}
 
 	/**
+	 * Gets the output format for OCR results.
+	 *
+	 * @return the output format, or null if not set (defaults to plain text)
+	 */
+	public OutputFormat getOutputFormat() {
+		return outputFormat;
+	}
+
+	/**
 	 * Converts this configuration to a map for FFI.
 	 *
 	 * @return a map representation
@@ -76,6 +87,9 @@ public final class OcrConfig {
 		}
 		if (tesseractConfig != null) {
 			map.put("tesseract_config", tesseractConfig.toMap());
+		}
+		if (outputFormat != null) {
+			map.put("output_format", outputFormat.getValue());
 		}
 		return map;
 	}
@@ -97,6 +111,10 @@ public final class OcrConfig {
 		if (tesseractMap != null) {
 			builder.tesseractConfig(TesseractConfig.fromMap(tesseractMap));
 		}
+		Object outputFormatValue = map.get("output_format");
+		if (outputFormatValue instanceof String) {
+			builder.outputFormat(OutputFormat.fromValue((String) outputFormatValue));
+		}
 		return builder.build();
 	}
 
@@ -105,6 +123,7 @@ public final class OcrConfig {
 		private String backend = "tesseract";
 		private String language = "eng";
 		private TesseractConfig tesseractConfig;
+		private OutputFormat outputFormat;
 
 		private Builder() {
 		}
@@ -152,6 +171,18 @@ public final class OcrConfig {
 		 */
 		public Builder tesseractConfig(TesseractConfig tesseractConfig) {
 			this.tesseractConfig = tesseractConfig;
+			return this;
+		}
+
+		/**
+		 * Sets the output format for OCR results.
+		 *
+		 * @param outputFormat
+		 *            the output format (plain, markdown, djot, html)
+		 * @return this builder
+		 */
+		public Builder outputFormat(OutputFormat outputFormat) {
+			this.outputFormat = outputFormat;
 			return this;
 		}
 

@@ -83,10 +83,6 @@ module Kreuzberg
   module_function :validate_mime_type
 
   module_function :get_extensions_for_mime
-
-  module_function :list_embedding_presets
-
-  module_function :get_embedding_preset
 end
 
 require_relative 'kreuzberg/cache_api'

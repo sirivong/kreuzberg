@@ -197,7 +197,7 @@ impl Plugin for HtmlExtractor {
 }
 
 impl SyncExtractor for HtmlExtractor {
-    fn extract_sync(&self, content: &[u8], _mime_type: &str, config: &ExtractionConfig) -> Result<ExtractionResult> {
+    fn extract_sync(&self, content: &[u8], mime_type: &str, config: &ExtractionConfig) -> Result<ExtractionResult> {
         let html = utf8_validation::from_utf8(content)
             .map(|s| s.to_string())
             .unwrap_or_else(|_| String::from_utf8_lossy(content).to_string());
@@ -214,7 +214,7 @@ impl SyncExtractor for HtmlExtractor {
         let result_mime_type = match config.output_format {
             OutputFormat::Markdown => "text/markdown",
             OutputFormat::Djot => "text/djot",
-            _ => "text/plain",
+            _ => mime_type, // Preserve original mime_type for other formats
         };
 
         Ok(ExtractionResult {

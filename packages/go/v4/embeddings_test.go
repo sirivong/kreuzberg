@@ -8,8 +8,9 @@ import (
 
 // skipIfONNXNotAvailable skips the test if ONNX Runtime is not available (typically in CI without prebuilt binaries)
 func skipIfONNXNotAvailable(t *testing.T) {
-	if os.Getenv("IS_CI") == "true" {
-		t.Skip("Skipping in CI due to missing ONNX Runtime - requires prebuilt binaries")
+	// Skip if in CI or if SKIP_ONNX_TESTS is set
+	if os.Getenv("IS_CI") == "true" || os.Getenv("SKIP_ONNX_TESTS") == "true" {
+		t.Skip("Skipping due to missing ONNX Runtime - requires prebuilt binaries")
 	}
 }
 

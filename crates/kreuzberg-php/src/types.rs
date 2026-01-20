@@ -106,6 +106,9 @@ pub struct ExtractionResult {
 
     /// Extracted keywords
     pub keywords: Option<Vec<Keyword>>,
+
+    /// Structured Djot content (when output_format='djot')
+    djot_content_json: Option<String>,
 }
 
 #[php_impl]
@@ -194,6 +197,15 @@ impl ExtractionResult {
                 }
             }
             "tables" => Ok(Some(self.tables.clone().into_zval(false)?)),
+            "djot_content" | "djotContent" => {
+                if let Some(json) = &self.djot_content_json {
+                    let value: serde_json::Value =
+                        serde_json::from_str(json).map_err(|e| format!("Failed to parse djot_content: {}", e))?;
+                    Ok(Some(json_value_to_php(&value)?))
+                } else {
+                    Ok(None)
+                }
+            }
             _ => Ok(None),
         }
     }
@@ -409,6 +421,13 @@ impl ExtractionResult {
             })
             .transpose()?;
 
+        // Serialize djot_content to JSON if present
+        let djot_content_json = result
+            .djot_content
+            .map(|djot| serde_json::to_string(&djot))
+            .transpose()
+            .map_err(|e| format!("Failed to serialize djot_content: {}", e))?;
+
         Ok(Self {
             content: result.content,
             mime_type: result.mime_type,
@@ -419,6 +438,7 @@ impl ExtractionResult {
             chunks,
             pages,
             keywords,
+            djot_content_json,
         })
     }
 }

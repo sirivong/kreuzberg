@@ -17,6 +17,18 @@ pub use kreuzberg::{
 };
 
 use magnus::Error;
+use kreuzberg::plugins::{
+    unregister_validator as kz_unregister_validator,
+    clear_validators as kz_clear_validators,
+    list_validators as kz_list_validators,
+    list_post_processors as kz_list_post_processors,
+    list_extractors as kz_list_extractors,
+    unregister_extractor as kz_unregister_extractor,
+    clear_extractors as kz_clear_extractors,
+    unregister_ocr_backend as kz_unregister_ocr_backend,
+    list_ocr_backends as kz_list_ocr_backends,
+    clear_ocr_backends as kz_clear_ocr_backends,
+};
 
 /// Unregister a post-processor plugin by name
 pub fn unregister_post_processor(name: String) -> Result<(), Error> {
@@ -24,7 +36,7 @@ pub fn unregister_post_processor(name: String) -> Result<(), Error> {
     registry
         .write()
         .map_err(|e| crate::error_handling::runtime_error(format!("Failed to acquire registry lock: {}", e)))?
-        .unregister(&name)
+        .remove(&name)
         .map_err(crate::error_handling::kreuzberg_error)?;
 
     Ok(())
@@ -32,14 +44,8 @@ pub fn unregister_post_processor(name: String) -> Result<(), Error> {
 
 /// Unregister a validator plugin by name
 pub fn unregister_validator(name: String) -> Result<(), Error> {
-    let registry = get_validator_registry();
-    registry
-        .write()
-        .map_err(|e| crate::error_handling::runtime_error(format!("Failed to acquire registry lock: {}", e)))?
-        .unregister(&name)
-        .map_err(crate::error_handling::kreuzberg_error)?;
-
-    Ok(())
+    kz_unregister_validator(&name)
+        .map_err(crate::error_handling::kreuzberg_error)
 }
 
 /// Clear all post-processors
@@ -48,7 +54,7 @@ pub fn clear_post_processors() -> Result<(), Error> {
     registry
         .write()
         .map_err(|e| crate::error_handling::runtime_error(format!("Failed to acquire registry lock: {}", e)))?
-        .clear()
+        .shutdown_all()
         .map_err(crate::error_handling::kreuzberg_error)?;
 
     Ok(())
@@ -56,61 +62,36 @@ pub fn clear_post_processors() -> Result<(), Error> {
 
 /// Clear all validators
 pub fn clear_validators() -> Result<(), Error> {
-    let registry = get_validator_registry();
-    registry
-        .write()
-        .map_err(|e| crate::error_handling::runtime_error(format!("Failed to acquire registry lock: {}", e)))?
-        .clear()
-        .map_err(crate::error_handling::kreuzberg_error)?;
-
-    Ok(())
+    kz_clear_validators()
+        .map_err(crate::error_handling::kreuzberg_error)
 }
 
 /// List registered post-processors
 pub fn list_post_processors() -> Result<Vec<String>, Error> {
-    let registry = get_post_processor_registry();
-    let read_guard = registry
-        .read()
-        .map_err(|e| crate::error_handling::runtime_error(format!("Failed to acquire registry lock: {}", e)))?;
-    Ok(read_guard.list_processors())
+    kz_list_post_processors()
+        .map_err(crate::error_handling::kreuzberg_error)
 }
 
 /// List registered validators
 pub fn list_validators() -> Result<Vec<String>, Error> {
-    let registry = get_validator_registry();
-    let read_guard = registry
-        .read()
-        .map_err(|e| crate::error_handling::runtime_error(format!("Failed to acquire registry lock: {}", e)))?;
-    Ok(read_guard.list_validators())
+    kz_list_validators()
+        .map_err(crate::error_handling::kreuzberg_error)
 }
 
 /// List registered document extractors
 pub fn list_document_extractors() -> Result<Vec<String>, Error> {
-    kreuzberg::get_document_extractor_registry()
-        .read()
-        .map_err(|e| crate::error_handling::runtime_error(format!("Failed to acquire registry lock: {}", e)))?
-        .list_extractors()
+    kz_list_extractors()
         .map_err(crate::error_handling::kreuzberg_error)
 }
 
 /// Unregister a document extractor
 pub fn unregister_document_extractor(name: String) -> Result<(), Error> {
-    kreuzberg::get_document_extractor_registry()
-        .write()
-        .map_err(|e| crate::error_handling::runtime_error(format!("Failed to acquire registry lock: {}", e)))?
-        .unregister(&name)
-        .map_err(crate::error_handling::kreuzberg_error)?;
-
-    Ok(())
+    kz_unregister_extractor(&name)
+        .map_err(crate::error_handling::kreuzberg_error)
 }
 
 /// Clear all document extractors
 pub fn clear_document_extractors() -> Result<(), Error> {
-    kreuzberg::get_document_extractor_registry()
-        .write()
-        .map_err(|e| crate::error_handling::runtime_error(format!("Failed to acquire registry lock: {}", e)))?
-        .clear()
-        .map_err(crate::error_handling::kreuzberg_error)?;
-
-    Ok(())
+    kz_clear_extractors()
+        .map_err(crate::error_handling::kreuzberg_error)
 }

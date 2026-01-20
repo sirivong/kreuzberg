@@ -38,7 +38,8 @@ pub use kreuzberg_ffi::{
     kreuzberg_free_string,
 };
 
-use magnus::{Error, Ruby, RHash, Value, function};
+use magnus::{Error, Ruby, RHash, Value, function, IntoValue};
+use magnus::value::ReprValue;
 
 /// Clear the extraction cache
 pub fn ruby_clear_cache() -> Result<(), Error> {
@@ -115,11 +116,11 @@ pub fn validate_token_reduction_level(level: String) -> Result<i32, Error> {
 }
 
 pub fn validate_tesseract_psm(psm: i32) -> Result<i32, Error> {
-    unsafe { Ok(kreuzberg_validate_tesseract_psm(psm)) }
+    Ok(kreuzberg_validate_tesseract_psm(psm))
 }
 
 pub fn validate_tesseract_oem(oem: i32) -> Result<i32, Error> {
-    unsafe { Ok(kreuzberg_validate_tesseract_oem(oem)) }
+    Ok(kreuzberg_validate_tesseract_oem(oem))
 }
 
 pub fn validate_output_format(format: String) -> Result<i32, Error> {
@@ -127,15 +128,15 @@ pub fn validate_output_format(format: String) -> Result<i32, Error> {
 }
 
 pub fn validate_confidence(confidence: f64) -> Result<i32, Error> {
-    unsafe { Ok(kreuzberg_validate_confidence(confidence)) }
+    Ok(kreuzberg_validate_confidence(confidence))
 }
 
 pub fn validate_dpi(dpi: i32) -> Result<i32, Error> {
-    unsafe { Ok(kreuzberg_validate_dpi(dpi)) }
+    Ok(kreuzberg_validate_dpi(dpi))
 }
 
 pub fn validate_chunking_params(max_chars: usize, max_overlap: usize) -> Result<i32, Error> {
-    unsafe { Ok(kreuzberg_validate_chunking_params(max_chars, max_overlap)) }
+    Ok(kreuzberg_validate_chunking_params(max_chars, max_overlap))
 }
 
 pub fn get_valid_binarization_methods(_ruby: &Ruby) -> Result<String, Error> {

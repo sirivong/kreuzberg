@@ -1,7 +1,8 @@
 //! Validator plugin registration and management
 
 use crate::{error_handling::{kreuzberg_error, runtime_error}, gc_guarded_value::GcGuardedValue};
-use magnus::{Error, Value, scan_args::scan_args};
+use magnus::{Error, Value, scan_args::scan_args, Ruby};
+use magnus::value::ReprValue;
 use std::sync::Arc;
 
 /// Register a validator plugin
@@ -96,5 +97,3 @@ pub fn register_validator(args: &[Value]) -> Result<(), Error> {
 
     Ok(())
 }
-
-use magnus::Ruby;

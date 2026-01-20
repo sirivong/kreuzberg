@@ -37,6 +37,7 @@ public final class KreuzbergFFI {
 	private static final Linker LINKER = Linker.nativeLinker();
 	private static final SymbolLookup LOOKUP;
 	private static final long C_STRING_MAX_SIZE = 67108864L;
+	private static final long NULL_PAGE_SIZE = 4096L;
 	private static final String NATIVES_RESOURCE_ROOT = "/natives";
 	private static final Object NATIVE_EXTRACT_LOCK = new Object();
 	private static String cachedExtractKey;
@@ -116,8 +117,7 @@ public final class KreuzbergFFI {
 			ValueLayout.ADDRESS.withName("detected_languages_json"), ValueLayout.ADDRESS.withName("metadata_json"),
 			ValueLayout.ADDRESS.withName("chunks_json"), ValueLayout.ADDRESS.withName("images_json"),
 			ValueLayout.ADDRESS.withName("page_structure_json"), ValueLayout.ADDRESS.withName("pages_json"),
-			ValueLayout.ADDRESS.withName("elements_json"), ValueLayout.JAVA_BOOLEAN.withName("success"),
-			MemoryLayout.paddingLayout(7));
+			ValueLayout.JAVA_BOOLEAN.withName("success"), MemoryLayout.paddingLayout(7));
 
 	public static final long CONTENT_OFFSET = C_EXTRACTION_RESULT_LAYOUT
 			.byteOffset(MemoryLayout.PathElement.groupElement("content"));
@@ -143,8 +143,6 @@ public final class KreuzbergFFI {
 			.byteOffset(MemoryLayout.PathElement.groupElement("page_structure_json"));
 	public static final long PAGES_OFFSET = C_EXTRACTION_RESULT_LAYOUT
 			.byteOffset(MemoryLayout.PathElement.groupElement("pages_json"));
-	public static final long ELEMENTS_OFFSET = C_EXTRACTION_RESULT_LAYOUT
-			.byteOffset(MemoryLayout.PathElement.groupElement("elements_json"));
 	public static final long SUCCESS_OFFSET = C_EXTRACTION_RESULT_LAYOUT
 			.byteOffset(MemoryLayout.PathElement.groupElement("success"));
 
@@ -777,6 +775,12 @@ public final class KreuzbergFFI {
 	 */
 	public static String readCString(MemorySegment address) {
 		if (address == null || address.address() == 0) {
+			return null;
+		}
+		// Reject obviously invalid pointers that fall within the null page (< 4KB).
+		// These are sentinel values (like 0x1) that indicate an error condition
+		// from the FFI layer and will cause SIGSEGV if dereferenced.
+		if (address.address() < NULL_PAGE_SIZE) {
 			return null;
 		}
 		// Use Arena.global() to ensure thread-safe access to the memory segment.

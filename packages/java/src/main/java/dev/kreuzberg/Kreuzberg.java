@@ -21,6 +21,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * High-level Java API for Kreuzberg document intelligence library.
@@ -62,6 +63,15 @@ public final class Kreuzberg {
 	private static final Map<String, CallbackHandle> VALIDATOR_CALLBACKS = new ConcurrentHashMap<>();
 	private static final Map<String, CallbackHandle> OCR_CALLBACKS = new ConcurrentHashMap<>();
 
+	/**
+	 * Global lock to serialize FFI calls. PDFium (used internally by Kreuzberg for
+	 * PDF processing) is not thread-safe. Concurrent calls from multiple threads
+	 * cause memory corruption and invalid pointer returns (0x1). This lock ensures
+	 * that only one thread can execute FFI calls at a time. This is the same
+	 * approach used by the Go FFI bindings (ffiMutex).
+	 */
+	private static final ReentrantLock FFI_LOCK = new ReentrantLock();
+
 	private Kreuzberg() {
 	}
 
@@ -76,6 +86,7 @@ public final class Kreuzberg {
 	public static ExtractionResult extractFile(Path path, ExtractionConfig config)
 			throws IOException, KreuzbergException {
 		validateFile(path);
+		FFI_LOCK.lock();
 		try (Arena arena = Arena.ofConfined()) {
 			MemorySegment pathSegment = KreuzbergFFI.allocateCString(arena, path.toString());
 			MemorySegment configSegment = config == null ? MemorySegment.NULL : encodeConfig(arena, config);
@@ -97,6 +108,8 @@ public final class Kreuzberg {
 			throw e;
 		} catch (Throwable e) {
 			throw new KreuzbergException("Unexpected error during extraction", e);
+		} finally {
+			FFI_LOCK.unlock();
 		}
 	}
 
@@ -112,6 +125,7 @@ public final class Kreuzberg {
 			throw new KreuzbergException("mimeType is required");
 		}
 
+		FFI_LOCK.lock();
 		try (Arena arena = Arena.ofConfined()) {
 			MemorySegment dataSegment = arena.allocate((long) data.length, 1);
 			MemorySegment.copy(data, 0, dataSegment, ValueLayout.JAVA_BYTE, 0, data.length);
@@ -132,6 +146,8 @@ public final class Kreuzberg {
 			throw e;
 		} catch (Throwable e) {
 			throw new KreuzbergException("Unexpected error during extraction", e);
+		} finally {
+			FFI_LOCK.unlock();
 		}
 	}
 
@@ -142,6 +158,7 @@ public final class Kreuzberg {
 			return Collections.emptyList();
 		}
 
+		FFI_LOCK.lock();
 		try (Arena arena = Arena.ofConfined()) {
 			MemorySegment[] cStrings = new MemorySegment[paths.size()];
 			for (int i = 0; i < paths.size(); i++) {
@@ -166,6 +183,8 @@ public final class Kreuzberg {
 			throw e;
 		} catch (Throwable e) {
 			throw new KreuzbergException("Unexpected error during batch extraction", e);
+		} finally {
+			FFI_LOCK.unlock();
 		}
 	}
 
@@ -176,6 +195,7 @@ public final class Kreuzberg {
 			return Collections.emptyList();
 		}
 
+		FFI_LOCK.lock();
 		try (Arena arena = Arena.ofConfined()) {
 			long structSize = KreuzbergFFI.C_BYTES_WITH_MIME_LAYOUT.byteSize();
 			MemorySegment bytesWithMimeArray = arena.allocate(structSize * items.size(),
@@ -205,6 +225,8 @@ public final class Kreuzberg {
 			throw e;
 		} catch (Throwable e) {
 			throw new KreuzbergException("Unexpected error during batch extraction", e);
+		} finally {
+			FFI_LOCK.unlock();
 		}
 	}
 
@@ -1199,11 +1221,10 @@ public final class Kreuzberg {
 		String imagesJson = KreuzbergFFI.readCString(result.get(ValueLayout.ADDRESS, KreuzbergFFI.IMAGES_OFFSET));
 		String pageStructureJson = KreuzbergFFI
 				.readCString(result.get(ValueLayout.ADDRESS, KreuzbergFFI.PAGE_STRUCTURE_OFFSET));
-		String elementsJson = KreuzbergFFI.readCString(result.get(ValueLayout.ADDRESS, KreuzbergFFI.ELEMENTS_OFFSET));
 		boolean success = result.get(ValueLayout.JAVA_BOOLEAN, KreuzbergFFI.SUCCESS_OFFSET);
 
 		return ResultParser.parse(content, mimeType, tablesJson, detectedLanguagesJson, metadataJson, chunksJson,
-				imagesJson, pageStructureJson, elementsJson, success);
+				imagesJson, pageStructureJson, null, success);
 	}
 
 	/**

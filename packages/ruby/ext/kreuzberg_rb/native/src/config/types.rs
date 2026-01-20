@@ -23,6 +23,7 @@ use kreuzberg::{
     LanguageDetectionConfig, OcrConfig, OutputFormat, PdfConfig, PostProcessorConfig, TokenReductionConfig,
 };
 use magnus::{Error, RArray, RHash, Ruby, TryConvert, Value};
+use magnus::value::ReprValue;
 use std::fs;
 use std::path::PathBuf;
 
@@ -939,14 +940,30 @@ pub fn parse_extraction_config(ruby: &Ruby, opts: Option<RHash>) -> Result<Extra
             config.max_concurrent_extractions = Some(value);
         }
 
+        if let Some(val) = get_kw(ruby, hash, "result_format") {
+            let format_str = String::try_convert(val)?;
+            config.result_format = match format_str.as_str() {
+                "unified" | "Unified" => kreuzberg::types::OutputFormat::Unified,
+                "element_based" | "ElementBased" | "elements" => kreuzberg::types::OutputFormat::ElementBased,
+                _ => {
+                    return Err(runtime_error(format!(
+                        "Invalid result_format: '{}'. Expected 'unified' or 'element_based'",
+                        format_str
+                    )))
+                }
+            };
+        }
+
         if let Some(val) = get_kw(ruby, hash, "output_format") {
             let format_str = String::try_convert(val)?;
             config.output_format = match format_str.as_str() {
-                "unified" | "Unified" => OutputFormat::Unified,
-                "element_based" | "ElementBased" | "elements" => OutputFormat::ElementBased,
+                "plain" | "Plain" => OutputFormat::Plain,
+                "markdown" | "Markdown" => OutputFormat::Markdown,
+                "djot" | "Djot" => OutputFormat::Djot,
+                "html" | "Html" => OutputFormat::Html,
                 _ => {
                     return Err(runtime_error(format!(
-                        "Invalid output_format: '{}'. Expected 'unified' or 'element_based'",
+                        "Invalid output_format: '{}'. Expected 'plain', 'markdown', 'djot', or 'html'",
                         format_str
                     )))
                 }

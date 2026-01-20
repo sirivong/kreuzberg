@@ -205,7 +205,10 @@ public final class ExtractionConfig {
 	 */
 	public String toJson() throws KreuzbergException {
 		try (var arena = Arena.ofConfined()) {
-			String jsonInput = CONFIG_MAPPER.writeValueAsString(toMap());
+			Map<String, Object> configMap = toMap();
+			// Filter out null values before sending to Rust
+			Map<String, Object> filteredMap = filterNullValues(configMap);
+			String jsonInput = CONFIG_MAPPER.writeValueAsString(filteredMap);
 			MemorySegment configJsonSeg = KreuzbergFFI.allocateCString(arena, jsonInput);
 
 			MemorySegment configPtr = (MemorySegment) KreuzbergFFI.KREUZBERG_CONFIG_FROM_JSON.invoke(configJsonSeg);
@@ -254,7 +257,10 @@ public final class ExtractionConfig {
 		}
 
 		try (var arena = Arena.ofConfined()) {
-			String jsonInput = CONFIG_MAPPER.writeValueAsString(toMap());
+			Map<String, Object> configMap = toMap();
+			// Filter out null values before sending to Rust
+			Map<String, Object> filteredMap = filterNullValues(configMap);
+			String jsonInput = CONFIG_MAPPER.writeValueAsString(filteredMap);
 			MemorySegment configJsonSeg = KreuzbergFFI.allocateCString(arena, jsonInput);
 
 			MemorySegment configPtr = (MemorySegment) KreuzbergFFI.KREUZBERG_CONFIG_FROM_JSON.invoke(configJsonSeg);
@@ -359,6 +365,16 @@ public final class ExtractionConfig {
 
 	public Map<String, Object> toMap() {
 		return toMap(true);
+	}
+
+	private static Map<String, Object> filterNullValues(Map<String, Object> map) {
+		Map<String, Object> filtered = new HashMap<>();
+		for (Map.Entry<String, Object> entry : map.entrySet()) {
+			if (entry.getValue() != null) {
+				filtered.put(entry.getKey(), entry.getValue());
+			}
+		}
+		return filtered;
 	}
 
 	private Map<String, Object> toMap(boolean includeDefaults) {

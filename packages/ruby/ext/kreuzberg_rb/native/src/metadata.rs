@@ -14,7 +14,7 @@ pub fn detect_mime_type_from_bytes(bytes: String) -> Result<String, Error> {
 
 /// Detect MIME type from file path
 pub fn detect_mime_type_from_path_native(path: String) -> Result<String, Error> {
-    kreuzberg::core::mime::detect_mime_type(&path)
+    kreuzberg::core::mime::detect_mime_type(&path, true)
         .map_err(|e| runtime_error(format!("Failed to detect MIME type from path: {}", e)))
 }
 

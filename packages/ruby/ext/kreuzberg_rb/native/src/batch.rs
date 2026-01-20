@@ -6,7 +6,7 @@ use crate::config::parse_extraction_config;
 use crate::error_handling::{kreuzberg_error, runtime_error};
 use crate::result::extraction_result_to_ruby;
 
-use magnus::{Error, RArray, RHash, RString, Ruby, Value, scan_args::scan_args};
+use magnus::{Error, RArray, RHash, RString, Ruby, Value, scan_args::scan_args, TryConvert};
 
 /// Batch extract content from multiple files (synchronous)
 pub fn batch_extract_files_sync(args: &[Value]) -> Result<RArray, Error> {
@@ -81,7 +81,7 @@ pub fn batch_extract_bytes_sync(args: &[Value]) -> Result<RArray, Error> {
     let contents: Vec<(Vec<u8>, String)> = bytes_vec
         .iter()
         .zip(mime_types.iter())
-        .map(|(bytes, mime)| (unsafe { bytes.as_slice() }.to_vec(), mime.clone()))
+        .map(|(bytes, mime): (&RString, &String)| (unsafe { bytes.as_slice() }.to_vec(), mime.clone()))
         .collect();
 
     let results = kreuzberg::batch_extract_bytes_sync(contents, &config).map_err(kreuzberg_error)?;
@@ -120,7 +120,7 @@ pub fn batch_extract_bytes(args: &[Value]) -> Result<RArray, Error> {
     let contents: Vec<(Vec<u8>, String)> = bytes_vec
         .iter()
         .zip(mime_types.iter())
-        .map(|(bytes, mime)| (unsafe { bytes.as_slice() }.to_vec(), mime.clone()))
+        .map(|(bytes, mime): (&RString, &String)| (unsafe { bytes.as_slice() }.to_vec(), mime.clone()))
         .collect();
 
     let runtime = tokio::runtime::Runtime::new()
