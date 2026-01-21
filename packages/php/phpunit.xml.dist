@@ -14,6 +14,17 @@
         </testsuite>
     </testsuites>
 
+    <php>
+        <!-- Set ONNX Runtime library path for embeddings support -->
+        <!-- macOS: Homebrew installation path -->
+        <env name="ORT_DYLIB_PATH" value="/opt/homebrew/lib/libonnxruntime.dylib"/>
+        <!-- Linux: Uncomment one of these based on your installation -->
+        <!-- <env name="ORT_DYLIB_PATH" value="/usr/lib/libonnxruntime.so"/> -->
+        <!-- <env name="ORT_DYLIB_PATH" value="/usr/local/lib/libonnxruntime.so"/> -->
+        <!-- Windows: Uncomment and adjust path as needed -->
+        <!-- <env name="ORT_DYLIB_PATH" value="C:\Program Files\onnxruntime\bin\onnxruntime.dll"/> -->
+    </php>
+
     <source>
         <include>
             <directory>src</directory>

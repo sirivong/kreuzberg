@@ -7,7 +7,7 @@
 //! All string-returning functions return pointers to C strings that MUST be freed
 //! with `kreuzberg_free_string()`.
 
-use crate::{clear_last_error, set_last_error};
+use crate::{clear_last_error, ffi_panic_guard, set_last_error};
 use kreuzberg::types::ExtractionResult;
 use std::ffi::CString;
 use std::os::raw::c_char;
@@ -44,20 +44,26 @@ use std::ptr;
 /// ```
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn kreuzberg_result_get_page_count(result: *const ExtractionResult) -> i32 {
-    if result.is_null() {
-        set_last_error("Result cannot be NULL".to_string());
-        return -1;
-    }
+    ffi_panic_guard!(
+        "kreuzberg_result_get_page_count",
+        {
+            if result.is_null() {
+                set_last_error("Result cannot be NULL".to_string());
+                return -1;
+            }
 
-    clear_last_error();
+            clear_last_error();
 
-    let result_ref = unsafe { &*result };
+            let result_ref = unsafe { &*result };
 
-    if let Some(metadata) = &result_ref.metadata.pages {
-        metadata.total_count as i32
-    } else {
-        0
-    }
+            if let Some(metadata) = &result_ref.metadata.pages {
+                metadata.total_count as i32
+            } else {
+                0
+            }
+        },
+        -1
+    )
 }
 
 /// Get chunk count from extraction result.
@@ -92,20 +98,26 @@ pub unsafe extern "C" fn kreuzberg_result_get_page_count(result: *const Extracti
 /// ```
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn kreuzberg_result_get_chunk_count(result: *const ExtractionResult) -> i32 {
-    if result.is_null() {
-        set_last_error("Result cannot be NULL".to_string());
-        return -1;
-    }
+    ffi_panic_guard!(
+        "kreuzberg_result_get_chunk_count",
+        {
+            if result.is_null() {
+                set_last_error("Result cannot be NULL".to_string());
+                return -1;
+            }
 
-    clear_last_error();
+            clear_last_error();
 
-    let result_ref = unsafe { &*result };
+            let result_ref = unsafe { &*result };
 
-    if let Some(chunks) = &result_ref.chunks {
-        chunks.len() as i32
-    } else {
-        0
-    }
+            if let Some(chunks) = &result_ref.chunks {
+                chunks.len() as i32
+            } else {
+                0
+            }
+        },
+        -1
+    )
 }
 
 /// Get detected language from extraction result.
@@ -145,36 +157,38 @@ pub unsafe extern "C" fn kreuzberg_result_get_chunk_count(result: *const Extract
 /// ```
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn kreuzberg_result_get_detected_language(result: *const ExtractionResult) -> *mut c_char {
-    if result.is_null() {
-        set_last_error("Result cannot be NULL".to_string());
-        return ptr::null_mut();
-    }
+    ffi_panic_guard!("kreuzberg_result_get_detected_language", {
+        if result.is_null() {
+            set_last_error("Result cannot be NULL".to_string());
+            return ptr::null_mut();
+        }
 
-    clear_last_error();
+        clear_last_error();
 
-    let result_ref = unsafe { &*result };
+        let result_ref = unsafe { &*result };
 
-    let language = if let Some(lang) = &result_ref.metadata.language {
-        lang.clone()
-    } else if let Some(langs) = &result_ref.detected_languages {
-        if !langs.is_empty() {
-            langs[0].clone()
+        let language = if let Some(lang) = &result_ref.metadata.language {
+            lang.clone()
+        } else if let Some(langs) = &result_ref.detected_languages {
+            if !langs.is_empty() {
+                langs[0].clone()
+            } else {
+                set_last_error("No language detected".to_string());
+                return ptr::null_mut();
+            }
         } else {
             set_last_error("No language detected".to_string());
             return ptr::null_mut();
-        }
-    } else {
-        set_last_error("No language detected".to_string());
-        return ptr::null_mut();
-    };
+        };
 
-    match CString::new(language) {
-        Ok(c_string) => c_string.into_raw(),
-        Err(e) => {
-            set_last_error(format!("Failed to convert language to C string: {}", e));
-            ptr::null_mut()
+        match CString::new(language) {
+            Ok(c_string) => c_string.into_raw(),
+            Err(e) => {
+                set_last_error(format!("Failed to convert language to C string: {}", e));
+                ptr::null_mut()
+            }
         }
-    }
+    })
 }
 
 /// Metadata field accessor structure
@@ -246,58 +260,69 @@ pub unsafe extern "C" fn kreuzberg_result_get_metadata_field(
     result: *const ExtractionResult,
     field_name: *const c_char,
 ) -> CMetadataField {
-    if result.is_null() {
-        set_last_error("Result cannot be NULL".to_string());
-        return CMetadataField {
-            name: field_name,
-            json_value: ptr::null_mut(),
-            is_null: 1,
-        };
-    }
+    ffi_panic_guard!(
+        "kreuzberg_result_get_metadata_field",
+        {
+            if result.is_null() {
+                set_last_error("Result cannot be NULL".to_string());
+                return CMetadataField {
+                    name: field_name,
+                    json_value: ptr::null_mut(),
+                    is_null: 1,
+                };
+            }
 
-    if field_name.is_null() {
-        set_last_error("Field name cannot be NULL".to_string());
-        return CMetadataField {
-            name: ptr::null(),
-            json_value: ptr::null_mut(),
-            is_null: 1,
-        };
-    }
+            if field_name.is_null() {
+                set_last_error("Field name cannot be NULL".to_string());
+                return CMetadataField {
+                    name: ptr::null(),
+                    json_value: ptr::null_mut(),
+                    is_null: 1,
+                };
+            }
 
-    clear_last_error();
+            clear_last_error();
 
-    let field_str = match unsafe { std::ffi::CStr::from_ptr(field_name) }.to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            set_last_error(format!("Invalid UTF-8 in field name: {}", e));
-            return CMetadataField {
-                name: field_name,
-                json_value: ptr::null_mut(),
-                is_null: 1,
+            let field_str = match unsafe { std::ffi::CStr::from_ptr(field_name) }.to_str() {
+                Ok(s) => s,
+                Err(e) => {
+                    set_last_error(format!("Invalid UTF-8 in field name: {}", e));
+                    return CMetadataField {
+                        name: field_name,
+                        json_value: ptr::null_mut(),
+                        is_null: 1,
+                    };
+                }
             };
-        }
-    };
 
-    let result_ref = unsafe { &*result };
+            let result_ref = unsafe { &*result };
 
-    let metadata_json = match serde_json::to_value(&result_ref.metadata) {
-        Ok(val) => val,
-        Err(e) => {
-            set_last_error(format!("Failed to serialize metadata: {}", e));
-            return CMetadataField {
-                name: field_name,
-                json_value: ptr::null_mut(),
-                is_null: 1,
+            let metadata_json = match serde_json::to_value(&result_ref.metadata) {
+                Ok(val) => val,
+                Err(e) => {
+                    set_last_error(format!("Failed to serialize metadata: {}", e));
+                    return CMetadataField {
+                        name: field_name,
+                        json_value: ptr::null_mut(),
+                        is_null: 1,
+                    };
+                }
             };
-        }
-    };
 
-    let mut current = &metadata_json;
-    for part in field_str.split('.') {
-        if let Some(obj) = current.as_object() {
-            match obj.get(part) {
-                Some(val) => current = val,
-                None => {
+            let mut current = &metadata_json;
+            for part in field_str.split('.') {
+                if let Some(obj) = current.as_object() {
+                    match obj.get(part) {
+                        Some(val) => current = val,
+                        None => {
+                            return CMetadataField {
+                                name: field_name,
+                                json_value: ptr::null_mut(),
+                                is_null: 1,
+                            };
+                        }
+                    }
+                } else {
                     return CMetadataField {
                         name: field_name,
                         json_value: ptr::null_mut(),
@@ -305,40 +330,39 @@ pub unsafe extern "C" fn kreuzberg_result_get_metadata_field(
                     };
                 }
             }
-        } else {
-            return CMetadataField {
-                name: field_name,
-                json_value: ptr::null_mut(),
-                is_null: 1,
-            };
-        }
-    }
 
-    match serde_json::to_string(current) {
-        Ok(json) => match CString::new(json) {
-            Ok(c_string) => CMetadataField {
-                name: field_name,
-                json_value: c_string.into_raw(),
-                is_null: 0,
-            },
-            Err(e) => {
-                set_last_error(format!("Failed to convert field value to C string: {}", e));
-                CMetadataField {
-                    name: field_name,
-                    json_value: ptr::null_mut(),
-                    is_null: 1,
+            match serde_json::to_string(current) {
+                Ok(json) => match CString::new(json) {
+                    Ok(c_string) => CMetadataField {
+                        name: field_name,
+                        json_value: c_string.into_raw(),
+                        is_null: 0,
+                    },
+                    Err(e) => {
+                        set_last_error(format!("Failed to convert field value to C string: {}", e));
+                        CMetadataField {
+                            name: field_name,
+                            json_value: ptr::null_mut(),
+                            is_null: 1,
+                        }
+                    }
+                },
+                Err(e) => {
+                    set_last_error(format!("Failed to serialize field value: {}", e));
+                    CMetadataField {
+                        name: field_name,
+                        json_value: ptr::null_mut(),
+                        is_null: 1,
+                    }
                 }
             }
         },
-        Err(e) => {
-            set_last_error(format!("Failed to serialize field value: {}", e));
-            CMetadataField {
-                name: field_name,
-                json_value: ptr::null_mut(),
-                is_null: 1,
-            }
+        CMetadataField {
+            name: field_name,
+            json_value: ptr::null_mut(),
+            is_null: 1,
         }
-    }
+    )
 }
 
 #[cfg(test)]

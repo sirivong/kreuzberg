@@ -139,6 +139,17 @@ macro_rules! ffi_panic_guard {
             }
         }
     }};
+    ($function_name:expr, $body:expr, $default:expr) => {{
+        match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| $body)) {
+            Ok(result) => result,
+            Err(panic_info) => {
+                let context =
+                    kreuzberg::panic_context::PanicContext::new(file!(), line!(), $function_name, panic_info.as_ref());
+                $crate::panic_shield::set_structured_error($crate::panic_shield::StructuredError::from_panic(context));
+                $default
+            }
+        }
+    }};
 }
 
 /// Macro to wrap FFI functions that return bool with panic catching.

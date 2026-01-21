@@ -18,6 +18,7 @@ test = false
 
 [dependencies]
 async-trait = { workspace = true }
+ctor = "0.2"
 ext-php-rs = "0.15"
 kreuzberg = { path = "../kreuzberg", features = ["full", "bundled-pdfium"] }
 once_cell = { workspace = true }

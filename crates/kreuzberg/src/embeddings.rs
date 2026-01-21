@@ -215,26 +215,149 @@ pub fn get_or_init_model(
             return Ok(Arc::clone(cached_model));
         }
 
-        let mut init_options = InitOptions::new(model);
-        init_options = init_options.with_cache_dir(cache_directory);
+        // Check if ONNX Runtime library exists and set ORT_DYLIB_PATH if needed
+        // This prevents panics that cannot unwind through FFI boundaries
+        fn ensure_onnx_available() -> Result<(), String> {
+            // Check if ORT_DYLIB_PATH is already set and valid
+            if let Ok(path) = std::env::var("ORT_DYLIB_PATH") {
+                if std::path::Path::new(&path).exists() {
+                    return Ok(());
+                }
+            }
 
-        let embedding_model = TextEmbedding::try_new(init_options).map_err(|e| {
-            let error_msg = e.to_string();
+            // Check common installation paths and set ORT_DYLIB_PATH if found
+            #[cfg(target_os = "macos")]
+            {
+                let paths = vec![
+                    "/opt/homebrew/lib/libonnxruntime.dylib",
+                    "/usr/local/lib/libonnxruntime.dylib",
+                ];
+                for path in paths {
+                    if std::path::Path::new(path).exists() {
+                        // Set ORT_DYLIB_PATH so the ort crate can find it
+                        // SAFETY: We're setting an environment variable before any threads are spawned
+                        // in this module, and we're the only ones setting this variable
+                        #[allow(unsafe_code)]
+                        unsafe {
+                            std::env::set_var("ORT_DYLIB_PATH", path);
+                        }
+                        return Ok(());
+                    }
+                }
+            }
 
-            if error_msg.contains("onnxruntime")
-                || error_msg.contains("ORT")
-                || error_msg.contains("libonnxruntime")
-                || error_msg.contains("onnxruntime.dll")
-                || error_msg.contains("Unable to load")
-                || error_msg.contains("library load failed")
+            #[cfg(target_os = "linux")]
+            {
+                let paths = vec![
+                    "/usr/lib/libonnxruntime.so",
+                    "/usr/local/lib/libonnxruntime.so",
+                    "/usr/lib/x86_64-linux-gnu/libonnxruntime.so",
+                    "/usr/lib/aarch64-linux-gnu/libonnxruntime.so",
+                ];
+                for path in paths {
+                    if std::path::Path::new(path).exists() {
+                        // SAFETY: We're setting an environment variable before any threads are spawned
+                        // in this module, and we're the only ones setting this variable
+                        #[allow(unsafe_code)]
+                        unsafe {
+                            std::env::set_var("ORT_DYLIB_PATH", path);
+                        }
+                        return Ok(());
+                    }
+                }
+            }
+
+            #[cfg(target_os = "windows")]
+            {
+                let paths = vec![
+                    "C:\\Program Files\\onnxruntime\\bin\\onnxruntime.dll",
+                    "C:\\Windows\\System32\\onnxruntime.dll",
+                ];
+                for path in paths {
+                    if std::path::Path::new(path).exists() {
+                        // SAFETY: We're setting an environment variable before any threads are spawned
+                        // in this module, and we're the only ones setting this variable
+                        #[allow(unsafe_code)]
+                        unsafe {
+                            std::env::set_var("ORT_DYLIB_PATH", path);
+                        }
+                        return Ok(());
+                    }
+                }
+            }
+
+            Err("ONNX Runtime library not found in common installation paths".to_string())
+        }
+
+        if let Err(e) = ensure_onnx_available() {
+            return Err(crate::KreuzbergError::MissingDependency(format!(
+                "{}. {}",
+                e,
+                onnx_runtime_install_message()
+            )));
+        }
+
+        // Wrap the entire embedding initialization with catch_unwind to handle panics from ONNX Runtime
+        // ONNX Runtime can panic when the library is not found, which causes issues in FFI contexts
+        // This includes both InitOptions::new and TextEmbedding::try_new as both can trigger ONNX Runtime loading
+        let embedding_model = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let mut init_options = InitOptions::new(model);
+            init_options = init_options.with_cache_dir(cache_directory);
+            TextEmbedding::try_new(init_options)
+        }))
+        .map_err(|panic_payload| {
+            // Convert panic to a KreuzbergError
+            let panic_msg = if let Some(s) = panic_payload.downcast_ref::<&str>() {
+                s.to_string()
+            } else if let Some(s) = panic_payload.downcast_ref::<String>() {
+                s.clone()
+            } else {
+                "Unknown panic during ONNX Runtime initialization".to_string()
+            };
+
+            // Check if this looks like an ONNX Runtime missing dependency error
+            if panic_msg.contains("onnxruntime")
+                || panic_msg.contains("ORT")
+                || panic_msg.contains("libonnxruntime")
+                || panic_msg.contains("onnxruntime.dll")
+                || panic_msg.contains("Unable to load")
+                || panic_msg.contains("library load failed")
+                || panic_msg.contains("attempting to load")
+                || panic_msg.contains("An error occurred while")
             {
                 crate::KreuzbergError::MissingDependency(format!("ONNX Runtime - {}", onnx_runtime_install_message()))
             } else {
                 crate::KreuzbergError::Plugin {
-                    message: format!("Failed to initialize embedding model: {}", e),
+                    message: format!("ONNX Runtime initialization panicked: {}", panic_msg),
                     plugin_name: "embeddings".to_string(),
                 }
             }
+        })
+        .and_then(|result| {
+            // Map fastembed errors to KreuzbergError
+            result.map_err(|e| {
+                let error_msg = e.to_string();
+
+                if error_msg.contains("onnxruntime")
+                    || error_msg.contains("ORT")
+                    || error_msg.contains("libonnxruntime")
+                    || error_msg.contains("onnxruntime.dll")
+                    || error_msg.contains("Unable to load")
+                    || error_msg.contains("library load failed")
+                    || error_msg.contains("attempting to load")
+                    || error_msg.contains("An error occurred while")
+                {
+                    crate::KreuzbergError::MissingDependency(format!(
+                        "ONNX Runtime - {}",
+                        onnx_runtime_install_message()
+                    ))
+                } else {
+                    crate::KreuzbergError::Plugin {
+                        message: format!("Failed to initialize embedding model: {}", e),
+                        plugin_name: "embeddings".to_string(),
+                    }
+                }
+            })
         })?;
 
         let leaked_model = LeakedModel::new(embedding_model);

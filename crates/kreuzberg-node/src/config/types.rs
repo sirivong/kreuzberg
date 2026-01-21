@@ -1036,11 +1036,31 @@ impl TryFrom<ExtractionConfig> for JsExtractionConfig {
 /// const result = await extractFile('document.pdf', null, config);
 /// ```
 #[napi(js_name = "loadExtractionConfigFromFile")]
-pub fn load_extraction_config_from_file(_file_path: String) -> Result<JsExtractionConfig> {
-    Err(napi::Error::new(
-        napi::Status::GenericFailure,
-        "load_extraction_config_from_file not yet fully implemented",
-    ))
+pub fn load_extraction_config_from_file(file_path: String) -> Result<JsExtractionConfig> {
+    use crate::error_handling::convert_error;
+
+    let path = std::path::Path::new(&file_path);
+
+    let ext = path.extension().and_then(|e| e.to_str()).ok_or_else(|| {
+        napi::Error::new(
+            napi::Status::InvalidArg,
+            "File path must have an extension (.toml, .yaml, .json)",
+        )
+    })?;
+
+    let rust_config = match ext.to_lowercase().as_str() {
+        "toml" => ExtractionConfig::from_toml_file(path).map_err(convert_error)?,
+        "yaml" | "yml" => ExtractionConfig::from_yaml_file(path).map_err(convert_error)?,
+        "json" => ExtractionConfig::from_json_file(path).map_err(convert_error)?,
+        _ => {
+            return Err(napi::Error::new(
+                napi::Status::InvalidArg,
+                format!("Unsupported file extension: '{}'. Supported: .toml, .yaml, .json", ext),
+            ));
+        }
+    };
+
+    JsExtractionConfig::try_from(rust_config)
 }
 
 /// Discover extraction configuration file in current directory or parent directories.
@@ -1071,9 +1091,13 @@ pub fn load_extraction_config_from_file(_file_path: String) -> Result<JsExtracti
 /// const result = await extractFile('document.pdf', null, config);
 /// ```
 #[napi(js_name = "discoverExtractionConfig")]
-pub fn discover_extraction_config() -> Result<JsExtractionConfig> {
-    Err(napi::Error::new(
-        napi::Status::GenericFailure,
-        "discover_extraction_config not yet fully implemented",
-    ))
+pub fn discover_extraction_config() -> Result<Option<JsExtractionConfig>> {
+    use crate::error_handling::convert_error;
+
+    let rust_config = ExtractionConfig::discover().map_err(convert_error)?;
+
+    match rust_config {
+        Some(config) => Ok(Some(JsExtractionConfig::try_from(config)?)),
+        None => Ok(None),
+    }
 }
