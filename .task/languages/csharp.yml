@@ -63,6 +63,8 @@ tasks:
 
   test:
     desc: Run C# tests
+    env:
+      ORT_DYLIB_PATH: /opt/homebrew/lib/libonnxruntime.dylib
     cmds:
       - cmd: bash scripts/csharp/test.sh
         platforms: [linux, darwin]
@@ -73,6 +75,7 @@ tasks:
     desc: Run C# tests in CI mode
     env:
       DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+      ORT_DYLIB_PATH: /opt/homebrew/lib/libonnxruntime.dylib
     cmds:
       - cmd: bash scripts/csharp/test.sh
         platforms: [linux, darwin]

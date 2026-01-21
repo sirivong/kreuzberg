@@ -67,6 +67,8 @@ tasks:
 
   test:
     desc: Run Go tests
+    env:
+      ORT_DYLIB_PATH: /opt/homebrew/lib/libonnxruntime.dylib
     cmds:
       - cmd: bash scripts/go/test.sh
         platforms: [linux, darwin]
@@ -82,6 +84,7 @@ tasks:
       CI: "true"
       VERBOSE_MODE: "true"
       CGO_ENABLED: "1"
+      ORT_DYLIB_PATH: /opt/homebrew/lib/libonnxruntime.dylib
     cmds:
       - go test -timeout 10m -v ./...
 
