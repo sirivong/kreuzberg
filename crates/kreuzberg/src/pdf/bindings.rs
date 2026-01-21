@@ -263,21 +263,34 @@ mod tests {
 
     #[test]
     fn test_bind_pdfium_multiple_calls() {
-        let result1 = bind_pdfium(PdfError::TextExtractionFailed, "test 1");
-        let result2 = bind_pdfium(PdfError::TextExtractionFailed, "test 2");
+        // First call - acquire lock, test success, then drop handle to release lock
+        {
+            let result1 = bind_pdfium(PdfError::TextExtractionFailed, "test 1");
+            assert!(result1.is_ok(), "First call should succeed");
+        } // result1 dropped here, releasing the lock
 
-        assert!(result1.is_ok(), "First call should succeed");
-        assert!(result2.is_ok(), "Second call should also succeed");
+        // Second call - can now acquire lock since first handle was dropped
+        {
+            let result2 = bind_pdfium(PdfError::TextExtractionFailed, "test 2");
+            assert!(result2.is_ok(), "Second call should also succeed");
+        }
     }
 
     #[test]
     fn test_bind_pdfium_returns_same_instance() {
-        let handle1 = bind_pdfium(PdfError::TextExtractionFailed, "test 1").unwrap();
-        let handle2 = bind_pdfium(PdfError::TextExtractionFailed, "test 2").unwrap();
+        // Get pointer from first handle, then drop it to release lock
+        let ptr1 = {
+            let handle1 = bind_pdfium(PdfError::TextExtractionFailed, "test 1").unwrap();
+            &*handle1 as *const Pdfium
+        }; // handle1 dropped here, releasing the lock
+
+        // Get pointer from second handle
+        let ptr2 = {
+            let handle2 = bind_pdfium(PdfError::TextExtractionFailed, "test 2").unwrap();
+            &*handle2 as *const Pdfium
+        };
 
         // Both handles should dereference to the same Pdfium instance
-        let ptr1 = &*handle1 as *const Pdfium;
-        let ptr2 = &*handle2 as *const Pdfium;
         assert_eq!(ptr1, ptr2, "Both handles should reference the same Pdfium instance");
     }
 

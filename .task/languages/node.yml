@@ -56,12 +56,16 @@ tasks:
   test:
     desc: Run Node/TypeScript tests
     dir: crates/kreuzberg-node
+    env:
+      ORT_DYLIB_PATH: /opt/homebrew/lib/libonnxruntime.dylib
     cmds:
       - pnpm test
 
   test:ci:
     desc: Run Node/TypeScript tests in CI mode
     dir: crates/kreuzberg-node
+    env:
+      ORT_DYLIB_PATH: /opt/homebrew/lib/libonnxruntime.dylib
     cmds:
       - pnpm test
 

@@ -6,6 +6,8 @@
 //! Unlike the JSON-based API in config.rs, this builder allows incremental
 //! configuration construction with immediate validation at each step.
 
+use crate::ffi_panic_guard;
+use crate::ffi_panic_guard_i32;
 use crate::helpers::{clear_last_error, set_last_error};
 use kreuzberg::core::config::{
     ChunkingConfig, ExtractionConfig, ImageExtractionConfig, LanguageDetectionConfig, OcrConfig, PdfConfig,
@@ -101,8 +103,10 @@ impl ConfigBuilder {
 /// ```
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn kreuzberg_config_builder_new() -> *mut ConfigBuilder {
-    clear_last_error();
-    Box::into_raw(Box::new(ConfigBuilder::new()))
+    ffi_panic_guard!("kreuzberg_config_builder_new", {
+        clear_last_error();
+        Box::into_raw(Box::new(ConfigBuilder::new()))
+    })
 }
 
 /// Set the use_cache field.
@@ -123,14 +127,16 @@ pub unsafe extern "C" fn kreuzberg_config_builder_new() -> *mut ConfigBuilder {
 /// - The pointer must be properly aligned and point to a valid ConfigBuilder instance
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn kreuzberg_config_builder_set_use_cache(builder: *mut ConfigBuilder, use_cache: i32) -> i32 {
-    if builder.is_null() {
-        set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
-        return -1;
-    }
+    ffi_panic_guard_i32!("kreuzberg_config_builder_set_use_cache", {
+        if builder.is_null() {
+            set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
+            return -1;
+        }
 
-    clear_last_error();
-    unsafe { (*builder).set_use_cache(use_cache != 0) };
-    0
+        clear_last_error();
+        unsafe { (*builder).set_use_cache(use_cache != 0) };
+        0
+    })
 }
 
 /// Set OCR configuration from JSON.
@@ -153,32 +159,34 @@ pub unsafe extern "C" fn kreuzberg_config_builder_set_use_cache(builder: *mut Co
 /// - The string pointer must remain valid for the duration of the function call
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn kreuzberg_config_builder_set_ocr(builder: *mut ConfigBuilder, ocr_json: *const c_char) -> i32 {
-    if builder.is_null() {
-        set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
-        return -1;
-    }
-    if ocr_json.is_null() {
-        set_last_error("OCR JSON cannot be NULL".to_string());
-        return -1;
-    }
-
-    clear_last_error();
-
-    let json_str = match unsafe { CStr::from_ptr(ocr_json) }.to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            set_last_error(format!("Invalid UTF-8 in OCR JSON: {}", e));
+    ffi_panic_guard_i32!("kreuzberg_config_builder_set_ocr", {
+        if builder.is_null() {
+            set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
             return -1;
         }
-    };
-
-    match unsafe { (*builder).set_ocr_from_json(json_str) } {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
+        if ocr_json.is_null() {
+            set_last_error("OCR JSON cannot be NULL".to_string());
+            return -1;
         }
-    }
+
+        clear_last_error();
+
+        let json_str = match unsafe { CStr::from_ptr(ocr_json) }.to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_last_error(format!("Invalid UTF-8 in OCR JSON: {}", e));
+                return -1;
+            }
+        };
+
+        match unsafe { (*builder).set_ocr_from_json(json_str) } {
+            Ok(()) => 0,
+            Err(e) => {
+                set_last_error(e);
+                -1
+            }
+        }
+    })
 }
 
 /// Set PDF configuration from JSON.
@@ -201,32 +209,34 @@ pub unsafe extern "C" fn kreuzberg_config_builder_set_ocr(builder: *mut ConfigBu
 /// - The string pointer must remain valid for the duration of the function call
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn kreuzberg_config_builder_set_pdf(builder: *mut ConfigBuilder, pdf_json: *const c_char) -> i32 {
-    if builder.is_null() {
-        set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
-        return -1;
-    }
-    if pdf_json.is_null() {
-        set_last_error("PDF JSON cannot be NULL".to_string());
-        return -1;
-    }
-
-    clear_last_error();
-
-    let json_str = match unsafe { CStr::from_ptr(pdf_json) }.to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            set_last_error(format!("Invalid UTF-8 in PDF JSON: {}", e));
+    ffi_panic_guard_i32!("kreuzberg_config_builder_set_pdf", {
+        if builder.is_null() {
+            set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
             return -1;
         }
-    };
-
-    match unsafe { (*builder).set_pdf_from_json(json_str) } {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
+        if pdf_json.is_null() {
+            set_last_error("PDF JSON cannot be NULL".to_string());
+            return -1;
         }
-    }
+
+        clear_last_error();
+
+        let json_str = match unsafe { CStr::from_ptr(pdf_json) }.to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_last_error(format!("Invalid UTF-8 in PDF JSON: {}", e));
+                return -1;
+            }
+        };
+
+        match unsafe { (*builder).set_pdf_from_json(json_str) } {
+            Ok(()) => 0,
+            Err(e) => {
+                set_last_error(e);
+                -1
+            }
+        }
+    })
 }
 
 /// Set chunking configuration from JSON.
@@ -252,32 +262,34 @@ pub unsafe extern "C" fn kreuzberg_config_builder_set_chunking(
     builder: *mut ConfigBuilder,
     chunking_json: *const c_char,
 ) -> i32 {
-    if builder.is_null() {
-        set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
-        return -1;
-    }
-    if chunking_json.is_null() {
-        set_last_error("Chunking JSON cannot be NULL".to_string());
-        return -1;
-    }
-
-    clear_last_error();
-
-    let json_str = match unsafe { CStr::from_ptr(chunking_json) }.to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            set_last_error(format!("Invalid UTF-8 in chunking JSON: {}", e));
+    ffi_panic_guard_i32!("kreuzberg_config_builder_set_chunking", {
+        if builder.is_null() {
+            set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
             return -1;
         }
-    };
-
-    match unsafe { (*builder).set_chunking_from_json(json_str) } {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
+        if chunking_json.is_null() {
+            set_last_error("Chunking JSON cannot be NULL".to_string());
+            return -1;
         }
-    }
+
+        clear_last_error();
+
+        let json_str = match unsafe { CStr::from_ptr(chunking_json) }.to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_last_error(format!("Invalid UTF-8 in chunking JSON: {}", e));
+                return -1;
+            }
+        };
+
+        match unsafe { (*builder).set_chunking_from_json(json_str) } {
+            Ok(()) => 0,
+            Err(e) => {
+                set_last_error(e);
+                -1
+            }
+        }
+    })
 }
 
 /// Set image extraction configuration from JSON.
@@ -303,32 +315,34 @@ pub unsafe extern "C" fn kreuzberg_config_builder_set_image_extraction(
     builder: *mut ConfigBuilder,
     image_json: *const c_char,
 ) -> i32 {
-    if builder.is_null() {
-        set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
-        return -1;
-    }
-    if image_json.is_null() {
-        set_last_error("Image extraction JSON cannot be NULL".to_string());
-        return -1;
-    }
-
-    clear_last_error();
-
-    let json_str = match unsafe { CStr::from_ptr(image_json) }.to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            set_last_error(format!("Invalid UTF-8 in image extraction JSON: {}", e));
+    ffi_panic_guard_i32!("kreuzberg_config_builder_set_image_extraction", {
+        if builder.is_null() {
+            set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
             return -1;
         }
-    };
-
-    match unsafe { (*builder).set_image_extraction_from_json(json_str) } {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
+        if image_json.is_null() {
+            set_last_error("Image extraction JSON cannot be NULL".to_string());
+            return -1;
         }
-    }
+
+        clear_last_error();
+
+        let json_str = match unsafe { CStr::from_ptr(image_json) }.to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_last_error(format!("Invalid UTF-8 in image extraction JSON: {}", e));
+                return -1;
+            }
+        };
+
+        match unsafe { (*builder).set_image_extraction_from_json(json_str) } {
+            Ok(()) => 0,
+            Err(e) => {
+                set_last_error(e);
+                -1
+            }
+        }
+    })
 }
 
 /// Set post-processor configuration from JSON.
@@ -354,32 +368,34 @@ pub unsafe extern "C" fn kreuzberg_config_builder_set_post_processor(
     builder: *mut ConfigBuilder,
     pp_json: *const c_char,
 ) -> i32 {
-    if builder.is_null() {
-        set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
-        return -1;
-    }
-    if pp_json.is_null() {
-        set_last_error("Post-processor JSON cannot be NULL".to_string());
-        return -1;
-    }
-
-    clear_last_error();
-
-    let json_str = match unsafe { CStr::from_ptr(pp_json) }.to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            set_last_error(format!("Invalid UTF-8 in post-processor JSON: {}", e));
+    ffi_panic_guard_i32!("kreuzberg_config_builder_set_post_processor", {
+        if builder.is_null() {
+            set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
             return -1;
         }
-    };
-
-    match unsafe { (*builder).set_post_processor_from_json(json_str) } {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
+        if pp_json.is_null() {
+            set_last_error("Post-processor JSON cannot be NULL".to_string());
+            return -1;
         }
-    }
+
+        clear_last_error();
+
+        let json_str = match unsafe { CStr::from_ptr(pp_json) }.to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_last_error(format!("Invalid UTF-8 in post-processor JSON: {}", e));
+                return -1;
+            }
+        };
+
+        match unsafe { (*builder).set_post_processor_from_json(json_str) } {
+            Ok(()) => 0,
+            Err(e) => {
+                set_last_error(e);
+                -1
+            }
+        }
+    })
 }
 
 /// Set language detection configuration from JSON.
@@ -405,32 +421,34 @@ pub unsafe extern "C" fn kreuzberg_config_builder_set_language_detection(
     builder: *mut ConfigBuilder,
     ld_json: *const c_char,
 ) -> i32 {
-    if builder.is_null() {
-        set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
-        return -1;
-    }
-    if ld_json.is_null() {
-        set_last_error("Language detection JSON cannot be NULL".to_string());
-        return -1;
-    }
-
-    clear_last_error();
-
-    let json_str = match unsafe { CStr::from_ptr(ld_json) }.to_str() {
-        Ok(s) => s,
-        Err(e) => {
-            set_last_error(format!("Invalid UTF-8 in language detection JSON: {}", e));
+    ffi_panic_guard_i32!("kreuzberg_config_builder_set_language_detection", {
+        if builder.is_null() {
+            set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
             return -1;
         }
-    };
-
-    match unsafe { (*builder).set_language_detection_from_json(json_str) } {
-        Ok(()) => 0,
-        Err(e) => {
-            set_last_error(e);
-            -1
+        if ld_json.is_null() {
+            set_last_error("Language detection JSON cannot be NULL".to_string());
+            return -1;
         }
-    }
+
+        clear_last_error();
+
+        let json_str = match unsafe { CStr::from_ptr(ld_json) }.to_str() {
+            Ok(s) => s,
+            Err(e) => {
+                set_last_error(format!("Invalid UTF-8 in language detection JSON: {}", e));
+                return -1;
+            }
+        };
+
+        match unsafe { (*builder).set_language_detection_from_json(json_str) } {
+            Ok(()) => 0,
+            Err(e) => {
+                set_last_error(e);
+                -1
+            }
+        }
+    })
 }
 
 /// Build the final ExtractionConfig and consume the builder.
@@ -453,15 +471,17 @@ pub unsafe extern "C" fn kreuzberg_config_builder_set_language_detection(
 /// - The returned ExtractionConfig must be freed with kreuzberg_config_free()
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn kreuzberg_config_builder_build(builder: *mut ConfigBuilder) -> *mut ExtractionConfig {
-    if builder.is_null() {
-        set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
-        return ptr::null_mut();
-    }
+    ffi_panic_guard!("kreuzberg_config_builder_build", {
+        if builder.is_null() {
+            set_last_error("ConfigBuilder pointer cannot be NULL".to_string());
+            return ptr::null_mut();
+        }
 
-    clear_last_error();
-    let builder_box = unsafe { Box::from_raw(builder) };
-    let config = builder_box.build();
-    Box::into_raw(Box::new(config))
+        clear_last_error();
+        let builder_box = unsafe { Box::from_raw(builder) };
+        let config = builder_box.build();
+        Box::into_raw(Box::new(config))
+    })
 }
 
 /// Free a ConfigBuilder without building.

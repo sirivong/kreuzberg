@@ -62,18 +62,24 @@ tasks:
   test:
     desc: Run Ruby tests
     dir: packages/ruby
+    env:
+      ORT_DYLIB_PATH: /opt/homebrew/lib/libonnxruntime.dylib
     cmds:
       - "{{.BUNDLE}} exec rspec"
 
   test:ci:
     desc: Run Ruby tests in CI mode with env setup
     dir: packages/ruby
+    env:
+      ORT_DYLIB_PATH: /opt/homebrew/lib/libonnxruntime.dylib
     cmds:
       - "{{.BUNDLE}} exec rspec"
 
   test:verbose:
     desc: Run Ruby tests with detailed output
     dir: packages/ruby
+    env:
+      ORT_DYLIB_PATH: /opt/homebrew/lib/libonnxruntime.dylib
     cmds:
       - "{{.BUNDLE}} exec rspec --format documentation --color"
 
