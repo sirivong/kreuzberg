@@ -241,9 +241,35 @@ def main() -> None:
     generate_vendor_cargo_toml(repo_root, workspace_deps, core_version)
     print("Generated vendor/Cargo.toml")
 
+    # Update native extension Cargo.toml to use vendored crates
+    native_toml = repo_root / "packages" / "ruby" / "ext" / "kreuzberg_rb" / "native" / "Cargo.toml"
+    if native_toml.exists():
+        with open(native_toml, "r") as f:
+            content = f.read()
+
+        # Replace path dependencies to point to vendored crates
+        # From: path = "../../../../../crates/kreuzberg"
+        # To: path = "../../../vendor/kreuzberg"
+        content = re.sub(
+            r'path = "\.\./\.\./\.\./\.\./\.\./crates/kreuzberg"',
+            'path = "../../../vendor/kreuzberg"',
+            content
+        )
+        content = re.sub(
+            r'path = "\.\./\.\./\.\./\.\./\.\./crates/kreuzberg-ffi"',
+            'path = "../../../vendor/kreuzberg-ffi"',
+            content
+        )
+
+        with open(native_toml, "w") as f:
+            f.write(content)
+
+        print("Updated native extension Cargo.toml to use vendored crates")
+
     print(f"\nVendoring complete (core version: {core_version})")
     print("Native extension Cargo.toml uses:")
     print("  - path '../../../vendor/kreuzberg' for kreuzberg crate")
+    print("  - path '../../../vendor/kreuzberg-ffi' for kreuzberg-ffi crate")
     print("  - rb-sys from crates.io")
 
 
