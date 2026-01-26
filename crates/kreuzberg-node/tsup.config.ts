@@ -31,4 +31,11 @@ export default defineConfig({
 		"../index.js",
 		"../../index.js",
 	],
+	esbuildOptions: (options) => {
+		// Suppress direct eval warning - intentionally used for CJS/ESM compatibility
+		options.logOverride = {
+			...options.logOverride,
+			"direct-eval": "silent",
+		};
+	},
 });

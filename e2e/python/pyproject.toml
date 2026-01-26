@@ -7,7 +7,10 @@ name = "kreuzberg-e2e-tests"
 version = "4.2.0"
 description = "End-to-end tests for Kreuzberg Python bindings config parity"
 requires-python = ">=3.10"
-dependencies = ["kreuzberg>=4.2.0"]
+dependencies = ["kreuzberg"]
+
+[tool.uv.sources]
+kreuzberg = { workspace = true }
 
 [project.optional-dependencies]
 dev = ["pytest>=7.4.0", "pytest-cov>=4.1.0", "pytest-timeout>=2.1.0"]

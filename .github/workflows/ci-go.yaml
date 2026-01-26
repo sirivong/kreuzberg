@@ -153,6 +153,7 @@ jobs:
         uses: ./.github/actions/setup-onnx-runtime
         with:
           ort-version: ${{ env.ORT_VERSION }}
+          dest-dir: 'target/release'
 
       - name: Setup MSYS2 MinGW toolchain (Windows only)
         if: matrix.os == 'windows-latest'
@@ -422,6 +423,7 @@ jobs:
         uses: ./.github/actions/setup-onnx-runtime
         with:
           ort-version: ${{ env.ORT_VERSION }}
+          dest-dir: 'target/release'
 
       - name: Download FFI library
         uses: actions/download-artifact@v4

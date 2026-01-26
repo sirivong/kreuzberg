@@ -67,7 +67,7 @@ public static class LegacyExtractionAPI
     )
     {
         // Implementation delegated to KreuzbergClient
-        return await KreuzbergClient.ExtractAsync(input, mimeType, config);
+        return await KreuzbergClient.ExtractBytesAsync(input, mimeType, config);
     }
 }
 
@@ -93,7 +93,16 @@ public static class DeprecatedExtensions
         bool enable
     )
     {
-        return config with { EnableQualityProcessing = enable };
+        return new ExtractionConfig
+        {
+            ImageExtraction = config.ImageExtraction,
+            Ocr = config.Ocr,
+            Chunking = config.Chunking,
+            Cache = config.Cache,
+            EnableQualityProcessing = enable,
+            CustomProcessors = config.CustomProcessors,
+            Metadata = config.Metadata
+        };
     }
 
     /// <summary>
@@ -110,9 +119,21 @@ public static class DeprecatedExtensions
     )
     {
         var ocr = config.Ocr ?? new OcrConfig();
-        return config with
+        var newOcr = new OcrConfig
         {
-            Ocr = ocr with { Backend = backend }
+            Backend = backend,
+            Languages = ocr.Languages,
+            DPI = ocr.DPI
+        };
+        return new ExtractionConfig
+        {
+            ImageExtraction = config.ImageExtraction,
+            Ocr = newOcr,
+            Chunking = config.Chunking,
+            Cache = config.Cache,
+            EnableQualityProcessing = config.EnableQualityProcessing,
+            CustomProcessors = config.CustomProcessors,
+            Metadata = config.Metadata
         };
     }
 }

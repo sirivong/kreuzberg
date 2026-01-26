@@ -29,11 +29,10 @@ tasks:
 
   build:
     desc: Build Java package (depends on Rust FFI)
-    dir: packages/java
     cmds:
-      - cmd: bash -c 'if [ -f ~/.sdkman/bin/sdkman-init.sh ]; then source ~/.sdkman/bin/sdkman-init.sh && sdk use java 25.0.1-tem && sdk use maven 3.9.11; fi && mvn clean package -DskipTests'
+      - cmd: bash -c 'if [ -f ~/.sdkman/bin/sdkman-init.sh ]; then source ~/.sdkman/bin/sdkman-init.sh && sdk use java 25.0.1-tem && sdk use maven 3.9.11; fi && mvn -f packages/java/pom.xml clean package -DskipTests'
         platforms: [linux, darwin]
-      - cmd: mvn clean package -DskipTests
+      - cmd: mvn -f packages/java/pom.xml clean package -DskipTests
         platforms: [windows]
 
   build:dev:
@@ -47,20 +46,18 @@ tasks:
 
   build:release:
     desc: Build Java package in release mode (optimized)
-    dir: packages/java
     cmds:
-      - cmd: bash -c 'if [ -f ~/.sdkman/bin/sdkman-init.sh ]; then source ~/.sdkman/bin/sdkman-init.sh && sdk use java 25.0.1-tem && sdk use maven 3.9.11; fi && mvn clean package -DskipTests -Pproduction'
+      - cmd: bash -c 'if [ -f ~/.sdkman/bin/sdkman-init.sh ]; then source ~/.sdkman/bin/sdkman-init.sh && sdk use java 25.0.1-tem && sdk use maven 3.9.11; fi && mvn -f packages/java/pom.xml clean package -DskipTests -Pproduction'
         platforms: [linux, darwin]
-      - cmd: mvn clean package -DskipTests -Pproduction
+      - cmd: mvn -f packages/java/pom.xml clean package -DskipTests -Pproduction
         platforms: [windows]
 
   build:ci:
     desc: Build Java package in CI mode
-    dir: packages/java
     cmds:
-      - cmd: bash -c 'if [ -f ~/.sdkman/bin/sdkman-init.sh ]; then source ~/.sdkman/bin/sdkman-init.sh && sdk use java 25.0.1-tem && sdk use maven 3.9.11; fi && mvn clean package -DskipTests'
+      - cmd: bash -c 'if [ -f ~/.sdkman/bin/sdkman-init.sh ]; then source ~/.sdkman/bin/sdkman-init.sh && sdk use java 25.0.1-tem && sdk use maven 3.9.11; fi && mvn -f packages/java/pom.xml clean package -DskipTests'
         platforms: [linux, darwin]
-      - cmd: mvn clean package -DskipTests
+      - cmd: mvn -f packages/java/pom.xml clean package -DskipTests
         platforms: [windows]
 
   build:bindings:

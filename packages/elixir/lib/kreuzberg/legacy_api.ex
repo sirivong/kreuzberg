@@ -29,7 +29,7 @@ defmodule Kreuzberg.LegacyAPI do
   See: https://docs.kreuzberg.io/v1-to-v2-migration
   """
 
-  alias Kreuzberg.{ExtractionConfig, ExtractionResult, Native, Helpers, Error}
+  alias Kreuzberg.{ExtractionConfig, ExtractionResult}
 
   @doc """
   Extract content with deprecated boolean OCR parameter.
@@ -242,7 +242,7 @@ defmodule Kreuzberg.LegacyAPI do
   @deprecated "Validation is now automatic in extraction functions. Removes in v2.0.0."
   @spec validate_extraction_request(binary(), String.t(), keyword()) ::
           :ok | {:error, String.t()}
-  def validate_extraction_request(input, mime_type, opts \\ []) do
+  def validate_extraction_request(input, mime_type, _opts \\ []) do
     cond do
       not is_binary(input) -> {:error, "Input must be binary"}
       not is_binary(mime_type) -> {:error, "MIME type must be binary"}
