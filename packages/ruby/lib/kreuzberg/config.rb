@@ -807,45 +807,45 @@ module Kreuzberg
                      max_concurrent_extractions: nil,
                      output_format: nil,
                      result_format: nil)
-        # Support deserialization from hash
-        if hash.is_a?(Hash)
-          hash = hash.transform_keys(&:to_sym)
-          use_cache = hash[:use_cache] if hash.key?(:use_cache)
-          enable_quality_processing = hash[:enable_quality_processing] if hash.key?(:enable_quality_processing)
-          force_ocr = hash[:force_ocr] if hash.key?(:force_ocr)
-          ocr = hash[:ocr] if hash.key?(:ocr)
-          chunking = hash[:chunking] if hash.key?(:chunking)
-          language_detection = hash[:language_detection] if hash.key?(:language_detection)
-          pdf_options = hash[:pdf_options] if hash.key?(:pdf_options)
-          image_extraction = hash[:image_extraction] if hash.key?(:image_extraction)
-          image_preprocessing = hash[:image_preprocessing] if hash.key?(:image_preprocessing)
-          postprocessor = hash[:postprocessor] if hash.key?(:postprocessor)
-          token_reduction = hash[:token_reduction] if hash.key?(:token_reduction)
-          keywords = hash[:keywords] if hash.key?(:keywords)
-          html_options = hash[:html_options] if hash.key?(:html_options)
-          pages = hash[:pages] if hash.key?(:pages)
-          max_concurrent_extractions = hash[:max_concurrent_extractions] if hash.key?(:max_concurrent_extractions)
-          output_format = hash[:output_format] if hash.key?(:output_format)
-          result_format = hash[:result_format] if hash.key?(:result_format)
-        end
+        kwargs = {
+          use_cache: use_cache, enable_quality_processing: enable_quality_processing,
+          force_ocr: force_ocr, ocr: ocr, chunking: chunking, language_detection: language_detection,
+          pdf_options: pdf_options, image_extraction: image_extraction,
+          image_preprocessing: image_preprocessing, postprocessor: postprocessor,
+          token_reduction: token_reduction, keywords: keywords, html_options: html_options,
+          pages: pages, max_concurrent_extractions: max_concurrent_extractions,
+          output_format: output_format, result_format: result_format
+        }
+        extracted = extract_from_hash(hash, kwargs)
 
-        @use_cache = use_cache ? true : false
-        @enable_quality_processing = enable_quality_processing ? true : false
-        @force_ocr = force_ocr ? true : false
-        @ocr = normalize_config(ocr, OCR)
-        @chunking = normalize_config(chunking, Chunking)
-        @language_detection = normalize_config(language_detection, LanguageDetection)
-        @pdf_options = normalize_config(pdf_options, PDF)
-        @image_extraction = normalize_config(image_extraction, ImageExtraction)
-        @image_preprocessing = normalize_config(image_preprocessing, ImagePreprocessing)
-        @postprocessor = normalize_config(postprocessor, PostProcessor)
-        @token_reduction = normalize_config(token_reduction, TokenReduction)
-        @keywords = normalize_config(keywords, Keywords)
-        @html_options = normalize_config(html_options, HtmlOptions)
-        @pages = normalize_config(pages, PageConfig)
-        @max_concurrent_extractions = max_concurrent_extractions&.to_i
-        @output_format = output_format&.to_s
-        @result_format = result_format&.to_s
+        assign_attributes(extracted)
+      end
+
+      def extract_from_hash(hash, defaults)
+        return defaults unless hash.is_a?(Hash)
+
+        hash = hash.transform_keys(&:to_sym)
+        defaults.merge(hash.slice(*defaults.keys))
+      end
+
+      def assign_attributes(params)
+        @use_cache = params[:use_cache] ? true : false
+        @enable_quality_processing = params[:enable_quality_processing] ? true : false
+        @force_ocr = params[:force_ocr] ? true : false
+        @ocr = normalize_config(params[:ocr], OCR)
+        @chunking = normalize_config(params[:chunking], Chunking)
+        @language_detection = normalize_config(params[:language_detection], LanguageDetection)
+        @pdf_options = normalize_config(params[:pdf_options], PDF)
+        @image_extraction = normalize_config(params[:image_extraction], ImageExtraction)
+        @image_preprocessing = normalize_config(params[:image_preprocessing], ImagePreprocessing)
+        @postprocessor = normalize_config(params[:postprocessor], PostProcessor)
+        @token_reduction = normalize_config(params[:token_reduction], TokenReduction)
+        @keywords = normalize_config(params[:keywords], Keywords)
+        @html_options = normalize_config(params[:html_options], HtmlOptions)
+        @pages = normalize_config(params[:pages], PageConfig)
+        @max_concurrent_extractions = params[:max_concurrent_extractions]&.to_i
+        @output_format = params[:output_format]&.to_s
+        @result_format = params[:result_format]&.to_s
       end
 
       # rubocop:disable Metrics/CyclomaticComplexity

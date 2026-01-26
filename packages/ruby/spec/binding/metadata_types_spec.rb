@@ -1154,78 +1154,11 @@ RSpec.describe 'Kreuzberg Metadata Types' do
 
   describe 'Thread Safety: Concurrent Extraction' do
     it 'handles concurrent extraction safely' do
-      test_files = []
-      results = []
-      errors = []
-      read_complete = Mutex.new
-      read_count = 0
-      expected_reads = 5
+      test_files = create_concurrent_test_files
+      results, errors = run_concurrent_extractions(test_files)
 
-      5.times do |i|
-        html_content = <<~HTML
-          <html>
-          <head>
-            <title>Concurrent Test #{i}</title>
-            <meta name="description" content="Test document #{i}">
-            <meta name="keywords" content="test#{i}, concurrent, thread-safe">
-          </head>
-          <body>
-            <h1>Test Document #{i}</h1>
-            <p>Content for test #{i}</p>
-            <a href="/page-#{i}">Link #{i}</a>
-            <img src="image-#{i}.jpg" alt="Image #{i}">
-          </body>
-          </html>
-        HTML
-        test_files << create_test_html_file(html_content)
-      end
-
-      begin
-        threads = test_files.map do |file|
-          Thread.new do
-            result = Kreuzberg.extract_file_sync(path: file)
-            results << result
-          rescue StandardError => e
-            errors << e
-          ensure
-            # Signal that this thread has completed reading
-            read_complete.synchronize do
-              read_count += 1
-            end
-          end
-        end
-
-        threads.each(&:join)
-
-        # Wait for all reads to complete before cleanup
-        read_complete.synchronize do
-          # All threads should be done by now, but ensure read_count matches
-          expect(read_count).to eq(expected_reads)
-        end
-
-        expect(errors).to be_empty
-
-        expect(results.length).to eq(5)
-        results.each do |result|
-          expect(result).to be_a(Kreuzberg::Result)
-          expect(result.metadata).not_to be_nil
-
-          metadata = result.metadata
-          next unless metadata.is_a?(Kreuzberg::HtmlMetadata)
-
-          expect(metadata.title).not_to be_nil
-          expect(metadata.description).not_to be_nil
-          expect(metadata.keywords).to be_a(Array)
-          expect(metadata.headers).to be_a(Array)
-          expect(metadata.links).to be_a(Array)
-          expect(metadata.images).to be_a(Array)
-        end
-
-        titles = results.map { |r| r.metadata.is_a?(Kreuzberg::HtmlMetadata) ? r.metadata.title : r.metadata['title'] }
-        expect(titles.uniq.length).to eq(5)
-      ensure
-        test_files.each { |f| FileUtils.rm_f(f) }
-      end
+      expect(results).not_to be_empty
+      verify_concurrent_results(results, errors, test_files)
     end
   end
 
@@ -1238,5 +1171,78 @@ RSpec.describe 'Kreuzberg Metadata Types' do
     file.write(content)
     file.close
     file.path
+  end
+
+  def create_concurrent_test_files
+    test_files = []
+    5.times do |i|
+      html_content = <<~HTML
+        <html>
+        <head>
+          <title>Concurrent Test #{i}</title>
+          <meta name="description" content="Test document #{i}">
+          <meta name="keywords" content="test#{i}, concurrent, thread-safe">
+        </head>
+        <body>
+          <h1>Test Document #{i}</h1>
+          <p>Content for test #{i}</p>
+          <a href="/page-#{i}">Link #{i}</a>
+          <img src="image-#{i}.jpg" alt="Image #{i}">
+        </body>
+        </html>
+      HTML
+      test_files << create_test_html_file(html_content)
+    end
+    test_files
+  end
+
+  def run_concurrent_extractions(test_files)
+    results = []
+    errors = []
+
+    threads = test_files.map do |file|
+      Thread.new do
+        result = Kreuzberg.extract_file_sync(path: file)
+        results << result
+      rescue StandardError => e
+        errors << e
+      end
+    end
+
+    threads.each(&:join)
+    [results, errors]
+  end
+
+  def verify_concurrent_results(results, errors, test_files)
+    expect(errors).to be_empty
+    expect(results.length).to eq(5)
+
+    results.each do |result|
+      expect(result).to be_a(Kreuzberg::Result)
+      expect(result.metadata).not_to be_nil
+
+      metadata = result.metadata
+      next unless metadata.is_a?(Kreuzberg::HtmlMetadata)
+
+      verify_metadata_fields(metadata)
+    end
+
+    titles = extract_titles(results)
+    expect(titles.uniq.length).to eq(5)
+  ensure
+    test_files.each { |f| FileUtils.rm_f(f) }
+  end
+
+  def verify_metadata_fields(metadata)
+    expect(metadata.title).not_to be_nil
+    expect(metadata.description).not_to be_nil
+    expect(metadata.keywords).to be_a(Array)
+    expect(metadata.headers).to be_a(Array)
+    expect(metadata.links).to be_a(Array)
+    expect(metadata.images).to be_a(Array)
+  end
+
+  def extract_titles(results)
+    results.map { |r| r.metadata.is_a?(Kreuzberg::HtmlMetadata) ? r.metadata.title : r.metadata['title'] }
   end
 end
