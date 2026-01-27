@@ -53,7 +53,7 @@ class TestOutputFormatParity:
         doc_bytes = self.get_sample_document()
         config = ExtractionConfig(output_format="Plain")
 
-        result = extract_bytes_sync(doc_bytes, config, None)
+        result = extract_bytes_sync(doc_bytes, "text/plain", config)
 
         assert isinstance(result, ExtractionResult)
         assert result.content is not None
@@ -65,7 +65,7 @@ class TestOutputFormatParity:
         doc_bytes = self.get_sample_document()
         config = ExtractionConfig(output_format="Markdown")
 
-        result = extract_bytes_sync(doc_bytes, config, None)
+        result = extract_bytes_sync(doc_bytes, "text/plain", config)
 
         assert isinstance(result, ExtractionResult)
         assert result.content is not None
@@ -75,7 +75,7 @@ class TestOutputFormatParity:
         doc_bytes = self.get_sample_document()
         config = ExtractionConfig(output_format="Html")
 
-        result = extract_bytes_sync(doc_bytes, config, None)
+        result = extract_bytes_sync(doc_bytes, "text/plain", config)
 
         assert isinstance(result, ExtractionResult)
         assert result.content is not None
@@ -86,10 +86,10 @@ class TestOutputFormatParity:
 
         # Extract with different formats
         plain_config = ExtractionConfig(output_format="Plain")
-        plain_result = extract_bytes_sync(doc_bytes, plain_config, None)
+        plain_result = extract_bytes_sync(doc_bytes, "text/plain", plain_config)
 
         markdown_config = ExtractionConfig(output_format="Markdown")
-        markdown_result = extract_bytes_sync(doc_bytes, markdown_config, None)
+        markdown_result = extract_bytes_sync(doc_bytes, "text/plain", markdown_config)
 
         # Both should have content but they may differ in formatting
         assert plain_result.content is not None
@@ -123,7 +123,7 @@ class TestResultFormatParity:
         doc_bytes = self.get_sample_document()
         config = ExtractionConfig(result_format="Unified")
 
-        result = extract_bytes_sync(doc_bytes, config, None)
+        result = extract_bytes_sync(doc_bytes, "text/plain", config)
 
         assert isinstance(result, ExtractionResult)
         assert result.content is not None
@@ -135,7 +135,7 @@ class TestResultFormatParity:
         doc_bytes = self.get_sample_document()
         config = ExtractionConfig(result_format="Elements")
 
-        result = extract_bytes_sync(doc_bytes, config, None)
+        result = extract_bytes_sync(doc_bytes, "text/plain", config)
 
         assert isinstance(result, ExtractionResult)
         # Elements format may provide structured elements
@@ -147,10 +147,10 @@ class TestResultFormatParity:
 
         # Extract with different formats
         unified_config = ExtractionConfig(result_format="Unified")
-        unified_result = extract_bytes_sync(doc_bytes, unified_config, None)
+        unified_result = extract_bytes_sync(doc_bytes, "text/plain", unified_config)
 
         elements_config = ExtractionConfig(result_format="Elements")
-        elements_result = extract_bytes_sync(doc_bytes, elements_config, None)
+        elements_result = extract_bytes_sync(doc_bytes, "text/plain", elements_config)
 
         # Both should succeed
         assert unified_result is not None
@@ -175,7 +175,7 @@ class TestConfigCombinations:
             result_format="Unified"
         )
 
-        result = extract_bytes_sync(doc_bytes, config, None)
+        result = extract_bytes_sync(doc_bytes, "text/plain", config)
 
         assert result is not None
         assert isinstance(result, ExtractionResult)
@@ -188,7 +188,7 @@ class TestConfigCombinations:
             result_format="Elements"
         )
 
-        result = extract_bytes_sync(doc_bytes, config, None)
+        result = extract_bytes_sync(doc_bytes, "text/plain", config)
 
         assert result is not None
         assert isinstance(result, ExtractionResult)
@@ -201,7 +201,7 @@ class TestConfigCombinations:
             result_format="Unified"
         )
 
-        result = extract_bytes_sync(doc_bytes, config, None)
+        result = extract_bytes_sync(doc_bytes, "text/plain", config)
 
         assert result is not None
         assert isinstance(result, ExtractionResult)

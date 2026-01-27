@@ -746,6 +746,12 @@ module Kreuzberg
         images: :image_extraction
       }.freeze
 
+      # Valid output format values (case-sensitive)
+      VALID_OUTPUT_FORMATS = %w[Plain Markdown Html].freeze
+
+      # Valid result format values (case-sensitive)
+      VALID_RESULT_FORMATS = %w[Unified Elements].freeze
+
       def self.from_file(path)
         hash = Kreuzberg._config_from_file_native(path)
         new(**normalize_hash_keys(hash))
@@ -844,8 +850,28 @@ module Kreuzberg
         @html_options = normalize_config(params[:html_options], HtmlOptions)
         @pages = normalize_config(params[:pages], PageConfig)
         @max_concurrent_extractions = params[:max_concurrent_extractions]&.to_i
-        @output_format = params[:output_format]&.to_s
-        @result_format = params[:result_format]&.to_s
+        @output_format = validate_output_format(params[:output_format])
+        @result_format = validate_result_format(params[:result_format])
+      end
+
+      def validate_output_format(value)
+        return nil if value.nil?
+
+        str_value = value.to_s
+        return str_value if VALID_OUTPUT_FORMATS.include?(str_value)
+
+        raise ArgumentError,
+              "Invalid output_format: #{str_value}. Valid values: #{VALID_OUTPUT_FORMATS.join(', ')}"
+      end
+
+      def validate_result_format(value)
+        return nil if value.nil?
+
+        str_value = value.to_s
+        return str_value if VALID_RESULT_FORMATS.include?(str_value)
+
+        raise ArgumentError,
+              "Invalid result_format: #{str_value}. Valid values: #{VALID_RESULT_FORMATS.join(', ')}"
       end
 
       # rubocop:disable Metrics/CyclomaticComplexity
@@ -1011,9 +1037,9 @@ module Kreuzberg
         when :max_concurrent_extractions
           @max_concurrent_extractions = value&.to_i
         when :output_format
-          @output_format = value&.to_s
+          @output_format = validate_output_format(value)
         when :result_format
-          @result_format = value&.to_s
+          @result_format = validate_result_format(value)
         else
           raise ArgumentError, "Unknown configuration key: #{key}"
         end

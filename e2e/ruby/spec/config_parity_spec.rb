@@ -7,9 +7,9 @@ RSpec.describe "Config Parity E2E Tests" do
   def sample_document
     File.expand_path("../../../../test_documents/text/report.txt", __FILE__).then do |path|
       if File.exist?(path)
-        File.read(path).bytes
+        File.read(path, mode: 'rb')
       else
-        "Hello World\n\nThis is a test document with multiple lines.".bytes
+        "Hello World\n\nThis is a test document with multiple lines."
       end
     end
   end
@@ -38,7 +38,7 @@ RSpec.describe "Config Parity E2E Tests" do
         doc = sample_document
         config = Kreuzberg::ExtractionConfig.new(output_format: "Plain")
 
-        result = Kreuzberg.extract_bytes(doc, config, nil)
+        result = Kreuzberg.extract_bytes(data: doc, mime_type: "text/plain", config: config)
 
         expect(result).to be_a(Kreuzberg::ExtractionResult)
         expect(result.content).not_to be_nil
@@ -49,7 +49,7 @@ RSpec.describe "Config Parity E2E Tests" do
         doc = sample_document
         config = Kreuzberg::ExtractionConfig.new(output_format: "Markdown")
 
-        result = Kreuzberg.extract_bytes(doc, config, nil)
+        result = Kreuzberg.extract_bytes(data: doc, mime_type: "text/plain", config: config)
 
         expect(result).to be_a(Kreuzberg::ExtractionResult)
         expect(result.content).not_to be_nil
@@ -59,7 +59,7 @@ RSpec.describe "Config Parity E2E Tests" do
         doc = sample_document
         config = Kreuzberg::ExtractionConfig.new(output_format: "Html")
 
-        result = Kreuzberg.extract_bytes(doc, config, nil)
+        result = Kreuzberg.extract_bytes(data: doc, mime_type: "text/plain", config: config)
 
         expect(result).to be_a(Kreuzberg::ExtractionResult)
         expect(result.content).not_to be_nil
@@ -71,10 +71,10 @@ RSpec.describe "Config Parity E2E Tests" do
         doc = sample_document
 
         plain_config = Kreuzberg::ExtractionConfig.new(output_format: "Plain")
-        plain_result = Kreuzberg.extract_bytes(doc, plain_config, nil)
+        plain_result = Kreuzberg.extract_bytes(data: doc, mime_type: "text/plain", config: plain_config)
 
         markdown_config = Kreuzberg::ExtractionConfig.new(output_format: "Markdown")
-        markdown_result = Kreuzberg.extract_bytes(doc, markdown_config, nil)
+        markdown_result = Kreuzberg.extract_bytes(data: doc, mime_type: "text/plain", config: markdown_config)
 
         expect(plain_result.content).not_to be_nil
         expect(markdown_result.content).not_to be_nil
@@ -106,7 +106,7 @@ RSpec.describe "Config Parity E2E Tests" do
         doc = sample_document
         config = Kreuzberg::ExtractionConfig.new(result_format: "Unified")
 
-        result = Kreuzberg.extract_bytes(doc, config, nil)
+        result = Kreuzberg.extract_bytes(data: doc, mime_type: "text/plain", config: config)
 
         expect(result).to be_a(Kreuzberg::ExtractionResult)
         expect(result.content).not_to be_nil
@@ -117,7 +117,7 @@ RSpec.describe "Config Parity E2E Tests" do
         doc = sample_document
         config = Kreuzberg::ExtractionConfig.new(result_format: "Elements")
 
-        result = Kreuzberg.extract_bytes(doc, config, nil)
+        result = Kreuzberg.extract_bytes(data: doc, mime_type: "text/plain", config: config)
 
         expect(result).to be_a(Kreuzberg::ExtractionResult)
       end
@@ -128,10 +128,10 @@ RSpec.describe "Config Parity E2E Tests" do
         doc = sample_document
 
         unified_config = Kreuzberg::ExtractionConfig.new(result_format: "Unified")
-        unified_result = Kreuzberg.extract_bytes(doc, unified_config, nil)
+        unified_result = Kreuzberg.extract_bytes(data: doc, mime_type: "text/plain", config: unified_config)
 
         elements_config = Kreuzberg::ExtractionConfig.new(result_format: "Elements")
-        elements_result = Kreuzberg.extract_bytes(doc, elements_config, nil)
+        elements_result = Kreuzberg.extract_bytes(data: doc, mime_type: "text/plain", config: elements_config)
 
         expect(unified_result).not_to be_nil
         expect(elements_result).not_to be_nil
@@ -147,7 +147,7 @@ RSpec.describe "Config Parity E2E Tests" do
         result_format: "Unified"
       )
 
-      result = Kreuzberg.extract_bytes(doc, config, nil)
+      result = Kreuzberg.extract_bytes(data: doc, mime_type: "text/plain", config: config)
 
       expect(result).to be_a(Kreuzberg::ExtractionResult)
     end
@@ -159,7 +159,7 @@ RSpec.describe "Config Parity E2E Tests" do
         result_format: "Elements"
       )
 
-      result = Kreuzberg.extract_bytes(doc, config, nil)
+      result = Kreuzberg.extract_bytes(data: doc, mime_type: "text/plain", config: config)
 
       expect(result).to be_a(Kreuzberg::ExtractionResult)
     end
@@ -171,7 +171,7 @@ RSpec.describe "Config Parity E2E Tests" do
         result_format: "Unified"
       )
 
-      result = Kreuzberg.extract_bytes(doc, config, nil)
+      result = Kreuzberg.extract_bytes(data: doc, mime_type: "text/plain", config: config)
 
       expect(result).to be_a(Kreuzberg::ExtractionResult)
     end

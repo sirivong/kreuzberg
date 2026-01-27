@@ -453,14 +453,20 @@ defmodule Kreuzberg.ExtractionConfig do
 
   ## Examples
 
-      iex> Kreuzberg.ExtractionConfig.from_file("kreuzberg.toml")
-      {:ok, %Kreuzberg.ExtractionConfig{...}}
+  Loading from a TOML file:
 
-      iex> Kreuzberg.ExtractionConfig.from_file("/etc/config/extraction.yaml")
-      {:ok, config}
+      Kreuzberg.ExtractionConfig.from_file("kreuzberg.toml")
+      # => {:ok, %Kreuzberg.ExtractionConfig{...}}
 
-      iex> Kreuzberg.ExtractionConfig.from_file("/nonexistent/file.toml")
-      {:error, "File not found: /nonexistent/file.toml"}
+  Loading from a YAML file:
+
+      Kreuzberg.ExtractionConfig.from_file("/etc/config/extraction.yaml")
+      # => {:ok, %Kreuzberg.ExtractionConfig{...}}
+
+  Handling missing files:
+
+      Kreuzberg.ExtractionConfig.from_file("/nonexistent/file.toml")
+      # => {:error, "File not found: ..."}
   """
   @spec from_file(String.t() | Path.t()) :: {:ok, t()} | {:error, String.t()}
   def from_file(file_path) do
