@@ -80,9 +80,9 @@ runs:
       uses: actions/cache@v5
       with:
         path: ~/.cargo/bin/cargo-llvm-cov
-        key: cargo-llvm-cov-v4-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}
+        key: cargo-llvm-cov-v5-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}
         restore-keys: |
-          cargo-llvm-cov-v4-${{ runner.os }}-
+          cargo-llvm-cov-v5-${{ runner.os }}-
 
     - name: Validate sccache installation
       if: inputs.use-sccache == 'true'
