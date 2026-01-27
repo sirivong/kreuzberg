@@ -44,7 +44,7 @@ readonly class ExtractionConfig
          * @var PdfConfig|null
          * @default null
          */
-        public ?PdfConfig $pdfOptions = null,
+        public ?PdfConfig $pdf = null,
 
         /**
          * Text chunking configuration.
@@ -77,7 +77,7 @@ readonly class ExtractionConfig
          * @var ImageExtractionConfig|null
          * @default null
          */
-        public ?ImageExtractionConfig $images = null,
+        public ?ImageExtractionConfig $imageExtraction = null,
 
         /**
          * Page extraction configuration.
@@ -87,7 +87,7 @@ readonly class ExtractionConfig
          * @var PageConfig|null
          * @default null
          */
-        public ?PageConfig $pages = null,
+        public ?PageConfig $page = null,
 
         /**
          * Language detection configuration.
@@ -432,11 +432,11 @@ readonly class ExtractionConfig
 
         return new self(
             ocr: $ocr,
-            pdfOptions: $pdf,
+            pdf: $pdf,
             chunking: $chunking,
             embedding: $embedding,
-            images: $imageExtraction,
-            pages: $page,
+            imageExtraction: $imageExtraction,
+            page: $page,
             languageDetection: $languageDetection,
             keywords: $keywords,
             extractImages: $extractImages,
@@ -628,21 +628,21 @@ readonly class ExtractionConfig
 
         // If extractImages is enabled but imageExtraction config is not provided,
         // auto-create an ImageExtractionConfig to enable image extraction
-        $imageExtraction = $this->images;
+        $imageExtraction = $this->imageExtraction;
         if ($this->extractImages && $imageExtraction === null) {
             $imageExtraction = new ImageExtractionConfig(extractImages: true);
         } elseif (!$this->extractImages && $imageExtraction !== null) {
             // If extractImages is false but images config exists, respect the config
-            $imageExtraction = $this->images;
+            $imageExtraction = $this->imageExtraction;
         }
 
         $result = [
             'ocr' => $this->ocr?->toArray(),
-            'pdf_options' => $this->pdfOptions?->toArray(),
+            'pdf' => $this->pdf?->toArray(),
             'chunking' => $chunking?->toArray(),
             'embedding' => $this->embedding?->toArray(),
             'images' => $imageExtraction?->toArray(),
-            'pages' => $this->pages?->toArray(),
+            'pages' => $this->page?->toArray(),
             'language_detection' => $this->languageDetection?->toArray(),
             'keywords' => $this->keywords?->toArray(),
             'html_options' => $this->htmlOptions,

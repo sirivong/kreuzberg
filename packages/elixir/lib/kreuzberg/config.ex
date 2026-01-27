@@ -88,12 +88,12 @@ defmodule Kreuzberg.ExtractionConfig do
       # Validate invalid configuration (non-boolean field)
       iex> config = %Kreuzberg.ExtractionConfig{use_cache: "yes"}
       iex> Kreuzberg.ExtractionConfig.validate(config)
-      {:error, "Field 'use_cache' must be a boolean"}
+      {:error, "Field 'use_cache' must be a boolean, got: string"}
 
       # Validate invalid format
       iex> config = %Kreuzberg.ExtractionConfig{output_format: "invalid"}
       iex> Kreuzberg.ExtractionConfig.validate(config)
-      {:error, "Field 'output_format' must be one of: plain, text, markdown, md, djot, html"}
+      {:error, "Field 'output_format' must be one of: plain, text, markdown, md, djot, html, got: invalid"}
 
       # Convert to map for NIF
       iex> config = %Kreuzberg.ExtractionConfig{chunking: %{"size" => 512}}
@@ -108,6 +108,8 @@ defmodule Kreuzberg.ExtractionConfig do
         "token_reduction" => nil,
         "keywords" => nil,
         "pdf_options" => nil,
+        "html_options" => nil,
+        "max_concurrent_extractions" => nil,
         "use_cache" => true,
         "enable_quality_processing" => true,
         "force_ocr" => false,
@@ -211,6 +213,8 @@ defmodule Kreuzberg.ExtractionConfig do
         "token_reduction" => nil,
         "keywords" => nil,
         "pdf_options" => nil,
+        "html_options" => nil,
+        "max_concurrent_extractions" => nil,
         "use_cache" => true,
         "enable_quality_processing" => true,
         "force_ocr" => false,
@@ -230,6 +234,8 @@ defmodule Kreuzberg.ExtractionConfig do
         "token_reduction" => nil,
         "keywords" => nil,
         "pdf_options" => nil,
+        "html_options" => nil,
+        "max_concurrent_extractions" => nil,
         "use_cache" => true,
         "enable_quality_processing" => true,
         "force_ocr" => false,
@@ -394,7 +400,7 @@ defmodule Kreuzberg.ExtractionConfig do
 
       iex> config = %Kreuzberg.ExtractionConfig{output_format: "invalid"}
       iex> Kreuzberg.ExtractionConfig.validate(config)
-      {:error, "Field 'output_format' must be one of: plain, markdown, djot, html, got: invalid"}
+      {:error, "Field 'output_format' must be one of: plain, text, markdown, md, djot, html, got: invalid"}
 
       iex> config = %Kreuzberg.ExtractionConfig{chunking: "invalid"}
       iex> Kreuzberg.ExtractionConfig.validate(config)
@@ -500,14 +506,6 @@ defmodule Kreuzberg.ExtractionConfig do
     * `{:error, reason}` - Error loading or parsing the configuration file
 
   ## Examples
-
-      # With kreuzberg.toml in current directory
-      iex> Kreuzberg.ExtractionConfig.discover()
-      {:ok, %Kreuzberg.ExtractionConfig{...}}
-
-      # With kreuzberg.yaml in a parent directory
-      iex> Kreuzberg.ExtractionConfig.discover()
-      {:ok, config}
 
       # When no config file exists
       iex> Kreuzberg.ExtractionConfig.discover()

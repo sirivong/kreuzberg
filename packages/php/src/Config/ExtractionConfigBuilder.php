@@ -286,11 +286,11 @@ class ExtractionConfigBuilder
     {
         return new ExtractionConfig(
             ocr: $this->ocr,
-            pdfOptions: $this->pdf,
+            pdf: $this->pdf,
             chunking: $this->chunking,
             embedding: $this->embedding,
-            images: $this->imageExtraction,
-            pages: $this->page,
+            imageExtraction: $this->imageExtraction,
+            page: $this->page,
             languageDetection: $this->languageDetection,
             keywords: $this->keywords,
             extractImages: $this->extractImages,

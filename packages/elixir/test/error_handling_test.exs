@@ -751,8 +751,7 @@ defmodule KreuzbergTest.ErrorHandlingTest do
         assert tuple_size(result) == 2
       end)
 
-      # Verify we have both successes and errors
-      has_success = Enum.any?(results, fn {status, _} -> status == :ok end)
+      # Verify we have errors
       has_error = Enum.any?(results, fn {status, _} -> status == :error end)
 
       assert has_error == true
