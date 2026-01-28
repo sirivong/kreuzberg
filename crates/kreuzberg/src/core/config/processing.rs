@@ -84,7 +84,8 @@ pub struct ChunkingConfig {
 /// Requires the `embeddings` feature to be enabled.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmbeddingConfig {
-    /// The embedding model to use
+    /// The embedding model to use (defaults to "balanced" preset if not specified)
+    #[serde(default = "default_model")]
     pub model: EmbeddingModelType,
 
     /// Whether to normalize embedding vectors (recommended for cosine similarity)
@@ -154,6 +155,12 @@ fn default_normalize() -> bool {
 
 fn default_batch_size() -> usize {
     32
+}
+
+fn default_model() -> EmbeddingModelType {
+    EmbeddingModelType::Preset {
+        name: "balanced".to_string(),
+    }
 }
 
 #[cfg(test)]

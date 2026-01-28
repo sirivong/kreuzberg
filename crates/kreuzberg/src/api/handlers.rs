@@ -8,7 +8,7 @@ use axum::{
 use crate::{batch_extract_bytes, cache, extract_bytes};
 
 use super::{
-    error::ApiError,
+    error::{ApiError, JsonApi},
     types::{
         ApiState, CacheClearResponse, CacheStatsResponse, ChunkRequest, ChunkResponse, EmbedRequest, EmbedResponse,
         ExtractResponse, HealthResponse, InfoResponse,
@@ -312,7 +312,7 @@ pub async fn cache_clear_handler() -> Result<Json<CacheClearResponse>, ApiError>
     responses(
         (status = 200, description = "Embeddings generated", body = EmbedResponse),
         (status = 400, description = "Bad request - validation failed (e.g., empty texts array)", body = crate::api::types::ErrorResponse),
-        (status = 422, description = "Unprocessable entity - invalid JSON body", body = String),
+        (status = 422, description = "Unprocessable entity - invalid JSON body", body = crate::api::types::ErrorResponse),
         (status = 500, description = "Internal server error", body = crate::api::types::ErrorResponse),
     )
 )]
@@ -328,12 +328,19 @@ pub async fn cache_clear_handler() -> Result<Json<CacheClearResponse>, ApiError>
         )
     )
 )]
-pub async fn embed_handler(Json(request): Json<EmbedRequest>) -> Result<Json<EmbedResponse>, ApiError> {
+pub async fn embed_handler(JsonApi(request): JsonApi<EmbedRequest>) -> Result<Json<EmbedResponse>, ApiError> {
     use crate::types::{Chunk, ChunkMetadata};
 
     if request.texts.is_empty() {
         return Err(ApiError::validation(crate::error::KreuzbergError::validation(
             "No texts provided for embedding generation",
+        )));
+    }
+
+    // Validate that no texts are empty
+    if request.texts.iter().any(|t| t.is_empty()) {
+        return Err(ApiError::validation(crate::error::KreuzbergError::validation(
+            "All text entries must be non-empty strings",
         )));
     }
 
@@ -407,12 +414,12 @@ pub async fn embed_handler(Json(request): Json<EmbedRequest>) -> Result<Json<Emb
     responses(
         (status = 200, description = "Embeddings generated", body = EmbedResponse),
         (status = 400, description = "Bad request - validation failed (e.g., empty texts array)", body = crate::api::types::ErrorResponse),
-        (status = 422, description = "Unprocessable entity - invalid JSON body", body = String),
+        (status = 422, description = "Unprocessable entity - invalid JSON body", body = crate::api::types::ErrorResponse),
         (status = 500, description = "Internal server error", body = crate::api::types::ErrorResponse),
     )
 )]
 #[cfg(not(feature = "embeddings"))]
-pub async fn embed_handler(Json(_request): Json<EmbedRequest>) -> Result<Json<EmbedResponse>, ApiError> {
+pub async fn embed_handler(JsonApi(_request): JsonApi<EmbedRequest>) -> Result<Json<EmbedResponse>, ApiError> {
     Err(ApiError::internal(crate::error::KreuzbergError::MissingDependency(
         "Embeddings feature is not enabled. Rebuild with --features embeddings".to_string(),
     )))
@@ -432,7 +439,7 @@ pub async fn embed_handler(Json(_request): Json<EmbedRequest>) -> Result<Json<Em
     responses(
         (status = 200, description = "Text chunked successfully", body = ChunkResponse),
         (status = 400, description = "Bad request - validation failed (e.g., empty text)", body = crate::api::types::ErrorResponse),
-        (status = 422, description = "Unprocessable entity - invalid JSON body", body = String),
+        (status = 422, description = "Unprocessable entity - invalid JSON body", body = crate::api::types::ErrorResponse),
         (status = 500, description = "Internal server error", body = crate::api::types::ErrorResponse),
     )
 )]
@@ -444,7 +451,7 @@ pub async fn embed_handler(Json(_request): Json<EmbedRequest>) -> Result<Json<Em
         fields(text_length = request.text.len(), chunker_type = request.chunker_type.as_str())
     )
 )]
-pub async fn chunk_handler(Json(request): Json<ChunkRequest>) -> Result<Json<ChunkResponse>, ApiError> {
+pub async fn chunk_handler(JsonApi(request): JsonApi<ChunkRequest>) -> Result<Json<ChunkResponse>, ApiError> {
     use super::types::{ChunkItem, ChunkingConfigResponse};
     use crate::chunking::{ChunkerType, ChunkingConfig, chunk_text};
 
@@ -455,9 +462,9 @@ pub async fn chunk_handler(Json(request): Json<ChunkRequest>) -> Result<Json<Chu
         )));
     }
 
-    // Parse chunker_type
+    // Parse chunker_type (empty string is invalid, use default by omitting the field)
     let chunker_type = match request.chunker_type.to_lowercase().as_str() {
-        "text" | "" => ChunkerType::Text,
+        "text" => ChunkerType::Text,
         "markdown" => ChunkerType::Markdown,
         other => {
             return Err(ApiError::validation(crate::error::KreuzbergError::validation(format!(
@@ -469,15 +476,37 @@ pub async fn chunk_handler(Json(request): Json<ChunkRequest>) -> Result<Json<Chu
 
     // Build config with defaults
     let cfg = request.config.unwrap_or_default();
+    let max_characters = cfg.max_characters.unwrap_or(2000);
+    let overlap = cfg.overlap.unwrap_or(100);
+
+    // Validate chunking configuration
+    if overlap >= max_characters {
+        return Err(ApiError::validation(crate::error::KreuzbergError::validation(format!(
+            "Invalid chunking configuration: overlap ({}) must be less than max_characters ({})",
+            overlap, max_characters
+        ))));
+    }
+
     let config = ChunkingConfig {
-        max_characters: cfg.max_characters.unwrap_or(2000),
-        overlap: cfg.overlap.unwrap_or(100),
+        max_characters,
+        overlap,
         trim: cfg.trim.unwrap_or(true),
         chunker_type,
     };
 
-    // Perform chunking
-    let result = chunk_text(&request.text, &config, None).map_err(ApiError::internal)?;
+    // Perform chunking - convert any remaining errors to validation errors since they're likely config issues
+    let result = chunk_text(&request.text, &config, None).map_err(|e| {
+        // Check if error message indicates a configuration issue
+        let msg = e.to_string();
+        if msg.contains("configuration") || msg.contains("overlap") || msg.contains("capacity") {
+            ApiError::validation(crate::error::KreuzbergError::validation(format!(
+                "Invalid chunking configuration: {}",
+                msg
+            )))
+        } else {
+            ApiError::internal(e)
+        }
+    })?;
 
     // Transform to response
     let chunks = result

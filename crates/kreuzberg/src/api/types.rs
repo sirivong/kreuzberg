@@ -216,7 +216,7 @@ pub struct CacheClearResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct EmbedRequest {
-    /// Text strings to generate embeddings for (at least one required)
+    /// Text strings to generate embeddings for (at least one non-empty string required)
     #[cfg_attr(feature = "api", schema(min_items = 1))]
     pub texts: Vec<String>,
     /// Optional embedding configuration (model, batch size, etc.)
@@ -265,9 +265,11 @@ pub struct ChunkRequest {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct ChunkingConfigRequest {
-    /// Maximum characters per chunk
+    /// Maximum characters per chunk (must be greater than overlap, default: 2000)
+    #[cfg_attr(feature = "api", schema(minimum = 101, example = 2000))]
     pub max_characters: Option<usize>,
-    /// Overlap between chunks in characters
+    /// Overlap between chunks in characters (must be less than max_characters, default: 100)
+    #[cfg_attr(feature = "api", schema(minimum = 0, maximum = 1999, example = 100))]
     pub overlap: Option<usize>,
     /// Whether to trim whitespace
     pub trim: Option<bool>,

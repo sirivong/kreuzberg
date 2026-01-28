@@ -104,17 +104,18 @@ jobs:
 
       - name: Run API contract tests with schemathesis
         if: ${{ !inputs.skip_tests }}
-        continue-on-error: true
         run: |
           pip3 install schemathesis
           container_id=$(docker run -d -p 8000:8000 kreuzberg:${{ matrix.variant }})
           sleep 5
-          # Run schemathesis with basic checks (response validation)
-          # Uses --max-examples to limit fuzzing iterations
+          FAILED=0
+          # Run schemathesis with checks that match our API's validation behavior
+          # Excluded: positive_data_acceptance (API has stricter validation than schema allows)
           schemathesis run http://localhost:8000/openapi.json \
             --max-examples=10 \
-            --checks response_schema_conformance || echo "Schemathesis found issues (non-blocking)"
+            --checks not_a_server_error,status_code_conformance,content_type_conformance,response_schema_conformance,negative_data_rejection || FAILED=1
           docker stop "$container_id"
+          exit "$FAILED"
 
       - name: Save Docker image as artifact
         if: success()

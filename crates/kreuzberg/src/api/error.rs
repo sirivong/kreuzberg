@@ -2,13 +2,37 @@
 
 use axum::{
     Json,
+    extract::{FromRequest, Request, rejection::JsonRejection},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use serde::de::DeserializeOwned;
 
 use crate::error::KreuzbergError;
 
 use super::types::ErrorResponse;
+
+/// Custom JSON extractor that returns JSON error responses instead of plain text.
+///
+/// This wraps axum's `Json` extractor but uses `ApiError` as the rejection type,
+/// ensuring that all JSON parsing errors are returned as JSON with proper content type.
+#[derive(Debug, Clone, Copy, Default)]
+pub struct JsonApi<T>(pub T);
+
+impl<T, S> FromRequest<S> for JsonApi<T>
+where
+    T: DeserializeOwned,
+    S: Send + Sync,
+{
+    type Rejection = ApiError;
+
+    async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
+        match Json::<T>::from_request(req, state).await {
+            Ok(Json(value)) => Ok(JsonApi(value)),
+            Err(rejection) => Err(ApiError::from(rejection)),
+        }
+    }
+}
 
 /// API-specific error wrapper.
 #[derive(Debug)]
@@ -76,6 +100,42 @@ impl From<KreuzbergError> for ApiError {
             KreuzbergError::Validation { .. } => Self::validation(error),
             KreuzbergError::Parsing { .. } | KreuzbergError::Ocr { .. } => Self::unprocessable(error),
             _ => Self::internal(error),
+        }
+    }
+}
+
+impl From<JsonRejection> for ApiError {
+    fn from(rejection: JsonRejection) -> Self {
+        let (status, message) = match rejection {
+            JsonRejection::JsonDataError(err) => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                format!(
+                    "Failed to deserialize the JSON body into the target type: {}",
+                    err.body_text()
+                ),
+            ),
+            JsonRejection::JsonSyntaxError(err) => (
+                StatusCode::BAD_REQUEST,
+                format!("Failed to parse the request body as JSON: {}", err.body_text()),
+            ),
+            JsonRejection::MissingJsonContentType(_) => (
+                StatusCode::UNSUPPORTED_MEDIA_TYPE,
+                "Expected request with `Content-Type: application/json`".to_string(),
+            ),
+            JsonRejection::BytesRejection(err) => {
+                (StatusCode::BAD_REQUEST, format!("Failed to read request body: {}", err))
+            }
+            _ => (StatusCode::BAD_REQUEST, "Unknown JSON parsing error".to_string()),
+        };
+
+        Self {
+            status,
+            body: ErrorResponse {
+                error_type: "JsonParsingError".to_string(),
+                message,
+                traceback: None,
+                status_code: status.as_u16(),
+            },
         }
     }
 }
