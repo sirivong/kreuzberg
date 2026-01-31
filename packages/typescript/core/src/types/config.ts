@@ -20,20 +20,33 @@ export interface OcrConfig {
 	tesseractConfig?: TesseractConfig;
 }
 
+export interface EmbeddingModelType {
+	/** Type of model: "preset", "fastembed", or "custom" */
+	modelType: string;
+	/** For preset: preset name; for fastembed/custom: model ID */
+	value: string;
+	/** Number of dimensions (only for fastembed/custom) */
+	dimensions?: number;
+}
+
+export interface EmbeddingConfig {
+	/** Embedding model configuration */
+	model?: EmbeddingModelType;
+	/** Whether to normalize embeddings (L2 normalization) */
+	normalize?: boolean;
+	/** Batch size for embedding generation */
+	batchSize?: number;
+	/** Whether to show download progress for models */
+	showDownloadProgress?: boolean;
+	/** Custom cache directory for model storage */
+	cacheDir?: string;
+}
+
 export interface ChunkingConfig {
 	maxChars?: number;
 	maxOverlap?: number;
-	/**
-	 * @deprecated Since 4.2.0, use `maxChars` instead
-	 */
-	chunkSize?: number;
-	/**
-	 * @deprecated Since 4.2.0, use `maxOverlap` instead
-	 */
-	chunkOverlap?: number;
 	preset?: string;
-	embedding?: Record<string, unknown>;
-	enabled?: boolean;
+	embedding?: EmbeddingConfig;
 }
 
 export interface LanguageDetectionConfig {
@@ -47,16 +60,22 @@ export interface TokenReductionConfig {
 	preserveImportantWords?: boolean;
 }
 
-export interface FontConfig {
+export interface HierarchyConfig {
+	/** Enable hierarchical document structure extraction */
 	enabled?: boolean;
-	customFontDirs?: string[];
+	/** Number of clusters for hierarchy (default: 6) */
+	kClusters?: number;
+	/** Include bounding box information */
+	includeBbox?: boolean;
+	/** OCR coverage threshold for hierarchy (0.0-1.0) */
+	ocrCoverageThreshold?: number;
 }
 
 export interface PdfConfig {
 	extractImages?: boolean;
 	passwords?: string[];
 	extractMetadata?: boolean;
-	fontConfig?: FontConfig;
+	hierarchy?: HierarchyConfig;
 }
 
 export interface ImageExtractionConfig {
@@ -249,7 +268,6 @@ export interface ExtractionConfig {
 	keywords?: KeywordConfig;
 	pages?: PageConfig;
 	maxConcurrentExtractions?: number;
-
 	/**
 	 * Content text format (default: Plain).
 	 * Controls the format of the extracted content:
@@ -257,17 +275,8 @@ export interface ExtractionConfig {
 	 * - "markdown": Markdown formatted output
 	 * - "djot": Djot markup format
 	 * - "html": HTML formatted output
-	 *
-	 * @example
-	 * ```typescript
-	 * // Get markdown formatted output
-	 * const config: ExtractionConfig = {
-	 *   outputFormat: "markdown"
-	 * };
-	 * ```
 	 */
 	outputFormat?: "plain" | "markdown" | "djot" | "html";
-
 	/**
 	 * Result structure format (default: Unified).
 	 * Controls whether results are returned in unified format with all
@@ -275,76 +284,7 @@ export interface ExtractionConfig {
 	 * elements (for Unstructured-compatible output).
 	 *
 	 * - "unified": All content in the content field with metadata at result level (default)
-	 * - "element_based": Semantic elements (headings, paragraphs, tables, etc.) for Unstructured compatibility
-	 *
-	 * @example
-	 * ```typescript
-	 * // Get element-based output for Unstructured compatibility
-	 * const config: ExtractionConfig = {
-	 *   resultFormat: "element_based"
-	 * };
-	 * ```
+	 * - "element_based": Semantic elements (headings, paragraphs, tables, etc.)
 	 */
 	resultFormat?: "unified" | "element_based";
-
-	/**
-	 * Serialize the configuration to a JSON string.
-	 *
-	 * Converts this configuration object to its JSON representation.
-	 * The JSON can be used to create a new config via fromJson() or
-	 * passed to extraction functions that accept JSON configs.
-	 *
-	 * @returns JSON string representation of the configuration
-	 *
-	 * @example
-	 * ```typescript
-	 * const config: ExtractionConfig = { useCache: true };
-	 * const json = config.toJson();
-	 * console.log(json); // '{"useCache":true,...}'
-	 * ```
-	 */
-	toJson(): string;
-
-	/**
-	 * Get a configuration field by name (dot notation supported).
-	 *
-	 * Retrieves a nested configuration field using dot notation
-	 * (e.g., "ocr.backend", "images.targetDpi").
-	 *
-	 * @param fieldName - The field path to retrieve
-	 * @returns The field value as a JSON string, or null if not found
-	 *
-	 * @example
-	 * ```typescript
-	 * const config: ExtractionConfig = {
-	 *   ocr: { backend: 'tesseract' }
-	 * };
-	 * const backend = config.getField('ocr.backend');
-	 * console.log(backend); // '"tesseract"'
-	 *
-	 * const missing = config.getField('nonexistent');
-	 * console.log(missing); // null
-	 * ```
-	 */
-	getField(fieldName: string): string | null;
-
-	/**
-	 * Merge another configuration into this one.
-	 *
-	 * Performs a shallow merge where fields from the other config
-	 * take precedence over this config's fields. Modifies this config
-	 * in-place.
-	 *
-	 * @param other - Configuration to merge in (takes precedence)
-	 *
-	 * @example
-	 * ```typescript
-	 * const base: ExtractionConfig = { useCache: true, forceOcr: false };
-	 * const override: ExtractionConfig = { forceOcr: true };
-	 * base.merge(override);
-	 * console.log(base.useCache); // true
-	 * console.log(base.forceOcr); // true
-	 * ```
-	 */
-	merge(other: ExtractionConfig): void;
 }

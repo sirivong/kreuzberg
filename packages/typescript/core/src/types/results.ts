@@ -5,7 +5,6 @@
  * including extracted content, metadata, tables, chunks, images, and keywords.
  */
 
-import type { ExtractedKeyword } from "./config.js";
 import type { Metadata } from "./metadata.js";
 
 // ============================================================================
@@ -17,11 +16,13 @@ export interface Table {
 }
 
 export interface ChunkMetadata {
-	charStart: number;
-	charEnd: number;
+	byteStart: number;
+	byteEnd: number;
 	tokenCount?: number | null;
 	chunkIndex: number;
 	totalChunks: number;
+	firstPage?: number | null;
+	lastPage?: number | null;
 }
 
 export interface Chunk {
@@ -41,7 +42,7 @@ export interface ExtractedImage {
 	bitsPerComponent?: number | null;
 	isMask: boolean;
 	description?: string | null;
-	ocrResult?: ExtractionResult | null;
+	ocrResult?: ExtractionResult;
 }
 
 // ============================================================================
@@ -90,13 +91,13 @@ export interface BoundingBox {
  */
 export interface ElementMetadata {
 	/** Page number (1-indexed), or null if not available */
-	page_number?: number | null;
+	pageNumber?: number | null;
 	/** Source filename or document name, or null if not available */
 	filename?: string | null;
 	/** Bounding box coordinates if available, or null */
 	coordinates?: BoundingBox | null;
 	/** Position index in the element sequence, or null if not available */
-	element_index?: number | null;
+	elementIndex?: number | null;
 	/** Additional custom metadata fields */
 	additional?: Record<string, string>;
 }
@@ -241,9 +242,9 @@ export interface PageHierarchy {
 export interface PageContent {
 	pageNumber: number;
 	content: string;
-	tables?: Table[];
-	images?: ExtractedImage[];
-	hierarchy?: PageHierarchy | null;
+	tables: Table[];
+	images: ExtractedImage[];
+	hierarchy?: PageHierarchy;
 }
 
 export interface ExtractionResult {
@@ -251,99 +252,9 @@ export interface ExtractionResult {
 	mimeType: string;
 	metadata: Metadata;
 	tables: Table[];
-	detectedLanguages: string[] | null;
-	chunks: Chunk[] | null;
-	images: ExtractedImage[] | null;
-	pages?: PageContent[] | null;
-	elements?: Element[] | null;
-	keywords?: ExtractedKeyword[] | null;
-	djotContent?: DjotContent | null;
-
-	/**
-	 * Get the page count from this extraction result.
-	 *
-	 * Returns the total number of pages/slides/sheets detected
-	 * in the original document.
-	 *
-	 * @returns The page count (>= 0), or null if not available
-	 *
-	 * @example
-	 * ```typescript
-	 * const result = await extractFile('document.pdf');
-	 * const pageCount = result.getPageCount();
-	 * if (pageCount !== null) {
-	 *   console.log(`Document has ${pageCount} pages`);
-	 * }
-	 * ```
-	 */
-	getPageCount(): number | null;
-
-	/**
-	 * Get the chunk count from this extraction result.
-	 *
-	 * Returns the number of text chunks when chunking is enabled,
-	 * or null if chunking was not performed or information is unavailable.
-	 *
-	 * @returns The chunk count (>= 0), or null if not available
-	 *
-	 * @example
-	 * ```typescript
-	 * const result = await extractFile('document.pdf', {
-	 *   chunking: { enabled: true, maxChars: 1024 }
-	 * });
-	 * const chunkCount = result.getChunkCount();
-	 * if (chunkCount !== null) {
-	 *   console.log(`Document has ${chunkCount} chunks`);
-	 * }
-	 * ```
-	 */
-	getChunkCount(): number | null;
-
-	/**
-	 * Get the detected language from this extraction result.
-	 *
-	 * Returns the primary detected language as an ISO 639 language code
-	 * (e.g., "en", "de", "fr"). If multiple languages were detected,
-	 * returns the primary one.
-	 *
-	 * @returns The language code (e.g., "en"), or null if not detected
-	 *
-	 * @example
-	 * ```typescript
-	 * const result = await extractFile('document.pdf');
-	 * const language = result.getDetectedLanguage();
-	 * if (language) {
-	 *   console.log(`Detected language: ${language}`);
-	 * }
-	 * ```
-	 */
-	getDetectedLanguage(): string | null;
-
-	/**
-	 * Get a metadata field from this extraction result.
-	 *
-	 * Retrieves a metadata field value. Supports nested fields with dot notation
-	 * (e.g., "format.pages", "author").
-	 *
-	 * @param fieldName - The metadata field name or path to retrieve
-	 * @returns The field value (parsed from JSON), or null if not found
-	 *
-	 * @example
-	 * ```typescript
-	 * const result = await extractFile('document.pdf');
-	 *
-	 * // Get simple field
-	 * const title = result.getMetadataField('title') as string | null;
-	 * if (title) {
-	 *   console.log(`Title: ${title}`);
-	 * }
-	 *
-	 * // Get nested field
-	 * const pageCount = result.getMetadataField('format.pages') as number | null;
-	 * if (pageCount !== null) {
-	 *   console.log(`Pages: ${pageCount}`);
-	 * }
-	 * ```
-	 */
-	getMetadataField(fieldName: string): unknown;
+	detectedLanguages?: string[];
+	chunks?: Chunk[];
+	images?: ExtractedImage[];
+	pages?: PageContent[];
+	elements?: Element[];
 }

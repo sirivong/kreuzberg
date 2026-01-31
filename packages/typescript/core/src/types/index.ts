@@ -15,9 +15,11 @@ export * from "../constants/index.js";
 export * from "../utils/index.js";
 export type {
 	ChunkingConfig,
+	EmbeddingConfig,
+	EmbeddingModelType,
 	ExtractedKeyword,
 	ExtractionConfig,
-	FontConfig,
+	HierarchyConfig,
 	HtmlConversionOptions,
 	HtmlPreprocessingOptions,
 	ImageExtractionConfig,

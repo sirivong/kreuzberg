@@ -16,7 +16,9 @@ function getNativeModule(): Record<string, any> {
 		try {
 			nativeModule = require("kreuzberg-node");
 		} catch (error) {
-			throw new Error(`Unable to load native kreuzberg-node module: ${error instanceof Error ? error.message : String(error)}`);
+			throw new Error(
+				`Unable to load native kreuzberg-node module: ${error instanceof Error ? error.message : String(error)}`,
+			);
 		}
 	}
 	return nativeModule;
@@ -72,54 +74,53 @@ function createMultiParamValidator<T extends any[]>(
  */
 const VALIDATION_RULES = {
 	binarizationMethod: {
-		validatorName: 'validateBinarizationMethod',
+		validatorName: "validateBinarizationMethod",
 		errorMessage: (value: string) => `Invalid binarization method: ${value}`,
 	} as ValidationRule<string>,
 
 	ocrBackend: {
-		validatorName: 'validateOcrBackend',
+		validatorName: "validateOcrBackend",
 		errorMessage: (value: string) => `Invalid OCR backend: ${value}`,
 	} as ValidationRule<string>,
 
 	languageCode: {
-		validatorName: 'validateLanguageCode',
+		validatorName: "validateLanguageCode",
 		errorMessage: (value: string) => `Invalid language code: ${value}`,
 	} as ValidationRule<string>,
 
 	tokenReductionLevel: {
-		validatorName: 'validateTokenReductionLevel',
+		validatorName: "validateTokenReductionLevel",
 		errorMessage: (value: string) => `Invalid token reduction level: ${value}`,
 	} as ValidationRule<string>,
 
 	tesseractPsm: {
-		validatorName: 'validateTesseractPsm',
+		validatorName: "validateTesseractPsm",
 		errorMessage: (value: number) => `Invalid Tesseract PSM: ${value}. Valid range: 0-13`,
 	} as ValidationRule<number>,
 
 	tesseractOem: {
-		validatorName: 'validateTesseractOem',
+		validatorName: "validateTesseractOem",
 		errorMessage: (value: number) => `Invalid Tesseract OEM: ${value}. Valid range: 0-3`,
 	} as ValidationRule<number>,
 
 	outputFormat: {
-		validatorName: 'validateOutputFormat',
+		validatorName: "validateOutputFormat",
 		errorMessage: (value: string) => `Invalid output format: ${value}`,
 	} as ValidationRule<string>,
 
 	confidence: {
-		validatorName: 'validateConfidence',
+		validatorName: "validateConfidence",
 		errorMessage: (value: number) => `Invalid confidence: ${value}. Valid range: 0.0-1.0`,
 	} as ValidationRule<number>,
 
 	dpi: {
-		validatorName: 'validateDpi',
+		validatorName: "validateDpi",
 		errorMessage: (value: number) => `Invalid DPI: ${value}. Valid range: 1-2400`,
 	} as ValidationRule<number>,
 
 	chunkingParams: {
-		validatorName: 'validateChunkingParams',
-		errorMessage: (args: [number, number]) =>
-			`Invalid chunking params: maxChars=${args[0]}, maxOverlap=${args[1]}`,
+		validatorName: "validateChunkingParams",
+		errorMessage: (args: [number, number]) => `Invalid chunking params: maxChars=${args[0]}, maxOverlap=${args[1]}`,
 	} as ValidationRule<[number, number]>,
 };
 
@@ -349,7 +350,7 @@ export const validateChunkingParams = createMultiParamValidator(VALIDATION_RULES
  * ```
  */
 export async function getValidBinarizationMethods(): Promise<string[]> {
-	const getter = getNativeModule()['getValidBinarizationMethods'];
+	const getter = getNativeModule()["getValidBinarizationMethods"];
 	return getter();
 }
 
@@ -367,7 +368,7 @@ export async function getValidBinarizationMethods(): Promise<string[]> {
  * ```
  */
 export async function getValidLanguageCodes(): Promise<string[]> {
-	const getter = getNativeModule()['getValidLanguageCodes'];
+	const getter = getNativeModule()["getValidLanguageCodes"];
 	return getter();
 }
 
@@ -385,7 +386,7 @@ export async function getValidLanguageCodes(): Promise<string[]> {
  * ```
  */
 export async function getValidOcrBackends(): Promise<string[]> {
-	const getter = getNativeModule()['getValidOcrBackends'];
+	const getter = getNativeModule()["getValidOcrBackends"];
 	return getter();
 }
 
@@ -403,6 +404,6 @@ export async function getValidOcrBackends(): Promise<string[]> {
  * ```
  */
 export async function getValidTokenReductionLevels(): Promise<string[]> {
-	const getter = getNativeModule()['getValidTokenReductionLevels'];
+	const getter = getNativeModule()["getValidTokenReductionLevels"];
 	return getter();
 }
