@@ -52,6 +52,7 @@ __all__ = [
     "LanguageDetectionConfig",
     "LinkMetadata",
     "Metadata",
+    "MissingDependencyError",
     "OCRError",
     "OcrBackendProtocol",
     "OcrConfig",
@@ -134,6 +135,7 @@ __all__ = [
 class ValidationError(Exception): ...
 class ParsingError(Exception): ...
 class OCRError(Exception): ...
+class MissingDependencyError(Exception): ...
 
 def init_async_runtime() -> None: ...
 
@@ -334,6 +336,8 @@ class ExtractionConfig:
     ) -> None: ...
     @staticmethod
     def from_file(path: str | Path) -> ExtractionConfig: ...
+    @staticmethod
+    def discover() -> ExtractionConfig: ...
 
 class OcrConfig:
     """OCR configuration for extracting text from images.
@@ -458,11 +462,8 @@ class EmbeddingConfig:
             >>> config = EmbeddingConfig(cache_dir="/path/to/model/cache")
     """
 
-    model: EmbeddingModelType
     normalize: bool
     batch_size: int
-    show_download_progress: bool
-    cache_dir: str | None
 
     def __init__(
         self,
@@ -960,10 +961,10 @@ class ImagePreprocessingConfig:
             Default: 300
 
         auto_rotate (bool): Automatically detect and correct image rotation.
-            Default: False
+            Default: True
 
         deskew (bool): Correct skewed images to improve OCR accuracy.
-            Default: False
+            Default: True
 
         denoise (bool): Apply denoising filters to reduce noise in images.
             Improves OCR accuracy on low-quality scans. Default: False
@@ -972,7 +973,7 @@ class ImagePreprocessingConfig:
             Default: False
 
         binarization_method (str): Method for converting images to black and white.
-            Options depend on the OCR backend. Default: "auto"
+            Options depend on the OCR backend. Default: "otsu"
 
         invert_colors (bool): Invert colors (white text on black background).
             Useful for certain document types. Default: False
@@ -1030,7 +1031,7 @@ class TesseractConfig:
             See Tesseract documentation for all modes.
 
         output_format (str): Output format for OCR results.
-            Default: "plaintext"
+            Default: "markdown"
 
         oem (int): OCR Engine Mode - which OCR engine to use.
             Default: 3 (Auto - tesseract default)
@@ -1046,13 +1047,13 @@ class TesseractConfig:
             for cleaning up images before OCR. Default: None
 
         enable_table_detection (bool): Enable automatic table detection and extraction.
-            Default: False
+            Default: True
 
         table_min_confidence (float): Minimum confidence for table detection (0.0-1.0).
-            Default: 0.5
+            Default: 0.0
 
         table_column_threshold (int): Minimum pixel width between columns.
-            Default: 10
+            Default: 50
 
         table_row_threshold_ratio (float): Minimum row height ratio.
             Default: 0.5
@@ -1061,19 +1062,19 @@ class TesseractConfig:
             Default: True
 
         classify_use_pre_adapted_templates (bool): Use pre-adapted character templates.
-            Default: False
-
-        language_model_ngram_on (bool): Enable language model n-gram processing.
             Default: True
 
-        tessedit_dont_blkrej_good_wds (bool): Don't block-reject good words.
+        language_model_ngram_on (bool): Enable language model n-gram processing.
             Default: False
+
+        tessedit_dont_blkrej_good_wds (bool): Don't block-reject good words.
+            Default: True
 
         tessedit_dont_rowrej_good_wds (bool): Don't row-reject good words.
-            Default: False
+            Default: True
 
         tessedit_enable_dict_correction (bool): Enable dictionary-based spelling correction.
-            Default: False
+            Default: True
 
         tessedit_char_whitelist (str): Whitelist of characters to recognize.
             Only these characters will be recognized. Empty = all characters.
@@ -1083,10 +1084,10 @@ class TesseractConfig:
             These characters will be skipped. Default: ""
 
         tessedit_use_primary_params_model (bool): Use primary parameters model.
-            Default: False
+            Default: True
 
         textord_space_size_is_variable (bool): Allow variable space sizes.
-            Default: False
+            Default: True
 
         thresholding_method (bool): Thresholding method for binarization.
             Default: False
@@ -1371,7 +1372,8 @@ class Metadata(TypedDict, total=False):
     code_blocks: list[tuple[str, str]] | None
 
     # HTML-specific (flattened from HtmlMetadata)
-    # Note: 'title', 'description', 'keywords', 'author', 'language' overlap with common fields
+    # Note: 'title', 'description', 'keywords', 'language' overlap with common fields
+    author: str | None
     description: str | None
     canonical_url: str | None
     base_href: str | None
