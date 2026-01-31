@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **RST parser allocation reduction**: Replaced `Vec<char>` collects with direct iterator usage, `to_lowercase()` with `eq_ignore_ascii_case()`, and removed intermediate `collect()` before `extend()`
 - **Idiomatic Cow usage in fictionbook extractor**: Replaced 16 instances of `from_utf8_lossy().to_string()` with `.into_owned()`
 - **Reduced unnecessary clones in email extractor**: Replaced `Option::clone().or_else(|| .clone())` with `as_ref().or().cloned()`
+- **Vec for small metadata maps**: Replaced `HashMap<String, String>` with `Vec<(String, String)>` for `LinkMetadata.attributes` and `ImageMetadataType.attributes` (typically <10 entries, faster iteration and lower overhead)
+- **Cow key interning for metadata**: Switched `Metadata.additional` from `HashMap<String, Value>` to `AHashMap<Cow<'static, str>, Value>`, avoiding allocation for static keys
+- **bytes::Bytes for binary data**: Replaced `Vec<u8>` with `bytes::Bytes` for `ExtractedImage.data`, enabling zero-copy cloning of large image buffers
+- **AHashMap for hot-path maps**: Replaced `HashMap` with `AHashMap` in metadata and extraction pipelines for faster hashing
+- **Reduced clone elimination**: Removed unnecessary `.clone()` calls in Cow return paths across extraction pipeline
 
 ### Fixed
 
@@ -97,7 +102,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Removed duplicate `types.py`**: Deleted `kreuzberg/types.py` which contained 43 duplicate type definitions conflicting with `_internal_bindings.pyi`
 - **Consolidated duplicate test files**: Merged unique tests from `test_embeddings_advanced.py`, `test_images_extraction.py`, `test_tables_extraction.py` into their canonical counterparts and deleted the duplicates
 
+#### Java Bindings
+- **Overhauled type definitions from audit against Rust source**: Exhaustive audit of every Java type against the Rust core to ensure field-level correctness
+  - `Metadata`: Removed phantom `date`/`formatType` fields; added `createdBy`, `modifiedBy`; removed `Success` from `ExtractionResult`
+  - `PptxMetadata`: Added `slideCount`, `slideWidth`, `slideHeight`; removed phantom `template`
+  - `PageInfo`: Changed `dimensions` from `Map<String, Double>` to `double[]` (matches Rust tuple serialization)
+  - `ImageMetadata`: Fixed `exif` to non-optional `Map<String, String>` (matches Rust `HashMap`)
+  - `LinkMetadata`/`ImageMetadataType`: Fixed `attributes` from `Map` to `List<List<String>>` (matches Rust `Vec<(String, String)>` serialization)
+  - Added missing enums: `OutputFormat`, `ElementType`, `PageUnitType`, `LinkType`, `ImageType`, `StructuredDataType`, `TextDirection`, `EmbeddingPreset`
+  - Added missing types: `DjotContent`, `FormattedBlock`, `InlineElement`, `DjotAttributes`, `DjotImage`, `DjotLink`, `Footnote`, `PageHierarchy`, `HierarchicalBlock`
+  - Updated all test files to match corrected types
+
+#### C# Bindings
+- **Overhauled type definitions from audit against Rust source**: Exhaustive audit of every C# type against the Rust core to ensure field-level correctness
+  - `Metadata`: Removed phantom `Success`/`Date` fields; added `CreatedBy`, `ModifiedBy`; restructured `FormatMetadata` as discriminated union
+  - `PptxMetadata`: Added `SlideCount`, `SlideWidth`, `SlideHeight`
+  - `PageBoundary`: Changed `ByteStart`/`ByteEnd` from `int` to `long` (matches Rust `usize` on 64-bit)
+  - `ImageMetadata`: Fixed `Exif` to non-nullable (matches Rust `HashMap`)
+  - Added missing types: `DjotContent`, `FormattedBlock`, `InlineElement`, `DjotAttributes`, `DjotImage`, `DjotLink`, `Footnote`, `PageHierarchy`, `HierarchicalBlock`
+  - Registered all new types in `JsonSerializerContext` for source-generated serialization
+  - Removed stale `Success`/`Date` references from `KreuzbergClient`
+- **Fixed keyword deserialization**: Properly discriminate between simple string keywords (document metadata) and extracted keyword objects (YAKE/RAKE with text/score/algorithm); added `ExtractedKeywords` property to `Metadata`
+- **Updated all test files**: Removed references to removed properties, fixed `BinarizationMode` → `BinarizationMethod`
+
 #### Go Bindings
+- **Overhauled type definitions from audit against Rust source**: Exhaustive audit of every Go type against the Rust core to ensure field-level correctness
+  - `Metadata`: Removed phantom `Date`/`FormatType` fields; added `CreatedBy`, `ModifiedBy`
+  - `PptxMetadata`: Added `SlideCount`, `SlideWidth`, `SlideHeight`; removed phantom `Template`
+  - `ImageMetadata`: Fixed `Exif` to non-pointer (matches non-optional Rust `HashMap`)
+  - `PageBoundary`: Changed `ByteStart`/`ByteEnd` from `int` to `int64` (matches Rust `usize`)
+  - `PageInfo`: Changed `Dimensions` from struct to `[]float64` (matches Rust tuple serialization)
+  - Added missing enums and types matching Rust core
+  - Updated all test files to match corrected types
 - **Consolidated config tests**: Renamed `config_comprehensive_test.go` → `config_test.go` and removed 5 duplicate FontConfig tests that overlapped with `font_config_test.go`
 
 ### Changed
