@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.2.6] - 2026-01-31
+
+### Fixed
+
+#### Python Bindings
+- **Missing `output_format`/`result_format` on `ExtractionResult`**: Added `output_format` and `result_format` fields to the Python `ExtractionResult`, echoing the config values back on the result object
+- **Missing `elements` field on `ExtractionResult`**: Added conversion of Rust `Vec<Element>` to Python list, enabling element-based result format
+- **Missing `djot_content` field on `ExtractionResult`**: Added conversion of Rust `DjotContent` to Python via JSON serialization
+- **Chunks returned as dicts instead of objects**: Created proper `PyChunk` pyclass with attribute access (`chunk.content`), fixing `getattr` failures in e2e tests
+
+#### Benchmark Harness
+- **Unified output format**: Merged `consolidated.json` and `aggregated.json` into single `results.json` with schema v2.0.0
+- **Quality scoring**: Added F1 token-based quality scoring module with ground truth support and `extracted_text` capture from all adapters
+- **OCR coverage**: Added docling, unstructured, tika, mineru as OCR-capable frameworks
+- **Naming normalization**: Strip `-sync`/`-async` suffixes, normalize `kreuzberg-native` to `kreuzberg-rust`
+- **Safety fixes**: Eliminated unsafe `set_var` for OCR config, added NaN/Infinity sanitization, bounds checks in percentile calculations, framework name input validation, subprocess output contract validation
+- **Zero-duration throughput**: Fixed artificial throughput inflation when batch duration is zero
+
+---
+
 ## [4.2.5] - 2026-01-30
 
 ### Fixed

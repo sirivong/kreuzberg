@@ -47,6 +47,16 @@ pub struct ExtractionResult {
     chunks: Option<Py<PyList>>,
 
     pages: Option<Py<PyList>>,
+
+    elements: Option<Py<PyList>>,
+
+    #[pyo3(get)]
+    pub output_format: Option<String>,
+
+    #[pyo3(get)]
+    pub result_format: Option<String>,
+
+    djot_content: Option<Py<PyAny>>,
 }
 
 #[pymethods]
@@ -80,6 +90,16 @@ impl ExtractionResult {
     #[getter]
     fn pages<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyList>> {
         self.pages.as_ref().map(|pages| pages.bind(py).clone())
+    }
+
+    #[getter]
+    fn elements<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyList>> {
+        self.elements.as_ref().map(|e| e.bind(py).clone())
+    }
+
+    #[getter]
+    fn djot_content<'py>(&self, py: Python<'py>) -> Option<Bound<'py, PyAny>> {
+        self.djot_content.as_ref().map(|d| d.bind(py).clone())
     }
 
     fn __repr__(&self) -> String {
@@ -232,7 +252,12 @@ impl ExtractionResult {
     ///
     /// Target: 15-20% improvement (232ms -> 195-200ms)
     /// Expected gains from this function: ~10-15ms reduction
-    pub fn from_rust(result: kreuzberg::ExtractionResult, py: Python) -> PyResult<Self> {
+    pub fn from_rust(
+        result: kreuzberg::ExtractionResult,
+        py: Python,
+        output_format: Option<String>,
+        result_format: Option<String>,
+    ) -> PyResult<Self> {
         let metadata_dict = PyDict::new(py);
 
         if let Some(title) = &result.metadata.title {
@@ -326,7 +351,7 @@ impl ExtractionResult {
                 }
 
                 if let Some(ocr) = img.ocr_result {
-                    let ocr_py = Self::from_rust(*ocr, py)?;
+                    let ocr_py = Self::from_rust(*ocr, py, output_format.clone(), result_format.clone())?;
                     img_dict.set_item("ocr_result", ocr_py)?;
                 }
 
@@ -340,15 +365,11 @@ impl ExtractionResult {
         let chunks = if let Some(chnks) = result.chunks {
             let chunk_list = PyList::empty(py);
             for chunk in chnks {
-                let chunk_dict = PyDict::new(py);
-                chunk_dict.set_item("content", &chunk.content)?;
-
-                if let Some(embedding) = chunk.embedding {
-                    let emb_list = PyList::new(py, embedding)?;
-                    chunk_dict.set_item("embedding", emb_list)?;
+                let embedding = if let Some(emb) = chunk.embedding {
+                    Some(PyList::new(py, emb)?.unbind())
                 } else {
-                    chunk_dict.set_item("embedding", py.None())?;
-                }
+                    None
+                };
 
                 let chunk_metadata_dict = PyDict::new(py);
                 chunk_metadata_dict.set_item("byte_start", chunk.metadata.byte_start)?;
@@ -364,9 +385,12 @@ impl ExtractionResult {
                     chunk_metadata_dict.set_item("last_page", last_page)?;
                 }
 
-                chunk_dict.set_item("metadata", chunk_metadata_dict)?;
-
-                chunk_list.append(chunk_dict)?;
+                let py_chunk = PyChunk {
+                    content: chunk.content,
+                    embedding,
+                    metadata: chunk_metadata_dict.unbind(),
+                };
+                chunk_list.append(Py::new(py, py_chunk)?)?;
             }
             Some(chunk_list.unbind())
         } else {
@@ -424,6 +448,61 @@ impl ExtractionResult {
             None
         };
 
+        let elements = if let Some(elems) = result.elements {
+            let elem_list = PyList::empty(py);
+            for elem in elems {
+                let elem_dict = PyDict::new(py);
+                elem_dict.set_item("element_id", elem.element_id.to_string())?;
+                // Serialize element_type to its serde name
+                let type_str = serde_json::to_value(elem.element_type)
+                    .ok()
+                    .and_then(|v| v.as_str().map(String::from))
+                    .unwrap_or_default();
+                elem_dict.set_item("element_type", type_str)?;
+                elem_dict.set_item("text", &elem.text)?;
+
+                let meta_dict = PyDict::new(py);
+                if let Some(pn) = elem.metadata.page_number {
+                    meta_dict.set_item("page_number", pn)?;
+                }
+                if let Some(fn_) = &elem.metadata.filename {
+                    meta_dict.set_item("filename", fn_)?;
+                }
+                if let Some(coords) = &elem.metadata.coordinates {
+                    let coords_dict = PyDict::new(py);
+                    coords_dict.set_item("x0", coords.x0)?;
+                    coords_dict.set_item("y0", coords.y0)?;
+                    coords_dict.set_item("x1", coords.x1)?;
+                    coords_dict.set_item("y1", coords.y1)?;
+                    meta_dict.set_item("coordinates", coords_dict)?;
+                }
+                if let Some(idx) = elem.metadata.element_index {
+                    meta_dict.set_item("element_index", idx)?;
+                }
+                if !elem.metadata.additional.is_empty() {
+                    let additional = PyDict::new(py);
+                    for (k, v) in &elem.metadata.additional {
+                        additional.set_item(k, v)?;
+                    }
+                    meta_dict.set_item("additional", additional)?;
+                }
+                elem_dict.set_item("metadata", meta_dict)?;
+                elem_list.append(elem_dict)?;
+            }
+            Some(elem_list.unbind())
+        } else {
+            None
+        };
+
+        let djot_content = if let Some(djot) = result.djot_content {
+            let djot_json = serde_json::to_value(&djot).map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyRuntimeError, _>(format!("Failed to serialize djot_content: {}", e))
+            })?;
+            Some(json_value_to_py(py, &djot_json)?.unbind())
+        } else {
+            None
+        };
+
         Ok(Self {
             content: result.content,
             mime_type: result.mime_type,
@@ -433,6 +512,10 @@ impl ExtractionResult {
             images,
             chunks,
             pages,
+            elements,
+            output_format,
+            result_format,
+            djot_content,
         })
     }
 }
@@ -471,7 +554,8 @@ mod tests {
                 djot_content: None,
             };
 
-            let py_result = ExtractionResult::from_rust(rust_result, py).expect("conversion should succeed");
+            let py_result =
+                ExtractionResult::from_rust(rust_result, py, None, None).expect("conversion should succeed");
             assert_eq!(py_result.content, "hello");
             assert_eq!(py_result.mime_type, "text/plain");
             assert!(py_result.metadata(py).is_empty());
@@ -503,7 +587,8 @@ mod tests {
                 .additional
                 .insert("source".to_string(), serde_json::json!("original"));
 
-            let mut py_result = ExtractionResult::from_rust(rust_result, py).expect("conversion should succeed");
+            let mut py_result =
+                ExtractionResult::from_rust(rust_result, py, None, None).expect("conversion should succeed");
             let new_metadata = PyDict::new(py);
             new_metadata.set_item("source", "override").unwrap();
             py_result
@@ -517,6 +602,64 @@ mod tests {
             let source: String = source_item.extract().expect("string value");
             assert_eq!(source, "override");
         });
+    }
+}
+
+/// Chunk of text with metadata and optional embedding.
+///
+/// Attributes:
+///     content (str): Chunk text content
+///     embedding (list[float] | None): Embedding vector if computed
+///     metadata (dict): Chunk metadata including byte positions and page info
+///
+/// Example:
+///     >>> from kreuzberg import ChunkingConfig, ExtractionConfig
+///     >>> config = ExtractionConfig(chunking=ChunkingConfig(max_chars=500))
+///     >>> result = extract_file_sync("document.pdf", None, config)
+///     >>> for chunk in result.chunks:
+///     ...     print(f"Chunk: {chunk.content[:50]}...")
+///     ...     print(f"Metadata: {chunk.metadata}")
+#[pyclass(name = "Chunk", module = "kreuzberg")]
+pub struct PyChunk {
+    #[pyo3(get)]
+    pub content: String,
+
+    #[pyo3(get)]
+    pub embedding: Option<Py<PyList>>,
+
+    metadata: Py<PyDict>,
+}
+
+#[pymethods]
+impl PyChunk {
+    #[getter]
+    fn metadata<'py>(&self, py: Python<'py>) -> Bound<'py, PyDict> {
+        self.metadata.bind(py).clone()
+    }
+
+    fn __repr__(&self) -> String {
+        Python::attach(|py| {
+            let meta = self.metadata.bind(py);
+            let byte_start = meta
+                .get_item("byte_start")
+                .ok()
+                .flatten()
+                .and_then(|v| v.extract::<usize>().ok())
+                .unwrap_or(0);
+            let byte_end = meta
+                .get_item("byte_end")
+                .ok()
+                .flatten()
+                .and_then(|v| v.extract::<usize>().ok())
+                .unwrap_or(0);
+            format!(
+                "Chunk(content_len={}, bytes={}-{}, has_embedding={})",
+                self.content.len(),
+                byte_start,
+                byte_end,
+                self.embedding.is_some()
+            )
+        })
     }
 }
 

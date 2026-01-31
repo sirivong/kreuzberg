@@ -8,6 +8,21 @@ use crate::types::ExtractionResult;
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
+/// Extract format strings from ExtractionConfig before it's consumed.
+fn extract_format_strings(config: &ExtractionConfig) -> (Option<String>, Option<String>) {
+    let output_fmt = match config.inner.output_format {
+        kreuzberg::core::config::formats::OutputFormat::Plain => Some("plain".to_string()),
+        kreuzberg::core::config::formats::OutputFormat::Markdown => Some("markdown".to_string()),
+        kreuzberg::core::config::formats::OutputFormat::Djot => Some("djot".to_string()),
+        kreuzberg::core::config::formats::OutputFormat::Html => Some("html".to_string()),
+    };
+    let result_fmt = match config.inner.result_format {
+        kreuzberg::types::OutputFormat::Unified => Some("unified".to_string()),
+        kreuzberg::types::OutputFormat::ElementBased => Some("element_based".to_string()),
+    };
+    (output_fmt, result_fmt)
+}
+
 /// Extract a path string from Python input (str, pathlib.Path, or bytes).
 ///
 /// Supports:
@@ -70,6 +85,7 @@ pub fn extract_file_sync(
     config: ExtractionConfig,
 ) -> PyResult<ExtractionResult> {
     let path_str = extract_path_string(path)?;
+    let (output_fmt, result_fmt) = extract_format_strings(&config);
     let rust_config = config.into();
 
     // Release GIL during sync extraction - OSError/RuntimeError must bubble up ~keep
@@ -78,7 +94,7 @@ pub fn extract_file_sync(
     })
     .map_err(to_py_err)?;
 
-    ExtractionResult::from_rust(result, py)
+    ExtractionResult::from_rust(result, py, output_fmt, result_fmt)
 }
 
 /// Extract content from bytes (synchronous).
@@ -109,13 +125,14 @@ pub fn extract_bytes_sync(
     mime_type: String,
     config: ExtractionConfig,
 ) -> PyResult<ExtractionResult> {
+    let (output_fmt, result_fmt) = extract_format_strings(&config);
     let rust_config = config.into();
 
     // Release GIL during extraction and result conversion - OSError/RuntimeError must bubble up ~keep
     let result =
         Python::detach(py, || kreuzberg::extract_bytes_sync(&data, &mime_type, &rust_config)).map_err(to_py_err)?;
 
-    ExtractionResult::from_rust(result, py)
+    ExtractionResult::from_rust(result, py, output_fmt, result_fmt)
 }
 
 /// Batch extract content from multiple files (synchronous).
@@ -154,6 +171,7 @@ pub fn batch_extract_files_sync(
     let path_strings: PyResult<Vec<String>> = paths.iter().map(|p| extract_path_string(&p)).collect();
     let path_strings = path_strings?;
 
+    let (output_fmt, result_fmt) = extract_format_strings(&config);
     let rust_config = config.into();
 
     // Release GIL during sync batch extraction - OSError/RuntimeError must bubble up ~keep
@@ -162,7 +180,7 @@ pub fn batch_extract_files_sync(
 
     let converted: PyResult<Vec<_>> = results
         .into_iter()
-        .map(|result| ExtractionResult::from_rust(result, py))
+        .map(|result| ExtractionResult::from_rust(result, py, output_fmt.clone(), result_fmt.clone()))
         .collect();
     let list = PyList::new(py, converted?)?;
     Ok(list.unbind())
@@ -203,6 +221,7 @@ pub fn batch_extract_bytes_sync(
         )));
     }
 
+    let (output_fmt, result_fmt) = extract_format_strings(&config);
     let rust_config = config.into();
 
     let contents: Vec<(&[u8], &str)> = data_list
@@ -222,7 +241,7 @@ pub fn batch_extract_bytes_sync(
 
     let converted: PyResult<Vec<_>> = results
         .into_iter()
-        .map(|result| ExtractionResult::from_rust(result, py))
+        .map(|result| ExtractionResult::from_rust(result, py, output_fmt.clone(), result_fmt.clone()))
         .collect();
     let list = PyList::new(py, converted?)?;
     Ok(list.unbind())
@@ -263,12 +282,13 @@ pub fn extract_file<'py>(
     config: ExtractionConfig,
 ) -> PyResult<Bound<'py, PyAny>> {
     let path_str = extract_path_string(path)?;
+    let (output_fmt, result_fmt) = extract_format_strings(&config);
     let rust_config: kreuzberg::ExtractionConfig = config.into();
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
         let result = kreuzberg::extract_file(&path_str, mime_type.as_deref(), &rust_config)
             .await
             .map_err(to_py_err)?;
-        Python::attach(|py| ExtractionResult::from_rust(result, py))
+        Python::attach(|py| ExtractionResult::from_rust(result, py, output_fmt, result_fmt))
     })
 }
 
@@ -303,12 +323,13 @@ pub fn extract_bytes<'py>(
     mime_type: String,
     config: ExtractionConfig,
 ) -> PyResult<Bound<'py, PyAny>> {
+    let (output_fmt, result_fmt) = extract_format_strings(&config);
     let rust_config: kreuzberg::ExtractionConfig = config.into();
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
         let result = kreuzberg::extract_bytes(&data, &mime_type, &rust_config)
             .await
             .map_err(to_py_err)?;
-        Python::attach(|py| ExtractionResult::from_rust(result, py))
+        Python::attach(|py| ExtractionResult::from_rust(result, py, output_fmt, result_fmt))
     })
 }
 
@@ -352,6 +373,7 @@ pub fn batch_extract_files<'py>(
     let path_strings: PyResult<Vec<String>> = paths.iter().map(|p| extract_path_string(&p)).collect();
     let path_strings = path_strings?;
 
+    let (output_fmt, result_fmt) = extract_format_strings(&config);
     let rust_config: kreuzberg::ExtractionConfig = config.into();
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
         let results = kreuzberg::batch_extract_file(path_strings, &rust_config)
@@ -361,7 +383,7 @@ pub fn batch_extract_files<'py>(
         Python::attach(|py| {
             let converted: PyResult<Vec<_>> = results
                 .into_iter()
-                .map(|result| ExtractionResult::from_rust(result, py))
+                .map(|result| ExtractionResult::from_rust(result, py, output_fmt.clone(), result_fmt.clone()))
                 .collect();
             let list = PyList::new(py, converted?)?;
             Ok(list.unbind())
@@ -407,6 +429,7 @@ pub fn batch_extract_bytes<'py>(
         )));
     }
 
+    let (output_fmt, result_fmt) = extract_format_strings(&config);
     let rust_config: kreuzberg::ExtractionConfig = config.into();
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
         let contents: Vec<(&[u8], &str)> = data_list
@@ -427,7 +450,7 @@ pub fn batch_extract_bytes<'py>(
         Python::attach(|py| {
             let converted: PyResult<Vec<_>> = results
                 .into_iter()
-                .map(|result| ExtractionResult::from_rust(result, py))
+                .map(|result| ExtractionResult::from_rust(result, py, output_fmt.clone(), result_fmt.clone()))
                 .collect();
             let list = PyList::new(py, converted?)?;
             Ok(list.unbind())
