@@ -354,6 +354,7 @@ impl Default for TesseractConfig {
 /// Tracks the transformations applied to an image during OCR preprocessing,
 /// including DPI normalization, resizing, and resampling.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct ImagePreprocessingMetadata {
     /// Original image dimensions (width, height) in pixels
     pub original_dimensions: (usize, usize),

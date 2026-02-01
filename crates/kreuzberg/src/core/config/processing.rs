@@ -7,6 +7,19 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+/// Type of text chunker to use.
+///
+/// # Variants
+///
+/// * `Text` - Generic text splitter, splits on whitespace and punctuation
+/// * `Markdown` - Markdown-aware splitter, preserves formatting and structure
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum ChunkerType {
+    #[default]
+    Text,
+    Markdown,
+}
+
 /// Post-processor configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PostProcessorConfig {
@@ -59,15 +72,34 @@ impl Default for PostProcessorConfig {
 }
 
 /// Chunking configuration.
+///
+/// Configures text chunking for document content, including chunk size,
+/// overlap, trimming behavior, and optional embeddings.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChunkingConfig {
     /// Maximum characters per chunk
-    #[serde(default = "default_chunk_size")]
-    pub max_chars: usize,
+    ///
+    /// Default: 1000
+    #[serde(default = "default_chunk_size", alias = "max_chars")]
+    pub max_characters: usize,
 
     /// Overlap between chunks in characters
-    #[serde(default = "default_chunk_overlap")]
-    pub max_overlap: usize,
+    ///
+    /// Default: 200
+    #[serde(default = "default_chunk_overlap", alias = "max_overlap")]
+    pub overlap: usize,
+
+    /// Whether to trim whitespace from chunk boundaries
+    ///
+    /// Default: true
+    #[serde(default = "default_trim")]
+    pub trim: bool,
+
+    /// Type of chunker to use (Text or Markdown)
+    ///
+    /// Default: Text
+    #[serde(default = "default_chunker_type")]
+    pub chunker_type: ChunkerType,
 
     /// Optional embedding configuration for chunk embeddings
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -76,6 +108,19 @@ pub struct ChunkingConfig {
     /// Use a preset configuration (overrides individual settings if provided)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preset: Option<String>,
+}
+
+impl Default for ChunkingConfig {
+    fn default() -> Self {
+        Self {
+            max_characters: 1000,
+            overlap: 200,
+            trim: true,
+            chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
+        }
+    }
 }
 
 /// Embedding configuration for text chunks.
@@ -149,6 +194,14 @@ fn default_chunk_overlap() -> usize {
     200
 }
 
+fn default_trim() -> bool {
+    true
+}
+
+fn default_chunker_type() -> ChunkerType {
+    ChunkerType::Text
+}
+
 fn default_normalize() -> bool {
     true
 }
@@ -196,13 +249,17 @@ mod tests {
     #[test]
     fn test_chunking_config_defaults() {
         let config = ChunkingConfig {
-            max_chars: 1000,
-            max_overlap: 200,
+            max_characters: 1000,
+            overlap: 200,
+            trim: true,
+            chunker_type: ChunkerType::Text,
             embedding: None,
             preset: None,
         };
-        assert_eq!(config.max_chars, 1000);
-        assert_eq!(config.max_overlap, 200);
+        assert_eq!(config.max_characters, 1000);
+        assert_eq!(config.overlap, 200);
+        assert!(config.trim);
+        assert_eq!(config.chunker_type, ChunkerType::Text);
     }
 
     #[test]

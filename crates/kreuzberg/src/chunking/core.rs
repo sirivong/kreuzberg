@@ -118,6 +118,8 @@ pub fn chunk_text_with_type(
         overlap,
         trim,
         chunker_type,
+        embedding: None,
+        preset: None,
     };
     chunk_text(text, &config, None)
 }
@@ -177,6 +179,8 @@ mod tests {
             overlap: 10,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "This is a short text.";
         let result = chunk_text(text, &config, None).unwrap();
@@ -192,6 +196,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         let result = chunk_text(text, &config, None).unwrap();
@@ -207,6 +213,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "abcdefghijklmnopqrstuvwxyz0123456789";
         let result = chunk_text(text, &config, None).unwrap();
@@ -230,6 +238,8 @@ mod tests {
             overlap: 10,
             trim: true,
             chunker_type: ChunkerType::Markdown,
+            embedding: None,
+            preset: None,
         };
         let markdown = "# Title\n\nParagraph one.\n\n## Section\n\nParagraph two.";
         let result = chunk_text(markdown, &config, None).unwrap();
@@ -244,6 +254,8 @@ mod tests {
             overlap: 10,
             trim: true,
             chunker_type: ChunkerType::Markdown,
+            embedding: None,
+            preset: None,
         };
         let markdown = "# Code Example\n\n```python\nprint('hello')\n```\n\nSome text after code.";
         let result = chunk_text(markdown, &config, None).unwrap();
@@ -258,6 +270,8 @@ mod tests {
             overlap: 10,
             trim: true,
             chunker_type: ChunkerType::Markdown,
+            embedding: None,
+            preset: None,
         };
         let markdown = "Check out [this link](https://example.com) for more info.";
         let result = chunk_text(markdown, &config, None).unwrap();
@@ -272,6 +286,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "  Leading and trailing spaces  should be trimmed  ";
         let result = chunk_text(text, &config, None).unwrap();
@@ -286,6 +302,8 @@ mod tests {
             overlap: 5,
             trim: false,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "  Text with spaces  ";
         let result = chunk_text(text, &config, None).unwrap();
@@ -300,6 +318,8 @@ mod tests {
             overlap: 20,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let result = chunk_text("Some text", &config, None);
         assert!(result.is_err());
@@ -337,6 +357,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let texts = vec!["First text", "Second text", "Third text"];
         let results = chunk_texts_batch(&texts, &config).unwrap();
@@ -351,6 +373,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let texts = vec![
             "Short",
@@ -371,6 +395,8 @@ mod tests {
             overlap: 20,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let texts = vec!["Text one", "Text two"];
         let result = chunk_texts_batch(&texts, &config);
@@ -380,8 +406,8 @@ mod tests {
     #[test]
     fn test_chunking_config_default() {
         let config = ChunkingConfig::default();
-        assert_eq!(config.max_characters, 2000);
-        assert_eq!(config.overlap, 100);
+        assert_eq!(config.max_characters, 1000);
+        assert_eq!(config.overlap, 200);
         assert!(config.trim);
         assert_eq!(config.chunker_type, ChunkerType::Text);
     }
@@ -393,6 +419,8 @@ mod tests {
             overlap: 20,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "a".repeat(1000);
         let result = chunk_text(&text, &config, None).unwrap();
@@ -407,6 +435,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "Line one\nLine two\nLine three\nLine four\nLine five";
         let result = chunk_text(text, &config, None).unwrap();
@@ -420,6 +450,8 @@ mod tests {
             overlap: 10,
             trim: true,
             chunker_type: ChunkerType::Markdown,
+            embedding: None,
+            preset: None,
         };
         let markdown = "# List Example\n\n- Item 1\n- Item 2\n- Item 3\n\nMore text.";
         let result = chunk_text(markdown, &config, None).unwrap();
@@ -434,6 +466,8 @@ mod tests {
             overlap: 10,
             trim: true,
             chunker_type: ChunkerType::Markdown,
+            embedding: None,
+            preset: None,
         };
         let markdown = "# Table\n\n| Col1 | Col2 |\n|------|------|\n| A    | B    |\n| C    | D    |";
         let result = chunk_text(markdown, &config, None).unwrap();
@@ -448,6 +482,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "Special chars: @#$%^&*()[]{}|\\<>?/~`";
         let result = chunk_text(text, &config, None).unwrap();
@@ -462,6 +498,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "Unicode: 你好世界 🌍 café résumé";
         let result = chunk_text(text, &config, None).unwrap();
@@ -477,6 +515,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "日本語のテキストです。これは長い文章で、複数のチャンクに分割されるべきです。";
         let result = chunk_text(text, &config, None).unwrap();
@@ -490,6 +530,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "English text mixed with 中文文本 and some français";
         let result = chunk_text(text, &config, None).unwrap();
@@ -503,6 +545,8 @@ mod tests {
             overlap: 5,
             trim: false,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "AAAAA BBBBB CCCCC DDDDD EEEEE FFFFF";
         let result = chunk_text(text, &config, None).unwrap();
@@ -555,6 +599,8 @@ mod tests {
             overlap: 0,
             trim: false,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "AAAAA BBBBB CCCCC DDDDD EEEEE FFFFF";
         let result = chunk_text(text, &config, None).unwrap();
@@ -581,6 +627,8 @@ mod tests {
             overlap: 3,
             trim: false,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "0123456789 ABCDEFGHIJ KLMNOPQRST UVWXYZ";
         let result = chunk_text(text, &config, None).unwrap();
@@ -615,6 +663,8 @@ mod tests {
                 overlap,
                 trim: false,
                 chunker_type: ChunkerType::Text,
+                embedding: None,
+                preset: None,
             };
             let text = "Word ".repeat(30);
             let result = chunk_text(&text, &config, None).unwrap();
@@ -647,6 +697,8 @@ mod tests {
             overlap: 5,
             trim: false,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "AAAAA BBBBB CCCCC DDDDD EEEEE";
         let result = chunk_text(text, &config, None).unwrap();
@@ -674,6 +726,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "Page one content here. Page two starts here and continues.";
 
@@ -706,6 +760,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "This is some test content that should be split into multiple chunks.";
 
@@ -725,6 +781,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "Some text content here.";
         let boundaries: Vec<PageBoundary> = vec![];
@@ -743,6 +801,8 @@ mod tests {
             overlap: 5,
             trim: false,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "0123456789 AAAAAAAAAA 1111111111 BBBBBBBBBB 2222222222";
 
@@ -779,6 +839,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "Page one content here. Page two content.";
 
@@ -802,6 +864,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "Page one content here. Page two content.";
 
@@ -832,6 +896,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "Page one content here. Page two content.";
 
@@ -862,6 +928,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "First page content here.Second page content here.Third page.";
 
@@ -897,6 +965,8 @@ mod tests {
             overlap: 10,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "All content on single page fits in one chunk.";
 
@@ -919,6 +989,8 @@ mod tests {
             overlap: 0,
             trim: false,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "AAAAA BBBBB CCCCC DDDDD";
 
@@ -952,6 +1024,8 @@ mod tests {
             overlap: 5,
             trim: true,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "Page One Content Here.Page Two.";
 
@@ -982,6 +1056,8 @@ mod tests {
             overlap: 2,
             trim: false,
             chunker_type: ChunkerType::Text,
+            embedding: None,
+            preset: None,
         };
         let text = "0123456789ABCDEFGHIJ";
 

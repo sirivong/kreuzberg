@@ -370,8 +370,8 @@ max_overlap = 300
     assert_eq!(ocr_config.language, "deu");
 
     let chunking_config = config.chunking.expect("Operation failed");
-    assert_eq!(chunking_config.max_chars, 2000);
-    assert_eq!(chunking_config.max_overlap, 300);
+    assert_eq!(chunking_config.max_characters, 2000);
+    assert_eq!(chunking_config.overlap, 300);
 }
 
 /// Test config discovery in parent directories.
@@ -481,10 +481,9 @@ async fn test_extraction_with_chunking_config() {
 
     let config = ExtractionConfig {
         chunking: Some(kreuzberg::ChunkingConfig {
-            max_chars: 100,
-            max_overlap: 20,
-            embedding: None,
-            preset: None,
+            max_characters: 100,
+            overlap: 20,
+            ..Default::default()
         }),
         ..Default::default()
     };

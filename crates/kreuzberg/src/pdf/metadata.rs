@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 /// `Metadata` structure. Common fields like title, authors, keywords, and dates
 /// are now at the `Metadata` level.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct PdfMetadata {
     /// PDF version (e.g., "1.7", "2.0")
     #[serde(skip_serializing_if = "Option::is_none")]

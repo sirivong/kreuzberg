@@ -17,4 +17,4 @@ pub use ocr::OcrConfig;
 pub use page::PageConfig;
 #[cfg(feature = "pdf")]
 pub use pdf::{HierarchyConfig, PdfConfig};
-pub use processing::{ChunkingConfig, EmbeddingConfig, EmbeddingModelType, PostProcessorConfig};
+pub use processing::{ChunkerType, ChunkingConfig, EmbeddingConfig, EmbeddingModelType, PostProcessorConfig};

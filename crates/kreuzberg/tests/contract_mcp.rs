@@ -96,8 +96,8 @@ fn test_mcp_chunking_config_nested_matches_rust_core() {
     assert!(config.chunking.is_some(), "Chunking config should be present");
 
     if let Some(chunking) = &config.chunking {
-        assert_eq!(chunking.max_chars, 500, "max_chars should be 500");
-        assert_eq!(chunking.max_overlap, 50, "max_overlap should be 50");
+        assert_eq!(chunking.max_characters, 500, "max_chars should be 500");
+        assert_eq!(chunking.overlap, 50, "max_overlap should be 50");
     }
 
     // Verify roundtrip

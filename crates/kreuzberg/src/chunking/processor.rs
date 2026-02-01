@@ -54,14 +54,7 @@ impl PostProcessor for ChunkingProcessor {
             None => return Ok(()),
         };
 
-        let chunk_config = crate::chunking::ChunkingConfig {
-            max_characters: chunking_config.max_chars,
-            overlap: chunking_config.max_overlap,
-            trim: true,
-            chunker_type: crate::chunking::ChunkerType::Text,
-        };
-
-        let chunking_result = crate::chunking::chunk_text(&result.content, &chunk_config, None)
+        let chunking_result = crate::chunking::chunk_text(&result.content, chunking_config, None)
             .map_err(|e| KreuzbergError::Other(format!("Chunking failed: {}", e)))?;
         result.chunks = Some(chunking_result.chunks);
 
@@ -94,8 +87,10 @@ mod tests {
         let processor = ChunkingProcessor;
         let config = ExtractionConfig {
             chunking: Some(ChunkingConfig {
-                max_chars: 100,
-                max_overlap: 10,
+                max_characters: 100,
+                overlap: 10,
+                trim: true,
+                chunker_type: crate::chunking::ChunkerType::Text,
                 embedding: None,
                 preset: None,
             }),
@@ -179,8 +174,10 @@ mod tests {
 
         let config_with_chunking = ExtractionConfig {
             chunking: Some(crate::core::config::ChunkingConfig {
-                max_chars: 100,
-                max_overlap: 10,
+                max_characters: 100,
+                overlap: 10,
+                trim: true,
+                chunker_type: crate::chunking::ChunkerType::Text,
                 embedding: None,
                 preset: None,
             }),

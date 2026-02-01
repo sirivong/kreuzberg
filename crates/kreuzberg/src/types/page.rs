@@ -15,6 +15,7 @@ use super::tables::Table;
 /// Supports different page types (PDF pages, PPTX slides, Excel sheets)
 /// with character offset boundaries for chunk-to-page mapping.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct PageStructure {
     /// Total number of pages/slides/sheets
     pub total_count: usize,
@@ -39,6 +40,7 @@ pub struct PageStructure {
 /// Distinguishes between different types of "pages" (PDF pages, presentation slides, spreadsheet sheets).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub enum PageUnitType {
     /// Standard document pages (PDF, DOCX, images)
     Page,
@@ -54,6 +56,7 @@ pub enum PageUnitType {
 /// enabling mapping from byte positions to page numbers. Offsets are guaranteed to be
 /// at valid UTF-8 character boundaries when using standard String methods (push_str, push, etc.).
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct PageBoundary {
     /// Byte offset where this page starts in the content string (UTF-8 valid boundary, inclusive)
     pub byte_start: usize,
@@ -68,6 +71,7 @@ pub struct PageBoundary {
 /// Captures per-page information including dimensions, content counts,
 /// and visibility state (for presentations).
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct PageInfo {
     /// Page number (1-indexed)
     pub number: usize,
@@ -108,6 +112,7 @@ pub struct PageInfo {
 /// This reduces memory overhead for documents with shared tables/images
 /// by avoiding redundant copies during serialization.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct PageContent {
     /// Page number (1-indexed)
     pub page_number: usize,
@@ -120,6 +125,7 @@ pub struct PageContent {
     /// Serializes as Vec<Table> for JSON compatibility while maintaining
     /// Arc semantics in-memory for zero-copy sharing.
     #[serde(skip_serializing_if = "Vec::is_empty", default, with = "serde_vec_arc")]
+    #[cfg_attr(feature = "api", schema(value_type = Vec<Table>))]
     pub tables: Vec<Arc<Table>>,
 
     /// Images found on this page (uses Arc for memory efficiency)
@@ -127,6 +133,7 @@ pub struct PageContent {
     /// Serializes as Vec<ExtractedImage> for JSON compatibility while maintaining
     /// Arc semantics in-memory for zero-copy sharing.
     #[serde(skip_serializing_if = "Vec::is_empty", default, with = "serde_vec_arc")]
+    #[cfg_attr(feature = "api", schema(value_type = Vec<ExtractedImage>))]
     pub images: Vec<Arc<ExtractedImage>>,
 
     /// Hierarchy information for the page (when hierarchy extraction is enabled)
@@ -141,6 +148,7 @@ pub struct PageContent {
 /// Used when PDF text hierarchy extraction is enabled. Contains hierarchical
 /// blocks with heading levels (H1-H6) for semantic document structure.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct PageHierarchy {
     /// Number of hierarchy blocks on this page
     pub block_count: usize,
@@ -155,6 +163,7 @@ pub struct PageHierarchy {
 /// Represents a block of text with semantic heading information extracted from
 /// font size clustering and hierarchical analysis.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct HierarchicalBlock {
     /// The text content of this block
     pub text: String,

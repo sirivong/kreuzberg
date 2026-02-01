@@ -104,8 +104,10 @@ async fn test_pipeline_with_chunking() {
     };
     let config = ExtractionConfig {
         chunking: Some(crate::ChunkingConfig {
-            max_chars: 500,
-            max_overlap: 50,
+            max_characters: 500,
+            overlap: 50,
+            trim: true,
+            chunker_type: crate::ChunkerType::Text,
             embedding: None,
             preset: None,
         }),
@@ -256,8 +258,10 @@ async fn test_pipeline_with_all_features() {
     let config = ExtractionConfig {
         enable_quality_processing: true,
         chunking: Some(crate::ChunkingConfig {
-            max_chars: 500,
-            max_overlap: 50,
+            max_characters: 500,
+            overlap: 50,
+            trim: true,
+            chunker_type: crate::ChunkerType::Text,
             embedding: None,
             preset: None,
         }),

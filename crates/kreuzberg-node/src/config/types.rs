@@ -11,7 +11,7 @@ use kreuzberg::keywords::{
 };
 use kreuzberg::pdf::HierarchyConfig as RustHierarchyConfig;
 use kreuzberg::{
-    ChunkingConfig as RustChunkingConfig, EmbeddingConfig as RustEmbeddingConfig,
+    ChunkerType, ChunkingConfig as RustChunkingConfig, EmbeddingConfig as RustEmbeddingConfig,
     EmbeddingModelType as RustEmbeddingModelType, ExtractionConfig, ImageExtractionConfig as RustImageExtractionConfig,
     LanguageDetectionConfig as RustLanguageDetectionConfig, OcrConfig as RustOcrConfig, PdfConfig as RustPdfConfig,
     PostProcessorConfig as RustPostProcessorConfig, TesseractConfig as RustTesseractConfig,
@@ -161,8 +161,10 @@ pub struct JsChunkingConfig {
 impl From<JsChunkingConfig> for RustChunkingConfig {
     fn from(val: JsChunkingConfig) -> Self {
         RustChunkingConfig {
-            max_chars: val.max_chars.unwrap_or(1000) as usize,
-            max_overlap: val.max_overlap.unwrap_or(200) as usize,
+            max_characters: val.max_chars.unwrap_or(1000) as usize,
+            overlap: val.max_overlap.unwrap_or(200) as usize,
+            trim: true,
+            chunker_type: ChunkerType::Text,
             embedding: val.embedding.map(Into::into),
             preset: val.preset,
         }
@@ -954,8 +956,8 @@ impl TryFrom<ExtractionConfig> for JsExtractionConfig {
             }),
             force_ocr: Some(val.force_ocr),
             chunking: val.chunking.map(|chunk| JsChunkingConfig {
-                max_chars: Some(chunk.max_chars as u32),
-                max_overlap: Some(chunk.max_overlap as u32),
+                max_chars: Some(chunk.max_characters as u32),
+                max_overlap: Some(chunk.overlap as u32),
                 embedding: chunk.embedding.map(|emb| JsEmbeddingConfig {
                     model: Some(JsEmbeddingModelType {
                         model_type: match emb.model {

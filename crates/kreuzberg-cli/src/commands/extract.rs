@@ -116,11 +116,13 @@ pub fn apply_extraction_overrides(
     }
     if let Some(chunk_flag) = chunk {
         if chunk_flag {
-            let max_chars = chunk_size.unwrap_or(1000);
-            let max_overlap = chunk_overlap.unwrap_or(200);
+            let max_characters = chunk_size.unwrap_or(1000);
+            let overlap = chunk_overlap.unwrap_or(200);
             config.chunking = Some(ChunkingConfig {
-                max_chars,
-                max_overlap,
+                max_characters,
+                overlap,
+                trim: true,
+                chunker_type: kreuzberg::chunking::ChunkerType::Text,
                 embedding: None,
                 preset: None,
             });
@@ -128,11 +130,11 @@ pub fn apply_extraction_overrides(
             config.chunking = None;
         }
     } else if let Some(ref mut chunking) = config.chunking {
-        if let Some(max_chars) = chunk_size {
-            chunking.max_chars = max_chars;
+        if let Some(max_characters) = chunk_size {
+            chunking.max_characters = max_characters;
         }
-        if let Some(max_overlap) = chunk_overlap {
-            chunking.max_overlap = max_overlap;
+        if let Some(overlap) = chunk_overlap {
+            chunking.overlap = overlap;
         }
     }
     if let Some(quality_flag) = quality {

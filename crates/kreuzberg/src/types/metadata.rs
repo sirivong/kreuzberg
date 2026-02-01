@@ -48,6 +48,7 @@ mod additional_serde {
 /// Only one format type can exist per extraction result. This provides
 /// type-safe, clean metadata without nested optionals.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[serde(tag = "format_type", rename_all = "snake_case")]
 pub enum FormatMetadata {
     #[cfg(feature = "pdf")]
@@ -59,6 +60,7 @@ pub enum FormatMetadata {
     Image(ImageMetadata),
     Xml(XmlMetadata),
     Text(TextMetadata),
+    #[cfg_attr(feature = "api", schema(value_type = HtmlMetadata))]
     Html(Box<HtmlMetadata>),
     Ocr(OcrMetadata),
 }
@@ -68,6 +70,7 @@ pub enum FormatMetadata {
 /// Contains common fields applicable to all formats, format-specific metadata
 /// via a discriminated union, and additional custom fields from postprocessors.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct Metadata {
     /// Document title
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -114,6 +117,7 @@ pub struct Metadata {
     /// Contains detailed metadata specific to the document format.
     /// Serializes with a `format_type` discriminator field.
     #[serde(flatten, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "api", schema(value_type = Option<Object>))]
     pub format: Option<FormatMetadata>,
 
     /// Image preprocessing metadata (when OCR preprocessing was applied)
@@ -139,6 +143,7 @@ pub struct Metadata {
         serialize_with = "additional_serde::serialize",
         deserialize_with = "additional_serde::deserialize"
     )]
+    #[cfg_attr(feature = "api", schema(value_type = HashMap<String, serde_json::Value>))]
     pub additional: AHashMap<Cow<'static, str>, serde_json::Value>,
 }
 
@@ -147,6 +152,7 @@ pub struct Metadata {
 /// Contains information about sheets in Excel, LibreOffice Calc, and other
 /// spreadsheet formats (.xlsx, .xls, .ods, etc.).
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct ExcelMetadata {
     /// Total number of sheets in the workbook
     pub sheet_count: usize,
@@ -158,6 +164,7 @@ pub struct ExcelMetadata {
 ///
 /// Includes sender/recipient information, message ID, and attachment list.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct EmailMetadata {
     /// Sender's email address
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -186,8 +193,10 @@ pub struct EmailMetadata {
 ///
 /// Extracted from compressed archive files containing file lists and size information.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct ArchiveMetadata {
     /// Archive format ("ZIP", "TAR", "7Z", etc.)
+    #[cfg_attr(feature = "api", schema(value_type = String))]
     pub format: Cow<'static, str>,
     /// Total number of files in the archive
     pub file_count: usize,
@@ -205,6 +214,7 @@ pub struct ArchiveMetadata {
 ///
 /// Includes dimensions, format, and EXIF data.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct ImageMetadata {
     /// Image width in pixels
     pub width: u32,
@@ -220,6 +230,7 @@ pub struct ImageMetadata {
 ///
 /// Provides statistics about XML document structure.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct XmlMetadata {
     /// Total number of XML elements processed
     pub element_count: usize,
@@ -232,6 +243,7 @@ pub struct XmlMetadata {
 /// Extracted from plain text and Markdown files. Includes word counts and,
 /// for Markdown, structural elements like headers and links.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct TextMetadata {
     /// Number of lines in the document
     pub line_count: usize,
@@ -255,6 +267,7 @@ pub struct TextMetadata {
 
 /// Text direction enumeration for HTML documents.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum TextDirection {
     /// Left-to-right text direction
@@ -270,6 +283,7 @@ pub enum TextDirection {
 
 /// Header/heading element metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct HeaderMetadata {
     /// Header level: 1 (h1) through 6 (h6)
     pub level: u8,
@@ -286,6 +300,7 @@ pub struct HeaderMetadata {
 
 /// Link element metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct LinkMetadata {
     /// The href URL value
     pub href: String,
@@ -304,6 +319,7 @@ pub struct LinkMetadata {
 
 /// Link type classification.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum LinkType {
     /// Anchor link (#section)
@@ -322,6 +338,7 @@ pub enum LinkType {
 
 /// Image element metadata.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct ImageMetadataType {
     /// Image source (URL, data URI, or SVG content)
     pub src: String,
@@ -341,6 +358,7 @@ pub struct ImageMetadataType {
 
 /// Image type classification.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum ImageType {
     /// Data URI image
@@ -357,6 +375,7 @@ pub enum ImageType {
 
 /// Structured data (Schema.org, microdata, RDFa) block.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct StructuredData {
     /// Type of structured data
     pub data_type: StructuredDataType,
@@ -369,6 +388,7 @@ pub struct StructuredData {
 
 /// Structured data type classification.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum StructuredDataType {
     /// JSON-LD structured data
@@ -386,6 +406,7 @@ pub enum StructuredDataType {
 /// Includes document-level metadata, Open Graph data, Twitter Card metadata,
 /// and extracted structural elements (headers, links, images, structured data).
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct HtmlMetadata {
     /// Document title from `<title>` tag
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -561,6 +582,7 @@ impl From<html_to_markdown_rs::ExtendedMetadata> for HtmlMetadata {
 ///
 /// Captures information about OCR processing configuration and results.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct OcrMetadata {
     /// OCR language code(s) used
     pub language: String,
@@ -580,6 +602,7 @@ pub struct OcrMetadata {
 
 /// Error metadata (for batch operations).
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct ErrorMetadata {
     pub error_type: String,
     pub message: String,
@@ -589,6 +612,7 @@ pub struct ErrorMetadata {
 ///
 /// Extracted from PPTX files containing slide counts and presentation details.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct PptxMetadata {
     /// Total number of slides in the presentation
     pub slide_count: usize,

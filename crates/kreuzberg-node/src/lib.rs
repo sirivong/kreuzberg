@@ -110,7 +110,7 @@ unsafe extern "C" {
     pub fn kreuzberg_validate_output_format(format: *const c_char) -> i32;
     pub fn kreuzberg_validate_confidence(confidence: f64) -> i32;
     pub fn kreuzberg_validate_dpi(dpi: i32) -> i32;
-    pub fn kreuzberg_validate_chunking_params(max_chars: usize, max_overlap: usize) -> i32;
+    pub fn kreuzberg_validate_chunking_params(max_characters: usize, overlap: usize) -> i32;
 
     pub fn kreuzberg_get_valid_binarization_methods() -> *mut c_char;
     pub fn kreuzberg_get_valid_language_codes() -> *mut c_char;

@@ -96,10 +96,10 @@ pub fn term_to_json(term: Term) -> Result<serde_json::Value, String> {
     }
 
     // Handle floats
-    if let Ok(f) = term.decode::<f64>() {
-        if let Some(num) = serde_json::Number::from_f64(f) {
-            return Ok(serde_json::Value::Number(num));
-        }
+    if let Ok(f) = term.decode::<f64>()
+        && let Some(num) = serde_json::Number::from_f64(f)
+    {
+        return Ok(serde_json::Value::Number(num));
     }
 
     // Handle strings

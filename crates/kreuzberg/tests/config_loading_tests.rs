@@ -36,8 +36,8 @@ max_overlap = 100
     assert!(config.chunking.is_some(), "Should have chunking config");
 
     let chunking = config.chunking.expect("Operation failed");
-    assert_eq!(chunking.max_chars, 1000);
-    assert_eq!(chunking.max_overlap, 100);
+    assert_eq!(chunking.max_characters, 1000);
+    assert_eq!(chunking.overlap, 100);
 }
 
 /// Test loading config from YAML file.
@@ -51,8 +51,8 @@ ocr:
   enabled: true
   backend: tesseract
 chunking:
-  max_chars: 1000
-  max_overlap: 100
+  max_characters: 1000
+  overlap: 100
 "#;
 
     fs::write(&config_path, yaml_content).expect("Operation failed");
@@ -65,8 +65,8 @@ chunking:
     assert!(config.chunking.is_some(), "Should have chunking config");
 
     let chunking = config.chunking.expect("Operation failed");
-    assert_eq!(chunking.max_chars, 1000);
-    assert_eq!(chunking.max_overlap, 100);
+    assert_eq!(chunking.max_characters, 1000);
+    assert_eq!(chunking.overlap, 100);
 }
 
 /// Test loading config from JSON file.
@@ -98,8 +98,8 @@ fn test_from_file_json_succeeds() {
     assert!(config.chunking.is_some(), "Should have chunking config");
 
     let chunking = config.chunking.expect("Operation failed");
-    assert_eq!(chunking.max_chars, 1000);
-    assert_eq!(chunking.max_overlap, 100);
+    assert_eq!(chunking.max_characters, 1000);
+    assert_eq!(chunking.overlap, 100);
 }
 
 /// Test loading config from .yml extension.
@@ -420,6 +420,6 @@ max_overlap = -100
     if let Ok(config) = result
         && let Some(chunking) = config.chunking
     {
-        assert!(chunking.max_chars > 0, "max_chars should be positive");
+        assert!(chunking.max_characters > 0, "max_characters should be positive");
     }
 }

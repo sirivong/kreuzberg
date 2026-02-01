@@ -84,19 +84,18 @@ pub async fn info_handler() -> Json<InfoResponse> {
 ///
 /// The server's default config (loaded from kreuzberg.toml/yaml/json via discovery)
 /// is used as the base, and any per-request config overrides those defaults.
-// TODO: Add utoipa::path annotation once ExtractionResult implements ToSchema
-// #[utoipa::path(
-//     post,
-//     path = "/extract",
-//     tag = "extraction",
-//     request_body(content_type = "multipart/form-data"),
-//     responses(
-//         (status = 200, description = "Extraction successful", body = ExtractResponse),
-//         (status = 400, description = "Bad request", body = crate::api::types::ErrorResponse),
-//         (status = 413, description = "Payload too large", body = crate::api::types::ErrorResponse),
-//         (status = 500, description = "Internal server error", body = crate::api::types::ErrorResponse),
-//     )
-// )]
+#[utoipa::path(
+    post,
+    path = "/extract",
+    tag = "extraction",
+    request_body(content_type = "multipart/form-data"),
+    responses(
+        (status = 200, description = "Extraction successful", body = ExtractResponse),
+        (status = 400, description = "Bad request", body = crate::api::types::ErrorResponse),
+        (status = 413, description = "Payload too large", body = crate::api::types::ErrorResponse),
+        (status = 500, description = "Internal server error", body = crate::api::types::ErrorResponse),
+    )
+)]
 #[cfg_attr(
     feature = "otel",
     tracing::instrument(
@@ -497,6 +496,8 @@ pub async fn chunk_handler(JsonApi(request): JsonApi<ChunkRequest>) -> Result<Js
         overlap,
         trim: cfg.trim.unwrap_or(true),
         chunker_type,
+        embedding: None,
+        preset: None,
     };
 
     // Perform chunking - convert any remaining errors to validation errors since they're likely config issues

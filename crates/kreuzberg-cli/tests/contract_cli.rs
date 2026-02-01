@@ -34,8 +34,8 @@ fn test_cli_config_json_flag_basic_parsing() {
 fn test_cli_nested_config_deserialization() {
     let config_str = r#"{
         "chunking": {
-            "max_chars": 1000,
-            "max_overlap": 200
+            "max_characters": 1000,
+            "overlap": 200
         },
         "ocr": {
             "backend": "tesseract"
@@ -48,8 +48,8 @@ fn test_cli_nested_config_deserialization() {
     assert!(config.ocr.is_some(), "OCR config should be present");
 
     let chunking = config.chunking.unwrap();
-    assert_eq!(chunking.max_chars, 1000, "max_chars should be 1000");
-    assert_eq!(chunking.max_overlap, 200, "max_overlap should be 200");
+    assert_eq!(chunking.max_characters, 1000, "max_chars should be 1000");
+    assert_eq!(chunking.overlap, 200, "max_overlap should be 200");
 
     let ocr = config.ocr.unwrap();
     assert_eq!(ocr.backend, "tesseract", "backend should be tesseract");
@@ -94,8 +94,8 @@ fn test_cli_complex_config_deserialization() {
             "language": "eng"
         },
         "chunking": {
-            "max_chars": 2000,
-            "max_overlap": 400,
+            "max_characters": 2000,
+            "overlap": 400,
             "strategy": "sliding_window"
         }
     }"#;
@@ -117,8 +117,8 @@ fn test_cli_complex_config_deserialization() {
     assert_eq!(ocr.language, "eng");
 
     let chunking = config.chunking.unwrap();
-    assert_eq!(chunking.max_chars, 2000);
-    assert_eq!(chunking.max_overlap, 400);
+    assert_eq!(chunking.max_characters, 2000);
+    assert_eq!(chunking.overlap, 400);
 }
 
 #[test]

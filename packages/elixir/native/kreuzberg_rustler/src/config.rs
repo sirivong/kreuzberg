@@ -44,10 +44,10 @@ use std::collections::HashMap;
 /// - Invalid types result in descriptive error messages
 pub fn parse_extraction_config(_env: Env, options: Term) -> Result<kreuzberg::core::config::ExtractionConfig, String> {
     // Handle nil case - return default config
-    if let Ok(atom_str) = options.atom_to_string() {
-        if atom_str == "nil" {
-            return Ok(kreuzberg::core::config::ExtractionConfig::default());
-        }
+    if let Ok(atom_str) = options.atom_to_string()
+        && atom_str == "nil"
+    {
+        return Ok(kreuzberg::core::config::ExtractionConfig::default());
     }
 
     // Try to decode as a map with string keys
@@ -104,11 +104,11 @@ pub fn parse_extraction_config(_env: Env, options: Term) -> Result<kreuzberg::co
         // Validate and handle nested map fields
         if nested_fields.contains(&field_name) {
             // Check if value is a map or nil
-            if let Ok(atom_str) = value.atom_to_string() {
-                if atom_str == "nil" {
-                    // nil is acceptable for optional nested configs
-                    continue;
-                }
+            if let Ok(atom_str) = value.atom_to_string()
+                && atom_str == "nil"
+            {
+                // nil is acceptable for optional nested configs
+                continue;
             }
 
             // Try to decode as a HashMap to validate it's a map

@@ -17,7 +17,7 @@ fn test_config_discover() {
     std::fs::write(
         &config_path,
         r#"[chunking]
-max_chars = 50
+max_characters = 50
 "#,
     )
     .expect("Failed to write config file");
@@ -37,7 +37,7 @@ max_chars = 50
 
     // Verify chunking exists
     let _ = &config.chunking;
-    assert_eq!(config.chunking.as_ref().unwrap().max_chars, 50);
+    assert_eq!(config.chunking.as_ref().unwrap().max_characters, 50);
 }
 
 #[test]
@@ -49,8 +49,8 @@ fn test_config_from_file() {
     std::fs::write(
         &config_path,
         r#"[chunking]
-max_chars = 100
-max_overlap = 20
+max_characters = 100
+overlap = 20
 
 [language_detection]
 enabled = false
@@ -62,8 +62,8 @@ enabled = false
 
     // Verify chunking exists
     let _ = &config.chunking;
-    assert_eq!(config.chunking.as_ref().unwrap().max_chars, 100);
-    assert_eq!(config.chunking.as_ref().unwrap().max_overlap, 20);
+    assert_eq!(config.chunking.as_ref().unwrap().max_characters, 100);
+    assert_eq!(config.chunking.as_ref().unwrap().overlap, 20);
     // Verify language_detection exists
     let _ = &config.language_detection;
     assert!(!config.language_detection.as_ref().unwrap().enabled);

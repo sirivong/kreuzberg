@@ -12,16 +12,9 @@ use std::borrow::Cow;
 pub(super) fn execute_chunking(result: &mut ExtractionResult, config: &ExtractionConfig) -> Result<()> {
     #[cfg(feature = "chunking")]
     if let Some(ref chunking_config) = config.chunking {
-        let chunk_config = crate::chunking::ChunkingConfig {
-            max_characters: chunking_config.max_chars,
-            overlap: chunking_config.max_overlap,
-            trim: true,
-            chunker_type: crate::chunking::ChunkerType::Text,
-        };
-
         let page_boundaries = result.metadata.pages.as_ref().and_then(|ps| ps.boundaries.as_deref());
 
-        match crate::chunking::chunk_text(&result.content, &chunk_config, page_boundaries) {
+        match crate::chunking::chunk_text(&result.content, chunking_config, page_boundaries) {
             Ok(chunking_result) => {
                 result.chunks = Some(chunking_result.chunks);
 

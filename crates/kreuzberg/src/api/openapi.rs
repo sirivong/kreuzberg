@@ -32,7 +32,7 @@ use utoipa::OpenApi;
     paths(
         crate::api::handlers::health_handler,
         crate::api::handlers::info_handler,
-        // Note: extract_handler omitted - requires ExtractionResult ToSchema impl
+        crate::api::handlers::extract_handler,
         crate::api::handlers::cache_stats_handler,
         crate::api::handlers::cache_clear_handler,
         crate::api::handlers::embed_handler,
@@ -53,6 +53,19 @@ use utoipa::OpenApi;
             crate::api::types::ChunkItem,
             crate::api::types::ChunkingConfigRequest,
             crate::api::types::ChunkingConfigResponse,
+            crate::types::extraction::ExtractionResult,
+            crate::types::extraction::Chunk,
+            crate::types::extraction::ChunkMetadata,
+            crate::types::extraction::ExtractedImage,
+            crate::types::extraction::Element,
+            crate::types::extraction::ElementMetadata,
+            crate::types::extraction::ElementId,
+            crate::types::extraction::ElementType,
+            crate::types::extraction::BoundingBox,
+            crate::types::metadata::Metadata,
+            crate::types::tables::Table,
+            crate::types::page::PageContent,
+            crate::types::djot::DjotContent,
         )
     ),
     tags(

@@ -94,8 +94,10 @@ impl ExtractionConfig {
 
             if self.chunking.is_none() {
                 self.chunking = Some(ChunkingConfig {
-                    max_chars: 1000,
-                    max_overlap: 200,
+                    max_characters: 1000,
+                    overlap: 200,
+                    trim: true,
+                    chunker_type: super::super::processing::ChunkerType::Text,
                     embedding: None,
                     preset: None,
                 });
@@ -103,8 +105,8 @@ impl ExtractionConfig {
 
             if let Some(ref mut chunking) = self.chunking {
                 // Validate against current overlap before updating
-                validate_chunking_params(max_chars, chunking.max_overlap)?;
-                chunking.max_chars = max_chars;
+                validate_chunking_params(max_chars, chunking.overlap)?;
+                chunking.max_characters = max_chars;
             }
         }
 
@@ -120,17 +122,19 @@ impl ExtractionConfig {
 
             if self.chunking.is_none() {
                 self.chunking = Some(ChunkingConfig {
-                    max_chars: 1000,
-                    max_overlap: 200,
+                    max_characters: 1000,
+                    overlap: 200,
+                    trim: true,
+                    chunker_type: super::super::processing::ChunkerType::Text,
                     embedding: None,
                     preset: None,
                 });
             }
 
             if let Some(ref mut chunking) = self.chunking {
-                // Validate against current max_chars before updating
-                validate_chunking_params(chunking.max_chars, max_overlap)?;
-                chunking.max_overlap = max_overlap;
+                // Validate against current max_characters before updating
+                validate_chunking_params(chunking.max_characters, max_overlap)?;
+                chunking.overlap = max_overlap;
             }
         }
 

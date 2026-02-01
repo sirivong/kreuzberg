@@ -147,10 +147,9 @@ async fn test_chunking_max_chars_limits_chunk_size() {
 
     let config = ExtractionConfig {
         chunking: Some(ChunkingConfig {
-            max_chars: 100,
-            max_overlap: 20,
-            embedding: None,
-            preset: None,
+            max_characters: 100,
+            overlap: 20,
+            ..Default::default()
         }),
         ..Default::default()
     };
@@ -184,10 +183,9 @@ async fn test_chunking_overlap_creates_overlap() {
 
     let config = ExtractionConfig {
         chunking: Some(ChunkingConfig {
-            max_chars: 50,
-            max_overlap: 15,
-            embedding: None,
-            preset: None,
+            max_characters: 50,
+            overlap: 15,
+            ..Default::default()
         }),
         ..Default::default()
     };
@@ -351,10 +349,9 @@ async fn test_chunking_overlap_maximum() {
 
     let config = ExtractionConfig {
         chunking: Some(ChunkingConfig {
-            max_chars: 60,
-            max_overlap: 10,
-            embedding: None,
-            preset: None,
+            max_characters: 60,
+            overlap: 10,
+            ..Default::default()
         }),
         ..Default::default()
     };
@@ -385,10 +382,9 @@ async fn test_large_document_with_combined_config() {
     let config = ExtractionConfig {
         output_format: OutputFormat::Plain,
         chunking: Some(ChunkingConfig {
-            max_chars: 200,
-            max_overlap: 30,
-            embedding: None,
-            preset: None,
+            max_characters: 200,
+            overlap: 30,
+            ..Default::default()
         }),
         use_cache: true,
         enable_quality_processing: true,

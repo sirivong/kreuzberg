@@ -19,10 +19,12 @@ mod helpers;
 async fn test_chunking_enabled() {
     let config = ExtractionConfig {
         chunking: Some(ChunkingConfig {
-            max_chars: 50,
-            max_overlap: 10,
+            max_characters: 50,
+            overlap: 10,
             embedding: None,
             preset: None,
+            trim: true,
+            chunker_type: kreuzberg::chunking::ChunkerType::Text,
         }),
         ..Default::default()
     };
@@ -62,10 +64,12 @@ async fn test_chunking_enabled() {
 async fn test_chunking_with_overlap() {
     let config = ExtractionConfig {
         chunking: Some(ChunkingConfig {
-            max_chars: 100,
-            max_overlap: 20,
+            max_characters: 100,
+            overlap: 20,
             embedding: None,
             preset: None,
+            trim: true,
+            chunker_type: kreuzberg::chunking::ChunkerType::Text,
         }),
         ..Default::default()
     };
@@ -102,10 +106,12 @@ async fn test_chunking_with_overlap() {
 async fn test_chunking_custom_sizes() {
     let config = ExtractionConfig {
         chunking: Some(ChunkingConfig {
-            max_chars: 200,
-            max_overlap: 50,
+            max_characters: 200,
+            overlap: 50,
             embedding: None,
             preset: None,
+            trim: true,
+            chunker_type: kreuzberg::chunking::ChunkerType::Text,
         }),
         ..Default::default()
     };
@@ -512,10 +518,12 @@ async fn test_chunking_with_embeddings() {
 
     let config = ExtractionConfig {
         chunking: Some(ChunkingConfig {
-            max_chars: 100,
-            max_overlap: 20,
+            max_characters: 100,
+            overlap: 20,
             embedding: Some(EmbeddingConfig::default()),
             preset: None,
+            trim: true,
+            chunker_type: kreuzberg::chunking::ChunkerType::Text,
         }),
         ..Default::default()
     };
@@ -582,15 +590,15 @@ async fn test_chunking_with_fast_embeddings() {
 
     let config = ExtractionConfig {
         chunking: Some(ChunkingConfig {
-            max_chars: 100,
-            max_overlap: 20,
+            max_characters: 100,
+            overlap: 20,
             embedding: Some(EmbeddingConfig {
                 model: EmbeddingModelType::Preset {
                     name: "fast".to_string(),
                 },
                 ..Default::default()
             }),
-            preset: None,
+            ..Default::default()
         }),
         ..Default::default()
     };

@@ -549,8 +549,8 @@ pub fn validate_dpi(dpi: i32) -> bool {
 /// }
 /// ```
 #[napi(js_name = "validateChunkingParams")]
-pub fn validate_chunking_params(max_chars: u32, max_overlap: u32) -> bool {
-    unsafe { kreuzberg_validate_chunking_params(max_chars as usize, max_overlap as usize) == 1 }
+pub fn validate_chunking_params(max_characters: u32, overlap: u32) -> bool {
+    unsafe { kreuzberg_validate_chunking_params(max_characters as usize, overlap as usize) == 1 }
 }
 
 /// Get valid binarization methods.

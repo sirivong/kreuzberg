@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### API
+- **OpenAPI schema for `/extract` endpoint**: Implemented `utoipa::ToSchema` on all extraction result types (`ExtractionResult`, `Metadata`, `Chunk`, `ExtractedImage`, `Element`, `DjotContent`, `PageContent`, `Table`, and all nested types), enabling full OpenAPI documentation for the extraction endpoint
+- **Unified `ChunkingConfig`**: Merged internal chunking config into a single `ChunkingConfig` struct with canonical field names (`max_characters`, `overlap`) and serde aliases (`max_chars`, `max_overlap`) for backwards compatibility. Added `trim` and `chunker_type` fields. `ChunkerType` enum is no longer feature-gated behind `chunking`
+
 #### OCR
 - **`KREUZBERG_OCR_LANGUAGE="all"` support**: Setting the language to `"all"` or `"*"` automatically detects and uses all installed Tesseract languages from the tessdata directory, eliminating manual enumeration (#344)
 

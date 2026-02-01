@@ -638,8 +638,10 @@ impl ChunkingConfig {
     ) -> Self {
         Self {
             inner: kreuzberg::ChunkingConfig {
-                max_chars: max_chars.unwrap_or(1000),
-                max_overlap: max_overlap.unwrap_or(200),
+                max_characters: max_chars.unwrap_or(1000),
+                overlap: max_overlap.unwrap_or(200),
+                trim: true,
+                chunker_type: kreuzberg::ChunkerType::Text,
                 embedding: embedding.map(Into::into),
                 preset,
             },
@@ -648,22 +650,22 @@ impl ChunkingConfig {
 
     #[getter]
     fn max_chars(&self) -> usize {
-        self.inner.max_chars
+        self.inner.max_characters
     }
 
     #[setter]
     fn set_max_chars(&mut self, value: usize) {
-        self.inner.max_chars = value;
+        self.inner.max_characters = value;
     }
 
     #[getter]
     fn max_overlap(&self) -> usize {
-        self.inner.max_overlap
+        self.inner.overlap
     }
 
     #[setter]
     fn set_max_overlap(&mut self, value: usize) {
-        self.inner.max_overlap = value;
+        self.inner.overlap = value;
     }
 
     #[getter]
@@ -689,8 +691,8 @@ impl ChunkingConfig {
     fn __repr__(&self) -> String {
         format!(
             "ChunkingConfig(max_chars={}, max_overlap={}, embedding={}, preset={})",
-            self.inner.max_chars,
-            self.inner.max_overlap,
+            self.inner.max_characters,
+            self.inner.overlap,
             if self.inner.embedding.is_some() { "..." } else { "None" },
             self.inner
                 .preset

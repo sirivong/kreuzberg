@@ -130,8 +130,8 @@ pub fn validate_dpi(dpi: i32) -> PyResult<bool> {
 /// Returns:
 ///     bool: True if valid, False if invalid
 #[pyfunction]
-pub fn validate_chunking_params(max_chars: usize, max_overlap: usize) -> PyResult<bool> {
-    Ok(validate_chunking_params_core(max_chars, max_overlap).is_ok())
+pub fn validate_chunking_params(max_characters: usize, overlap: usize) -> PyResult<bool> {
+    Ok(validate_chunking_params_core(max_characters, overlap).is_ok())
 }
 
 /// Get list of valid binarization methods.
