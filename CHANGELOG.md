@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+#### Java Bindings
+- **Format-specific metadata missing in `getMetadataMap()`**: Fixed `sheet_count`, `sheet_names`, and other format-specific metadata fields not being accessible via `ExtractionResult.getMetadataMap()`. The `ResultParser.buildMetadata()` method now properly propagates flattened format metadata (e.g., Excel, PPTX) to the `Metadata.additional` map.
+
 ---
 
 ## [4.2.9] - 2026-02-03

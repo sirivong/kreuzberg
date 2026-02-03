@@ -71,6 +71,10 @@ final class ResultParser {
 		}
 	}
 
+	private static final java.util.Set<String> KNOWN_METADATA_KEYS = java.util.Set.of("title", "subject", "language",
+			"created", "modified", "created_at", "modified_at", "created_by", "modified_by", "authors", "keywords",
+			"pages", "image_preprocessing", "json_schema", "error");
+
 	private static Metadata buildMetadata(Map<String, Object> metadataMap, String language, String date,
 			String subject) {
 		// Extract metadata fields, preferring FFI values over map values
@@ -95,7 +99,7 @@ final class ResultParser {
 		@SuppressWarnings("unchecked")
 		Map<String, Object> error = (Map<String, Object>) metadataMap.get("error");
 
-		return new Metadata(title != null ? Optional.of(title) : Optional.empty(),
+		Metadata metadata = new Metadata(title != null ? Optional.of(title) : Optional.empty(),
 				actualSubject != null ? Optional.of(actualSubject) : Optional.empty(),
 				authors != null ? Optional.of(authors) : Optional.empty(),
 				keywords != null ? Optional.of(keywords) : Optional.empty(),
@@ -108,6 +112,15 @@ final class ResultParser {
 				imagePreprocessing != null ? Optional.of(imagePreprocessing) : Optional.empty(),
 				jsonSchema != null ? Optional.of(jsonSchema) : Optional.empty(),
 				error != null ? Optional.of(error) : Optional.empty());
+
+		// Add format-specific and other additional fields not handled above
+		for (Map.Entry<String, Object> entry : metadataMap.entrySet()) {
+			if (!KNOWN_METADATA_KEYS.contains(entry.getKey())) {
+				metadata.setAdditionalProperty(entry.getKey(), entry.getValue());
+			}
+		}
+
+		return metadata;
 	}
 
 	private static String getStringFromMap(Map<String, Object> map, String key) {
