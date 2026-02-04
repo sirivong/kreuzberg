@@ -1,0 +1,14 @@
+{
+  "document": "../../../../test_documents/vendored/docling/txt/picture_classification.doctags.txt",
+  "file_type": "txt",
+  "file_size": 4074,
+  "expected_frameworks": [
+    "kreuzberg",
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from docling test suite",
+    "source": "docling",
+    "size_category": "small"
+  }
+}

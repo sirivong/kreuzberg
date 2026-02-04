@@ -1,0 +1,13 @@
+{
+  "document": "../../../../test_documents/vendored/docling/json/xlsx_02_sample_sales_data.xlsm.json",
+  "file_type": "json",
+  "file_size": 71228,
+  "expected_frameworks": [
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from docling test suite",
+    "source": "docling",
+    "size_category": "small"
+  }
+}

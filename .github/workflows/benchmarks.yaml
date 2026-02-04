@@ -34,6 +34,8 @@ env:
   RUSTFLAGS: "-C strip=symbols"
   MEASURE_QUALITY: "true"
   OCR_ENABLED: "true"
+  RUN_OCR_BENCHMARKS: "true"
+  GROUND_TRUTH_DIR: "test_documents/ground_truth"
 
 permissions:
   contents: read
@@ -43,8 +45,27 @@ defaults:
     shell: bash
 
 jobs:
+  validate-ground-truth:
+    name: Validate Ground Truth
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Validate ground truth organization
+        run: python tools/benchmark-harness/scripts/validate_ground_truth.py
+
   setup:
     name: Build harness + native libs
+    needs: validate-ground-truth
     runs-on: ubuntu-latest
     timeout-minutes: 360
     permissions:
@@ -1959,6 +1980,17 @@ jobs:
 
           echo "Found $ARTIFACT_COUNT artifact directories"
           find benchmark-artifacts -mindepth 1 -maxdepth 1 -type d -exec basename {} \;
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Measure framework sizes
+        continue-on-error: true
+        run: |
+          python tools/benchmark-harness/scripts/measure_framework_sizes.py \
+            --output consolidated-output/framework-sizes.json || true
 
       - name: Consolidate results
         run: |

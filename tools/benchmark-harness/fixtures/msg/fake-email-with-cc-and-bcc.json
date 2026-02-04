@@ -1,0 +1,13 @@
+{
+  "document": "../../../../test_documents/vendored/unstructured/msg/fake-email-with-cc-and-bcc.msg",
+  "file_type": "msg",
+  "file_size": 13824,
+  "expected_frameworks": [
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from unstructured test suite",
+    "source": "unstructured",
+    "size_category": "small"
+  }
+}

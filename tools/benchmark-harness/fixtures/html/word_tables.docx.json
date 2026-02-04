@@ -1,0 +1,15 @@
+{
+  "document": "../../../../test_documents/vendored/docling/html/word_tables.docx.html",
+  "file_type": "html",
+  "file_size": 4747,
+  "expected_frameworks": [
+    "kreuzberg",
+    "markitdown",
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from docling test suite",
+    "source": "docling",
+    "size_category": "small"
+  }
+}

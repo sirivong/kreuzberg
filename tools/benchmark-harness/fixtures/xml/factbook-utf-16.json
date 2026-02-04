@@ -1,0 +1,13 @@
+{
+  "document": "../../../../test_documents/vendored/unstructured/xml/factbook-utf-16.xml",
+  "file_type": "xml",
+  "file_size": 1340,
+  "expected_frameworks": [
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from unstructured test suite",
+    "source": "unstructured",
+    "size_category": "small"
+  }
+}

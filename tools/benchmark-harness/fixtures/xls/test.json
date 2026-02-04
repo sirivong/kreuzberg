@@ -1,0 +1,13 @@
+{
+  "document": "../../../../test_documents/vendored/markitdown/xls/test.xls",
+  "file_type": "xls",
+  "file_size": 27648,
+  "expected_frameworks": [
+    "kreuzberg"
+  ],
+  "metadata": {
+    "description": "Document from markitdown test suite",
+    "source": "markitdown",
+    "size_category": "small"
+  }
+}

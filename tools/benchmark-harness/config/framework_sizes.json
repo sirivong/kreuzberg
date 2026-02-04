@@ -1,52 +1,164 @@
 {
-	"kreuzberg-rust": {
-		"size_bytes": 52428800,
-		"method": "binary_size",
-		"description": "Native Rust core binary"
-	},
-	"kreuzberg-python": {
-		"size_bytes": 15728640,
-		"method": "pip_package",
-		"description": "Python wheel package"
-	},
-	"kreuzberg-node": {
-		"size_bytes": 12582912,
-		"method": "npm_package",
-		"description": "Node.js native addon"
-	},
-	"kreuzberg-wasm": {
-		"size_bytes": 8388608,
-		"method": "wasm_bundle",
-		"description": "WebAssembly binary"
-	},
-	"kreuzberg-ruby": {
-		"size_bytes": 10485760,
-		"method": "gem_package",
-		"description": "Ruby gem native extension"
-	},
-	"kreuzberg-go": {
-		"size_bytes": 45088768,
-		"method": "binary_size",
-		"description": "Go binary with CGO"
-	},
-	"kreuzberg-java": {
-		"size_bytes": 18874368,
-		"method": "jar_size",
-		"description": "Java JAR with JNI"
-	},
-	"kreuzberg-csharp": {
-		"size_bytes": 14680064,
-		"method": "nuget_package",
-		"description": ".NET NuGet package"
-	},
-	"kreuzberg-elixir": {
-		"size_bytes": 11534336,
-		"method": "hex_package",
-		"description": "Elixir hex package with NIF"
-	},
-	"kreuzberg-php": {
-		"size_bytes": 9437184,
-		"method": "php_extension",
-		"description": "PHP extension"
-	}
+  "docling": {
+    "size_bytes": 304007,
+    "method": "pypi_estimate",
+    "description": "IBM Docling document processing library",
+    "installed": false
+  },
+  "docling-batch": {
+    "size_bytes": 15728640,
+    "method": "python_package_typical",
+    "description": "Docling with batch support",
+    "installed": false
+  },
+  "kreuzberg": {
+    "size_bytes": 88166,
+    "method": "npm_estimate",
+    "description": "Kreuzberg TypeScript bindings",
+    "installed": false
+  },
+  "kreuzberg-csharp": {
+    "size_bytes": 14680064,
+    "method": "nuget_package_typical",
+    "description": ".NET NuGet package",
+    "installed": false
+  },
+  "kreuzberg-elixir": {
+    "size_bytes": 11534336,
+    "method": "hex_package_typical",
+    "description": "Elixir hex package with NIF",
+    "installed": false
+  },
+  "kreuzberg-elixir-batch": {
+    "size_bytes": 11534336,
+    "method": "hex_package_typical",
+    "description": "Elixir hex with batch support",
+    "installed": false
+  },
+  "kreuzberg-go": {
+    "size_bytes": 52428800,
+    "method": "binary_typical",
+    "description": "Go binary with CGO",
+    "installed": false
+  },
+  "kreuzberg-go-batch": {
+    "size_bytes": 52428800,
+    "method": "binary_typical",
+    "description": "Go binary with batch support",
+    "installed": false
+  },
+  "kreuzberg-java": {
+    "size_bytes": 18874368,
+    "method": "jar_typical",
+    "description": "Java JAR with JNI",
+    "installed": false
+  },
+  "kreuzberg-node": {
+    "size_bytes": 12582912,
+    "method": "npm_package_typical",
+    "description": "Node.js native addon",
+    "installed": false
+  },
+  "kreuzberg-php": {
+    "size_bytes": 9437184,
+    "method": "php_extension_typical",
+    "description": "PHP extension",
+    "installed": false
+  },
+  "kreuzberg-php-batch": {
+    "size_bytes": 9437184,
+    "method": "php_extension_typical",
+    "description": "PHP extension with batch support",
+    "installed": false
+  },
+  "kreuzberg-python": {
+    "size_bytes": 15728640,
+    "method": "wheel_typical",
+    "description": "Python wheel package",
+    "installed": false
+  },
+  "kreuzberg-ruby": {
+    "size_bytes": 10485760,
+    "method": "gem_package_typical",
+    "description": "Ruby gem native extension",
+    "installed": false
+  },
+  "kreuzberg-ruby-batch": {
+    "size_bytes": 10485760,
+    "method": "gem_package_typical",
+    "description": "Ruby gem with batch support",
+    "installed": false
+  },
+  "kreuzberg-rust": {
+    "size_bytes": 52428800,
+    "method": "binary_typical",
+    "description": "Native Rust core binary",
+    "installed": false
+  },
+  "kreuzberg-wasm": {
+    "size_bytes": 8388608,
+    "method": "wasm_bundle_typical",
+    "description": "WebAssembly binary",
+    "installed": false
+  },
+  "markitdown": {
+    "size_bytes": 58314,
+    "method": "pypi_estimate",
+    "description": "Mark It Down markdown converter",
+    "installed": false
+  },
+  "mineru": {
+    "size_bytes": 1304447,
+    "method": "pypi_estimate",
+    "description": "MINERU document understanding system",
+    "installed": false
+  },
+  "mineru-batch": {
+    "size_bytes": 15728640,
+    "method": "python_package_typical",
+    "description": "MINERU with batch support",
+    "installed": false
+  },
+  "org.apache.tika:tika-app": {
+    "size_bytes": 56732756,
+    "method": "maven_jar_estimate",
+    "description": "Apache Tika document toolkit",
+    "installed": false
+  },
+  "pandoc": {
+    "size_bytes": 104857600,
+    "method": "estimated_typical",
+    "description": "Universal document converter (typical size)",
+    "installed": false
+  },
+  "pdfplumber": {
+    "size_bytes": 60045,
+    "method": "pypi_estimate",
+    "description": "PDF text extraction library",
+    "installed": false
+  },
+  "pdfplumber-batch": {
+    "size_bytes": 15728640,
+    "method": "python_package_typical",
+    "description": "pdfplumber with batch support",
+    "installed": false
+  },
+  "pymupdf4llm": {
+    "size_bytes": 72286,
+    "method": "pypi_estimate",
+    "description": "PyMuPDF wrapper for LLM document processing",
+    "installed": false
+  },
+  "tika-batch": {
+    "size_bytes": 18874368,
+    "method": "jar_typical",
+    "description": "Apache Tika with batch support",
+    "installed": false
+  },
+  "unstructured": {
+    "size_bytes": 1794889,
+    "method": "pypi_estimate",
+    "description": "Unstructured document parser",
+    "installed": false
+  }
 }

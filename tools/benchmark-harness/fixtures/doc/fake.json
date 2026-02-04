@@ -1,0 +1,14 @@
+{
+  "document": "../../../../test_documents/vendored/unstructured/doc/fake.doc",
+  "file_type": "doc",
+  "file_size": 18432,
+  "expected_frameworks": [
+    "kreuzberg",
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from unstructured test suite",
+    "source": "unstructured",
+    "size_category": "small"
+  }
+}

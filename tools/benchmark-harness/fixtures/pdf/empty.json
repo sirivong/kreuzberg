@@ -1,0 +1,18 @@
+{
+  "document": "../../../../test_documents/vendored/pdfplumber/pdf/empty.pdf",
+  "file_type": "pdf",
+  "file_size": 0,
+  "expected_frameworks": [
+    "kreuzberg",
+    "docling",
+    "markitdown",
+    "unstructured",
+    "pdfplumber",
+    "pymupdf4llm"
+  ],
+  "metadata": {
+    "description": "Document from pdfplumber test suite",
+    "source": "pdfplumber",
+    "size_category": "small"
+  }
+}

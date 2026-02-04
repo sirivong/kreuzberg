@@ -1,0 +1,14 @@
+{
+  "document": "../../../../test_documents/vendored/docling/txt/redp5110_sampled.doctags.txt",
+  "file_type": "txt",
+  "file_size": 44744,
+  "expected_frameworks": [
+    "kreuzberg",
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from docling test suite",
+    "source": "docling",
+    "size_category": "small"
+  }
+}

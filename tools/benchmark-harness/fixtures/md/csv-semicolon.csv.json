@@ -1,0 +1,14 @@
+{
+  "document": "../../../../test_documents/vendored/docling/md/csv-semicolon.csv.md",
+  "file_type": "md",
+  "file_size": 1903,
+  "expected_frameworks": [
+    "markitdown",
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from docling test suite",
+    "source": "docling",
+    "size_category": "small"
+  }
+}

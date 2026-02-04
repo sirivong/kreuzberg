@@ -1,0 +1,13 @@
+{
+  "document": "../../../../test_documents/vendored/unstructured/eml/email-no-utf8-2008-07-16.062410.eml",
+  "file_type": "eml",
+  "file_size": 31980,
+  "expected_frameworks": [
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from unstructured test suite",
+    "source": "unstructured",
+    "size_category": "small"
+  }
+}

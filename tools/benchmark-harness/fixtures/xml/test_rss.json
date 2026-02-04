@@ -1,0 +1,17 @@
+{
+  "document": "../../../../test_documents/vendored/markitdown/xml/test_rss.xml",
+  "file_type": "xml",
+  "file_size": 280581,
+  "expected_frameworks": [
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from markitdown test suite",
+    "source": "markitdown",
+    "size_category": "small"
+  },
+  "ground_truth": {
+    "text_file": "../../../../test_documents/ground_truth/xml/test_rss.txt",
+    "source": "raw_source"
+  }
+}

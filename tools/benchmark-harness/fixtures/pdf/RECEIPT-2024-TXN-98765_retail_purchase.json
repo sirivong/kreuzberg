@@ -1,0 +1,18 @@
+{
+  "document": "../../../../test_documents/vendored/markitdown/pdf/RECEIPT-2024-TXN-98765_retail_purchase.pdf",
+  "file_type": "pdf",
+  "file_size": 8459,
+  "expected_frameworks": [
+    "kreuzberg",
+    "docling",
+    "markitdown",
+    "unstructured",
+    "pdfplumber",
+    "pymupdf4llm"
+  ],
+  "metadata": {
+    "description": "Document from markitdown test suite",
+    "source": "markitdown",
+    "size_category": "small"
+  }
+}

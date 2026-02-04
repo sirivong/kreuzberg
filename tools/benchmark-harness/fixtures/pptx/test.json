@@ -1,0 +1,14 @@
+{
+  "document": "../../../../test_documents/vendored/markitdown/pptx/test.pptx",
+  "file_type": "pptx",
+  "file_size": 277515,
+  "expected_frameworks": [
+    "kreuzberg",
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from markitdown test suite",
+    "source": "markitdown",
+    "size_category": "small"
+  }
+}

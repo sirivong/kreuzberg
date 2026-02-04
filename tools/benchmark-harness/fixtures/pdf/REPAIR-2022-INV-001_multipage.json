@@ -1,0 +1,18 @@
+{
+  "document": "../../../../test_documents/vendored/markitdown/pdf/REPAIR-2022-INV-001_multipage.pdf",
+  "file_type": "pdf",
+  "file_size": 176629,
+  "expected_frameworks": [
+    "kreuzberg",
+    "docling",
+    "markitdown",
+    "unstructured",
+    "pdfplumber",
+    "pymupdf4llm"
+  ],
+  "metadata": {
+    "description": "Document from markitdown test suite",
+    "source": "markitdown",
+    "size_category": "small"
+  }
+}

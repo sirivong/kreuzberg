@@ -1,0 +1,13 @@
+{
+  "document": "../../../../test_documents/vendored/docling/json/amt_handbook_sample.json",
+  "file_type": "json",
+  "file_size": 24951,
+  "expected_frameworks": [
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from docling test suite",
+    "source": "docling",
+    "size_category": "small"
+  }
+}

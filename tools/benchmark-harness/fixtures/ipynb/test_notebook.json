@@ -1,0 +1,13 @@
+{
+  "document": "../../../../test_documents/vendored/markitdown/ipynb/test_notebook.ipynb",
+  "file_type": "ipynb",
+  "file_size": 1408,
+  "expected_frameworks": [
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from markitdown test suite",
+    "source": "markitdown",
+    "size_category": "small"
+  }
+}

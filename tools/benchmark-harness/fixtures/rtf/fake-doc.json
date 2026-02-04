@@ -1,0 +1,13 @@
+{
+  "document": "../../../../test_documents/vendored/unstructured/rtf/fake-doc.rtf",
+  "file_type": "rtf",
+  "file_size": 408,
+  "expected_frameworks": [
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from unstructured test suite",
+    "source": "unstructured",
+    "size_category": "small"
+  }
+}

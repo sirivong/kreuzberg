@@ -1,0 +1,18 @@
+{
+  "document": "../../../../test_documents/vendored/markitdown/pdf/SPARSE-2024-INV-1234_borderless_table.pdf",
+  "file_type": "pdf",
+  "file_size": 19649,
+  "expected_frameworks": [
+    "kreuzberg",
+    "docling",
+    "markitdown",
+    "unstructured",
+    "pdfplumber",
+    "pymupdf4llm"
+  ],
+  "metadata": {
+    "description": "Document from markitdown test suite",
+    "source": "markitdown",
+    "size_category": "small"
+  }
+}

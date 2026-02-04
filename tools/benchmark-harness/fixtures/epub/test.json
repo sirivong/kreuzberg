@@ -1,0 +1,13 @@
+{
+  "document": "../../../../test_documents/vendored/markitdown/epub/test.epub",
+  "file_type": "epub",
+  "file_size": 2677,
+  "expected_frameworks": [
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from markitdown test suite",
+    "source": "markitdown",
+    "size_category": "small"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "document": "../../../../test_documents/vendored/markitdown/pdf/MEDRPT-2024-PAT-3847_medical_report_scan.pdf",
+  "file_type": "pdf",
+  "file_size": 282554,
+  "expected_frameworks": [
+    "kreuzberg",
+    "docling",
+    "markitdown",
+    "unstructured",
+    "pdfplumber",
+    "pymupdf4llm"
+  ],
+  "metadata": {
+    "description": "Document from markitdown test suite",
+    "source": "markitdown",
+    "size_category": "small"
+  }
+}

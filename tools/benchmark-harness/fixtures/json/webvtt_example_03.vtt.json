@@ -1,0 +1,13 @@
+{
+  "document": "../../../../test_documents/vendored/docling/json/webvtt_example_03.vtt.json",
+  "file_type": "json",
+  "file_size": 9872,
+  "expected_frameworks": [
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from docling test suite",
+    "source": "docling",
+    "size_category": "small"
+  }
+}

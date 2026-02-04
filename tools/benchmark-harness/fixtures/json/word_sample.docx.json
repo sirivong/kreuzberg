@@ -1,0 +1,13 @@
+{
+  "document": "../../../../test_documents/vendored/docling/json/word_sample.docx.json",
+  "file_type": "json",
+  "file_size": 109875,
+  "expected_frameworks": [
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from docling test suite",
+    "source": "docling",
+    "size_category": "small"
+  }
+}

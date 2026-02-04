@@ -1,0 +1,13 @@
+{
+  "document": "../../../../test_documents/vendored/unstructured/eml/fake-email-attachment.eml",
+  "file_type": "eml",
+  "file_size": 1703,
+  "expected_frameworks": [
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from unstructured test suite",
+    "source": "unstructured",
+    "size_category": "small"
+  }
+}

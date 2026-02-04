@@ -1,0 +1,18 @@
+{
+  "document": "../../../../test_documents/vendored/markitdown/pdf/masterformat_partial_numbering.pdf",
+  "file_type": "pdf",
+  "file_size": 2114,
+  "expected_frameworks": [
+    "kreuzberg",
+    "docling",
+    "markitdown",
+    "unstructured",
+    "pdfplumber",
+    "pymupdf4llm"
+  ],
+  "metadata": {
+    "description": "Document from markitdown test suite",
+    "source": "markitdown",
+    "size_category": "small"
+  }
+}

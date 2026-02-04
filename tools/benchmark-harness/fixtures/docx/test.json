@@ -1,0 +1,16 @@
+{
+  "document": "../../../../test_documents/vendored/markitdown/docx/test.docx",
+  "file_type": "docx",
+  "file_size": 135824,
+  "expected_frameworks": [
+    "kreuzberg",
+    "docling",
+    "markitdown",
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from markitdown test suite",
+    "source": "markitdown",
+    "size_category": "small"
+  }
+}

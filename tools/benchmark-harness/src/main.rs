@@ -115,6 +115,32 @@ enum Commands {
         #[arg(long, default_value = "kreuzberg-rust")]
         baseline: String,
     },
+
+    /// Generate fixture JSON files from vendored test documents
+    GenerateFixtures {
+        /// Directory containing vendored test documents
+        #[arg(long)]
+        vendored_dir: PathBuf,
+
+        /// Output directory for generated fixture JSON files
+        #[arg(long)]
+        output_dir: PathBuf,
+
+        /// Directory containing ground truth files (optional)
+        #[arg(long)]
+        ground_truth_dir: Option<PathBuf>,
+
+        /// Overwrite existing fixtures
+        #[arg(long, default_value = "false")]
+        overwrite: bool,
+    },
+
+    /// Measure framework installation sizes
+    MeasureFrameworkSizes {
+        /// Output JSON file for framework sizes
+        #[arg(long)]
+        output: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -447,5 +473,95 @@ async fn main() -> Result<()> {
 
             Ok(())
         }
+
+        Commands::GenerateFixtures {
+            vendored_dir,
+            output_dir,
+            ground_truth_dir,
+            overwrite,
+        } => {
+            use benchmark_harness::{GenerateConfig, generate_fixtures};
+
+            println!("Generating fixtures from vendored documents...");
+            println!("  Vendored directory: {}", vendored_dir.display());
+            println!("  Output directory: {}", output_dir.display());
+            if let Some(gt_dir) = &ground_truth_dir {
+                println!("  Ground truth directory: {}", gt_dir.display());
+            }
+            println!("  Overwrite existing: {}", overwrite);
+
+            let config = GenerateConfig {
+                vendored_dir,
+                output_dir,
+                ground_truth_dir,
+                overwrite,
+            };
+
+            let stats = generate_fixtures(&config)?;
+
+            println!("\nGeneration complete:");
+            println!("  Created: {} fixtures", stats.created);
+            println!("  Skipped: {} fixtures (already exist)", stats.skipped);
+            println!("  Errors: {}", stats.errors);
+
+            if !stats.by_type.is_empty() {
+                println!("\nBy file type:");
+                let mut types: Vec<_> = stats.by_type.iter().collect();
+                types.sort_by_key(|(k, _)| *k);
+                for (file_type, count) in types {
+                    println!("  {}: {}", file_type, count);
+                }
+            }
+
+            Ok(())
+        }
+
+        Commands::MeasureFrameworkSizes { output } => {
+            use benchmark_harness::{measure_framework_sizes, save_framework_sizes};
+
+            println!("Measuring framework installation sizes...");
+
+            let sizes = measure_framework_sizes()?;
+
+            println!("\nFramework sizes:");
+            let mut items: Vec<_> = sizes.iter().collect();
+            items.sort_by_key(|(k, _)| *k);
+
+            for (name, info) in &items {
+                let size_str = if info.size_bytes > 0 {
+                    format_size(info.size_bytes)
+                } else {
+                    "unknown".to_string()
+                };
+                let status = if info.estimated { " (estimated)" } else { "" };
+                println!("  {}: {}{} - {}", name, size_str, status, info.description);
+            }
+
+            // Create parent directory if needed
+            if let Some(parent) = output.parent() {
+                std::fs::create_dir_all(parent).map_err(benchmark_harness::Error::Io)?;
+            }
+
+            save_framework_sizes(&sizes, &output)?;
+            println!("\nSizes written to: {}", output.display());
+
+            Ok(())
+        }
+    }
+}
+
+fn format_size(bytes: u64) -> String {
+    const KB: u64 = 1024;
+    const MB: u64 = 1024 * KB;
+    const GB: u64 = 1024 * MB;
+
+    if bytes >= GB {
+        format!("{:.2} GB", bytes as f64 / GB as f64)
+    } else if bytes >= MB {
+        format!("{:.2} MB", bytes as f64 / MB as f64)
+    } else if bytes >= KB {
+        format!("{:.2} KB", bytes as f64 / KB as f64)
+    } else {
+        format!("{} bytes", bytes)
     }
 }

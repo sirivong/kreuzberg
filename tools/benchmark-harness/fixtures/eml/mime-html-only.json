@@ -1,0 +1,13 @@
+{
+  "document": "../../../../test_documents/vendored/unstructured/eml/mime-html-only.eml",
+  "file_type": "eml",
+  "file_size": 640,
+  "expected_frameworks": [
+    "unstructured"
+  ],
+  "metadata": {
+    "description": "Document from unstructured test suite",
+    "source": "unstructured",
+    "size_category": "small"
+  }
+}

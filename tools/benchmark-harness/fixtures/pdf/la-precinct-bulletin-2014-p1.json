@@ -1,0 +1,18 @@
+{
+  "document": "../../../../test_documents/vendored/pdfplumber/pdf/la-precinct-bulletin-2014-p1.pdf",
+  "file_type": "pdf",
+  "file_size": 20188,
+  "expected_frameworks": [
+    "kreuzberg",
+    "docling",
+    "markitdown",
+    "unstructured",
+    "pdfplumber",
+    "pymupdf4llm"
+  ],
+  "metadata": {
+    "description": "Document from pdfplumber test suite",
+    "source": "pdfplumber",
+    "size_category": "small"
+  }
+}

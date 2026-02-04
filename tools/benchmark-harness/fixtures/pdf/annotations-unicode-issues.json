@@ -1,0 +1,18 @@
+{
+  "document": "../../../../test_documents/vendored/pdfplumber/pdf/annotations-unicode-issues.pdf",
+  "file_type": "pdf",
+  "file_size": 57927,
+  "expected_frameworks": [
+    "kreuzberg",
+    "docling",
+    "markitdown",
+    "unstructured",
+    "pdfplumber",
+    "pymupdf4llm"
+  ],
+  "metadata": {
+    "description": "Document from pdfplumber test suite",
+    "source": "pdfplumber",
+    "size_category": "small"
+  }
+}
