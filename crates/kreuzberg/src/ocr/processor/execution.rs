@@ -9,6 +9,7 @@ use super::validation::{
 };
 use crate::core::config::ExtractionConfig;
 use crate::ocr::cache::OcrCache;
+use crate::ocr::conversion::{TsvRow, tsv_row_to_element};
 use crate::ocr::error::OcrError;
 use crate::ocr::hocr::convert_hocr_to_markdown;
 use crate::ocr::table::{extract_words_from_tsv, reconstruct_table, table_to_markdown};
@@ -18,6 +19,76 @@ use kreuzberg_tesseract::{TessPageSegMode, TesseractAPI};
 use std::collections::HashMap;
 use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+use crate::types::OcrElement;
+
+/// Parse Tesseract TSV output into structured OcrElements.
+///
+/// TSV format columns: level, page_num, block_num, par_num, line_num, word_num, left, top, width, height, conf, text
+///
+/// # Arguments
+///
+/// * `tsv_data` - Raw TSV output from Tesseract
+/// * `min_confidence` - Minimum confidence threshold (0-100 scale)
+///
+/// # Returns
+///
+/// Vector of OcrElements for word-level and line-level entries
+fn parse_tsv_to_elements(tsv_data: &str, min_confidence: f64) -> Vec<OcrElement> {
+    let mut elements = Vec::new();
+
+    for line in tsv_data.lines().skip(1) {
+        // Skip header row
+        let fields: Vec<&str> = line.split('\t').collect();
+        if fields.len() < 12 {
+            continue;
+        }
+
+        // Parse fields
+        let level = fields[0].parse::<i32>().unwrap_or(0);
+        let page_num = fields[1].parse::<i32>().unwrap_or(1);
+        let block_num = fields[2].parse::<i32>().unwrap_or(0);
+        let par_num = fields[3].parse::<i32>().unwrap_or(0);
+        let line_num = fields[4].parse::<i32>().unwrap_or(0);
+        let word_num = fields[5].parse::<i32>().unwrap_or(0);
+        let left = fields[6].parse::<u32>().unwrap_or(0);
+        let top = fields[7].parse::<u32>().unwrap_or(0);
+        let width = fields[8].parse::<u32>().unwrap_or(0);
+        let height = fields[9].parse::<u32>().unwrap_or(0);
+        let conf = fields[10].parse::<f64>().unwrap_or(-1.0);
+        let text = fields[11].to_string();
+
+        // Skip low-confidence or empty entries
+        // Tesseract uses -1 for non-text levels
+        if conf < 0.0 || conf < min_confidence || text.trim().is_empty() {
+            continue;
+        }
+
+        // Only include word-level (4) and line-level (3) entries
+        if level != 3 && level != 4 {
+            continue;
+        }
+
+        let tsv_row = TsvRow {
+            level,
+            page_num,
+            block_num,
+            par_num,
+            line_num,
+            word_num,
+            left,
+            top,
+            width,
+            height,
+            conf,
+            text,
+        };
+
+        elements.push(tsv_row_to_element(&tsv_row));
+    }
+
+    elements
+}
 
 /// CI debug logging utility.
 ///
@@ -272,11 +343,12 @@ pub(super) fn perform_ocr(
     }
 
     let mut tables = Vec::new();
+    let mut ocr_elements = None;
 
     if config.enable_table_detection {
-        let tsv_data = tsv_data_for_tables.unwrap();
+        let tsv_data = tsv_data_for_tables.as_ref().unwrap();
 
-        let words = extract_words_from_tsv(&tsv_data, config.table_min_confidence)?;
+        let words = extract_words_from_tsv(tsv_data, config.table_min_confidence)?;
 
         if !words.is_empty() {
             let table = reconstruct_table(&words, config.table_column_threshold, config.table_row_threshold_ratio);
@@ -305,6 +377,14 @@ pub(super) fn perform_ocr(
         }
     }
 
+    // Parse TSV data into structured OcrElements if available
+    if let Some(ref tsv_data) = tsv_data_for_tables {
+        let elements = parse_tsv_to_elements(tsv_data, config.min_confidence);
+        if !elements.is_empty() {
+            ocr_elements = Some(elements);
+        }
+    }
+
     let content = strip_control_characters(&raw_content);
 
     Ok(OcrExtractionResult {
@@ -312,6 +392,7 @@ pub(super) fn perform_ocr(
         mime_type,
         metadata,
         tables,
+        ocr_elements,
     })
 }
 

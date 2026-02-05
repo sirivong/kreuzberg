@@ -1,3 +1,4 @@
+use crate::error::{Result, TesseractError};
 use std::os::raw::{c_int, c_void};
 use std::sync::{Arc, Mutex};
 
@@ -26,26 +27,36 @@ impl TessMonitor {
     /// # Arguments
     ///
     /// * `deadline` - Deadline in milliseconds.
-    pub fn set_deadline(&self, deadline: i32) {
-        let handle = self.handle.lock().unwrap();
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TesseractError::MutexLockError` if the mutex lock fails.
+    pub fn set_deadline(&self, deadline: i32) -> Result<()> {
+        let handle = self.handle.lock().map_err(|_| TesseractError::MutexLockError)?;
         unsafe { TessMonitorSetDeadlineMSecs(*handle, deadline) };
+        Ok(())
     }
 
     /// Gets the progress of the monitor.
     ///
     /// # Returns
     ///
-    /// Returns the progress as an `i32`.
-    pub fn get_progress(&self) -> i32 {
-        let handle = self.handle.lock().unwrap();
-        unsafe { TessMonitorGetProgress(*handle) }
+    /// Returns the progress as an `i32` if successful, otherwise returns an error.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TesseractError::MutexLockError` if the mutex lock fails.
+    pub fn get_progress(&self) -> Result<i32> {
+        let handle = self.handle.lock().map_err(|_| TesseractError::MutexLockError)?;
+        Ok(unsafe { TessMonitorGetProgress(*handle) })
     }
 }
 
 impl Drop for TessMonitor {
     fn drop(&mut self) {
-        let handle = self.handle.lock().unwrap();
-        unsafe { TessMonitorDelete(*handle) };
+        if let Ok(handle) = self.handle.lock() {
+            unsafe { TessMonitorDelete(*handle) };
+        }
     }
 }
 

@@ -209,6 +209,7 @@ mod tests {
                 mime_type: "text/plain".to_string(),
                 metadata: HashMap::new(),
                 tables: vec![],
+                ocr_elements: None,
             }),
             error: None,
         };

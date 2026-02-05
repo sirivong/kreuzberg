@@ -6,6 +6,8 @@
 use serde::{Deserialize, Serialize};
 
 use super::formats::OutputFormat;
+use crate::core::config_validation::validate_ocr_backend;
+use crate::error::KreuzbergError;
 
 /// OCR configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,6 +37,44 @@ impl Default for OcrConfig {
             tesseract_config: None,
             output_format: None,
         }
+    }
+}
+
+impl OcrConfig {
+    /// Validates that the configured backend is supported.
+    ///
+    /// This method checks that the backend name is one of the supported OCR backends:
+    /// - tesseract
+    /// - easyocr
+    /// - paddleocr
+    ///
+    /// Typos in backend names are caught at configuration validation time, not at runtime.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `KreuzbergError::Validation` if the backend is not recognized.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use kreuzberg::core::config::OcrConfig;
+    ///
+    /// let config = OcrConfig {
+    ///     backend: "tesseract".to_string(),
+    ///     ..Default::default()
+    /// };
+    ///
+    /// assert!(config.validate().is_ok());
+    ///
+    /// let bad_config = OcrConfig {
+    ///     backend: "typo_backend".to_string(),
+    ///     ..Default::default()
+    /// };
+    ///
+    /// assert!(bad_config.validate().is_err());
+    /// ```
+    pub fn validate(&self) -> Result<(), KreuzbergError> {
+        validate_ocr_backend(&self.backend)
     }
 }
 
@@ -69,5 +109,72 @@ mod tests {
         };
         assert_eq!(config.backend, "tesseract");
         assert_eq!(config.language, "fra");
+    }
+
+    #[test]
+    fn test_validate_tesseract_backend() {
+        let config = OcrConfig {
+            backend: "tesseract".to_string(),
+            language: "eng".to_string(),
+            tesseract_config: None,
+            output_format: None,
+        };
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_easyocr_backend() {
+        let config = OcrConfig {
+            backend: "easyocr".to_string(),
+            language: "eng".to_string(),
+            tesseract_config: None,
+            output_format: None,
+        };
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_paddleocr_backend() {
+        let config = OcrConfig {
+            backend: "paddleocr".to_string(),
+            language: "eng".to_string(),
+            tesseract_config: None,
+            output_format: None,
+        };
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_validate_invalid_backend_typo() {
+        let config = OcrConfig {
+            backend: "tesseract_typo".to_string(),
+            language: "eng".to_string(),
+            tesseract_config: None,
+            output_format: None,
+        };
+        let result = config.validate();
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("Invalid OCR backend"));
+    }
+
+    #[test]
+    fn test_validate_invalid_backend_completely_wrong() {
+        let config = OcrConfig {
+            backend: "ocr_lib".to_string(),
+            language: "eng".to_string(),
+            tesseract_config: None,
+            output_format: None,
+        };
+        let result = config.validate();
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("Invalid OCR backend") || err_msg.contains("Valid options are"));
+    }
+
+    #[test]
+    fn test_validate_default_backend() {
+        let config = OcrConfig::default();
+        assert!(config.validate().is_ok());
     }
 }

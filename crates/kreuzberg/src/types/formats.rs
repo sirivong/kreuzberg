@@ -174,6 +174,10 @@ pub struct OcrExtractionResult {
     pub metadata: HashMap<String, serde_json::Value>,
     /// Tables detected and extracted via OCR
     pub tables: Vec<OcrTable>,
+    /// Structured OCR elements with bounding boxes and confidence scores.
+    /// Available when TSV output is requested or table detection is enabled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ocr_elements: Option<Vec<super::OcrElement>>,
 }
 
 /// Table detected via OCR.

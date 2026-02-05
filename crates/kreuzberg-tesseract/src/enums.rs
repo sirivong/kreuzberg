@@ -40,6 +40,28 @@ impl TessPageSegMode {
             _ => TessPageSegMode::PSM_AUTO,
         }
     }
+
+    /// Safely convert an integer to a TessPageSegMode, returning None for invalid values.
+    pub fn try_from_int(value: i32) -> Option<Self> {
+        match value {
+            0 => Some(TessPageSegMode::PSM_OSD_ONLY),
+            1 => Some(TessPageSegMode::PSM_AUTO_OSD),
+            2 => Some(TessPageSegMode::PSM_AUTO_ONLY),
+            3 => Some(TessPageSegMode::PSM_AUTO),
+            4 => Some(TessPageSegMode::PSM_SINGLE_COLUMN),
+            5 => Some(TessPageSegMode::PSM_SINGLE_BLOCK_VERT_TEXT),
+            6 => Some(TessPageSegMode::PSM_SINGLE_BLOCK),
+            7 => Some(TessPageSegMode::PSM_SINGLE_LINE),
+            8 => Some(TessPageSegMode::PSM_SINGLE_WORD),
+            9 => Some(TessPageSegMode::PSM_CIRCLE_WORD),
+            10 => Some(TessPageSegMode::PSM_SINGLE_CHAR),
+            11 => Some(TessPageSegMode::PSM_SPARSE_TEXT),
+            12 => Some(TessPageSegMode::PSM_SPARSE_TEXT_OSD),
+            13 => Some(TessPageSegMode::PSM_RAW_LINE),
+            14 => Some(TessPageSegMode::PSM_COUNT),
+            _ => None,
+        }
+    }
 }
 
 #[repr(C)]
@@ -110,6 +132,29 @@ impl TessPolyBlockType {
             _ => TessPolyBlockType::PT_UNKNOWN,
         }
     }
+
+    /// Safely convert an integer to a TessPolyBlockType, returning None for invalid values.
+    pub fn try_from_int(value: i32) -> Option<Self> {
+        match value {
+            0 => Some(TessPolyBlockType::PT_UNKNOWN),
+            1 => Some(TessPolyBlockType::PT_FLOWING_TEXT),
+            2 => Some(TessPolyBlockType::PT_HEADING_TEXT),
+            3 => Some(TessPolyBlockType::PT_PULLOUT_TEXT),
+            4 => Some(TessPolyBlockType::PT_EQUATION),
+            5 => Some(TessPolyBlockType::PT_INLINE_EQUATION),
+            6 => Some(TessPolyBlockType::PT_TABLE),
+            7 => Some(TessPolyBlockType::PT_VERTICAL_TEXT),
+            8 => Some(TessPolyBlockType::PT_CAPTION_TEXT),
+            9 => Some(TessPolyBlockType::PT_FLOWING_IMAGE),
+            10 => Some(TessPolyBlockType::PT_HEADING_IMAGE),
+            11 => Some(TessPolyBlockType::PT_PULLOUT_IMAGE),
+            12 => Some(TessPolyBlockType::PT_HORZ_LINE),
+            13 => Some(TessPolyBlockType::PT_VERT_LINE),
+            14 => Some(TessPolyBlockType::PT_NOISE),
+            15 => Some(TessPolyBlockType::PT_COUNT),
+            _ => None,
+        }
+    }
 }
 
 #[repr(C)]
@@ -130,6 +175,17 @@ impl TessOrientation {
             2 => TessOrientation::ORIENTATION_PAGE_DOWN,
             3 => TessOrientation::ORIENTATION_PAGE_LEFT,
             _ => TessOrientation::ORIENTATION_PAGE_UP,
+        }
+    }
+
+    /// Safely convert an integer to a TessOrientation, returning None for invalid values.
+    pub fn try_from_int(value: i32) -> Option<Self> {
+        match value {
+            0 => Some(TessOrientation::ORIENTATION_PAGE_UP),
+            1 => Some(TessOrientation::ORIENTATION_PAGE_RIGHT),
+            2 => Some(TessOrientation::ORIENTATION_PAGE_DOWN),
+            3 => Some(TessOrientation::ORIENTATION_PAGE_LEFT),
+            _ => None,
         }
     }
 }
@@ -174,6 +230,16 @@ impl TessWritingDirection {
             _ => TessWritingDirection::WRITING_DIRECTION_LEFT_TO_RIGHT,
         }
     }
+
+    /// Safely convert an integer to a TessWritingDirection, returning None for invalid values.
+    pub fn try_from_int(value: i32) -> Option<Self> {
+        match value {
+            0 => Some(TessWritingDirection::WRITING_DIRECTION_LEFT_TO_RIGHT),
+            1 => Some(TessWritingDirection::WRITING_DIRECTION_RIGHT_TO_LEFT),
+            2 => Some(TessWritingDirection::WRITING_DIRECTION_TOP_TO_BOTTOM),
+            _ => None,
+        }
+    }
 }
 
 #[repr(C)]
@@ -192,6 +258,16 @@ impl TessTextlineOrder {
             1 => TessTextlineOrder::TEXTLINE_ORDER_RIGHT_TO_LEFT,
             2 => TessTextlineOrder::TEXTLINE_ORDER_TOP_TO_BOTTOM,
             _ => TessTextlineOrder::TEXTLINE_ORDER_LEFT_TO_RIGHT,
+        }
+    }
+
+    /// Safely convert an integer to a TessTextlineOrder, returning None for invalid values.
+    pub fn try_from_int(value: i32) -> Option<Self> {
+        match value {
+            0 => Some(TessTextlineOrder::TEXTLINE_ORDER_LEFT_TO_RIGHT),
+            1 => Some(TessTextlineOrder::TEXTLINE_ORDER_RIGHT_TO_LEFT),
+            2 => Some(TessTextlineOrder::TEXTLINE_ORDER_TOP_TO_BOTTOM),
+            _ => None,
         }
     }
 }

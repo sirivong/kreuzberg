@@ -76,15 +76,23 @@ impl CrnnNet {
     }
 
     fn get_keys(&mut self) -> Result<Vec<String>, OcrError> {
-        let session = self.session.as_ref().expect("crnn_net session not initialized");
+        let session = self.session.as_ref().ok_or(OcrError::SessionNotInitialized)?;
 
         let metadata = session.metadata()?;
-        let model_charater_list = metadata
-            .custom("character")
-            .expect("crnn_net character not initialized");
+        let model_charater_list = metadata.custom("character").ok_or_else(|| {
+            OcrError::Io(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "crnn_net character not found in metadata",
+            ))
+        })?;
 
-        // Estimate capacity
-        let mut keys = Vec::with_capacity((model_charater_list.len() as f32 / 3.9) as usize);
+        // Estimate capacity (safe division by using checked arithmetic)
+        let capacity = if !model_charater_list.is_empty() {
+            (model_charater_list.len() as f32 / 3.9) as usize
+        } else {
+            10 // default capacity if list is empty
+        };
+        let mut keys = Vec::with_capacity(capacity);
 
         keys.push("#".to_string());
 
@@ -148,12 +156,27 @@ impl CrnnNet {
 
         let outputs = session.run(inputs![self.input_names[0].clone() => input_tensors])?;
 
-        let (_, red_data) = outputs.iter().next().unwrap();
+        let (_, red_data) = outputs.iter().next().ok_or_else(|| {
+            OcrError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "No output tensors found in CRNN session output",
+            ))
+        })?;
 
         let (shape, src_data) = red_data.try_extract_tensor::<f32>()?;
         let dimensions = shape;
-        let height = dimensions[1] as usize;
-        let width = dimensions[2] as usize;
+        let height = *dimensions.get(1).ok_or_else(|| {
+            OcrError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "CRNN output tensor missing height dimension (index 1)",
+            ))
+        })? as usize;
+        let width = *dimensions.get(2).ok_or_else(|| {
+            OcrError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "CRNN output tensor missing width dimension (index 2)",
+            ))
+        })? as usize;
         let src_data: Vec<f32> = src_data.to_vec();
 
         Self::score_to_text_line(&src_data, height, width, &self.keys)
@@ -169,7 +192,7 @@ impl CrnnNet {
         let mut last_index = 0;
 
         let mut text_score_sum = 0.0;
-        let mut text_socre_count = 0;
+        let mut text_score_count = 0;
         for i in 0..height {
             let start = i * width;
             let stop = (i + 1) * width;
@@ -186,12 +209,17 @@ impl CrnnNet {
             if max_index > 0 && max_index < keys.len() && !(i > 0 && max_index == last_index) {
                 text_line.text.push_str(&keys[max_index]);
                 text_score_sum += max_value;
-                text_socre_count += 1;
+                text_score_count += 1;
             }
             last_index = max_index;
         }
 
-        text_line.text_score = text_score_sum / text_socre_count as f32;
+        // Avoid division by zero: handle case where no characters were found
+        text_line.text_score = if text_score_count > 0 {
+            text_score_sum / text_score_count as f32
+        } else {
+            0.0
+        };
         Ok(text_line)
     }
 }

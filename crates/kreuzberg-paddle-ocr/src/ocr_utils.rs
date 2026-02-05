@@ -17,6 +17,15 @@ impl OcrUtils {
         let mut input_tensor = Array::zeros((1, channels as usize, rows as usize, cols as usize));
 
         // Get image data
+        // SAFETY: This is safe because:
+        // 1. The RgbImage is guaranteed to have width=cols and height=rows with 3 channels (RGB)
+        // 2. We iterate exactly over the valid range: r in [0, rows), c in [0, cols), ch in [0, 3)
+        // 3. The index calculation (r * cols * channels + c * channels + ch) is always < cols * rows * 3,
+        //    which equals the total number of pixels in an RGB image
+        // 4. RgbImage::get_unchecked is safe here because the calculated indices are within bounds
+        // 5. mean_vals and norm_vals are expected to have at least 3 elements for RGB (channels=3),
+        //    and we access them only with ch in [0, 3), so bounds are guaranteed
+        // 6. input_tensor is properly initialized and we access it with valid indices [0, ch, r, c]
         unsafe {
             for r in 0..rows {
                 for c in 0..cols {
@@ -81,8 +90,14 @@ impl OcrUtils {
         let img_crop = imageops::crop_imm(img_src, min_x, min_y, max_x - min_x, max_y - min_y).to_image();
 
         for point in &mut points {
-            point.x -= min_x;
-            point.y -= min_y;
+            point.x = point.x.saturating_sub(min_x);
+            point.y = point.y.saturating_sub(min_y);
+        }
+
+        // Ensure we have enough points for transformation
+        if points.len() < 4 {
+            // Fallback: return the cropped image as-is if we don't have 4 points
+            return img_crop;
         }
 
         let img_crop_width = ((points[0].x as i32 - points[1].x as i32).pow(2) as f32
@@ -91,6 +106,11 @@ impl OcrUtils {
         let img_crop_height = ((points[0].x as i32 - points[3].x as i32).pow(2) as f32
             + (points[0].y as i32 - points[3].y as i32).pow(2) as f32)
             .sqrt() as u32;
+
+        // Ensure dimensions are valid (non-zero)
+        if img_crop_width == 0 || img_crop_height == 0 {
+            return img_crop;
+        }
 
         let src_points = [
             (points[0].x as f32, points[0].y as f32),
@@ -106,8 +126,13 @@ impl OcrUtils {
             (0.0, img_crop_height as f32),
         ];
 
-        let projection = Projection::from_control_points(src_points, dst_points)
-            .expect("Failed to create projection transformation");
+        let projection = match Projection::from_control_points(src_points, dst_points) {
+            Some(proj) => proj,
+            None => {
+                // If projection cannot be created, return the cropped image as fallback
+                return img_crop;
+            }
+        };
 
         let mut part_img = image::RgbImage::new(img_crop_width, img_crop_height);
         imageproc::geometric_transformations::warp_into(

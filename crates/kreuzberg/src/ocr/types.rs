@@ -309,6 +309,7 @@ mod tests {
             mime_type: "text/plain".to_string(),
             metadata: std::collections::HashMap::new(),
             tables: vec![],
+            ocr_elements: None,
         };
 
         let batch_result = BatchItemResult {

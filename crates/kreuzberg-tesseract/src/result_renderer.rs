@@ -23,7 +23,7 @@ impl TessResultRenderer {
     ///
     /// Returns the new instance of the TessResultRenderer.
     pub fn new_text_renderer(outputbase: &str) -> Result<Self> {
-        let outputbase = CString::new(outputbase).unwrap();
+        let outputbase = CString::new(outputbase).map_err(|_| TesseractError::NullByteInString)?;
         let handle = unsafe { TessTextRendererCreate(outputbase.as_ptr()) };
         if handle.is_null() {
             Err(TesseractError::NullPointerError)
@@ -44,7 +44,7 @@ impl TessResultRenderer {
     ///
     /// Returns the new instance of the TessResultRenderer.
     pub fn new_hocr_renderer(outputbase: &str) -> Result<Self> {
-        let outputbase = CString::new(outputbase).unwrap();
+        let outputbase = CString::new(outputbase).map_err(|_| TesseractError::NullByteInString)?;
         let handle = unsafe { TessHOcrRendererCreate(outputbase.as_ptr()) };
         if handle.is_null() {
             Err(TesseractError::NullPointerError)
@@ -67,8 +67,8 @@ impl TessResultRenderer {
     ///
     /// Returns the new instance of the TessResultRenderer.
     pub fn new_pdf_renderer(outputbase: &str, datadir: &str, textonly: bool) -> Result<Self> {
-        let outputbase = CString::new(outputbase).unwrap();
-        let datadir = CString::new(datadir).unwrap();
+        let outputbase = CString::new(outputbase).map_err(|_| TesseractError::NullByteInString)?;
+        let datadir = CString::new(datadir).map_err(|_| TesseractError::NullByteInString)?;
         let handle = unsafe { TessPDFRendererCreate(outputbase.as_ptr(), datadir.as_ptr(), textonly as c_int) };
         if handle.is_null() {
             Err(TesseractError::NullPointerError)
@@ -88,10 +88,14 @@ impl TessResultRenderer {
     /// # Returns
     ///
     /// Returns `true` if the document was created successfully, otherwise returns `false`.
-    pub fn begin_document(&self, title: &str) -> bool {
-        let title = CString::new(title).unwrap();
-        let handle = self.handle.lock().unwrap();
-        unsafe { TessResultRendererBeginDocument(*handle, title.as_ptr()) != 0 }
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TesseractError` if the string contains a null byte or if the mutex lock fails.
+    pub fn begin_document(&self, title: &str) -> Result<bool> {
+        let title = CString::new(title).map_err(|_| TesseractError::NullByteInString)?;
+        let handle = self.handle.lock().map_err(|_| TesseractError::MutexLockError)?;
+        Ok(unsafe { TessResultRendererBeginDocument(*handle, title.as_ptr()) != 0 })
     }
 
     /// Adds an image to the document.
@@ -103,10 +107,14 @@ impl TessResultRenderer {
     /// # Returns
     ///
     /// Returns `true` if the image was added successfully, otherwise returns `false`.
-    pub fn add_image(&self, api: &TesseractAPI) -> bool {
-        let api_handle = api.handle.lock().unwrap();
-        let handle = self.handle.lock().unwrap();
-        unsafe { TessResultRendererAddImage(*handle, *api_handle) != 0 }
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TesseractError::MutexLockError` if either mutex lock fails.
+    pub fn add_image(&self, api: &TesseractAPI) -> Result<bool> {
+        let api_handle = api.handle.lock().map_err(|_| TesseractError::MutexLockError)?;
+        let handle = self.handle.lock().map_err(|_| TesseractError::MutexLockError)?;
+        Ok(unsafe { TessResultRendererAddImage(*handle, *api_handle) != 0 })
     }
 
     /// Ends the document.
@@ -114,9 +122,13 @@ impl TessResultRenderer {
     /// # Returns
     ///
     /// Returns `true` if the document was ended successfully, otherwise returns `false`.
-    pub fn end_document(&self) -> bool {
-        let handle = self.handle.lock().unwrap();
-        unsafe { TessResultRendererEndDocument(*handle) != 0 }
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TesseractError::MutexLockError` if the mutex lock fails.
+    pub fn end_document(&self) -> Result<bool> {
+        let handle = self.handle.lock().map_err(|_| TesseractError::MutexLockError)?;
+        Ok(unsafe { TessResultRendererEndDocument(*handle) != 0 })
     }
 
     /// Gets the extension of the document.
@@ -124,8 +136,14 @@ impl TessResultRenderer {
     /// # Returns
     ///
     /// Returns the extension as a `String` if successful, otherwise returns an error.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TesseractError::MutexLockError` if the mutex lock fails,
+    /// `TesseractError::NullPointerError` if the extension pointer is null,
+    /// or `TesseractError::Utf8Error` if the extension contains invalid UTF-8.
     pub fn get_extension(&self) -> Result<String> {
-        let handle = self.handle.lock().unwrap();
+        let handle = self.handle.lock().map_err(|_| TesseractError::MutexLockError)?;
         let ext_ptr = unsafe { TessResultRendererExtention(*handle) };
         if ext_ptr.is_null() {
             Err(TesseractError::NullPointerError)
@@ -140,8 +158,14 @@ impl TessResultRenderer {
     /// # Returns
     ///
     /// Returns the title as a `String` if successful, otherwise returns an error.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TesseractError::MutexLockError` if the mutex lock fails,
+    /// `TesseractError::NullPointerError` if the title pointer is null,
+    /// or `TesseractError::Utf8Error` if the title contains invalid UTF-8.
     pub fn get_title(&self) -> Result<String> {
-        let handle = self.handle.lock().unwrap();
+        let handle = self.handle.lock().map_err(|_| TesseractError::MutexLockError)?;
         let title_ptr = unsafe { TessResultRendererTitle(*handle) };
         if title_ptr.is_null() {
             Err(TesseractError::NullPointerError)
@@ -156,16 +180,21 @@ impl TessResultRenderer {
     /// # Returns
     ///
     /// Returns the number of images as an `i32`.
-    pub fn get_image_num(&self) -> i32 {
-        let handle = self.handle.lock().unwrap();
-        unsafe { TessResultRendererImageNum(*handle) }
+    ///
+    /// # Errors
+    ///
+    /// Returns a `TesseractError::MutexLockError` if the mutex lock fails.
+    pub fn get_image_num(&self) -> Result<i32> {
+        let handle = self.handle.lock().map_err(|_| TesseractError::MutexLockError)?;
+        Ok(unsafe { TessResultRendererImageNum(*handle) })
     }
 }
 
 impl Drop for TessResultRenderer {
     fn drop(&mut self) {
-        let handle = self.handle.lock().unwrap();
-        unsafe { TessDeleteResultRenderer(*handle) };
+        if let Ok(handle) = self.handle.lock() {
+            unsafe { TessDeleteResultRenderer(*handle) };
+        }
     }
 }
 

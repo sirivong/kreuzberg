@@ -41,7 +41,7 @@
 //! #         -> kreuzberg::Result<ExtractionResult> {
 //! #         Ok(ExtractionResult {
 //! #             content: String::new(),
-//! #             mime_type: String::new(),
+//! #             mime_type: String::new().into(),
 //! #             metadata: Metadata::default(),
 //! #             tables: vec![],
 //! #             detected_languages: None,
@@ -50,13 +50,14 @@
 //! #             pages: None,
 //! #             djot_content: None,
 //! #             elements: None,
+//! #             ocr_elements: None,
 //! #         })
 //! #     }
 //! #     async fn extract_file(&self, _: &std::path::Path, _: &str, _: &kreuzberg::ExtractionConfig)
 //! #         -> kreuzberg::Result<ExtractionResult> {
 //! #         Ok(ExtractionResult {
 //! #             content: String::new(),
-//! #             mime_type: String::new(),
+//! #             mime_type: String::new().into(),
 //! #             metadata: Metadata::default(),
 //! #             tables: vec![],
 //! #             detected_languages: None,
@@ -65,6 +66,7 @@
 //! #             pages: None,
 //! #             djot_content: None,
 //! #             elements: None,
+//! #             ocr_elements: None,
 //! #         })
 //! #     }
 //! #     fn supported_mime_types(&self) -> &[&str] { &[] }
@@ -116,11 +118,11 @@
 //!         let extracted_text = extract_strings_from_json(&json);
 //!
 //!         let mut metadata = Metadata::default();
-//!         metadata.additional.insert("extracted_fields".to_string(), serde_json::json!(true));
+//!         metadata.additional.insert("extracted_fields".to_string().into(), serde_json::json!(true));
 //!
 //!         Ok(ExtractionResult {
 //!             content: extracted_text,
-//!             mime_type: "application/json".to_string(),
+//!             mime_type: "application/json".to_string().into(),
 //!             metadata,
 //!             tables: vec![],
 //!             detected_languages: None,
@@ -129,6 +131,7 @@
 //!             djot_content: None,
 //!             pages: None,
 //!             elements: None,
+//!             ocr_elements: None,
 //!         })
 //!     }
 //!

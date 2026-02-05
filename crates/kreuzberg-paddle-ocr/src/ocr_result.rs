@@ -16,6 +16,17 @@ pub struct TextBox {
 
 impl fmt::Display for TextBox {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // SAFETY: We must have at least 4 points in a valid TextBox
+        // This is enforced at the OCR processing level, but we check bounds here for safety
+        if self.points.len() < 4 {
+            return write!(
+                f,
+                "TextBox [score({}), points_count({})]",
+                self.score,
+                self.points.len()
+            );
+        }
+
         write!(
             f,
             "TextBox [score({}), [x: {}, y: {}], [x: {}, y: {}], [x: {}, y: {}], [x: {}, y: {}]]",

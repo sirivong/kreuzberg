@@ -90,7 +90,12 @@ impl AngleNet {
     }
 
     fn score_to_angle(output_tensor: &SessionOutputs, angle_cols: usize) -> Result<Angle, OcrError> {
-        let (_, red_data) = output_tensor.iter().next().unwrap();
+        let (_, red_data) = output_tensor.iter().next().ok_or_else(|| {
+            OcrError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "No output tensors found in angle classification session output",
+            ))
+        })?;
 
         let src_data: Vec<f32> = red_data.try_extract_tensor::<f32>()?.1.to_vec();
 

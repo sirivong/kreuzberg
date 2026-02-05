@@ -1887,7 +1887,7 @@ dependencies = [
  "bitflags 2.10.0",
  "cexpr",
  "ext-php-rs-clang-sys",
- "itertools 0.14.0",
+ "itertools 0.10.5",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -3394,7 +3394,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-paddle-ocr"
-version = "4.2.9"
+version = "4.2.10"
 dependencies = [
  "geo-clipper",
  "geo-types",
@@ -3420,7 +3420,7 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "image",
- "itertools 0.14.0",
+ "itertools 0.10.5",
  "js-sys",
  "libloading 0.8.9",
  "log",

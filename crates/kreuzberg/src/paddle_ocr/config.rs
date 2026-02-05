@@ -15,7 +15,7 @@ use std::path::PathBuf;
 /// # Examples
 ///
 /// ```no_run
-/// use kreuzberg::ocr::paddle::PaddleOcrConfig;
+/// use kreuzberg::PaddleOcrConfig;
 ///
 /// // Create with default English configuration
 /// let config = PaddleOcrConfig::new("en");
@@ -73,7 +73,7 @@ impl PaddleOcrConfig {
     /// # Examples
     ///
     /// ```no_run
-    /// use kreuzberg::ocr::paddle::PaddleOcrConfig;
+    /// use kreuzberg::PaddleOcrConfig;
     ///
     /// let config = PaddleOcrConfig::new("en");
     /// ```
@@ -100,7 +100,7 @@ impl PaddleOcrConfig {
     /// # Examples
     ///
     /// ```no_run
-    /// use kreuzberg::ocr::paddle::PaddleOcrConfig;
+    /// use kreuzberg::PaddleOcrConfig;
     /// use std::path::PathBuf;
     ///
     /// let config = PaddleOcrConfig::new("en")
@@ -120,7 +120,7 @@ impl PaddleOcrConfig {
     /// # Examples
     ///
     /// ```no_run
-    /// use kreuzberg::ocr::paddle::PaddleOcrConfig;
+    /// use kreuzberg::PaddleOcrConfig;
     ///
     /// let config = PaddleOcrConfig::new("en")
     ///     .with_table_detection(true);
@@ -202,7 +202,7 @@ impl PaddleOcrConfig {
     /// # Examples
     ///
     /// ```no_run
-    /// use kreuzberg::ocr::paddle::PaddleOcrConfig;
+    /// use kreuzberg::PaddleOcrConfig;
     ///
     /// let config = PaddleOcrConfig::new("en");
     /// let cache_dir = config.resolve_cache_dir();
@@ -263,7 +263,7 @@ impl PaddleLanguage {
     /// # Examples
     ///
     /// ```
-    /// use kreuzberg::ocr::paddle::PaddleLanguage;
+    /// use kreuzberg::PaddleLanguage;
     ///
     /// assert_eq!(PaddleLanguage::English.code(), "en");
     /// assert_eq!(PaddleLanguage::Chinese.code(), "ch");
@@ -292,7 +292,7 @@ impl PaddleLanguage {
     /// # Examples
     ///
     /// ```
-    /// use kreuzberg::ocr::paddle::PaddleLanguage;
+    /// use kreuzberg::PaddleLanguage;
     ///
     /// assert_eq!(PaddleLanguage::from_code("en"), Some(PaddleLanguage::English));
     /// assert_eq!(PaddleLanguage::from_code("ch"), Some(PaddleLanguage::Chinese));

@@ -57,7 +57,7 @@ use crate::KreuzbergError;
 ///         // Premium extraction logic with better accuracy
 ///         Ok(ExtractionResult {
 ///             content: "Premium extracted content".to_string(),
-///             mime_type: mime_type.to_string(),
+///             mime_type: mime_type.to_string().into(),
 ///             metadata: Metadata::default(),
 ///             tables: vec![],
 ///             detected_languages: None,
@@ -66,6 +66,7 @@ use crate::KreuzbergError;
 ///             djot_content: None,
 ///             pages: None,
 ///             elements: None,
+///             ocr_elements: None,
 ///         })
 ///     }
 ///
@@ -134,11 +135,11 @@ pub trait DocumentExtractor: Plugin {
     ///
     ///     // Extract metadata
     ///     let mut metadata = Metadata::default();
-    ///     metadata.additional.insert("byte_count".to_string(), serde_json::json!(content.len()));
+    ///     metadata.additional.insert("byte_count".to_string().into(), serde_json::json!(content.len()));
     ///
     ///     Ok(ExtractionResult {
     ///         content: text,
-    ///         mime_type: mime_type.to_string(),
+    ///         mime_type: mime_type.to_string().into(),
     ///         metadata,
     ///         tables: vec![],
     ///         detected_languages: None,
@@ -147,6 +148,7 @@ pub trait DocumentExtractor: Plugin {
     ///         djot_content: None,
     ///         pages: None,
     ///         elements: None,
+    ///         ocr_elements: None,
     ///     })
     /// }
     /// # }
@@ -211,7 +213,7 @@ pub trait DocumentExtractor: Plugin {
     ///
     ///     Ok(ExtractionResult {
     ///         content,
-    ///         mime_type: mime_type.to_string(),
+    ///         mime_type: mime_type.to_string().into(),
     ///         metadata: Metadata::default(),
     ///         tables: vec![],
     ///         detected_languages: None,
@@ -220,6 +222,7 @@ pub trait DocumentExtractor: Plugin {
     ///         djot_content: None,
     ///         pages: None,
     ///         elements: None,
+    ///         ocr_elements: None,
     ///     })
     /// }
     /// # }

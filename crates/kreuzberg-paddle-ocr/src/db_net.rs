@@ -99,16 +99,37 @@ impl DbNet {
         let max_side_thresh = 3.0;
         let mut rs_boxes = Vec::new();
 
-        let (_, red_data) = output_tensor.iter().next().unwrap();
+        let (_, red_data) = output_tensor.iter().next().ok_or_else(|| {
+            OcrError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "No output tensors found in session output",
+            ))
+        })?;
 
         let pred_data: Vec<f32> = red_data.try_extract_tensor::<f32>()?.1.to_vec();
 
         let cbuf_data: Vec<u8> = pred_data.iter().map(|pixel| (pixel * 255.0) as u8).collect();
 
         let pred_img: image::ImageBuffer<image::Luma<f32>, Vec<f32>> =
-            image::ImageBuffer::from_vec(cols, rows, pred_data).unwrap();
+            image::ImageBuffer::from_vec(cols, rows, pred_data).ok_or_else(|| {
+                OcrError::Io(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!(
+                        "Failed to create image buffer from predictions: {} x {} dimensions may be invalid",
+                        cols, rows
+                    ),
+                ))
+            })?;
 
-        let cbuf_img = image::GrayImage::from_vec(cols, rows, cbuf_data).unwrap();
+        let cbuf_img = image::GrayImage::from_vec(cols, rows, cbuf_data).ok_or_else(|| {
+            OcrError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                format!(
+                    "Failed to create grayscale image buffer: {} x {} dimensions may be invalid",
+                    cols, rows
+                ),
+            ))
+        })?;
 
         let threshold_img = imageproc::contrast::threshold(
             &cbuf_img,
@@ -331,7 +352,14 @@ impl DbNet {
         }
 
         let mut ret_pts = Vec::new();
-        for ip in solution.first().unwrap().exterior().points() {
+        let first_polygon = solution.first().ok_or_else(|| {
+            OcrError::Io(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "Polygon solution list was empty after offset operation",
+            ))
+        })?;
+
+        for ip in first_polygon.exterior().points() {
             ret_pts.push(imageproc::point::Point::new(ip.x() as i32, ip.y() as i32));
         }
 

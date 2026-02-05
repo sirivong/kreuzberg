@@ -40,6 +40,10 @@ pub enum TesseractError {
     InvalidImageData,
     #[error("Uninitialized error")]
     UninitializedError,
+    #[error("Invalid enum value: {0}")]
+    InvalidEnumValue(i32),
+    #[error("String contains null byte")]
+    NullByteInString,
 }
 
 /// Result type for Tesseract operations.
