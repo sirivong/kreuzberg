@@ -2,6 +2,10 @@ package dev.kreuzberg;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.DeserializationFeature;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import dev.kreuzberg.config.PageConfig;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -249,5 +253,148 @@ class PagesExtractionTest {
 			PageBoundary next = boundaries.get(i + 1);
 			assertTrue(current.byteEnd() <= next.byteStart(), "Page boundaries should be contiguous or overlapping");
 		}
+	}
+
+	// ============= JSON Deserialization Tests (Regression for #355) =============
+
+	@Test
+	void testPageStructure_JsonDeserialization_WithBoundaries() throws Exception {
+		// Regression test for issue #355: ClassCastException when deserializing
+		// PageStructure with nested List<PageBoundary>
+		ObjectMapper mapper = new ObjectMapper().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
+				.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+		String json = """
+				{
+					"total_count": 3,
+					"unit_type": "page",
+					"boundaries": [
+						{"byte_start": 0, "byte_end": 500, "page_number": 1},
+						{"byte_start": 500, "byte_end": 1000, "page_number": 2},
+						{"byte_start": 1000, "byte_end": 1500, "page_number": 3}
+					],
+					"pages": null
+				}
+				""";
+
+		PageStructure structure = mapper.readValue(json, new TypeReference<PageStructure>() {
+		});
+
+		assertEquals(3L, structure.getTotalCount());
+		assertEquals(PageUnitType.PAGE, structure.getUnitType());
+
+		var boundariesOpt = structure.getBoundaries();
+		assertTrue(boundariesOpt.isPresent(), "Boundaries should be present");
+
+		List<PageBoundary> boundaries = boundariesOpt.get();
+		assertEquals(3, boundaries.size());
+
+		// This would throw ClassCastException before the fix if elements were
+		// LinkedHashMap
+		PageBoundary first = boundaries.get(0);
+		assertEquals(0L, first.byteStart());
+		assertEquals(500L, first.byteEnd());
+		assertEquals(1L, first.pageNumber());
+
+		PageBoundary last = boundaries.get(2);
+		assertEquals(1000L, last.byteStart());
+		assertEquals(1500L, last.byteEnd());
+		assertEquals(3L, last.pageNumber());
+	}
+
+	@Test
+	void testPageStructure_JsonDeserialization_WithPages() throws Exception {
+		// Regression test for issue #355: ClassCastException when deserializing
+		// PageStructure with nested List<PageInfo>
+		ObjectMapper mapper = new ObjectMapper().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
+				.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+		String json = """
+				{
+					"total_count": 2,
+					"unit_type": "slide",
+					"boundaries": null,
+					"pages": [
+						{"number": 1, "title": "Introduction", "dimensions": [1920.0, 1080.0], "hidden": false},
+						{"number": 2, "title": "Content", "dimensions": [1920.0, 1080.0], "hidden": true}
+					]
+				}
+				""";
+
+		PageStructure structure = mapper.readValue(json, new TypeReference<PageStructure>() {
+		});
+
+		assertEquals(2L, structure.getTotalCount());
+		assertEquals(PageUnitType.SLIDE, structure.getUnitType());
+
+		var pagesOpt = structure.getPages();
+		assertTrue(pagesOpt.isPresent(), "Pages should be present");
+
+		List<PageInfo> pages = pagesOpt.get();
+		assertEquals(2, pages.size());
+
+		// This would throw ClassCastException before the fix if elements were
+		// LinkedHashMap
+		PageInfo first = pages.get(0);
+		assertEquals(1L, first.getNumber());
+		assertEquals("Introduction", first.getTitle().orElse(null));
+		assertTrue(first.isVisible().orElse(false));
+
+		PageInfo second = pages.get(1);
+		assertEquals(2L, second.getNumber());
+		assertEquals("Content", second.getTitle().orElse(null));
+		assertFalse(second.isVisible().orElse(true));
+	}
+
+	@Test
+	void testPageStructure_JsonDeserialization_WithBothBoundariesAndPages() throws Exception {
+		// Regression test for issue #355: Full PageStructure with both nested lists
+		ObjectMapper mapper = new ObjectMapper().setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
+				.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+
+		String json = """
+				{
+					"total_count": 2,
+					"unit_type": "page",
+					"boundaries": [
+						{"byte_start": 0, "byte_end": 1000, "page_number": 1},
+						{"byte_start": 1000, "byte_end": 2000, "page_number": 2}
+					],
+					"pages": [
+						{"number": 1, "title": "Page 1", "dimensions": [612.0, 792.0], "image_count": 2, "table_count": 1, "hidden": false},
+						{"number": 2, "title": "Page 2", "dimensions": [612.0, 792.0], "image_count": 0, "table_count": 0, "hidden": false}
+					]
+				}
+				""";
+
+		PageStructure structure = mapper.readValue(json, new TypeReference<PageStructure>() {
+		});
+
+		assertEquals(2L, structure.getTotalCount());
+		assertEquals(PageUnitType.PAGE, structure.getUnitType());
+
+		// Verify boundaries
+		var boundariesOpt = structure.getBoundaries();
+		assertTrue(boundariesOpt.isPresent());
+		List<PageBoundary> boundaries = boundariesOpt.get();
+		assertEquals(2, boundaries.size());
+		assertEquals(1L, boundaries.get(0).pageNumber());
+		assertEquals(2L, boundaries.get(1).pageNumber());
+
+		// Verify pages
+		var pagesOpt = structure.getPages();
+		assertTrue(pagesOpt.isPresent());
+		List<PageInfo> pages = pagesOpt.get();
+		assertEquals(2, pages.size());
+
+		PageInfo page1 = pages.get(0);
+		assertEquals(1L, page1.getNumber());
+		assertEquals(2, page1.getImageCount().orElse(0));
+		assertEquals(1, page1.getTableCount().orElse(0));
+
+		PageInfo page2 = pages.get(1);
+		assertEquals(2L, page2.getNumber());
+		assertEquals(0, page2.getImageCount().orElse(-1));
+		assertEquals(0, page2.getTableCount().orElse(-1));
 	}
 }

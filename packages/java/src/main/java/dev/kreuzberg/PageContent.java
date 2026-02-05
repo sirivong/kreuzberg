@@ -2,6 +2,7 @@ package dev.kreuzberg;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -25,7 +26,8 @@ import java.util.Optional;
  *            hierarchy information for the page, or null
  */
 public record PageContent(@JsonProperty("page_number") int pageNumber, @JsonProperty("content") String content,
-		@JsonProperty("tables") List<Table> tables, @JsonProperty("images") List<ExtractedImage> images,
+		@JsonDeserialize(contentAs = Table.class) @JsonProperty("tables") List<Table> tables,
+		@JsonDeserialize(contentAs = ExtractedImage.class) @JsonProperty("images") List<ExtractedImage> images,
 		@JsonProperty("hierarchy") PageHierarchy hierarchy) {
 	@JsonCreator
 	public PageContent(@JsonProperty("page_number") int pageNumber, @JsonProperty("content") String content,

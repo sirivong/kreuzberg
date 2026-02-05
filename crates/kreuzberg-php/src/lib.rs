@@ -96,7 +96,7 @@ fn setup_onnx_runtime_path() {
 ///
 /// # Returns
 ///
-/// Version string in semver format (e.g., "4.2.9")
+/// Version string in semver format (e.g., "4.2.10")
 ///
 /// # Example
 ///

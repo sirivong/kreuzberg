@@ -2,6 +2,7 @@ package dev.kreuzberg;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -21,10 +22,12 @@ import java.util.Optional;
 public final class FormattedBlock {
 	private final BlockType blockType;
 	private final Optional<Integer> level;
+	@JsonDeserialize(contentAs = InlineElement.class)
 	private final List<InlineElement> inlineContent;
 	private final Optional<Attributes> attributes;
 	private final Optional<String> language;
 	private final Optional<String> code;
+	@JsonDeserialize(contentAs = FormattedBlock.class)
 	private final List<FormattedBlock> children;
 
 	@JsonCreator

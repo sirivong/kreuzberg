@@ -152,10 +152,11 @@ jobs:
           echo "=== Building CLI Binary with Features ==="
           cargo build --release --package kreuzberg-cli --features all
           mkdir -p packages/python/kreuzberg
+          # Copy with correct name (kreuzberg-cli) to match pyproject.toml include paths
           if [ "${{ runner.os }}" = "Windows" ]; then
-            cp target/release/kreuzberg.exe packages/python/kreuzberg/
+            cp target/release/kreuzberg.exe packages/python/kreuzberg/kreuzberg-cli.exe
           else
-            cp target/release/kreuzberg packages/python/kreuzberg/
+            cp target/release/kreuzberg packages/python/kreuzberg/kreuzberg-cli
           fi
 
       - name: Build FFI library

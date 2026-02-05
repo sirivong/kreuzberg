@@ -2,6 +2,7 @@ package dev.kreuzberg;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.Collections;
 import java.util.List;
 
@@ -14,7 +15,7 @@ import java.util.List;
  *            hierarchical blocks with heading levels
  */
 public record PageHierarchy(@JsonProperty("block_count") int blockCount,
-		@JsonProperty("blocks") List<HierarchicalBlock> blocks) {
+		@JsonDeserialize(contentAs = HierarchicalBlock.class) @JsonProperty("blocks") List<HierarchicalBlock> blocks) {
 	@JsonCreator
 	public PageHierarchy(@JsonProperty("block_count") int blockCount,
 			@JsonProperty("blocks") List<HierarchicalBlock> blocks) {

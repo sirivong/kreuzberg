@@ -2,6 +2,7 @@ package dev.kreuzberg;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -17,6 +18,7 @@ import java.util.Optional;
 public final class Attributes {
 	private final Optional<String> id;
 	private final List<String> classes;
+	@JsonDeserialize(contentAs = KeyValue.class)
 	private final List<KeyValue> keyValues;
 
 	@JsonCreator

@@ -2,6 +2,7 @@ package dev.kreuzberg;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -11,6 +12,7 @@ import java.util.Objects;
  */
 public final class Footnote {
 	private final String label;
+	@JsonDeserialize(contentAs = FormattedBlock.class)
 	private final List<FormattedBlock> content;
 
 	@JsonCreator

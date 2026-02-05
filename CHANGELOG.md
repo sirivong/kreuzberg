@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [4.2.10] - 2026-02-05
+
 ### Fixed
 
 #### MIME Type Detection
@@ -16,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Java Bindings
 - **Format-specific metadata missing in `getMetadataMap()`**: Fixed `sheet_count`, `sheet_names`, and other format-specific metadata fields not being accessible via `ExtractionResult.getMetadataMap()`. The `ResultParser.buildMetadata()` method now properly propagates flattened format metadata (e.g., Excel, PPTX) to the `Metadata.additional` map.
+- **ClassCastException when deserializing nested generic collections**: Fixed `LinkedHashMap cannot be cast to PageStructure` and similar errors when deserializing JSON with nested `List<T>` fields. Added `@JsonDeserialize(contentAs = ...)` annotations to all model classes with generic list fields (`PageStructure`, `FormattedBlock`, `Footnote`, `Attributes`, `PageHierarchy`, `PageContent`, `DjotContent`) to preserve type information during Jackson deserialization. (#355)
+
+#### Python Bindings
+- **Windows CLI binary still missing from wheel**: Fixed CI workflow copying CLI binary with wrong filename (`kreuzberg.exe` instead of `kreuzberg-cli.exe`), causing the binary to be excluded from Windows wheels despite the v4.2.9 build.py fix. The CI now copies with the correct name to match pyproject.toml include paths. (#349)
 
 ---
 

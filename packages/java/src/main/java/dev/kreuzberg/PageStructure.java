@@ -2,6 +2,7 @@ package dev.kreuzberg;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -19,7 +20,9 @@ import java.util.Optional;
 public final class PageStructure {
 	private final long totalCount;
 	private final PageUnitType unitType;
+	@JsonDeserialize(contentAs = PageBoundary.class)
 	private final List<PageBoundary> boundaries;
+	@JsonDeserialize(contentAs = PageInfo.class)
 	private final List<PageInfo> pages;
 
 	@JsonCreator

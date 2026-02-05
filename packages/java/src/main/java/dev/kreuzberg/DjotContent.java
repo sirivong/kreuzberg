@@ -2,6 +2,7 @@ package dev.kreuzberg;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -30,12 +31,18 @@ import java.util.Objects;
  */
 public final class DjotContent {
 	private final String plainText;
+	@JsonDeserialize(contentAs = FormattedBlock.class)
 	private final List<FormattedBlock> blocks;
 	private final Metadata metadata;
+	@JsonDeserialize(contentAs = Table.class)
 	private final List<Table> tables;
+	@JsonDeserialize(contentAs = DjotImage.class)
 	private final List<DjotImage> images;
+	@JsonDeserialize(contentAs = DjotLink.class)
 	private final List<DjotLink> links;
+	@JsonDeserialize(contentAs = Footnote.class)
 	private final List<Footnote> footnotes;
+	@JsonDeserialize(contentAs = AttributeEntry.class)
 	private final List<AttributeEntry> attributes;
 
 	@JsonCreator
