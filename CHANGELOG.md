@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-#### DOCX Extraction
-- **DOCX list items missing whitespace between text runs**: Fixed separate text runs within the same paragraph being concatenated without spaces (e.g. "Sermocinationypsiliform" instead of "Sermocination ypsiliform"). Vendored the `docx-lite` crate and fixed `Paragraph::to_text()` to join runs with a space separator. (#359)
-
 ---
 
 ## [4.2.11] - 2026-02-06

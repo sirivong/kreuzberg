@@ -12,7 +12,6 @@ members = [
     "tools/benchmark-harness",
     "tools/e2e-generator",
     "e2e/rust",
-    "crates/docx-lite",
 ]
 exclude = ["tests/test_apps/rust", "tests/test_apps/elixir"]
 default-members = ["crates/kreuzberg", "crates/kreuzberg-cli"]
@@ -21,7 +20,6 @@ resolver = "2"
 [patch.crates-io]
 kreuzberg = { path = "crates/kreuzberg" }
 kreuzberg-tesseract = { path = "crates/kreuzberg-tesseract" }
-docx-lite = { path = "crates/docx-lite" }
 
 [workspace.package]
 version = "4.2.11"

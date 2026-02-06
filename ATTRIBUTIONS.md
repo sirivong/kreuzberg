@@ -83,19 +83,8 @@ Test documents and baselines can be regenerated at any time using:
 
 This script processes all test documents and generates fresh baselines using the installed version of Pandoc.
 
-## docx-lite
-
-Vendored DOCX text extraction library:
-
-- **Source**: https://github.com/v-lawyer/docx-lite
-- **License**: MIT OR Apache-2.0
-- **Authors**: V-Lawyer Team
-- **Version**: 0.2.0 (vendored with bug fixes)
-- **Usage**: Source code vendored into `crates/docx-lite/` for DOCX text extraction
-- **Modifications**: Fixed `Paragraph::to_text()` joining text runs without whitespace (#359)
-
 ---
 
-**Last Updated**: February 6, 2026
+**Last Updated**: December 6, 2025
 **Pandoc Version Used**: 3.8.3
 **Baseline Generation Date**: December 6, 2025
