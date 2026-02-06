@@ -10,7 +10,7 @@ Add the dependency to your Maven `pom.xml`:
 <dependency>
     <groupId>dev.kreuzberg</groupId>
     <artifactId>kreuzberg</artifactId>
-    <version>4.2.10</version>
+    <version>4.2.11</version>
 </dependency>
 ```
 
@@ -18,7 +18,7 @@ Or with Gradle:
 
 ```gradle title="build.gradle"
 dependencies {
-    implementation 'dev.kreuzberg:kreuzberg:4.2.10'
+    implementation 'dev.kreuzberg:kreuzberg:4.2.11'
 }
 ```
 

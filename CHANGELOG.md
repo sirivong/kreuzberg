@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.2.11] - 2026-02-06
+
+### Fixed
+
+#### CI
+- **Deno E2E tests failing due to double-slash in document paths**: Fixed the E2E test generator producing `WORKSPACE_ROOT` with a trailing slash, causing `//test_documents/` paths that broke all Deno test file resolution.
+- **CLI `test_extract_with_chunking` test failure**: Fixed test passing `--chunk` without a required value (`true`/`false`), causing `test-system-pdfium` job to fail.
+- **Rust CI job timeouts**: Increased all Rust CI job timeouts from 90 to 180 minutes to accommodate the full test suite.
+
+#### Python Bindings
+- **CLI binary missing from all platform wheels**: Fixed the publish workflow not building the CLI binary before running maturin, causing the `kreuzberg-cli` executable to be absent from wheels on all platforms (Windows, macOS, Linux). The CI workflow had this step but the publish workflow did not. (#349)
+
+---
+
 ## [4.2.10] - 2026-02-05
 
 ### Fixed

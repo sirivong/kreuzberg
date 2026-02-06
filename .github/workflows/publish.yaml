@@ -495,6 +495,19 @@ jobs:
         shell: bash
         run: rm -rf target/wheels target/maturin && rm -f packages/python/kreuzberg/_internal_bindings.*
 
+      - name: Build CLI binary (native)
+        if: matrix.os != 'ubuntu-latest'
+        shell: bash
+        run: |
+          echo "=== Building CLI Binary ==="
+          cargo build --release --package kreuzberg-cli --features all
+          mkdir -p packages/python/kreuzberg
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cp target/release/kreuzberg.exe packages/python/kreuzberg/kreuzberg-cli.exe
+          else
+            cp target/release/kreuzberg packages/python/kreuzberg/kreuzberg-cli
+          fi
+
       - name: Build Linux wheels
         if: matrix.os == 'ubuntu-latest'
         uses: PyO3/maturin-action@v1
@@ -519,6 +532,11 @@ jobs:
               export OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu
               export OPENSSL_INCLUDE_DIR=/usr/include
             fi
+            # Build CLI binary inside manylinux container
+            echo "=== Building CLI Binary (Linux) ==="
+            cargo build --release --package kreuzberg-cli --features all
+            mkdir -p packages/python/kreuzberg
+            cp target/release/kreuzberg packages/python/kreuzberg/kreuzberg-cli
 
       - name: Build wheels (native)
         if: matrix.os != 'ubuntu-latest'

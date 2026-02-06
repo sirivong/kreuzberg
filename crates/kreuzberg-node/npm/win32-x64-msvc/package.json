@@ -1,6 +1,6 @@
 {
 	"name": "@kreuzberg/node-win32-x64-msvc",
-	"version": "4.2.10",
+	"version": "4.2.11",
 	"cpu": [
 		"x64"
 	],
