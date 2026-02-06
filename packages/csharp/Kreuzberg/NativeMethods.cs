@@ -61,6 +61,8 @@ internal static partial class NativeMethods
         public IntPtr PagesJson;
         /// <summary>JSON array of semantic elements pointer.</summary>
         public IntPtr ElementsJson;
+        /// <summary>JSON array of OCR elements pointer.</summary>
+        public IntPtr OcrElementsJson;
 
         /// <summary>Whether extraction succeeded.</summary>
         [MarshalAs(UnmanagedType.I1)]

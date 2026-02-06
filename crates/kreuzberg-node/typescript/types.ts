@@ -46,6 +46,153 @@ export interface TesseractConfig {
 }
 
 /**
+ * OCR element hierarchy level.
+ *
+ * Defines the granularity of OCR element extraction.
+ */
+export type OcrElementLevel = "word" | "line" | "block" | "page";
+
+/**
+ * Bounding geometry for OCR elements using rectangle coordinates.
+ *
+ * Represents rectangular coordinates with position and dimensions.
+ */
+export interface OcrBoundingGeometryRectangle {
+	type: "rectangle";
+	left: number;
+	top: number;
+	width: number;
+	height: number;
+}
+
+/**
+ * Bounding geometry for OCR elements using quadrilateral points.
+ *
+ * Represents irregular quadrilateral shapes with four corner points.
+ */
+export interface OcrBoundingGeometryQuadrilateral {
+	type: "quadrilateral";
+	points: number[][];
+}
+
+/**
+ * Bounding geometry for OCR elements.
+ *
+ * Can be either rectangular or quadrilateral based on the OCR engine's detection capability.
+ */
+export type OcrBoundingGeometry = OcrBoundingGeometryRectangle | OcrBoundingGeometryQuadrilateral;
+
+/**
+ * Confidence scores for OCR operations.
+ *
+ * Tracks confidence levels for different aspects of OCR processing.
+ */
+export interface OcrConfidence {
+	/** Confidence score (0.0-1.0) for text detection. */
+	detection?: number;
+
+	/** Confidence score (0.0-1.0) for text recognition. */
+	recognition?: number;
+}
+
+/**
+ * Rotation information for OCR elements.
+ *
+ * Tracks detected text rotation and associated confidence.
+ */
+export interface OcrRotation {
+	/** Angle of rotation in degrees. */
+	angleDegrees?: number;
+
+	/** Confidence score (0.0-1.0) for rotation detection. */
+	confidence?: number;
+}
+
+/**
+ * Individual OCR element (word, line, block, or page).
+ *
+ * Represents a granular unit of text extracted by OCR with geometric and confidence information.
+ */
+export interface OcrElement {
+	/** Extracted text content */
+	text: string;
+
+	/** Bounding geometry of the element in the image */
+	geometry?: OcrBoundingGeometry;
+
+	/** Confidence scores for detection and recognition */
+	confidence?: OcrConfidence;
+
+	/** Hierarchy level of this element */
+	level?: OcrElementLevel;
+
+	/** Rotation information if text is rotated */
+	rotation?: OcrRotation;
+
+	/** Page number where this element was found (1-indexed) */
+	pageNumber?: number;
+
+	/** Parent element ID for hierarchical relationships */
+	parentId?: string;
+
+	/** Backend-specific metadata that doesn't fit standard fields */
+	backendMetadata?: Record<string, unknown>;
+}
+
+/**
+ * Configuration for OCR element extraction.
+ *
+ * Controls how granular OCR elements are extracted and organized.
+ */
+export interface OcrElementConfig {
+	/** Enable extraction of granular OCR elements. Default: false. */
+	includeElements?: boolean;
+
+	/** Minimum hierarchy level to extract. Default: 'word'. */
+	minLevel?: OcrElementLevel;
+
+	/** Minimum confidence threshold (0.0-1.0) for including elements. Default: 0.0. */
+	minConfidence?: number;
+
+	/** Build hierarchical relationships between elements. Default: false. */
+	buildHierarchy?: boolean;
+}
+
+/**
+ * PaddleOCR engine configuration options.
+ *
+ * Specific configuration for the PaddleOCR backend.
+ */
+export interface PaddleOcrConfig {
+	/** Language code(s) for OCR (e.g., 'en', 'zh', 'multi'). */
+	language?: string;
+
+	/** Directory to cache downloaded OCR models. */
+	cacheDir?: string;
+
+	/** Enable angle classification for rotated text detection. Default: false. */
+	useAngleCls?: boolean;
+
+	/** Enable table structure detection. Default: false. */
+	enableTableDetection?: boolean;
+
+	/** Database threshold for text detection (0.0-1.0). Default: 0.3. */
+	detDbThresh?: number;
+
+	/** Box threshold for text detection (0.0-1.0). Default: 0.5. */
+	detDbBoxThresh?: number;
+
+	/** Unclip ratio for expanding detected text regions. Default: 1.5. */
+	detDbUnclipRatio?: number;
+
+	/** Maximum side length for detection preprocessing. Default: 960. */
+	detLimitSideLen?: number;
+
+	/** Batch size for text recognition. Default: 30. */
+	recBatchNum?: number;
+}
+
+/**
  * OCR (Optical Character Recognition) configuration.
  *
  * Controls which OCR engine to use and how it processes images.
@@ -59,6 +206,12 @@ export interface OcrConfig {
 
 	/** Tesseract engine-specific configuration options. Only used when backend is 'tesseract'. */
 	tesseractConfig?: TesseractConfig;
+
+	/** PaddleOCR engine-specific configuration options. Only used when backend is 'paddleocr'. */
+	paddleOcrConfig?: PaddleOcrConfig;
+
+	/** OCR element extraction configuration. */
+	elementConfig?: OcrElementConfig;
 }
 
 /**
@@ -1008,6 +1161,9 @@ export interface ExtractionResult {
 
 	/** Extracted keywords when keyword extraction is enabled, null otherwise */
 	keywords?: ExtractedKeyword[] | null;
+
+	/** Granular OCR elements (words, lines, blocks) when OCR element extraction is enabled, null otherwise */
+	ocrElements?: OcrElement[] | null;
 }
 
 /** Post-processor execution stage in the extraction pipeline. */
@@ -1148,17 +1304,11 @@ export interface ValidatorProtocol {
  *
  * @example
  * ```typescript
- * import { GutenOcrBackend } from '@kreuzberg/node/ocr/guten-ocr';
  * import { registerOcrBackend, extractFile } from '@kreuzberg/node';
  *
- * // Create and register the backend
- * const backend = new GutenOcrBackend();
- * await backend.initialize();
- * registerOcrBackend(backend);
- *
- * // Use with extraction
+ * // PaddleOCR is built into the native Rust core - just use the backend name
  * const result = await extractFile('scanned.pdf', null, {
- *   ocr: { backend: 'guten-ocr', language: 'en' }
+ *   ocr: { backend: 'paddle-ocr', language: 'en' }
  * });
  * ```
  */
@@ -1168,10 +1318,10 @@ export interface OcrBackendProtocol {
 	 *
 	 * This name is used in ExtractionConfig to select the backend:
 	 * ```typescript
-	 * { ocr: { backend: 'guten-ocr', language: 'en' } }
+	 * { ocr: { backend: 'paddle-ocr', language: 'en' } }
 	 * ```
 	 *
-	 * @returns Unique backend identifier (e.g., "guten-ocr", "tesseract")
+	 * @returns Unique backend identifier (e.g., "paddle-ocr", "tesseract")
 	 */
 	name(): string;
 

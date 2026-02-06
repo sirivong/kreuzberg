@@ -480,6 +480,46 @@ export const chunkAssertions = {
             }
         }
     },
+
+    assertOcrElements(
+        result: ExtractionResult,
+        hasElements?: boolean | null,
+        elementsHaveGeometry?: boolean | null,
+        elementsHaveConfidence?: boolean | null,
+        minCount?: number | null,
+    ): void {
+        const ocrElements = (result as unknown as PlainRecord).ocrElements as unknown[] | undefined;
+        if (hasElements) {
+            expect(ocrElements).toBeDefined();
+            if (!Array.isArray(ocrElements)) {
+                throw new Error("Expected ocrElements to be an array");
+            }
+            if (ocrElements.length === 0) {
+                throw new Error("Expected ocrElements to be non-empty");
+            }
+        }
+        if (Array.isArray(ocrElements)) {
+            if (typeof minCount === "number") {
+                expect(ocrElements.length).toBeGreaterThanOrEqual(minCount);
+            }
+            if (elementsHaveGeometry) {
+                for (const el of ocrElements) {
+                    const geometry = (el as PlainRecord).geometry;
+                    expect(geometry).toBeDefined();
+                    const type = (geometry as PlainRecord)?.type;
+                    expect(["rectangle", "quadrilateral"].includes(type as string)).toBe(true);
+                }
+            }
+            if (elementsHaveConfidence) {
+                for (const el of ocrElements) {
+                    const confidence = (el as PlainRecord).confidence;
+                    expect(confidence).toBeDefined();
+                    const recognition = (confidence as PlainRecord)?.recognition;
+                    expect(typeof recognition === "number" && recognition > 0).toBe(true);
+                }
+            }
+        }
+    },
 };
 "#;
 
@@ -564,6 +604,7 @@ fn render_category(category: &str, fixtures: &[&Fixture]) -> Result<String> {
             || f.assertions().images.is_some()
             || f.assertions().pages.is_some()
             || f.assertions().elements.is_some()
+            || f.assertions().ocr_elements.is_some()
     });
     if needs_chunk_assertions {
         writeln!(
@@ -856,6 +897,22 @@ fn render_assertions(assertions: &Assertions) -> String {
             .unwrap_or_else(|| "null".into());
         buffer.push_str(&format!(
             "    chunkAssertions.assertElements(result, {min}, {types});\n"
+        ));
+    }
+
+    if let Some(ocr) = assertions.ocr_elements.as_ref() {
+        let has_elements = ocr.has_elements.map(|v| v.to_string()).unwrap_or_else(|| "null".into());
+        let has_geometry = ocr
+            .elements_have_geometry
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".into());
+        let has_confidence = ocr
+            .elements_have_confidence
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".into());
+        let min = ocr.min_count.map(|v| v.to_string()).unwrap_or_else(|| "null".into());
+        buffer.push_str(&format!(
+            "    chunkAssertions.assertOcrElements(result, {has_elements}, {has_geometry}, {has_confidence}, {min});\n"
         ));
     }
 

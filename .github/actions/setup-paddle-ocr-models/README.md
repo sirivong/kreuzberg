@@ -14,7 +14,7 @@ This action manages the setup of PaddleOCR PP-OCRv4 ONNX models used by the `kre
 
 ## Models
 
-The action downloads pre-converted ONNX format models from the `nicksunderland/OCR_ONNX_models` Hugging Face repository:
+The action downloads pre-converted ONNX format models from the `Kreuzberg/paddleocr-onnx-models` Hugging Face repository:
 
 | Model Type | File | Size | Purpose |
 |-----------|------|------|---------|
@@ -132,7 +132,7 @@ The action uses `continue-on-error: true` for individual model downloads. This m
 Models are downloaded from:
 
 ```
-https://huggingface.co/nicksunderland/OCR_ONNX_models/resolve/main/
+https://huggingface.co/Kreuzberg/paddleocr-onnx-models/resolve/main/
 ```
 
 If this repository becomes unavailable, the action will fail gracefully. Alternative sources can be configured by modifying the `MODEL_URL` environment variables in the action.

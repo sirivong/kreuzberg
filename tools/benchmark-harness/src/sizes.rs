@@ -365,12 +365,12 @@ fn measure_binary(name: &str) -> Result<Option<u64>> {
     // Try which to find binary in PATH
     let output = Command::new("which").arg(binary_name).output().ok();
 
-    if let Some(output) = output {
-        if output.status.success() {
-            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if let Ok(metadata) = fs::metadata(&path) {
-                return Ok(Some(metadata.len()));
-            }
+    if let Some(output) = output
+        && output.status.success()
+    {
+        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if let Ok(metadata) = fs::metadata(&path) {
+            return Ok(Some(metadata.len()));
         }
     }
 
@@ -396,10 +396,10 @@ fn measure_jar(name: &str) -> Result<Option<u64>> {
         }
 
         // Try TIKA_JAR environment variable
-        if let Ok(jar_path) = std::env::var("TIKA_JAR") {
-            if let Ok(metadata) = fs::metadata(&jar_path) {
-                return Ok(Some(metadata.len()));
-            }
+        if let Ok(jar_path) = std::env::var("TIKA_JAR")
+            && let Ok(metadata) = fs::metadata(&jar_path)
+        {
+            return Ok(Some(metadata.len()));
         }
 
         // Try tools/benchmark-harness/libs directory
@@ -407,12 +407,12 @@ fn measure_jar(name: &str) -> Result<Option<u64>> {
         if let Ok(entries) = fs::read_dir(libs_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
-                if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
-                    if name.starts_with("tika-app-") && name.ends_with(".jar") {
-                        if let Ok(metadata) = fs::metadata(&path) {
-                            return Ok(Some(metadata.len()));
-                        }
-                    }
+                if let Some(name) = path.file_name().and_then(|n| n.to_str())
+                    && name.starts_with("tika-app-")
+                    && name.ends_with(".jar")
+                    && let Ok(metadata) = fs::metadata(&path)
+                {
+                    return Ok(Some(metadata.len()));
                 }
             }
         }
@@ -457,14 +457,14 @@ fn measure_gem_package(package: &str) -> Result<Option<u64>> {
     };
 
     // Try bundle show first (for Bundler-managed gems)
-    if let Ok(output) = Command::new("bundle").args(["show", gem_name]).output() {
-        if output.status.success() {
-            let gem_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !gem_path.is_empty() {
-                let path = Path::new(&gem_path);
-                if path.exists() {
-                    return Ok(Some(dir_size(path)));
-                }
+    if let Ok(output) = Command::new("bundle").args(["show", gem_name]).output()
+        && output.status.success()
+    {
+        let gem_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !gem_path.is_empty() {
+            let path = Path::new(&gem_path);
+            if path.exists() {
+                return Ok(Some(dir_size(path)));
             }
         }
     }
@@ -477,14 +477,13 @@ fn measure_gem_package(package: &str) -> Result<Option<u64>> {
             gem_name
         ))
         .output()
+        && output.status.success()
     {
-        if output.status.success() {
-            let gem_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !gem_path.is_empty() {
-                let path = Path::new(&gem_path);
-                if path.exists() {
-                    return Ok(Some(dir_size(path)));
-                }
+        let gem_path = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        if !gem_path.is_empty() {
+            let path = Path::new(&gem_path);
+            if path.exists() {
+                return Ok(Some(dir_size(path)));
             }
         }
     }
@@ -634,13 +633,12 @@ fn measure_php_extension(name: &str) -> Result<Option<u64>> {
     if let Ok(output) = Command::new("php")
         .args(["-r", "echo ini_get('extension_dir');"])
         .output()
+        && output.status.success()
     {
-        if output.status.success() {
-            let ext_dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            let ext_path = Path::new(&ext_dir).join("kreuzberg.so");
-            if let Ok(metadata) = fs::metadata(&ext_path) {
-                return Ok(Some(metadata.len()));
-            }
+        let ext_dir = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let ext_path = Path::new(&ext_dir).join("kreuzberg.so");
+        if let Ok(metadata) = fs::metadata(&ext_path) {
+            return Ok(Some(metadata.len()));
         }
     }
 

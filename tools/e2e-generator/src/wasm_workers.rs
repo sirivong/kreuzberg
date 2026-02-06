@@ -823,6 +823,22 @@ fn render_assertions(assertions: &Assertions) -> String {
         ));
     }
 
+    if let Some(ocr) = assertions.ocr_elements.as_ref() {
+        let has_elements = ocr.has_elements.map(|v| v.to_string()).unwrap_or_else(|| "null".into());
+        let has_geometry = ocr
+            .elements_have_geometry
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".into());
+        let has_confidence = ocr
+            .elements_have_confidence
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".into());
+        let min_count = ocr.min_count.map(|v| v.to_string()).unwrap_or_else(|| "null".into());
+        buffer.push_str(&format!(
+            "        assertions.assertOcrElements(result, {has_elements}, {has_geometry}, {has_confidence}, {min_count});\n"
+        ));
+    }
+
     buffer
 }
 

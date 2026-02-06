@@ -520,8 +520,7 @@ mod tests {
         let config = OcrConfig {
             backend: "mock".to_string(),
             language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         };
 
         let result = backend.process_image(b"fake image data", &config).await.unwrap();
@@ -608,8 +607,7 @@ mod tests {
         let config = OcrConfig {
             backend: "mock".to_string(),
             language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         };
 
         let result = backend.process_file(path, &config).await.unwrap();
@@ -646,8 +644,7 @@ mod tests {
         let config = OcrConfig {
             backend: "mock".to_string(),
             language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         };
 
         let result = backend.process_image(b"", &config).await;

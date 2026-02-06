@@ -34,7 +34,7 @@ export type {
 
 export { extractBytes, initWasm };
 
-const WORKSPACE_ROOT = new URL("../..", import.meta.url).pathname.replace(/\/$/, "");
+const WORKSPACE_ROOT = new URL("../..", import.meta.url).pathname;
 const TEST_DOCUMENTS = `${WORKSPACE_ROOT}/test_documents`;
 
 type PlainRecord = Record<string, unknown>;
@@ -429,6 +429,44 @@ export const assertions = {
 		}
 		if (typeof minCount === "number") {
 			assertEquals(pages.length >= minCount, true, `Expected at least ${minCount} pages, got ${pages.length}`);
+		}
+	},
+
+	assertOcrElements(
+		result: ExtractionResult,
+		hasElements?: boolean | null,
+		elementsHaveGeometry?: boolean | null,
+		elementsHaveConfidence?: boolean | null,
+		minCount?: number | null,
+	): void {
+		const ocrElements = (result as unknown as PlainRecord).ocrElements as unknown[] | undefined;
+		if (hasElements) {
+			assertExists(ocrElements, "Expected ocrElements to be defined");
+			if (!Array.isArray(ocrElements)) {
+				throw new Error("Expected ocrElements to be an array");
+			}
+			assertEquals(ocrElements.length > 0, true, "Expected ocrElements to be non-empty");
+		}
+		if (Array.isArray(ocrElements)) {
+			if (typeof minCount === "number") {
+				assertEquals(ocrElements.length >= minCount, true, `Expected at least ${minCount} OCR elements, got ${ocrElements.length}`);
+			}
+			if (elementsHaveGeometry) {
+				for (const el of ocrElements) {
+					const geometry = (el as PlainRecord).geometry;
+					assertExists(geometry, "Expected OCR element to have geometry");
+					const type = (geometry as PlainRecord)?.type;
+					assertEquals(["rectangle", "quadrilateral"].includes(type as string), true, `Expected geometry type rectangle or quadrilateral, got ${type}`);
+				}
+			}
+			if (elementsHaveConfidence) {
+				for (const el of ocrElements) {
+					const confidence = (el as PlainRecord).confidence;
+					assertExists(confidence, "Expected OCR element to have confidence");
+					const recognition = (confidence as PlainRecord)?.recognition;
+					assertEquals(typeof recognition === "number" && recognition > 0, true, "Expected recognition confidence > 0");
+				}
+			}
 		}
 	},
 

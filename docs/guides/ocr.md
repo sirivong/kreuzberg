@@ -57,21 +57,25 @@ Kreuzberg automatically determines when OCR is required:
 flowchart TD
     Start[Choose OCR Backend] --> Platform{Platform Support}
     Platform -->|All Platforms| Tesseract
-    Platform -->|Python Only| PythonBackends[EasyOCR/PaddleOCR]
+    Platform -->|All except WASM| PaddleOCR[PaddleOCR]
+    Platform -->|Python Only| EasyOCR[EasyOCR]
 
     Tesseract --> TessPriority{Priority}
     TessPriority -->|Speed| TessSpeed[Tesseract: Fast]
     TessPriority -->|Accuracy| TessAccuracy[Tesseract: Good]
     TessPriority -->|Production| TessProd[Tesseract: Best Choice]
 
-    PythonBackends --> PyPriority{Priority}
-    PyPriority -->|Highest Accuracy| Easy[EasyOCR: Excellent Accuracy]
-    PyPriority -->|Speed + Accuracy| Paddle[PaddleOCR: Very Fast + Excellent]
-    PyPriority -->|GPU Available| GPU[EasyOCR/PaddleOCR with GPU]
+    PaddleOCR --> PaddlePriority{Priority}
+    PaddlePriority -->|Speed + Accuracy| PaddleMain[PaddleOCR: Very Fast + Excellent]
+    PaddlePriority -->|CJK Languages| PaddleCJK[PaddleOCR: Best for CJK]
+
+    EasyOCR --> EasyPriority{Priority}
+    EasyPriority -->|Highest Accuracy| Easy[EasyOCR: Excellent Accuracy]
+    EasyPriority -->|GPU Available| GPU[EasyOCR with GPU]
 
     style Tesseract fill:#90EE90
     style Easy fill:#FFD700
-    style Paddle fill:#87CEEB
+    style PaddleOCR fill:#87CEEB
 ```
 
 Kreuzberg supports three OCR backends with different strengths:
@@ -81,17 +85,17 @@ Kreuzberg supports three OCR backends with different strengths:
 | **Speed** | Fast | Moderate | Very Fast |
 | **Accuracy** | Good | Excellent | Excellent |
 | **Languages** | 100+ | 80+ | 80+ |
-| **Installation** | System package | Python package | Python package |
-| **Model Size** | Small (~10MB) | Large (~100MB) | Medium (~50MB) |
+| **Installation** | System package | Python package | Feature flag (native) or Python package |
+| **Model Size** | Small (~10MB) | Large (~100MB) | Medium (~25MB) |
 | **CPU/GPU** | CPU only | CPU + GPU | CPU + GPU |
-| **Platform Support** | All | Python only | Python only |
-| **Best For** | General use, production | High accuracy needs | Speed + accuracy |
+| **Platform Support** | All | Python only | All (except WASM) |
+| **Best For** | General use, production | High accuracy needs | Speed + accuracy, CJK languages |
 
 ### Recommendation
 
 - **Production/CLI**: Use **Tesseract** for simplicity and broad platform support
-- **Python + Accuracy**: Use **EasyOCR** for best accuracy with deep learning models
-- **Python + Speed**: Use **PaddleOCR** for fast processing with good accuracy
+- **Speed + Accuracy (any binding)**: Use **PaddleOCR** for fast processing with excellent accuracy, especially for CJK languages
+- **Python + Accuracy**: Use **EasyOCR** for best accuracy with deep learning models (Python only)
 
 ## Installation
 
@@ -147,16 +151,27 @@ pip install "kreuzberg[easyocr]"
 !!! warning "Python 3.14 Compatibility"
     EasyOCR is not supported on Python 3.14 due to upstream PyTorch compatibility. Use Python 3.10-3.13 or use Tesseract on Python 3.14.
 
-### PaddleOCR (Python Only)
+### PaddleOCR
 
-Available only in Python with optimized deep learning:
+PaddleOCR is available as a native Rust backend in all non-WASM bindings, and also as a Python package:
 
-```bash title="Terminal"
-pip install "kreuzberg[paddleocr]"
-```
+=== "Native (Rust/Go/TypeScript/Ruby/Java/C#/PHP/Elixir)"
 
-!!! warning "Python 3.14 Compatibility"
-    PaddleOCR is not supported on Python 3.14 due to upstream compatibility issues. Use Python 3.10-3.13.
+    PaddleOCR is built into the native bindings via the `paddle-ocr` feature flag. Models are automatically downloaded on first use. No additional installation is required.
+
+    ```toml title="Cargo.toml (Rust)"
+    [dependencies]
+    kreuzberg = { version = "4.0", features = ["paddle-ocr"] }
+    ```
+
+=== "Python"
+
+    ```bash title="Terminal"
+    pip install "kreuzberg[paddleocr]"
+    ```
+
+    !!! warning "Python 3.14 Compatibility"
+        The Python PaddleOCR package is not supported on Python 3.14 due to upstream compatibility issues. Use Python 3.10-3.13, or use the native Rust backend which has no Python dependency.
 
 ## Configuration
 
@@ -318,7 +333,7 @@ Process PDFs with OCR even when they have a text layer:
 !!! tip "GPU Acceleration"
     EasyOCR and PaddleOCR support GPU acceleration via PyTorch/PaddlePaddle. Set `use_gpu=True` to enable.
 
-### Using PaddleOCR (Python Only)
+### Using PaddleOCR
 
 === "Go"
 
@@ -498,16 +513,19 @@ These are applied automatically and require no configuration.
 
     3. **Increase system memory**: OCR is memory-intensive
 
-??? question "EasyOCR/PaddleOCR not working on Python 3.14"
+??? question "EasyOCR/PaddleOCR Python packages not working on Python 3.14"
 
-    **Error**: Installation fails on Python 3.14
+    **Error**: Installation of Python EasyOCR/PaddleOCR packages fails on Python 3.14
 
-    **Solution**: Use Python 3.10-3.13 or switch to Tesseract:
+    **Solution**: Use Python 3.10-3.13, switch to Tesseract, or use the native PaddleOCR backend (which has no Python dependency):
 
     ```bash title="Terminal"
-    # Use Tesseract (works on all Python versions)
+    # Option 1: Use Tesseract (works on all Python versions)
     pip install kreuzberg
     brew install tesseract  # or apt-get install tesseract-ocr
+
+    # Option 2: Use native PaddleOCR backend (no Python dependency)
+    # Set backend to "paddle-ocr" in your config - models download automatically
     ```
 
 ## CLI Usage

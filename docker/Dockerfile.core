@@ -137,6 +137,10 @@ RUN mkdir -p /etc/kreuzberg /app/.config/kreuzberg && \
 RUN mkdir -p /app/.kreuzberg/huggingface && \
     chown -R kreuzberg:kreuzberg /app/.kreuzberg/huggingface
 
+# Create PaddleOCR model cache directory (models downloaded on demand if paddle-ocr feature used)
+RUN mkdir -p /app/.kreuzberg/paddle-ocr && \
+    chown -R kreuzberg:kreuzberg /app/.kreuzberg/paddle-ocr
+
 # Ensure read permissions on tessdata files for non-root user
 # Tessdata is installed in version-specific directory (e.g., tesseract-ocr/5 or tesseract-ocr/4)
 # Make all tessdata directories readable by the non-root kreuzberg user

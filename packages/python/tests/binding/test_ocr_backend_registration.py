@@ -45,21 +45,6 @@ def _install_fake_easyocr(monkeypatch: pytest.MonkeyPatch, created: deque[Any]) 
     monkeypatch.setitem(sys.modules, "kreuzberg.ocr.easyocr", module)
 
 
-def _install_fake_paddleocr(monkeypatch: pytest.MonkeyPatch, created: list[Any]) -> None:
-    module = types.ModuleType("kreuzberg.ocr.paddleocr")
-
-    class FakePaddleBackend:
-        def __init__(self, **kwargs: object) -> None:
-            self.kwargs = kwargs
-            created.append(self)
-
-        def name(self) -> str:
-            return "fake-paddle"
-
-    module.PaddleOCRBackend = FakePaddleBackend
-    monkeypatch.setitem(sys.modules, "kreuzberg.ocr.paddleocr", module)
-
-
 def test_hash_kwargs_falls_back_on_non_serializable() -> None:
     class BadStr:
         def __str__(self) -> str:
@@ -71,13 +56,13 @@ def test_hash_kwargs_falls_back_on_non_serializable() -> None:
 
 def test_ensure_ocr_backend_skips_when_no_ocr() -> None:
     config = ExtractionConfig()
-    kreuzberg._ensure_ocr_backend_registered(config, None, None)
+    kreuzberg._ensure_ocr_backend_registered(config, None)
     assert not kreuzberg._REGISTERED_OCR_BACKENDS
 
 
 def test_ensure_ocr_backend_skips_tesseract() -> None:
     config = ExtractionConfig(ocr=OcrConfig(backend="tesseract", language="eng"))
-    kreuzberg._ensure_ocr_backend_registered(config, None, None)
+    kreuzberg._ensure_ocr_backend_registered(config, None)
     assert not kreuzberg._REGISTERED_OCR_BACKENDS
 
 
@@ -90,39 +75,12 @@ def test_ensure_ocr_backend_registers_easyocr_once(monkeypatch: pytest.MonkeyPat
 
     config = ExtractionConfig(ocr=OcrConfig(backend="easyocr", language="fra"))
 
-    kreuzberg._ensure_ocr_backend_registered(config, {}, {})
+    kreuzberg._ensure_ocr_backend_registered(config, {})
     assert len(registrations) == 1
     assert created[0].kwargs["languages"] == ["fra"]
 
-    kreuzberg._ensure_ocr_backend_registered(config, {}, {})
+    kreuzberg._ensure_ocr_backend_registered(config, {})
     assert len(registrations) == 1
-
-
-def test_ensure_ocr_backend_registers_paddleocr(monkeypatch: pytest.MonkeyPatch) -> None:
-    created: list[Any] = []
-    _install_fake_paddleocr(monkeypatch, created)
-
-    captured: list[Any] = []
-    monkeypatch.setattr(kreuzberg, "register_ocr_backend", captured.append)
-
-    config = ExtractionConfig(ocr=OcrConfig(backend="paddleocr", language="de"))
-    kreuzberg._ensure_ocr_backend_registered(config, None, {})
-
-    assert captured
-    assert captured[0].kwargs["lang"] == "de"
-
-
-def test_ensure_ocr_backend_respects_explicit_paddle_lang(monkeypatch: pytest.MonkeyPatch) -> None:
-    created: list[Any] = []
-    _install_fake_paddleocr(monkeypatch, created)
-
-    captured: list[Any] = []
-    monkeypatch.setattr(kreuzberg, "register_ocr_backend", captured.append)
-
-    config = ExtractionConfig(ocr=OcrConfig(backend="paddleocr", language="ja"))
-    kreuzberg._ensure_ocr_backend_registered(config, None, {"lang": "custom"})
-
-    assert captured[0].kwargs["lang"] == "custom"
 
 
 def test_ensure_ocr_backend_handles_missing_dependency(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -136,7 +94,7 @@ def test_ensure_ocr_backend_handles_missing_dependency(monkeypatch: pytest.Monke
 
     config = ExtractionConfig(ocr=OcrConfig(backend="easyocr", language="eng"))
     with pytest.raises(MissingDependencyError):
-        kreuzberg._ensure_ocr_backend_registered(config, {}, {})
+        kreuzberg._ensure_ocr_backend_registered(config, {})
 
 
 def test_ensure_ocr_backend_cache_eviction(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -162,7 +120,7 @@ def test_ensure_ocr_backend_cache_eviction(monkeypatch: pytest.MonkeyPatch) -> N
         module.EasyOCRBackend = Backend
         monkeypatch.setitem(sys.modules, "kreuzberg.ocr.easyocr", module)
         config = ExtractionConfig(ocr=OcrConfig(backend="easyocr", language=language))
-        kreuzberg._ensure_ocr_backend_registered(config, {"languages": [language]}, {})
+        kreuzberg._ensure_ocr_backend_registered(config, {"languages": [language]})
 
     make_easy("one")
     first_key = next(iter(kreuzberg._REGISTERED_OCR_BACKENDS))
@@ -180,7 +138,7 @@ def test_ensure_ocr_backend_unsupported_backend(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(kreuzberg, "register_ocr_backend", registrations.append)
 
     config = ExtractionConfig(ocr=OcrConfig(backend="custom", language="en"))
-    kreuzberg._ensure_ocr_backend_registered(config, None, None)
+    kreuzberg._ensure_ocr_backend_registered(config, None)
     assert not registrations
 
 

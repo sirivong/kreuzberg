@@ -197,8 +197,7 @@ fn test_tesseract_api_thread_safety() {
         ocr: Some(OcrConfig {
             backend: "tesseract".to_string(),
             language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         use_cache: false,

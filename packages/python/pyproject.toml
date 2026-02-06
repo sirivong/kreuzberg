@@ -20,7 +20,6 @@ keywords = [
     "metadata-extraction",
     "ocr",
     "office-documents",
-    "paddleocr",
     "pdf",
     "pdf-extraction",
     "performance",
@@ -62,15 +61,10 @@ classifiers = [
 
 dependencies = []
 
-optional-dependencies.all = ["kreuzberg[easyocr,paddleocr]"]
+optional-dependencies.all = ["kreuzberg[easyocr]"]
 optional-dependencies.easyocr = [
     "easyocr>=1.7.2; python_version<'3.14'",
     "torch>=2.9.1; python_version<'3.14'",
-]
-optional-dependencies.paddleocr = [
-    "paddleocr>=3.3.2; python_version<'3.14'",
-    "paddlepaddle>=3.2.1,<3.2.2; python_version<'3.14'",
-    "setuptools>=80.9; python_version<'3.14'",
 ]
 urls.Changelog = "https://kreuzberg.dev/CHANGELOG/"
 urls.Documentation = "https://kreuzberg.dev"

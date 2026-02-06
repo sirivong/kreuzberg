@@ -223,7 +223,7 @@ typedef struct CErrorDetails {
  * # Memory Layout
  *
  * Must be kept in sync with the Java side's MemoryLayout definition in KreuzbergFFI.java
- * Field order: 13 pointers (8 bytes each) + 1 bool + 7 bytes padding = 112 bytes total
+ * Field order: 14 pointers (8 bytes each) + 1 bool + 7 bytes padding = 120 bytes total
  *
  * The `#[repr(C)]` attribute ensures the struct follows C's memory layout rules:
  * - Fields are laid out in order
@@ -288,6 +288,10 @@ typedef struct CExtractionResult {
    * Semantic elements as JSON array (null-terminated string, or NULL if not available, must be freed with kreuzberg_free_string)
    */
   char *elements_json;
+  /**
+   * OCR elements as JSON array (null-terminated string, or NULL if not available, must be freed with kreuzberg_free_string)
+   */
+  char *ocr_elements_json;
   /**
    * Whether extraction was successful
    */
@@ -1658,6 +1662,7 @@ char *kreuzberg_clone_string(const char *s);
  * 11. page_structure_json (FIXED: was missing before PR #3)
  * 12. pages_json (FIXED: was missing before PR #3)
  * 13. elements_json (ADDED: for element-based extraction support)
+ * 14. ocr_elements_json (ADDED: for OCR element output)
  *
  * # Example (C)
  *
@@ -2931,7 +2936,7 @@ int32_t kreuzberg_validate_binarization_method(const char *method);
  *
  * # Arguments
  *
- * * `backend` - C string containing the OCR backend (e.g., "tesseract", "easyocr", "paddleocr")
+ * * `backend` - C string containing the OCR backend (e.g., "tesseract", "easyocr", "paddleocr", "paddle-ocr")
  *
  * # Returns
  *

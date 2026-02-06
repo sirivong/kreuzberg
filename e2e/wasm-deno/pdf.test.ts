@@ -222,7 +222,7 @@ Deno.test("pdf_simple_text", { permissions: { read: true } }, async () => {
 });
 
 Deno.test("pdf_tables_large", { permissions: { read: true } }, async () => {
-	const documentBytes = await resolveDocument("pdf/large.pdf");
+	const documentBytes = await resolveDocument("pdfs_with_tables/large.pdf");
 	const config = buildConfig(undefined);
 	let result: ExtractionResult | null = null;
 	try {
@@ -243,7 +243,7 @@ Deno.test("pdf_tables_large", { permissions: { read: true } }, async () => {
 });
 
 Deno.test("pdf_tables_medium", { permissions: { read: true } }, async () => {
-	const documentBytes = await resolveDocument("pdf/medium.pdf");
+	const documentBytes = await resolveDocument("pdfs_with_tables/medium.pdf");
 	const config = buildConfig(undefined);
 	let result: ExtractionResult | null = null;
 	try {
@@ -264,7 +264,7 @@ Deno.test("pdf_tables_medium", { permissions: { read: true } }, async () => {
 });
 
 Deno.test("pdf_tables_small", { permissions: { read: true } }, async () => {
-	const documentBytes = await resolveDocument("pdf/tiny.pdf");
+	const documentBytes = await resolveDocument("pdfs_with_tables/tiny.pdf");
 	const config = buildConfig(undefined);
 	let result: ExtractionResult | null = null;
 	try {

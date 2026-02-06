@@ -57,6 +57,8 @@ impl From<JsOcrConfig> for RustOcrConfig {
             language: val.language.unwrap_or_else(|| "eng".to_string()),
             tesseract_config: val.tesseract_config.map(Into::into),
             output_format: None,
+            paddle_ocr_config: None,
+            element_config: None,
         }
     }
 }

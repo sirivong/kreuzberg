@@ -187,6 +187,254 @@ public sealed class Element
 }
 
 /// <summary>
+/// Bounding geometry information for OCR elements with coordinates and point data.
+/// </summary>
+public sealed class OcrBoundingGeometry
+{
+    /// <summary>
+    /// Type of geometry representation (e.g., "bbox", "polygon").
+    /// </summary>
+    [JsonPropertyName("type")]
+    public string? Type { get; init; }
+
+    /// <summary>
+    /// Left x-coordinate of the bounding box.
+    /// </summary>
+    [JsonPropertyName("left")]
+    public double? Left { get; init; }
+
+    /// <summary>
+    /// Top y-coordinate of the bounding box.
+    /// </summary>
+    [JsonPropertyName("top")]
+    public double? Top { get; init; }
+
+    /// <summary>
+    /// Width of the bounding box.
+    /// </summary>
+    [JsonPropertyName("width")]
+    public double? Width { get; init; }
+
+    /// <summary>
+    /// Height of the bounding box.
+    /// </summary>
+    [JsonPropertyName("height")]
+    public double? Height { get; init; }
+
+    /// <summary>
+    /// Points defining the geometry polygon (array of [x, y] coordinate pairs).
+    /// </summary>
+    [JsonPropertyName("points")]
+    public List<List<double>>? Points { get; init; }
+}
+
+/// <summary>
+/// Confidence scores for OCR recognition and detection.
+/// </summary>
+public sealed class OcrConfidence
+{
+    /// <summary>
+    /// Confidence score for text detection (0.0-1.0).
+    /// </summary>
+    [JsonPropertyName("detection")]
+    public double? Detection { get; init; }
+
+    /// <summary>
+    /// Confidence score for character recognition (0.0-1.0).
+    /// </summary>
+    [JsonPropertyName("recognition")]
+    public double? Recognition { get; init; }
+}
+
+/// <summary>
+/// Rotation information for OCR elements.
+/// </summary>
+public sealed class OcrRotation
+{
+    /// <summary>
+    /// Rotation angle in degrees.
+    /// </summary>
+    [JsonPropertyName("angle_degrees")]
+    public double? AngleDegrees { get; init; }
+
+    /// <summary>
+    /// Confidence score for rotation detection.
+    /// </summary>
+    [JsonPropertyName("confidence")]
+    public double? Confidence { get; init; }
+}
+
+/// <summary>
+/// OCR element level classification constants.
+/// </summary>
+public static class OcrElementLevel
+{
+    /// <summary>
+    /// Individual word level.
+    /// </summary>
+    public const string Word = "word";
+
+    /// <summary>
+    /// Line level (sequence of words).
+    /// </summary>
+    public const string Line = "line";
+
+    /// <summary>
+    /// Paragraph/block level.
+    /// </summary>
+    public const string Block = "block";
+
+    /// <summary>
+    /// Page level.
+    /// </summary>
+    public const string Page = "page";
+}
+
+/// <summary>
+/// An OCR element extracted from a document containing recognized text and geometric information.
+/// </summary>
+public sealed class OcrElement
+{
+    /// <summary>
+    /// Recognized text content.
+    /// </summary>
+    [JsonPropertyName("text")]
+    public string? Text { get; init; }
+
+    /// <summary>
+    /// Bounding geometry information.
+    /// </summary>
+    [JsonPropertyName("geometry")]
+    public OcrBoundingGeometry? Geometry { get; init; }
+
+    /// <summary>
+    /// Confidence scores for detection and recognition.
+    /// </summary>
+    [JsonPropertyName("confidence")]
+    public OcrConfidence? Confidence { get; init; }
+
+    /// <summary>
+    /// Hierarchical level of this element (word, line, block, page).
+    /// </summary>
+    [JsonPropertyName("level")]
+    public string? Level { get; init; }
+
+    /// <summary>
+    /// Rotation information if the element is rotated.
+    /// </summary>
+    [JsonPropertyName("rotation")]
+    public OcrRotation? Rotation { get; init; }
+
+    /// <summary>
+    /// Page number where this element appears (1-indexed).
+    /// </summary>
+    [JsonPropertyName("page_number")]
+    public int? PageNumber { get; init; }
+
+    /// <summary>
+    /// Parent element ID for hierarchical relationships.
+    /// </summary>
+    [JsonPropertyName("parent_id")]
+    public string? ParentId { get; init; }
+
+    /// <summary>
+    /// Backend-specific metadata.
+    /// </summary>
+    [JsonPropertyName("backend_metadata")]
+    public Dictionary<string, object>? BackendMetadata { get; init; }
+}
+
+/// <summary>
+/// Configuration for OCR element extraction behavior.
+/// </summary>
+public sealed class OcrElementConfig
+{
+    /// <summary>
+    /// Whether to include OCR elements in the output.
+    /// </summary>
+    [JsonPropertyName("include_elements")]
+    public bool IncludeElements { get; init; }
+
+    /// <summary>
+    /// Minimum hierarchical level to include (word, line, block, page).
+    /// </summary>
+    [JsonPropertyName("min_level")]
+    public string? MinLevel { get; init; }
+
+    /// <summary>
+    /// Minimum confidence threshold for including elements (0.0-1.0).
+    /// </summary>
+    [JsonPropertyName("min_confidence")]
+    public double? MinConfidence { get; init; }
+
+    /// <summary>
+    /// Whether to build a hierarchical structure from elements.
+    /// </summary>
+    [JsonPropertyName("build_hierarchy")]
+    public bool BuildHierarchy { get; init; }
+}
+
+/// <summary>
+/// PaddleOCR-specific configuration options.
+/// </summary>
+public sealed class PaddleOcrConfig
+{
+    /// <summary>
+    /// Languages to recognize (e.g., "en", "ch" for Chinese, "en,ch" for mixed).
+    /// </summary>
+    [JsonPropertyName("language")]
+    public string? Language { get; init; }
+
+    /// <summary>
+    /// Cache directory for model files.
+    /// </summary>
+    [JsonPropertyName("cache_dir")]
+    public string? CacheDir { get; init; }
+
+    /// <summary>
+    /// Whether to use angle classification for rotated text.
+    /// </summary>
+    [JsonPropertyName("use_angle_cls")]
+    public bool? UseAngleCls { get; init; }
+
+    /// <summary>
+    /// Whether to enable table detection.
+    /// </summary>
+    [JsonPropertyName("enable_table_detection")]
+    public bool? EnableTableDetection { get; init; }
+
+    /// <summary>
+    /// Detection database threshold for text detection.
+    /// </summary>
+    [JsonPropertyName("det_db_thresh")]
+    public double? DetDbThresh { get; init; }
+
+    /// <summary>
+    /// Detection database box threshold.
+    /// </summary>
+    [JsonPropertyName("det_db_box_thresh")]
+    public double? DetDbBoxThresh { get; init; }
+
+    /// <summary>
+    /// Detection database unclip ratio.
+    /// </summary>
+    [JsonPropertyName("det_db_unclip_ratio")]
+    public double? DetDbUnclipRatio { get; init; }
+
+    /// <summary>
+    /// Maximum limit for detection side length.
+    /// </summary>
+    [JsonPropertyName("det_limit_side_len")]
+    public int? DetLimitSideLen { get; init; }
+
+    /// <summary>
+    /// Batch size for recognition.
+    /// </summary>
+    [JsonPropertyName("rec_batch_num")]
+    public int? RecBatchNum { get; init; }
+}
+
+/// <summary>
 /// The main result of document extraction containing extracted content, metadata, and structured data.
 /// </summary>
 public sealed class ExtractionResult
@@ -245,6 +493,13 @@ public sealed class ExtractionResult
     /// </summary>
     [JsonPropertyName("elements")]
     public List<Element>? Elements { get; set; }
+
+    /// <summary>
+    /// OCR elements extracted from documents when OCR processing is applied.
+    /// Contains detailed information about recognized text, geometry, confidence, and hierarchical structure.
+    /// </summary>
+    [JsonPropertyName("ocr_elements")]
+    public List<OcrElement>? OcrElements { get; set; }
 
     /// <summary>
     /// Rich Djot content structure when extracting Djot documents.
@@ -1643,6 +1898,18 @@ public sealed class OcrConfig
     /// </summary>
     [JsonPropertyName("tesseract_config")]
     public TesseractConfig? TesseractConfig { get; init; }
+
+    /// <summary>
+    /// PaddleOCR-specific configuration, if using PaddleOCR backend.
+    /// </summary>
+    [JsonPropertyName("paddle_ocr_config")]
+    public PaddleOcrConfig? PaddleOcrConfig { get; init; }
+
+    /// <summary>
+    /// Configuration for OCR element extraction.
+    /// </summary>
+    [JsonPropertyName("element_config")]
+    public OcrElementConfig? ElementConfig { get; init; }
 }
 
 /// <summary>

@@ -456,10 +456,9 @@ async fn test_extraction_with_ocr_config() {
 
     let config = ExtractionConfig {
         ocr: Some(kreuzberg::OcrConfig {
-            tesseract_config: None,
             backend: "tesseract".to_string(),
             language: "eng".to_string(),
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: true,
         ..Default::default()

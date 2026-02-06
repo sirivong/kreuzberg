@@ -247,6 +247,103 @@ export interface PageContent {
 	hierarchy?: PageHierarchy;
 }
 
+// ============================================================================
+// OCR element types
+
+/**
+ * Bounding geometry for OCR elements using rectangle coordinates.
+ *
+ * Represents rectangular coordinates with position and dimensions.
+ */
+export interface OcrBoundingGeometryRectangle {
+	type: 'rectangle';
+	left: number;
+	top: number;
+	width: number;
+	height: number;
+}
+
+/**
+ * Bounding geometry for OCR elements using quadrilateral points.
+ *
+ * Represents irregular quadrilateral shapes with four corner points.
+ */
+export interface OcrBoundingGeometryQuadrilateral {
+	type: 'quadrilateral';
+	points: number[][];
+}
+
+/**
+ * Bounding geometry for OCR elements.
+ *
+ * Can be either rectangular or quadrilateral based on the OCR engine's detection capability.
+ */
+export type OcrBoundingGeometry = OcrBoundingGeometryRectangle | OcrBoundingGeometryQuadrilateral;
+
+/**
+ * Confidence scores for OCR operations.
+ *
+ * Tracks confidence levels for different aspects of OCR processing.
+ */
+export interface OcrConfidence {
+	/** Confidence score (0.0-1.0) for text detection. */
+	detection?: number;
+
+	/** Confidence score (0.0-1.0) for text recognition. */
+	recognition?: number;
+}
+
+/**
+ * Rotation information for OCR elements.
+ *
+ * Tracks detected text rotation and associated confidence.
+ */
+export interface OcrRotation {
+	/** Angle of rotation in degrees. */
+	angle_degrees?: number;
+
+	/** Confidence score (0.0-1.0) for rotation detection. */
+	confidence?: number;
+}
+
+/**
+ * OCR element hierarchy level.
+ *
+ * Defines the granularity of OCR element extraction.
+ */
+export type OcrElementLevel = 'word' | 'line' | 'block' | 'page';
+
+/**
+ * Individual OCR element (word, line, block, or page).
+ *
+ * Represents a granular unit of text extracted by OCR with geometric and confidence information.
+ */
+export interface OcrElement {
+	/** Extracted text content */
+	text: string;
+
+	/** Bounding geometry of the element in the image */
+	geometry?: OcrBoundingGeometry;
+
+	/** Confidence scores for detection and recognition */
+	confidence?: OcrConfidence;
+
+	/** Hierarchy level of this element */
+	level?: OcrElementLevel;
+
+	/** Rotation information if text is rotated */
+	rotation?: OcrRotation;
+
+	/** Page number where this element was found (1-indexed) */
+	page_number?: number;
+
+	/** Parent element ID for hierarchical relationships */
+	parent_id?: string;
+
+	/** Backend-specific metadata that doesn't fit standard fields */
+	backend_metadata?: Record<string, unknown>;
+}
+
 export interface ExtractionResult {
 	content: string;
 	mimeType: string;
@@ -257,4 +354,5 @@ export interface ExtractionResult {
 	images?: ExtractedImage[];
 	pages?: PageContent[];
 	elements?: Element[];
+	ocr_elements?: OcrElement[];
 }

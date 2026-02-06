@@ -17,6 +17,7 @@ readonly class OcrConfig
          * Available backends:
          * - 'tesseract': Tesseract OCR engine (requires tesseract installation)
          * - 'guten': Built-in Guten OCR engine
+         * - 'paddle': PaddleOCR engine
          *
          * @var string
          * @default 'tesseract'
@@ -47,6 +48,17 @@ readonly class OcrConfig
         public ?TesseractConfig $tesseractConfig = null,
 
         /**
+         * PaddleOCR-specific configuration.
+         *
+         * Contains advanced settings for PaddleOCR engine including language selection,
+         * model caching, angle detection, table recognition, and detection thresholds.
+         *
+         * @var PaddleOcrConfig|null
+         * @default null
+         */
+        public ?PaddleOcrConfig $paddleOcrConfig = null,
+
+        /**
          * Image preprocessing configuration for OCR.
          *
          * Configures preprocessing steps applied to images before OCR,
@@ -56,6 +68,17 @@ readonly class OcrConfig
          * @default null
          */
         public ?ImagePreprocessingConfig $imagePreprocessing = null,
+
+        /**
+         * OCR element extraction configuration.
+         *
+         * Controls extraction of individual OCR elements with positions,
+         * confidence scores, and hierarchical relationships.
+         *
+         * @var OcrElementConfig|null
+         * @default null
+         */
+        public ?OcrElementConfig $elementConfig = null,
     ) {
     }
 
@@ -92,6 +115,18 @@ readonly class OcrConfig
             $tesseractConfig = TesseractConfig::fromArray($configData);
         }
 
+        /** @var PaddleOcrConfig|null $paddleOcrConfig */
+        $paddleOcrConfig = null;
+        if (isset($data['paddle_ocr_config'])) {
+            $configData = $data['paddle_ocr_config'];
+            if (!is_array($configData)) {
+                /** @var array<string, mixed> $configData */
+                $configData = (array) $configData;
+            }
+            /** @var array<string, mixed> $configData */
+            $paddleOcrConfig = PaddleOcrConfig::fromArray($configData);
+        }
+
         /** @var ImagePreprocessingConfig|null $imagePreprocessing */
         $imagePreprocessing = null;
         if (isset($data['image_preprocessing'])) {
@@ -104,11 +139,25 @@ readonly class OcrConfig
             $imagePreprocessing = ImagePreprocessingConfig::fromArray($configData);
         }
 
+        /** @var OcrElementConfig|null $elementConfig */
+        $elementConfig = null;
+        if (isset($data['element_config'])) {
+            $configData = $data['element_config'];
+            if (!is_array($configData)) {
+                /** @var array<string, mixed> $configData */
+                $configData = (array) $configData;
+            }
+            /** @var array<string, mixed> $configData */
+            $elementConfig = OcrElementConfig::fromArray($configData);
+        }
+
         return new self(
             backend: $backend,
             language: $language,
             tesseractConfig: $tesseractConfig ?? null,
+            paddleOcrConfig: $paddleOcrConfig ?? null,
             imagePreprocessing: $imagePreprocessing ?? null,
+            elementConfig: $elementConfig ?? null,
         );
     }
 
@@ -152,7 +201,9 @@ readonly class OcrConfig
             'backend' => $this->backend,
             'language' => $this->language,
             'tesseract_config' => $this->tesseractConfig?->toArray(),
+            'paddle_ocr_config' => $this->paddleOcrConfig?->toArray(),
             'image_preprocessing' => $this->imagePreprocessing?->toArray(),
+            'element_config' => $this->elementConfig?->toArray(),
         ], static fn ($value): bool => $value !== null);
     }
 

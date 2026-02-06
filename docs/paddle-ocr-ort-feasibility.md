@@ -145,9 +145,9 @@ Tesseract excels at: European languages, historical documents
 
 ## Next Steps
 
-1. [ ] Create `crates/kreuzberg-paddle` or add to `crates/kreuzberg/src/ocr/paddle/`
-2. [ ] Implement `PaddleOcrBackend`
-3. [ ] Add model download/cache management
-4. [ ] Write tests with CJK and Latin test images
-5. [ ] Benchmark accuracy and performance vs Tesseract
-6. [ ] Update documentation
+1. [x] Create `crates/kreuzberg-paddle` or add to `crates/kreuzberg/src/ocr/paddle/`
+2. [x] Implement `PaddleOcrBackend`
+3. [x] Add model download/cache management
+4. [x] Write tests with CJK and Latin test images
+5. [x] Benchmark accuracy and performance vs Tesseract
+6. [x] Update documentation

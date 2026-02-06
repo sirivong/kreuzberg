@@ -221,7 +221,7 @@ class PdfTest extends TestCase
      */
     public function test_pdf_tables_large(): void
     {
-        $documentPath = Helpers::resolveDocument('pdf/large.pdf');
+        $documentPath = Helpers::resolveDocument('pdfs_with_tables/large.pdf');
         if (!file_exists($documentPath)) {
             $this->markTestSkipped('Skipping pdf_tables_large: missing document at ' . $documentPath);
         }
@@ -241,7 +241,7 @@ class PdfTest extends TestCase
      */
     public function test_pdf_tables_medium(): void
     {
-        $documentPath = Helpers::resolveDocument('pdf/medium.pdf');
+        $documentPath = Helpers::resolveDocument('pdfs_with_tables/medium.pdf');
         if (!file_exists($documentPath)) {
             $this->markTestSkipped('Skipping pdf_tables_medium: missing document at ' . $documentPath);
         }
@@ -261,7 +261,7 @@ class PdfTest extends TestCase
      */
     public function test_pdf_tables_small(): void
     {
-        $documentPath = Helpers::resolveDocument('pdf/tiny.pdf');
+        $documentPath = Helpers::resolveDocument('pdfs_with_tables/tiny.pdf');
         if (!file_exists($documentPath)) {
             $this->markTestSkipped('Skipping pdf_tables_small: missing document at ' . $documentPath);
         }

@@ -85,6 +85,11 @@ pub use types::*;
 pub use util::{kreuzberg_last_error, kreuzberg_last_error_code, kreuzberg_last_panic_context, kreuzberg_version};
 pub use validation::*;
 
+#[ctor::ctor]
+fn setup_onnx_runtime_path() {
+    kreuzberg::ort_discovery::ensure_ort_available();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -134,8 +139,8 @@ mod tests {
         // Test size
         assert_eq!(
             std::mem::size_of::<CExtractionResult>(),
-            112,
-            "CExtractionResult must be exactly 112 bytes"
+            120,
+            "CExtractionResult must be exactly 120 bytes"
         );
 
         // Test alignment
@@ -198,6 +203,7 @@ mod tests {
             page_structure_json: ptr::null_mut(),
             pages_json: ptr::null_mut(),
             elements_json: ptr::null_mut(),
+            ocr_elements_json: ptr::null_mut(),
             success: true,
             _padding1: [0u8; 7],
         }))
@@ -512,6 +518,7 @@ mod tests {
                 page_structure_json: ptr::null_mut(),
                 pages_json: ptr::null_mut(),
                 elements_json: ptr::null_mut(),
+                ocr_elements_json: ptr::null_mut(),
                 success: true,
                 _padding1: [0u8; 7],
             }));
@@ -540,6 +547,7 @@ mod tests {
                 page_structure_json: CString::new("{\"pages\":1}").unwrap().into_raw(),
                 pages_json: CString::new("[{\"page\":1,\"content\":\"test\"}]").unwrap().into_raw(),
                 elements_json: CString::new("[]").unwrap().into_raw(),
+                ocr_elements_json: ptr::null_mut(),
                 success: true,
                 _padding1: [0u8; 7],
             }));
@@ -624,7 +632,7 @@ mod tests {
     /// Test CExtractionResult size exactly matches FFI contract
     #[test]
     fn test_c_extraction_result_size() {
-        assert_eq!(std::mem::size_of::<CExtractionResult>(), 112);
+        assert_eq!(std::mem::size_of::<CExtractionResult>(), 120);
         assert_eq!(std::mem::align_of::<CExtractionResult>(), 8);
     }
 

@@ -102,6 +102,8 @@ impl PaddleOcrBackend {
         })?;
 
         if engine_guard.is_none() {
+            crate::ort_discovery::ensure_ort_available();
+
             tracing::info!("Initializing PaddleOCR engine with models");
 
             let mut ocr_lite = OcrLite::new();

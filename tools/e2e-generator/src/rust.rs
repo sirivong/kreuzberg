@@ -360,6 +360,28 @@ fn render_assertions(assertions: &Assertions) -> String {
         ));
     }
 
+    if let Some(ocr) = assertions.ocr_elements.as_ref() {
+        let has_elements = ocr
+            .has_elements
+            .map(|v| format!("Some({v})"))
+            .unwrap_or_else(|| "None".into());
+        let has_geometry = ocr
+            .elements_have_geometry
+            .map(|v| format!("Some({v})"))
+            .unwrap_or_else(|| "None".into());
+        let has_confidence = ocr
+            .elements_have_confidence
+            .map(|v| format!("Some({v})"))
+            .unwrap_or_else(|| "None".into());
+        let min_count = ocr
+            .min_count
+            .map(|v| format!("Some({v})"))
+            .unwrap_or_else(|| "None".into());
+        buffer.push_str(&format!(
+            "    assertions::assert_ocr_elements(&result, {has_elements}, {has_geometry}, {has_confidence}, {min_count});\n"
+        ));
+    }
+
     buffer
 }
 

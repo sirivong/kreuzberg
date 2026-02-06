@@ -55,10 +55,19 @@ __all__ = [
     "MissingDependencyError",
     "OCRError",
     "OcrBackendProtocol",
+    "OcrBoundingGeometry",
+    "OcrBoundingGeometryQuadrilateral",
+    "OcrBoundingGeometryRectangle",
+    "OcrConfidence",
     "OcrConfig",
+    "OcrElement",
+    "OcrElementConfig",
+    "OcrElementLevel",
     "OcrResult",
     "OcrResultTable",
+    "OcrRotation",
     "OutputFormat",
+    "PaddleOcrConfig",
     "PageBoundary",
     "PageConfig",
     "PageContent",
@@ -206,6 +215,77 @@ class OcrBackendProtocol(Protocol):
     def initialize(self) -> None: ...
     def shutdown(self) -> None: ...
     def version(self) -> str: ...
+
+OcrElementLevel: TypeAlias = Literal["word", "line", "block", "page"]
+
+class OcrBoundingGeometryRectangle(TypedDict):
+    type: str
+    left: float
+    top: float
+    width: float
+    height: float
+
+class OcrBoundingGeometryQuadrilateral(TypedDict):
+    type: str
+    points: list[list[float]]
+
+OcrBoundingGeometry: TypeAlias = OcrBoundingGeometryRectangle | OcrBoundingGeometryQuadrilateral
+
+class OcrConfidence(TypedDict, total=False):
+    detection: float
+    recognition: float
+
+class OcrRotation(TypedDict, total=False):
+    angle_degrees: float
+    confidence: float
+
+class OcrElement(TypedDict, total=False):
+    text: str
+    geometry: OcrBoundingGeometry | None
+    confidence: OcrConfidence | None
+    level: OcrElementLevel | None
+    rotation: OcrRotation | None
+    page_number: int | None
+    parent_id: str | None
+    backend_metadata: dict[str, Any] | None
+
+class OcrElementConfig:
+    include_elements: bool
+    min_level: str | None
+    min_confidence: float | None
+    build_hierarchy: bool
+    def __init__(
+        self,
+        *,
+        include_elements: bool = ...,
+        min_level: str | None = ...,
+        min_confidence: float | None = ...,
+        build_hierarchy: bool = ...,
+    ) -> None: ...
+
+class PaddleOcrConfig:
+    language: str | None
+    cache_dir: str | None
+    use_angle_cls: bool | None
+    enable_table_detection: bool | None
+    det_db_thresh: float | None
+    det_db_box_thresh: float | None
+    det_db_unclip_ratio: float | None
+    det_limit_side_len: int | None
+    rec_batch_num: int | None
+    def __init__(
+        self,
+        *,
+        language: str | None = ...,
+        cache_dir: str | None = ...,
+        use_angle_cls: bool | None = ...,
+        enable_table_detection: bool | None = ...,
+        det_db_thresh: float | None = ...,
+        det_db_box_thresh: float | None = ...,
+        det_db_unclip_ratio: float | None = ...,
+        det_limit_side_len: int | None = ...,
+        rec_batch_num: int | None = ...,
+    ) -> None: ...
 
 class PostProcessorProtocol(Protocol):
     def name(self) -> str: ...
@@ -356,6 +436,14 @@ class OcrConfig:
             for fine-tuning OCR behavior. Only used when backend="tesseract".
             Default: None
 
+        paddle_ocr_config (PaddleOcrConfig | None): PaddleOCR-specific configuration
+            for fine-tuning OCR behavior. Only used when backend="paddleocr".
+            Default: None
+
+        element_config (OcrElementConfig | None): OCR element configuration for
+            extracting individual OCR elements (words, lines, etc.).
+            Default: None
+
     Example:
         Using Tesseract with German language:
             >>> from kreuzberg import OcrConfig
@@ -371,6 +459,8 @@ class OcrConfig:
     backend: str
     language: str
     tesseract_config: TesseractConfig | None
+    paddle_ocr_config: PaddleOcrConfig | None
+    element_config: OcrElementConfig | None
 
     def __init__(
         self,
@@ -378,6 +468,8 @@ class OcrConfig:
         backend: str | None = None,
         language: str | None = None,
         tesseract_config: TesseractConfig | None = None,
+        paddle_ocr_config: PaddleOcrConfig | None = None,
+        element_config: OcrElementConfig | None = None,
     ) -> None: ...
 
 class EmbeddingModelType:
@@ -1520,6 +1612,7 @@ class ExtractionResult:
     images: list[ExtractedImage] | None
     pages: list[PageContent] | None
     elements: list[Element] | None
+    ocr_elements: list[OcrElement] | None
     djot_content: DjotContent | None
     output_format: str | None
     result_format: str | None

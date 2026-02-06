@@ -66,19 +66,11 @@ function describePayload(value: OcrProcessPayload) {
  *
  * @example
  * ```typescript
- * import { GutenOcrBackend } from '@kreuzberg/node/ocr/guten-ocr';
- * import { registerOcrBackend, extractFile } from '@kreuzberg/node';
+ * import { extractFile } from '@kreuzberg/node';
  *
- * // Create and initialize backend
- * const backend = new GutenOcrBackend();
- * await backend.initialize();
- *
- * // Register with Kreuzberg
- * registerOcrBackend(backend);
- *
- * // Use in extraction
+ * // PaddleOCR is built into the native Rust core - just use the backend name
  * const result = await extractFile('scanned.pdf', null, {
- *   ocr: { backend: 'guten-ocr', language: 'en' }
+ *   ocr: { backend: 'paddle-ocr', language: 'en' }
  * });
  * console.log(result.content);
  * ```

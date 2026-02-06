@@ -38,11 +38,107 @@ namespace Kreuzberg.E2E.Ocr {
         }
 
         [SkippableFact]
+        public void OcrPaddleConfidenceFilter()
+        {
+            TestHelpers.SkipIfLegacyOfficeDisabled("images/ocr_image.jpg");
+            TestHelpers.SkipIfOfficeTestOnWindows("images/ocr_image.jpg");
+            var documentPath = TestHelpers.EnsureDocument("images/ocr_image.jpg", true);
+            var config = TestHelpers.BuildConfig("{\"force_ocr\":true,\"ocr\":{\"backend\":\"paddle-ocr\",\"language\":\"en\",\"paddle_ocr_config\":{\"min_confidence\":80.0}}}");
+
+            var result = KreuzbergClient.ExtractFileSync(documentPath, config);
+            TestHelpers.AssertExpectedMime(result, new[] { "image/jpeg" });
+            TestHelpers.AssertMinContentLength(result, 1);
+        }
+
+        [SkippableFact]
+        public void OcrPaddleImageChinese()
+        {
+            TestHelpers.SkipIfLegacyOfficeDisabled("images/chi_sim_image.jpeg");
+            TestHelpers.SkipIfOfficeTestOnWindows("images/chi_sim_image.jpeg");
+            var documentPath = TestHelpers.EnsureDocument("images/chi_sim_image.jpeg", true);
+            var config = TestHelpers.BuildConfig("{\"force_ocr\":true,\"ocr\":{\"backend\":\"paddle-ocr\",\"language\":\"ch\"}}");
+
+            var result = KreuzbergClient.ExtractFileSync(documentPath, config);
+            TestHelpers.AssertExpectedMime(result, new[] { "image/jpeg" });
+            TestHelpers.AssertMinContentLength(result, 1);
+        }
+
+        [SkippableFact]
+        public void OcrPaddleImageEnglish()
+        {
+            TestHelpers.SkipIfLegacyOfficeDisabled("images/test_hello_world.png");
+            TestHelpers.SkipIfOfficeTestOnWindows("images/test_hello_world.png");
+            var documentPath = TestHelpers.EnsureDocument("images/test_hello_world.png", true);
+            var config = TestHelpers.BuildConfig("{\"force_ocr\":true,\"ocr\":{\"backend\":\"paddle-ocr\",\"language\":\"en\"}}");
+
+            var result = KreuzbergClient.ExtractFileSync(documentPath, config);
+            TestHelpers.AssertExpectedMime(result, new[] { "image/png" });
+            TestHelpers.AssertMinContentLength(result, 5);
+            TestHelpers.AssertContentContainsAny(result, new[] { "hello", "Hello", "world", "World" });
+        }
+
+        [SkippableFact]
+        public void OcrPaddleMarkdown()
+        {
+            TestHelpers.SkipIfLegacyOfficeDisabled("images/test_hello_world.png");
+            TestHelpers.SkipIfOfficeTestOnWindows("images/test_hello_world.png");
+            var documentPath = TestHelpers.EnsureDocument("images/test_hello_world.png", true);
+            var config = TestHelpers.BuildConfig("{\"force_ocr\":true,\"ocr\":{\"backend\":\"paddle-ocr\",\"language\":\"en\",\"paddle_ocr_config\":{\"output_format\":\"markdown\"}}}");
+
+            var result = KreuzbergClient.ExtractFileSync(documentPath, config);
+            TestHelpers.AssertExpectedMime(result, new[] { "image/png" });
+            TestHelpers.AssertMinContentLength(result, 5);
+            TestHelpers.AssertContentContainsAny(result, new[] { "hello", "Hello", "world", "World" });
+        }
+
+        [SkippableFact]
+        public void OcrPaddlePdfScanned()
+        {
+            TestHelpers.SkipIfLegacyOfficeDisabled("pdfs/ocr_test.pdf");
+            TestHelpers.SkipIfOfficeTestOnWindows("pdfs/ocr_test.pdf");
+            var documentPath = TestHelpers.EnsureDocument("pdfs/ocr_test.pdf", true);
+            var config = TestHelpers.BuildConfig("{\"force_ocr\":true,\"ocr\":{\"backend\":\"paddle-ocr\",\"language\":\"en\"}}");
+
+            var result = KreuzbergClient.ExtractFileSync(documentPath, config);
+            TestHelpers.AssertExpectedMime(result, new[] { "application/pdf" });
+            TestHelpers.AssertMinContentLength(result, 20);
+            TestHelpers.AssertContentContainsAny(result, new[] { "Docling", "Markdown", "JSON" });
+        }
+
+        [SkippableFact]
+        public void OcrPaddleStructured()
+        {
+            TestHelpers.SkipIfLegacyOfficeDisabled("images/test_hello_world.png");
+            TestHelpers.SkipIfOfficeTestOnWindows("images/test_hello_world.png");
+            var documentPath = TestHelpers.EnsureDocument("images/test_hello_world.png", true);
+            var config = TestHelpers.BuildConfig("{\"force_ocr\":true,\"ocr\":{\"backend\":\"paddle-ocr\",\"element_config\":{\"include_elements\":true},\"language\":\"en\"}}");
+
+            var result = KreuzbergClient.ExtractFileSync(documentPath, config);
+            TestHelpers.AssertExpectedMime(result, new[] { "image/png" });
+            TestHelpers.AssertMinContentLength(result, 5);
+            TestHelpers.AssertOcrElements(result, true, true, true, null);
+        }
+
+        [SkippableFact]
+        public void OcrPaddleTableDetection()
+        {
+            TestHelpers.SkipIfLegacyOfficeDisabled("images/simple_table.png");
+            TestHelpers.SkipIfOfficeTestOnWindows("images/simple_table.png");
+            var documentPath = TestHelpers.EnsureDocument("images/simple_table.png", true);
+            var config = TestHelpers.BuildConfig("{\"force_ocr\":true,\"ocr\":{\"backend\":\"paddle-ocr\",\"language\":\"en\",\"paddle_ocr_config\":{\"enable_table_detection\":true}}}");
+
+            var result = KreuzbergClient.ExtractFileSync(documentPath, config);
+            TestHelpers.AssertExpectedMime(result, new[] { "image/png" });
+            TestHelpers.AssertMinContentLength(result, 10);
+            TestHelpers.AssertTableCount(result, 1, null);
+        }
+
+        [SkippableFact]
         public void OcrPdfImageOnlyGerman()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("pdf/image_only_german_pdf.pdf");
-            TestHelpers.SkipIfOfficeTestOnWindows("pdf/image_only_german_pdf.pdf");
-            var documentPath = TestHelpers.EnsureDocument("pdf/image_only_german_pdf.pdf", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("pdfs/image_only_german_pdf.pdf");
+            TestHelpers.SkipIfOfficeTestOnWindows("pdfs/image_only_german_pdf.pdf");
+            var documentPath = TestHelpers.EnsureDocument("pdfs/image_only_german_pdf.pdf", true);
             var config = TestHelpers.BuildConfig("{\"force_ocr\":true,\"ocr\":{\"backend\":\"tesseract\",\"language\":\"eng\"}}");
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -55,9 +151,9 @@ namespace Kreuzberg.E2E.Ocr {
         [SkippableFact]
         public void OcrPdfRotated90()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("pdf/ocr_test_rotated_90.pdf");
-            TestHelpers.SkipIfOfficeTestOnWindows("pdf/ocr_test_rotated_90.pdf");
-            var documentPath = TestHelpers.EnsureDocument("pdf/ocr_test_rotated_90.pdf", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("pdfs/ocr_test_rotated_90.pdf");
+            TestHelpers.SkipIfOfficeTestOnWindows("pdfs/ocr_test_rotated_90.pdf");
+            var documentPath = TestHelpers.EnsureDocument("pdfs/ocr_test_rotated_90.pdf", true);
             var config = TestHelpers.BuildConfig("{\"force_ocr\":true,\"ocr\":{\"backend\":\"tesseract\",\"language\":\"eng\"}}");
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -68,9 +164,9 @@ namespace Kreuzberg.E2E.Ocr {
         [SkippableFact]
         public void OcrPdfTesseract()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("pdf/ocr_test.pdf");
-            TestHelpers.SkipIfOfficeTestOnWindows("pdf/ocr_test.pdf");
-            var documentPath = TestHelpers.EnsureDocument("pdf/ocr_test.pdf", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("pdfs/ocr_test.pdf");
+            TestHelpers.SkipIfOfficeTestOnWindows("pdfs/ocr_test.pdf");
+            var documentPath = TestHelpers.EnsureDocument("pdfs/ocr_test.pdf", true);
             var config = TestHelpers.BuildConfig("{\"force_ocr\":true,\"ocr\":{\"backend\":\"tesseract\",\"language\":\"eng\"}}");
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);

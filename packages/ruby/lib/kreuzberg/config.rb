@@ -6,23 +6,29 @@ module Kreuzberg
   module Config
     # @example
     class OCR
-      attr_reader :backend, :language, :tesseract_config
+      attr_reader :backend, :language, :tesseract_config, :paddle_ocr_config, :element_config
 
       def initialize(
         backend: 'tesseract',
         language: 'eng',
-        tesseract_config: nil
+        tesseract_config: nil,
+        paddle_ocr_config: nil,
+        element_config: nil
       )
         @backend = backend.to_s
         @language = language.to_s
         @tesseract_config = normalize_tesseract_config(tesseract_config)
+        @paddle_ocr_config = normalize_paddle_ocr_config(paddle_ocr_config)
+        @element_config = normalize_element_config(element_config)
       end
 
       def to_h
         {
           backend: @backend,
           language: @language,
-          tesseract_config: @tesseract_config&.to_h
+          tesseract_config: @tesseract_config&.to_h,
+          paddle_ocr_config: @paddle_ocr_config&.to_h,
+          element_config: @element_config&.to_h
         }.compact
       end
 
@@ -34,6 +40,22 @@ module Kreuzberg
         return Tesseract.new(**value.transform_keys(&:to_sym)) if value.is_a?(Hash)
 
         raise ArgumentError, "Expected #{Tesseract}, Hash, or nil, got #{value.class}"
+      end
+
+      def normalize_paddle_ocr_config(value)
+        return nil if value.nil?
+        return value if value.is_a?(PaddleOcr)
+        return PaddleOcr.new(**value.transform_keys(&:to_sym)) if value.is_a?(Hash)
+
+        raise ArgumentError, "Expected #{PaddleOcr}, Hash, or nil, got #{value.class}"
+      end
+
+      def normalize_element_config(value)
+        return nil if value.nil?
+        return value if value.is_a?(OcrElementConfig)
+        return OcrElementConfig.new(**value.transform_keys(&:to_sym)) if value.is_a?(Hash)
+
+        raise ArgumentError, "Expected #{OcrElementConfig}, Hash, or nil, got #{value.class}"
       end
     end
 
@@ -60,6 +82,108 @@ module Kreuzberg
           preprocessing.is_a?(Hash)
 
         raise ArgumentError, "preprocessing must be #{ImagePreprocessing} or Hash"
+      end
+    end
+
+    # PaddleOCR engine configuration
+    #
+    # @example Basic usage
+    #   paddle = PaddleOcr.new(language: 'en', cache_dir: '/tmp/paddle')
+    #
+    # @example Advanced configuration
+    #   paddle = PaddleOcr.new(
+    #     language: 'en',
+    #     cache_dir: '/tmp/paddle',
+    #     use_angle_cls: true,
+    #     det_db_thresh: 0.3,
+    #     rec_batch_num: 32
+    #   )
+    #
+    class PaddleOcr
+      attr_reader :language, :cache_dir, :use_angle_cls, :enable_table_detection,
+                  :det_db_thresh, :det_db_box_thresh, :det_db_unclip_ratio,
+                  :det_limit_side_len, :rec_batch_num
+
+      def initialize(
+        language: nil,
+        cache_dir: nil,
+        use_angle_cls: nil,
+        enable_table_detection: nil,
+        det_db_thresh: nil,
+        det_db_box_thresh: nil,
+        det_db_unclip_ratio: nil,
+        det_limit_side_len: nil,
+        rec_batch_num: nil
+      )
+        @language = language&.to_s
+        @cache_dir = cache_dir&.to_s
+        @use_angle_cls = boolean_or_nil(use_angle_cls)
+        @enable_table_detection = boolean_or_nil(enable_table_detection)
+        @det_db_thresh = det_db_thresh&.to_f
+        @det_db_box_thresh = det_db_box_thresh&.to_f
+        @det_db_unclip_ratio = det_db_unclip_ratio&.to_f
+        @det_limit_side_len = det_limit_side_len&.to_i
+        @rec_batch_num = rec_batch_num&.to_i
+      end
+
+      def to_h
+        {
+          language: @language,
+          cache_dir: @cache_dir,
+          use_angle_cls: @use_angle_cls,
+          enable_table_detection: @enable_table_detection,
+          det_db_thresh: @det_db_thresh,
+          det_db_box_thresh: @det_db_box_thresh,
+          det_db_unclip_ratio: @det_db_unclip_ratio,
+          det_limit_side_len: @det_limit_side_len,
+          rec_batch_num: @rec_batch_num
+        }.compact
+      end
+
+      private
+
+      def boolean_or_nil(value)
+        return nil if value.nil?
+
+        value ? true : false
+      end
+    end
+
+    # OCR element configuration for output control
+    #
+    # @example Basic usage
+    #   config = OcrElementConfig.new(include_elements: true)
+    #
+    # @example Advanced configuration
+    #   config = OcrElementConfig.new(
+    #     include_elements: true,
+    #     min_level: 'word',
+    #     min_confidence: 0.7,
+    #     build_hierarchy: true
+    #   )
+    #
+    class OcrElementConfig
+      attr_reader :include_elements, :min_level, :min_confidence, :build_hierarchy
+
+      def initialize(
+        include_elements: false,
+        min_level: nil,
+        min_confidence: nil,
+        build_hierarchy: false
+      )
+        @include_elements = include_elements ? true : false
+        @min_level = min_level&.to_s
+        @min_confidence = min_confidence&.to_f
+        @build_hierarchy = build_hierarchy ? true : false
+      end
+
+      def to_h
+        {
+          include_elements: @include_elements,
+          min_level: @min_level,
+          min_confidence: @min_confidence,
+          build_hierarchy: @build_hierarchy
+        }.compact
       end
     end
 

@@ -399,8 +399,7 @@ mod tests {
         let ocr_config = OcrConfig {
             backend: "tesseract".to_string(),
             language: "deu".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         };
 
         let tess_config = backend.config_to_tesseract(&ocr_config);
@@ -422,7 +421,7 @@ mod tests {
             backend: "tesseract".to_string(),
             language: "eng".to_string(),
             tesseract_config: Some(custom_tess_config),
-            output_format: None,
+            ..Default::default()
         };
 
         let tess_config = backend.config_to_tesseract(&ocr_config);
@@ -466,7 +465,7 @@ mod tests {
             backend: "tesseract".to_string(),
             language: "eng".to_string(),
             tesseract_config: Some(custom_tess_config),
-            output_format: None,
+            ..Default::default()
         };
 
         let tess_config = backend.config_to_tesseract(&ocr_config);

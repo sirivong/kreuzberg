@@ -7,6 +7,26 @@ import { assertions, buildConfig, extractBytes, initWasm, resolveDocument, shoul
 // Initialize WASM module once at module load time
 await initWasm();
 
+Deno.test("html_complex_layout", { permissions: { read: true } }, async () => {
+	const documentBytes = await resolveDocument("web/taylor_swift.html");
+	const config = buildConfig(undefined);
+	let result: ExtractionResult | null = null;
+	try {
+		// Sync file extraction - WASM uses extractBytes with pre-read bytes
+		result = await extractBytes(documentBytes, "text/html", config);
+	} catch (error) {
+		if (shouldSkipFixture(error, "html_complex_layout", [], undefined)) {
+			return;
+		}
+		throw error;
+	}
+	if (result === null) {
+		return;
+	}
+	assertions.assertExpectedMime(result, ["text/html"]);
+	assertions.assertMinContentLength(result, 1000);
+});
+
 Deno.test("html_simple_table", { permissions: { read: true } }, async () => {
 	const documentBytes = await resolveDocument("html/simple_table.html");
 	const config = buildConfig(undefined);

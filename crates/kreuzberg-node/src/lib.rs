@@ -69,6 +69,11 @@ use std::ffi::{CStr, c_char};
 
 static KNOWN_FORMAT_FIELDS: Lazy<AHashSet<&'static str>> = Lazy::new(|| KNOWN_FORMATS.iter().copied().collect());
 
+#[ctor::ctor]
+fn setup_onnx_runtime_path() {
+    kreuzberg::ort_discovery::ensure_ort_available();
+}
+
 #[allow(unused_extern_crates)]
 extern crate kreuzberg_ffi;
 

@@ -19,8 +19,10 @@ module Kreuzberg
       attr_reader backend: String
       attr_reader language: String
       attr_reader tesseract_config: Tesseract?
+      attr_reader paddle_ocr_config: PaddleOcr?
+      attr_reader element_config: OcrElementConfig?
 
-      def initialize: (?backend: String, ?language: String, ?tesseract_config: (Tesseract | Hash[Symbol, untyped])?) -> void
+      def initialize: (?backend: String, ?language: String, ?tesseract_config: (Tesseract | Hash[Symbol, untyped])?, ?paddle_ocr_config: (PaddleOcr | Hash[Symbol, untyped])?, ?element_config: (OcrElementConfig | Hash[Symbol, untyped])?) -> void
       def to_h: () -> Hash[Symbol, untyped]
     end
 
@@ -28,6 +30,29 @@ module Kreuzberg
       attr_reader options: Hash[Symbol, untyped]
 
       def initialize: (**untyped options) -> void
+      def to_h: () -> Hash[Symbol, untyped]
+    end
+
+    class PaddleOcr
+      attr_reader language: String?
+      attr_reader cache_dir: String?
+      attr_reader use_angle_cls: bool?
+      attr_reader enable_table_detection: bool?
+      attr_reader det_db_thresh: Float?
+      attr_reader det_db_box_thresh: Float?
+      attr_reader det_db_unclip_ratio: Float?
+      attr_reader det_limit_side_len: Integer?
+      attr_reader rec_batch_num: Integer?
+      def initialize: (?language: String?, ?cache_dir: String?, ?use_angle_cls: bool?, ?enable_table_detection: bool?, ?det_db_thresh: Float?, ?det_db_box_thresh: Float?, ?det_db_unclip_ratio: Float?, ?det_limit_side_len: Integer?, ?rec_batch_num: Integer?) -> void
+      def to_h: () -> Hash[Symbol, untyped]
+    end
+
+    class OcrElementConfig
+      attr_reader include_elements: bool
+      attr_reader min_level: String?
+      attr_reader min_confidence: Float?
+      attr_reader build_hierarchy: bool
+      def initialize: (?include_elements: bool, ?min_level: String?, ?min_confidence: Float?, ?build_hierarchy: bool) -> void
       def to_h: () -> Hash[Symbol, untyped]
     end
 
@@ -312,6 +337,7 @@ module Kreuzberg
     images: Array[image_hash]?,
     pages: Array[page_content_hash]?,
     elements: Array[element_hash]?,
+    ocr_elements: Array[ocr_element_hash]?,
     djot_content: djot_content_hash?
   }
 
@@ -367,6 +393,36 @@ module Kreuzberg
     element_type: String,
     text: String,
     metadata: Hash[String, untyped]?
+  }
+
+  type ocr_confidence_hash = {
+    detection: Float?,
+    recognition: Float?
+  }
+
+  type ocr_rotation_hash = {
+    angle_degrees: Float?,
+    confidence: Float?
+  }
+
+  type ocr_bounding_geometry_hash = {
+    type: String,
+    left: Float?,
+    top: Float?,
+    width: Float?,
+    height: Float?,
+    points: Array[Array[Float]]?
+  }
+
+  type ocr_element_hash = {
+    text: String,
+    geometry: ocr_bounding_geometry_hash?,
+    confidence: ocr_confidence_hash?,
+    level: String?,
+    rotation: ocr_rotation_hash?,
+    page_number: Integer?,
+    parent_id: String?,
+    backend_metadata: Hash[String, untyped]?
   }
 
   type table_hash = {
@@ -541,6 +597,48 @@ module Kreuzberg
       def to_h: () -> Hash[Symbol, untyped]
     end
 
+    # OCR bounding geometry (type and coordinates)
+    class OcrBoundingGeometry
+      attr_reader type: String
+      attr_reader left: Float?
+      attr_reader top: Float?
+      attr_reader width: Float?
+      attr_reader height: Float?
+      attr_reader points: Array[Array[Float]]?
+      def initialize: (type: String, ?left: Float?, ?top: Float?, ?width: Float?, ?height: Float?, ?points: Array[Array[Float]]?) -> void
+      def to_h: () -> ocr_bounding_geometry_hash
+    end
+
+    # OCR confidence scores (detection and recognition)
+    class OcrConfidence
+      attr_reader detection: Float?
+      attr_reader recognition: Float?
+      def initialize: (?detection: Float?, ?recognition: Float?) -> void
+      def to_h: () -> ocr_confidence_hash
+    end
+
+    # OCR rotation information
+    class OcrRotation
+      attr_reader angle_degrees: Float?
+      attr_reader confidence: Float?
+      def initialize: (?angle_degrees: Float?, ?confidence: Float?) -> void
+      def to_h: () -> ocr_rotation_hash
+    end
+
+    # OCR text element with geometry and metadata
+    class OcrElement
+      attr_reader text: String
+      attr_reader geometry: OcrBoundingGeometry?
+      attr_reader confidence: OcrConfidence?
+      attr_reader level: String?
+      attr_reader rotation: OcrRotation?
+      attr_reader page_number: Integer?
+      attr_reader parent_id: String?
+      attr_reader backend_metadata: Hash[String, untyped]?
+      def initialize: (text: String, ?geometry: OcrBoundingGeometry?, ?confidence: OcrConfidence?, ?level: String?, ?rotation: OcrRotation?, ?page_number: Integer?, ?parent_id: String?, ?backend_metadata: Hash[String, untyped]?) -> void
+      def to_h: () -> ocr_element_hash
+    end
+
     # Structured Djot document representation
     class DjotContent
       attr_reader plain_text: String
@@ -617,6 +715,7 @@ module Kreuzberg
     attr_reader images: Array[Image]?
     attr_reader pages: Array[PageContent]?
     attr_reader elements: Array[ElementStruct]?
+    attr_reader ocr_elements: Array[OcrElement]?
     attr_reader djot_content: DjotContent?
 
     def initialize: (extraction_result_hash hash) -> void
@@ -639,6 +738,7 @@ module Kreuzberg
     def parse_elements: (Array[untyped]? elements_data) -> Array[ElementStruct]?
     def parse_element: (Hash[String, untyped] element_hash) -> ElementStruct
     def parse_element_coordinates: (Hash[String, untyped]? coordinates_data) -> ElementBoundingBox?
+    def parse_ocr_elements: (Array[ocr_element_hash]? ocr_elements_data) -> Array[OcrElement]?
     def parse_page_hierarchy: (Hash[String, untyped]? hierarchy_data) -> PageHierarchy?
     def parse_djot_content: (Hash[String, untyped]? djot_data) -> DjotContent?
     def get_value: (Hash[String | Symbol, untyped] hash, String key, ?untyped default) -> untyped

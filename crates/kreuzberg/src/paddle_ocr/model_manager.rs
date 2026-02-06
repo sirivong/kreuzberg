@@ -6,10 +6,9 @@
 /// # Model Download Flow
 ///
 /// 1. Check if models exist in cache directory
-/// 2. If not, download tar archives from PaddleOCR CDN
+/// 2. If not, download ONNX models from HuggingFace Hub via hf-hub
 /// 3. Verify SHA256 checksums
-/// 4. Extract tar archives to model directories
-/// 5. Convert PaddlePaddle models to ONNX (if needed)
+/// 4. Copy models to local cache directory
 ///
 /// # Examples
 ///
@@ -22,16 +21,15 @@
 /// println!("Detection model: {:?}", paths.det_model);
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
-use std::fs::{self, File};
-use std::io::Write;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::error::KreuzbergError;
 use sha2::{Digest, Sha256};
 
-/// Base URL for PaddleOCR ONNX model downloads.
-/// These are pre-converted ONNX models hosted on Hugging Face.
-const MODEL_BASE_URL: &str = "https://huggingface.co/nicksunderland/OCR_ONNX_models/resolve/main/";
+/// HuggingFace repository containing PaddleOCR ONNX models.
+/// Must be a public repo (or user must set HF_TOKEN for private repos).
+const HF_REPO_ID: &str = "Kreuzberg/paddleocr-onnx-models";
 
 /// Model definition with metadata.
 #[derive(Debug, Clone)]
@@ -50,28 +48,36 @@ struct ModelDefinition {
 }
 
 /// Model definitions with ONNX model files.
-/// These are pre-converted PP-OCRv4 models in ONNX format.
+/// These are pre-converted PP-OCRv4 models in ONNX format hosted on HuggingFace.
+///
+/// Sources:
+/// - det: `ch_PP-OCRv4_det_infer.onnx` — PP-OCRv4 detection model (language-agnostic),
+///   sourced from SWHL/RapidOCR on HuggingFace.
+/// - cls: `ch_ppocr_mobile_v2.0_cls_infer.onnx` — PPOCRv2 text angle classifier,
+///   sourced from SWHL/RapidOCR on HuggingFace.
+/// - rec: `en_PP-OCRv4_rec_infer.onnx` — PP-OCRv4 English recognition model,
+///   converted from PaddlePaddle format via paddle2onnx.
 const MODELS: &[ModelDefinition] = &[
     ModelDefinition {
         model_type: "det",
-        remote_filename: "en_PP-OCRv4_det_infer.onnx",
+        remote_filename: "ch_PP-OCRv4_det_infer.onnx",
         local_filename: "model.onnx",
-        sha256_checksum: "",   // Skip checksum for now - will be updated with actual checksums
-        size_bytes: 4_500_000, // ~4.5MB
+        sha256_checksum: "d2a7720d45a54257208b1e13e36a8479894cb74155a5efe29462512d42f49da9",
+        size_bytes: 4_745_517,
     },
     ModelDefinition {
         model_type: "cls",
         remote_filename: "ch_ppocr_mobile_v2.0_cls_infer.onnx",
         local_filename: "model.onnx",
-        sha256_checksum: "",
-        size_bytes: 1_500_000, // ~1.5MB
+        sha256_checksum: "e47acedf663230f8863ff1ab0e64dd2d82b838fceb5957146dab185a89d6215c",
+        size_bytes: 585_532,
     },
     ModelDefinition {
         model_type: "rec",
         remote_filename: "en_PP-OCRv4_rec_infer.onnx",
         local_filename: "model.onnx",
-        sha256_checksum: "",
-        size_bytes: 10_000_000, // ~10MB
+        sha256_checksum: "be2733d5c0218b342a9293c1bdd5a2a7d238fb2f8371d14dbce3fb99338c371a",
+        size_bytes: 7_684_142,
     },
 ];
 
@@ -214,63 +220,48 @@ impl ModelManager {
         })
     }
 
-    /// Download a single model from the remote server.
+    /// Download a single model from HuggingFace Hub.
     ///
-    /// Downloads the model file, verifies its checksum (if provided),
-    /// and saves it to the appropriate cache directory.
+    /// Downloads the model file via hf-hub (which handles auth, caching, and CDN),
+    /// verifies its checksum (if provided), and copies it to the appropriate cache directory.
     fn download_model(&self, model: &ModelDefinition) -> Result<(), KreuzbergError> {
-        let url = format!("{}{}", MODEL_BASE_URL, model.remote_filename);
         let model_dir = self.model_path(model.model_type);
         let model_file = model_dir.join(model.local_filename);
 
         tracing::info!(
-            url = %url,
+            repo = HF_REPO_ID,
+            filename = model.remote_filename,
             model_type = model.model_type,
-            "Downloading PaddleOCR model"
+            "Downloading PaddleOCR model via hf-hub"
         );
 
         // Create model directory
         fs::create_dir_all(&model_dir)?;
 
-        // Download the file using reqwest (blocking for simplicity in sync context)
-        let response = reqwest::blocking::Client::builder()
-            .timeout(std::time::Duration::from_secs(300)) // 5 minute timeout
+        // hf-hub handles auth (HF_TOKEN env), caching, CDN, retries
+        let api = hf_hub::api::sync::ApiBuilder::new()
+            .with_progress(true)
             .build()
             .map_err(|e| KreuzbergError::Plugin {
-                message: format!("Failed to create HTTP client: {}", e),
-                plugin_name: "paddle-ocr".to_string(),
-            })?
-            .get(&url)
-            .send()
-            .map_err(|e| KreuzbergError::Plugin {
-                message: format!("Failed to download model from {}: {}", url, e),
+                message: format!("Failed to initialize HuggingFace Hub API: {}", e),
                 plugin_name: "paddle-ocr".to_string(),
             })?;
 
-        if !response.status().is_success() {
-            return Err(KreuzbergError::Plugin {
-                message: format!("Failed to download model: HTTP {} from {}", response.status(), url),
-                plugin_name: "paddle-ocr".to_string(),
-            });
-        }
-
-        let bytes = response.bytes().map_err(|e| KreuzbergError::Plugin {
-            message: format!("Failed to read model data: {}", e),
+        let repo = api.model(HF_REPO_ID.to_string());
+        let cached_path = repo.get(model.remote_filename).map_err(|e| KreuzbergError::Plugin {
+            message: format!(
+                "Failed to download '{}' from {}: {}",
+                model.remote_filename, HF_REPO_ID, e
+            ),
             plugin_name: "paddle-ocr".to_string(),
         })?;
 
-        tracing::info!(
-            size_bytes = bytes.len(),
-            model_type = model.model_type,
-            "Model downloaded successfully"
-        );
-
         // Verify checksum if provided
         if !model.sha256_checksum.is_empty() {
+            let bytes = fs::read(&cached_path)?;
             let mut hasher = Sha256::new();
             hasher.update(&bytes);
-            let hash = hasher.finalize();
-            let hash_hex = hex::encode(hash);
+            let hash_hex = hex::encode(hasher.finalize());
 
             if hash_hex != model.sha256_checksum {
                 return Err(KreuzbergError::Validation {
@@ -284,9 +275,11 @@ impl ModelManager {
             tracing::debug!(model_type = model.model_type, "Checksum verified");
         }
 
-        // Write to file
-        let mut file = File::create(&model_file)?;
-        file.write_all(&bytes)?;
+        // Copy from hf-hub cache to our cache structure
+        fs::copy(&cached_path, &model_file).map_err(|e| KreuzbergError::Plugin {
+            message: format!("Failed to copy model to {}: {}", model_file.display(), e),
+            plugin_name: "paddle-ocr".to_string(),
+        })?;
 
         tracing::info!(
             path = ?model_file,

@@ -251,7 +251,7 @@ fn test_pdf_simple_text() {
 fn test_pdf_tables_large() {
     // Large PDF with extensive tables to stress table extraction.
 
-    let document_path = resolve_document("pdf/large.pdf");
+    let document_path = resolve_document("pdfs_with_tables/large.pdf");
     if !document_path.exists() {
         println!(
             "Skipping pdf_tables_large: missing document at {}",
@@ -275,7 +275,7 @@ fn test_pdf_tables_large() {
 fn test_pdf_tables_medium() {
     // Medium-sized PDF with multiple tables.
 
-    let document_path = resolve_document("pdf/medium.pdf");
+    let document_path = resolve_document("pdfs_with_tables/medium.pdf");
     if !document_path.exists() {
         println!(
             "Skipping pdf_tables_medium: missing document at {}",
@@ -299,7 +299,7 @@ fn test_pdf_tables_medium() {
 fn test_pdf_tables_small() {
     // Small PDF containing tables to validate table extraction.
 
-    let document_path = resolve_document("pdf/tiny.pdf");
+    let document_path = resolve_document("pdfs_with_tables/tiny.pdf");
     if !document_path.exists() {
         println!(
             "Skipping pdf_tables_small: missing document at {}",

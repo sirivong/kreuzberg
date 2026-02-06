@@ -407,6 +407,10 @@ func convertCResult(cRes *C.CExtractionResult) (*ExtractionResult, error) {
 		return nil, newSerializationErrorWithContext("failed to decode elements", err, ErrorCodeValidation, nil)
 	}
 
+	if err := decodeJSONCString(cRes.ocr_elements_json, &result.OcrElements); err != nil {
+		return nil, newSerializationErrorWithContext("failed to decode ocr elements", err, ErrorCodeValidation, nil)
+	}
+
 	return result, nil
 }
 

@@ -118,17 +118,11 @@ export interface ValidatorProtocol {
  *
  * @example
  * ```typescript
- * import { GutenOcrBackend } from '@kreuzberg/node/ocr/guten-ocr';
- * import { registerOcrBackend, extractFile } from '@kreuzberg/node';
+ * import { extractFile } from '@kreuzberg/node';
  *
- * // Create and register the backend
- * const backend = new GutenOcrBackend();
- * await backend.initialize();
- * registerOcrBackend(backend);
- *
- * // Use with extraction
+ * // PaddleOCR is built into the native Rust core - just use the backend name
  * const result = await extractFile('scanned.pdf', null, {
- *   ocr: { backend: 'guten-ocr', language: 'en' }
+ *   ocr: { backend: 'paddle-ocr', language: 'en' }
  * });
  * ```
  */
@@ -138,10 +132,10 @@ export interface OcrBackendProtocol {
 	 *
 	 * This name is used in ExtractionConfig to select the backend:
 	 * ```typescript
-	 * { ocr: { backend: 'guten-ocr', language: 'en' } }
+	 * { ocr: { backend: 'paddle-ocr', language: 'en' } }
 	 * ```
 	 *
-	 * @returns Unique backend identifier (e.g., "guten-ocr", "tesseract")
+	 * @returns Unique backend identifier (e.g., "paddle-ocr", "tesseract")
 	 */
 	name(): string;
 

@@ -558,4 +558,68 @@ public static class TestHelpers
             }
         }
     }
+
+    public static void AssertOcrElements(
+        ExtractionResult result,
+        bool hasElements,
+        bool haveGeometry,
+        bool haveConfidence,
+        int? minCount)
+    {
+        if (hasElements)
+        {
+            if (result.OcrElements is null)
+            {
+                throw new XunitException("Expected OcrElements but got null");
+            }
+            if (result.OcrElements.Count == 0)
+            {
+                throw new XunitException("Expected OcrElements but got empty list");
+            }
+        }
+
+        if (haveGeometry && result.OcrElements is not null)
+        {
+            for (var i = 0; i < result.OcrElements.Count; i++)
+            {
+                var element = result.OcrElements[i];
+                if (element.Geometry is null)
+                {
+                    throw new XunitException($"OcrElement {i} has no geometry");
+                }
+                if (string.IsNullOrEmpty(element.Geometry.Type))
+                {
+                    throw new XunitException($"OcrElement {i} geometry has no type");
+                }
+                if (element.Geometry.Type != "rectangle" && element.Geometry.Type != "quadrilateral")
+                {
+                    throw new XunitException($"OcrElement {i} geometry type '{element.Geometry.Type}' is not 'rectangle' or 'quadrilateral'");
+                }
+            }
+        }
+
+        if (haveConfidence && result.OcrElements is not null)
+        {
+            for (var i = 0; i < result.OcrElements.Count; i++)
+            {
+                var element = result.OcrElements[i];
+                if (element.Confidence is null)
+                {
+                    throw new XunitException($"OcrElement {i} has no confidence");
+                }
+                if (!element.Confidence.Recognition.HasValue || element.Confidence.Recognition.Value <= 0)
+                {
+                    throw new XunitException($"OcrElement {i} confidence recognition is missing or <= 0");
+                }
+            }
+        }
+
+        if (minCount.HasValue && result.OcrElements is not null)
+        {
+            if (result.OcrElements.Count < minCount.Value)
+            {
+                throw new XunitException($"Expected at least {minCount.Value} OCR elements, found {result.OcrElements.Count}");
+            }
+        }
+    }
 }

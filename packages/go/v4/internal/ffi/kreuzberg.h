@@ -289,6 +289,10 @@ typedef struct CExtractionResult {
    */
   char *elements_json;
   /**
+   * OCR elements as JSON array (null-terminated string, or NULL if not available, must be freed with kreuzberg_free_string)
+   */
+  char *ocr_elements_json;
+  /**
    * Whether extraction was successful
    */
   bool success;

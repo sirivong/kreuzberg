@@ -17,7 +17,7 @@ class OcrBackendProtocol(Protocol):
     can be used by all extraction APIs (Python, Rust CLI, API server, MCP).
 
     Required Methods:
-        name: Return backend name (e.g., 'easyocr', 'paddleocr')
+        name: Return backend name (e.g., 'easyocr')
         supported_languages: Return list of supported language codes
         process_image: Process image bytes and return extraction result
 
@@ -49,7 +49,7 @@ class OcrBackendProtocol(Protocol):
     """
 
     def name(self) -> str:
-        """Return backend name (e.g., 'easyocr', 'paddleocr').
+        """Return backend name (e.g., 'easyocr').
 
         The name must be unique across all registered backends and is used
         to identify and select the backend for OCR operations.

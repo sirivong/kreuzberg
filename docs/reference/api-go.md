@@ -1445,7 +1445,7 @@ brew install tesseract
 # Debian/Ubuntu
 apt-get install tesseract-ocr
 
-# Or use EasyOCR/PaddleOCR (Python packages)
+# Or use PaddleOCR (native) or EasyOCR (Python package)
 ```
 
 ---

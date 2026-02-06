@@ -14,10 +14,72 @@ export interface TesseractConfig {
 	tesseditCharWhitelist?: string;
 }
 
+/**
+ * OCR element hierarchy level.
+ *
+ * Defines the granularity of OCR element extraction.
+ */
+export type OcrElementLevel = 'word' | 'line' | 'block' | 'page';
+
+/**
+ * Configuration for OCR element extraction.
+ *
+ * Controls how granular OCR elements are extracted and organized.
+ */
+export interface OcrElementConfig {
+	/** Enable extraction of granular OCR elements. Default: false. */
+	includeElements?: boolean;
+
+	/** Minimum hierarchy level to extract. Default: 'word'. */
+	minLevel?: OcrElementLevel;
+
+	/** Minimum confidence threshold (0.0-1.0) for including elements. Default: 0.0. */
+	minConfidence?: number;
+
+	/** Build hierarchical relationships between elements. Default: false. */
+	buildHierarchy?: boolean;
+}
+
+/**
+ * PaddleOCR engine configuration options.
+ *
+ * Specific configuration for the PaddleOCR backend.
+ */
+export interface PaddleOcrConfig {
+	/** Language code(s) for OCR (e.g., 'en', 'zh', 'multi'). */
+	language?: string;
+
+	/** Directory to cache downloaded OCR models. */
+	cacheDir?: string;
+
+	/** Enable angle classification for rotated text detection. Default: false. */
+	useAngleCls?: boolean;
+
+	/** Enable table structure detection. Default: false. */
+	enableTableDetection?: boolean;
+
+	/** Database threshold for text detection (0.0-1.0). Default: 0.3. */
+	detDbThresh?: number;
+
+	/** Box threshold for text detection (0.0-1.0). Default: 0.5. */
+	detDbBoxThresh?: number;
+
+	/** Unclip ratio for expanding detected text regions. Default: 1.5. */
+	detDbUnclipRatio?: number;
+
+	/** Maximum side length for detection preprocessing. Default: 960. */
+	detLimitSideLen?: number;
+
+	/** Batch size for text recognition. Default: 30. */
+	recBatchNum?: number;
+}
+
 export interface OcrConfig {
 	backend: string;
 	language?: string;
 	tesseractConfig?: TesseractConfig;
+	paddleOcrConfig?: PaddleOcrConfig;
+	elementConfig?: OcrElementConfig;
 }
 
 export interface EmbeddingModelType {

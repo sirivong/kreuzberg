@@ -238,10 +238,10 @@ fn get_default_cache_dir() -> PathBuf {
         return PathBuf::from(home);
     }
 
-    if cfg!(target_os = "linux") {
-        if let Ok(xdg_cache) = env::var("XDG_CACHE_HOME") {
-            return PathBuf::from(xdg_cache).join("kreuzberg/paddle");
-        }
+    if cfg!(target_os = "linux")
+        && let Ok(xdg_cache) = env::var("XDG_CACHE_HOME")
+    {
+        return PathBuf::from(xdg_cache).join("kreuzberg/paddle");
     }
 
     if let Ok(home) = env::var("HOME") {
@@ -252,10 +252,10 @@ fn get_default_cache_dir() -> PathBuf {
         }
     }
 
-    if cfg!(target_os = "windows") {
-        if let Ok(appdata) = env::var("APPDATA") {
-            return PathBuf::from(appdata).join("kreuzberg/paddle");
-        }
+    if cfg!(target_os = "windows")
+        && let Ok(appdata) = env::var("APPDATA")
+    {
+        return PathBuf::from(appdata).join("kreuzberg/paddle");
     }
 
     // Fallback to home directory cache

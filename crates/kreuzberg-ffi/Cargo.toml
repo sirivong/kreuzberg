@@ -32,6 +32,7 @@ html-to-markdown-rs = { version = "2.24.5", default-features = false }
 rayon = { version = "1.11", optional = true }
 log = "0.4"
 ahash = "0.8"
+ctor = "0.6"
 
 [target.'cfg(all(windows, target_env = "gnu"))'.dependencies]
 kreuzberg = { path = "../kreuzberg", features = [

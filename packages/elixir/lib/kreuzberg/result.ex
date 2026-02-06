@@ -15,6 +15,7 @@ defmodule Kreuzberg.ExtractionResult do
     * `:images` - Optional list of extracted images
     * `:pages` - Optional list of per-page content
     * `:elements` - Optional list of semantic elements
+    * `:ocr_elements` - Optional list of OCR elements with positioning and confidence
     * `:djot_content` - Optional rich Djot content structure
   """
 
@@ -28,6 +29,7 @@ defmodule Kreuzberg.ExtractionResult do
           images: list(Kreuzberg.Image.t()) | nil,
           pages: list(Kreuzberg.Page.t()) | nil,
           elements: list(Kreuzberg.Element.t()) | nil,
+          ocr_elements: list(Kreuzberg.OcrElement.t()) | nil,
           djot_content: Kreuzberg.DjotContent.t() | nil
         }
 
@@ -37,6 +39,7 @@ defmodule Kreuzberg.ExtractionResult do
     :images,
     :pages,
     :elements,
+    :ocr_elements,
     :djot_content,
     content: "",
     mime_type: "",
@@ -73,6 +76,7 @@ defmodule Kreuzberg.ExtractionResult do
       images: normalize_images(Keyword.get(opts, :images)),
       pages: normalize_pages(Keyword.get(opts, :pages)),
       elements: normalize_elements(Keyword.get(opts, :elements)),
+      ocr_elements: normalize_ocr_elements(Keyword.get(opts, :ocr_elements)),
       djot_content: normalize_djot_content(Keyword.get(opts, :djot_content))
     }
   end
@@ -92,6 +96,7 @@ defmodule Kreuzberg.ExtractionResult do
       "images" => maybe_map_list(result.images, &Kreuzberg.Image.to_map/1),
       "pages" => maybe_map_list(result.pages, &Kreuzberg.Page.to_map/1),
       "elements" => maybe_map_list(result.elements, &Kreuzberg.Element.to_map/1),
+      "ocr_elements" => maybe_map_list(result.ocr_elements, &Kreuzberg.OcrElement.to_map/1),
       "djot_content" =>
         case result.djot_content do
           nil -> nil
@@ -159,6 +164,17 @@ defmodule Kreuzberg.ExtractionResult do
     Enum.map(elements, fn
       %Kreuzberg.Element{} = element -> element
       map when is_map(map) -> Kreuzberg.Element.from_map(map)
+      other -> other
+    end)
+  end
+
+  defp normalize_ocr_elements(nil), do: nil
+  defp normalize_ocr_elements([]), do: []
+
+  defp normalize_ocr_elements(elements) when is_list(elements) do
+    Enum.map(elements, fn
+      %Kreuzberg.OcrElement{} = element -> element
+      map when is_map(map) -> Kreuzberg.OcrElement.from_map(map)
       other -> other
     end)
   end

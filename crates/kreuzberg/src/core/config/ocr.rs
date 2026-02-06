@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use super::formats::OutputFormat;
 use crate::core::config_validation::validate_ocr_backend;
 use crate::error::KreuzbergError;
+use crate::types::OcrElementConfig;
 
 /// OCR configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,6 +28,14 @@ pub struct OcrConfig {
     /// Output format for OCR results (optional, for format conversion)
     #[serde(default)]
     pub output_format: Option<OutputFormat>,
+
+    /// PaddleOCR-specific configuration (optional, JSON passthrough)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub paddle_ocr_config: Option<serde_json::Value>,
+
+    /// OCR element extraction configuration
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub element_config: Option<OcrElementConfig>,
 }
 
 impl Default for OcrConfig {
@@ -36,6 +45,8 @@ impl Default for OcrConfig {
             language: default_eng(),
             tesseract_config: None,
             output_format: None,
+            paddle_ocr_config: None,
+            element_config: None,
         }
     }
 }
@@ -104,8 +115,7 @@ mod tests {
         let config = OcrConfig {
             backend: "tesseract".to_string(),
             language: "fra".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         };
         assert_eq!(config.backend, "tesseract");
         assert_eq!(config.language, "fra");
@@ -115,9 +125,7 @@ mod tests {
     fn test_validate_tesseract_backend() {
         let config = OcrConfig {
             backend: "tesseract".to_string(),
-            language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         };
         assert!(config.validate().is_ok());
     }
@@ -126,9 +134,7 @@ mod tests {
     fn test_validate_easyocr_backend() {
         let config = OcrConfig {
             backend: "easyocr".to_string(),
-            language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         };
         assert!(config.validate().is_ok());
     }
@@ -137,9 +143,7 @@ mod tests {
     fn test_validate_paddleocr_backend() {
         let config = OcrConfig {
             backend: "paddleocr".to_string(),
-            language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         };
         assert!(config.validate().is_ok());
     }
@@ -148,9 +152,7 @@ mod tests {
     fn test_validate_invalid_backend_typo() {
         let config = OcrConfig {
             backend: "tesseract_typo".to_string(),
-            language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         };
         let result = config.validate();
         assert!(result.is_err());
@@ -162,9 +164,7 @@ mod tests {
     fn test_validate_invalid_backend_completely_wrong() {
         let config = OcrConfig {
             backend: "ocr_lib".to_string(),
-            language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         };
         let result = config.validate();
         assert!(result.is_err());

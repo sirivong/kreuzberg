@@ -195,8 +195,7 @@ async fn test_concurrent_ocr_processing() {
         ocr: Some(OcrConfig {
             backend: "tesseract".to_string(),
             language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         use_cache: true,
@@ -265,8 +264,7 @@ fn test_concurrent_ocr_cache_stress() {
         ocr: Some(OcrConfig {
             backend: "tesseract".to_string(),
             language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         use_cache: true,

@@ -13,7 +13,7 @@ use Kreuzberg\Config\LanguageDetectionConfig;
 use Kreuzberg\Config\PdfConfig;
 use Kreuzberg\Config\PostProcessorConfig;
 use Kreuzberg\Config\TokenReductionConfig;
-use Kreuzberg\ExtractionResult;
+use Kreuzberg\Types\ExtractionResult;
 use PHPUnit\Framework\Assert;
 
 class Helpers
@@ -383,6 +383,58 @@ class Helpers
                     strtolower($type),
                     $foundTypes,
                     sprintf("Expected element type '%s' not found in %s", $type, json_encode($foundTypes))
+                );
+            }
+        }
+    }
+
+    public static function assertOcrElements(
+        ExtractionResult $result,
+        ?bool $hasElements,
+        ?bool $eachHasType,
+        ?bool $eachHasText,
+        ?array $typesInclude
+    ): void {
+        $elements = $result->elements ?? [];
+
+        if ($hasElements === true) {
+            Assert::assertNotEmpty(
+                $elements,
+                "Expected OCR elements but found none"
+            );
+        }
+
+        if ($eachHasType === true) {
+            foreach ($elements as $i => $element) {
+                Assert::assertNotNull(
+                    $element->type ?? null,
+                    sprintf("OCR element %d should have type", $i)
+                );
+            }
+        }
+
+        if ($eachHasText === true) {
+            foreach ($elements as $i => $element) {
+                Assert::assertNotEmpty(
+                    $element->text ?? '',
+                    sprintf("OCR element %d should have text", $i)
+                );
+            }
+        }
+
+        if ($typesInclude !== null && !empty($typesInclude)) {
+            $foundTypes = [];
+            foreach ($elements as $element) {
+                if (isset($element->type)) {
+                    $foundTypes[] = strtolower($element->type);
+                }
+            }
+
+            foreach ($typesInclude as $type) {
+                Assert::assertContains(
+                    strtolower($type),
+                    $foundTypes,
+                    sprintf("Expected OCR element type '%s' not found in %s", $type, json_encode($foundTypes))
                 );
             }
         }

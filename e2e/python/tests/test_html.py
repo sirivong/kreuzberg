@@ -24,7 +24,6 @@ def test_html_complex_layout() -> None:
     helpers.assert_expected_mime(result, ["text/html"])
     helpers.assert_min_content_length(result, 1000)
 
-
 def test_html_simple_table() -> None:
     """HTML table converted to markdown should retain structure."""
 
@@ -38,6 +37,4 @@ def test_html_simple_table() -> None:
 
     helpers.assert_expected_mime(result, ["text/html"])
     helpers.assert_min_content_length(result, 100)
-    helpers.assert_content_contains_all(
-        result, ["Product", "Category", "Price", "Stock", "Laptop", "Electronics", "Sample Data Table"]
-    )
+    helpers.assert_content_contains_all(result, ["Product", "Category", "Price", "Stock", "Laptop", "Electronics", "Sample Data Table"])

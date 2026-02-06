@@ -7,8 +7,3 @@ declare module "sharp" {
 	const sharp: unknown;
 	export default sharp;
 }
-
-declare module "@gutenye/ocr-node" {
-	const GutenOcr: unknown;
-	export default GutenOcr;
-}

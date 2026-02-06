@@ -52,7 +52,7 @@ runs:
       shell: bash
       continue-on-error: true
       run: |
-        MODEL_URL="https://huggingface.co/nicksunderland/OCR_ONNX_models/resolve/main/en_PP-OCRv4_det_infer.onnx"
+        MODEL_URL="https://huggingface.co/Kreuzberg/paddleocr-onnx-models/resolve/main/en_PP-OCRv4_det_infer.onnx"
         CACHE_DIR="$HOME/.cache/kreuzberg/paddle-ocr"
         MODEL_DIR="$CACHE_DIR/det"
         MODEL_FILE="$MODEL_DIR/model.onnx"
@@ -73,7 +73,7 @@ runs:
       shell: bash
       continue-on-error: true
       run: |
-        MODEL_URL="https://huggingface.co/nicksunderland/OCR_ONNX_models/resolve/main/ch_ppocr_mobile_v2.0_cls_infer.onnx"
+        MODEL_URL="https://huggingface.co/Kreuzberg/paddleocr-onnx-models/resolve/main/ch_ppocr_mobile_v2.0_cls_infer.onnx"
         CACHE_DIR="$HOME/.cache/kreuzberg/paddle-ocr"
         MODEL_DIR="$CACHE_DIR/cls"
         MODEL_FILE="$MODEL_DIR/model.onnx"
@@ -94,7 +94,7 @@ runs:
       shell: bash
       continue-on-error: true
       run: |
-        MODEL_URL="https://huggingface.co/nicksunderland/OCR_ONNX_models/resolve/main/en_PP-OCRv4_rec_infer.onnx"
+        MODEL_URL="https://huggingface.co/Kreuzberg/paddleocr-onnx-models/resolve/main/en_PP-OCRv4_rec_infer.onnx"
         CACHE_DIR="$HOME/.cache/kreuzberg/paddle-ocr"
         MODEL_DIR="$CACHE_DIR/rec"
         MODEL_FILE="$MODEL_DIR/model.onnx"
@@ -158,9 +158,11 @@ runs:
         CACHE_DIR="$HOME/.cache/kreuzberg/paddle-ocr"
         echo "cache-dir=$CACHE_DIR" >> $GITHUB_OUTPUT
         echo "PADDLE_OCR_MODEL_CACHE=$CACHE_DIR" >> $GITHUB_ENV
+        echo "KREUZBERG_CACHE_DIR=$HOME/.cache/kreuzberg" >> $GITHUB_ENV
 
     - name: Export cache environment
       shell: bash
       run: |
         echo "PADDLE_OCR_MODEL_CACHE=$HOME/.cache/kreuzberg/paddle-ocr" >> $GITHUB_ENV
+        echo "KREUZBERG_CACHE_DIR=$HOME/.cache/kreuzberg" >> $GITHUB_ENV
         echo "PaddleOCR model cache configured at: $HOME/.cache/kreuzberg/paddle-ocr"

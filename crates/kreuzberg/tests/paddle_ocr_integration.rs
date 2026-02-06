@@ -523,25 +523,25 @@ async fn test_paddle_ocr_table_reconstruction() {
 #[test]
 fn test_cache_dir_default() {
     // Save and clear env var to test default behavior
-    let original = std::env::var("KREUZBERG_PADDLE_CACHE_DIR").ok();
+    let original = std::env::var("KREUZBERG_CACHE_DIR").ok();
 
     // SAFETY: This is a test that manipulates environment variables.
     // Tests should be run with --test-threads=1 if this causes issues.
     unsafe {
-        std::env::remove_var("KREUZBERG_PADDLE_CACHE_DIR");
+        std::env::remove_var("KREUZBERG_CACHE_DIR");
     }
 
     let config = PaddleOcrConfig::new("en");
     let resolved = config.resolve_cache_dir();
 
-    // Default should use ~/.cache/kreuzberg/paddle-ocr/
-    assert!(resolved.to_string_lossy().contains("kreuzberg"));
+    // Default should use .kreuzberg/paddle-ocr/
+    assert!(resolved.to_string_lossy().contains(".kreuzberg"));
     assert!(resolved.to_string_lossy().contains("paddle-ocr"));
 
     // Restore
     unsafe {
         if let Some(val) = original {
-            std::env::set_var("KREUZBERG_PADDLE_CACHE_DIR", val);
+            std::env::set_var("KREUZBERG_CACHE_DIR", val);
         }
     }
 }

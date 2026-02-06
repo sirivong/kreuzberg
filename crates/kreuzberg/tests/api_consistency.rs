@@ -277,8 +277,7 @@ fn test_extraction_config_needs_image_processing() {
     config.ocr = Some(kreuzberg::OcrConfig {
         backend: "tesseract".to_string(),
         language: "eng".to_string(),
-        tesseract_config: None,
-        output_format: None,
+        ..Default::default()
     });
     assert!(
         config.needs_image_processing(),

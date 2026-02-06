@@ -262,7 +262,7 @@ describe("pdf", () => {
 	});
 
 	it("pdf_tables_large", async () => {
-		const documentBytes = getFixture("pdf/large.pdf");
+		const documentBytes = getFixture("pdfs_with_tables/large.pdf");
 		if (documentBytes === null) {
 			console.warn("[SKIP] Test skipped: fixture not available in Cloudflare Workers environment");
 			return;
@@ -287,7 +287,7 @@ describe("pdf", () => {
 	});
 
 	it("pdf_tables_medium", async () => {
-		const documentBytes = getFixture("pdf/medium.pdf");
+		const documentBytes = getFixture("pdfs_with_tables/medium.pdf");
 		if (documentBytes === null) {
 			console.warn("[SKIP] Test skipped: fixture not available in Cloudflare Workers environment");
 			return;
@@ -312,7 +312,7 @@ describe("pdf", () => {
 	});
 
 	it("pdf_tables_small", async () => {
-		const documentBytes = getFixture("pdf/tiny.pdf");
+		const documentBytes = getFixture("pdfs_with_tables/tiny.pdf");
 		if (documentBytes === null) {
 			console.warn("[SKIP] Test skipped: fixture not available in Cloudflare Workers environment");
 			return;

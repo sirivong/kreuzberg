@@ -44,12 +44,71 @@ use crate::set_last_error;
 
 const VALID_BINARIZATION_METHODS: &[&str] = &["otsu", "adaptive", "sauvola"];
 const VALID_TOKEN_REDUCTION_LEVELS: &[&str] = &["off", "light", "moderate", "aggressive", "maximum"];
-const VALID_OCR_BACKENDS: &[&str] = &["tesseract", "easyocr", "paddleocr"];
+const VALID_OCR_BACKENDS: &[&str] = &["tesseract", "easyocr", "paddleocr", "paddle-ocr"];
 const VALID_LANGUAGE_CODES: &[&str] = &[
-    "en", "de", "fr", "es", "it", "pt", "nl", "pl", "ru", "zh", "ja", "ko", "bg", "cs", "da", "el", "et", "fi", "hu",
-    "lt", "lv", "ro", "sk", "sl", "sv", "uk", "ar", "hi", "th", "tr", "vi", "eng", "deu", "fra", "spa", "ita", "por",
-    "nld", "pol", "rus", "zho", "jpn", "kor", "ces", "dan", "ell", "est", "fin", "hun", "lit", "lav", "ron", "slk",
-    "slv", "swe", "tur",
+    "en",
+    "de",
+    "fr",
+    "es",
+    "it",
+    "pt",
+    "nl",
+    "pl",
+    "ru",
+    "zh",
+    "ja",
+    "ko",
+    "bg",
+    "cs",
+    "da",
+    "el",
+    "et",
+    "fi",
+    "hu",
+    "lt",
+    "lv",
+    "ro",
+    "sk",
+    "sl",
+    "sv",
+    "uk",
+    "ar",
+    "hi",
+    "th",
+    "tr",
+    "vi",
+    "eng",
+    "deu",
+    "fra",
+    "spa",
+    "ita",
+    "por",
+    "nld",
+    "pol",
+    "rus",
+    "zho",
+    "jpn",
+    "kor",
+    "ces",
+    "dan",
+    "ell",
+    "est",
+    "fin",
+    "hun",
+    "lit",
+    "lav",
+    "ron",
+    "slk",
+    "slv",
+    "swe",
+    "tur",
+    // PaddleOCR-specific language codes (non-ISO but widely used)
+    "ch",
+    "chinese_cht",
+    "latin",
+    "cyrillic",
+    "devanagari",
+    "arabic",
 ];
 
 /// Validates a binarization method string.
@@ -102,7 +161,7 @@ pub unsafe extern "C" fn kreuzberg_validate_binarization_method(method: *const c
 ///
 /// # Arguments
 ///
-/// * `backend` - C string containing the OCR backend (e.g., "tesseract", "easyocr", "paddleocr")
+/// * `backend` - C string containing the OCR backend (e.g., "tesseract", "easyocr", "paddleocr", "paddle-ocr")
 ///
 /// # Returns
 ///
@@ -599,6 +658,7 @@ mod tests {
             assert_eq!(kreuzberg_validate_ocr_backend(c"tesseract".as_ptr()), 1);
             assert_eq!(kreuzberg_validate_ocr_backend(c"easyocr".as_ptr()), 1);
             assert_eq!(kreuzberg_validate_ocr_backend(c"paddleocr".as_ptr()), 1);
+            assert_eq!(kreuzberg_validate_ocr_backend(c"paddle-ocr".as_ptr()), 1);
         }
     }
 
@@ -820,6 +880,7 @@ mod tests {
             assert!(json_str.contains("tesseract"));
             assert!(json_str.contains("easyocr"));
             assert!(json_str.contains("paddleocr"));
+            assert!(json_str.contains("paddle-ocr"));
             assert!(json_str.starts_with('[') && json_str.ends_with(']'));
 
             let _ = std::ffi::CString::from_raw(json_ptr as *mut c_char);

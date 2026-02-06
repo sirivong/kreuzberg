@@ -168,7 +168,6 @@ pub struct Assertions {
     pub result_format_is: Option<String>,
     /// OCR-specific assertions for element-based structured output
     #[serde(default)]
-    #[allow(dead_code)]
     pub ocr_elements: Option<OcrElementAssertion>,
 }
 

@@ -850,6 +850,22 @@ fn render_assertions(assertions: &Assertions) -> String {
         buffer.push_str(&format!("    assertions.assertElements(result, {min}, {types});\n"));
     }
 
+    if let Some(ocr) = assertions.ocr_elements.as_ref() {
+        let has_elements = ocr.has_elements.map(|v| v.to_string()).unwrap_or_else(|| "null".into());
+        let has_geometry = ocr
+            .elements_have_geometry
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".into());
+        let has_confidence = ocr
+            .elements_have_confidence
+            .map(|v| v.to_string())
+            .unwrap_or_else(|| "null".into());
+        let min = ocr.min_count.map(|v| v.to_string()).unwrap_or_else(|| "null".into());
+        buffer.push_str(&format!(
+            "    assertions.assertOcrElements(result, {has_elements}, {has_geometry}, {has_confidence}, {min});\n"
+        ));
+    }
+
     buffer
 }
 

@@ -28,7 +28,7 @@ runs:
         mkdir -p "$CACHE_DIR/det" "$CACHE_DIR/cls" "$CACHE_DIR/rec"
 
         # Model URLs from model_manager.rs - using Hugging Face hosted ONNX models
-        BASE_URL="https://huggingface.co/nicksunderland/OCR_ONNX_models/resolve/main"
+        BASE_URL="https://huggingface.co/Kreuzberg/paddleocr-onnx-models/resolve/main"
 
         # Download detection model (en_PP-OCRv4_det_infer.onnx)
         echo "Downloading detection model..."
@@ -70,3 +70,7 @@ runs:
         fi
 
         echo "All PaddleOCR models are present"
+
+        # Export cache environment variables
+        echo "PADDLE_OCR_MODEL_CACHE=$CACHE_DIR" >> $GITHUB_ENV
+        echo "KREUZBERG_CACHE_DIR=$HOME/.cache/kreuzberg" >> $GITHUB_ENV

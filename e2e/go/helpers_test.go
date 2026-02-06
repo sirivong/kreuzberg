@@ -545,3 +545,40 @@ func runBatchExtractionAsync(t *testing.T, relativePaths []string, configJSON []
 	}
 	return results
 }
+
+func assertOcrElements(t *testing.T, result *kreuzberg.ExtractionResult, hasElements, haveGeometry, haveConfidence *bool, minCount *int) {
+	t.Helper()
+	if hasElements != nil && *hasElements {
+		if result.OcrElements == nil || len(result.OcrElements) == 0 {
+			t.Fatalf("expected non-empty OcrElements, got nil or empty slice")
+		}
+	}
+	if haveGeometry != nil && *haveGeometry {
+		for i, elem := range result.OcrElements {
+			if elem.Geometry == nil {
+				t.Fatalf("ocr_elements[%d]: expected Geometry to be non-nil", i)
+			}
+			if elem.Geometry.Type == "" {
+				t.Fatalf("ocr_elements[%d]: expected Geometry.Type to be non-empty", i)
+			}
+			if elem.Geometry.Type != "rectangle" && elem.Geometry.Type != "quadrilateral" {
+				t.Fatalf("ocr_elements[%d]: expected Geometry.Type to be 'rectangle' or 'quadrilateral', got %q", i, elem.Geometry.Type)
+			}
+		}
+	}
+	if haveConfidence != nil && *haveConfidence {
+		for i, elem := range result.OcrElements {
+			if elem.Confidence == nil {
+				t.Fatalf("ocr_elements[%d]: expected Confidence to be non-nil", i)
+			}
+			if elem.Confidence.Recognition == nil || *elem.Confidence.Recognition <= 0 {
+				t.Fatalf("ocr_elements[%d]: expected Confidence.Recognition > 0, got %v", i, elem.Confidence.Recognition)
+			}
+		}
+	}
+	if minCount != nil {
+		if len(result.OcrElements) < *minCount {
+			t.Fatalf("expected at least %d ocr_elements, got %d", *minCount, len(result.OcrElements))
+		}
+	}
+}

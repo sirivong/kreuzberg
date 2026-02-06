@@ -160,6 +160,7 @@ pub unsafe extern "C" fn kreuzberg_clone_string(s: *const c_char) -> *mut c_char
 /// 11. page_structure_json (FIXED: was missing before PR #3)
 /// 12. pages_json (FIXED: was missing before PR #3)
 /// 13. elements_json (ADDED: for element-based extraction support)
+/// 14. ocr_elements_json (ADDED: for OCR element output)
 ///
 /// # Example (C)
 ///
@@ -213,6 +214,9 @@ pub unsafe extern "C" fn kreuzberg_free_result(result: *mut CExtractionResult) {
         if !result_box.elements_json.is_null() {
             unsafe { drop(CString::from_raw(result_box.elements_json)) };
         }
+        if !result_box.ocr_elements_json.is_null() {
+            unsafe { drop(CString::from_raw(result_box.ocr_elements_json)) };
+        }
     }
 }
 
@@ -237,6 +241,7 @@ mod tests {
             page_structure_json: CString::new("{}").unwrap().into_raw(),
             pages_json: CString::new("[]").unwrap().into_raw(),
             elements_json: CString::new("[]").unwrap().into_raw(),
+            ocr_elements_json: ptr::null_mut(),
             success: true,
             _padding1: [0u8; 7],
         }))
@@ -258,6 +263,7 @@ mod tests {
             page_structure_json: ptr::null_mut(),
             pages_json: ptr::null_mut(),
             elements_json: ptr::null_mut(),
+            ocr_elements_json: ptr::null_mut(),
             success: true,
             _padding1: [0u8; 7],
         }))
@@ -350,6 +356,7 @@ mod tests {
             page_structure_json: CString::new("{\"pages\": []}").unwrap().into_raw(),
             pages_json: CString::new("[{\"content\": \"page 1\"}]").unwrap().into_raw(),
             elements_json: ptr::null_mut(),
+            ocr_elements_json: ptr::null_mut(),
             success: true,
             _padding1: [0u8; 7],
         }));
@@ -377,6 +384,7 @@ mod tests {
             elements_json: CString::new(r#"[{"element_id":"abc","element_type":"title","text":"Hello"}]"#)
                 .unwrap()
                 .into_raw(),
+            ocr_elements_json: ptr::null_mut(),
             success: true,
             _padding1: [0u8; 7],
         }));

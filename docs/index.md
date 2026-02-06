@@ -5,7 +5,7 @@ Kreuzberg is a document intelligence platform with a high‑performance Rust cor
 
 - **Single API across languages** – Binding idioms follow each ecosystem, but features (extraction, OCR, chunking, embeddings, plugins) map 1:1.
 - **Structured extraction** – Convert PDFs, Office docs, images, emails, HTML, XML, and archives into clean Markdown/JSON, preserving tables and metadata.
-- **Multi-engine OCR** – Built-in Tesseract support everywhere, with EasyOCR and PaddleOCR extensions for Python.
+- **Multi-engine OCR** – Built-in Tesseract and PaddleOCR support in all bindings, with EasyOCR extension for Python.
 - **Plugin ecosystem** – Register post-processors, validators, OCR backends, and run them from any binding or via the CLI/API server.
 - **Deployment flexibility** – Ship as a library, run the CLI, or host the API server/MCP adapter inside containers.
 - **AI coding assistant support** – Ships with an [Agent Skill](https://agentskills.io) for Claude Code, Codex, Gemini CLI, Cursor, and other AI tools.

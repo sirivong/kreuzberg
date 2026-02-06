@@ -13,6 +13,7 @@ type ExtractionResult struct {
 	Images            []ExtractedImage `json:"images,omitempty"`
 	Pages             []PageContent    `json:"pages,omitempty"`
 	Elements          []Element        `json:"elements,omitempty"`
+	OcrElements       []OcrElement     `json:"ocr_elements,omitempty"`
 	DjotContent       *DjotContent     `json:"djot_content,omitempty"`
 }
 
@@ -488,6 +489,40 @@ type Element struct {
 	Text string `json:"text"`
 	// Metadata contains element metadata including page number, coordinates, etc.
 	Metadata ElementMetadata `json:"metadata"`
+}
+
+// OcrBoundingGeometry represents bounding box geometry for OCR elements with support for rotated bounding boxes.
+type OcrBoundingGeometry struct {
+	Type   string      `json:"type"`
+	Left   *float64    `json:"left,omitempty"`
+	Top    *float64    `json:"top,omitempty"`
+	Width  *float64    `json:"width,omitempty"`
+	Height *float64    `json:"height,omitempty"`
+	Points [][]float64 `json:"points,omitempty"`
+}
+
+// OcrConfidence represents confidence scores for OCR detection and recognition.
+type OcrConfidence struct {
+	Detection   *float64 `json:"detection,omitempty"`
+	Recognition *float64 `json:"recognition,omitempty"`
+}
+
+// OcrRotation represents rotation information for OCR elements.
+type OcrRotation struct {
+	AngleDegrees *float64 `json:"angle_degrees,omitempty"`
+	Confidence   *float64 `json:"confidence,omitempty"`
+}
+
+// OcrElement represents a single OCR-extracted text element with geometry and confidence information.
+type OcrElement struct {
+	Text            string                 `json:"text"`
+	Geometry        *OcrBoundingGeometry   `json:"geometry,omitempty"`
+	Confidence      *OcrConfidence         `json:"confidence,omitempty"`
+	Level           string                 `json:"level,omitempty"`
+	Rotation        *OcrRotation           `json:"rotation,omitempty"`
+	PageNumber      *int                   `json:"page_number,omitempty"`
+	ParentID        string                 `json:"parent_id,omitempty"`
+	BackendMetadata map[string]interface{} `json:"backend_metadata,omitempty"`
 }
 
 // DjotAttributeEntry represents a single element identifier to attributes mapping.

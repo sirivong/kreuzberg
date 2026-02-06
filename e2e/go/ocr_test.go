@@ -30,6 +30,107 @@ func TestOcrOcrImageNoText(t *testing.T) {
 	assertMaxContentLength(t, result, 200)
 }
 
+func TestOcrOcrPaddleConfidenceFilter(t *testing.T) {
+	result := runExtraction(t, "images/ocr_image.jpg", []byte(`{
+"force_ocr": true,
+"ocr": {
+	"backend": "paddle-ocr",
+	"language": "en",
+	"paddle_ocr_config": {
+	"min_confidence": 80.0
+	}
+}
+}`))
+	assertExpectedMime(t, result, []string{"image/jpeg"})
+	assertMinContentLength(t, result, 1)
+}
+
+func TestOcrOcrPaddleImageChinese(t *testing.T) {
+	result := runExtraction(t, "images/chi_sim_image.jpeg", []byte(`{
+"force_ocr": true,
+"ocr": {
+	"backend": "paddle-ocr",
+	"language": "ch"
+}
+}`))
+	assertExpectedMime(t, result, []string{"image/jpeg"})
+	assertMinContentLength(t, result, 1)
+}
+
+func TestOcrOcrPaddleImageEnglish(t *testing.T) {
+	result := runExtraction(t, "images/test_hello_world.png", []byte(`{
+"force_ocr": true,
+"ocr": {
+	"backend": "paddle-ocr",
+	"language": "en"
+}
+}`))
+	assertExpectedMime(t, result, []string{"image/png"})
+	assertMinContentLength(t, result, 5)
+	assertContentContainsAny(t, result, []string{"hello", "Hello", "world", "World"})
+}
+
+func TestOcrOcrPaddleMarkdown(t *testing.T) {
+	result := runExtraction(t, "images/test_hello_world.png", []byte(`{
+"force_ocr": true,
+"ocr": {
+	"backend": "paddle-ocr",
+	"language": "en",
+	"paddle_ocr_config": {
+	"output_format": "markdown"
+	}
+}
+}`))
+	assertExpectedMime(t, result, []string{"image/png"})
+	assertMinContentLength(t, result, 5)
+	assertContentContainsAny(t, result, []string{"hello", "Hello", "world", "World"})
+}
+
+func TestOcrOcrPaddlePdfScanned(t *testing.T) {
+	result := runExtraction(t, "pdfs/ocr_test.pdf", []byte(`{
+"force_ocr": true,
+"ocr": {
+	"backend": "paddle-ocr",
+	"language": "en"
+}
+}`))
+	assertExpectedMime(t, result, []string{"application/pdf"})
+	assertMinContentLength(t, result, 20)
+	assertContentContainsAny(t, result, []string{"Docling", "Markdown", "JSON"})
+}
+
+func TestOcrOcrPaddleStructured(t *testing.T) {
+	result := runExtraction(t, "images/test_hello_world.png", []byte(`{
+"force_ocr": true,
+"ocr": {
+	"backend": "paddle-ocr",
+	"element_config": {
+	"include_elements": true
+	},
+	"language": "en"
+}
+}`))
+	assertExpectedMime(t, result, []string{"image/png"})
+	assertMinContentLength(t, result, 5)
+	assertOcrElements(t, result, boolPtr(true), boolPtr(true), boolPtr(true), nil)
+}
+
+func TestOcrOcrPaddleTableDetection(t *testing.T) {
+	result := runExtraction(t, "images/simple_table.png", []byte(`{
+"force_ocr": true,
+"ocr": {
+	"backend": "paddle-ocr",
+	"language": "en",
+	"paddle_ocr_config": {
+	"enable_table_detection": true
+	}
+}
+}`))
+	assertExpectedMime(t, result, []string{"image/png"})
+	assertMinContentLength(t, result, 10)
+	assertTableCount(t, result, intPtr(1), nil)
+}
+
 func TestOcrOcrPdfImageOnlyGerman(t *testing.T) {
 	result := runExtraction(t, "pdf/image_only_german_pdf.pdf", []byte(`{
 "force_ocr": true,

@@ -658,6 +658,28 @@ fn render_assertions(assertions: &Assertions) -> String {
         }
     }
 
+    if let Some(ocr) = assertions.ocr_elements.as_ref() {
+        let mut args = Vec::new();
+        if let Some(has_elements) = ocr.has_elements {
+            args.push(format!("has_elements: {}", has_elements));
+        }
+        if let Some(has_geometry) = ocr.elements_have_geometry {
+            args.push(format!("elements_have_geometry: {}", has_geometry));
+        }
+        if let Some(has_confidence) = ocr.elements_have_confidence {
+            args.push(format!("elements_have_confidence: {}", has_confidence));
+        }
+        if let Some(min) = ocr.min_count {
+            args.push(format!("min_count: {}", render_numeric_literal(min as u64)));
+        }
+        if !args.is_empty() {
+            buffer.push_str(&format!(
+                "      E2ERuby::Assertions.assert_ocr_elements(result, {})\n",
+                args.join(", ")
+            ));
+        }
+    }
+
     buffer
 }
 

@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.kreuzberg.ExtractionResult;
 import dev.kreuzberg.Kreuzberg;
 import dev.kreuzberg.MissingDependencyException;
+import dev.kreuzberg.OcrElement;
 import dev.kreuzberg.Table;
 import dev.kreuzberg.config.ExtractionConfig;
 import org.junit.jupiter.api.Assumptions;
@@ -450,6 +451,40 @@ public final class E2EHelpers {
                             .anyMatch(t -> t.toLowerCase().contains(expected.toLowerCase()));
                     assertTrue(found,
                             String.format("Expected element types to include '%s', got %s", expected, types));
+                }
+            }
+        }
+
+        public static void assertOcrElements(
+                ExtractionResult result,
+                Boolean eachHasText,
+                Boolean eachHasGeometry,
+                Boolean eachHasConfidence,
+                Integer minCount
+        ) {
+            var ocrElements = result.getOcrElements();
+            int count = ocrElements != null ? ocrElements.size() : 0;
+            if (minCount != null) {
+                assertTrue(count >= minCount,
+                        String.format("Expected OCR element count >= %d, got %d", minCount, count));
+            }
+            if (ocrElements != null && eachHasText != null && eachHasText) {
+                for (OcrElement elem : ocrElements) {
+                    String text = elem.getText();
+                    assertTrue(text != null && !text.isEmpty(),
+                            "Expected each OCR element to have text");
+                }
+            }
+            if (ocrElements != null && eachHasGeometry != null && eachHasGeometry) {
+                for (OcrElement elem : ocrElements) {
+                    assertNotNull(elem.getGeometry(),
+                            "Expected each OCR element to have geometry");
+                }
+            }
+            if (ocrElements != null && eachHasConfidence != null && eachHasConfidence) {
+                for (OcrElement elem : ocrElements) {
+                    assertNotNull(elem.getConfidence(),
+                            "Expected each OCR element to have confidence");
                 }
             }
         }

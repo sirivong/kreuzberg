@@ -11,7 +11,7 @@ module Kreuzberg
   # rubocop:disable Metrics/ClassLength
   class Result
     attr_reader :content, :mime_type, :metadata, :metadata_json, :tables,
-                :detected_languages, :chunks, :images, :pages, :elements, :djot_content
+                :detected_languages, :chunks, :images, :pages, :elements, :ocr_elements, :djot_content
 
     # @!attribute [r] cells
     #   @return [Array<Array<String>>] Table cells (2D array)
@@ -211,6 +211,104 @@ module Kreuzberg
       end
     end
 
+    # OCR bounding geometry with type and coordinates
+    class OcrBoundingGeometry
+      attr_reader :type, :left, :top, :width, :height, :points
+
+      def initialize(type:, left: nil, top: nil, width: nil, height: nil, points: nil)
+        @type = type.to_s
+        @left = left&.to_f
+        @top = top&.to_f
+        @width = width&.to_f
+        @height = height&.to_f
+        @points = points
+      end
+
+      def to_h
+        {
+          type: @type,
+          left: @left,
+          top: @top,
+          width: @width,
+          height: @height,
+          points: @points
+        }.compact
+      end
+    end
+
+    # OCR confidence scores for detection and recognition
+    class OcrConfidence
+      attr_reader :detection, :recognition
+
+      def initialize(detection: nil, recognition: nil)
+        @detection = detection&.to_f
+        @recognition = recognition&.to_f
+      end
+
+      def to_h
+        {
+          detection: @detection,
+          recognition: @recognition
+        }.compact
+      end
+    end
+
+    # OCR rotation information
+    class OcrRotation
+      attr_reader :angle_degrees, :confidence
+
+      def initialize(angle_degrees: nil, confidence: nil)
+        @angle_degrees = angle_degrees&.to_f
+        @confidence = confidence&.to_f
+      end
+
+      def to_h
+        {
+          angle_degrees: @angle_degrees,
+          confidence: @confidence
+        }.compact
+      end
+    end
+
+    # OCR text element with geometry and metadata
+    class OcrElement
+      attr_reader :text, :geometry, :confidence, :level, :rotation,
+                  :page_number, :parent_id, :backend_metadata
+
+      def initialize(
+        text:,
+        geometry: nil,
+        confidence: nil,
+        level: nil,
+        rotation: nil,
+        page_number: nil,
+        parent_id: nil,
+        backend_metadata: nil
+      )
+        @text = text.to_s
+        @geometry = geometry
+        @confidence = confidence
+        @level = level&.to_s
+        @rotation = rotation
+        @page_number = page_number&.to_i
+        @parent_id = parent_id&.to_s
+        @backend_metadata = backend_metadata
+      end
+
+      def to_h
+        {
+          text: @text,
+          geometry: @geometry&.to_h,
+          confidence: @confidence&.to_h,
+          level: @level,
+          rotation: @rotation&.to_h,
+          page_number: @page_number,
+          parent_id: @parent_id,
+          backend_metadata: @backend_metadata
+        }.compact
+      end
+    end
+
     # Initialize from native hash result
     #
     # @param hash [Hash] Hash returned from native extension
@@ -227,6 +325,7 @@ module Kreuzberg
       @images = parse_images(get_value(hash, 'images'))
       @pages = parse_pages(get_value(hash, 'pages'))
       @elements = parse_elements(get_value(hash, 'elements'))
+      @ocr_elements = parse_ocr_elements(get_value(hash, 'ocr_elements'))
       @djot_content = parse_djot_content(get_value(hash, 'djot_content'))
     end
     # rubocop:enable Metrics/AbcSize
@@ -246,6 +345,7 @@ module Kreuzberg
         images: serialize_images,
         pages: serialize_pages,
         elements: serialize_elements,
+        ocr_elements: serialize_ocr_elements,
         djot_content: @djot_content&.to_h
       }
     end
@@ -354,6 +454,10 @@ module Kreuzberg
 
     def serialize_elements
       @elements&.map(&:to_h)
+    end
+
+    def serialize_ocr_elements
+      @ocr_elements&.map(&:to_h)
     end
 
     def get_value(hash, key, default = nil)
@@ -491,6 +595,44 @@ module Kreuzberg
         x1: coordinates_data['x1'].to_f,
         y1: coordinates_data['y1'].to_f
       )
+    end
+
+    def parse_ocr_elements(ocr_elements_data)
+      return nil if ocr_elements_data.nil?
+
+      ocr_elements_data.map do |element_hash|
+        OcrElement.new(
+          text: element_hash['text'],
+          geometry: parse_ocr_geometry(element_hash['geometry']),
+          confidence: parse_ocr_confidence(element_hash['confidence']),
+          level: element_hash['level'],
+          rotation: parse_ocr_rotation(element_hash['rotation']),
+          page_number: element_hash['page_number'],
+          parent_id: element_hash['parent_id'],
+          backend_metadata: element_hash['backend_metadata']
+        )
+      end
+    end
+
+    def parse_ocr_geometry(data)
+      return nil unless data.is_a?(Hash)
+
+      OcrBoundingGeometry.new(
+        type: data['type'], left: data['left'], top: data['top'],
+        width: data['width'], height: data['height'], points: data['points']
+      )
+    end
+
+    def parse_ocr_confidence(data)
+      return nil unless data.is_a?(Hash)
+
+      OcrConfidence.new(detection: data['detection'], recognition: data['recognition'])
+    end
+
+    def parse_ocr_rotation(data)
+      return nil unless data.is_a?(Hash)
+
+      OcrRotation.new(angle_degrees: data['angle_degrees'], confidence: data['confidence'])
     end
 
     def parse_djot_content(djot_data)

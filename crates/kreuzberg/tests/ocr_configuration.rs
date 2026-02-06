@@ -31,8 +31,7 @@ fn test_ocr_language_english() {
         ocr: Some(OcrConfig {
             backend: "tesseract".to_string(),
             language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         ..Default::default()
@@ -57,8 +56,7 @@ fn test_ocr_language_german() {
         ocr: Some(OcrConfig {
             backend: "tesseract".to_string(),
             language: "deu".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         ..Default::default()
@@ -96,8 +94,7 @@ fn test_ocr_language_multiple() {
         ocr: Some(OcrConfig {
             backend: "tesseract".to_string(),
             language: "eng+kor".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         ..Default::default()
@@ -139,7 +136,7 @@ fn test_ocr_psm_auto() {
                 psm: 3,
                 ..Default::default()
             }),
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         ..Default::default()
@@ -168,7 +165,7 @@ fn test_ocr_psm_single_block() {
                 psm: 6,
                 ..Default::default()
             }),
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         ..Default::default()
@@ -197,7 +194,7 @@ fn test_ocr_psm_single_line() {
                 psm: 7,
                 ..Default::default()
             }),
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         ..Default::default()
@@ -223,8 +220,7 @@ fn test_force_ocr_on_text_pdf() {
         ocr: Some(OcrConfig {
             backend: "tesseract".to_string(),
             language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: true,
         ..Default::default()
@@ -254,8 +250,7 @@ fn test_force_ocr_disabled() {
         ocr: Some(OcrConfig {
             backend: "tesseract".to_string(),
             language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         ..Default::default()
@@ -291,7 +286,7 @@ fn test_table_detection_enabled() {
                 table_row_threshold_ratio: 0.5,
                 ..Default::default()
             }),
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         ..Default::default()
@@ -320,7 +315,7 @@ fn test_table_detection_disabled() {
                 enable_table_detection: false,
                 ..Default::default()
             }),
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         ..Default::default()
@@ -349,7 +344,7 @@ fn test_language_model_ngram_configuration() {
                 language_model_ngram_on: true,
                 ..Default::default()
             }),
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         ..Default::default()
@@ -379,7 +374,7 @@ fn test_dictionary_correction_enabled() {
                 tessedit_enable_dict_correction: true,
                 ..Default::default()
             }),
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         ..Default::default()
@@ -409,7 +404,7 @@ fn test_character_whitelist() {
                 tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz ".to_string(),
                 ..Default::default()
             }),
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         ..Default::default()
@@ -438,7 +433,7 @@ fn test_ocr_cache_enabled() {
                 use_cache: true,
                 ..Default::default()
             }),
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         use_cache: true,
@@ -478,7 +473,7 @@ fn test_ocr_cache_disabled() {
                 use_cache: false,
                 ..Default::default()
             }),
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         use_cache: false,
@@ -513,7 +508,7 @@ fn test_complex_configuration_combination() {
                 use_cache: true,
                 ..Default::default()
             }),
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: false,
         use_cache: true,

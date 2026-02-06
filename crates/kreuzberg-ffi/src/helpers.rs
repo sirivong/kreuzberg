@@ -68,7 +68,7 @@ pub fn to_c_extraction_result(result: ExtractionResult) -> std::result::Result<*
         pages,
         djot_content: _,
         elements,
-        ocr_elements: _,
+        ocr_elements,
     } = result;
 
     let sanitized_content = if content.contains('\0') {
@@ -191,6 +191,17 @@ pub fn to_c_extraction_result(result: ExtractionResult) -> std::result::Result<*
         _ => None,
     };
 
+    let ocr_elements_json_guard = match ocr_elements {
+        Some(els) if !els.is_empty() => {
+            let json =
+                serde_json::to_string(&els).map_err(|e| format!("Failed to serialize OCR elements to JSON: {}", e))?;
+            Some(CStringGuard::new(CString::new(json).map_err(|e| {
+                format!("Failed to convert OCR elements JSON to C string: {}", e)
+            })?))
+        }
+        _ => None,
+    };
+
     Ok(Box::into_raw(Box::new(CExtractionResult {
         content: content_guard.into_raw(),
         mime_type: mime_type_guard.into_raw(),
@@ -205,6 +216,7 @@ pub fn to_c_extraction_result(result: ExtractionResult) -> std::result::Result<*
         page_structure_json: page_structure_json_guard.map_or(ptr::null_mut(), |g| g.into_raw()),
         pages_json: pages_json_guard.map_or(ptr::null_mut(), |g| g.into_raw()),
         elements_json: elements_json_guard.map_or(ptr::null_mut(), |g| g.into_raw()),
+        ocr_elements_json: ocr_elements_json_guard.map_or(ptr::null_mut(), |g| g.into_raw()),
         success: true,
         _padding1: [0u8; 7],
     })))

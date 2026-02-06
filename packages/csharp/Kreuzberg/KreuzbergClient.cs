@@ -1218,6 +1218,7 @@ public static class KreuzbergClient
             result.Images = DeserializeField<List<ExtractedImage>>(cRes.ImagesJson);
             result.Pages = DeserializeField<List<PageContent>>(cRes.PagesJson);
             result.Elements = DeserializeField<List<Element>>(cRes.ElementsJson);
+            result.OcrElements = DeserializeField<List<OcrElement>>(cRes.OcrElementsJson);
 
             if (result.Metadata.Pages == null && cRes.PageStructureJson != IntPtr.Zero)
             {

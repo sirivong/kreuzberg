@@ -103,11 +103,34 @@ type SecurityLimitsConfig struct {
 	MaxTableCells       *int `json:"max_table_cells,omitempty"`
 }
 
+// OcrElementConfig controls OCR element extraction behavior.
+type OcrElementConfig struct {
+	IncludeElements bool    `json:"include_elements"`
+	MinLevel        string  `json:"min_level,omitempty"`
+	MinConfidence   float64 `json:"min_confidence,omitempty"`
+	BuildHierarchy  bool    `json:"build_hierarchy"`
+}
+
+// PaddleOcrConfig exposes fine-grained controls for the PaddleOCR backend.
+type PaddleOcrConfig struct {
+	Language             string   `json:"language,omitempty"`
+	CacheDir             string   `json:"cache_dir,omitempty"`
+	UseAngleCls          *bool    `json:"use_angle_cls,omitempty"`
+	EnableTableDetection *bool    `json:"enable_table_detection,omitempty"`
+	DetDbThresh          *float64 `json:"det_db_thresh,omitempty"`
+	DetDbBoxThresh       *float64 `json:"det_db_box_thresh,omitempty"`
+	DetDbUnclipRatio     *float64 `json:"det_db_unclip_ratio,omitempty"`
+	DetLimitSideLen      *int     `json:"det_limit_side_len,omitempty"`
+	RecBatchNum          *int     `json:"rec_batch_num,omitempty"`
+}
+
 // OCRConfig selects and configures OCR backends.
 type OCRConfig struct {
-	Backend   string           `json:"backend,omitempty"`
-	Language  *string          `json:"language,omitempty"`
-	Tesseract *TesseractConfig `json:"tesseract_config,omitempty"`
+	Backend       string            `json:"backend,omitempty"`
+	Language      *string           `json:"language,omitempty"`
+	Tesseract     *TesseractConfig  `json:"tesseract_config,omitempty"`
+	PaddleOcr     *PaddleOcrConfig  `json:"paddle_ocr_config,omitempty"`
+	ElementConfig *OcrElementConfig `json:"element_config,omitempty"`
 }
 
 // TesseractConfig exposes fine-grained controls for the Tesseract backend.

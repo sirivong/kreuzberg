@@ -51,6 +51,165 @@ defmodule E2E.OcrTest do
       end
     end
 
+    test "ocr_paddle_confidence_filter" do
+      case E2E.Helpers.run_fixture(
+        "ocr_paddle_confidence_filter",
+        "images/ocr_image.jpg",
+        %{force_ocr: true, ocr: %{backend: "paddle-ocr", language: "en", paddle_ocr_config: %{min_confidence: 80}}},
+        requirements: ["paddle-ocr", "paddle-ocr", "onnxruntime"],
+        notes: "Tests confidence threshold filtering with PaddleOCR",
+        skip_if_missing: true
+      ) do
+        {:ok, result} ->
+          result
+          |> E2E.Helpers.assert_expected_mime(["image/jpeg"])
+          |> E2E.Helpers.assert_min_content_length(1)
+
+        {:skipped, reason} ->
+          IO.puts("SKIPPED: #{reason}")
+
+        {:error, reason} ->
+          flunk("Extraction failed: #{inspect(reason)}")
+      end
+    end
+
+    test "ocr_paddle_image_chinese" do
+      case E2E.Helpers.run_fixture(
+        "ocr_paddle_image_chinese",
+        "images/chi_sim_image.jpeg",
+        %{force_ocr: true, ocr: %{backend: "paddle-ocr", language: "ch"}},
+        requirements: ["paddle-ocr", "paddle-ocr", "onnxruntime"],
+        notes: "Requires PaddleOCR with Chinese models",
+        skip_if_missing: true
+      ) do
+        {:ok, result} ->
+          result
+          |> E2E.Helpers.assert_expected_mime(["image/jpeg"])
+          |> E2E.Helpers.assert_min_content_length(1)
+
+        {:skipped, reason} ->
+          IO.puts("SKIPPED: #{reason}")
+
+        {:error, reason} ->
+          flunk("Extraction failed: #{inspect(reason)}")
+      end
+    end
+
+    test "ocr_paddle_image_english" do
+      case E2E.Helpers.run_fixture(
+        "ocr_paddle_image_english",
+        "images/test_hello_world.png",
+        %{force_ocr: true, ocr: %{backend: "paddle-ocr", language: "en"}},
+        requirements: ["paddle-ocr", "paddle-ocr", "onnxruntime"],
+        notes: "Requires PaddleOCR with ONNX Runtime",
+        skip_if_missing: true
+      ) do
+        {:ok, result} ->
+          result
+          |> E2E.Helpers.assert_expected_mime(["image/png"])
+          |> E2E.Helpers.assert_min_content_length(5)
+          |> E2E.Helpers.assert_content_contains_any(["hello", "Hello", "world", "World"])
+
+        {:skipped, reason} ->
+          IO.puts("SKIPPED: #{reason}")
+
+        {:error, reason} ->
+          flunk("Extraction failed: #{inspect(reason)}")
+      end
+    end
+
+    test "ocr_paddle_markdown" do
+      case E2E.Helpers.run_fixture(
+        "ocr_paddle_markdown",
+        "images/test_hello_world.png",
+        %{force_ocr: true, ocr: %{backend: "paddle-ocr", language: "en", paddle_ocr_config: %{output_format: "markdown"}}},
+        requirements: ["paddle-ocr", "paddle-ocr", "onnxruntime"],
+        notes: "Tests markdown output format parity with Tesseract",
+        skip_if_missing: true
+      ) do
+        {:ok, result} ->
+          result
+          |> E2E.Helpers.assert_expected_mime(["image/png"])
+          |> E2E.Helpers.assert_min_content_length(5)
+          |> E2E.Helpers.assert_content_contains_any(["hello", "Hello", "world", "World"])
+
+        {:skipped, reason} ->
+          IO.puts("SKIPPED: #{reason}")
+
+        {:error, reason} ->
+          flunk("Extraction failed: #{inspect(reason)}")
+      end
+    end
+
+    test "ocr_paddle_pdf_scanned" do
+      case E2E.Helpers.run_fixture(
+        "ocr_paddle_pdf_scanned",
+        "pdfs/ocr_test.pdf",
+        %{force_ocr: true, ocr: %{backend: "paddle-ocr", language: "en"}},
+        requirements: ["paddle-ocr", "paddle-ocr", "onnxruntime"],
+        notes: "Requires PaddleOCR with ONNX Runtime",
+        skip_if_missing: true
+      ) do
+        {:ok, result} ->
+          result
+          |> E2E.Helpers.assert_expected_mime(["application/pdf"])
+          |> E2E.Helpers.assert_min_content_length(20)
+          |> E2E.Helpers.assert_content_contains_any(["Docling", "Markdown", "JSON"])
+
+        {:skipped, reason} ->
+          IO.puts("SKIPPED: #{reason}")
+
+        {:error, reason} ->
+          flunk("Extraction failed: #{inspect(reason)}")
+      end
+    end
+
+    test "ocr_paddle_structured" do
+      case E2E.Helpers.run_fixture(
+        "ocr_paddle_structured",
+        "images/test_hello_world.png",
+        %{force_ocr: true, ocr: %{backend: "paddle-ocr", element_config: %{include_elements: true}, language: "en"}},
+        requirements: ["paddle-ocr", "paddle-ocr", "onnxruntime"],
+        notes: "Tests structured output with bbox/confidence preservation",
+        skip_if_missing: true
+      ) do
+        {:ok, result} ->
+          result
+          |> E2E.Helpers.assert_expected_mime(["image/png"])
+          |> E2E.Helpers.assert_min_content_length(5)
+          |> E2E.Helpers.assert_ocr_elements(has_elements: true, elements_have_geometry: true, elements_have_confidence: true)
+
+        {:skipped, reason} ->
+          IO.puts("SKIPPED: #{reason}")
+
+        {:error, reason} ->
+          flunk("Extraction failed: #{inspect(reason)}")
+      end
+    end
+
+    test "ocr_paddle_table_detection" do
+      case E2E.Helpers.run_fixture(
+        "ocr_paddle_table_detection",
+        "images/simple_table.png",
+        %{force_ocr: true, ocr: %{backend: "paddle-ocr", language: "en", paddle_ocr_config: %{enable_table_detection: true}}},
+        requirements: ["paddle-ocr", "paddle-ocr", "onnxruntime"],
+        notes: "Tests table detection capability with PaddleOCR",
+        skip_if_missing: true
+      ) do
+        {:ok, result} ->
+          result
+          |> E2E.Helpers.assert_expected_mime(["image/png"])
+          |> E2E.Helpers.assert_min_content_length(10)
+          |> E2E.Helpers.assert_table_count(1, nil)
+
+        {:skipped, reason} ->
+          IO.puts("SKIPPED: #{reason}")
+
+        {:error, reason} ->
+          flunk("Extraction failed: #{inspect(reason)}")
+      end
+    end
+
     test "ocr_pdf_image_only_german" do
       case E2E.Helpers.run_fixture(
         "ocr_pdf_image_only_german",

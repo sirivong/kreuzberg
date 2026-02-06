@@ -61,6 +61,130 @@ public class OcrTest {
     }
 
     @Test
+    public void ocrPaddleConfidenceFilter() throws Exception {
+        JsonNode config = MAPPER.readTree("{\"force_ocr\":true,\"ocr\":{\"backend\":\"paddle-ocr\",\"language\":\"en\",\"paddle_ocr_config\":{\"min_confidence\":80.0}}}");
+        E2EHelpers.runFixture(
+            "ocr_paddle_confidence_filter",
+            "images/ocr_image.jpg",
+            config,
+            Arrays.asList("paddle-ocr", "paddle-ocr", "onnxruntime"),
+            "Tests confidence threshold filtering with PaddleOCR",
+            true,
+            result -> {
+                E2EHelpers.Assertions.assertExpectedMime(result, Arrays.asList("image/jpeg"));
+                E2EHelpers.Assertions.assertMinContentLength(result, 1);
+            }
+        );
+    }
+
+    @Test
+    public void ocrPaddleImageChinese() throws Exception {
+        JsonNode config = MAPPER.readTree("{\"force_ocr\":true,\"ocr\":{\"backend\":\"paddle-ocr\",\"language\":\"ch\"}}");
+        E2EHelpers.runFixture(
+            "ocr_paddle_image_chinese",
+            "images/chi_sim_image.jpeg",
+            config,
+            Arrays.asList("paddle-ocr", "paddle-ocr", "onnxruntime"),
+            "Requires PaddleOCR with Chinese models",
+            true,
+            result -> {
+                E2EHelpers.Assertions.assertExpectedMime(result, Arrays.asList("image/jpeg"));
+                E2EHelpers.Assertions.assertMinContentLength(result, 1);
+            }
+        );
+    }
+
+    @Test
+    public void ocrPaddleImageEnglish() throws Exception {
+        JsonNode config = MAPPER.readTree("{\"force_ocr\":true,\"ocr\":{\"backend\":\"paddle-ocr\",\"language\":\"en\"}}");
+        E2EHelpers.runFixture(
+            "ocr_paddle_image_english",
+            "images/test_hello_world.png",
+            config,
+            Arrays.asList("paddle-ocr", "paddle-ocr", "onnxruntime"),
+            "Requires PaddleOCR with ONNX Runtime",
+            true,
+            result -> {
+                E2EHelpers.Assertions.assertExpectedMime(result, Arrays.asList("image/png"));
+                E2EHelpers.Assertions.assertMinContentLength(result, 5);
+                E2EHelpers.Assertions.assertContentContainsAny(result, Arrays.asList("hello", "Hello", "world", "World"));
+            }
+        );
+    }
+
+    @Test
+    public void ocrPaddleMarkdown() throws Exception {
+        JsonNode config = MAPPER.readTree("{\"force_ocr\":true,\"ocr\":{\"backend\":\"paddle-ocr\",\"language\":\"en\",\"paddle_ocr_config\":{\"output_format\":\"markdown\"}}}");
+        E2EHelpers.runFixture(
+            "ocr_paddle_markdown",
+            "images/test_hello_world.png",
+            config,
+            Arrays.asList("paddle-ocr", "paddle-ocr", "onnxruntime"),
+            "Tests markdown output format parity with Tesseract",
+            true,
+            result -> {
+                E2EHelpers.Assertions.assertExpectedMime(result, Arrays.asList("image/png"));
+                E2EHelpers.Assertions.assertMinContentLength(result, 5);
+                E2EHelpers.Assertions.assertContentContainsAny(result, Arrays.asList("hello", "Hello", "world", "World"));
+            }
+        );
+    }
+
+    @Test
+    public void ocrPaddlePdfScanned() throws Exception {
+        JsonNode config = MAPPER.readTree("{\"force_ocr\":true,\"ocr\":{\"backend\":\"paddle-ocr\",\"language\":\"en\"}}");
+        E2EHelpers.runFixture(
+            "ocr_paddle_pdf_scanned",
+            "pdfs/ocr_test.pdf",
+            config,
+            Arrays.asList("paddle-ocr", "paddle-ocr", "onnxruntime"),
+            "Requires PaddleOCR with ONNX Runtime",
+            true,
+            result -> {
+                E2EHelpers.Assertions.assertExpectedMime(result, Arrays.asList("application/pdf"));
+                E2EHelpers.Assertions.assertMinContentLength(result, 20);
+                E2EHelpers.Assertions.assertContentContainsAny(result, Arrays.asList("Docling", "Markdown", "JSON"));
+            }
+        );
+    }
+
+    @Test
+    public void ocrPaddleStructured() throws Exception {
+        JsonNode config = MAPPER.readTree("{\"force_ocr\":true,\"ocr\":{\"backend\":\"paddle-ocr\",\"element_config\":{\"include_elements\":true},\"language\":\"en\"}}");
+        E2EHelpers.runFixture(
+            "ocr_paddle_structured",
+            "images/test_hello_world.png",
+            config,
+            Arrays.asList("paddle-ocr", "paddle-ocr", "onnxruntime"),
+            "Tests structured output with bbox/confidence preservation",
+            true,
+            result -> {
+                E2EHelpers.Assertions.assertExpectedMime(result, Arrays.asList("image/png"));
+                E2EHelpers.Assertions.assertMinContentLength(result, 5);
+                E2EHelpers.Assertions.assertOcrElements(result, true, true, true, null);
+            }
+        );
+    }
+
+    @Test
+    public void ocrPaddleTableDetection() throws Exception {
+        JsonNode config = MAPPER.readTree("{\"force_ocr\":true,\"ocr\":{\"backend\":\"paddle-ocr\",\"language\":\"en\",\"paddle_ocr_config\":{\"enable_table_detection\":true}}}");
+        E2EHelpers.runFixture(
+            "ocr_paddle_table_detection",
+            "images/simple_table.png",
+            config,
+            Arrays.asList("paddle-ocr", "paddle-ocr", "onnxruntime"),
+            "Tests table detection capability with PaddleOCR",
+            true,
+            result -> {
+                E2EHelpers.Assertions.assertExpectedMime(result, Arrays.asList("image/png"));
+                E2EHelpers.Assertions.assertMinContentLength(result, 10);
+                E2EHelpers.Assertions.assertTableCount(result, 1, null);
+            }
+        );
+    }
+
+    @Test
     public void ocrPdfImageOnlyGerman() throws Exception {
         JsonNode config = MAPPER.readTree("{\"force_ocr\":true,\"ocr\":{\"backend\":\"tesseract\",\"language\":\"eng\"}}");
         E2EHelpers.runFixture(

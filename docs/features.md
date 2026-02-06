@@ -93,22 +93,24 @@ Native Tesseract integration available in all language bindings.
 - Custom Tesseract configuration strings
 - Whitelist/blacklist character sets
 
-### Python-Specific OCR Backends
+### PaddleOCR (Native)
 
-Python bindings provide two additional OCR backends via optional dependencies:
+PaddleOCR is available as a native Rust backend in all non-WASM bindings via the `paddle-ocr` feature flag. Models are automatically downloaded on first use.
+
+- Production-ready OCR using ONNX Runtime
+- Ultra-lightweight models (~25MB total)
+- 80+ language support
+- Excellent CJK (Chinese, Japanese, Korean) accuracy
+- No Python dependency required
+- Also available as a Python package (`pip install kreuzberg[paddleocr]`, requires Python <3.14)
+
+### Python-Specific OCR Backend
 
 **EasyOCR** (`pip install kreuzberg[easyocr]`)
-- Deep learning-based OCR engine
+- Deep learning-based OCR engine (Python only)
 - 80+ language support
 - GPU acceleration support (CUDA)
 - Better accuracy for certain scripts (CJK, Arabic, etc.)
-- Requires Python <3.14
-
-**PaddleOCR** (`pip install kreuzberg[paddleocr]`)
-- Production-ready OCR from PaddlePaddle
-- Ultra-lightweight models
-- 80+ language support
-- Mobile deployment capability
 - Requires Python <3.14
 
 ### OCR Features
@@ -648,7 +650,7 @@ See [AI Coding Assistants Guide](guides/agent-skills.md) for details.
 | **OCR** | | | | | | | |
 | Tesseract | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | EasyOCR | ✗ | ✗ | ✓ (optional) | ✗ | ✗ | ✗ | ✗ |
-| PaddleOCR | ✗ | ✗ | ✓ (optional) | ✗ | ✗ | ✗ | ✗ |
+| PaddleOCR | ✓ | ✓ | ✓ (optional) | ✓ | ✓ | ✓ | ✗ |
 | **Processing** | | | | | | | |
 | Language detection | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Content chunking | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
@@ -768,7 +770,7 @@ pip install kreuzberg[paddleocr]
 pip install kreuzberg[all]
 ```
 
-**Note:** EasyOCR and PaddleOCR require Python <3.14 due to PyTorch dependencies.
+**Note:** EasyOCR requires Python <3.14 due to PyTorch dependencies. The Python PaddleOCR package also requires Python <3.14, but the native Rust PaddleOCR backend has no Python dependency and works on all platforms.
 
 ### TypeScript/Ruby Packages
 

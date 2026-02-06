@@ -55,6 +55,8 @@ fn init_async_runtime() -> PyResult<()> {
 /// Internal bindings module for Kreuzberg
 #[pymodule]
 fn _internal_bindings(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    kreuzberg::ort_discovery::ensure_ort_available();
+
     m.add("ValidationError", m.py().get_type::<error::ValidationError>())?;
     m.add("ParsingError", m.py().get_type::<error::ParsingError>())?;
     m.add("OCRError", m.py().get_type::<error::OCRError>())?;

@@ -332,6 +332,50 @@ pub mod assertions {
         }
     }
 
+    /// Assert OCR elements count and properties.
+    pub fn assert_ocr_elements(
+        result: &ExtractionResult,
+        has_elements: Option<bool>,
+        elements_have_geometry: Option<bool>,
+        elements_have_confidence: Option<bool>,
+        min_count: Option<usize>,
+    ) {
+        if has_elements == Some(true) {
+            let ocr_elements = result.ocr_elements.as_ref().expect("Expected ocr_elements in result");
+            assert!(!ocr_elements.is_empty(), "Expected non-empty ocr_elements");
+        }
+
+        if let Some(Some(ocr_elements)) = result.ocr_elements.as_ref().map(Some) {
+            if elements_have_geometry == Some(true) {
+                for element in ocr_elements.iter() {
+                    // Check that geometry exists and is valid
+                    match &element.geometry {
+                        kreuzberg::types::OcrBoundingGeometry::Rectangle { .. } => {}
+                        kreuzberg::types::OcrBoundingGeometry::Quadrilateral { .. } => {}
+                    }
+                }
+            }
+
+            if elements_have_confidence == Some(true) {
+                for (i, element) in ocr_elements.iter().enumerate() {
+                    assert!(
+                        element.confidence.recognition > 0.0,
+                        "Expected element {i} to have recognition confidence > 0, got {}",
+                        element.confidence.recognition
+                    );
+                }
+            }
+
+            if let Some(min) = min_count {
+                assert!(
+                    ocr_elements.len() >= min,
+                    "Expected at least {min} ocr_elements, found {}",
+                    ocr_elements.len()
+                );
+            }
+        }
+    }
+
     fn lookup_path<'a>(value: &'a Value, path: &str) -> Option<&'a Value> {
         if let Some(found) = lookup_path_inner(value, path) {
             return Some(found);

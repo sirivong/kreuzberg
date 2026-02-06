@@ -103,6 +103,8 @@ pub fn apply_extraction_overrides(
                 language: "eng".to_string(),
                 tesseract_config: None,
                 output_format: None,
+                paddle_ocr_config: None,
+                element_config: None,
             });
         } else {
             config.ocr = None;

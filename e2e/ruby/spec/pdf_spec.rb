@@ -193,7 +193,7 @@ RSpec.describe 'pdf fixtures' do
   it 'pdf_tables_large' do
     E2ERuby.run_fixture(
       'pdf_tables_large',
-      'pdf/large.pdf',
+      'pdfs_with_tables/large.pdf',
       nil,
       requirements: [],
       notes: nil,
@@ -211,7 +211,7 @@ RSpec.describe 'pdf fixtures' do
   it 'pdf_tables_medium' do
     E2ERuby.run_fixture(
       'pdf_tables_medium',
-      'pdf/medium.pdf',
+      'pdfs_with_tables/medium.pdf',
       nil,
       requirements: [],
       notes: nil,
@@ -229,7 +229,7 @@ RSpec.describe 'pdf fixtures' do
   it 'pdf_tables_small' do
     E2ERuby.run_fixture(
       'pdf_tables_small',
-      'pdf/tiny.pdf',
+      'pdfs_with_tables/tiny.pdf',
       nil,
       requirements: [],
       notes: nil,

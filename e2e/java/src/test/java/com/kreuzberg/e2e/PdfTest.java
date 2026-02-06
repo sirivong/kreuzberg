@@ -214,7 +214,7 @@ public class PdfTest {
         JsonNode config = null;
         E2EHelpers.runFixture(
             "pdf_tables_large",
-            "pdf/large.pdf",
+            "pdfs_with_tables/large.pdf",
             config,
             Collections.emptyList(),
             null,
@@ -232,7 +232,7 @@ public class PdfTest {
         JsonNode config = null;
         E2EHelpers.runFixture(
             "pdf_tables_medium",
-            "pdf/medium.pdf",
+            "pdfs_with_tables/medium.pdf",
             config,
             Collections.emptyList(),
             null,
@@ -250,7 +250,7 @@ public class PdfTest {
         JsonNode config = null;
         E2EHelpers.runFixture(
             "pdf_tables_small",
-            "pdf/tiny.pdf",
+            "pdfs_with_tables/tiny.pdf",
             config,
             Collections.emptyList(),
             null,

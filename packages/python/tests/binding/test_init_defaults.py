@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import contextlib
-import importlib
 from pathlib import Path
-from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import pytest
@@ -24,20 +22,6 @@ from kreuzberg import (
     extract_file,
     extract_file_sync,
 )
-
-if TYPE_CHECKING:
-    from types import ModuleType
-
-
-def _import_paddleocr_or_skip() -> ModuleType:  # type: ignore[return]
-    try:
-        return importlib.import_module("paddleocr")
-    except ModuleNotFoundError:
-        pytest.skip("PaddleOCR not installed")
-    except RuntimeError as exc:
-        if "PDX has already been initialized" in str(exc):
-            pytest.skip("PaddleOCR is in a bad state on this runner")
-        raise
 
 
 def test_hash_kwargs_with_serializable_dict() -> None:
@@ -189,17 +173,6 @@ def test_ensure_ocr_backend_registered_with_easyocr_missing_dependency(docx_docu
         assert "easyocr" in str(exc_info.value).lower()
 
 
-def test_ensure_ocr_backend_registered_with_paddleocr_missing_dependency(docx_document: Path) -> None:
-    """Test OCR backend registration raises for missing paddleocr."""
-    config = ExtractionConfig(ocr=OcrConfig(backend="paddleocr", language="en"))
-
-    with patch.dict("sys.modules", {"kreuzberg.ocr.paddleocr": None}):
-        with pytest.raises(MissingDependencyError) as exc_info:
-            extract_file_sync(docx_document, config=config)
-
-        assert "paddleocr" in str(exc_info.value).lower()
-
-
 def test_extraction_config_max_concurrent_property() -> None:
     config = ExtractionConfig(max_concurrent_extractions=5)
     assert config.max_concurrent_extractions == 5
@@ -253,17 +226,6 @@ def test_easyocr_kwargs_passed_to_backend(docx_document: Path) -> None:
     config = ExtractionConfig(ocr=OcrConfig(backend="easyocr", language="en"))
 
     result = extract_file_sync(docx_document, config=config, easyocr_kwargs={"use_gpu": False})
-
-    assert result is not None
-
-
-def test_paddleocr_kwargs_passed_to_backend(docx_document: Path) -> None:
-    """Test that paddleocr_kwargs are properly passed to PaddleOCR backend."""
-    _import_paddleocr_or_skip()
-
-    config = ExtractionConfig(ocr=OcrConfig(backend="paddleocr", language="en"))
-
-    result = extract_file_sync(docx_document, config=config, paddleocr_kwargs={"use_gpu": False})
 
     assert result is not None
 

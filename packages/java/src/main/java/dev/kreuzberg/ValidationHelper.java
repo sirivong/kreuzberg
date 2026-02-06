@@ -46,7 +46,8 @@ public final class ValidationHelper {
 	 * Validates an OCR backend string.
 	 *
 	 * @param backend
-	 *            the OCR backend (e.g., "tesseract", "easyocr", "paddleocr")
+	 *            the OCR backend (e.g., "tesseract", "easyocr", "paddleocr",
+	 *            "paddle-ocr")
 	 * @throws KreuzbergException
 	 *             if the backend is invalid
 	 */

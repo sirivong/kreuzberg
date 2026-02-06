@@ -91,6 +91,330 @@ fn test_ocr_image_no_text() {
 }
 
 #[test]
+fn test_ocr_paddle_confidence_filter() {
+    // PaddleOCR with minimum confidence threshold filtering.
+
+    let document_path = resolve_document("images/ocr_image.jpg");
+    if !document_path.exists() {
+        println!(
+            "Skipping ocr_paddle_confidence_filter: missing document at {}",
+            document_path.display()
+        );
+        return;
+    }
+    let config: ExtractionConfig = serde_json::from_str(
+        r#"{
+  "force_ocr": true,
+  "ocr": {
+    "backend": "paddle-ocr",
+    "language": "en",
+    "paddle_ocr_config": {
+      "min_confidence": 80.0
+    }
+  }
+}"#,
+    )
+    .expect("Fixture config should deserialize");
+
+    let result = match kreuzberg::extract_file_sync(&document_path, None, &config) {
+        Err(KreuzbergError::MissingDependency(dep)) => {
+            println!(
+                "Skipping ocr_paddle_confidence_filter: missing dependency {dep}",
+                dep = dep
+            );
+            return;
+        }
+        Err(KreuzbergError::UnsupportedFormat(fmt)) => {
+            println!(
+                "Skipping ocr_paddle_confidence_filter: unsupported format {fmt} (requires optional tool)",
+                fmt = fmt
+            );
+            return;
+        }
+        Err(err) => panic!("Extraction failed for ocr_paddle_confidence_filter: {err:?}"),
+        Ok(result) => result,
+    };
+
+    assertions::assert_expected_mime(&result, &["image/jpeg"]);
+    assertions::assert_min_content_length(&result, 1);
+}
+
+#[test]
+fn test_ocr_paddle_image_chinese() {
+    // Chinese OCR with PaddleOCR - its core strength.
+
+    let document_path = resolve_document("images/chi_sim_image.jpeg");
+    if !document_path.exists() {
+        println!(
+            "Skipping ocr_paddle_image_chinese: missing document at {}",
+            document_path.display()
+        );
+        return;
+    }
+    let config: ExtractionConfig = serde_json::from_str(
+        r#"{
+  "force_ocr": true,
+  "ocr": {
+    "backend": "paddle-ocr",
+    "language": "ch"
+  }
+}"#,
+    )
+    .expect("Fixture config should deserialize");
+
+    let result = match kreuzberg::extract_file_sync(&document_path, None, &config) {
+        Err(KreuzbergError::MissingDependency(dep)) => {
+            println!("Skipping ocr_paddle_image_chinese: missing dependency {dep}", dep = dep);
+            return;
+        }
+        Err(KreuzbergError::UnsupportedFormat(fmt)) => {
+            println!(
+                "Skipping ocr_paddle_image_chinese: unsupported format {fmt} (requires optional tool)",
+                fmt = fmt
+            );
+            return;
+        }
+        Err(err) => panic!("Extraction failed for ocr_paddle_image_chinese: {err:?}"),
+        Ok(result) => result,
+    };
+
+    assertions::assert_expected_mime(&result, &["image/jpeg"]);
+    assertions::assert_min_content_length(&result, 1);
+}
+
+#[test]
+fn test_ocr_paddle_image_english() {
+    // Simple English image OCR with PaddleOCR backend.
+
+    let document_path = resolve_document("images/test_hello_world.png");
+    if !document_path.exists() {
+        println!(
+            "Skipping ocr_paddle_image_english: missing document at {}",
+            document_path.display()
+        );
+        return;
+    }
+    let config: ExtractionConfig = serde_json::from_str(
+        r#"{
+  "force_ocr": true,
+  "ocr": {
+    "backend": "paddle-ocr",
+    "language": "en"
+  }
+}"#,
+    )
+    .expect("Fixture config should deserialize");
+
+    let result = match kreuzberg::extract_file_sync(&document_path, None, &config) {
+        Err(KreuzbergError::MissingDependency(dep)) => {
+            println!("Skipping ocr_paddle_image_english: missing dependency {dep}", dep = dep);
+            return;
+        }
+        Err(KreuzbergError::UnsupportedFormat(fmt)) => {
+            println!(
+                "Skipping ocr_paddle_image_english: unsupported format {fmt} (requires optional tool)",
+                fmt = fmt
+            );
+            return;
+        }
+        Err(err) => panic!("Extraction failed for ocr_paddle_image_english: {err:?}"),
+        Ok(result) => result,
+    };
+
+    assertions::assert_expected_mime(&result, &["image/png"]);
+    assertions::assert_min_content_length(&result, 5);
+    assertions::assert_content_contains_any(&result, &["hello", "Hello", "world", "World"]);
+}
+
+#[test]
+fn test_ocr_paddle_markdown() {
+    // PaddleOCR with markdown output format.
+
+    let document_path = resolve_document("images/test_hello_world.png");
+    if !document_path.exists() {
+        println!(
+            "Skipping ocr_paddle_markdown: missing document at {}",
+            document_path.display()
+        );
+        return;
+    }
+    let config: ExtractionConfig = serde_json::from_str(
+        r#"{
+  "force_ocr": true,
+  "ocr": {
+    "backend": "paddle-ocr",
+    "language": "en",
+    "paddle_ocr_config": {
+      "output_format": "markdown"
+    }
+  }
+}"#,
+    )
+    .expect("Fixture config should deserialize");
+
+    let result = match kreuzberg::extract_file_sync(&document_path, None, &config) {
+        Err(KreuzbergError::MissingDependency(dep)) => {
+            println!("Skipping ocr_paddle_markdown: missing dependency {dep}", dep = dep);
+            return;
+        }
+        Err(KreuzbergError::UnsupportedFormat(fmt)) => {
+            println!(
+                "Skipping ocr_paddle_markdown: unsupported format {fmt} (requires optional tool)",
+                fmt = fmt
+            );
+            return;
+        }
+        Err(err) => panic!("Extraction failed for ocr_paddle_markdown: {err:?}"),
+        Ok(result) => result,
+    };
+
+    assertions::assert_expected_mime(&result, &["image/png"]);
+    assertions::assert_min_content_length(&result, 5);
+    assertions::assert_content_contains_any(&result, &["hello", "Hello", "world", "World"]);
+}
+
+#[test]
+fn test_ocr_paddle_pdf_scanned() {
+    // Scanned PDF requires PaddleOCR to extract text.
+
+    let document_path = resolve_document("pdfs/ocr_test.pdf");
+    if !document_path.exists() {
+        println!(
+            "Skipping ocr_paddle_pdf_scanned: missing document at {}",
+            document_path.display()
+        );
+        return;
+    }
+    let config: ExtractionConfig = serde_json::from_str(
+        r#"{
+  "force_ocr": true,
+  "ocr": {
+    "backend": "paddle-ocr",
+    "language": "en"
+  }
+}"#,
+    )
+    .expect("Fixture config should deserialize");
+
+    let result = match kreuzberg::extract_file_sync(&document_path, None, &config) {
+        Err(KreuzbergError::MissingDependency(dep)) => {
+            println!("Skipping ocr_paddle_pdf_scanned: missing dependency {dep}", dep = dep);
+            return;
+        }
+        Err(KreuzbergError::UnsupportedFormat(fmt)) => {
+            println!(
+                "Skipping ocr_paddle_pdf_scanned: unsupported format {fmt} (requires optional tool)",
+                fmt = fmt
+            );
+            return;
+        }
+        Err(err) => panic!("Extraction failed for ocr_paddle_pdf_scanned: {err:?}"),
+        Ok(result) => result,
+    };
+
+    assertions::assert_expected_mime(&result, &["application/pdf"]);
+    assertions::assert_min_content_length(&result, 20);
+    assertions::assert_content_contains_any(&result, &["Docling", "Markdown", "JSON"]);
+}
+
+#[test]
+fn test_ocr_paddle_structured() {
+    // PaddleOCR with structured output preserving all metadata.
+
+    let document_path = resolve_document("images/test_hello_world.png");
+    if !document_path.exists() {
+        println!(
+            "Skipping ocr_paddle_structured: missing document at {}",
+            document_path.display()
+        );
+        return;
+    }
+    let config: ExtractionConfig = serde_json::from_str(
+        r#"{
+  "force_ocr": true,
+  "ocr": {
+    "backend": "paddle-ocr",
+    "element_config": {
+      "include_elements": true
+    },
+    "language": "en"
+  }
+}"#,
+    )
+    .expect("Fixture config should deserialize");
+
+    let result = match kreuzberg::extract_file_sync(&document_path, None, &config) {
+        Err(KreuzbergError::MissingDependency(dep)) => {
+            println!("Skipping ocr_paddle_structured: missing dependency {dep}", dep = dep);
+            return;
+        }
+        Err(KreuzbergError::UnsupportedFormat(fmt)) => {
+            println!(
+                "Skipping ocr_paddle_structured: unsupported format {fmt} (requires optional tool)",
+                fmt = fmt
+            );
+            return;
+        }
+        Err(err) => panic!("Extraction failed for ocr_paddle_structured: {err:?}"),
+        Ok(result) => result,
+    };
+
+    assertions::assert_expected_mime(&result, &["image/png"]);
+    assertions::assert_min_content_length(&result, 5);
+    assertions::assert_ocr_elements(&result, Some(true), Some(true), Some(true), None);
+}
+
+#[test]
+fn test_ocr_paddle_table_detection() {
+    // Table detection and extraction with PaddleOCR.
+
+    let document_path = resolve_document("images/simple_table.png");
+    if !document_path.exists() {
+        println!(
+            "Skipping ocr_paddle_table_detection: missing document at {}",
+            document_path.display()
+        );
+        return;
+    }
+    let config: ExtractionConfig = serde_json::from_str(
+        r#"{
+  "force_ocr": true,
+  "ocr": {
+    "backend": "paddle-ocr",
+    "language": "en",
+    "paddle_ocr_config": {
+      "enable_table_detection": true
+    }
+  }
+}"#,
+    )
+    .expect("Fixture config should deserialize");
+
+    let result = match kreuzberg::extract_file_sync(&document_path, None, &config) {
+        Err(KreuzbergError::MissingDependency(dep)) => {
+            println!(
+                "Skipping ocr_paddle_table_detection: missing dependency {dep}",
+                dep = dep
+            );
+            return;
+        }
+        Err(KreuzbergError::UnsupportedFormat(fmt)) => {
+            println!(
+                "Skipping ocr_paddle_table_detection: unsupported format {fmt} (requires optional tool)",
+                fmt = fmt
+            );
+            return;
+        }
+        Err(err) => panic!("Extraction failed for ocr_paddle_table_detection: {err:?}"),
+        Ok(result) => result,
+    };
+
+    assertions::assert_expected_mime(&result, &["image/png"]);
+    assertions::assert_min_content_length(&result, 10);
+    assertions::assert_table_count(&result, Some(1), None);
+}
+
+#[test]
 fn test_ocr_pdf_image_only_german() {
     // Image-only German PDF requiring OCR to extract text.
 

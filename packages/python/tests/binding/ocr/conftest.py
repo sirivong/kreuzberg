@@ -1,6 +1,6 @@
 """Pytest configuration for OCR backend tests.
 
-Provides mock implementations of optional OCR libraries (easyocr, paddleocr)
+Provides mock implementations of optional OCR libraries (easyocr)
 to allow tests to run without requiring the actual libraries to be installed.
 """
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 @pytest.fixture(scope="session", autouse=True)
 def mock_ocr_libraries() -> Generator[None, None, None]:
-    """Mock easyocr and paddleocr modules to allow tests to run without them installed.
+    """Mock easyocr module to allow tests to run without it installed.
 
     This fixture is automatically used for all tests in this module.
     It injects mock modules into sys.modules so that pytest.importorskip() will pass
@@ -28,18 +28,6 @@ def mock_ocr_libraries() -> Generator[None, None, None]:
     easyocr_mock = MagicMock()
     easyocr_mock.Reader = Mock()
     sys.modules["easyocr"] = easyocr_mock
-
-    # Create mock paddleocr module with necessary attributes
-    paddleocr_mock = MagicMock()
-    paddleocr_mock.PaddleOCR = Mock()
-    paddleocr_mock.PPStructure = Mock()
-    sys.modules["paddleocr"] = paddleocr_mock
-
-    # Create mock paddleocr.tools.paddleocr module
-    paddleocr_tools = MagicMock()
-    paddleocr_tools.paddleocr = paddleocr_mock
-    sys.modules["paddleocr.tools"] = paddleocr_tools
-    sys.modules["paddleocr.tools.paddleocr"] = paddleocr_mock
 
     # Create mock torch module (used by easyocr for CUDA detection)
     torch_mock = MagicMock()
@@ -51,7 +39,4 @@ def mock_ocr_libraries() -> Generator[None, None, None]:
 
     # Clean up mocks after session
     sys.modules.pop("easyocr", None)
-    sys.modules.pop("paddleocr", None)
-    sys.modules.pop("paddleocr.tools", None)
-    sys.modules.pop("paddleocr.tools.paddleocr", None)
     sys.modules.pop("torch", None)

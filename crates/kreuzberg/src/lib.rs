@@ -72,6 +72,9 @@ pub mod keywords;
 #[cfg(feature = "ocr")]
 pub mod ocr;
 
+#[cfg(any(feature = "paddle-ocr", feature = "embeddings"))]
+pub mod ort_discovery;
+
 #[cfg(feature = "paddle-ocr")]
 pub mod paddle_ocr;
 

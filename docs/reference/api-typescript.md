@@ -454,7 +454,7 @@ interface OcrConfig {
 
 **Fields:**
 
-- `backend` (string): OCR backend to use. Options: "tesseract", "guten-ocr". Default: "tesseract"
+- `backend` (string): OCR backend to use. Options: "tesseract", "paddle-ocr". Default: "tesseract"
 - `language` (string): Language code for OCR (ISO 639-3). Default: "eng"
 - `tesseractConfig` (TesseractConfig | null): Tesseract-specific configuration. Default: null
 
@@ -1028,20 +1028,22 @@ clearValidators();
 
 Register custom OCR backends for image and PDF processing.
 
-**Example with Guten-OCR:**
+**Example with PaddleOCR (native backend):**
 
-```typescript title="register_guten_ocr.ts"
-import { GutenOcrBackend, registerOcrBackend } from '@kreuzberg/node';
+PaddleOCR is now built into the native Rust core. Simply set the backend to `"paddle-ocr"`:
 
-const gutenOcr = new GutenOcrBackend();
-registerOcrBackend(gutenOcr);
+```typescript title="register_paddle_ocr.ts"
+import { extractFileSync } from '@kreuzberg/node';
 
 const config = {
   ocr: {
-    backend: 'guten-ocr',
-    language: 'eng'
+    backend: 'paddle-ocr',
+    language: 'en'
   }
 };
+
+const result = extractFileSync('scanned.pdf', null, config);
+console.log(result.content);
 ```
 
 ---

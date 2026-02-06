@@ -390,6 +390,46 @@ export const assertions = {
 		}
 	},
 
+	assertOcrElements(
+		result: ExtractionResult,
+		hasElements?: boolean | null,
+		elementsHaveGeometry?: boolean | null,
+		elementsHaveConfidence?: boolean | null,
+		minCount?: number | null,
+	): void {
+		const ocrElements = (result as unknown as PlainRecord).ocrElements as unknown[] | undefined;
+		if (hasElements) {
+			expect(ocrElements).toBeDefined();
+			if (!Array.isArray(ocrElements)) {
+				throw new Error("Expected ocrElements to be an array");
+			}
+			if (ocrElements.length === 0) {
+				throw new Error("Expected ocrElements to be non-empty");
+			}
+		}
+		if (Array.isArray(ocrElements)) {
+			if (typeof minCount === "number") {
+				expect(ocrElements.length).toBeGreaterThanOrEqual(minCount);
+			}
+			if (elementsHaveGeometry) {
+				for (const el of ocrElements) {
+					const geometry = (el as PlainRecord).geometry;
+					expect(geometry).toBeDefined();
+					const type = (geometry as PlainRecord)?.type;
+					expect(["rectangle", "quadrilateral"].includes(type as string)).toBe(true);
+				}
+			}
+			if (elementsHaveConfidence) {
+				for (const el of ocrElements) {
+					const confidence = (el as PlainRecord).confidence;
+					expect(confidence).toBeDefined();
+					const recognition = (confidence as PlainRecord)?.recognition;
+					expect(typeof recognition === "number" && recognition > 0).toBe(true);
+				}
+			}
+		}
+	},
+
 	assertElements(result: ExtractionResult, minCount: number | null, typesInclude: string[] | null): void {
 		const elements = Array.isArray(result.elements) ? result.elements : [];
 		if (typeof minCount === "number") {

@@ -68,8 +68,7 @@ paddle-ocr = [
     "dep:kreuzberg-paddle-ocr",
     "dep:sha2",
     "dep:image",
-    "dep:reqwest",
-    "dep:tar",
+    "dep:hf-hub",
     "html",
     "tokio-runtime",
     "ocr",
@@ -271,6 +270,7 @@ fastembed = { version = "5.8", default-features = false, features = [
     "hf-hub-rustls-tls",
     "ort-load-dynamic",
 ], optional = true }
+hf-hub = { version = "0.4", default-features = false, features = ["ureq"], optional = true }
 # Force ureq (transitive dep via hf-hub) to use rustls on non-Windows
 ureq = { version = "3.2", default-features = false, features = ["rustls", "json"] }
 
@@ -289,6 +289,7 @@ fastembed = { version = "5.8", default-features = false, features = [
     "hf-hub-native-tls",
     "ort-load-dynamic",
 ], optional = true }
+hf-hub = { version = "0.4", default-features = false, features = ["ureq"], optional = true }
 # Force ureq (transitive dep via hf-hub) to use native-tls on Windows
 ureq = { version = "3.2", default-features = false, features = ["native-tls", "json"] }
 

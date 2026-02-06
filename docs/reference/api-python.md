@@ -14,12 +14,6 @@ pip install kreuzberg
 pip install "kreuzberg[easyocr]"
 ```
 
-**With PaddleOCR:**
-
-```bash title="Terminal"
-pip install "kreuzberg[paddleocr]"
-```
-
 **With API server:**
 
 ```bash title="Terminal"
@@ -47,7 +41,6 @@ def extract_file_sync(
     config: ExtractionConfig | None = None,
     *,
     easyocr_kwargs: dict[str, Any] | None = None,
-    paddleocr_kwargs: dict[str, Any] | None = None,
 ) -> ExtractionResult
 ```
 
@@ -57,7 +50,7 @@ def extract_file_sync(
 - `mime_type` (str | None): Optional MIME type hint. If None, MIME type is auto-detected from file extension and content
 - `config` (ExtractionConfig | None): Extraction configuration. Uses defaults if None
 - `easyocr_kwargs` (dict | None): EasyOCR initialization options (languages, use_gpu, beam_width, etc.)
-- `paddleocr_kwargs` (dict | None): PaddleOCR initialization options (lang, use_angle_cls, show_log, etc.)
+
 
 **Returns:**
 
@@ -122,7 +115,6 @@ async def extract_file(
     config: ExtractionConfig | None = None,
     *,
     easyocr_kwargs: dict[str, Any] | None = None,
-    paddleocr_kwargs: dict[str, Any] | None = None,
 ) -> ExtractionResult
 ```
 
@@ -162,7 +154,6 @@ def extract_bytes_sync(
     config: ExtractionConfig | None = None,
     *,
     easyocr_kwargs: dict[str, Any] | None = None,
-    paddleocr_kwargs: dict[str, Any] | None = None,
 ) -> ExtractionResult
 ```
 
@@ -172,7 +163,7 @@ def extract_bytes_sync(
 - `mime_type` (str): MIME type of the data (required for format detection)
 - `config` (ExtractionConfig | None): Extraction configuration. Uses defaults if None
 - `easyocr_kwargs` (dict | None): EasyOCR initialization options
-- `paddleocr_kwargs` (dict | None): PaddleOCR initialization options
+
 
 **Returns:**
 
@@ -205,7 +196,6 @@ async def extract_bytes(
     config: ExtractionConfig | None = None,
     *,
     easyocr_kwargs: dict[str, Any] | None = None,
-    paddleocr_kwargs: dict[str, Any] | None = None,
 ) -> ExtractionResult
 ```
 
@@ -231,7 +221,6 @@ def batch_extract_files_sync(
     config: ExtractionConfig | None = None,
     *,
     easyocr_kwargs: dict[str, Any] | None = None,
-    paddleocr_kwargs: dict[str, Any] | None = None,
 ) -> list[ExtractionResult]
 ```
 
@@ -240,7 +229,7 @@ def batch_extract_files_sync(
 - `paths` (list[str | Path]): List of file paths to extract
 - `config` (ExtractionConfig | None): Extraction configuration applied to all files
 - `easyocr_kwargs` (dict | None): EasyOCR initialization options
-- `paddleocr_kwargs` (dict | None): PaddleOCR initialization options
+
 
 **Returns:**
 
@@ -272,7 +261,6 @@ async def batch_extract_files(
     config: ExtractionConfig | None = None,
     *,
     easyocr_kwargs: dict[str, Any] | None = None,
-    paddleocr_kwargs: dict[str, Any] | None = None,
 ) -> list[ExtractionResult]
 ```
 
@@ -299,7 +287,6 @@ def batch_extract_bytes_sync(
     config: ExtractionConfig | None = None,
     *,
     easyocr_kwargs: dict[str, Any] | None = None,
-    paddleocr_kwargs: dict[str, Any] | None = None,
 ) -> list[ExtractionResult]
 ```
 
@@ -309,7 +296,7 @@ def batch_extract_bytes_sync(
 - `mime_types` (list[str]): List of MIME types (one per data item, same length as data_list)
 - `config` (ExtractionConfig | None): Extraction configuration applied to all items
 - `easyocr_kwargs` (dict | None): EasyOCR initialization options
-- `paddleocr_kwargs` (dict | None): PaddleOCR initialization options
+
 
 **Returns:**
 
@@ -330,7 +317,6 @@ async def batch_extract_bytes(
     config: ExtractionConfig | None = None,
     *,
     easyocr_kwargs: dict[str, Any] | None = None,
-    paddleocr_kwargs: dict[str, Any] | None = None,
 ) -> list[ExtractionResult]
 ```
 

@@ -99,8 +99,7 @@ async fn test_ocr_simple_english_image_async() {
         ocr: Some(OcrConfig {
             backend: "tesseract".to_string(),
             language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: true,
         ..Default::default()
@@ -142,8 +141,7 @@ async fn test_ocr_image_without_text_async() {
         ocr: Some(OcrConfig {
             backend: "tesseract".to_string(),
             language: "eng".to_string(),
-            tesseract_config: None,
-            output_format: None,
+            ..Default::default()
         }),
         force_ocr: true,
         ..Default::default()

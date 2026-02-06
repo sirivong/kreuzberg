@@ -169,6 +169,18 @@ RUN mkdir -p /etc/kreuzberg /app/.config/kreuzberg && \
 RUN mkdir -p /app/.kreuzberg/huggingface && \
     chown -R kreuzberg:kreuzberg /app/.kreuzberg/huggingface
 
+# Pre-download PaddleOCR ONNX models into cache
+RUN mkdir -p /app/.kreuzberg/paddle-ocr/det \
+             /app/.kreuzberg/paddle-ocr/cls \
+             /app/.kreuzberg/paddle-ocr/rec && \
+    curl -fL -o /app/.kreuzberg/paddle-ocr/det/model.onnx \
+      "https://huggingface.co/Kreuzberg/paddleocr-onnx-models/resolve/main/en_PP-OCRv4_det_infer.onnx" && \
+    curl -fL -o /app/.kreuzberg/paddle-ocr/cls/model.onnx \
+      "https://huggingface.co/Kreuzberg/paddleocr-onnx-models/resolve/main/ch_ppocr_mobile_v2.0_cls_infer.onnx" && \
+    curl -fL -o /app/.kreuzberg/paddle-ocr/rec/model.onnx \
+      "https://huggingface.co/Kreuzberg/paddleocr-onnx-models/resolve/main/en_PP-OCRv4_rec_infer.onnx" && \
+    chown -R kreuzberg:kreuzberg /app/.kreuzberg/paddle-ocr
+
 # Ensure read permissions on tessdata files for non-root user
 # Tessdata is installed in version-specific directory (e.g., tesseract-ocr/5 or tesseract-ocr/4)
 # Make all tessdata directories readable by the non-root kreuzberg user

@@ -400,14 +400,22 @@ pub struct OcrConfig {
 #[pymethods]
 impl OcrConfig {
     #[new]
-    #[pyo3(signature = (backend=None, language=None, tesseract_config=None))]
-    fn new(backend: Option<String>, language: Option<String>, tesseract_config: Option<TesseractConfig>) -> Self {
+    #[pyo3(signature = (backend=None, language=None, tesseract_config=None, _paddle_ocr_config=None, _element_config=None))]
+    fn new(
+        backend: Option<String>,
+        language: Option<String>,
+        tesseract_config: Option<TesseractConfig>,
+        _paddle_ocr_config: Option<pyo3::Py<pyo3::PyAny>>,
+        _element_config: Option<pyo3::Py<pyo3::PyAny>>,
+    ) -> Self {
         Self {
             inner: kreuzberg::OcrConfig {
                 backend: backend.unwrap_or_else(|| "tesseract".to_string()),
                 language: language.unwrap_or_else(|| "eng".to_string()),
                 tesseract_config: tesseract_config.map(Into::into),
                 output_format: None,
+                paddle_ocr_config: None,
+                element_config: None,
             },
         }
     }

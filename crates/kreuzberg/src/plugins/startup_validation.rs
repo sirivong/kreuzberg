@@ -309,9 +309,12 @@ mod tests {
         let result = validate_plugins_at_startup();
         assert!(result.is_ok());
 
-        // Verify status is returned
+        // Verify status is returned with consistent counts
         let status = result.unwrap();
-        assert!(status.ocr_backends_count > 0);
+        assert_eq!(status.ocr_backends.len(), status.ocr_backends_count);
+        assert_eq!(status.extractors.len(), status.extractors_count);
+        assert_eq!(status.post_processors.len(), status.post_processors_count);
+        assert_eq!(status.validators.len(), status.validators_count);
     }
 
     #[test]

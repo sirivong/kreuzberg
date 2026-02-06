@@ -71,7 +71,7 @@ defmodule E2E.Helpers do
     end
   end
 
-  def run_fixture(fixture_id, relative_path, config_hash, opts \\\\ []) do
+  def run_fixture(fixture_id, relative_path, config_hash, opts \\ []) do
     requirements = Keyword.get(opts, :requirements, [])
     notes = Keyword.get(opts, :notes, nil)
     skip_if_missing = Keyword.get(opts, :skip_if_missing, true)
@@ -80,7 +80,7 @@ defmodule E2E.Helpers do
     )
   end
 
-  def run_fixture_with_method(fixture_id, relative_path, config_hash, method, input_type, opts \\\\ []) do
+  def run_fixture_with_method(fixture_id, relative_path, config_hash, method, input_type, opts \\ []) do
     requirements = Keyword.get(opts, :requirements, [])
     notes = Keyword.get(opts, :notes, nil)
     skip_if_missing = Keyword.get(opts, :skip_if_missing, true)
@@ -435,6 +435,30 @@ defmodule E2E.Helpers do
 
       if !Enum.all?(opts[:types_include], fn t -> Enum.member?(found_types, t) end) do
         flunk("Element types #{inspect(found_types)} do not include all of #{inspect(opts[:types_include])}")
+      end
+    end
+
+    result
+  end
+
+  def assert_ocr_elements(result, opts) do
+    elements = result.elements || []
+
+    if opts[:has_elements] do
+      if Enum.empty?(elements) do
+        flunk("Expected elements to be present but found none")
+      end
+    end
+
+    if opts[:elements_have_geometry] do
+      if !Enum.all?(elements, fn elem -> elem.geometry && elem.geometry.bounding_box end) do
+        flunk("Not all elements have geometry/bounding_box")
+      end
+    end
+
+    if opts[:elements_have_confidence] do
+      if !Enum.all?(elements, fn elem -> elem.confidence && is_number(elem.confidence) end) do
+        flunk("Not all elements have valid confidence score")
       end
     end
 

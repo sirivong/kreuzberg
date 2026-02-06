@@ -82,11 +82,10 @@ fn default_ocr_coverage_threshold() -> Option<f32> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
     #[test]
     #[cfg(feature = "pdf")]
     fn test_hierarchy_config_default() {
+        use super::*;
         let config = HierarchyConfig::default();
         assert!(config.enabled);
         assert_eq!(config.k_clusters, 6);
@@ -97,6 +96,7 @@ mod tests {
     #[test]
     #[cfg(feature = "pdf")]
     fn test_hierarchy_config_disabled() {
+        use super::*;
         let config = HierarchyConfig {
             enabled: false,
             k_clusters: 3,

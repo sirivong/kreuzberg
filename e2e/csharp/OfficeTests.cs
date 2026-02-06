@@ -39,9 +39,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficeDocLegacy()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("doc/unit_test_lists.doc");
-            TestHelpers.SkipIfOfficeTestOnWindows("doc/unit_test_lists.doc");
-            var documentPath = TestHelpers.EnsureDocument("doc/unit_test_lists.doc", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("legacy_office/unit_test_lists.doc");
+            TestHelpers.SkipIfOfficeTestOnWindows("legacy_office/unit_test_lists.doc");
+            var documentPath = TestHelpers.EnsureDocument("legacy_office/unit_test_lists.doc", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -78,9 +78,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficeDocxEquations()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("docx/equations.docx");
-            TestHelpers.SkipIfOfficeTestOnWindows("docx/equations.docx");
-            var documentPath = TestHelpers.EnsureDocument("docx/equations.docx", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("documents/equations.docx");
+            TestHelpers.SkipIfOfficeTestOnWindows("documents/equations.docx");
+            var documentPath = TestHelpers.EnsureDocument("documents/equations.docx", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -91,9 +91,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficeDocxFake()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("docx/fake.docx");
-            TestHelpers.SkipIfOfficeTestOnWindows("docx/fake.docx");
-            var documentPath = TestHelpers.EnsureDocument("docx/fake.docx", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("documents/fake.docx");
+            TestHelpers.SkipIfOfficeTestOnWindows("documents/fake.docx");
+            var documentPath = TestHelpers.EnsureDocument("documents/fake.docx", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -104,9 +104,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficeDocxFormatting()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("docx/unit_test_formatting.docx");
-            TestHelpers.SkipIfOfficeTestOnWindows("docx/unit_test_formatting.docx");
-            var documentPath = TestHelpers.EnsureDocument("docx/unit_test_formatting.docx", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("documents/unit_test_formatting.docx");
+            TestHelpers.SkipIfOfficeTestOnWindows("documents/unit_test_formatting.docx");
+            var documentPath = TestHelpers.EnsureDocument("documents/unit_test_formatting.docx", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -117,9 +117,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficeDocxHeaders()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("docx/unit_test_headers.docx");
-            TestHelpers.SkipIfOfficeTestOnWindows("docx/unit_test_headers.docx");
-            var documentPath = TestHelpers.EnsureDocument("docx/unit_test_headers.docx", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("documents/unit_test_headers.docx");
+            TestHelpers.SkipIfOfficeTestOnWindows("documents/unit_test_headers.docx");
+            var documentPath = TestHelpers.EnsureDocument("documents/unit_test_headers.docx", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -130,9 +130,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficeDocxLists()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("docx/unit_test_lists.docx");
-            TestHelpers.SkipIfOfficeTestOnWindows("docx/unit_test_lists.docx");
-            var documentPath = TestHelpers.EnsureDocument("docx/unit_test_lists.docx", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("documents/unit_test_lists.docx");
+            TestHelpers.SkipIfOfficeTestOnWindows("documents/unit_test_lists.docx");
+            var documentPath = TestHelpers.EnsureDocument("documents/unit_test_lists.docx", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -143,9 +143,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficeDocxTables()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("docx/docx_tables.docx");
-            TestHelpers.SkipIfOfficeTestOnWindows("docx/docx_tables.docx");
-            var documentPath = TestHelpers.EnsureDocument("docx/docx_tables.docx", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("documents/docx_tables.docx");
+            TestHelpers.SkipIfOfficeTestOnWindows("documents/docx_tables.docx");
+            var documentPath = TestHelpers.EnsureDocument("documents/docx_tables.docx", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -343,9 +343,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficePpsxSlideshow()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("pptx/sample.ppsx");
-            TestHelpers.SkipIfOfficeTestOnWindows("pptx/sample.ppsx");
-            var documentPath = TestHelpers.EnsureDocument("pptx/sample.ppsx", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("presentations/sample.ppsx");
+            TestHelpers.SkipIfOfficeTestOnWindows("presentations/sample.ppsx");
+            var documentPath = TestHelpers.EnsureDocument("presentations/sample.ppsx", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -356,9 +356,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficePptLegacy()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("ppt/simple.ppt");
-            TestHelpers.SkipIfOfficeTestOnWindows("ppt/simple.ppt");
-            var documentPath = TestHelpers.EnsureDocument("ppt/simple.ppt", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("legacy_office/simple.ppt");
+            TestHelpers.SkipIfOfficeTestOnWindows("legacy_office/simple.ppt");
+            var documentPath = TestHelpers.EnsureDocument("legacy_office/simple.ppt", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -369,9 +369,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficePptxBasic()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("pptx/simple.pptx");
-            TestHelpers.SkipIfOfficeTestOnWindows("pptx/simple.pptx");
-            var documentPath = TestHelpers.EnsureDocument("pptx/simple.pptx", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("presentations/simple.pptx");
+            TestHelpers.SkipIfOfficeTestOnWindows("presentations/simple.pptx");
+            var documentPath = TestHelpers.EnsureDocument("presentations/simple.pptx", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -382,9 +382,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficePptxImages()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("pptx/powerpoint_with_image.pptx");
-            TestHelpers.SkipIfOfficeTestOnWindows("pptx/powerpoint_with_image.pptx");
-            var documentPath = TestHelpers.EnsureDocument("pptx/powerpoint_with_image.pptx", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("presentations/powerpoint_with_image.pptx");
+            TestHelpers.SkipIfOfficeTestOnWindows("presentations/powerpoint_with_image.pptx");
+            var documentPath = TestHelpers.EnsureDocument("presentations/powerpoint_with_image.pptx", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -395,9 +395,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficePptxPitchDeck()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("pptx/pitch_deck_presentation.pptx");
-            TestHelpers.SkipIfOfficeTestOnWindows("pptx/pitch_deck_presentation.pptx");
-            var documentPath = TestHelpers.EnsureDocument("pptx/pitch_deck_presentation.pptx", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("presentations/pitch_deck_presentation.pptx");
+            TestHelpers.SkipIfOfficeTestOnWindows("presentations/pitch_deck_presentation.pptx");
+            var documentPath = TestHelpers.EnsureDocument("presentations/pitch_deck_presentation.pptx", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -447,9 +447,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficeXlsLegacy()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("xls/test_excel.xls");
-            TestHelpers.SkipIfOfficeTestOnWindows("xls/test_excel.xls");
-            var documentPath = TestHelpers.EnsureDocument("xls/test_excel.xls", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("spreadsheets/test_excel.xls");
+            TestHelpers.SkipIfOfficeTestOnWindows("spreadsheets/test_excel.xls");
+            var documentPath = TestHelpers.EnsureDocument("spreadsheets/test_excel.xls", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -460,9 +460,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficeXlsxBasic()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("xlsx/stanley_cups.xlsx");
-            TestHelpers.SkipIfOfficeTestOnWindows("xlsx/stanley_cups.xlsx");
-            var documentPath = TestHelpers.EnsureDocument("xlsx/stanley_cups.xlsx", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("spreadsheets/stanley_cups.xlsx");
+            TestHelpers.SkipIfOfficeTestOnWindows("spreadsheets/stanley_cups.xlsx");
+            var documentPath = TestHelpers.EnsureDocument("spreadsheets/stanley_cups.xlsx", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
@@ -478,9 +478,9 @@ namespace Kreuzberg.E2E.Office {
         [SkippableFact]
         public void OfficeXlsxMultiSheet()
         {
-            TestHelpers.SkipIfLegacyOfficeDisabled("xlsx/excel_multi_sheet.xlsx");
-            TestHelpers.SkipIfOfficeTestOnWindows("xlsx/excel_multi_sheet.xlsx");
-            var documentPath = TestHelpers.EnsureDocument("xlsx/excel_multi_sheet.xlsx", true);
+            TestHelpers.SkipIfLegacyOfficeDisabled("spreadsheets/excel_multi_sheet.xlsx");
+            TestHelpers.SkipIfOfficeTestOnWindows("spreadsheets/excel_multi_sheet.xlsx");
+            var documentPath = TestHelpers.EnsureDocument("spreadsheets/excel_multi_sheet.xlsx", true);
             var config = TestHelpers.BuildConfig(null);
 
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);

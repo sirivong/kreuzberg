@@ -170,7 +170,6 @@ export {
 // Plugin System: OCR Backends
 // ============================================================================
 
-export { GutenOcrBackend } from "./ocr/guten-ocr.js";
 export {
 	clearOcrBackends,
 	listOcrBackends,

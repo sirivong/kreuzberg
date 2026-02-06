@@ -52,6 +52,144 @@ class OcrTest extends TestCase
     }
 
     /**
+     * PaddleOCR with minimum confidence threshold filtering.
+     */
+    public function test_ocr_paddle_confidence_filter(): void
+    {
+        $documentPath = Helpers::resolveDocument('images/ocr_image.jpg');
+        if (!file_exists($documentPath)) {
+            $this->markTestSkipped('Skipping ocr_paddle_confidence_filter: missing document at ' . $documentPath);
+        }
+
+        $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'paddle-ocr', 'language' => 'en', 'paddle_ocr_config' => ['min_confidence' => 80.0]]]);
+
+        $kreuzberg = new Kreuzberg($config);
+        $result = $kreuzberg->extractFile($documentPath);
+
+        Helpers::assertExpectedMime($result, ['image/jpeg']);
+        Helpers::assertMinContentLength($result, 1);
+    }
+
+    /**
+     * Chinese OCR with PaddleOCR - its core strength.
+     */
+    public function test_ocr_paddle_image_chinese(): void
+    {
+        $documentPath = Helpers::resolveDocument('images/chi_sim_image.jpeg');
+        if (!file_exists($documentPath)) {
+            $this->markTestSkipped('Skipping ocr_paddle_image_chinese: missing document at ' . $documentPath);
+        }
+
+        $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'paddle-ocr', 'language' => 'ch']]);
+
+        $kreuzberg = new Kreuzberg($config);
+        $result = $kreuzberg->extractFile($documentPath);
+
+        Helpers::assertExpectedMime($result, ['image/jpeg']);
+        Helpers::assertMinContentLength($result, 1);
+    }
+
+    /**
+     * Simple English image OCR with PaddleOCR backend.
+     */
+    public function test_ocr_paddle_image_english(): void
+    {
+        $documentPath = Helpers::resolveDocument('images/test_hello_world.png');
+        if (!file_exists($documentPath)) {
+            $this->markTestSkipped('Skipping ocr_paddle_image_english: missing document at ' . $documentPath);
+        }
+
+        $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'paddle-ocr', 'language' => 'en']]);
+
+        $kreuzberg = new Kreuzberg($config);
+        $result = $kreuzberg->extractFile($documentPath);
+
+        Helpers::assertExpectedMime($result, ['image/png']);
+        Helpers::assertMinContentLength($result, 5);
+        Helpers::assertContentContainsAny($result, ['hello', 'Hello', 'world', 'World']);
+    }
+
+    /**
+     * PaddleOCR with markdown output format.
+     */
+    public function test_ocr_paddle_markdown(): void
+    {
+        $documentPath = Helpers::resolveDocument('images/test_hello_world.png');
+        if (!file_exists($documentPath)) {
+            $this->markTestSkipped('Skipping ocr_paddle_markdown: missing document at ' . $documentPath);
+        }
+
+        $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'paddle-ocr', 'language' => 'en', 'paddle_ocr_config' => ['output_format' => 'markdown']]]);
+
+        $kreuzberg = new Kreuzberg($config);
+        $result = $kreuzberg->extractFile($documentPath);
+
+        Helpers::assertExpectedMime($result, ['image/png']);
+        Helpers::assertMinContentLength($result, 5);
+        Helpers::assertContentContainsAny($result, ['hello', 'Hello', 'world', 'World']);
+    }
+
+    /**
+     * Scanned PDF requires PaddleOCR to extract text.
+     */
+    public function test_ocr_paddle_pdf_scanned(): void
+    {
+        $documentPath = Helpers::resolveDocument('pdfs/ocr_test.pdf');
+        if (!file_exists($documentPath)) {
+            $this->markTestSkipped('Skipping ocr_paddle_pdf_scanned: missing document at ' . $documentPath);
+        }
+
+        $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'paddle-ocr', 'language' => 'en']]);
+
+        $kreuzberg = new Kreuzberg($config);
+        $result = $kreuzberg->extractFile($documentPath);
+
+        Helpers::assertExpectedMime($result, ['application/pdf']);
+        Helpers::assertMinContentLength($result, 20);
+        Helpers::assertContentContainsAny($result, ['Docling', 'Markdown', 'JSON']);
+    }
+
+    /**
+     * PaddleOCR with structured output preserving all metadata.
+     */
+    public function test_ocr_paddle_structured(): void
+    {
+        $documentPath = Helpers::resolveDocument('images/test_hello_world.png');
+        if (!file_exists($documentPath)) {
+            $this->markTestSkipped('Skipping ocr_paddle_structured: missing document at ' . $documentPath);
+        }
+
+        $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'paddle-ocr', 'element_config' => ['include_elements' => true], 'language' => 'en']]);
+
+        $kreuzberg = new Kreuzberg($config);
+        $result = $kreuzberg->extractFile($documentPath);
+
+        Helpers::assertExpectedMime($result, ['image/png']);
+        Helpers::assertMinContentLength($result, 5);
+        Helpers::assertOcrElements($result, true, true, true, null);
+    }
+
+    /**
+     * Table detection and extraction with PaddleOCR.
+     */
+    public function test_ocr_paddle_table_detection(): void
+    {
+        $documentPath = Helpers::resolveDocument('images/simple_table.png');
+        if (!file_exists($documentPath)) {
+            $this->markTestSkipped('Skipping ocr_paddle_table_detection: missing document at ' . $documentPath);
+        }
+
+        $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'paddle-ocr', 'language' => 'en', 'paddle_ocr_config' => ['enable_table_detection' => true]]]);
+
+        $kreuzberg = new Kreuzberg($config);
+        $result = $kreuzberg->extractFile($documentPath);
+
+        Helpers::assertExpectedMime($result, ['image/png']);
+        Helpers::assertMinContentLength($result, 10);
+        Helpers::assertTableCount($result, 1, null);
+    }
+
+    /**
      * Image-only German PDF requiring OCR to extract text.
      */
     public function test_ocr_pdf_image_only_german(): void

@@ -38,7 +38,6 @@ async def test_api_batch_bytes_async() -> None:
     helpers.assert_min_content_length(result, 10)
     helpers.assert_content_contains_any(result, ["May 5, 2023", "Mallori"])
 
-
 def test_api_batch_bytes_sync() -> None:
     """Tests sync batch bytes extraction API (batch_extract_bytes_sync)"""
 
@@ -58,7 +57,6 @@ def test_api_batch_bytes_sync() -> None:
     helpers.assert_min_content_length(result, 10)
     helpers.assert_content_contains_any(result, ["May 5, 2023", "Mallori"])
 
-
 @pytest.mark.asyncio
 async def test_api_batch_file_async() -> None:
     """Tests async batch file extraction API (batch_extract_file)"""
@@ -76,7 +74,6 @@ async def test_api_batch_file_async() -> None:
     helpers.assert_min_content_length(result, 10)
     helpers.assert_content_contains_any(result, ["May 5, 2023", "Mallori"])
 
-
 def test_api_batch_file_sync() -> None:
     """Tests sync batch file extraction API (batch_extract_file_sync)"""
 
@@ -92,7 +89,6 @@ def test_api_batch_file_sync() -> None:
     helpers.assert_expected_mime(result, ["application/pdf"])
     helpers.assert_min_content_length(result, 10)
     helpers.assert_content_contains_any(result, ["May 5, 2023", "Mallori"])
-
 
 @pytest.mark.asyncio
 async def test_api_extract_bytes_async() -> None:
@@ -113,7 +109,6 @@ async def test_api_extract_bytes_async() -> None:
     helpers.assert_min_content_length(result, 10)
     helpers.assert_content_contains_any(result, ["May 5, 2023", "Mallori"])
 
-
 def test_api_extract_bytes_sync() -> None:
     """Tests sync bytes extraction API (extract_bytes_sync)"""
 
@@ -132,7 +127,6 @@ def test_api_extract_bytes_sync() -> None:
     helpers.assert_min_content_length(result, 10)
     helpers.assert_content_contains_any(result, ["May 5, 2023", "Mallori"])
 
-
 @pytest.mark.asyncio
 async def test_api_extract_file_async() -> None:
     """Tests async file extraction API (extract_file)"""
@@ -149,7 +143,6 @@ async def test_api_extract_file_async() -> None:
     helpers.assert_min_content_length(result, 10)
     helpers.assert_content_contains_any(result, ["May 5, 2023", "Mallori"])
 
-
 def test_api_extract_file_sync() -> None:
     """Tests sync file extraction API (extract_file_sync)"""
 
@@ -164,7 +157,6 @@ def test_api_extract_file_sync() -> None:
     helpers.assert_expected_mime(result, ["application/pdf"])
     helpers.assert_min_content_length(result, 10)
     helpers.assert_content_contains_any(result, ["May 5, 2023", "Mallori"])
-
 
 def test_config_chunking() -> None:
     """Tests chunking configuration with chunk assertions"""
@@ -181,7 +173,6 @@ def test_config_chunking() -> None:
     helpers.assert_min_content_length(result, 10)
     helpers.assert_chunks(result, min_count=1, each_has_content=True)
 
-
 def test_config_force_ocr() -> None:
     """Tests force_ocr configuration option"""
 
@@ -196,7 +187,6 @@ def test_config_force_ocr() -> None:
     helpers.assert_expected_mime(result, ["application/pdf"])
     helpers.assert_min_content_length(result, 5)
 
-
 def test_config_images() -> None:
     """Tests image extraction configuration with image assertions"""
 
@@ -210,7 +200,6 @@ def test_config_images() -> None:
 
     helpers.assert_expected_mime(result, ["application/pdf"])
     helpers.assert_images(result, min_count=1)
-
 
 def test_config_language_detection() -> None:
     """Tests language detection configuration"""
@@ -227,7 +216,6 @@ def test_config_language_detection() -> None:
     helpers.assert_min_content_length(result, 10)
     helpers.assert_detected_languages(result, ["eng"], 0.5)
 
-
 def test_config_pages() -> None:
     """Tests page configuration with page assertions"""
 
@@ -242,7 +230,6 @@ def test_config_pages() -> None:
     helpers.assert_expected_mime(result, ["application/pdf"])
     helpers.assert_min_content_length(result, 10)
 
-
 def test_config_use_cache_false() -> None:
     """Tests use_cache=false configuration option"""
 
@@ -256,7 +243,6 @@ def test_config_use_cache_false() -> None:
 
     helpers.assert_expected_mime(result, ["application/pdf"])
     helpers.assert_min_content_length(result, 10)
-
 
 def test_output_format_djot() -> None:
     """Tests Djot output format"""
@@ -273,7 +259,6 @@ def test_output_format_djot() -> None:
     helpers.assert_min_content_length(result, 10)
     helpers.assert_output_format(result, "djot")
 
-
 def test_output_format_html() -> None:
     """Tests HTML output format"""
 
@@ -288,7 +273,6 @@ def test_output_format_html() -> None:
     helpers.assert_expected_mime(result, ["application/pdf"])
     helpers.assert_min_content_length(result, 10)
     helpers.assert_output_format(result, "html")
-
 
 def test_output_format_markdown() -> None:
     """Tests Markdown output format"""
@@ -305,7 +289,6 @@ def test_output_format_markdown() -> None:
     helpers.assert_min_content_length(result, 10)
     helpers.assert_output_format(result, "markdown")
 
-
 def test_output_format_plain() -> None:
     """Tests Plain output format"""
 
@@ -321,7 +304,6 @@ def test_output_format_plain() -> None:
     helpers.assert_min_content_length(result, 10)
     helpers.assert_output_format(result, "plain")
 
-
 def test_result_format_element_based() -> None:
     """Tests ElementBased result format with element assertions"""
 
@@ -336,7 +318,6 @@ def test_result_format_element_based() -> None:
     helpers.assert_expected_mime(result, ["application/pdf"])
     helpers.assert_elements(result, min_count=1)
     helpers.assert_result_format(result, "element_based")
-
 
 def test_result_format_unified() -> None:
     """Tests Unified result format (default)"""

@@ -17,6 +17,7 @@ namespace Kreuzberg\Types;
  * @property-read array<PageContent>|null $pages Per-page content when page extraction is enabled
  * @property-read array<Keyword>|null $keywords Extracted keywords with scores if KeywordConfig provided
  * @property-read array<Element>|null $elements Semantic elements when output_format='element_based'
+ * @property-read array<OcrElement>|null $ocrElements OCR elements with positioning and confidence when OCR element config enabled
  * @property-read DjotContent|null $djotContent Structured Djot content when output_format='djot'
  */
 readonly class ExtractionResult
@@ -29,6 +30,7 @@ readonly class ExtractionResult
      * @param array<PageContent>|null $pages
      * @param array<Keyword>|null $keywords
      * @param array<Element>|null $elements
+     * @param array<OcrElement>|null $ocrElements
      * @param DjotContent|null $djotContent
      */
     public function __construct(
@@ -42,6 +44,7 @@ readonly class ExtractionResult
         public ?array $pages = null,
         public ?array $keywords = null,
         public ?array $elements = null,
+        public ?array $ocrElements = null,
         public ?DjotContent $djotContent = null,
     ) {
     }
@@ -125,6 +128,17 @@ readonly class ExtractionResult
             );
         }
 
+        $ocrElements = null;
+        if (isset($data['ocr_elements'])) {
+            /** @var array<array<string, mixed>> $ocrElementsData */
+            $ocrElementsData = $data['ocr_elements'];
+            $ocrElements = array_map(
+                /** @param array<string, mixed> $element */
+                static fn (array $element): OcrElement => OcrElement::fromArray($element),
+                $ocrElementsData,
+            );
+        }
+
         $djotContent = null;
         if (isset($data['djot_content'])) {
             /** @var array<string, mixed> $djotContentData */
@@ -147,6 +161,7 @@ readonly class ExtractionResult
             pages: $pages,
             keywords: $keywords,
             elements: $elements,
+            ocrElements: $ocrElements,
             djotContent: $djotContent,
         );
     }

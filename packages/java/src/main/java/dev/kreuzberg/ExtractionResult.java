@@ -26,12 +26,14 @@ public final class ExtractionResult {
 	private final List<PageContent> pages;
 	private final PageStructure pageStructure;
 	private final List<Element> elements;
+	private final List<OcrElement> ocrElements;
 	@JsonProperty("djot_content")
 	private final DjotContent djotContent;
 
 	ExtractionResult(String content, String mimeType, Metadata metadata, List<Table> tables,
 			List<String> detectedLanguages, List<Chunk> chunks, List<ExtractedImage> images, List<PageContent> pages,
-			PageStructure pageStructure, List<Element> elements, DjotContent djotContent) {
+			PageStructure pageStructure, List<Element> elements, List<OcrElement> ocrElements,
+			DjotContent djotContent) {
 		this.content = Objects.requireNonNull(content, "content must not be null");
 		this.mimeType = Objects.requireNonNull(mimeType, "mimeType must not be null");
 		this.metadata = metadata != null ? metadata : Metadata.empty();
@@ -46,6 +48,7 @@ public final class ExtractionResult {
 		this.pages = Collections.unmodifiableList(pages != null ? pages : List.of());
 		this.pageStructure = pageStructure;
 		this.elements = Collections.unmodifiableList(elements != null ? elements : List.of());
+		this.ocrElements = Collections.unmodifiableList(ocrElements != null ? ocrElements : List.of());
 		this.djotContent = djotContent;
 	}
 
@@ -126,6 +129,21 @@ public final class ExtractionResult {
 	 */
 	public List<Element> getElements() {
 		return elements;
+	}
+
+	/**
+	 * Get the OCR elements extracted from the document.
+	 *
+	 * <p>
+	 * Available when OCR element extraction is enabled via OcrElementConfig.
+	 * Returns an empty list if OCR element extraction is not enabled or if no
+	 * elements were extracted.
+	 *
+	 * @return unmodifiable list of OCR elements (never null, but may be empty)
+	 * @since 4.4.0
+	 */
+	public List<OcrElement> getOcrElements() {
+		return ocrElements;
 	}
 
 	/**
@@ -308,6 +326,6 @@ public final class ExtractionResult {
 		return "ExtractionResult{" + "contentLength=" + content.length() + ", mimeType='" + mimeType + '\''
 				+ ", tables=" + tables.size() + ", detectedLanguages=" + detectedLanguages + ", chunks=" + chunks.size()
 				+ ", images=" + images.size() + ", pages=" + pages.size() + ", elements=" + elements.size()
-				+ ", hasDjotContent=" + (djotContent != null) + '}';
+				+ ", ocrElements=" + ocrElements.size() + ", hasDjotContent=" + (djotContent != null) + '}';
 	}
 }

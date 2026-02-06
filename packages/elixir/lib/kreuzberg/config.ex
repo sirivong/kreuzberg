@@ -26,6 +26,8 @@ defmodule Kreuzberg.ExtractionConfig do
 
     * `:chunking` - Text chunking configuration with options like chunk_size, overlap, etc.
     * `:ocr` - OCR backend configuration with settings for language, PSM mode, etc.
+      - Can include nested `:paddle_ocr_config` for PaddleOCR-specific settings
+      - Can include nested `:element_config` for OCR element extraction settings
     * `:language_detection` - Language detection settings for multi-language content
     * `:postprocessor` - Post-processor configuration for cleaning/formatting extracted text
     * `:images` - Image extraction configuration (quality, format, preprocessing options)
@@ -346,13 +348,28 @@ defmodule Kreuzberg.ExtractionConfig do
     map
     |> Enum.reduce(%{}, fn
       {key, value}, acc when is_binary(key) ->
-        Map.put(acc, key, value)
+        normalized_value = normalize_map_keys_recursive(value)
+        Map.put(acc, key, normalized_value)
 
       {key, value}, acc ->
         string_key = if is_atom(key), do: Atom.to_string(key), else: to_string(key)
-        Map.put(acc, string_key, value)
+        normalized_value = normalize_map_keys_recursive(value)
+        Map.put(acc, string_key, normalized_value)
     end)
   end
+
+  @doc false
+  defp normalize_map_keys_recursive(value) when is_map(value) and not is_struct(value) do
+    normalize_map_keys(value)
+  end
+
+  @doc false
+  defp normalize_map_keys_recursive(value) when is_list(value) do
+    Enum.map(value, &normalize_map_keys_recursive/1)
+  end
+
+  @doc false
+  defp normalize_map_keys_recursive(value), do: value
 
   @doc false
   defp normalize_nested_config(nil), do: nil

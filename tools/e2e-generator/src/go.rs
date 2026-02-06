@@ -873,6 +873,30 @@ fn render_assertions(assertions: &Assertions) -> String {
         )
         .unwrap();
     }
+    if let Some(ocr) = assertions.ocr_elements.as_ref() {
+        let has_elements = ocr
+            .has_elements
+            .map(|v| format!("boolPtr({v})"))
+            .unwrap_or_else(|| "nil".to_string());
+        let has_geometry = ocr
+            .elements_have_geometry
+            .map(|v| format!("boolPtr({v})"))
+            .unwrap_or_else(|| "nil".to_string());
+        let has_confidence = ocr
+            .elements_have_confidence
+            .map(|v| format!("boolPtr({v})"))
+            .unwrap_or_else(|| "nil".to_string());
+        let min_count = ocr
+            .min_count
+            .map(|v| format!("intPtr({v})"))
+            .unwrap_or_else(|| "nil".to_string());
+        writeln!(
+            buffer,
+            "    assertOcrElements(t, result, {}, {}, {}, {})",
+            has_elements, has_geometry, has_confidence, min_count
+        )
+        .unwrap();
+    }
     buffer
 }
 

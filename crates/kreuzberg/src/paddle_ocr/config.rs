@@ -192,8 +192,8 @@ impl PaddleOcrConfig {
 
     /// Resolves the cache directory, checking in order:
     /// 1. Configured `cache_dir` if set
-    /// 2. `KREUZBERG_PADDLE_CACHE_DIR` environment variable
-    /// 3. Default: `~/.cache/kreuzberg/paddle-ocr/`
+    /// 2. `KREUZBERG_CACHE_DIR` environment variable + `/paddle-ocr`
+    /// 3. Default: `.kreuzberg/paddle-ocr/` (consistent with other cache types)
     ///
     /// # Returns
     ///
@@ -214,15 +214,15 @@ impl PaddleOcrConfig {
             return path.clone();
         }
 
-        // Check environment variable
-        if let Ok(env_path) = std::env::var("KREUZBERG_PADDLE_CACHE_DIR") {
-            return PathBuf::from(env_path);
+        // Check centralized cache environment variable
+        if let Ok(env_path) = std::env::var("KREUZBERG_CACHE_DIR") {
+            return PathBuf::from(env_path).join("paddle-ocr");
         }
 
-        // Default to ~/.cache/kreuzberg/paddle-ocr/
-        dirs::cache_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("kreuzberg")
+        // Default: .kreuzberg/paddle-ocr/ (consistent with other cache types)
+        std::env::current_dir()
+            .unwrap_or_else(|_| PathBuf::from("."))
+            .join(".kreuzberg")
             .join("paddle-ocr")
     }
 }
@@ -380,8 +380,8 @@ mod tests {
     fn test_resolve_cache_dir_default() {
         let config = PaddleOcrConfig::new("en");
         let cache_dir = config.resolve_cache_dir();
-        // Should contain "kreuzberg" and "paddle-ocr" in the path
-        assert!(cache_dir.to_string_lossy().contains("kreuzberg"));
+        // Should contain ".kreuzberg" and "paddle-ocr" in the path
+        assert!(cache_dir.to_string_lossy().contains(".kreuzberg"));
         assert!(cache_dir.to_string_lossy().contains("paddle-ocr"));
     }
 

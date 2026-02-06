@@ -73,21 +73,21 @@ func TestPdfPdfSimpleText(t *testing.T) {
 }
 
 func TestPdfPdfTablesLarge(t *testing.T) {
-	result := runExtraction(t, "pdf/large.pdf", nil)
+	result := runExtraction(t, "pdfs_with_tables/large.pdf", nil)
 	assertExpectedMime(t, result, []string{"application/pdf"})
 	assertMinContentLength(t, result, 500)
 	assertTableCount(t, result, intPtr(1), nil)
 }
 
 func TestPdfPdfTablesMedium(t *testing.T) {
-	result := runExtraction(t, "pdf/medium.pdf", nil)
+	result := runExtraction(t, "pdfs_with_tables/medium.pdf", nil)
 	assertExpectedMime(t, result, []string{"application/pdf"})
 	assertMinContentLength(t, result, 100)
 	assertTableCount(t, result, intPtr(1), nil)
 }
 
 func TestPdfPdfTablesSmall(t *testing.T) {
-	result := runExtraction(t, "pdf/tiny.pdf", nil)
+	result := runExtraction(t, "pdfs_with_tables/tiny.pdf", nil)
 	assertExpectedMime(t, result, []string{"application/pdf"})
 	assertMinContentLength(t, result, 50)
 	assertContentContainsAll(t, result, []string{"Table 1", "Selected Numbers", "Celsius", "Fahrenheit", "Water Freezing Point", "Water Boiling Point"})

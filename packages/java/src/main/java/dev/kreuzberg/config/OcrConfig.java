@@ -19,12 +19,16 @@ public final class OcrConfig {
 	private final String language;
 	private final TesseractConfig tesseractConfig;
 	private final OutputFormat outputFormat;
+	private final PaddleOcrConfig paddleOcrConfig;
+	private final OcrElementConfig elementConfig;
 
 	private OcrConfig(Builder builder) {
 		this.backend = builder.backend;
 		this.language = builder.language;
 		this.tesseractConfig = builder.tesseractConfig;
 		this.outputFormat = builder.outputFormat;
+		this.paddleOcrConfig = builder.paddleOcrConfig;
+		this.elementConfig = builder.elementConfig;
 	}
 
 	/**
@@ -73,6 +77,24 @@ public final class OcrConfig {
 	}
 
 	/**
+	 * Gets the PaddleOCR-specific configuration.
+	 *
+	 * @return the paddle ocr config, or null if not set
+	 */
+	public PaddleOcrConfig getPaddleOcrConfig() {
+		return paddleOcrConfig;
+	}
+
+	/**
+	 * Gets the OCR element extraction configuration.
+	 *
+	 * @return the element config, or null if not set
+	 */
+	public OcrElementConfig getElementConfig() {
+		return elementConfig;
+	}
+
+	/**
 	 * Converts this configuration to a map for FFI.
 	 *
 	 * @return a map representation
@@ -90,6 +112,12 @@ public final class OcrConfig {
 		}
 		if (outputFormat != null) {
 			map.put("output_format", outputFormat.getValue());
+		}
+		if (paddleOcrConfig != null) {
+			map.put("paddle_ocr_config", paddleOcrConfig.toMap());
+		}
+		if (elementConfig != null) {
+			map.put("element_config", elementConfig.toMap());
 		}
 		return map;
 	}
@@ -115,6 +143,14 @@ public final class OcrConfig {
 		if (outputFormatValue instanceof String) {
 			builder.outputFormat(OutputFormat.fromValue((String) outputFormatValue));
 		}
+		Map<String, Object> paddleMap = toMap(map.get("paddle_ocr_config"));
+		if (paddleMap != null) {
+			builder.paddleOcrConfig(PaddleOcrConfig.fromMap(paddleMap));
+		}
+		Map<String, Object> elementMap = toMap(map.get("element_config"));
+		if (elementMap != null) {
+			builder.elementConfig(OcrElementConfig.fromMap(elementMap));
+		}
 		return builder.build();
 	}
 
@@ -124,6 +160,8 @@ public final class OcrConfig {
 		private String language = "eng";
 		private TesseractConfig tesseractConfig;
 		private OutputFormat outputFormat;
+		private PaddleOcrConfig paddleOcrConfig;
+		private OcrElementConfig elementConfig;
 
 		private Builder() {
 		}
@@ -183,6 +221,30 @@ public final class OcrConfig {
 		 */
 		public Builder outputFormat(OutputFormat outputFormat) {
 			this.outputFormat = outputFormat;
+			return this;
+		}
+
+		/**
+		 * Sets the PaddleOCR-specific configuration.
+		 *
+		 * @param paddleOcrConfig
+		 *            the paddle ocr config
+		 * @return this builder
+		 */
+		public Builder paddleOcrConfig(PaddleOcrConfig paddleOcrConfig) {
+			this.paddleOcrConfig = paddleOcrConfig;
+			return this;
+		}
+
+		/**
+		 * Sets the OCR element extraction configuration.
+		 *
+		 * @param elementConfig
+		 *            the element config
+		 * @return this builder
+		 */
+		public Builder elementConfig(OcrElementConfig elementConfig) {
+			this.elementConfig = elementConfig;
 			return this;
 		}
 

@@ -30,3 +30,6 @@ kreuzberg-*/
 
 # Rustler compilation artifacts
 /native/*/target/
+
+# Compiled Elixir bytecode
+*.beam

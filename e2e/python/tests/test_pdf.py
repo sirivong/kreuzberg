@@ -26,7 +26,6 @@ def test_pdf_assembly_technical() -> None:
     helpers.assert_content_contains_any(result, ["assembly", "register", "instruction"])
     helpers.assert_metadata_expectation(result, "format_type", {"eq": "pdf"})
 
-
 def test_pdf_bayesian_data_analysis() -> None:
     """Bayesian data analysis textbook PDF with large content volume."""
 
@@ -43,7 +42,6 @@ def test_pdf_bayesian_data_analysis() -> None:
     helpers.assert_content_contains_any(result, ["Bayesian", "probability", "distribution"])
     helpers.assert_metadata_expectation(result, "format_type", {"eq": "pdf"})
 
-
 def test_pdf_code_and_formula() -> None:
     """PDF containing code snippets and formulas should retain substantial content."""
 
@@ -57,7 +55,6 @@ def test_pdf_code_and_formula() -> None:
 
     helpers.assert_expected_mime(result, ["application/pdf"])
     helpers.assert_min_content_length(result, 100)
-
 
 def test_pdf_deep_learning() -> None:
     """Deep learning textbook PDF to ensure long-form extraction quality."""
@@ -75,7 +72,6 @@ def test_pdf_deep_learning() -> None:
     helpers.assert_content_contains_any(result, ["neural", "network", "deep learning"])
     helpers.assert_metadata_expectation(result, "format_type", {"eq": "pdf"})
 
-
 def test_pdf_embedded_images() -> None:
     """PDF with embedded images should extract text and tables when present."""
 
@@ -91,7 +87,6 @@ def test_pdf_embedded_images() -> None:
     helpers.assert_min_content_length(result, 50)
     helpers.assert_table_count(result, 0, None)
 
-
 def test_pdf_google_doc() -> None:
     """Google Docs exported PDF to verify conversion fidelity."""
 
@@ -106,7 +101,6 @@ def test_pdf_google_doc() -> None:
     helpers.assert_expected_mime(result, ["application/pdf"])
     helpers.assert_min_content_length(result, 50)
     helpers.assert_metadata_expectation(result, "format_type", {"eq": "pdf"})
-
 
 def test_pdf_large_ciml() -> None:
     """Large machine learning textbook PDF to stress extraction length."""
@@ -124,7 +118,6 @@ def test_pdf_large_ciml() -> None:
     helpers.assert_content_contains_any(result, ["machine learning", "algorithm", "training"])
     helpers.assert_metadata_expectation(result, "format_type", {"eq": "pdf"})
 
-
 def test_pdf_non_english_german() -> None:
     """German technical PDF to ensure non-ASCII content extraction."""
 
@@ -141,7 +134,6 @@ def test_pdf_non_english_german() -> None:
     helpers.assert_content_contains_any(result, ["Intel", "paging"])
     helpers.assert_metadata_expectation(result, "format_type", {"eq": "pdf"})
 
-
 def test_pdf_right_to_left() -> None:
     """Right-to-left language PDF to verify RTL extraction."""
 
@@ -156,7 +148,6 @@ def test_pdf_right_to_left() -> None:
     helpers.assert_expected_mime(result, ["application/pdf"])
     helpers.assert_min_content_length(result, 50)
     helpers.assert_metadata_expectation(result, "format_type", {"eq": "pdf"})
-
 
 def test_pdf_simple_text() -> None:
     """Simple text-heavy PDF should extract content without OCR or tables."""
@@ -173,11 +164,10 @@ def test_pdf_simple_text() -> None:
     helpers.assert_min_content_length(result, 50)
     helpers.assert_content_contains_any(result, ["May 5, 2023", "To Whom it May Concern", "Mallori"])
 
-
 def test_pdf_tables_large() -> None:
     """Large PDF with extensive tables to stress table extraction."""
 
-    document_path = helpers.resolve_document("pdf/large.pdf")
+    document_path = helpers.resolve_document("pdfs_with_tables/large.pdf")
     if not document_path.exists():
         pytest.skip(f"Skipping pdf_tables_large: missing document at {document_path}")
 
@@ -189,11 +179,10 @@ def test_pdf_tables_large() -> None:
     helpers.assert_min_content_length(result, 500)
     helpers.assert_table_count(result, 1, None)
 
-
 def test_pdf_tables_medium() -> None:
     """Medium-sized PDF with multiple tables."""
 
-    document_path = helpers.resolve_document("pdf/medium.pdf")
+    document_path = helpers.resolve_document("pdfs_with_tables/medium.pdf")
     if not document_path.exists():
         pytest.skip(f"Skipping pdf_tables_medium: missing document at {document_path}")
 
@@ -205,11 +194,10 @@ def test_pdf_tables_medium() -> None:
     helpers.assert_min_content_length(result, 100)
     helpers.assert_table_count(result, 1, None)
 
-
 def test_pdf_tables_small() -> None:
     """Small PDF containing tables to validate table extraction."""
 
-    document_path = helpers.resolve_document("pdf/tiny.pdf")
+    document_path = helpers.resolve_document("pdfs_with_tables/tiny.pdf")
     if not document_path.exists():
         pytest.skip(f"Skipping pdf_tables_small: missing document at {document_path}")
 
@@ -219,11 +207,8 @@ def test_pdf_tables_small() -> None:
 
     helpers.assert_expected_mime(result, ["application/pdf"])
     helpers.assert_min_content_length(result, 50)
-    helpers.assert_content_contains_all(
-        result, ["Table 1", "Selected Numbers", "Celsius", "Fahrenheit", "Water Freezing Point", "Water Boiling Point"]
-    )
+    helpers.assert_content_contains_all(result, ["Table 1", "Selected Numbers", "Celsius", "Fahrenheit", "Water Freezing Point", "Water Boiling Point"])
     helpers.assert_table_count(result, 1, None)
-
 
 def test_pdf_technical_stat_learning() -> None:
     """Technical statistical learning PDF requiring substantial extraction."""

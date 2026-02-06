@@ -196,7 +196,7 @@ exclude_lines = [
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
 ]
-omit = ["packages/python/kreuzberg/ocr/easyocr.py", "packages/python/kreuzberg/ocr/paddleocr.py"]
+omit = ["packages/python/kreuzberg/ocr/easyocr.py"]
 
 [tool.mypy]
 packages = ["kreuzberg"]
@@ -212,13 +212,6 @@ namespace_packages = true
 module = [
     "keybert",
     "easyocr",
-    "paddle",
-    "paddle.*",
-    "paddle.utils",
-    "paddle.utils.*",
-    "paddle.utils.gast",
-    "paddle.utils.gast.*",
-    "paddleocr",
     "torch",
     "kreuzberg._internal_bindings",
     "docling.*",

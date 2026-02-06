@@ -122,8 +122,8 @@ pub trait OcrBackend: Plugin {
 **Built-in Backends:**
 
 - **TesseractBackend**: Native Tesseract integration (Rust, fast)
-- **EasyOCRBackend**: Python-based, supports 80+ languages (Python bindings)
-- **PaddleOCRBackend**: Python-based, excellent for Chinese/Japanese/Korean (Python bindings)
+- **PaddleOCRBackend**: Native ONNX Runtime backend, excellent for Chinese/Japanese/Korean (all non-WASM bindings)
+- **EasyOCRBackend**: Python-based, supports 80+ languages (Python bindings only)
 
 **Language Support:**
 
