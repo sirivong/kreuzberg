@@ -161,7 +161,7 @@ describe("OCR backend bridge wiring", () => {
 
 	afterEach(() => {
 		__resetBindingForTests();
-		delete process.env.KREUZBERG_DEBUG_GUTEN;
+		delete process.env.KREUZBERG_DEBUG_OCR;
 		vi.restoreAllMocks();
 	});
 
@@ -221,7 +221,7 @@ describe("OCR backend bridge wiring", () => {
 	it("should log debug information when enabled", async () => {
 		const mockBinding = createOcrBinding();
 		__setBindingForTests(mockBinding);
-		process.env.KREUZBERG_DEBUG_GUTEN = "1";
+		process.env.KREUZBERG_DEBUG_OCR = "1";
 
 		const backend: OcrBackendProtocol = {
 			name: () => "debug-ocr",
@@ -245,7 +245,7 @@ describe("OCR backend bridge wiring", () => {
 	it("should describe string payloads when debug logging is enabled", async () => {
 		const mockBinding = createOcrBinding();
 		__setBindingForTests(mockBinding);
-		process.env.KREUZBERG_DEBUG_GUTEN = "1";
+		process.env.KREUZBERG_DEBUG_OCR = "1";
 
 		const processSpy = vi.fn().mockResolvedValue({
 			content: "tuple string content",

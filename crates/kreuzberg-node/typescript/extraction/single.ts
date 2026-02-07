@@ -230,7 +230,7 @@ export async function extractBytes(
 
 	const validated = assertUint8Array(data, "data");
 	// biome-ignore lint/complexity/useLiteralKeys: required for environment variable access
-	if (process.env["KREUZBERG_DEBUG_GUTEN"] === "1") {
+	if (process.env["KREUZBERG_DEBUG_OCR"] === "1") {
 		console.log("[TypeScript] Debug input header:", Array.from(validated.slice(0, 8)));
 	}
 	const normalizedConfig = normalizeExtractionConfig(config);

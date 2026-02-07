@@ -116,7 +116,7 @@ export function registerOcrBackend(backend: OcrBackendProtocol): void {
 		): Promise<string> {
 			const [imagePayload, maybeLanguage] = processArgs;
 			// biome-ignore lint/complexity/useLiteralKeys: required for environment variable access
-			if (process.env["KREUZBERG_DEBUG_GUTEN"] === "1") {
+			if (process.env["KREUZBERG_DEBUG_OCR"] === "1") {
 				console.log("[registerOcrBackend] JS arguments", { length: processArgs.length });
 				console.log("[registerOcrBackend] Raw args", {
 					imagePayloadType: Array.isArray(imagePayload) ? "tuple" : typeof imagePayload,
@@ -141,7 +141,7 @@ export function registerOcrBackend(backend: OcrBackendProtocol): void {
 			}
 
 			// biome-ignore lint/complexity/useLiteralKeys: required for environment variable access
-			if (process.env["KREUZBERG_DEBUG_GUTEN"] === "1") {
+			if (process.env["KREUZBERG_DEBUG_OCR"] === "1") {
 				const length = typeof rawBytes === "string" ? rawBytes.length : rawBytes.length;
 				console.log(
 					"[registerOcrBackend] Received payload",

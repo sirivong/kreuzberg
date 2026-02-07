@@ -16,8 +16,7 @@ readonly class OcrConfig
          * Selects which OCR engine to use for document processing.
          * Available backends:
          * - 'tesseract': Tesseract OCR engine (requires tesseract installation)
-         * - 'guten': Built-in Guten OCR engine
-         * - 'paddle': PaddleOCR engine
+         * - 'paddle-ocr': PaddleOCR engine via ONNX Runtime
          *
          * @var string
          * @default 'tesseract'

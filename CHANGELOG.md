@@ -31,6 +31,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### CI
 - **PaddleOCR CI integration**: Added PaddleOCR to the CI/publish pipelines with dedicated test jobs and model caching.
 
+### Removed
+
+#### Node.js Bindings
+- **Guten OCR references**: Removed all references to the unused Guten OCR backend. Renamed `KREUZBERG_DEBUG_GUTEN` env var to `KREUZBERG_DEBUG_OCR`.
+
+#### PHP Bindings
+- **Guten OCR backend option**: Removed `'guten'` from the documented backend choices in `OcrConfig`.
+
 ### Fixed
 
 #### ODT List and Section Extraction
