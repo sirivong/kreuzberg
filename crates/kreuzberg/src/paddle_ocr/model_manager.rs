@@ -76,7 +76,7 @@ const MODELS: &[ModelDefinition] = &[
         model_type: "rec",
         remote_filename: "en_PP-OCRv4_rec_infer.onnx",
         local_filename: "model.onnx",
-        sha256_checksum: "be2733d5c0218b342a9293c1bdd5a2a7d238fb2f8371d14dbce3fb99338c371a",
+        sha256_checksum: "8e7d966c3af523c93183eef3d4b01faae79b5aebb4e8272de302053d70d61e8f",
         size_bytes: 7_684_142,
     },
 ];

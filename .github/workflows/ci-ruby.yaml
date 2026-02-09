@@ -622,6 +622,11 @@ jobs:
         with:
           destination: ${{ env.CARGO_TARGET_DIR || 'target' }}/release
 
+      - name: Setup ONNX Runtime
+        uses: ./.github/actions/setup-onnx-runtime
+        with:
+          ort-version: ${{ env.ORT_VERSION }}
+
       - name: Install gem
         shell: bash
         run: scripts/ci/ruby/install-gem.sh
@@ -682,6 +687,17 @@ jobs:
       - name: Run Ruby tests
         shell: bash
         run: task ruby:test:ci
+
+      - name: Set library paths for E2E tests
+        shell: bash
+        run: |
+          source scripts/lib/library-paths.sh
+          setup_onnx_paths
+          {
+            echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}"
+            echo "DYLD_LIBRARY_PATH=${DYLD_LIBRARY_PATH:-}"
+            echo "DYLD_FALLBACK_LIBRARY_PATH=${DYLD_FALLBACK_LIBRARY_PATH:-}"
+          } >> "$GITHUB_ENV"
 
       - name: Run E2E tests
         shell: bash

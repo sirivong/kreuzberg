@@ -195,16 +195,18 @@ export function jsToExtractionResult(jsValue: unknown): ExtractionResult {
 		for (const table of result.tables) {
 			if (table && typeof table === "object") {
 				const t = table as Record<string, unknown>;
+				const pageNumber =
+					typeof t.pageNumber === "number" ? t.pageNumber : typeof t.page_number === "number" ? t.page_number : null;
 				if (
 					Array.isArray(t.cells) &&
 					t.cells.every((row) => Array.isArray(row) && row.every((cell) => typeof cell === "string")) &&
 					typeof t.markdown === "string" &&
-					typeof t.pageNumber === "number"
+					pageNumber !== null
 				) {
 					tables.push({
 						cells: t.cells as string[][],
 						markdown: t.markdown,
-						pageNumber: t.pageNumber,
+						pageNumber,
 					});
 				}
 			}

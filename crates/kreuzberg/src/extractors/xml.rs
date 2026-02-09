@@ -131,7 +131,9 @@ mod tests {
             .unwrap();
 
         assert_eq!(result.mime_type, "application/xml");
-        assert_eq!(result.content, "Hello World");
+        // Now includes element names as context
+        assert!(result.content.contains("item: Hello"));
+        assert!(result.content.contains("item: World"));
         assert!(result.metadata.format.is_some());
         let xml_meta = match result.metadata.format.as_ref().unwrap() {
             crate::types::FormatMetadata::Xml(meta) => meta,

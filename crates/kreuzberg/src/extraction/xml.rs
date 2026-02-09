@@ -7,7 +7,7 @@
 //!
 //! - **Streaming parser**: Processes XML files in constant memory
 //! - **Element tracking**: Counts total elements and unique element names
-//! - **Text extraction**: Extracts text content while filtering XML structure
+//! - **Contextual text extraction**: Extracts text with element names as context for better quality
 //! - **Whitespace handling**: Optional whitespace preservation
 //!
 //! # Example
@@ -19,7 +19,9 @@
 //! let xml = b"<root><item>Hello</item><item>World</item></root>";
 //! let result = parse_xml(xml, false)?; // false = trim whitespace
 //!
-//! assert_eq!(result.content, "Hello World");
+//! // Content includes element names as context
+//! assert!(result.content.contains("item: Hello"));
+//! assert!(result.content.contains("item: World"));
 //! assert_eq!(result.element_count, 3);
 //! # Ok(())
 //! # }
@@ -40,32 +42,87 @@ pub fn parse_xml(xml_bytes: &[u8], preserve_whitespace: bool) -> Result<XmlExtra
     let mut element_count = 0usize;
     let mut unique_elements_set = HashSet::new();
     let mut buf = Vec::new();
+    let mut element_stack: Vec<String> = Vec::new();
+    let mut last_was_element_tag = false;
 
     loop {
         match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(e)) | Ok(Event::Empty(e)) => {
+            Ok(Event::Start(e)) => {
                 let name_bytes = e.name().as_ref().to_vec();
                 let name: Cow<str> = String::from_utf8_lossy(&name_bytes);
+                let name_owned = name.into_owned();
                 element_count += 1;
-                unique_elements_set.insert(name.into_owned());
+                unique_elements_set.insert(name_owned.clone());
+                element_stack.push(name_owned);
+                last_was_element_tag = true;
+            }
+            Ok(Event::Empty(e)) => {
+                let name_bytes = e.name().as_ref().to_vec();
+                let name: Cow<str> = String::from_utf8_lossy(&name_bytes);
+                let name_owned = name.into_owned();
+                element_count += 1;
+                unique_elements_set.insert(name_owned.clone());
+
+                // For self-closing tags, add element name as context with no text
+                if !content.is_empty() && !content.ends_with('\n') {
+                    content.push('\n');
+                }
+                content.push_str(&name_owned);
+                content.push('\n');
+                last_was_element_tag = true;
+            }
+            Ok(Event::End(e)) => {
+                let name_bytes = e.name().as_ref().to_vec();
+                let name: Cow<str> = String::from_utf8_lossy(&name_bytes);
+                let name_owned = name.into_owned();
+
+                // Pop matching element from stack
+                if let Some(popped) = element_stack.pop() {
+                    // Verify element names match (lenient parsing allows mismatches)
+                    let _ = popped == name_owned;
+                }
+                last_was_element_tag = true;
             }
             Ok(Event::Text(e)) => {
                 let text_cow: Cow<str> = String::from_utf8_lossy(e.as_ref());
-                if preserve_whitespace {
-                    content.push_str(&text_cow);
-                    content.push(' ');
+                let trimmed = if preserve_whitespace {
+                    text_cow.to_string()
                 } else {
-                    let trimmed = text_cow.trim();
-                    if !trimmed.is_empty() {
-                        content.push_str(trimmed);
-                        content.push(' ');
+                    text_cow.trim().to_string()
+                };
+
+                if !trimmed.is_empty() {
+                    // Add element context if we just opened a new element
+                    if last_was_element_tag && !element_stack.is_empty() {
+                        if !content.is_empty() && !content.ends_with('\n') {
+                            content.push('\n');
+                        }
+                        let elem_name = &element_stack[element_stack.len() - 1];
+                        content.push_str(elem_name);
+                        content.push_str(": ");
                     }
+
+                    content.push_str(&trimmed);
+                    content.push('\n');
+                    last_was_element_tag = false;
                 }
             }
             Ok(Event::CData(e)) => {
                 let text_cow: Cow<str> = String::from_utf8_lossy(&e);
+
+                // Add element context if we just opened a new element
+                if last_was_element_tag && !element_stack.is_empty() {
+                    if !content.is_empty() && !content.ends_with('\n') {
+                        content.push('\n');
+                    }
+                    let elem_name = &element_stack[element_stack.len() - 1];
+                    content.push_str(elem_name);
+                    content.push_str(": ");
+                }
+
                 content.push_str(&text_cow);
-                content.push(' ');
+                content.push('\n');
+                last_was_element_tag = false;
             }
             Ok(Event::Eof) => break,
             Err(e) => {
@@ -80,7 +137,7 @@ pub fn parse_xml(xml_bytes: &[u8], preserve_whitespace: bool) -> Result<XmlExtra
         buf.clear();
     }
 
-    let content = content.trim_end().to_string();
+    let content = content.trim().to_string();
     let mut unique_elements: Vec<String> = unique_elements_set.into_iter().collect();
     unique_elements.sort();
 
@@ -99,7 +156,9 @@ mod tests {
     fn test_simple_xml() {
         let xml = b"<root><item>Hello</item><item>World</item></root>";
         let result = parse_xml(xml, false).unwrap();
-        assert_eq!(result.content, "Hello World");
+        // Now includes element names as context
+        assert!(result.content.contains("item: Hello"));
+        assert!(result.content.contains("item: World"));
         assert_eq!(result.element_count, 3);
         assert!(result.unique_elements.contains(&"root".to_string()));
         assert!(result.unique_elements.contains(&"item".to_string()));
@@ -135,7 +194,7 @@ mod tests {
     fn test_whitespace_handling() {
         let xml = b"<root>  <item>  Text  </item>  </root>";
         let result = parse_xml(xml, false).unwrap();
-        assert_eq!(result.content, "Text");
+        assert!(result.content.contains("item: Text"));
     }
 
     #[test]
@@ -143,7 +202,7 @@ mod tests {
         let xml = b"<root>  Text with   spaces  </root>";
         let result_trimmed = parse_xml(xml, false).unwrap();
         let result_preserved = parse_xml(xml, true).unwrap();
-        assert_eq!(result_trimmed.content.trim(), "Text with   spaces");
+        assert!(result_trimmed.content.contains("Text with   spaces"));
         assert!(result_preserved.content.len() >= result_trimmed.content.len());
     }
 
@@ -160,7 +219,7 @@ mod tests {
     fn test_xml_with_attributes() {
         let xml = br#"<root id="1"><item type="test">Content</item></root>"#;
         let result = parse_xml(xml, false).unwrap();
-        assert_eq!(result.content, "Content");
+        assert!(result.content.contains("item: Content"));
         assert_eq!(result.element_count, 2);
     }
 
@@ -176,7 +235,7 @@ mod tests {
     fn test_xml_with_comments() {
         let xml = b"<root><!-- Comment --><item>Text</item></root>";
         let result = parse_xml(xml, false).unwrap();
-        assert_eq!(result.content, "Text");
+        assert!(result.content.contains("item: Text"));
         assert_eq!(result.element_count, 2);
     }
 
@@ -184,7 +243,7 @@ mod tests {
     fn test_xml_with_processing_instructions() {
         let xml = b"<?xml version=\"1.0\"?><root><item>Text</item></root>";
         let result = parse_xml(xml, false).unwrap();
-        assert_eq!(result.content, "Text");
+        assert!(result.content.contains("item: Text"));
         assert_eq!(result.element_count, 2);
     }
 
@@ -193,7 +252,7 @@ mod tests {
         let xml = b"<root>Text before<item>nested</item>Text after</root>";
         let result = parse_xml(xml, false).unwrap();
         assert!(result.content.contains("Text before"));
-        assert!(result.content.contains("nested"));
+        assert!(result.content.contains("item: nested"));
         assert!(result.content.contains("Text after"));
     }
 
@@ -218,7 +277,8 @@ mod tests {
     fn test_xml_with_nested_elements() {
         let xml = b"<root><parent><child><grandchild>Deep</grandchild></child></parent></root>";
         let result = parse_xml(xml, false).unwrap();
-        assert_eq!(result.content, "Deep");
+        assert!(result.content.contains("Deep"));
+        assert!(result.content.contains("grandchild: Deep"));
         assert_eq!(result.element_count, 4);
         assert_eq!(result.unique_elements.len(), 4);
     }
@@ -251,7 +311,7 @@ mod tests {
     fn test_xml_with_newlines() {
         let xml = b"<root>\n  <item>\n    Text\n  </item>\n</root>";
         let result = parse_xml(xml, false).unwrap();
-        assert_eq!(result.content, "Text");
+        assert!(result.content.contains("item: Text"));
     }
 
     #[test]

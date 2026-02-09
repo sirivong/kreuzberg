@@ -1,0 +1,10 @@
+{
+  "document": "../../../test_documents/images/bmp_24.bmp",
+  "file_type": "bmp",
+  "file_size": 120054,
+  "expected_frameworks": ["kreuzberg"],
+  "metadata": {
+    "description": "24-bit BMP image for format coverage",
+    "category": "image"
+  }
+}

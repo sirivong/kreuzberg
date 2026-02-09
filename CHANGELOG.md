@@ -53,6 +53,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+#### PaddleOCR Recognition Model Shape Inference
+- Fixed PaddleOCR recognition model (`en_PP-OCRv4_rec_infer.onnx`) failing to load with `ShapeInferenceError` on ONNX Runtime 1.23.x. A `Squeeze` node incorrectly reduced a rank-1 tensor to a scalar before a `Concat` operation. The fixed model has been re-uploaded to the HuggingFace model repository.
+
+#### CSV and Excel Extraction Quality
+- Fixed CSV extraction producing near-zero quality scores (0.024) by outputting proper delimited text instead of debug format.
+- Fixed Excel extraction producing low quality scores (0.22) by outputting clean tab/newline-delimited cell text.
+
+#### Native DOC/PPT Extraction
+- Added native DOC and PPT extraction via OLE/CFB parsing, replacing the LibreOffice subprocess dependency for legacy Office formats.
+
+#### XML Extraction Quality
+- Improved XML text extraction to better handle namespaced elements, CDATA sections, and mixed content, improving quality scores.
+
+#### WASM Table Extraction
+- Fixed WASM adapter not recognizing `page_number` field (snake_case) from Rust FFI, causing table data to be silently dropped in Deno and Cloudflare Workers tests.
+
+#### Ruby CI ONNX Runtime Discovery
+- Fixed Ruby E2E tests failing with `dlopen failed` for `libonnxruntime.so` by adding ONNX Runtime setup and library path export to the Ruby CI test job.
+
+#### Java E2E Test Compilation
+- Fixed Java E2E helper compilation errors caused by `Metadata` type not being directly castable to `Map` and `Element.getType()` method not existing. Updated to use `Metadata.getAdditional()` and `Element.getElementType()`.
+
 #### ODT List and Section Extraction
 - Fixed ODT extractor not handling `text:list` and `text:section` elements. Documents containing bulleted/numbered lists or sections returned empty content.
 

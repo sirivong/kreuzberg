@@ -2,6 +2,7 @@ package com.kreuzberg.e2e;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.kreuzberg.Element;
 import dev.kreuzberg.ExtractionResult;
 import dev.kreuzberg.Kreuzberg;
 import dev.kreuzberg.MissingDependencyException;
@@ -222,14 +223,17 @@ public final class E2EHelpers {
                     String.format("Expected languages %s to be in %s", expected, languages));
 
             if (minConfidence != null) {
-                Map<String, Object> metadata = result.getMetadata();
-                if (metadata != null && metadata.containsKey("confidence")) {
-                    Object confObj = metadata.get("confidence");
-                    double confidence = confObj instanceof Number
-                            ? ((Number) confObj).doubleValue()
-                            : 0.0;
-                    assertTrue(confidence >= minConfidence,
-                            String.format("Expected confidence >= %f, got %f", minConfidence, confidence));
+                dev.kreuzberg.Metadata metadata = result.getMetadata();
+                if (metadata != null) {
+                    Map<String, Object> additional = metadata.getAdditional();
+                    if (additional.containsKey("confidence")) {
+                        Object confObj = additional.get("confidence");
+                        double confidence = confObj instanceof Number
+                                ? ((Number) confObj).doubleValue()
+                                : 0.0;
+                        assertTrue(confidence >= minConfidence,
+                                String.format("Expected confidence >= %f, got %f", minConfidence, confidence));
+                    }
                 }
             }
         }
@@ -239,7 +243,7 @@ public final class E2EHelpers {
                 String path,
                 Map<String, Object> expectation
         ) {
-            Map<String, Object> metadata = result.getMetadata();
+            dev.kreuzberg.Metadata metadata = result.getMetadata();
             Object value = fetchMetadataValue(metadata, path);
             assertNotNull(value, String.format("Metadata path '%s' missing", path));
 
@@ -293,16 +297,17 @@ public final class E2EHelpers {
             }
         }
 
-        private static Object fetchMetadataValue(Map<String, Object> metadata, String path) {
+        private static Object fetchMetadataValue(dev.kreuzberg.Metadata metadata, String path) {
             if (metadata == null) {
                 return null;
             }
-            Object direct = lookupMetadataPath(metadata, path);
+            Map<String, Object> additional = metadata.getAdditional();
+            Object direct = lookupMetadataPath(additional, path);
             if (direct != null) {
                 return direct;
             }
-            Object formatObj = metadata.get("format");
-            if (formatObj instanceof Map<?, ?>) {
+            Object formatObj = additional.get("format");
+            if (formatObj instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> format = (Map<String, Object>) formatObj;
                 return lookupMetadataPath(format, path);
@@ -442,8 +447,9 @@ public final class E2EHelpers {
             }
             if (elements != null && typesInclude != null && !typesInclude.isEmpty()) {
                 var types = elements.stream()
-                        .map(el -> el.getType())
+                        .map(Element::getElementType)
                         .filter(t -> t != null)
+                        .map(t -> t.toString())
                         .toList();
                 for (String expected : typesInclude) {
                     boolean found = types.stream()
