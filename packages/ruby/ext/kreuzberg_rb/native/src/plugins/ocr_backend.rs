@@ -100,6 +100,7 @@ impl OcrBackend for RubyOcrBackend {
                 pages: None,
                 elements: None,
                 ocr_elements: None,
+                document: None,
             })
         })
     }
