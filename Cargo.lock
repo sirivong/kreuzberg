@@ -580,6 +580,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "bindgen"
+version = "0.72.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "993776b509cfb49c750f11b8f07a46fa23e0a1386ffc01fb1e7d343efc387895"
+dependencies = [
+ "bitflags 2.10.0",
+ "cexpr",
+ "clang-sys",
+ "itertools 0.13.0",
+ "log",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash",
+ "shlex",
+ "syn",
+]
+
+[[package]]
 name = "bit-set"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -980,6 +1000,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "clang-sys"
+version = "1.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b023947811758c97c59bf9d1c188fd619ad4718dcaa767947df1cadb14f39f4"
+dependencies = [
+ "glob",
+ "libc",
+ "libloading 0.8.9",
+]
+
+[[package]]
 name = "clap"
 version = "4.5.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1136,15 +1167,6 @@ name = "convert_case"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "633458d4ef8c78b72454de2d54fd6ab2e60f9e02be22f3c6104cdc8a4e0fceb9"
-dependencies = [
- "unicode-segmentation",
-]
-
-[[package]]
-name = "convert_case"
-version = "0.11.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "affbf0190ed2caf063e3def54ff444b449371d55c58e513a95ab98eca50adb49"
 dependencies = [
  "unicode-segmentation",
 ]
@@ -1852,44 +1874,23 @@ dependencies = [
 
 [[package]]
 name = "ext-php-rs"
-version = "0.15.6"
+version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c6ce0f549b84992322e48039adf0c483276f81993e401523ad12bd310b609ff"
+checksum = "c719e3bb9dbffdac2b5db25bc5f5a9cbb237033dc5b2861f84b3e11e0cf297e3"
 dependencies = [
  "anyhow",
+ "bindgen",
  "bitflags 2.10.0",
  "cc",
  "cfg-if",
- "ext-php-rs-bindgen",
  "ext-php-rs-build",
  "ext-php-rs-derive",
- "inventory",
  "native-tls",
  "once_cell",
  "parking_lot",
  "skeptic",
  "ureq 3.2.0",
  "zip",
-]
-
-[[package]]
-name = "ext-php-rs-bindgen"
-version = "0.72.1-extphprs.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4795dd0976bd7d7d321c49e88e836f8e5b5b2b481e089067e303f2945617458a"
-dependencies = [
- "bitflags 2.10.0",
- "cexpr",
- "ext-php-rs-clang-sys",
- "itertools 0.14.0",
- "log",
- "prettyplease",
- "proc-macro2",
- "quote",
- "regex",
- "rustc-hash",
- "shlex",
- "syn",
 ]
 
 [[package]]
@@ -1902,23 +1903,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "ext-php-rs-clang-sys"
-version = "1.8.1-extphprs.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa1ad6e482017d457d57d73691f8bed148a8a6198babe90830310c3308480a61"
-dependencies = [
- "glob",
- "libc",
- "libloading 0.8.9",
-]
-
-[[package]]
 name = "ext-php-rs-derive"
-version = "0.11.8"
+version = "0.11.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b1d95ccaa852836477c0401b986e906d3a31810d9963ff7d6fde410d5bbaaa71"
+checksum = "392cae7cdb924b08b91ba28b35e2d72012e6f54fc11a8d4abc0cf37dc6255978"
 dependencies = [
- "convert_case 0.11.0",
+ "convert_case",
  "darling 0.23.0",
  "itertools 0.14.0",
  "proc-macro2",
@@ -2550,9 +2540,9 @@ dependencies = [
 
 [[package]]
 name = "hayro-jpeg2000"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e94b34463cd6309fdfe9a541f07e8343ffe5738534cbca6845960ec41cc077a"
+checksum = "08198f836e50c101095b1e2e9f3c44d2d31f28bd0e0217839b1dadad4b8d3a3a"
 dependencies = [
  "fearless_simd",
 ]
@@ -3373,7 +3363,7 @@ dependencies = [
  "tempfile",
  "text-splitter",
  "thiserror 2.0.18",
- "tiff 0.11.2",
+ "tiff 0.11.3",
  "tokio",
  "tokio-test",
  "toml 0.9.11+spec-1.1.0",
@@ -3489,10 +3479,9 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-pdfium-render"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6c1ceacb1e6855f8ee797b7da2520f78943b8de062b8a1549827ec39372c180"
+version = "4.2.15"
 dependencies = [
+ "bindgen",
  "bitflags 2.10.0",
  "bytemuck",
  "bytes",
@@ -3511,6 +3500,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "web-sys",
+ "windows",
 ]
 
 [[package]]
@@ -3566,7 +3556,7 @@ dependencies = [
  "base64 0.22.1",
  "console_error_panic_hook",
  "futures",
- "getrandom 0.3.4",
+ "getrandom 0.4.1",
  "js-sys",
  "kreuzberg",
  "serde",
@@ -3632,9 +3622,9 @@ checksum = "2c4a545a15244c7d945065b5d392b2d2d7f21526fba56ce51467b06ed445e8f7"
 
 [[package]]
 name = "libc"
-version = "0.2.180"
+version = "0.2.181"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bcc35a38544a891a5f7c865aca548a982ccb3b8650a5b06d0fd33a10283c56fc"
+checksum = "459427e2af2b9c839b132acb702a1c654d95e10f8c326bfc2ad11310e458b1c5"
 
 [[package]]
 name = "libfuzzer-sys"
@@ -4126,7 +4116,7 @@ version = "3.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04ba21bbdf40b33496b4ee6eadfc64d17a6a6cde57cd31549117b0882d1fef86"
 dependencies = [
- "convert_case 0.10.0",
+ "convert_case",
  "ctor",
  "napi-derive-backend",
  "proc-macro2",
@@ -4140,7 +4130,7 @@ version = "5.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e9a63791e230572c3218a7acd86ca0a0529fc64294bcbea567cf906d7b04e077"
 dependencies = [
- "convert_case 0.10.0",
+ "convert_case",
  "proc-macro2",
  "quote",
  "semver",
@@ -7393,9 +7383,9 @@ dependencies = [
 
 [[package]]
 name = "tiff"
-version = "0.11.2"
+version = "0.11.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3f1dc86408aa1659d4c7705c1c0897baa37402a4237193aa5f6918e7bcdf3548"
+checksum = "b63feaf3343d35b6ca4d50483f94843803b0f51634937cc2ec519fc32232bc52"
 dependencies = [
  "fax",
  "flate2",

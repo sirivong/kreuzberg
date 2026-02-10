@@ -1,0 +1,100 @@
+[package]
+name = "kreuzberg-pdfium-render"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "High-level idiomatic Rust wrapper around Pdfium. Fork of pdfium-render with Kreuzberg patches."
+license.workspace = true
+repository.workspace = true
+homepage = "https://kreuzberg.dev"
+documentation = "https://docs.rs/kreuzberg-pdfium-render"
+keywords = ["pdf", "pdfium", "rendering", "extraction"]
+categories = ["api-bindings", "multimedia::images"]
+readme = "README.md"
+build = "build.rs"
+exclude = ["include/**/rust-import-wrapper.h"]
+
+[lib]
+name = "pdfium_render"
+crate-type = ["lib"]
+doctest = false
+
+[dependencies]
+bitflags = "2"
+bytes = { workspace = true }
+bytemuck = "1"
+chrono = "0.4"
+image_025 = { package = "image", version = "0.25", optional = true, default-features = false, features = [
+    "jpeg",
+] }
+itertools = "0.14"
+log = "0.4"
+maybe-owned = "0.3"
+once_cell = { workspace = true }
+utf16string = "0.2"
+vecmath = "1"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+console_log = "1"
+console_error_panic_hook = "0.1"
+js-sys = "0.3"
+wasm-bindgen = { version = "0.2", features = ["enable-interning"] }
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["TextDecoder", "ImageData", "Window", "Response", "Blob"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+libloading = "0.9"
+
+[target.'cfg(target_os = "windows")'.dependencies]
+windows = { version = "0.62", optional = true }
+
+[build-dependencies]
+bindgen = { version = "0.72", optional = true }
+
+[features]
+default = ["pdfium_latest", "image_latest", "thread_safe"]
+bindings = ["dep:bindgen"]
+static = []
+thread_safe = []
+"libstdc++" = ["static"]
+"libc++" = ["static"]
+core_graphics = ["static"]
+paragraph = []
+flatten = []
+
+# Image
+image_latest = ["image_025"]
+image_025 = ["dep:image_025"]
+
+# Pdfium version selection features (default is latest)
+pdfium_latest = ["pdfium_7543"]
+pdfium_future = ["pdfium_use_skia", "pdfium_enable_xfa", "pdfium_enable_v8"]
+pdfium_7543 = []
+pdfium_7350 = []
+pdfium_7215 = []
+pdfium_7123 = []
+pdfium_6996 = []
+pdfium_6721 = []
+pdfium_6666 = []
+pdfium_6611 = []
+pdfium_6569 = []
+pdfium_6555 = []
+pdfium_6490 = []
+pdfium_6406 = []
+pdfium_6337 = []
+pdfium_6295 = []
+pdfium_6259 = []
+pdfium_6164 = []
+pdfium_6124 = []
+pdfium_6110 = []
+pdfium_6084 = []
+pdfium_6043 = []
+pdfium_6015 = []
+pdfium_5961 = []
+
+# Pdfium compile-time flags
+pdfium_use_win32 = ["dep:windows"]
+pdfium_use_skia = []
+pdfium_enable_xfa = []
+pdfium_enable_v8 = []

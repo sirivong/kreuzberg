@@ -20,7 +20,7 @@ repos:
       - id: end-of-file-fixer
       - id: check-merge-conflict
       - id: check-added-large-files
-        exclude: uv.lock|docs/benchmarks/app/|test_documents/
+        exclude: uv.lock|docs/benchmarks/app/|test_documents/|crates/kreuzberg-pdfium-render/
       - id: detect-private-key
       - id: check-json
       - id: check-yaml
@@ -57,7 +57,9 @@ repos:
     hooks:
       - id: clippy
         files: ^(crates|tools|e2e/rust)/.*\.rs$|^(Cargo\.toml|Cargo\.lock|crates/.*/Cargo\.toml|tools/.*/Cargo\.toml|e2e/rust/Cargo\.toml|packages/ruby/ext/kreuzberg_rb/native/Cargo\.toml)$
-        args: ["--workspace", "--all-features", "--all-targets", "--", "-D", "warnings", "-A", "clippy::collapsible_if"]
+        # kreuzberg-pdfium-render has mutually exclusive pdfium version features,
+        # so --all-features causes duplicate symbol errors. Lint it separately with defaults.
+        args: ["--workspace", "--exclude", "kreuzberg-pdfium-render", "--all-features", "--all-targets", "--", "-D", "warnings", "-A", "clippy::collapsible_if"]
 
   - repo: https://github.com/EmbarkStudios/cargo-deny
     rev: 0.19.0

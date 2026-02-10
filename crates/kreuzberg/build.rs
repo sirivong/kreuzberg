@@ -777,12 +777,15 @@ fn link_system_frameworks(target: &str) {
         println!("cargo:rustc-link-lib=framework=AppKit");
         println!("cargo:rustc-link-lib=dylib=c++");
     } else if target.contains("linux") {
-        // Use libstdc++ consistently for all Linux targets (including musl).
-        // PDFium is loaded dynamically via dlopen and is self-contained regarding
-        // its C++ runtime. The link directive here is for the main binary, which
-        // builds tesseract/leptonica with g++/libstdc++.
-        println!("cargo:rustc-link-lib=dylib=stdc++");
-        println!("cargo:rustc-link-lib=dylib=m");
+        // PDFium and tesseract/leptonica are built with g++/libstdc++.
+        if target.contains("musl") {
+            // musl builds: statically link libstdc++ for fully portable binaries
+            println!("cargo:rustc-link-lib=static=stdc++");
+            // libm is part of musl libc, linked statically by default
+        } else {
+            println!("cargo:rustc-link-lib=dylib=stdc++");
+            println!("cargo:rustc-link-lib=dylib=m");
+        }
     } else if target.contains("windows") {
         println!("cargo:rustc-link-lib=dylib=gdi32");
         println!("cargo:rustc-link-lib=dylib=user32");

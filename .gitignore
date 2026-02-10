@@ -78,6 +78,7 @@ crates/kreuzberg-node/index.d.ts
 crates/kreuzberg-node/index.js
 # Global dist/ ignore
 dist/
+dist-musl/
 docker-compose.yaml
 docker-logs/
 docs/_build/

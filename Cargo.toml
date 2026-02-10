@@ -6,6 +6,7 @@ members = [
     "crates/kreuzberg-ffi",
     "crates/kreuzberg-tesseract",
     "crates/kreuzberg-paddle-ocr",
+    "crates/kreuzberg-pdfium-render",
     "crates/kreuzberg-cli",
     "crates/kreuzberg-node",
     "crates/kreuzberg-wasm",
@@ -22,6 +23,7 @@ resolver = "2"
 kreuzberg = { path = "crates/kreuzberg" }
 kreuzberg-tesseract = { path = "crates/kreuzberg-tesseract" }
 kreuzberg-paddle-ocr = { path = "crates/kreuzberg-paddle-ocr" }
+kreuzberg-pdfium-render = { path = "crates/kreuzberg-pdfium-render" }
 
 [workspace.package]
 version = "4.2.15"
@@ -51,7 +53,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149" }
 thiserror = "2.0.18"
 anyhow = "1.0"
-libc = "0.2.180"
+libc = "0.2.181"
 async-trait = "0.1.89"
 tracing = "0.1"
 ahash = "0.8.12"
@@ -66,7 +68,7 @@ reqwest = { version = "0.13.2", default-features = false }
 image = { version = "0.25.9", default-features = false }
 clap = { version = "4.5", features = ["derive", "color", "suggestions"] }
 toml = "0.9.11"
-tempfile = "3.24.0"
+tempfile = "3.25.0"
 criterion = { version = "0.8", features = ["html_reports"] }
 lzma-rust2 = { version = "0.15.7" }
 getrandom = { version = "0.3.4", features = ["wasm_js"] }
