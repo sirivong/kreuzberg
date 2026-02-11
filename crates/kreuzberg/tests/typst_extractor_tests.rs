@@ -63,12 +63,12 @@ async fn test_simple_typst_document_extraction() {
     assert!(!extraction.content.is_empty(), "Extracted content should not be empty");
 
     assert!(
-        extraction.metadata.additional.contains_key("title"),
+        extraction.metadata.title.is_some(),
         "Document title should be extracted from #set document()"
     );
 
     assert!(
-        extraction.metadata.additional.contains_key("author"),
+        extraction.metadata.authors.is_some(),
         "Document author should be extracted"
     );
 
@@ -332,10 +332,7 @@ async fn test_advanced_typst_document_extraction() {
 
     let extraction = result.expect("Operation failed");
 
-    assert!(
-        extraction.metadata.additional.contains_key("title"),
-        "Title should be extracted"
-    );
+    assert!(extraction.metadata.title.is_some(), "Title should be extracted");
 
     assert!(
         !extraction.content.is_empty(),
