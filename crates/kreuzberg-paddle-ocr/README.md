@@ -19,22 +19,13 @@ Based on the original [paddle-ocr-rs](https://github.com/mg-chao/paddle-ocr-rs) 
 
 ## ONNX Runtime Requirement
 
-This crate requires **ONNX Runtime 1.23.x** at runtime. The bundled PaddleOCR ONNX
-models are exported for the ONNX Runtime 1.23 opset and are **not compatible** with
-ONNX Runtime 1.24+.
+This crate requires **ONNX Runtime 1.24+** at runtime.
 
-Install the correct version:
+Install it:
 
-- **macOS (Homebrew)**: `brew install onnxruntime@1.23`
-- **Linux**: Download from [ONNX Runtime 1.23.2 releases](https://github.com/microsoft/onnxruntime/releases/tag/v1.23.2)
-- **From source**: Build ONNX Runtime 1.23.2
-
-If you have a newer ONNX Runtime installed system-wide, point `ORT_DYLIB_PATH` to
-the 1.23.x library:
-
-```bash
-export ORT_DYLIB_PATH=/path/to/libonnxruntime.1.23.2.dylib
-```
+- **macOS (Homebrew)**: `brew install onnxruntime`
+- **Linux**: Download from [ONNX Runtime releases](https://github.com/microsoft/onnxruntime/releases)
+- **Windows**: Download from [ONNX Runtime releases](https://github.com/microsoft/onnxruntime/releases)
 
 ## Usage
 

@@ -7,9 +7,7 @@
 //!
 //! ## ONNX Runtime Requirement
 //!
-//! Requires **ONNX Runtime 1.23.x** at runtime. The bundled PaddleOCR ONNX models
-//! are exported for the 1.23 opset and are **not compatible** with ONNX Runtime 1.24+.
-//! Set `ORT_DYLIB_PATH` to point to the correct library if needed.
+//! Requires **ONNX Runtime 1.24+** at runtime.
 //!
 //! ## Original License
 //!

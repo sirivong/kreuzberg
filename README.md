@@ -122,14 +122,14 @@ Complete architecture coverage across all language bindings:
 
 To use embeddings functionality:
 
-1. **Install ONNX Runtime 1.23+**:
+1. **Install ONNX Runtime 1.24+**:
    - Linux: Download from [ONNX Runtime releases](https://github.com/microsoft/onnxruntime/releases) (Debian packages may have older versions)
    - macOS: `brew install onnxruntime`
    - Windows: Download from [ONNX Runtime releases](https://github.com/microsoft/onnxruntime/releases)
 
 2. Use embeddings in your code - see [Embeddings Guide](https://docs.kreuzberg.dev/features/#embeddings)
 
-**Note:** Kreuzberg requires ONNX Runtime version 1.23+ for embeddings. All other Kreuzberg features work without ONNX Runtime.
+**Note:** Kreuzberg requires ONNX Runtime version 1.24+ for embeddings. All other Kreuzberg features work without ONNX Runtime.
 
 ## Supported Formats
 
