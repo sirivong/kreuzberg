@@ -87,6 +87,9 @@ function normalizeOcrConfig(ocr?: OcrConfig): NativeExtractionConfig | undefined
 		setIfDefined(normalized, "tesseractConfig", tesseract);
 	}
 
+	setIfDefined(normalized, "paddleOcrConfig", ocr.paddleOcrConfig);
+	setIfDefined(normalized, "elementConfig", ocr.elementConfig);
+
 	return normalized;
 }
 

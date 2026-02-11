@@ -17,6 +17,7 @@ import type {
     ExtractionConfig,
     ExtractionResult,
     ImageExtractionConfig,
+    KeywordConfig,
     LanguageDetectionConfig,
     OcrConfig,
     PdfConfig,
@@ -80,6 +81,30 @@ function mapTesseractConfig(raw: PlainRecord): TesseractConfig {
     return config;
 }
 
+function mapPaddleOcrConfig(raw: PlainRecord): PlainRecord {
+    const config: PlainRecord = {};
+    if (typeof raw.cache_dir === "string") { config.cacheDir = raw.cache_dir; }
+    assignBooleanField(config, raw, "use_angle_cls", "useAngleCls");
+    assignBooleanField(config, raw, "enable_table_detection", "enableTableDetection");
+    assignNumberField(config, raw, "det_db_thresh", "detDbThresh");
+    assignNumberField(config, raw, "det_db_box_thresh", "detDbBoxThresh");
+    assignNumberField(config, raw, "det_db_unclip_ratio", "detDbUnclipRatio");
+    assignNumberField(config, raw, "det_limit_side_len", "detLimitSideLen");
+    assignNumberField(config, raw, "rec_batch_num", "recBatchNum");
+    assignNumberField(config, raw, "min_confidence", "minConfidence");
+    if (typeof raw.output_format === "string") { config.outputFormat = raw.output_format; }
+    return config;
+}
+
+function mapElementConfig(raw: PlainRecord): PlainRecord {
+    const config: PlainRecord = {};
+    assignBooleanField(config, raw, "include_elements", "includeElements");
+    if (typeof raw.min_level === "string") { config.minLevel = raw.min_level; }
+    assignNumberField(config, raw, "min_confidence", "minConfidence");
+    assignBooleanField(config, raw, "build_hierarchy", "buildHierarchy");
+    return config;
+}
+
 function mapOcrConfig(raw: PlainRecord): OcrConfig | undefined {
     const backend = raw.backend;
     if (typeof backend !== "string" || backend.length === 0) {
@@ -96,11 +121,11 @@ function mapOcrConfig(raw: PlainRecord): OcrConfig | undefined {
     }
 
     if (isPlainRecord(raw.paddle_ocr_config)) {
-        (config as PlainRecord).paddleOcrConfig = raw.paddle_ocr_config;
+        (config as PlainRecord).paddleOcrConfig = mapPaddleOcrConfig(raw.paddle_ocr_config as PlainRecord);
     }
 
     if (isPlainRecord(raw.element_config)) {
-        (config as PlainRecord).elementConfig = raw.element_config;
+        (config as PlainRecord).elementConfig = mapElementConfig(raw.element_config as PlainRecord);
     }
 
     return config;
@@ -165,6 +190,30 @@ function mapPostProcessorConfig(raw: PlainRecord): PostProcessorConfig {
     return config;
 }
 
+function mapKeywordConfig(raw: PlainRecord): KeywordConfig {
+    const config: KeywordConfig = {};
+    const target = config as PlainRecord;
+    if (typeof raw.algorithm === "string") { config.algorithm = raw.algorithm as string; }
+    assignNumberField(target, raw, "max_keywords", "maxKeywords");
+    assignNumberField(target, raw, "min_score", "minScore");
+    if (typeof raw.language === "string") { config.language = raw.language as string; }
+    if (Array.isArray(raw.ngram_range) && raw.ngram_range.length === 2) {
+        config.ngramRange = [Number(raw.ngram_range[0]), Number(raw.ngram_range[1])];
+    }
+    if (isPlainRecord(raw.yake_params)) {
+        const yake: PlainRecord = {};
+        assignNumberField(yake, raw.yake_params as PlainRecord, "window_size", "windowSize");
+        config.yakeParams = yake as KeywordConfig["yakeParams"];
+    }
+    if (isPlainRecord(raw.rake_params)) {
+        const rake: PlainRecord = {};
+        assignNumberField(rake, raw.rake_params as PlainRecord, "min_word_length", "minWordLength");
+        assignNumberField(rake, raw.rake_params as PlainRecord, "max_words_per_phrase", "maxWordsPerPhrase");
+        config.rakeParams = rake as KeywordConfig["rakeParams"];
+    }
+    return config;
+}
+
 export function buildConfig(raw: unknown): ExtractionConfig {
     if (!isPlainRecord(raw)) {
         return {};
@@ -209,6 +258,10 @@ export function buildConfig(raw: unknown): ExtractionConfig {
 
     if (isPlainRecord(source.postprocessor)) {
         result.postprocessor = mapPostProcessorConfig(source.postprocessor as PlainRecord);
+    }
+
+    if (isPlainRecord(source.keywords)) {
+        result.keywords = mapKeywordConfig(source.keywords as PlainRecord);
     }
 
     if (typeof source.output_format === "string") {

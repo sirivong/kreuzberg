@@ -306,6 +306,12 @@ function convertResult(rawResult: unknown): ExtractionResult {
 		returnObj.pages = (pagesData as unknown[]).map((page) => convertPageContent(page));
 	}
 
+	// biome-ignore lint/complexity/useLiteralKeys: required for strict TypeScript noPropertyAccessFromIndexSignature
+	const ocrElementsData = result["ocrElements"];
+	if (Array.isArray(ocrElementsData)) {
+		returnObj.ocrElements = ocrElementsData as import("../types.js").OcrElement[];
+	}
+
 	return returnObj;
 }
 

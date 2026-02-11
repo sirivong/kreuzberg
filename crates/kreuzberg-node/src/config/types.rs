@@ -48,8 +48,30 @@ pub struct JsOcrConfig {
     pub backend: String,
     pub language: Option<String>,
     pub tesseract_config: Option<JsTesseractConfig>,
-    pub paddle_ocr_config: Option<serde_json::Value>,
-    pub element_config: Option<serde_json::Value>,
+    pub paddle_ocr_config: Option<JsPaddleOcrConfig>,
+    pub element_config: Option<JsOcrElementConfig>,
+}
+
+#[napi(object)]
+pub struct JsPaddleOcrConfig {
+    pub cache_dir: Option<String>,
+    pub use_angle_cls: Option<bool>,
+    pub enable_table_detection: Option<bool>,
+    pub det_db_thresh: Option<f64>,
+    pub det_db_box_thresh: Option<f64>,
+    pub det_db_unclip_ratio: Option<f64>,
+    pub det_limit_side_len: Option<u32>,
+    pub rec_batch_num: Option<u32>,
+    pub min_confidence: Option<f64>,
+    pub output_format: Option<String>,
+}
+
+#[napi(object)]
+pub struct JsOcrElementConfig {
+    pub include_elements: Option<bool>,
+    pub min_level: Option<String>,
+    pub min_confidence: Option<f64>,
+    pub build_hierarchy: Option<bool>,
 }
 
 impl From<JsOcrConfig> for RustOcrConfig {
@@ -59,8 +81,76 @@ impl From<JsOcrConfig> for RustOcrConfig {
             language: val.language.unwrap_or_else(|| "eng".to_string()),
             tesseract_config: val.tesseract_config.map(Into::into),
             output_format: None,
-            paddle_ocr_config: val.paddle_ocr_config,
-            element_config: val.element_config.and_then(|v| serde_json::from_value(v).ok()),
+            paddle_ocr_config: val.paddle_ocr_config.map(|p| {
+                let mut map = serde_json::Map::new();
+                if let Some(v) = p.cache_dir {
+                    map.insert("cache_dir".into(), serde_json::Value::String(v));
+                }
+                if let Some(v) = p.use_angle_cls {
+                    map.insert("use_angle_cls".into(), serde_json::Value::Bool(v));
+                }
+                if let Some(v) = p.enable_table_detection {
+                    map.insert("enable_table_detection".into(), serde_json::Value::Bool(v));
+                }
+                if let Some(v) = p.det_db_thresh {
+                    map.insert(
+                        "det_db_thresh".into(),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(v).unwrap_or_else(|| serde_json::Number::from(0)),
+                        ),
+                    );
+                }
+                if let Some(v) = p.det_db_box_thresh {
+                    map.insert(
+                        "det_db_box_thresh".into(),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(v).unwrap_or_else(|| serde_json::Number::from(0)),
+                        ),
+                    );
+                }
+                if let Some(v) = p.det_db_unclip_ratio {
+                    map.insert(
+                        "det_db_unclip_ratio".into(),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(v).unwrap_or_else(|| serde_json::Number::from(0)),
+                        ),
+                    );
+                }
+                if let Some(v) = p.det_limit_side_len {
+                    map.insert("det_limit_side_len".into(), serde_json::Value::Number(v.into()));
+                }
+                if let Some(v) = p.rec_batch_num {
+                    map.insert("rec_batch_num".into(), serde_json::Value::Number(v.into()));
+                }
+                if let Some(v) = p.min_confidence {
+                    map.insert(
+                        "min_confidence".into(),
+                        serde_json::Value::Number(
+                            serde_json::Number::from_f64(v).unwrap_or_else(|| serde_json::Number::from(0)),
+                        ),
+                    );
+                }
+                if let Some(v) = p.output_format {
+                    map.insert("output_format".into(), serde_json::Value::String(v));
+                }
+                serde_json::Value::Object(map)
+            }),
+            element_config: val.element_config.map(|ec| kreuzberg::OcrElementConfig {
+                include_elements: ec.include_elements.unwrap_or(false),
+                min_level: ec
+                    .min_level
+                    .as_deref()
+                    .map(|s| match s {
+                        "word" | "Word" => kreuzberg::OcrElementLevel::Word,
+                        "line" | "Line" => kreuzberg::OcrElementLevel::Line,
+                        "block" | "Block" => kreuzberg::OcrElementLevel::Block,
+                        "page" | "Page" => kreuzberg::OcrElementLevel::Page,
+                        _ => kreuzberg::OcrElementLevel::default(),
+                    })
+                    .unwrap_or_default(),
+                min_confidence: ec.min_confidence.unwrap_or(0.0),
+                build_hierarchy: ec.build_hierarchy.unwrap_or(false),
+            }),
         }
     }
 }
@@ -961,8 +1051,32 @@ impl TryFrom<ExtractionConfig> for JsExtractionConfig {
                         Some(tc.tessedit_char_whitelist)
                     },
                 }),
-                paddle_ocr_config: ocr.paddle_ocr_config,
-                element_config: ocr.element_config.and_then(|v| serde_json::to_value(v).ok()),
+                paddle_ocr_config: ocr
+                    .paddle_ocr_config
+                    .and_then(|v| serde_json::from_value::<kreuzberg::PaddleOcrConfig>(v).ok())
+                    .map(|p| JsPaddleOcrConfig {
+                        cache_dir: p.cache_dir.map(|p| p.to_string_lossy().into_owned()),
+                        use_angle_cls: Some(p.use_angle_cls),
+                        enable_table_detection: Some(p.enable_table_detection),
+                        det_db_thresh: Some(p.det_db_thresh as f64),
+                        det_db_box_thresh: Some(p.det_db_box_thresh as f64),
+                        det_db_unclip_ratio: Some(p.det_db_unclip_ratio as f64),
+                        det_limit_side_len: Some(p.det_limit_side_len),
+                        rec_batch_num: Some(p.rec_batch_num),
+                        min_confidence: None,
+                        output_format: None,
+                    }),
+                element_config: ocr.element_config.map(|ec| JsOcrElementConfig {
+                    include_elements: Some(ec.include_elements),
+                    min_level: Some(match ec.min_level {
+                        kreuzberg::OcrElementLevel::Word => "word".to_string(),
+                        kreuzberg::OcrElementLevel::Line => "line".to_string(),
+                        kreuzberg::OcrElementLevel::Block => "block".to_string(),
+                        kreuzberg::OcrElementLevel::Page => "page".to_string(),
+                    }),
+                    min_confidence: Some(ec.min_confidence),
+                    build_hierarchy: Some(ec.build_hierarchy),
+                }),
             }),
             force_ocr: Some(val.force_ocr),
             chunking: val.chunking.map(|chunk| JsChunkingConfig {
