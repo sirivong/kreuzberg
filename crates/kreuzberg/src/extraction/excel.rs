@@ -109,20 +109,12 @@ pub fn read_excel_file(file_path: &str) -> Result<ExcelWorkbook> {
         }
     }
 
-    // For .xlsb (binary spreadsheet), try XLSB parsing but gracefully return empty workbook on failure
+    // For .xlsb (binary spreadsheet), use XLSB parser with error propagation
     if lower_path.ends_with(".xlsb") {
         let file = std::fs::File::open(file_path)?;
-        match calamine::Xlsb::new(std::io::BufReader::new(file)) {
-            Ok(workbook) => {
-                return process_workbook(workbook, office_metadata);
-            }
-            Err(_) => {
-                return Ok(ExcelWorkbook {
-                    sheets: vec![],
-                    metadata: office_metadata.unwrap_or_default(),
-                });
-            }
-        }
+        let workbook = calamine::Xlsb::new(std::io::BufReader::new(file))
+            .map_err(|e| KreuzbergError::parsing(format!("Failed to parse XLSB: {}", e)))?;
+        return process_workbook(workbook, office_metadata);
     }
 
     // For other formats, use open_workbook_auto
@@ -197,19 +189,12 @@ pub fn read_excel_bytes(data: &[u8], file_extension: &str) -> Result<ExcelWorkbo
                 }
             }
         }
-        // Exotic format: .xlsb (binary spreadsheet) - may not contain proper workbook data
+        // Standard XLSB format (binary spreadsheet): propagate errors
         ".xlsb" => {
             let cursor = Cursor::new(data);
-            match calamine::Xlsb::new(cursor) {
-                Ok(workbook) => process_workbook(workbook, office_metadata),
-                Err(_) => {
-                    // .xlsb files may not contain proper workbook data - return empty workbook
-                    Ok(ExcelWorkbook {
-                        sheets: vec![],
-                        metadata: office_metadata.unwrap_or_default(),
-                    })
-                }
-            }
+            let workbook = calamine::Xlsb::new(cursor)
+                .map_err(|e| KreuzbergError::parsing(format!("Failed to parse XLSB: {}", e)))?;
+            process_workbook(workbook, office_metadata)
         }
         // Standard OpenDocument format
         ".ods" => {
