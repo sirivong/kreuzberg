@@ -144,11 +144,19 @@ impl PaddleOcrBackend {
 
         let engine = Arc::new(Mutex::new(ocr_lite));
 
-        // Insert into pool
+        // Insert into pool (with double-check for concurrent initialization)
         let mut pool = self.engine_pool.lock().map_err(|e| crate::KreuzbergError::Plugin {
             message: format!("Failed to acquire engine pool lock: {e}"),
             plugin_name: "paddle-ocr".to_string(),
         })?;
+
+        // Re-check if another thread already inserted an engine while we were creating ours
+        if let Some(existing_engine) = pool.get(family) {
+            // Another thread beat us; use their engine instead
+            return Ok(Arc::clone(existing_engine));
+        }
+
+        // We're first; insert our engine
         pool.insert(family.to_string(), Arc::clone(&engine));
 
         Ok(engine)

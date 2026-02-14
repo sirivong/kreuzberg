@@ -99,7 +99,9 @@ PaddleOCR is available as a native Rust backend in all non-WASM bindings via the
 
 - Production-ready OCR using ONNX Runtime
 - Ultra-lightweight models (~25MB total)
-- 80+ language support
+- 106+ language support across 12 script families: English, Chinese, Latin, Korean, Cyrillic, Thai, Greek, Arabic, Devanagari, Tamil, Telugu, Kannada
+- Per-family models downloaded on demand
+- Concurrent multi-language OCR via engine pool
 - Excellent CJK (Chinese, Japanese, Korean) accuracy
 - No Python dependency required
 - Also available as a Python package (`pip install kreuzberg[paddleocr]`, requires Python <3.14)

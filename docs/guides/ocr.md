@@ -84,7 +84,7 @@ Kreuzberg supports three OCR backends with different strengths:
 |---------|--------------|-------------|---------------|
 | **Speed** | Fast | Moderate | Very Fast |
 | **Accuracy** | Good | Excellent | Excellent |
-| **Languages** | 100+ | 80+ | 80+ |
+| **Languages** | 100+ | 80+ | 106+ (12 script families) |
 | **Installation** | System package | Python package | Feature flag (native) or Python package |
 | **Model Size** | Small (~10MB) | Large (~100MB) | Medium (~25MB) |
 | **CPU/GPU** | CPU only | CPU + GPU | CPU + GPU |
@@ -172,6 +172,25 @@ PaddleOCR is available as a native Rust backend in all non-WASM bindings, and al
 
     !!! warning "Python 3.14 Compatibility"
         The Python PaddleOCR package is not supported on Python 3.14 due to upstream compatibility issues. Use Python 3.10-3.13, or use the native Rust backend which has no Python dependency.
+
+## PaddleOCR Script Families
+
+PaddleOCR supports **106+ languages** across **12 script families**. Recognition models are downloaded on demand from HuggingFace on first use:
+
+1. **English** - English, numbers, punctuation
+2. **Chinese** - Simplified Chinese, Traditional Chinese, Japanese
+3. **Latin** - French, German, Spanish, Portuguese, Italian, Polish, Dutch, Turkish, Vietnamese, etc.
+4. **Korean** - Korean (Hangul)
+5. **Slavic** - Russian, Ukrainian, Belarusian, Bulgarian, Serbian, etc.
+6. **Thai** - Thai script
+7. **Greek** - Greek script
+8. **Arabic** - Arabic, Persian, Urdu, Uyghur, etc.
+9. **Devanagari** - Hindi, Marathi, Nepali, Sanskrit, etc.
+10. **Tamil** - Tamil script
+11. **Telugu** - Telugu script
+12. **Kannada** - Kannada script
+
+Per-family models are downloaded automatically and cached locally when first needed. This lazy-loading approach keeps startup time fast while supporting full multilingual capabilities.
 
 ## Configuration
 
@@ -405,6 +424,17 @@ Kreuzberg automatically preprocesses images for better OCR results:
 
 These are applied automatically and require no configuration.
 
+### Concurrent Multi-Language OCR
+
+Kreuzberg maintains an engine pool for concurrent OCR processing of multiple languages. When processing documents with different languages, instances are reused efficiently:
+
+- **Language-specific engines** - Each language creates its own engine instance
+- **Connection pooling** - Engines are cached and reused for subsequent calls with same language
+- **Concurrent processing** - Multiple language files can be processed in parallel
+- **Memory efficient** - Lazy initialization means unused languages don't consume memory
+
+This is particularly useful when batch processing diverse multilingual documents with PaddleOCR or EasyOCR.
+
 ## Troubleshooting
 
 ??? question "Tesseract not found"
@@ -536,12 +566,25 @@ Extract with OCR using the command-line interface:
 # Basic OCR extraction (uses config file for language/settings)
 kreuzberg extract scanned.pdf --ocr true
 
+# Extract with specific language (Tesseract)
+kreuzberg extract french_doc.pdf --ocr true --ocr-language fra
+
+# Extract with specific language and backend (PaddleOCR for Chinese)
+kreuzberg extract chinese_doc.pdf --ocr true --ocr-backend paddle-ocr --ocr-language ch
+
 # Force OCR on all pages (even if text layer exists)
 kreuzberg extract document.pdf --force-ocr true
 
 # Use config file to specify language and other OCR settings
 kreuzberg extract scanned.pdf --config kreuzberg.toml --ocr true
 ```
+
+**CLI Flags**:
+
+- `--ocr true` - Enable OCR processing
+- `--ocr-language <code>` - Language code (e.g., `eng`, `deu`, `fra`, `ch`, `ja`, `ru`)
+- `--ocr-backend <backend>` - OCR engine (`tesseract`, `paddle-ocr`, `easyocr`)
+- `--force-ocr true` - OCR all pages regardless of text layer
 
 **Example config file (kreuzberg.toml) for OCR settings:**
 

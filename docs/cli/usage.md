@@ -119,6 +119,37 @@ Force OCR even for PDFs with text layer:
 kreuzberg extract document.pdf --force-ocr true
 ```
 
+### OCR Language Selection
+
+Set the OCR language using the `--ocr-language` flag. This flag is backend-agnostic and works with all supported OCR backends (Tesseract, PaddleOCR, EasyOCR).
+
+**Language Code Formats:**
+
+- **Tesseract**: Uses ISO 639-3 codes (three-letter codes)
+  - Examples: `eng` (English), `fra` (French), `deu` (German), `spa` (Spanish), `jpn` (Japanese)
+- **PaddleOCR**: Accepts flexible language codes and full language names
+  - Examples: `en`, `ch`, `french`, `korean`, `thai`, `greek`, `arabic`, `cyrillic`, etc.
+- **EasyOCR**: Similar flexible format to PaddleOCR
+
+When used with `--ocr true`, the language flag overrides the default language. When used without `--ocr`, it overrides the language specified in your config file.
+
+```bash title="Terminal"
+# French OCR with Tesseract (default backend)
+kreuzberg extract --ocr true --ocr-language fra document.pdf
+
+# Chinese OCR with PaddleOCR
+kreuzberg extract --ocr true --ocr-backend paddle-ocr --ocr-language ch document.pdf
+
+# Thai OCR with PaddleOCR
+kreuzberg extract --ocr true --ocr-backend paddle-ocr --ocr-language thai document.pdf
+
+# German OCR with Tesseract
+kreuzberg extract --ocr true --ocr-language deu document.pdf
+
+# Override config file language with Spanish
+kreuzberg extract document.pdf --config kreuzberg.toml --ocr-language spa
+```
+
 ### OCR Configuration
 
 OCR options are configured via config file. CLI flags override config settings:

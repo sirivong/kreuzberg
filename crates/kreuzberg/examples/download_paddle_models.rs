@@ -4,17 +4,6 @@
 //! and cache ONNX models locally. This is useful for offline applications or
 //! pre-warming the model cache before starting document extraction.
 //!
-//! # Security Notice
-//!
-//! **IMPORTANT**: The PaddleOCR models are currently downloaded without SHA256
-//! checksum verification. The model definitions in `paddle_ocr/model_manager.rs`
-//! contain empty checksum strings (lines 59, 66, 73) with a note stating:
-//! "Skip checksum for now - will be updated with actual checksums".
-//!
-//! This is a security concern for production use. Models should be verified
-//! against their known cryptographic signatures before use. See the model manager
-//! module for implementation details and to track when checksums are added.
-//!
 //! # Usage
 //!
 //! ```sh
@@ -36,14 +25,23 @@
 //!
 //! # Language Support
 //!
-//! The current implementation downloads fixed model sets optimized for:
-//! - Detection (PP-OCRv4 English)
-//! - Classification (MobileNet v2.0 Chinese/Universal)
-//! - Recognition (PP-OCRv4 English)
+//! This implementation supports 12 script families covering 106+ languages:
+//! - **English**: English-optimized recognition models
+//! - **Chinese**: Simplified and Traditional Chinese
+//! - **Latin**: European languages using Latin script
+//! - **Korean**: Hangul script
+//! - **Eslav**: Cyrillic-based languages (Russian, Ukrainian, etc.)
+//! - **Thai**: Thai script
+//! - **Greek**: Greek script
+//! - **Arabic**: Arabic and Persian scripts
+//! - **Devanagari**: Hindi and related scripts
+//! - **Tamil**: Tamil script
+//! - **Telugu**: Telugu script
+//! - **Kannada**: Kannada script
 //!
-//! Language-specific model selection is not yet implemented in the ModelManager.
-//! To use models for other languages, you would need to manually download from
-//! the PaddleOCR model repository and configure custom model paths.
+//! Models are downloaded on-demand per script family. The English recognition model
+//! and dictionary are downloaded by default. Other language families are automatically
+//! downloaded when needed during document processing.
 //!
 //! # Examples
 //!
@@ -63,6 +61,7 @@
 //!     println!("Detection model:       {:?}", models.det_model);
 //!     println!("Classification model: {:?}", models.cls_model);
 //!     println!("Recognition model:    {:?}", models.rec_model);
+//!     println!("Dictionary file:      {:?}", models.dict_file);
 //!
 //!     // Show cache statistics
 //!     let stats = manager.cache_stats()?;
@@ -173,13 +172,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Models being downloaded:");
             println!("  - Detection model (PP-OCRv4 det)");
             println!("  - Classification model (Mobile v2.0 cls)");
-            println!("  - Recognition model (PP-OCRv4 rec)");
-            println!("\nWARNING: Models are downloaded without checksum verification.");
-            println!("For production use, verify model integrity independently.\n");
+            println!("  - Recognition model (PP-OCRv4 rec, English)");
+            println!("  - Dictionary file (for text recognition)\n");
+            println!("Additional language family models are downloaded on-demand.");
+            println!("Supported families: English, Chinese, Latin, Korean, Eslav, Thai,");
+            println!("Greek, Arabic, Devanagari, Tamil, Telugu, Kannada.\n");
 
-            // SECURITY: Download and ensure models exist
-            // NOTE: SHA256 checksums are currently empty in model_manager.rs
-            // This should be updated with actual checksums before production deployment
+            // Download and ensure models exist
+            // SHA256 checksums are now embedded and verified automatically
             match manager.ensure_models_exist() {
                 Ok(paths) => {
                     println!("\nModels downloaded successfully!\n");
@@ -187,6 +187,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     println!("  Detection:       {}", paths.det_model.display());
                     println!("  Classification:  {}", paths.cls_model.display());
                     println!("  Recognition:     {}", paths.rec_model.display());
+                    println!("  Dictionary:      {}", paths.dict_file.display());
                 }
                 Err(e) => {
                     eprintln!("Error downloading models: {}", e);
@@ -285,9 +286,10 @@ fn print_usage(program_name: &str) {
     println!("    --help, -h             Print this help message");
     println!();
     println!("NOTES:");
-    println!("    Language-specific model selection is not yet supported.");
-    println!("    Models downloaded are optimized for English/Chinese OCR.");
-    println!("    See example documentation for security considerations.");
+    println!("    Language-specific models are supported and downloaded on-demand.");
+    println!("    Supported script families: English, Chinese, Latin, Korean, Eslav,");
+    println!("    Thai, Greek, Arabic, Devanagari, Tamil, Telugu, Kannada.");
+    println!("    See example documentation for language support details.");
     println!();
     println!("EXAMPLES:");
     println!("    {} --cache-dir /tmp/models", program_name);
@@ -310,7 +312,7 @@ fn list_cache_contents(cache_dir: &PathBuf) -> Result<(), Box<dyn std::error::Er
         if path.is_dir() {
             println!("  [DIR] {}/", file_name.to_string_lossy());
 
-            // List files in subdirectory
+            // List files in subdirectory (2 levels deep for most, 3 for rec/)
             for sub_entry in fs::read_dir(&path)? {
                 let sub_entry = sub_entry?;
                 let sub_path = sub_entry.path();
@@ -321,7 +323,23 @@ fn list_cache_contents(cache_dir: &PathBuf) -> Result<(), Box<dyn std::error::Er
                     let size_kb = metadata.len() as f64 / 1000.0;
                     println!("      - {} ({:.1} KB)", sub_name.to_string_lossy(), size_kb);
                 } else if sub_path.is_dir() {
+                    // For rec/ directory, we have 3 levels: rec/{family}/{files}
                     println!("      [DIR] {}/", sub_name.to_string_lossy());
+
+                    // List files in the third level
+                    for third_entry in fs::read_dir(&sub_path)? {
+                        let third_entry = third_entry?;
+                        let third_path = third_entry.path();
+                        let third_name = third_entry.file_name();
+
+                        if third_path.is_file() {
+                            let metadata = fs::metadata(&third_path)?;
+                            let size_kb = metadata.len() as f64 / 1000.0;
+                            println!("          - {} ({:.1} KB)", third_name.to_string_lossy(), size_kb);
+                        } else if third_path.is_dir() {
+                            println!("          [DIR] {}/", third_name.to_string_lossy());
+                        }
+                    }
                 }
             }
         } else if path.is_file() {

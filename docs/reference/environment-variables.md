@@ -191,7 +191,13 @@ export KREUZBERG_OCR_LANGUAGE=chi_sim
 export KREUZBERG_OCR_LANGUAGE=jpn
 ```
 
-**Supported Codes**: Common codes include `eng`, `deu`, `fra`, `spa`, `ita`, `por`, `rus`, `chi_sim`, `chi_tra`, `jpn`, `kor`. Consult your OCR backend documentation for the complete list.
+**Supported Codes**: Language codes are backend-agnostic and automatically mapped to the appropriate format for each backend:
+
+- **Tesseract codes** (ISO 639-3): `eng`, `deu`, `fra`, `spa`, `ita`, `por`, `rus`, `chi_sim`, `chi_tra`, `jpn`, `kor`
+- **PaddleOCR codes**: `en`, `ch`, `french`, `german`, `korean`, `thai`, `greek`, `arabic`, `cyrillic`, `devanagari`, `latin`
+- **ISO 639-1 codes**: `en`, `de`, `fr`, `es`, `ja`, `ko`, `zh`, `ru`, `ar`, `th`, `el`
+
+All code formats are accepted regardless of backend — Kreuzberg automatically maps between them.
 
 ### KREUZBERG_OCR_BACKEND
 

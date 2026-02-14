@@ -121,22 +121,26 @@ pub fn map_language_code(kreuzberg_code: &str) -> Option<&'static str> {
         "fr" | "fra" | "french" => Some("french"),
         "de" | "deu" | "german" => Some("german"),
         "ko" | "kor" | "korean" => Some("korean"),
-        "ja" | "jpn" | "japanese" => Some("japan"),
-        "chi_tra" | "zh_tw" | "zh_hant" => Some("chinese_cht"),
+        "ja" | "jpn" | "japanese" | "japan" => Some("japan"),
+        "chi_tra" | "zh_tw" | "zh_hant" | "chinese_cht" => Some("chinese_cht"),
         "ta" | "tam" | "tamil" => Some("ta"),
         "te" | "tel" | "telugu" => Some("te"),
-        "ka" | "kan" | "kannada" => Some("ka"),
+        // Kannada: "kn" is ISO 639-1 (correct), "ka" is PaddleOCR-native code for Kannada
+        // Note: "ka" is ISO 639-1 for Georgian, but PaddleOCR uses "ka" for Kannada
+        "ka" | "kn" | "kan" | "kannada" => Some("ka"),
         "ar" | "ara" | "arabic" => Some("arabic"),
-        "ru" | "rus" | "russian" | "uk" | "ukr" | "ukrainian" | "be" | "bel" | "belarusian" => Some("cyrillic"),
-        "hi" | "hin" | "hindi" => Some("devanagari"),
+        "ru" | "rus" | "russian" | "uk" | "ukr" | "ukrainian" | "be" | "bel" | "belarusian" | "cyrillic" => {
+            Some("cyrillic")
+        }
+        "hi" | "hin" | "hindi" | "devanagari" => Some("devanagari"),
         "th" | "tha" | "thai" => Some("thai"),
         "el" | "ell" | "greek" => Some("greek"),
         // Latin script fallback for European languages
-        "es" | "spa" | "spanish" | "it" | "ita" | "italian" | "pt" | "por" | "portuguese" | "nl" | "nld" | "dutch"
-        | "pl" | "pol" | "polish" | "sv" | "swe" | "swedish" | "da" | "dan" | "danish" | "no" | "nor" | "norwegian"
-        | "fi" | "fin" | "finnish" | "cs" | "ces" | "czech" | "sk" | "slk" | "slovak" | "hr" | "hrv" | "croatian"
-        | "hu" | "hun" | "hungarian" | "ro" | "ron" | "romanian" | "tr" | "tur" | "turkish" | "id" | "ind"
-        | "indonesian" | "ms" | "msa" | "malay" | "vi" | "vie" | "vietnamese" => Some("latin"),
+        "latin" | "es" | "spa" | "spanish" | "it" | "ita" | "italian" | "pt" | "por" | "portuguese" | "nl" | "nld"
+        | "dutch" | "pl" | "pol" | "polish" | "sv" | "swe" | "swedish" | "da" | "dan" | "danish" | "no" | "nor"
+        | "norwegian" | "fi" | "fin" | "finnish" | "cs" | "ces" | "czech" | "sk" | "slk" | "slovak" | "hr" | "hrv"
+        | "croatian" | "hu" | "hun" | "hungarian" | "ro" | "ron" | "romanian" | "tr" | "tur" | "turkish" | "id"
+        | "ind" | "indonesian" | "ms" | "msa" | "malay" | "vi" | "vie" | "vietnamese" => Some("latin"),
         _ => None,
     }
 }
