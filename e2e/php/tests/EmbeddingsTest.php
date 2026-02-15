@@ -25,6 +25,8 @@ class EmbeddingsTest extends TestCase
             $this->markTestSkipped('Skipping embedding_async: missing document at ' . $documentPath);
         }
 
+        Helpers::skipIfFeatureUnavailable('embeddings');
+
         $config = Helpers::buildConfig(['chunking' => ['embedding' => ['model' => ['name' => 'balanced', 'type' => 'preset'], 'normalize' => true], 'max_chars' => 500, 'max_overlap' => 50]]);
 
         $kreuzberg = new Kreuzberg($config);
@@ -44,6 +46,8 @@ class EmbeddingsTest extends TestCase
         if (!file_exists($documentPath)) {
             $this->markTestSkipped('Skipping embedding_balanced_preset: missing document at ' . $documentPath);
         }
+
+        Helpers::skipIfFeatureUnavailable('embeddings');
 
         $config = Helpers::buildConfig(['chunking' => ['embedding' => ['model' => ['name' => 'balanced', 'type' => 'preset'], 'normalize' => true], 'max_chars' => 500, 'max_overlap' => 50]]);
 
@@ -84,6 +88,8 @@ class EmbeddingsTest extends TestCase
         if (!file_exists($documentPath)) {
             $this->markTestSkipped('Skipping embedding_fast_preset: missing document at ' . $documentPath);
         }
+
+        Helpers::skipIfFeatureUnavailable('embeddings');
 
         $config = Helpers::buildConfig(['chunking' => ['embedding' => ['model' => ['name' => 'fast', 'type' => 'preset'], 'normalize' => true], 'max_chars' => 500, 'max_overlap' => 50]]);
 

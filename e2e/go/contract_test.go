@@ -112,6 +112,7 @@ func TestContractConfigDocumentStructureWithHeadings(t *testing.T) {
 }
 
 func TestContractConfigForceOcr(t *testing.T) {
+	skipIfFeatureUnavailable(t, "tesseract")
 	result := runExtraction(t, "pdf/fake_memo.pdf", []byte(`{
 "force_ocr": true
 }`))
@@ -141,6 +142,7 @@ func TestContractConfigImages(t *testing.T) {
 }
 
 func TestContractConfigKeywords(t *testing.T) {
+	skipIfFeatureUnavailable(t, "keywords-yake")
 	result := runExtraction(t, "pdf/fake_memo.pdf", []byte(`{
 "keywords": {
 	"algorithm": "yake",

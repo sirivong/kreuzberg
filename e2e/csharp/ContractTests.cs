@@ -191,6 +191,7 @@ namespace Kreuzberg.E2E.Contract
         [SkippableFact]
         public void ConfigForceOcr()
         {
+            TestHelpers.SkipIfFeatureUnavailable("tesseract");
             TestHelpers.SkipIfLegacyOfficeDisabled("pdf/fake_memo.pdf");
             TestHelpers.SkipIfOfficeTestOnWindows("pdf/fake_memo.pdf");
             var documentPath = TestHelpers.EnsureDocument("pdf/fake_memo.pdf", true);
@@ -231,6 +232,7 @@ namespace Kreuzberg.E2E.Contract
         [SkippableFact]
         public void ConfigKeywords()
         {
+            TestHelpers.SkipIfFeatureUnavailable("keywords-yake");
             TestHelpers.SkipIfLegacyOfficeDisabled("pdf/fake_memo.pdf");
             TestHelpers.SkipIfOfficeTestOnWindows("pdf/fake_memo.pdf");
             var documentPath = TestHelpers.EnsureDocument("pdf/fake_memo.pdf", true);

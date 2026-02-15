@@ -118,7 +118,13 @@ public static class TestHelpers
 
     public static void SkipIfPaddleOcrUnavailable()
     {
-        var flag = Environment.GetEnvironmentVariable("KREUZBERG_PADDLE_OCR_AVAILABLE");
+        SkipIfFeatureUnavailable("paddle-ocr");
+    }
+
+    public static void SkipIfFeatureUnavailable(string feature)
+    {
+        var envVar = "KREUZBERG_" + feature.Replace("-", "_").ToUpperInvariant() + "_AVAILABLE";
+        var flag = Environment.GetEnvironmentVariable(envVar);
         if (string.IsNullOrWhiteSpace(flag) || flag == "0" || flag.Equals("false", StringComparison.OrdinalIgnoreCase))
         {
             throw new Xunit.SkipException();

@@ -622,4 +622,15 @@ class Helpers
             "Expected content to be non-empty"
         );
     }
+
+    public static function skipIfFeatureUnavailable(string $feature): void
+    {
+        $envVar = 'KREUZBERG_' . strtoupper(str_replace('-', '_', $feature)) . '_AVAILABLE';
+        $flag = getenv($envVar);
+        if ($flag === false || $flag === '' || $flag === '0' || strtolower($flag) === 'false') {
+            Assert::markTestSkipped(
+                sprintf('Feature "%s" not available (set %s=1)', $feature, $envVar)
+            );
+        }
+    }
 }

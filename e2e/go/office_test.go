@@ -18,6 +18,7 @@ func TestOfficeOfficeDjotBasic(t *testing.T) {
 }
 
 func TestOfficeOfficeDocLegacy(t *testing.T) {
+	skipIfFeatureUnavailable(t, "office")
 	result := runExtraction(t, "doc/unit_test_lists.doc", nil)
 	assertExpectedMime(t, result, []string{"application/msword"})
 	assertMinContentLength(t, result, 20)
@@ -167,6 +168,7 @@ func TestOfficeOfficePpsxSlideshow(t *testing.T) {
 }
 
 func TestOfficeOfficePptLegacy(t *testing.T) {
+	skipIfFeatureUnavailable(t, "office")
 	result := runExtraction(t, "ppt/simple.ppt", nil)
 	assertExpectedMime(t, result, []string{"application/vnd.ms-powerpoint"})
 	assertMinContentLength(t, result, 10)

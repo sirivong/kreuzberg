@@ -274,6 +274,8 @@ class ContractTest extends TestCase
             $this->markTestSkipped('Skipping config_force_ocr: missing document at ' . $documentPath);
         }
 
+        Helpers::skipIfFeatureUnavailable('tesseract');
+
         $config = Helpers::buildConfig(['force_ocr' => true]);
 
         $kreuzberg = new Kreuzberg($config);
@@ -331,6 +333,8 @@ class ContractTest extends TestCase
         if (!file_exists($documentPath)) {
             $this->markTestSkipped('Skipping config_keywords: missing document at ' . $documentPath);
         }
+
+        Helpers::skipIfFeatureUnavailable('keywords-yake');
 
         $config = Helpers::buildConfig(['keywords' => ['algorithm' => 'yake', 'max_keywords' => 10]]);
 

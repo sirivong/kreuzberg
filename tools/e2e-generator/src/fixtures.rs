@@ -562,7 +562,7 @@ pub fn should_include_for_wasm(fixture: &Fixture, target: WasmTarget) -> bool {
         .skip()
         .requires_feature
         .iter()
-        .any(|f| f == "paddle-ocr" || f == "embeddings" || f == "keywords")
+        .any(|f| f == "paddle-ocr" || f == "embeddings" || f.starts_with("keywords"))
     {
         return false;
     }

@@ -631,6 +631,17 @@ class Helpers
             "Expected content to be non-empty"
         );
     }
+
+    public static function skipIfFeatureUnavailable(string $feature): void
+    {
+        $envVar = 'KREUZBERG_' . strtoupper(str_replace('-', '_', $feature)) . '_AVAILABLE';
+        $flag = getenv($envVar);
+        if ($flag === false || $flag === '' || $flag === '0' || strtolower($flag) === 'false') {
+            Assert::markTestSkipped(
+                sprintf('Feature "%s" not available (set %s=1)', $feature, $envVar)
+            );
+        }
+    }
 }
 "#;
 
@@ -751,6 +762,26 @@ fn render_test(fixture: &Fixture) -> Result<String> {
     )?;
     writeln!(code, "        }}")?;
     writeln!(code)?;
+
+    // Skip if fixture requires features that may not be available
+    let doc = fixture.document();
+    let skip_directive = fixture.skip();
+    let all_features: Vec<&str> = skip_directive
+        .requires_feature
+        .iter()
+        .chain(doc.requires_external_tool.iter().filter(|t| *t == "paddle-ocr"))
+        .map(|s| s.as_str())
+        .collect();
+    for feature in &all_features {
+        writeln!(
+            code,
+            "        Helpers::skipIfFeatureUnavailable({});",
+            php_string_literal(feature)
+        )?;
+    }
+    if !all_features.is_empty() {
+        writeln!(code)?;
+    }
 
     let config_literal = render_config_literal(&extraction.config);
     writeln!(code, "        $config = Helpers::buildConfig({});", config_literal)?;

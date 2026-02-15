@@ -63,6 +63,8 @@ class OfficeTest extends TestCase
             $this->markTestSkipped('Skipping office_doc_legacy: missing document at ' . $documentPath);
         }
 
+        Helpers::skipIfFeatureUnavailable('office');
+
         $config = Helpers::buildConfig(null);
 
         $kreuzberg = new Kreuzberg($config);
@@ -523,6 +525,8 @@ class OfficeTest extends TestCase
         if (!file_exists($documentPath)) {
             $this->markTestSkipped('Skipping office_ppt_legacy: missing document at ' . $documentPath);
         }
+
+        Helpers::skipIfFeatureUnavailable('office');
 
         $config = Helpers::buildConfig(null);
 

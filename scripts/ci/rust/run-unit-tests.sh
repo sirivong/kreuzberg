@@ -67,12 +67,15 @@ if ! {
   if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" || "$OSTYPE" == "win32" ]]; then
     extra_excludes+=(--exclude benchmark-harness)
   fi
+  # NOTE: kreuzberg-pdfium-render is excluded because --all-features enables
+  # mutually exclusive static/dynamic linking features simultaneously.
   RUST_BACKTRACE=full cargo test \
     --workspace \
     --exclude kreuzberg \
     --exclude kreuzberg-e2e-generator \
     --exclude kreuzberg-py \
     --exclude kreuzberg-node \
+    --exclude kreuzberg-pdfium-render \
     ${extra_excludes[@]+"${extra_excludes[@]}"} \
     --all-features \
     --verbose

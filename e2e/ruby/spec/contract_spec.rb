@@ -237,6 +237,7 @@ RSpec.describe 'contract fixtures' do
   end
 
   it 'config_force_ocr' do
+    E2ERuby.skip_if_feature_unavailable('tesseract')
     E2ERuby.run_fixture(
       'config_force_ocr',
       'pdf/fake_memo.pdf',
@@ -289,6 +290,7 @@ RSpec.describe 'contract fixtures' do
   end
 
   it 'config_keywords' do
+    E2ERuby.skip_if_feature_unavailable('keywords-yake')
     E2ERuby.run_fixture(
       'config_keywords',
       'pdf/fake_memo.pdf',

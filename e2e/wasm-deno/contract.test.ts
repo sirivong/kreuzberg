@@ -323,27 +323,6 @@ Deno.test("config_images", { permissions: { read: true } }, async () => {
 	assertions.assertImages(result, 1, null, null);
 });
 
-Deno.test("config_keywords", { permissions: { read: true } }, async () => {
-	const documentBytes = await resolveDocument("pdf/fake_memo.pdf");
-	const config = buildConfig({ keywords: { algorithm: "yake", max_keywords: 10 } });
-	let result: ExtractionResult | null = null;
-	try {
-		// Sync file extraction - WASM uses extractBytes with pre-read bytes
-		result = await extractBytes(documentBytes, "application/octet-stream", config);
-	} catch (error) {
-		if (shouldSkipFixture(error, "config_keywords", ["keywords-yake"], undefined)) {
-			return;
-		}
-		throw error;
-	}
-	if (result === null) {
-		return;
-	}
-	assertions.assertExpectedMime(result, ["application/pdf"]);
-	assertions.assertMinContentLength(result, 10);
-	assertions.assertMetadataExpectation(result, "keywords", { exists: true });
-});
-
 Deno.test("config_language_detection", { permissions: { read: true } }, async () => {
 	const documentBytes = await resolveDocument("pdf/fake_memo.pdf");
 	const config = buildConfig({ language_detection: { enabled: true } });

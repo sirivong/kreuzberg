@@ -6,6 +6,7 @@ package e2e
 import "testing"
 
 func TestKeywordsKeywordsRake(t *testing.T) {
+	skipIfFeatureUnavailable(t, "keywords-rake")
 	result := runExtraction(t, "pdf/fake_memo.pdf", []byte(`{
 "keywords": {
 	"algorithm": "rake",
@@ -18,6 +19,7 @@ func TestKeywordsKeywordsRake(t *testing.T) {
 }
 
 func TestKeywordsKeywordsYake(t *testing.T) {
+	skipIfFeatureUnavailable(t, "keywords-yake")
 	result := runExtraction(t, "pdf/fake_memo.pdf", []byte(`{
 "keywords": {
 	"algorithm": "yake",

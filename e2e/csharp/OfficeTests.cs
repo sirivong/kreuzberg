@@ -40,6 +40,7 @@ namespace Kreuzberg.E2E.Office
         [SkippableFact]
         public void OfficeDocLegacy()
         {
+            TestHelpers.SkipIfFeatureUnavailable("office");
             TestHelpers.SkipIfLegacyOfficeDisabled("doc/unit_test_lists.doc");
             TestHelpers.SkipIfOfficeTestOnWindows("doc/unit_test_lists.doc");
             var documentPath = TestHelpers.EnsureDocument("doc/unit_test_lists.doc", true);
@@ -357,6 +358,7 @@ namespace Kreuzberg.E2E.Office
         [SkippableFact]
         public void OfficePptLegacy()
         {
+            TestHelpers.SkipIfFeatureUnavailable("office");
             TestHelpers.SkipIfLegacyOfficeDisabled("ppt/simple.ppt");
             TestHelpers.SkipIfOfficeTestOnWindows("ppt/simple.ppt");
             var documentPath = TestHelpers.EnsureDocument("ppt/simple.ppt", true);

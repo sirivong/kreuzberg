@@ -10,6 +10,7 @@ require_relative 'spec_helper'
 
 RSpec.describe 'ocr fixtures' do
   it 'ocr_image_hello_world' do
+    E2ERuby.skip_if_feature_unavailable('tesseract')
     E2ERuby.run_fixture(
       'ocr_image_hello_world',
       'images/test_hello_world.png',
@@ -28,6 +29,7 @@ RSpec.describe 'ocr fixtures' do
   end
 
   it 'ocr_image_no_text' do
+    E2ERuby.skip_if_feature_unavailable('tesseract')
     E2ERuby.run_fixture(
       'ocr_image_no_text',
       'images/flower_no_text.jpg',
@@ -45,6 +47,8 @@ RSpec.describe 'ocr fixtures' do
   end
 
   it 'ocr_paddle_confidence_filter' do
+    E2ERuby.skip_if_feature_unavailable('paddle-ocr')
+    E2ERuby.skip_if_feature_unavailable('paddle-ocr')
     E2ERuby.run_fixture(
       'ocr_paddle_confidence_filter',
       'images/ocr_image.jpg',
@@ -62,6 +66,8 @@ RSpec.describe 'ocr fixtures' do
   end
 
   it 'ocr_paddle_image_chinese' do
+    E2ERuby.skip_if_feature_unavailable('paddle-ocr')
+    E2ERuby.skip_if_feature_unavailable('paddle-ocr')
     E2ERuby.run_fixture(
       'ocr_paddle_image_chinese',
       'images/chi_sim_image.jpeg',
@@ -79,6 +85,8 @@ RSpec.describe 'ocr fixtures' do
   end
 
   it 'ocr_paddle_image_english' do
+    E2ERuby.skip_if_feature_unavailable('paddle-ocr')
+    E2ERuby.skip_if_feature_unavailable('paddle-ocr')
     E2ERuby.run_fixture(
       'ocr_paddle_image_english',
       'images/test_hello_world.png',
@@ -97,6 +105,8 @@ RSpec.describe 'ocr fixtures' do
   end
 
   it 'ocr_paddle_markdown' do
+    E2ERuby.skip_if_feature_unavailable('paddle-ocr')
+    E2ERuby.skip_if_feature_unavailable('paddle-ocr')
     E2ERuby.run_fixture(
       'ocr_paddle_markdown',
       'images/test_hello_world.png',
@@ -115,6 +125,8 @@ RSpec.describe 'ocr fixtures' do
   end
 
   it 'ocr_paddle_pdf_scanned' do
+    E2ERuby.skip_if_feature_unavailable('paddle-ocr')
+    E2ERuby.skip_if_feature_unavailable('paddle-ocr')
     E2ERuby.run_fixture(
       'ocr_paddle_pdf_scanned',
       'pdf/ocr_test.pdf',
@@ -133,6 +145,8 @@ RSpec.describe 'ocr fixtures' do
   end
 
   it 'ocr_paddle_structured' do
+    E2ERuby.skip_if_feature_unavailable('paddle-ocr')
+    E2ERuby.skip_if_feature_unavailable('paddle-ocr')
     E2ERuby.run_fixture(
       'ocr_paddle_structured',
       'images/test_hello_world.png',
@@ -151,6 +165,8 @@ RSpec.describe 'ocr fixtures' do
   end
 
   it 'ocr_paddle_table_detection' do
+    E2ERuby.skip_if_feature_unavailable('paddle-ocr')
+    E2ERuby.skip_if_feature_unavailable('paddle-ocr')
     E2ERuby.run_fixture(
       'ocr_paddle_table_detection',
       'images/simple_table.png',
@@ -169,6 +185,7 @@ RSpec.describe 'ocr fixtures' do
   end
 
   it 'ocr_pdf_image_only_german' do
+    E2ERuby.skip_if_feature_unavailable('tesseract')
     E2ERuby.run_fixture(
       'ocr_pdf_image_only_german',
       'pdf/image_only_german_pdf.pdf',
@@ -187,6 +204,7 @@ RSpec.describe 'ocr fixtures' do
   end
 
   it 'ocr_pdf_rotated_90' do
+    E2ERuby.skip_if_feature_unavailable('tesseract')
     E2ERuby.run_fixture(
       'ocr_pdf_rotated_90',
       'pdf/ocr_test_rotated_90.pdf',
@@ -204,6 +222,7 @@ RSpec.describe 'ocr fixtures' do
   end
 
   it 'ocr_pdf_tesseract' do
+    E2ERuby.skip_if_feature_unavailable('tesseract')
     E2ERuby.run_fixture(
       'ocr_pdf_tesseract',
       'pdf/ocr_test.pdf',

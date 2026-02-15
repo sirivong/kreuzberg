@@ -389,31 +389,6 @@ describe("contract", () => {
 		assertions.assertImages(result, 1, null, null);
 	});
 
-	it("config_keywords", async () => {
-		const documentBytes = getFixture("pdf/fake_memo.pdf");
-		if (documentBytes === null) {
-			console.warn("[SKIP] Test skipped: fixture not available in Cloudflare Workers environment");
-			return;
-		}
-
-		const config = buildConfig({ keywords: { algorithm: "yake", max_keywords: 10 } });
-		let result: ExtractionResult | null = null;
-		try {
-			result = await extractBytes(documentBytes, "application/octet-stream", config);
-		} catch (error) {
-			if (shouldSkipFixture(error, "config_keywords", ["keywords-yake"], undefined)) {
-				return;
-			}
-			throw error;
-		}
-		if (result === null) {
-			return;
-		}
-		assertions.assertExpectedMime(result, ["application/pdf"]);
-		assertions.assertMinContentLength(result, 10);
-		assertions.assertMetadataExpectation(result, "keywords", { exists: true });
-	});
-
 	it("config_language_detection", async () => {
 		const documentBytes = getFixture("pdf/fake_memo.pdf");
 		if (documentBytes === null) {

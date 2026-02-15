@@ -483,9 +483,15 @@ func assertOcrElements(t *testing.T, result *kreuzberg.ExtractionResult, hasElem
 
 func skipIfPaddleOcrUnavailable(t *testing.T) {
 	t.Helper()
-	flag := os.Getenv("KREUZBERG_PADDLE_OCR_AVAILABLE")
+	skipIfFeatureUnavailable(t, "paddle-ocr")
+}
+
+func skipIfFeatureUnavailable(t *testing.T, feature string) {
+	t.Helper()
+	envVar := "KREUZBERG_" + strings.ToUpper(strings.ReplaceAll(feature, "-", "_")) + "_AVAILABLE"
+	flag := os.Getenv(envVar)
 	if flag == "" || flag == "0" || strings.EqualFold(flag, "false") {
-		t.Skip("Skipping: PaddleOCR not available (set KREUZBERG_PADDLE_OCR_AVAILABLE=1)")
+		t.Skipf("Skipping: feature %q not available (set %s=1)", feature, envVar)
 	}
 }
 

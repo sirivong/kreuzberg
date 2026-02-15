@@ -491,9 +491,15 @@ func assertOcrElements(t *testing.T, result *kreuzberg.ExtractionResult, hasElem
 
 func skipIfPaddleOcrUnavailable(t *testing.T) {
 	t.Helper()
-	flag := os.Getenv("KREUZBERG_PADDLE_OCR_AVAILABLE")
+	skipIfFeatureUnavailable(t, "paddle-ocr")
+}
+
+func skipIfFeatureUnavailable(t *testing.T, feature string) {
+	t.Helper()
+	envVar := "KREUZBERG_" + strings.ToUpper(strings.ReplaceAll(feature, "-", "_")) + "_AVAILABLE"
+	flag := os.Getenv(envVar)
 	if flag == "" || flag == "0" || strings.EqualFold(flag, "false") {
-		t.Skip("Skipping: PaddleOCR not available (set KREUZBERG_PADDLE_OCR_AVAILABLE=1)")
+		t.Skipf("Skipping: feature %q not available (set %s=1)", feature, envVar)
 	}
 }
 
@@ -774,11 +780,16 @@ fn render_test(fixture: &Fixture) -> Result<String> {
     let doc_path = go_string_literal(&doc.path);
     let config_literal = render_config_literal(&extraction.config)?;
 
-    // Skip if fixture requires paddle-ocr and it's not available
-    let requires_paddle = fixture.skip().requires_feature.iter().any(|f| f == "paddle-ocr")
-        || doc.requires_external_tool.iter().any(|t| t == "paddle-ocr");
-    if requires_paddle {
-        writeln!(code, "    skipIfPaddleOcrUnavailable(t)")?;
+    // Skip if fixture requires features that may not be available
+    let skip_directive = fixture.skip();
+    let all_features: Vec<&str> = skip_directive
+        .requires_feature
+        .iter()
+        .chain(doc.requires_external_tool.iter().filter(|t| *t == "paddle-ocr"))
+        .map(|s| s.as_str())
+        .collect();
+    for feature in &all_features {
+        writeln!(code, "    skipIfFeatureUnavailable(t, {})", go_string_literal(feature))?;
     }
 
     match (method, input_type) {

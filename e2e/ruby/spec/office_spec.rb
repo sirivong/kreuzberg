@@ -44,6 +44,7 @@ RSpec.describe 'office fixtures' do
   end
 
   it 'office_doc_legacy' do
+    E2ERuby.skip_if_feature_unavailable('office')
     E2ERuby.run_fixture(
       'office_doc_legacy',
       'doc/unit_test_lists.doc',
@@ -457,6 +458,7 @@ RSpec.describe 'office fixtures' do
   end
 
   it 'office_ppt_legacy' do
+    E2ERuby.skip_if_feature_unavailable('office')
     E2ERuby.run_fixture(
       'office_ppt_legacy',
       'ppt/simple.ppt',

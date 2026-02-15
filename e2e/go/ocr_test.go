@@ -6,6 +6,7 @@ package e2e
 import "testing"
 
 func TestOcrOcrImageHelloWorld(t *testing.T) {
+	skipIfFeatureUnavailable(t, "tesseract")
 	result := runExtraction(t, "images/test_hello_world.png", []byte(`{
 "force_ocr": true,
 "ocr": {
@@ -19,6 +20,7 @@ func TestOcrOcrImageHelloWorld(t *testing.T) {
 }
 
 func TestOcrOcrImageNoText(t *testing.T) {
+	skipIfFeatureUnavailable(t, "tesseract")
 	result := runExtraction(t, "images/flower_no_text.jpg", []byte(`{
 "force_ocr": true,
 "ocr": {
@@ -31,7 +33,8 @@ func TestOcrOcrImageNoText(t *testing.T) {
 }
 
 func TestOcrOcrPaddleConfidenceFilter(t *testing.T) {
-	skipIfPaddleOcrUnavailable(t)
+	skipIfFeatureUnavailable(t, "paddle-ocr")
+	skipIfFeatureUnavailable(t, "paddle-ocr")
 	result := runExtraction(t, "images/ocr_image.jpg", []byte(`{
 "force_ocr": true,
 "ocr": {
@@ -47,7 +50,8 @@ func TestOcrOcrPaddleConfidenceFilter(t *testing.T) {
 }
 
 func TestOcrOcrPaddleImageChinese(t *testing.T) {
-	skipIfPaddleOcrUnavailable(t)
+	skipIfFeatureUnavailable(t, "paddle-ocr")
+	skipIfFeatureUnavailable(t, "paddle-ocr")
 	result := runExtraction(t, "images/chi_sim_image.jpeg", []byte(`{
 "force_ocr": true,
 "ocr": {
@@ -60,7 +64,8 @@ func TestOcrOcrPaddleImageChinese(t *testing.T) {
 }
 
 func TestOcrOcrPaddleImageEnglish(t *testing.T) {
-	skipIfPaddleOcrUnavailable(t)
+	skipIfFeatureUnavailable(t, "paddle-ocr")
+	skipIfFeatureUnavailable(t, "paddle-ocr")
 	result := runExtraction(t, "images/test_hello_world.png", []byte(`{
 "force_ocr": true,
 "ocr": {
@@ -74,7 +79,8 @@ func TestOcrOcrPaddleImageEnglish(t *testing.T) {
 }
 
 func TestOcrOcrPaddleMarkdown(t *testing.T) {
-	skipIfPaddleOcrUnavailable(t)
+	skipIfFeatureUnavailable(t, "paddle-ocr")
+	skipIfFeatureUnavailable(t, "paddle-ocr")
 	result := runExtraction(t, "images/test_hello_world.png", []byte(`{
 "force_ocr": true,
 "ocr": {
@@ -91,7 +97,8 @@ func TestOcrOcrPaddleMarkdown(t *testing.T) {
 }
 
 func TestOcrOcrPaddlePdfScanned(t *testing.T) {
-	skipIfPaddleOcrUnavailable(t)
+	skipIfFeatureUnavailable(t, "paddle-ocr")
+	skipIfFeatureUnavailable(t, "paddle-ocr")
 	result := runExtraction(t, "pdf/ocr_test.pdf", []byte(`{
 "force_ocr": true,
 "ocr": {
@@ -105,7 +112,8 @@ func TestOcrOcrPaddlePdfScanned(t *testing.T) {
 }
 
 func TestOcrOcrPaddleStructured(t *testing.T) {
-	skipIfPaddleOcrUnavailable(t)
+	skipIfFeatureUnavailable(t, "paddle-ocr")
+	skipIfFeatureUnavailable(t, "paddle-ocr")
 	result := runExtraction(t, "images/test_hello_world.png", []byte(`{
 "force_ocr": true,
 "ocr": {
@@ -122,7 +130,8 @@ func TestOcrOcrPaddleStructured(t *testing.T) {
 }
 
 func TestOcrOcrPaddleTableDetection(t *testing.T) {
-	skipIfPaddleOcrUnavailable(t)
+	skipIfFeatureUnavailable(t, "paddle-ocr")
+	skipIfFeatureUnavailable(t, "paddle-ocr")
 	result := runExtraction(t, "images/simple_table.png", []byte(`{
 "force_ocr": true,
 "ocr": {
@@ -139,6 +148,7 @@ func TestOcrOcrPaddleTableDetection(t *testing.T) {
 }
 
 func TestOcrOcrPdfImageOnlyGerman(t *testing.T) {
+	skipIfFeatureUnavailable(t, "tesseract")
 	result := runExtraction(t, "pdf/image_only_german_pdf.pdf", []byte(`{
 "force_ocr": true,
 "ocr": {
@@ -151,6 +161,7 @@ func TestOcrOcrPdfImageOnlyGerman(t *testing.T) {
 }
 
 func TestOcrOcrPdfRotated90(t *testing.T) {
+	skipIfFeatureUnavailable(t, "tesseract")
 	result := runExtraction(t, "pdf/ocr_test_rotated_90.pdf", []byte(`{
 "force_ocr": true,
 "ocr": {
@@ -163,6 +174,7 @@ func TestOcrOcrPdfRotated90(t *testing.T) {
 }
 
 func TestOcrOcrPdfTesseract(t *testing.T) {
+	skipIfFeatureUnavailable(t, "tesseract")
 	result := runExtraction(t, "pdf/ocr_test.pdf", []byte(`{
 "force_ocr": true,
 "ocr": {

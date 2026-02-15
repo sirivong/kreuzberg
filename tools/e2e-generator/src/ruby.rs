@@ -80,6 +80,15 @@ module E2ERuby
     details
   end
 
+  def skip_if_feature_unavailable(feature)
+    env_var = 'KREUZBERG_' + feature.gsub('-', '_').upcase + '_AVAILABLE'
+    flag = ENV.fetch(env_var, nil)
+    return unless flag.nil? || flag.empty? || flag == '0' || flag.casecmp('false').zero?
+
+    raise RSpec::Core::Pending::SkipDeclaredInExample,
+          'Feature ' + feature.to_s + ' not available (set ' + env_var + '=1)'
+  end
+
   def run_fixture(fixture_id, relative_path, config_hash, requirements:, notes:, skip_if_missing: true, &block)
     run_fixture_with_method(fixture_id, relative_path, config_hash, :sync, :file,
                             requirements: requirements, notes: notes, skip_if_missing: skip_if_missing, &block)
@@ -536,6 +545,28 @@ fn render_example(fixture: &Fixture, is_last: bool) -> Result<String> {
     let use_simple_runner = method == ExtractionMethod::Sync && input_type == InputType::File;
 
     writeln!(body, "  it {} do", render_ruby_string(&fixture.id))?;
+
+    // Emit feature-availability checks (env-var based skip)
+    let skip_directive = fixture.skip();
+    let all_features: Vec<&str> = skip_directive
+        .requires_feature
+        .iter()
+        .chain(
+            fixture
+                .document()
+                .requires_external_tool
+                .iter()
+                .filter(|t| *t == "paddle-ocr"),
+        )
+        .map(|s| s.as_str())
+        .collect();
+    for feature in &all_features {
+        writeln!(
+            body,
+            "    E2ERuby.skip_if_feature_unavailable({})",
+            render_ruby_string(feature)
+        )?;
+    }
 
     if use_simple_runner {
         writeln!(body, "    E2ERuby.run_fixture(")?;

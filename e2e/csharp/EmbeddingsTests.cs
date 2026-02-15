@@ -14,6 +14,7 @@ namespace Kreuzberg.E2E.Embeddings
         [SkippableFact]
         public async Task EmbeddingAsync()
         {
+            TestHelpers.SkipIfFeatureUnavailable("embeddings");
             TestHelpers.SkipIfLegacyOfficeDisabled("pdf/fake_memo.pdf");
             TestHelpers.SkipIfOfficeTestOnWindows("pdf/fake_memo.pdf");
             var documentPath = TestHelpers.EnsureDocument("pdf/fake_memo.pdf", true);
@@ -28,6 +29,7 @@ namespace Kreuzberg.E2E.Embeddings
         [SkippableFact]
         public void EmbeddingBalancedPreset()
         {
+            TestHelpers.SkipIfFeatureUnavailable("embeddings");
             TestHelpers.SkipIfLegacyOfficeDisabled("pdf/fake_memo.pdf");
             TestHelpers.SkipIfOfficeTestOnWindows("pdf/fake_memo.pdf");
             var documentPath = TestHelpers.EnsureDocument("pdf/fake_memo.pdf", true);
@@ -56,6 +58,7 @@ namespace Kreuzberg.E2E.Embeddings
         [SkippableFact]
         public void EmbeddingFastPreset()
         {
+            TestHelpers.SkipIfFeatureUnavailable("embeddings");
             TestHelpers.SkipIfLegacyOfficeDisabled("pdf/fake_memo.pdf");
             TestHelpers.SkipIfOfficeTestOnWindows("pdf/fake_memo.pdf");
             var documentPath = TestHelpers.EnsureDocument("pdf/fake_memo.pdf", true);

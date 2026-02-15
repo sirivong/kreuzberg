@@ -6,6 +6,7 @@ package e2e
 import "testing"
 
 func TestEmbeddingsEmbeddingAsync(t *testing.T) {
+	skipIfFeatureUnavailable(t, "embeddings")
 	result := runExtractionAsync(t, "pdf/fake_memo.pdf", []byte(`{
 "chunking": {
 	"embedding": {
@@ -25,6 +26,7 @@ func TestEmbeddingsEmbeddingAsync(t *testing.T) {
 }
 
 func TestEmbeddingsEmbeddingBalancedPreset(t *testing.T) {
+	skipIfFeatureUnavailable(t, "embeddings")
 	result := runExtraction(t, "pdf/fake_memo.pdf", []byte(`{
 "chunking": {
 	"embedding": {
@@ -56,6 +58,7 @@ func TestEmbeddingsEmbeddingDisabled(t *testing.T) {
 }
 
 func TestEmbeddingsEmbeddingFastPreset(t *testing.T) {
+	skipIfFeatureUnavailable(t, "embeddings")
 	result := runExtraction(t, "pdf/fake_memo.pdf", []byte(`{
 "chunking": {
 	"embedding": {

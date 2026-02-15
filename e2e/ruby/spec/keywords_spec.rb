@@ -10,6 +10,7 @@ require_relative 'spec_helper'
 
 RSpec.describe 'keywords fixtures' do
   it 'keywords_rake' do
+    E2ERuby.skip_if_feature_unavailable('keywords-rake')
     E2ERuby.run_fixture(
       'keywords_rake',
       'pdf/fake_memo.pdf',
@@ -28,6 +29,7 @@ RSpec.describe 'keywords fixtures' do
   end
 
   it 'keywords_yake' do
+    E2ERuby.skip_if_feature_unavailable('keywords-yake')
     E2ERuby.run_fixture(
       'keywords_yake',
       'pdf/fake_memo.pdf',

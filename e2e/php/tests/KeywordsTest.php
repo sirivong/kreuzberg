@@ -25,6 +25,8 @@ class KeywordsTest extends TestCase
             $this->markTestSkipped('Skipping keywords_rake: missing document at ' . $documentPath);
         }
 
+        Helpers::skipIfFeatureUnavailable('keywords-rake');
+
         $config = Helpers::buildConfig(['keywords' => ['algorithm' => 'rake', 'max_keywords' => 10]]);
 
         $kreuzberg = new Kreuzberg($config);
@@ -44,6 +46,8 @@ class KeywordsTest extends TestCase
         if (!file_exists($documentPath)) {
             $this->markTestSkipped('Skipping keywords_yake: missing document at ' . $documentPath);
         }
+
+        Helpers::skipIfFeatureUnavailable('keywords-yake');
 
         $config = Helpers::buildConfig(['keywords' => ['algorithm' => 'yake', 'max_keywords' => 10]]);
 

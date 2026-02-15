@@ -41,7 +41,7 @@ const MAX_FILE_SIZE = 512 * 1024 * 1024;
  * @internal
  */
 function isNumberOrNull(value: unknown): value is number | null {
-	return typeof value === "number" || value === null;
+	return typeof value === "number" || value === null || value === undefined;
 }
 
 /**
@@ -50,7 +50,7 @@ function isNumberOrNull(value: unknown): value is number | null {
  * @internal
  */
 function isStringOrNull(value: unknown): value is string | null {
-	return typeof value === "string" || value === null;
+	return typeof value === "string" || value === null || value === undefined;
 }
 
 /**
@@ -59,7 +59,7 @@ function isStringOrNull(value: unknown): value is string | null {
  * @internal
  */
 function isBoolean(value: unknown): value is boolean {
-	return typeof value === "boolean";
+	return typeof value === "boolean" || value === undefined;
 }
 
 /**
@@ -300,10 +300,17 @@ export function jsToExtractionResult(jsValue: unknown): ExtractionResult {
 					throw new Error("Invalid image: missing format");
 				}
 
-				if (typeof img.imageIndex !== "number") {
+				// Support both camelCase and snake_case field names (Rust serde uses snake_case)
+				const imageIndex = img.imageIndex ?? img.image_index;
+				const pageNumber = img.pageNumber ?? img.page_number;
+				const bitsPerComponent = img.bitsPerComponent ?? img.bits_per_component;
+				const isMask = img.isMask ?? img.is_mask;
+				const ocrResult = img.ocrResult ?? img.ocr_result;
+
+				if (typeof imageIndex !== "number") {
 					throw new Error("Invalid image: imageIndex must be a number");
 				}
-				if (!isNumberOrNull(img.pageNumber)) {
+				if (!isNumberOrNull(pageNumber)) {
 					throw new Error("Invalid image: pageNumber must be a number or null");
 				}
 				if (!isNumberOrNull(img.width)) {
@@ -312,11 +319,11 @@ export function jsToExtractionResult(jsValue: unknown): ExtractionResult {
 				if (!isNumberOrNull(img.height)) {
 					throw new Error("Invalid image: height must be a number or null");
 				}
-				if (!isNumberOrNull(img.bitsPerComponent)) {
+				if (!isNumberOrNull(bitsPerComponent)) {
 					throw new Error("Invalid image: bitsPerComponent must be a number or null");
 				}
 
-				if (!isBoolean(img.isMask)) {
+				if (!isBoolean(isMask)) {
 					throw new Error("Invalid image: isMask must be a boolean");
 				}
 
@@ -330,15 +337,15 @@ export function jsToExtractionResult(jsValue: unknown): ExtractionResult {
 				return {
 					data: img.data,
 					format: img.format,
-					imageIndex: img.imageIndex,
-					pageNumber: img.pageNumber,
-					width: img.width,
-					height: img.height,
-					colorspace: img.colorspace,
-					bitsPerComponent: img.bitsPerComponent,
-					isMask: img.isMask,
-					description: img.description,
-					ocrResult: img.ocrResult ? jsToExtractionResult(img.ocrResult) : null,
+					imageIndex: imageIndex,
+					pageNumber: pageNumber ?? null,
+					width: (img.width as number) ?? null,
+					height: (img.height as number) ?? null,
+					colorspace: (img.colorspace as string) ?? null,
+					bitsPerComponent: bitsPerComponent ?? null,
+					isMask: isMask ?? false,
+					description: (img.description as string) ?? null,
+					ocrResult: ocrResult ? jsToExtractionResult(ocrResult) : null,
 				};
 			})
 		: null;

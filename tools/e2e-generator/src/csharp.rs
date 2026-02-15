@@ -126,7 +126,13 @@ public static class TestHelpers
 
     public static void SkipIfPaddleOcrUnavailable()
     {
-        var flag = Environment.GetEnvironmentVariable("KREUZBERG_PADDLE_OCR_AVAILABLE");
+        SkipIfFeatureUnavailable("paddle-ocr");
+    }
+
+    public static void SkipIfFeatureUnavailable(string feature)
+    {
+        var envVar = "KREUZBERG_" + feature.Replace("-", "_").ToUpperInvariant() + "_AVAILABLE";
+        var flag = Environment.GetEnvironmentVariable(envVar);
         if (string.IsNullOrWhiteSpace(flag) || flag == "0" || flag.Equals("false", StringComparison.OrdinalIgnoreCase))
         {
             throw new Xunit.SkipException();
@@ -834,11 +840,20 @@ fn render_test(buffer: &mut String, fixture: &Fixture) -> Result<()> {
 
     let doc = fixture.document();
     let config_json = render_config_expression(&extraction.config)?;
-    // Skip if fixture requires paddle-ocr and it's not available
-    let requires_paddle = fixture.skip().requires_feature.iter().any(|f| f == "paddle-ocr")
-        || doc.requires_external_tool.iter().any(|t| t == "paddle-ocr");
-    if requires_paddle {
-        writeln!(buffer, "            TestHelpers.SkipIfPaddleOcrUnavailable();")?;
+    // Skip if fixture requires features that may not be available
+    let skip_directive = fixture.skip();
+    let all_features: Vec<&str> = skip_directive
+        .requires_feature
+        .iter()
+        .chain(doc.requires_external_tool.iter().filter(|t| *t == "paddle-ocr"))
+        .map(|s| s.as_str())
+        .collect();
+    for feature in &all_features {
+        writeln!(
+            buffer,
+            "            TestHelpers.SkipIfFeatureUnavailable(\"{}\");",
+            escape_csharp_string(feature)
+        )?;
     }
     writeln!(
         buffer,

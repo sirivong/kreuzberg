@@ -25,6 +25,8 @@ class OcrTest extends TestCase
             $this->markTestSkipped('Skipping ocr_image_hello_world: missing document at ' . $documentPath);
         }
 
+        Helpers::skipIfFeatureUnavailable('tesseract');
+
         $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'tesseract', 'language' => 'eng']]);
 
         $kreuzberg = new Kreuzberg($config);
@@ -45,6 +47,8 @@ class OcrTest extends TestCase
             $this->markTestSkipped('Skipping ocr_image_no_text: missing document at ' . $documentPath);
         }
 
+        Helpers::skipIfFeatureUnavailable('tesseract');
+
         $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'tesseract', 'language' => 'eng']]);
 
         $kreuzberg = new Kreuzberg($config);
@@ -63,6 +67,9 @@ class OcrTest extends TestCase
         if (!file_exists($documentPath)) {
             $this->markTestSkipped('Skipping ocr_paddle_confidence_filter: missing document at ' . $documentPath);
         }
+
+        Helpers::skipIfFeatureUnavailable('paddle-ocr');
+        Helpers::skipIfFeatureUnavailable('paddle-ocr');
 
         $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'paddle-ocr', 'language' => 'en', 'paddle_ocr_config' => ['min_confidence' => 80.0]]]);
 
@@ -83,6 +90,9 @@ class OcrTest extends TestCase
             $this->markTestSkipped('Skipping ocr_paddle_image_chinese: missing document at ' . $documentPath);
         }
 
+        Helpers::skipIfFeatureUnavailable('paddle-ocr');
+        Helpers::skipIfFeatureUnavailable('paddle-ocr');
+
         $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'paddle-ocr', 'language' => 'ch']]);
 
         $kreuzberg = new Kreuzberg($config);
@@ -101,6 +111,9 @@ class OcrTest extends TestCase
         if (!file_exists($documentPath)) {
             $this->markTestSkipped('Skipping ocr_paddle_image_english: missing document at ' . $documentPath);
         }
+
+        Helpers::skipIfFeatureUnavailable('paddle-ocr');
+        Helpers::skipIfFeatureUnavailable('paddle-ocr');
 
         $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'paddle-ocr', 'language' => 'en']]);
 
@@ -122,6 +135,9 @@ class OcrTest extends TestCase
             $this->markTestSkipped('Skipping ocr_paddle_markdown: missing document at ' . $documentPath);
         }
 
+        Helpers::skipIfFeatureUnavailable('paddle-ocr');
+        Helpers::skipIfFeatureUnavailable('paddle-ocr');
+
         $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'paddle-ocr', 'language' => 'en', 'paddle_ocr_config' => ['output_format' => 'markdown']]]);
 
         $kreuzberg = new Kreuzberg($config);
@@ -141,6 +157,9 @@ class OcrTest extends TestCase
         if (!file_exists($documentPath)) {
             $this->markTestSkipped('Skipping ocr_paddle_pdf_scanned: missing document at ' . $documentPath);
         }
+
+        Helpers::skipIfFeatureUnavailable('paddle-ocr');
+        Helpers::skipIfFeatureUnavailable('paddle-ocr');
 
         $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'paddle-ocr', 'language' => 'en']]);
 
@@ -162,6 +181,9 @@ class OcrTest extends TestCase
             $this->markTestSkipped('Skipping ocr_paddle_structured: missing document at ' . $documentPath);
         }
 
+        Helpers::skipIfFeatureUnavailable('paddle-ocr');
+        Helpers::skipIfFeatureUnavailable('paddle-ocr');
+
         $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'paddle-ocr', 'element_config' => ['include_elements' => true], 'language' => 'en']]);
 
         $kreuzberg = new Kreuzberg($config);
@@ -181,6 +203,9 @@ class OcrTest extends TestCase
         if (!file_exists($documentPath)) {
             $this->markTestSkipped('Skipping ocr_paddle_table_detection: missing document at ' . $documentPath);
         }
+
+        Helpers::skipIfFeatureUnavailable('paddle-ocr');
+        Helpers::skipIfFeatureUnavailable('paddle-ocr');
 
         $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'paddle-ocr', 'language' => 'en', 'paddle_ocr_config' => ['enable_table_detection' => true]]]);
 
@@ -202,6 +227,8 @@ class OcrTest extends TestCase
             $this->markTestSkipped('Skipping ocr_pdf_image_only_german: missing document at ' . $documentPath);
         }
 
+        Helpers::skipIfFeatureUnavailable('tesseract');
+
         $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'tesseract', 'language' => 'eng']]);
 
         $kreuzberg = new Kreuzberg($config);
@@ -222,6 +249,8 @@ class OcrTest extends TestCase
             $this->markTestSkipped('Skipping ocr_pdf_rotated_90: missing document at ' . $documentPath);
         }
 
+        Helpers::skipIfFeatureUnavailable('tesseract');
+
         $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'tesseract', 'language' => 'eng']]);
 
         $kreuzberg = new Kreuzberg($config);
@@ -240,6 +269,8 @@ class OcrTest extends TestCase
         if (!file_exists($documentPath)) {
             $this->markTestSkipped('Skipping ocr_pdf_tesseract: missing document at ' . $documentPath);
         }
+
+        Helpers::skipIfFeatureUnavailable('tesseract');
 
         $config = Helpers::buildConfig(['force_ocr' => true, 'ocr' => ['backend' => 'tesseract', 'language' => 'eng']]);
 
