@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **PaddleOCR recognition height mismatch (#390)**: Changed `CRNN_DST_HEIGHT` from 32 to 48 pixels to match PP-OCRv4/v5 model input shape `[batch, 3, 48, width]`. The previous value caused ONNX Runtime dimension errors on all platforms.
+
+### Changed
+
+- **Docker full image: pre-download all PaddleOCR models**: Replaced broken single-language model download with all 12 recognition script families (english, chinese, latin, korean, eslav, thai, greek, arabic, devanagari, tamil, telugu, kannada) plus dictionaries. Fixed incorrect HuggingFace URLs and cache paths. Added retry logic with backoff for transient HuggingFace 502 errors.
+- **Docker test suite: PaddleOCR verification**: Added `test_paddle_ocr_extraction` to the full variant Docker tests to verify pre-loaded models work end-to-end.
+
+---
+
 ## [4.3.3] - 2026-02-14
 
 ### Added
@@ -34,7 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 #### PaddleOCR Engine Internals
-- **CrnnNet recognition height**: Fixed from 48 to 32 pixels to match PP-OCRv5/v3 model expectations.
+- **CrnnNet recognition height**: Changed to 32 pixels (later found to be incorrect for PP-OCRv4/v5 models; fixed in next release).
 - **Model manager split**: `MODELS` constant replaced with `SHARED_MODELS` (det+cls) and `REC_MODELS` (12 families), with new cache layout `rec/{family}/model.onnx`.
 - **Language code mapping expanded**: `map_language_code()` now handles Thai, Greek, East Slavic, and additional Latin-script languages.
 
