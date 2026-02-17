@@ -43,6 +43,7 @@ pub struct JsTable {
     pub cells: Vec<Vec<String>>,
     pub markdown: String,
     pub page_number: u32,
+    pub bounding_box: Option<JsBoundingBox>,
 }
 
 #[napi(object)]
@@ -59,6 +60,7 @@ pub struct JsExtractedImage {
     pub description: Option<String>,
     #[napi(ts_type = "JsExtractionResult | undefined")]
     pub ocr_result: Option<serde_json::Value>,
+    pub bounding_box: Option<JsBoundingBox>,
 }
 
 #[napi(object)]

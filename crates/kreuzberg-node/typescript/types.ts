@@ -668,6 +668,9 @@ export interface Table {
 
 	/** Page number where this table was found (1-indexed) */
 	pageNumber: number;
+
+	/** Bounding box of the table on the page (PDF coordinates). */
+	boundingBox?: BoundingBox | null;
 }
 
 export interface ExcelMetadata {
@@ -956,6 +959,9 @@ export interface ExtractedImage {
 
 	/** OCR extraction result if OCR was run on this image, null otherwise */
 	ocrResult?: ExtractionResult | null;
+
+	/** Bounding box of the image on the page (PDF coordinates). */
+	boundingBox?: BoundingBox | null;
 }
 
 /**
