@@ -21,11 +21,20 @@ module Kreuzberg
   autoload :ValidatorProtocol, 'kreuzberg/validator_protocol'
   autoload :OcrBackendProtocol, 'kreuzberg/ocr_backend_protocol'
 
+  autoload :BoundingBox, 'kreuzberg/types'
+  autoload :ElementMetadata, 'kreuzberg/types'
+  autoload :Element, 'kreuzberg/types'
   autoload :HtmlMetadata, 'kreuzberg/types'
   autoload :HeaderMetadata, 'kreuzberg/types'
   autoload :LinkMetadata, 'kreuzberg/types'
   autoload :ImageMetadata, 'kreuzberg/types'
   autoload :StructuredData, 'kreuzberg/types'
+  autoload :ExtractedKeyword, 'kreuzberg/types'
+  autoload :ProcessingWarning, 'kreuzberg/types'
+  autoload :DocumentBoundingBox, 'kreuzberg/types'
+  autoload :DocumentAnnotation, 'kreuzberg/types'
+  autoload :DocumentNode, 'kreuzberg/types'
+  autoload :DocumentStructure, 'kreuzberg/types'
 
   ExtractionConfig = Config::Extraction
   PageConfig = Config::PageConfig

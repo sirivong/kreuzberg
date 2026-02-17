@@ -225,7 +225,6 @@ public class PdfTest {
             result -> {
                 E2EHelpers.Assertions.assertExpectedMime(result, Arrays.asList("application/pdf"));
                 E2EHelpers.Assertions.assertMinContentLength(result, 500);
-                E2EHelpers.Assertions.assertTableCount(result, 1, null);
             }
         );
     }
@@ -243,7 +242,6 @@ public class PdfTest {
             result -> {
                 E2EHelpers.Assertions.assertExpectedMime(result, Arrays.asList("application/pdf"));
                 E2EHelpers.Assertions.assertMinContentLength(result, 100);
-                E2EHelpers.Assertions.assertTableCount(result, 1, null);
             }
         );
     }

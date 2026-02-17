@@ -100,19 +100,19 @@ pub fn ruby_cache_stats() -> Result<RHash, Error> {
 
 // Validation wrapper functions
 pub fn validate_binarization_method(method: String) -> Result<i32, Error> {
-    unsafe { Ok(kreuzberg_validate_binarization_method(method.as_ptr() as *const i8)) }
+    unsafe { Ok(kreuzberg_validate_binarization_method(method.as_ptr() as *const std::os::raw::c_char)) }
 }
 
 pub fn validate_ocr_backend(backend: String) -> Result<i32, Error> {
-    unsafe { Ok(kreuzberg_validate_ocr_backend(backend.as_ptr() as *const i8)) }
+    unsafe { Ok(kreuzberg_validate_ocr_backend(backend.as_ptr() as *const std::os::raw::c_char)) }
 }
 
 pub fn validate_language_code(code: String) -> Result<i32, Error> {
-    unsafe { Ok(kreuzberg_validate_language_code(code.as_ptr() as *const i8)) }
+    unsafe { Ok(kreuzberg_validate_language_code(code.as_ptr() as *const std::os::raw::c_char)) }
 }
 
 pub fn validate_token_reduction_level(level: String) -> Result<i32, Error> {
-    unsafe { Ok(kreuzberg_validate_token_reduction_level(level.as_ptr() as *const i8)) }
+    unsafe { Ok(kreuzberg_validate_token_reduction_level(level.as_ptr() as *const std::os::raw::c_char)) }
 }
 
 pub fn validate_tesseract_psm(psm: i32) -> Result<i32, Error> {
@@ -124,7 +124,7 @@ pub fn validate_tesseract_oem(oem: i32) -> Result<i32, Error> {
 }
 
 pub fn validate_output_format(format: String) -> Result<i32, Error> {
-    unsafe { Ok(kreuzberg_validate_output_format(format.as_ptr() as *const i8)) }
+    unsafe { Ok(kreuzberg_validate_output_format(format.as_ptr() as *const std::os::raw::c_char)) }
 }
 
 pub fn validate_confidence(confidence: f64) -> Result<i32, Error> {

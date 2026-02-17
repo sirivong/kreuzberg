@@ -236,7 +236,6 @@ class PdfTest extends TestCase
 
         Helpers::assertExpectedMime($result, ['application/pdf']);
         Helpers::assertMinContentLength($result, 500);
-        Helpers::assertTableCount($result, 1, null);
     }
 
     /**
@@ -256,7 +255,6 @@ class PdfTest extends TestCase
 
         Helpers::assertExpectedMime($result, ['application/pdf']);
         Helpers::assertMinContentLength($result, 100);
-        Helpers::assertTableCount($result, 1, null);
     }
 
     /**

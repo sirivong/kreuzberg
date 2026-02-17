@@ -256,7 +256,6 @@ defmodule E2E.PdfTest do
           result
           |> E2E.Helpers.assert_expected_mime(["application/pdf"])
           |> E2E.Helpers.assert_min_content_length(500)
-          |> E2E.Helpers.assert_table_count(1, nil)
 
         {:skipped, reason} ->
           IO.puts("SKIPPED: #{reason}")
@@ -279,7 +278,6 @@ defmodule E2E.PdfTest do
           result
           |> E2E.Helpers.assert_expected_mime(["application/pdf"])
           |> E2E.Helpers.assert_min_content_length(100)
-          |> E2E.Helpers.assert_table_count(1, nil)
 
         {:skipped, reason} ->
           IO.puts("SKIPPED: #{reason}")

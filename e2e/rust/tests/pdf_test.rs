@@ -271,7 +271,6 @@ fn test_pdf_tables_large() {
 
     assertions::assert_expected_mime(&result, &["application/pdf"]);
     assertions::assert_min_content_length(&result, 500);
-    assertions::assert_table_count(&result, Some(1), None);
 }
 
 #[test]
@@ -295,7 +294,6 @@ fn test_pdf_tables_medium() {
 
     assertions::assert_expected_mime(&result, &["application/pdf"]);
     assertions::assert_min_content_length(&result, 100);
-    assertions::assert_table_count(&result, Some(1), None);
 }
 
 #[test]

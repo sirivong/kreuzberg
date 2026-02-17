@@ -211,17 +211,23 @@ impl SyncExtractor for HtmlExtractor {
 
         let tables = extract_html_tables(&content_text)?;
 
-        // Set mime_type based on actual output format
-        let result_mime_type = match config.output_format {
-            OutputFormat::Markdown => "text/markdown",
-            OutputFormat::Djot => "text/djot",
-            _ => mime_type, // Preserve original mime_type for other formats
+        // Always preserve the original document MIME type.
+        // The output format is tracked separately in metadata.output_format.
+        let result_mime_type = mime_type;
+
+        // Signal that the extractor already formatted the output so the pipeline
+        // does not double-convert.
+        let pre_formatted = match config.output_format {
+            OutputFormat::Markdown => Some("markdown".to_string()),
+            OutputFormat::Djot => Some("djot".to_string()),
+            _ => None,
         };
 
         Ok(ExtractionResult {
             content: content_text,
             mime_type: result_mime_type.to_string().into(),
             metadata: Metadata {
+                output_format: pre_formatted,
                 format: html_metadata.map(|m| crate::types::FormatMetadata::Html(Box::new(m))),
                 ..Default::default()
             },
@@ -456,7 +462,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert_eq!(result.mime_type, "text/djot");
+        assert_eq!(result.mime_type, "text/html");
         assert!(result.content.contains("# Test Page"));
         assert!(result.content.contains("*emphasis*")); // Djot strong syntax
     }
@@ -484,7 +490,7 @@ mod tests {
             .unwrap();
 
         // Content should already be in djot format
-        assert_eq!(result.mime_type, "text/djot");
+        assert_eq!(result.mime_type, "text/html");
         let original_content = result.content.clone();
 
         // Simulate pipeline format application
@@ -493,6 +499,6 @@ mod tests {
 
         // Content should be identical - no re-conversion should occur
         assert_eq!(pipeline_result.content, original_content);
-        assert_eq!(pipeline_result.mime_type, "text/djot");
+        assert_eq!(pipeline_result.mime_type, "text/html");
     }
 }

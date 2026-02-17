@@ -23,10 +23,12 @@ use std::borrow::Cow;
 /// * `result` - The extraction result to modify
 /// * `output_format` - The desired output format
 pub fn apply_output_format(result: &mut ExtractionResult, output_format: OutputFormat) {
-    // Check if content was already formatted during extraction
-    let already_formatted = match &*result.mime_type {
-        "text/markdown" if output_format == OutputFormat::Markdown => true,
-        "text/djot" if output_format == OutputFormat::Djot => true,
+    // Check if content was already formatted during extraction.
+    // Since extractors now preserve original MIME types, detect by checking
+    // metadata.output_format which is set by extractors that pre-format.
+    let already_formatted = match result.metadata.output_format.as_deref() {
+        Some("markdown") if output_format == OutputFormat::Markdown => true,
+        Some("djot") if output_format == OutputFormat::Djot => true,
         _ => false,
     };
 
@@ -195,7 +197,11 @@ mod tests {
 
         let mut result = ExtractionResult {
             content: "Hello World".to_string(),
-            mime_type: Cow::Borrowed("text/djot"),
+            mime_type: Cow::Borrowed("text/html"),
+            metadata: Metadata {
+                output_format: Some("djot".to_string()),
+                ..Default::default()
+            },
             djot_content: Some(DjotContent {
                 plain_text: "Hello World".to_string(),
                 blocks: vec![FormattedBlock {
@@ -368,7 +374,11 @@ mod tests {
 
         let mut result = ExtractionResult {
             content: "test".to_string(),
-            mime_type: Cow::Borrowed("text/djot"),
+            mime_type: Cow::Borrowed("text/html"),
+            metadata: Metadata {
+                output_format: Some("djot".to_string()),
+                ..Default::default()
+            },
             djot_content: Some(djot_content),
             ..Default::default()
         };

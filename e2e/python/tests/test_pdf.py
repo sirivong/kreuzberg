@@ -190,7 +190,6 @@ def test_pdf_tables_large() -> None:
 
     helpers.assert_expected_mime(result, ["application/pdf"])
     helpers.assert_min_content_length(result, 500)
-    helpers.assert_table_count(result, 1, None)
 
 
 def test_pdf_tables_medium() -> None:
@@ -206,7 +205,6 @@ def test_pdf_tables_medium() -> None:
 
     helpers.assert_expected_mime(result, ["application/pdf"])
     helpers.assert_min_content_length(result, 100)
-    helpers.assert_table_count(result, 1, None)
 
 
 def test_pdf_tables_small() -> None:

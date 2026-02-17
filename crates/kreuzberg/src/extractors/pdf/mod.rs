@@ -363,16 +363,25 @@ impl DocumentExtractor for PdfExtractor {
             }
         }
 
-        let effective_mime_type = if used_pdf_markdown {
-            "text/markdown".to_string()
+        // Always preserve the original document MIME type (e.g. application/pdf).
+        // The output format is tracked separately in metadata.output_format.
+        let effective_mime_type = mime_type.to_string();
+
+        // Signal pre-formatted markdown so the pipeline doesn't double-convert.
+        #[cfg(feature = "pdf")]
+        let pre_formatted_output = if used_pdf_markdown {
+            Some("markdown".to_string())
         } else {
-            mime_type.to_string()
+            None
         };
+        #[cfg(not(feature = "pdf"))]
+        let pre_formatted_output: Option<String> = None;
 
         Ok(ExtractionResult {
             content: text,
             mime_type: effective_mime_type.into(),
             metadata: Metadata {
+                output_format: pre_formatted_output,
                 #[cfg(feature = "pdf")]
                 title: pdf_metadata.title.clone(),
                 #[cfg(feature = "pdf")]

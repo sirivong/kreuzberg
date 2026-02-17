@@ -53,6 +53,16 @@ pub fn extraction_result_to_ruby(ruby: &Ruby, result: RustExtractionResult) -> R
         table_hash.aset("cells", cells_array)?;
         table_hash.aset("markdown", table.markdown)?;
         table_hash.aset("page_number", table.page_number)?;
+        if let Some(bbox) = table.bounding_box {
+            let bbox_hash = ruby.hash_new();
+            bbox_hash.aset("x0", bbox.x0)?;
+            bbox_hash.aset("y0", bbox.y0)?;
+            bbox_hash.aset("x1", bbox.x1)?;
+            bbox_hash.aset("y1", bbox.y1)?;
+            table_hash.aset("bounding_box", bbox_hash)?;
+        } else {
+            table_hash.aset("bounding_box", ruby.qnil().as_value())?;
+        }
 
         tables_array.push(table_hash)?;
     }
@@ -164,6 +174,16 @@ pub fn extraction_result_to_ruby(ruby: &Ruby, result: RustExtractionResult) -> R
             } else {
                 image_hash.aset("ocr_result", ruby.qnil().as_value())?;
             }
+            if let Some(bbox) = image.bounding_box {
+                let bbox_hash = ruby.hash_new();
+                bbox_hash.aset("x0", bbox.x0)?;
+                bbox_hash.aset("y0", bbox.y0)?;
+                bbox_hash.aset("x1", bbox.x1)?;
+                bbox_hash.aset("y1", bbox.y1)?;
+                image_hash.aset("bounding_box", bbox_hash)?;
+            } else {
+                image_hash.aset("bounding_box", ruby.qnil().as_value())?;
+            }
             images_array.push(image_hash)?;
         }
         set_hash_entry(ruby, &hash, "images", images_array.into_value_with(ruby))?;
@@ -191,6 +211,16 @@ pub fn extraction_result_to_ruby(ruby: &Ruby, result: RustExtractionResult) -> R
                 table_hash.aset("cells", cells_array)?;
                 table_hash.aset("markdown", table.markdown.clone())?;
                 table_hash.aset("page_number", table.page_number as i64)?;
+                if let Some(ref bbox) = table.bounding_box {
+                    let bbox_hash = ruby.hash_new();
+                    bbox_hash.aset("x0", bbox.x0)?;
+                    bbox_hash.aset("y0", bbox.y0)?;
+                    bbox_hash.aset("x1", bbox.x1)?;
+                    bbox_hash.aset("y1", bbox.y1)?;
+                    table_hash.aset("bounding_box", bbox_hash)?;
+                } else {
+                    table_hash.aset("bounding_box", ruby.qnil().as_value())?;
+                }
 
                 tables_array.push(table_hash)?;
             }
@@ -247,6 +277,16 @@ pub fn extraction_result_to_ruby(ruby: &Ruby, result: RustExtractionResult) -> R
                     image_hash.aset("ocr_result", nested.into_value_with(ruby))?;
                 } else {
                     image_hash.aset("ocr_result", ruby.qnil().as_value())?;
+                }
+                if let Some(ref bbox) = image.bounding_box {
+                    let bbox_hash = ruby.hash_new();
+                    bbox_hash.aset("x0", bbox.x0)?;
+                    bbox_hash.aset("y0", bbox.y0)?;
+                    bbox_hash.aset("x1", bbox.x1)?;
+                    bbox_hash.aset("y1", bbox.y1)?;
+                    image_hash.aset("bounding_box", bbox_hash)?;
+                } else {
+                    image_hash.aset("bounding_box", ruby.qnil().as_value())?;
                 }
                 images_array.push(image_hash)?;
             }

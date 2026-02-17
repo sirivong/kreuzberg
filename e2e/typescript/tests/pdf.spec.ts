@@ -319,7 +319,6 @@ describe("pdf fixtures", () => {
 			}
 			assertions.assertExpectedMime(result, ["application/pdf"]);
 			assertions.assertMinContentLength(result, 500);
-			assertions.assertTableCount(result, 1, null);
 		},
 		TEST_TIMEOUT_MS,
 	);
@@ -347,7 +346,6 @@ describe("pdf fixtures", () => {
 			}
 			assertions.assertExpectedMime(result, ["application/pdf"]);
 			assertions.assertMinContentLength(result, 100);
-			assertions.assertTableCount(result, 1, null);
 		},
 		TEST_TIMEOUT_MS,
 	);

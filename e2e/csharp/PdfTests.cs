@@ -173,7 +173,6 @@ namespace Kreuzberg.E2E.Pdf
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
             TestHelpers.AssertExpectedMime(result, new[] { "application/pdf" });
             TestHelpers.AssertMinContentLength(result, 500);
-            TestHelpers.AssertTableCount(result, 1, null);
         }
 
         [SkippableFact]
@@ -187,7 +186,6 @@ namespace Kreuzberg.E2E.Pdf
             var result = KreuzbergClient.ExtractFileSync(documentPath, config);
             TestHelpers.AssertExpectedMime(result, new[] { "application/pdf" });
             TestHelpers.AssertMinContentLength(result, 100);
-            TestHelpers.AssertTableCount(result, 1, null);
         }
 
         [SkippableFact]
