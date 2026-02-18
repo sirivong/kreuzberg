@@ -438,7 +438,7 @@ public final class E2EHelpers {
         ExtractionResult result,
         boolean hasElements,
         boolean hasGeometry,
-        boolean hasConfidence,
+        Boolean hasConfidence,
         Integer minCount) {
       var ocrElements = result.getOcrElements();
       if (hasElements) {
@@ -451,7 +451,7 @@ public final class E2EHelpers {
               String.format("OCR element %d expected to have geometry", i));
         }
       }
-      if (hasConfidence) {
+      if (hasConfidence != null && hasConfidence) {
         for (int i = 0; i < ocrElements.size(); i++) {
           assertNotNull(
               ocrElements.get(i).getConfidence(),
@@ -542,7 +542,7 @@ public final class E2EHelpers {
       if (tables != null) {
         for (int i = 0; i < tables.size(); i++) {
           assertNotNull(
-              tables.get(i).getBoundingBox(),
+              tables.get(i).boundingBox(),
               String.format("Table %d expected to have bounding box", i));
         }
       }
@@ -556,7 +556,7 @@ public final class E2EHelpers {
       if (tables != null) {
         for (var table : tables) {
           allContent
-              .append(table.getContent() != null ? table.getContent().toLowerCase() : "")
+              .append(table.markdown() != null ? table.markdown().toLowerCase() : "")
               .append(" ");
         }
       }
@@ -597,7 +597,7 @@ public final class E2EHelpers {
 
     public static void assertProcessingWarnings(
         ExtractionResult result, Integer maxCount, Boolean isEmpty) {
-      var warnings = result.getProcessingWarnings();
+      var warnings = result.getProcessingWarnings().orElse(null);
       int count = warnings != null ? warnings.size() : 0;
       if (isEmpty != null && isEmpty) {
         assertTrue(
@@ -615,13 +615,14 @@ public final class E2EHelpers {
       var djotContent = result.getDjotContent().orElse(null);
       if (hasContent != null && hasContent) {
         assertTrue(
-            djotContent != null && !djotContent.isEmpty(), "Expected djot content to be present");
+            djotContent != null && djotContent.getPlainText() != null && !djotContent.getPlainText().isEmpty(),
+            "Expected djot content to be present");
       }
-      if (minBlocks != null && djotContent != null && !djotContent.isEmpty()) {
-        String[] blocks = djotContent.split("\n\n");
+      if (minBlocks != null && djotContent != null && djotContent.getPlainText() != null && !djotContent.getPlainText().isEmpty()) {
+        int blockCount = djotContent.getBlocks().size();
         assertTrue(
-            blocks.length >= minBlocks,
-            String.format("Expected at least %d djot blocks, got %d", minBlocks, blocks.length));
+            blockCount >= minBlocks,
+            String.format("Expected at least %d djot blocks, got %d", minBlocks, blockCount));
       }
     }
   }

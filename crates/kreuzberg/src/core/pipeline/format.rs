@@ -4,7 +4,9 @@
 //! (Plain, Djot, Markdown, HTML) with proper error handling and metadata recording.
 
 use crate::core::config::OutputFormat;
-use crate::types::{ExtractionResult, ProcessingWarning};
+use crate::types::{
+    BlockType, DjotContent, ExtractionResult, FormattedBlock, InlineElement, InlineType, Metadata, ProcessingWarning,
+};
 use std::borrow::Cow;
 
 /// Apply output format conversion to the extraction result.
@@ -56,6 +58,38 @@ pub fn apply_output_format(result: &mut ExtractionResult, output_format: OutputF
             // Default - no conversion needed
         }
         OutputFormat::Djot => {
+            // Build djot_content from plain text if not already present
+            if result.djot_content.is_none() {
+                let blocks: Vec<FormattedBlock> = result
+                    .content
+                    .split("\n\n")
+                    .filter(|p| !p.trim().is_empty())
+                    .map(|p| FormattedBlock {
+                        block_type: BlockType::Paragraph,
+                        level: None,
+                        inline_content: vec![InlineElement {
+                            element_type: InlineType::Text,
+                            content: p.trim().to_string(),
+                            attributes: None,
+                            metadata: None,
+                        }],
+                        attributes: None,
+                        language: None,
+                        code: None,
+                        children: vec![],
+                    })
+                    .collect();
+                result.djot_content = Some(DjotContent {
+                    plain_text: result.content.clone(),
+                    blocks,
+                    metadata: Metadata::default(),
+                    tables: result.tables.clone(),
+                    images: vec![],
+                    links: vec![],
+                    footnotes: vec![],
+                    attributes: Vec::new(),
+                });
+            }
             // Convert the extraction result to djot markup
             match crate::extractors::djot_format::extraction_result_to_djot(result) {
                 Ok(djot_markup) => {

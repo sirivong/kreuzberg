@@ -214,6 +214,9 @@ packages/csharp/test_html_debug.cs
 .codex/skills/elixir-bindings-patterns/SKILL.md
 packages/php/tests.xml
 
+# Clippy fix temporary output
+rust_out
+
 # Go test binaries
 tests/test_apps/go/kreuzberg-test-suite
 tests/test_apps/go/main
