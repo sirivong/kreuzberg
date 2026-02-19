@@ -19,7 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- PDF table recognition now validates column alignment, preventing body text pages from being misclassified as tables
+- PDF table detection now requires ≥3 aligned columns, eliminating false positives from two-column text layouts (academic papers, newsletters)
+- PDF table post-processing rejects tables with ≤2 columns, >50% long cells, or average cell length >50 chars
+- PDF markdown rendering no longer drops content when pdfium returns zero-value baseline coordinates (fixes missing titles/authors in some LaTeX-generated PDFs)
 - PaddleOCR backend validation now dynamically checks the plugin registry instead of hardcoding, preventing false "backend not registered" errors when the plugin is available (#403)
 - WASM bindings now export `detectMimeFromBytes` and `getExtensionsForMime` MIME utility functions
 - Node.js NAPI-RS binding correctly exposes `annotations` field on `ExtractionResult`

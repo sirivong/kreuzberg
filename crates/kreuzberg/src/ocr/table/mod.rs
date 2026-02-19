@@ -22,23 +22,44 @@ pub fn post_process_table(mut table: Vec<Vec<String>>) -> Option<Vec<Vec<String>
         return None;
     }
 
-    // Reject prose: if >66% of non-empty cells exceed 60 chars, it's not a table
-    let mut non_empty = 0;
-    let mut long_cells = 0;
+    // Reject prose: if >50% of non-empty cells exceed 60 chars, it's not a table.
+    // Also reject if average cell length exceeds 40 chars — real table cells are
+    // typically short values, not flowing sentences.
+    let mut non_empty = 0usize;
+    let mut long_cells = 0usize;
+    let mut total_chars = 0usize;
     for row in &table {
         for cell in row {
             let trimmed = cell.trim();
             if trimmed.is_empty() {
                 continue;
             }
+            let char_count = trimmed.chars().count();
             non_empty += 1;
-            if trimmed.chars().count() > 60 {
+            total_chars += char_count;
+            if char_count > 60 {
                 long_cells += 1;
             }
         }
     }
 
-    if non_empty > 0 && long_cells * 3 > non_empty * 2 {
+    if non_empty > 0 {
+        // >50% long cells → prose
+        if long_cells * 2 > non_empty {
+            return None;
+        }
+        // Average cell length >50 chars → likely prose paragraphs, not table data
+        if total_chars / non_empty > 50 {
+            return None;
+        }
+    }
+
+    // Two-column rejection: tables with exactly 2 columns are almost always false
+    // positives from two-column text layouts (academic papers, newsletters, etc.).
+    // Real tables with only 2 meaningful columns are extremely rare in practice;
+    // they typically have at least 3 columns (key-value tables have a label column).
+    let col_count = table.first().map_or(0, Vec::len);
+    if col_count <= 2 {
         return None;
     }
 

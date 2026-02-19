@@ -170,12 +170,12 @@ fn sample_unicode_map_errors(document: &PdfDocument) -> bool {
 
 /// Check whether words on a page exhibit column alignment consistent with a table.
 ///
-/// Groups word left-edges into buckets and checks that at least 2 buckets each contain
-/// multiple words. Body text typically has uniform left-alignment (1 column), while
-/// tables have 2+ distinct x-position clusters.
+/// Groups word left-edges into buckets and checks that at least 3 buckets each contain
+/// multiple words. Two-column text layouts naturally produce 2 alignment clusters, so
+/// we require ≥3 to avoid false positives from academic papers and similar documents.
 #[cfg(all(feature = "pdf", feature = "ocr"))]
 fn has_column_alignment(words: &[crate::ocr::table::HocrWord]) -> bool {
-    if words.len() < 4 {
+    if words.len() < 6 {
         return false;
     }
 
@@ -192,9 +192,12 @@ fn has_column_alignment(words: &[crate::ocr::table::HocrWord]) -> bool {
         }
     }
 
-    // A table needs at least 2 columns where each column has ≥2 words
-    let significant_columns = buckets.iter().filter(|(_, count)| *count >= 2).count();
-    significant_columns >= 2
+    // Require ≥3 distinct columns with ≥3 words each.
+    // Two-column text layouts have exactly 2 alignment clusters, so requiring 3
+    // eliminates false positives from multi-column prose while still detecting
+    // real tables (which typically have 3+ columns).
+    let significant_columns = buckets.iter().filter(|(_, count)| *count >= 3).count();
+    significant_columns >= 3
 }
 
 /// Extract tables from PDF document using native text positions.
@@ -402,8 +405,10 @@ mod tests {
     fn test_has_column_alignment_table_layout() {
         use crate::ocr::table::HocrWord;
 
-        // Simulate a 2-column table: words at x=50 and x=300
+        // Simulate a 3-column table: words at x=50, x=200, x=400
+        // Requires ≥3 columns with ≥3 words each to pass.
         let words = vec![
+            // Row 1
             HocrWord {
                 text: "Name".into(),
                 left: 50,
@@ -414,12 +419,21 @@ mod tests {
             },
             HocrWord {
                 text: "Age".into(),
-                left: 300,
+                left: 200,
                 top: 100,
                 width: 40,
                 height: 12,
                 confidence: 95.0,
             },
+            HocrWord {
+                text: "City".into(),
+                left: 400,
+                top: 100,
+                width: 50,
+                height: 12,
+                confidence: 95.0,
+            },
+            // Row 2
             HocrWord {
                 text: "Alice".into(),
                 left: 50,
@@ -430,12 +444,21 @@ mod tests {
             },
             HocrWord {
                 text: "30".into(),
-                left: 300,
+                left: 200,
                 top: 120,
                 width: 30,
                 height: 12,
                 confidence: 95.0,
             },
+            HocrWord {
+                text: "NYC".into(),
+                left: 400,
+                top: 120,
+                width: 40,
+                height: 12,
+                confidence: 95.0,
+            },
+            // Row 3
             HocrWord {
                 text: "Bob".into(),
                 left: 50,
@@ -446,7 +469,15 @@ mod tests {
             },
             HocrWord {
                 text: "25".into(),
-                left: 300,
+                left: 200,
+                top: 140,
+                width: 30,
+                height: 12,
+                confidence: 95.0,
+            },
+            HocrWord {
+                text: "LA".into(),
+                left: 400,
                 top: 140,
                 width: 30,
                 height: 12,
@@ -454,6 +485,65 @@ mod tests {
             },
         ];
         assert!(super::has_column_alignment(&words));
+    }
+
+    #[test]
+    #[cfg(all(feature = "pdf", feature = "ocr"))]
+    fn test_has_column_alignment_rejects_two_column_layout() {
+        use crate::ocr::table::HocrWord;
+
+        // Two-column text layout (like academic papers) should NOT be detected as a table.
+        let words = vec![
+            HocrWord {
+                text: "Left".into(),
+                left: 50,
+                top: 100,
+                width: 60,
+                height: 12,
+                confidence: 95.0,
+            },
+            HocrWord {
+                text: "Right".into(),
+                left: 300,
+                top: 100,
+                width: 60,
+                height: 12,
+                confidence: 95.0,
+            },
+            HocrWord {
+                text: "More".into(),
+                left: 50,
+                top: 120,
+                width: 60,
+                height: 12,
+                confidence: 95.0,
+            },
+            HocrWord {
+                text: "Text".into(),
+                left: 300,
+                top: 120,
+                width: 60,
+                height: 12,
+                confidence: 95.0,
+            },
+            HocrWord {
+                text: "Here".into(),
+                left: 50,
+                top: 140,
+                width: 60,
+                height: 12,
+                confidence: 95.0,
+            },
+            HocrWord {
+                text: "Also".into(),
+                left: 300,
+                top: 140,
+                width: 60,
+                height: 12,
+                confidence: 95.0,
+            },
+        ];
+        assert!(!super::has_column_alignment(&words));
     }
 
     #[test]

@@ -80,8 +80,17 @@ pub fn render_document_as_markdown_with_tables(
 
         let mut filtered: Vec<SegmentData> = segments
             .into_iter()
-            .filter(|s| s.baseline_y <= top_cutoff && s.baseline_y >= bottom_cutoff)
             .filter(|s| s.font_size >= MIN_FONT_SIZE)
+            .filter(|s| {
+                // Skip margin filtering for segments with baseline_y == 0.0:
+                // pdfium sometimes fails to compute bounds for text objects
+                // (e.g. in two-column LaTeX PDFs), returning 0.0. These segments
+                // contain real content and must not be discarded.
+                if s.baseline_y == 0.0 {
+                    return true;
+                }
+                s.baseline_y <= top_cutoff && s.baseline_y >= bottom_cutoff
+            })
             .collect();
 
         // Remove standalone page numbers: short numeric-only segments that are isolated
