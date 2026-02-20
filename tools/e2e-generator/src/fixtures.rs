@@ -365,6 +365,10 @@ pub struct SkipDirective {
     pub requires_feature: Vec<String>,
     #[serde(default)]
     pub notes: Option<String>,
+    /// Rust target triples on which this fixture should be skipped.
+    /// Example: `["aarch64-unknown-linux-gnu"]`
+    #[serde(default)]
+    pub skip_on_platform: Vec<String>,
 }
 
 fn default_true() -> bool {
@@ -377,6 +381,7 @@ impl Default for SkipDirective {
             if_document_missing: true,
             requires_feature: Vec::new(),
             notes: None,
+            skip_on_platform: Vec::new(),
         }
     }
 }

@@ -1055,6 +1055,24 @@ fn render_test(fixture: &Fixture) -> Result<String> {
         writeln!(body, "      return;\n    }}")?;
     }
 
+    let skip_platforms = &fixture.skip().skip_on_platform;
+    if !skip_platforms.is_empty() {
+        let conditions: Vec<String> = skip_platforms
+            .iter()
+            .filter_map(|triple| rust_triple_to_ts_condition(triple))
+            .collect();
+        if !conditions.is_empty() {
+            let combined = conditions.join(" || ");
+            writeln!(body, "    if ({combined}) {{")?;
+            writeln!(
+                body,
+                "      console.warn(\"Skipping {}: not supported on this platform\");",
+                escape_ts_string(&fixture.id)
+            )?;
+            writeln!(body, "      return;\n    }}")?;
+        }
+    }
+
     match render_config_expression(&extraction.config)? {
         None => writeln!(body, "    const config = buildConfig(undefined);")?,
         Some(config_expr) => writeln!(body, "    const config = buildConfig({config_expr});")?,
@@ -1884,6 +1902,21 @@ fn to_camel_case(s: &str) -> String {
         }
     }
     result
+}
+
+/// Maps a Rust target triple to a TypeScript `process.arch`/`process.platform` condition.
+fn rust_triple_to_ts_condition(triple: &str) -> Option<String> {
+    let (arch, platform) = match triple {
+        "aarch64-unknown-linux-gnu" | "aarch64-unknown-linux-musl" => ("arm64", "linux"),
+        "x86_64-unknown-linux-gnu" | "x86_64-unknown-linux-musl" => ("x64", "linux"),
+        "aarch64-apple-darwin" => ("arm64", "darwin"),
+        "x86_64-apple-darwin" => ("x64", "darwin"),
+        "x86_64-pc-windows-msvc" => ("x64", "win32"),
+        _ => return None,
+    };
+    Some(format!(
+        "(process.arch === \"{arch}\" && process.platform === \"{platform}\")"
+    ))
 }
 
 fn to_title_case(s: &str) -> String {

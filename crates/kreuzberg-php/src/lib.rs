@@ -87,6 +87,8 @@ pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
         .class::<types::TextChunk>()
         .class::<types::PageResult>()
         .class::<types::Keyword>()            // Must be registered before ExtractionResult
+        .class::<types::PdfAnnotationType>()  // Must be registered before PdfAnnotation
+        .class::<types::PdfAnnotation>()      // Must be registered before ExtractionResult
         .class::<types::ExtractionResult>();
 
     // Note: Config classes are pure PHP (packages/php/src/Config/*.php)

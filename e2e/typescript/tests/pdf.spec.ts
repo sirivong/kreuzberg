@@ -18,6 +18,11 @@ describe("pdf fixtures", () => {
 			const documentPath = resolveDocument("pdf/test_article.pdf");
 			if (!existsSync(documentPath)) {
 				console.warn("Skipping pdf_annotations: missing document at", documentPath);
+				console.warn("Notes: PDFium ARM Linux binary does not support annotation extraction");
+				return;
+			}
+			if (process.arch === "arm64" && process.platform === "linux") {
+				console.warn("Skipping pdf_annotations: not supported on this platform");
 				return;
 			}
 			const config = buildConfig({ pdf_options: { extract_annotations: true } });
@@ -25,7 +30,14 @@ describe("pdf fixtures", () => {
 			try {
 				result = extractFileSync(documentPath, null, config);
 			} catch (error) {
-				if (shouldSkipFixture(error, "pdf_annotations", [], undefined)) {
+				if (
+					shouldSkipFixture(
+						error,
+						"pdf_annotations",
+						[],
+						"PDFium ARM Linux binary does not support annotation extraction",
+					)
+				) {
 					return;
 				}
 				throw error;

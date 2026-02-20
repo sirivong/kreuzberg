@@ -13,6 +13,10 @@
 			}
 		}
 	},
+	"skip": {
+		"skip_on_platform": ["aarch64-unknown-linux-gnu"],
+		"notes": "PDFium ARM Linux binary does not support annotation extraction"
+	},
 	"assertions": {
 		"expected_mime": "application/pdf",
 		"annotations": {
