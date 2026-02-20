@@ -55,6 +55,33 @@ readonly class PdfConfig
          * @default null
          */
         public ?HierarchyConfig $hierarchy = null,
+
+        /**
+         * Extract PDF annotations (text notes, highlights, links, stamps).
+         *
+         * When enabled, annotations embedded in PDFs are extracted and included
+         * in the extraction results.
+         *
+         * @var bool
+         * @default false
+         */
+        public bool $extractAnnotations = false,
+
+        /**
+         * Top margin fraction (0.0-1.0) of page height to exclude headers/running heads.
+         *
+         * @var float|null
+         * @default null
+         */
+        public ?float $topMarginFraction = null,
+
+        /**
+         * Bottom margin fraction (0.0-1.0) of page height to exclude footers/page numbers.
+         *
+         * @var float|null
+         * @default null
+         */
+        public ?float $bottomMarginFraction = null,
     ) {
     }
 
@@ -92,11 +119,31 @@ readonly class PdfConfig
             $hierarchy = HierarchyConfig::fromArray($hierarchyData);
         }
 
+        /** @var bool $extractAnnotations */
+        $extractAnnotations = $data['extract_annotations'] ?? false;
+        if (!is_bool($extractAnnotations)) {
+            /** @var bool $extractAnnotations */
+            $extractAnnotations = (bool) $extractAnnotations;
+        }
+
+        $topMarginFraction = null;
+        if (isset($data['top_margin_fraction']) && is_numeric($data['top_margin_fraction'])) {
+            $topMarginFraction = (float) $data['top_margin_fraction'];
+        }
+
+        $bottomMarginFraction = null;
+        if (isset($data['bottom_margin_fraction']) && is_numeric($data['bottom_margin_fraction'])) {
+            $bottomMarginFraction = (float) $data['bottom_margin_fraction'];
+        }
+
         return new self(
             extractImages: $extractImages,
             passwords: $passwords,
             extractMetadata: $extractMetadata,
             hierarchy: $hierarchy,
+            extractAnnotations: $extractAnnotations,
+            topMarginFraction: $topMarginFraction,
+            bottomMarginFraction: $bottomMarginFraction,
         );
     }
 
@@ -141,6 +188,9 @@ readonly class PdfConfig
             'passwords' => $this->passwords,
             'extract_metadata' => $this->extractMetadata,
             'hierarchy' => $this->hierarchy?->toArray(),
+            'extract_annotations' => $this->extractAnnotations,
+            'top_margin_fraction' => $this->topMarginFraction,
+            'bottom_margin_fraction' => $this->bottomMarginFraction,
         ], static fn ($value): bool => $value !== null);
     }
 

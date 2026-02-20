@@ -156,6 +156,7 @@ function mapPdfConfig(raw: PlainRecord): PdfConfig {
         config.passwords = raw.passwords.filter((item: unknown): item is string => typeof item === "string");
     }
     assignBooleanField(config as PlainRecord, raw, "extract_metadata", "extractMetadata");
+    assignBooleanField(config as PlainRecord, raw, "extract_annotations", "extractAnnotations");
     return config;
 }
 

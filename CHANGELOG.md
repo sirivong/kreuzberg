@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Node.js NAPI-RS binding correctly exposes `annotations` field on `ExtractionResult`
 - Python output format validation tests updated to reflect `json` as a valid format (alias for `structured`)
 - XLSX extraction with `output_format="markdown"` now produces markdown tables instead of plain text (#405)
+- MCP tools with no parameters (`cache_stats`, `cache_clear`) now emit valid `inputSchema` with `{"type": "object", "properties": {}}` instead of `{"const": null}`, fixing Claude Code and other MCP clients that validate schema type (#406)
+- Python `get_valid_ocr_backends()` now unconditionally includes `paddleocr` in the returned list, matching all other language bindings
+- TypeScript E2E test generator now maps `extract_annotations` to `extractAnnotations` in `mapPdfConfig()`, fixing annotation assertion failures
+- PHP `PdfConfig` now includes `extractAnnotations`, `topMarginFraction`, and `bottomMarginFraction` fields, restoring parity with the Rust core config
 
 ---
 

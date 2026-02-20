@@ -193,7 +193,10 @@ impl KreuzbergMcp {
         description = "Get cache statistics including total files, size, and available disk space.",
         annotations(title = "Cache Stats", read_only_hint = true, idempotent_hint = true)
     )]
-    fn cache_stats(&self, Parameters(_): Parameters<()>) -> Result<CallToolResult, rmcp::ErrorData> {
+    fn cache_stats(
+        &self,
+        Parameters(_): Parameters<super::params::EmptyParams>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         use super::errors::map_kreuzberg_error_to_mcp;
         use crate::cache;
 
@@ -230,7 +233,10 @@ impl KreuzbergMcp {
         description = "Clear all cached files. Returns the number of files removed and space freed in MB.",
         annotations(title = "Clear Cache", destructive_hint = true)
     )]
-    fn cache_clear(&self, Parameters(_): Parameters<()>) -> Result<CallToolResult, rmcp::ErrorData> {
+    fn cache_clear(
+        &self,
+        Parameters(_): Parameters<super::params::EmptyParams>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
         use super::errors::map_kreuzberg_error_to_mcp;
         use crate::cache;
 

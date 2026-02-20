@@ -54,6 +54,13 @@ fn default_use_content() -> bool {
     true
 }
 
+/// Empty parameters for tools that take no arguments.
+///
+/// This generates `{"type": "object", "properties": {}}` which is required by
+/// the MCP specification, unlike `()` which generates `{"const": null}`.
+#[derive(Debug, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
+pub struct EmptyParams {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -169,5 +176,18 @@ mod tests {
 
         assert_eq!(params.path, deserialized.path);
         assert_eq!(params.use_content, deserialized.use_content);
+    }
+
+    #[test]
+    fn test_empty_params_schema_has_type_object() {
+        let schema = schemars::schema_for!(EmptyParams);
+        let json = serde_json::to_value(&schema).unwrap();
+        assert_eq!(json["type"], "object");
+    }
+
+    #[test]
+    fn test_empty_params_deserializes_from_empty_object() {
+        let params: EmptyParams = serde_json::from_str("{}").unwrap();
+        let _ = params;
     }
 }

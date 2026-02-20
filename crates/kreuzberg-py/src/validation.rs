@@ -166,14 +166,11 @@ pub fn get_valid_language_codes() -> PyResult<Vec<String>> {
 ///     list[str]: List of valid OCR backend names
 #[pyfunction]
 pub fn get_valid_ocr_backends() -> PyResult<Vec<String>> {
-    let mut backends = vec!["tesseract".to_string(), "easyocr".to_string()];
-    // Only advertise paddleocr if it's actually registered at runtime
-    if let Ok(registered) = kreuzberg::plugins::list_ocr_backends()
-        && registered.iter().any(|b| b == "paddleocr")
-    {
-        backends.push("paddleocr".to_string());
-    }
-    Ok(backends)
+    Ok(vec![
+        "tesseract".to_string(),
+        "easyocr".to_string(),
+        "paddleocr".to_string(),
+    ])
 }
 
 /// Get list of valid token reduction levels.

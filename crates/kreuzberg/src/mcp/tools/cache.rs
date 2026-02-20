@@ -17,7 +17,7 @@ pub(in crate::mcp) trait CacheTool {
         description = "Get cache statistics including total files, size, and available disk space.",
         annotations(title = "Cache Stats", read_only_hint = true, idempotent_hint = true)
     )]
-    fn cache_stats(&self, Parameters(_): Parameters<()>) -> Result<CallToolResult, McpError> {
+    fn cache_stats(&self, Parameters(_): Parameters<super::super::params::EmptyParams>) -> Result<CallToolResult, McpError> {
         let cache_dir = std::env::current_dir()
             .unwrap_or_else(|_| std::path::PathBuf::from("."))
             .join(".kreuzberg");
@@ -51,7 +51,7 @@ pub(in crate::mcp) trait CacheTool {
         description = "Clear all cached files. Returns the number of files removed and space freed in MB.",
         annotations(title = "Clear Cache", destructive_hint = true)
     )]
-    fn cache_clear(&self, Parameters(_): Parameters<()>) -> Result<CallToolResult, McpError> {
+    fn cache_clear(&self, Parameters(_): Parameters<super::super::params::EmptyParams>) -> Result<CallToolResult, McpError> {
         let cache_dir = std::env::current_dir()
             .unwrap_or_else(|_| std::path::PathBuf::from("."))
             .join(".kreuzberg");
@@ -86,7 +86,7 @@ mod tests {
     async fn test_cache_stats_returns_statistics() {
         let server = TestMcpServer;
 
-        let result = server.cache_stats(Parameters(()));
+        let result = server.cache_stats(Parameters(super::super::params::EmptyParams {}));
 
         assert!(result.is_ok());
         let call_result = result.unwrap();
@@ -110,7 +110,7 @@ mod tests {
     async fn test_cache_clear_returns_result() {
         let server = TestMcpServer;
 
-        let result = server.cache_clear(Parameters(()));
+        let result = server.cache_clear(Parameters(super::super::params::EmptyParams {}));
 
         assert!(result.is_ok());
         let call_result = result.unwrap();
@@ -133,10 +133,10 @@ mod tests {
     async fn test_cache_clear_is_idempotent() {
         let server = TestMcpServer;
 
-        let result1 = server.cache_clear(Parameters(()));
+        let result1 = server.cache_clear(Parameters(super::super::params::EmptyParams {}));
         assert!(result1.is_ok());
 
-        let result2 = server.cache_clear(Parameters(()));
+        let result2 = server.cache_clear(Parameters(super::super::params::EmptyParams {}));
         assert!(result2.is_ok());
     }
 
@@ -144,7 +144,7 @@ mod tests {
     async fn test_cache_clear_returns_metrics() {
         let server = TestMcpServer;
 
-        let result = server.cache_clear(Parameters(()));
+        let result = server.cache_clear(Parameters(super::super::params::EmptyParams {}));
 
         assert!(result.is_ok());
         let call_result = result.unwrap();
@@ -160,7 +160,7 @@ mod tests {
     async fn test_cache_stats_returns_valid_data() {
         let server = TestMcpServer;
 
-        let result = server.cache_stats(Parameters(()));
+        let result = server.cache_stats(Parameters(super::super::params::EmptyParams {}));
 
         assert!(result.is_ok());
         let call_result = result.unwrap();
