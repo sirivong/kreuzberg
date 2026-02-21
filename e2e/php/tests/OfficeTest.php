@@ -362,6 +362,82 @@ class OfficeTest extends TestCase
     }
 
     /**
+     * MDX document extraction with JSX stripping and frontmatter.
+     */
+    public function test_office_mdx_basic(): void
+    {
+        $documentPath = Helpers::resolveDocument('markdown/sample.mdx');
+        if (!file_exists($documentPath)) {
+            $this->markTestSkipped('Skipping office_mdx_basic: missing document at ' . $documentPath);
+        }
+
+        $config = Helpers::buildConfig(null);
+
+        $kreuzberg = new Kreuzberg($config);
+        $result = $kreuzberg->extractFile($documentPath);
+
+        Helpers::assertExpectedMime($result, ['text/mdx', 'text/x-mdx']);
+        Helpers::assertMinContentLength($result, 50);
+    }
+
+    /**
+     * Real-world MDX extraction from mdx-js/mdx getting-started.mdx with imports, exports, JSX components, code blocks, and reference links.
+     */
+    public function test_office_mdx_getting_started(): void
+    {
+        $documentPath = Helpers::resolveDocument('markdown/mdx_getting_started.mdx');
+        if (!file_exists($documentPath)) {
+            $this->markTestSkipped('Skipping office_mdx_getting_started: missing document at ' . $documentPath);
+        }
+
+        $config = Helpers::buildConfig(null);
+
+        $kreuzberg = new Kreuzberg($config);
+        $result = $kreuzberg->extractFile($documentPath);
+
+        Helpers::assertExpectedMime($result, ['text/mdx', 'text/x-mdx']);
+        Helpers::assertMinContentLength($result, 2000);
+    }
+
+    /**
+     * Real-world MDX extraction from mdx-js/mdx troubleshooting-mdx.mdx with error documentation, code blocks, and JSX comments.
+     */
+    public function test_office_mdx_troubleshooting(): void
+    {
+        $documentPath = Helpers::resolveDocument('markdown/mdx_troubleshooting.mdx');
+        if (!file_exists($documentPath)) {
+            $this->markTestSkipped('Skipping office_mdx_troubleshooting: missing document at ' . $documentPath);
+        }
+
+        $config = Helpers::buildConfig(null);
+
+        $kreuzberg = new Kreuzberg($config);
+        $result = $kreuzberg->extractFile($documentPath);
+
+        Helpers::assertExpectedMime($result, ['text/mdx', 'text/x-mdx']);
+        Helpers::assertMinContentLength($result, 2000);
+    }
+
+    /**
+     * Real-world MDX extraction from mdx-js/mdx using-mdx.mdx with complex JSX examples, component passing, and MDX provider patterns.
+     */
+    public function test_office_mdx_using_mdx(): void
+    {
+        $documentPath = Helpers::resolveDocument('markdown/mdx_using_mdx.mdx');
+        if (!file_exists($documentPath)) {
+            $this->markTestSkipped('Skipping office_mdx_using_mdx: missing document at ' . $documentPath);
+        }
+
+        $config = Helpers::buildConfig(null);
+
+        $kreuzberg = new Kreuzberg($config);
+        $result = $kreuzberg->extractFile($documentPath);
+
+        Helpers::assertExpectedMime($result, ['text/mdx', 'text/x-mdx']);
+        Helpers::assertMinContentLength($result, 2000);
+    }
+
+    /**
      * Basic ODS spreadsheet extraction.
      */
     public function test_office_ods_basic(): void

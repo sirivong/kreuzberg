@@ -239,6 +239,13 @@ enum Commands {
         format: OutputFormat,
     },
 
+    /// List all supported document formats
+    Formats {
+        /// Output format (text or json)
+        #[arg(short, long, default_value = "text")]
+        format: OutputFormat,
+    },
+
     /// Show version information
     Version {
         /// Output format (text or json)
@@ -644,6 +651,25 @@ fn main() -> Result<()> {
                         "{}",
                         serde_json::to_string_pretty(&output)
                             .context("Failed to serialize MIME type detection result to JSON")?
+                    );
+                }
+            }
+        }
+
+        Commands::Formats { format } => {
+            let formats = kreuzberg::list_supported_formats();
+            match format {
+                OutputFormat::Text => {
+                    println!("{:<15} MIME TYPE", "EXTENSION");
+                    println!("{:<15} ---------", "---------");
+                    for f in &formats {
+                        println!(".{:<14} {}", f.extension, f.mime_type);
+                    }
+                }
+                OutputFormat::Json => {
+                    println!(
+                        "{}",
+                        serde_json::to_string_pretty(&formats).context("Failed to serialize formats to JSON")?
                     );
                 }
             }

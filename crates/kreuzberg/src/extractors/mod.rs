@@ -107,6 +107,9 @@ pub mod fictionbook;
 #[cfg(feature = "office")]
 pub mod markdown;
 
+#[cfg(feature = "mdx")]
+pub mod mdx;
+
 #[cfg(feature = "office")]
 pub mod rst;
 
@@ -190,6 +193,9 @@ pub use djot_format::DjotExtractor;
 
 #[cfg(feature = "office")]
 pub use markdown::MarkdownExtractor as EnhancedMarkdownExtractor;
+
+#[cfg(feature = "mdx")]
+pub use mdx::MdxExtractor;
 
 #[cfg(feature = "office")]
 pub use rst::RstExtractor;
@@ -334,6 +340,9 @@ pub fn register_default_extractors() -> Result<()> {
         registry.register(Arc::new(OdtExtractor::new()))?;
     }
 
+    #[cfg(feature = "mdx")]
+    registry.register(Arc::new(MdxExtractor::new()))?;
+
     #[cfg(feature = "email")]
     registry.register(Arc::new(EmailExtractor::new()))?;
 
@@ -431,6 +440,12 @@ mod tests {
             assert!(extractor_names.contains(&"ppt-extractor".to_string()));
             assert!(extractor_names.contains(&"pptx-extractor".to_string()));
             assert!(extractor_names.contains(&"odt-extractor".to_string()));
+        }
+
+        #[cfg(feature = "mdx")]
+        {
+            expected_count += 1;
+            assert!(extractor_names.contains(&"mdx-extractor".to_string()));
         }
 
         #[cfg(feature = "email")]

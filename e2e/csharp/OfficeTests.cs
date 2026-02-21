@@ -249,6 +249,58 @@ namespace Kreuzberg.E2E.Office
         }
 
         [SkippableFact]
+        public void OfficeMdxBasic()
+        {
+            TestHelpers.SkipIfLegacyOfficeDisabled("markdown/sample.mdx");
+            TestHelpers.SkipIfOfficeTestOnWindows("markdown/sample.mdx");
+            var documentPath = TestHelpers.EnsureDocument("markdown/sample.mdx", true);
+            var config = TestHelpers.BuildConfig(null);
+
+            var result = KreuzbergClient.ExtractFileSync(documentPath, config);
+            TestHelpers.AssertExpectedMime(result, new[] { "text/mdx", "text/x-mdx" });
+            TestHelpers.AssertMinContentLength(result, 50);
+        }
+
+        [SkippableFact]
+        public void OfficeMdxGettingStarted()
+        {
+            TestHelpers.SkipIfLegacyOfficeDisabled("markdown/mdx_getting_started.mdx");
+            TestHelpers.SkipIfOfficeTestOnWindows("markdown/mdx_getting_started.mdx");
+            var documentPath = TestHelpers.EnsureDocument("markdown/mdx_getting_started.mdx", true);
+            var config = TestHelpers.BuildConfig(null);
+
+            var result = KreuzbergClient.ExtractFileSync(documentPath, config);
+            TestHelpers.AssertExpectedMime(result, new[] { "text/mdx", "text/x-mdx" });
+            TestHelpers.AssertMinContentLength(result, 2000);
+        }
+
+        [SkippableFact]
+        public void OfficeMdxTroubleshooting()
+        {
+            TestHelpers.SkipIfLegacyOfficeDisabled("markdown/mdx_troubleshooting.mdx");
+            TestHelpers.SkipIfOfficeTestOnWindows("markdown/mdx_troubleshooting.mdx");
+            var documentPath = TestHelpers.EnsureDocument("markdown/mdx_troubleshooting.mdx", true);
+            var config = TestHelpers.BuildConfig(null);
+
+            var result = KreuzbergClient.ExtractFileSync(documentPath, config);
+            TestHelpers.AssertExpectedMime(result, new[] { "text/mdx", "text/x-mdx" });
+            TestHelpers.AssertMinContentLength(result, 2000);
+        }
+
+        [SkippableFact]
+        public void OfficeMdxUsingMdx()
+        {
+            TestHelpers.SkipIfLegacyOfficeDisabled("markdown/mdx_using_mdx.mdx");
+            TestHelpers.SkipIfOfficeTestOnWindows("markdown/mdx_using_mdx.mdx");
+            var documentPath = TestHelpers.EnsureDocument("markdown/mdx_using_mdx.mdx", true);
+            var config = TestHelpers.BuildConfig(null);
+
+            var result = KreuzbergClient.ExtractFileSync(documentPath, config);
+            TestHelpers.AssertExpectedMime(result, new[] { "text/mdx", "text/x-mdx" });
+            TestHelpers.AssertMinContentLength(result, 2000);
+        }
+
+        [SkippableFact]
         public void OfficeOdsBasic()
         {
             TestHelpers.SkipIfLegacyOfficeDisabled("data_formats/test_01.ods");

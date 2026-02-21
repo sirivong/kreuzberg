@@ -285,6 +285,66 @@ def test_office_markdown_basic() -> None:
     helpers.assert_min_content_length(result, 10)
 
 
+def test_office_mdx_basic() -> None:
+    """MDX document extraction with JSX stripping and frontmatter."""
+
+    document_path = helpers.resolve_document("markdown/sample.mdx")
+    if not document_path.exists():
+        pytest.skip(f"Skipping office_mdx_basic: missing document at {document_path}")
+
+    config = helpers.build_config(None)
+
+    result = extract_file_sync(document_path, None, config)
+
+    helpers.assert_expected_mime(result, ["text/mdx", "text/x-mdx"])
+    helpers.assert_min_content_length(result, 50)
+
+
+def test_office_mdx_getting_started() -> None:
+    """Real-world MDX extraction from mdx-js/mdx getting-started.mdx with imports, exports, JSX components, code blocks, and reference links."""
+
+    document_path = helpers.resolve_document("markdown/mdx_getting_started.mdx")
+    if not document_path.exists():
+        pytest.skip(f"Skipping office_mdx_getting_started: missing document at {document_path}")
+
+    config = helpers.build_config(None)
+
+    result = extract_file_sync(document_path, None, config)
+
+    helpers.assert_expected_mime(result, ["text/mdx", "text/x-mdx"])
+    helpers.assert_min_content_length(result, 2000)
+
+
+def test_office_mdx_troubleshooting() -> None:
+    """Real-world MDX extraction from mdx-js/mdx troubleshooting-mdx.mdx with error documentation, code blocks, and JSX comments."""
+
+    document_path = helpers.resolve_document("markdown/mdx_troubleshooting.mdx")
+    if not document_path.exists():
+        pytest.skip(f"Skipping office_mdx_troubleshooting: missing document at {document_path}")
+
+    config = helpers.build_config(None)
+
+    result = extract_file_sync(document_path, None, config)
+
+    helpers.assert_expected_mime(result, ["text/mdx", "text/x-mdx"])
+    helpers.assert_min_content_length(result, 2000)
+
+
+def test_office_mdx_using_mdx() -> None:
+    """Real-world MDX extraction from mdx-js/mdx using-mdx.mdx with complex JSX examples, component passing, and MDX provider patterns."""
+
+    document_path = helpers.resolve_document("markdown/mdx_using_mdx.mdx")
+    if not document_path.exists():
+        pytest.skip(f"Skipping office_mdx_using_mdx: missing document at {document_path}")
+
+    config = helpers.build_config(None)
+
+    result = extract_file_sync(document_path, None, config)
+
+    helpers.assert_expected_mime(result, ["text/mdx", "text/x-mdx"])
+    helpers.assert_min_content_length(result, 2000)
+
+
 def test_office_ods_basic() -> None:
     """Basic ODS spreadsheet extraction."""
 

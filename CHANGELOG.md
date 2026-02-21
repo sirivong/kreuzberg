@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- **MDX format support** (`mdx` feature): Extract text from `.mdx` files, stripping JSX/import/export syntax while preserving markdown content, frontmatter, tables, and code fences
+- **List supported formats API** (#404): Query all supported file extensions and MIME types via `list_supported_formats()` in Rust, `GET /formats` REST endpoint, `list_formats` MCP tool, or `kreuzberg formats` CLI subcommand
+
+---
+
 ## [4.3.7]
 
 ### Added

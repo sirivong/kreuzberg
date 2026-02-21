@@ -2,11 +2,27 @@
 //!
 //! This module provides utilities for detecting MIME types from file extensions
 //! and validating them against supported types.
+//!
+//! Format information is centralized in the [`FORMATS`] registry. All extension-to-MIME
+//! mappings and supported MIME type validation are derived from this single source of truth.
 
 use crate::{KreuzbergError, Result};
 use once_cell::sync::Lazy;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+
+/// A supported document format entry.
+///
+/// Represents a file extension and its corresponding MIME type that Kreuzberg can process.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
+pub struct SupportedFormat {
+    /// File extension (without leading dot), e.g., "pdf", "docx"
+    pub extension: String,
+    /// MIME type string, e.g., "application/pdf"
+    pub mime_type: String,
+}
 
 pub const HTML_MIME_TYPE: &str = "text/html";
 pub const MARKDOWN_MIME_TYPE: &str = "text/markdown";
@@ -35,221 +51,422 @@ pub const EXCEL_TEMPLATE_MIME_TYPE: &str = "application/vnd.ms-excel.template.ma
 
 pub const OPENDOC_SPREADSHEET_MIME_TYPE: &str = "application/vnd.oasis.opendocument.spreadsheet";
 
-/// Extension to MIME type mapping (ported from Python EXT_TO_MIME_TYPE).
+/// A format definition in the centralized registry.
+///
+/// Each entry defines a document format with its file extensions, primary MIME type,
+/// and any MIME type aliases that should also be accepted for this format.
+struct FormatEntry {
+    /// File extensions (without leading dot). First is canonical.
+    extensions: &'static [&'static str],
+    /// Primary MIME type for this format.
+    mime_type: &'static str,
+    /// Additional MIME type aliases that should also be accepted.
+    aliases: &'static [&'static str],
+}
+
+/// Centralized format registry - the single source of truth for all supported formats.
+///
+/// Adding a new format requires only adding a single entry here. Both `EXT_TO_MIME`
+/// (extension-to-MIME mapping) and `SUPPORTED_MIME_TYPES` (validation set) are
+/// derived from this array automatically.
+static FORMATS: &[FormatEntry] = &[
+    // ── Plain text ──────────────────────────────────────────────────────
+    FormatEntry {
+        extensions: &["txt"],
+        mime_type: "text/plain",
+        aliases: &[],
+    },
+    // Plain text variants handled by extractors (no file extension mapping)
+    FormatEntry {
+        extensions: &[],
+        mime_type: "text/troff",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &[],
+        mime_type: "text/x-mdoc",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &[],
+        mime_type: "text/x-pod",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &[],
+        mime_type: "text/x-dokuwiki",
+        aliases: &[],
+    },
+    // ── Markdown ────────────────────────────────────────────────────────
+    FormatEntry {
+        extensions: &["md", "markdown"],
+        mime_type: "text/markdown",
+        aliases: &["text/x-markdown"],
+    },
+    FormatEntry {
+        extensions: &["commonmark"],
+        mime_type: "text/x-commonmark",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &[],
+        mime_type: "text/x-gfm",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &[],
+        mime_type: "text/x-markdown-extra",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &[],
+        mime_type: "text/x-multimarkdown",
+        aliases: &[],
+    },
+    // ── MDX ─────────────────────────────────────────────────────────────
+    FormatEntry {
+        extensions: &["mdx"],
+        mime_type: "text/mdx",
+        aliases: &["text/x-mdx"],
+    },
+    // ── Djot ────────────────────────────────────────────────────────────
+    FormatEntry {
+        extensions: &["djot"],
+        mime_type: "text/x-djot",
+        aliases: &["text/djot"],
+    },
+    // ── PDF ─────────────────────────────────────────────────────────────
+    FormatEntry {
+        extensions: &["pdf"],
+        mime_type: "application/pdf",
+        aliases: &[],
+    },
+    // ── HTML ────────────────────────────────────────────────────────────
+    FormatEntry {
+        extensions: &["html", "htm"],
+        mime_type: "text/html",
+        aliases: &["application/xhtml+xml"],
+    },
+    // ── Word processing ─────────────────────────────────────────────────
+    FormatEntry {
+        extensions: &["docx"],
+        mime_type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["doc"],
+        mime_type: "application/msword",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["odt"],
+        mime_type: "application/vnd.oasis.opendocument.text",
+        aliases: &[],
+    },
+    // ── Presentations ───────────────────────────────────────────────────
+    FormatEntry {
+        extensions: &["pptx"],
+        mime_type: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["ppsx"],
+        mime_type: "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["pptm"],
+        mime_type: "application/vnd.ms-powerpoint.presentation.macroEnabled.12",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["ppt"],
+        mime_type: "application/vnd.ms-powerpoint",
+        aliases: &[],
+    },
+    // ── Spreadsheets ────────────────────────────────────────────────────
+    FormatEntry {
+        extensions: &["xlsx"],
+        mime_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["xls"],
+        mime_type: "application/vnd.ms-excel",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["xlsm"],
+        mime_type: "application/vnd.ms-excel.sheet.macroEnabled.12",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["xlsb"],
+        mime_type: "application/vnd.ms-excel.sheet.binary.macroEnabled.12",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["xlam"],
+        mime_type: "application/vnd.ms-excel.addin.macroEnabled.12",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["xla"],
+        mime_type: "application/vnd.ms-excel.template.macroEnabled.12",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["ods"],
+        mime_type: "application/vnd.oasis.opendocument.spreadsheet",
+        aliases: &[],
+    },
+    // ── Images ──────────────────────────────────────────────────────────
+    FormatEntry {
+        extensions: &["bmp"],
+        mime_type: "image/bmp",
+        aliases: &["image/x-bmp", "image/x-ms-bmp"],
+    },
+    FormatEntry {
+        extensions: &["gif"],
+        mime_type: "image/gif",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["jpg", "jpeg"],
+        mime_type: "image/jpeg",
+        aliases: &["image/pjpeg", "image/jpg"],
+    },
+    FormatEntry {
+        extensions: &["png"],
+        mime_type: "image/png",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["tiff", "tif"],
+        mime_type: "image/tiff",
+        aliases: &["image/x-tiff"],
+    },
+    FormatEntry {
+        extensions: &["webp"],
+        mime_type: "image/webp",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["jp2", "j2k", "j2c"],
+        mime_type: "image/jp2",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["jpx"],
+        mime_type: "image/jpx",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["jpm"],
+        mime_type: "image/jpm",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["mj2"],
+        mime_type: "image/mj2",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["jbig2", "jb2"],
+        mime_type: "image/x-jbig2",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["pnm"],
+        mime_type: "image/x-portable-anymap",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["pbm"],
+        mime_type: "image/x-portable-bitmap",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["pgm"],
+        mime_type: "image/x-portable-graymap",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["ppm"],
+        mime_type: "image/x-portable-pixmap",
+        aliases: &[],
+    },
+    // ── Data formats ────────────────────────────────────────────────────
+    FormatEntry {
+        extensions: &["csv"],
+        mime_type: "text/csv",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["tsv"],
+        mime_type: "text/tab-separated-values",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["json"],
+        mime_type: "application/json",
+        aliases: &["text/json"],
+    },
+    FormatEntry {
+        extensions: &[],
+        mime_type: "application/csl+json",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["yaml", "yml"],
+        mime_type: "application/x-yaml",
+        aliases: &["text/yaml", "text/x-yaml", "application/yaml"],
+    },
+    FormatEntry {
+        extensions: &["toml"],
+        mime_type: "application/toml",
+        aliases: &["text/toml"],
+    },
+    FormatEntry {
+        extensions: &["xml"],
+        mime_type: "application/xml",
+        aliases: &["text/xml"],
+    },
+    FormatEntry {
+        extensions: &["svg"],
+        mime_type: "image/svg+xml",
+        aliases: &[],
+    },
+    // ── Email ───────────────────────────────────────────────────────────
+    FormatEntry {
+        extensions: &["eml"],
+        mime_type: "message/rfc822",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["msg"],
+        mime_type: "application/vnd.ms-outlook",
+        aliases: &[],
+    },
+    // ── Archives ────────────────────────────────────────────────────────
+    FormatEntry {
+        extensions: &["zip"],
+        mime_type: "application/zip",
+        aliases: &["application/x-zip-compressed"],
+    },
+    FormatEntry {
+        extensions: &["tar"],
+        mime_type: "application/x-tar",
+        aliases: &["application/tar", "application/x-gtar", "application/x-ustar"],
+    },
+    FormatEntry {
+        extensions: &["gz", "tgz"],
+        mime_type: "application/gzip",
+        aliases: &["application/x-gzip"],
+    },
+    FormatEntry {
+        extensions: &["7z"],
+        mime_type: "application/x-7z-compressed",
+        aliases: &[],
+    },
+    // ── Document / academic formats ─────────────────────────────────────
+    FormatEntry {
+        extensions: &["rst"],
+        mime_type: "text/x-rst",
+        aliases: &["text/prs.fallenstein.rst"],
+    },
+    FormatEntry {
+        extensions: &["org"],
+        mime_type: "text/x-org",
+        aliases: &["text/org", "application/x-org"],
+    },
+    FormatEntry {
+        extensions: &["epub"],
+        mime_type: "application/epub+zip",
+        aliases: &["application/x-epub+zip", "application/vnd.epub+zip"],
+    },
+    FormatEntry {
+        extensions: &["rtf"],
+        mime_type: "application/rtf",
+        aliases: &["text/rtf"],
+    },
+    FormatEntry {
+        extensions: &["bib"],
+        mime_type: "application/x-bibtex",
+        aliases: &["text/x-bibtex", "application/x-biblatex"],
+    },
+    FormatEntry {
+        extensions: &["ris"],
+        mime_type: "application/x-research-info-systems",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["nbib"],
+        mime_type: "application/x-pubmed",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["enw"],
+        mime_type: "application/x-endnote+xml",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["fb2"],
+        mime_type: "application/x-fictionbook+xml",
+        aliases: &["application/x-fictionbook", "text/x-fictionbook"],
+    },
+    FormatEntry {
+        extensions: &["opml"],
+        mime_type: "application/xml+opml",
+        aliases: &["application/x-opml+xml", "text/x-opml"],
+    },
+    FormatEntry {
+        extensions: &["dbk", "docbook"],
+        mime_type: "application/docbook+xml",
+        aliases: &["text/docbook"],
+    },
+    FormatEntry {
+        extensions: &["jats"],
+        mime_type: "application/x-jats+xml",
+        aliases: &["text/jats"],
+    },
+    FormatEntry {
+        extensions: &["ipynb"],
+        mime_type: "application/x-ipynb+json",
+        aliases: &[],
+    },
+    FormatEntry {
+        extensions: &["tex", "latex"],
+        mime_type: "application/x-latex",
+        aliases: &["text/x-tex"],
+    },
+    FormatEntry {
+        extensions: &["typst", "typ"],
+        mime_type: "application/x-typst",
+        aliases: &["text/x-typst"],
+    },
+];
+
+/// Extension to MIME type mapping, derived from [`FORMATS`].
 static EXT_TO_MIME: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
     let mut m = HashMap::new();
-
-    m.insert("txt", PLAIN_TEXT_MIME_TYPE);
-    m.insert("md", MARKDOWN_MIME_TYPE);
-    m.insert("markdown", MARKDOWN_MIME_TYPE);
-
-    m.insert("pdf", PDF_MIME_TYPE);
-
-    m.insert("html", HTML_MIME_TYPE);
-    m.insert("htm", HTML_MIME_TYPE);
-
-    m.insert("xlsx", EXCEL_MIME_TYPE);
-    m.insert("xls", EXCEL_BINARY_MIME_TYPE);
-    m.insert("xlsm", EXCEL_MACRO_MIME_TYPE);
-    m.insert("xlsb", EXCEL_BINARY_2007_MIME_TYPE);
-    m.insert("xlam", EXCEL_ADDON_MIME_TYPE);
-    m.insert("xla", EXCEL_TEMPLATE_MIME_TYPE);
-    m.insert("ods", OPENDOC_SPREADSHEET_MIME_TYPE);
-
-    m.insert("pptx", POWER_POINT_MIME_TYPE);
-    m.insert(
-        "ppsx",
-        "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
-    );
-    m.insert("pptm", "application/vnd.ms-powerpoint.presentation.macroEnabled.12");
-    m.insert("ppt", LEGACY_POWERPOINT_MIME_TYPE);
-
-    m.insert("docx", DOCX_MIME_TYPE);
-    m.insert("doc", LEGACY_WORD_MIME_TYPE);
-    m.insert("odt", "application/vnd.oasis.opendocument.text");
-
-    m.insert("bmp", "image/bmp");
-    m.insert("gif", "image/gif");
-    m.insert("jpg", "image/jpeg");
-    m.insert("jpeg", "image/jpeg");
-    m.insert("png", "image/png");
-    m.insert("tiff", "image/tiff");
-    m.insert("tif", "image/tiff");
-    m.insert("webp", "image/webp");
-    m.insert("jp2", "image/jp2");
-    m.insert("jpx", "image/jpx");
-    m.insert("jpm", "image/jpm");
-    m.insert("mj2", "image/mj2");
-    m.insert("j2k", "image/jp2");
-    m.insert("j2c", "image/jp2");
-    m.insert("jbig2", "image/x-jbig2");
-    m.insert("jb2", "image/x-jbig2");
-    m.insert("pnm", "image/x-portable-anymap");
-    m.insert("pbm", "image/x-portable-bitmap");
-    m.insert("pgm", "image/x-portable-graymap");
-    m.insert("ppm", "image/x-portable-pixmap");
-
-    m.insert("csv", "text/csv");
-    m.insert("tsv", "text/tab-separated-values");
-    m.insert("json", JSON_MIME_TYPE);
-    m.insert("yaml", YAML_MIME_TYPE);
-    m.insert("yml", YAML_MIME_TYPE);
-    m.insert("toml", TOML_MIME_TYPE);
-    m.insert("xml", XML_MIME_TYPE);
-    m.insert("svg", SVG_MIME_TYPE);
-
-    m.insert("eml", EML_MIME_TYPE);
-    m.insert("msg", MSG_MIME_TYPE);
-
-    m.insert("zip", "application/zip");
-    m.insert("tar", "application/x-tar");
-    m.insert("gz", "application/gzip");
-    m.insert("tgz", "application/gzip");
-    m.insert("7z", "application/x-7z-compressed");
-
-    m.insert("rst", "text/x-rst");
-    m.insert("org", "text/x-org");
-    m.insert("epub", "application/epub+zip");
-    m.insert("rtf", "application/rtf");
-    m.insert("bib", "application/x-bibtex");
-    m.insert("ris", "application/x-research-info-systems");
-    m.insert("nbib", "application/x-pubmed");
-    m.insert("enw", "application/x-endnote+xml");
-    m.insert("fb2", "application/x-fictionbook+xml");
-    m.insert("opml", "application/xml+opml");
-    m.insert("dbk", "application/docbook+xml");
-    m.insert("docbook", "application/docbook+xml");
-    m.insert("jats", "application/x-jats+xml");
-    m.insert("ipynb", "application/x-ipynb+json");
-    m.insert("tex", "application/x-latex");
-    m.insert("latex", "application/x-latex");
-    m.insert("typst", "application/x-typst");
-    m.insert("typ", "application/x-typst");
-    m.insert("djot", "text/x-djot");
-    m.insert("commonmark", "text/x-commonmark");
-
+    for entry in FORMATS {
+        for ext in entry.extensions {
+            m.insert(*ext, entry.mime_type);
+        }
+    }
     m
 });
 
-/// All supported MIME types (ported from Python SUPPORTED_MIME_TYPES).
+/// All supported MIME types (primary + aliases), derived from [`FORMATS`].
 static SUPPORTED_MIME_TYPES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     let mut set = HashSet::new();
-
-    set.insert(PLAIN_TEXT_MIME_TYPE);
-    set.insert(MARKDOWN_MIME_TYPE);
-    set.insert("text/x-markdown");
-
-    set.insert("image/bmp");
-    set.insert("image/gif");
-    set.insert("image/jp2");
-    set.insert("image/jpeg");
-    set.insert("image/jpm");
-    set.insert("image/jpx");
-    set.insert("image/mj2");
-    set.insert("image/pjpeg");
-    set.insert("image/png");
-    set.insert("image/tiff");
-    set.insert("image/webp");
-    set.insert("image/x-bmp");
-    set.insert("image/x-jbig2");
-    set.insert("image/x-ms-bmp");
-    set.insert("image/x-portable-anymap");
-    set.insert("image/x-portable-bitmap");
-    set.insert("image/x-portable-graymap");
-    set.insert("image/x-portable-pixmap");
-    set.insert("image/x-tiff");
-
-    set.insert("application/csl+json");
-    set.insert("application/docbook+xml");
-    set.insert("text/docbook");
-    set.insert("application/epub+zip");
-    set.insert("application/rtf");
-    set.insert("application/vnd.oasis.opendocument.text");
-    set.insert(DOCX_MIME_TYPE);
-    set.insert("application/x-biblatex");
-    set.insert("application/x-bibtex");
-    set.insert("text/x-bibtex");
-    set.insert("application/x-endnote+xml");
-    set.insert("application/x-fictionbook+xml");
-    set.insert("application/x-fictionbook");
-    set.insert("text/x-fictionbook");
-    set.insert("application/x-ipynb+json");
-    set.insert("application/x-jats+xml");
-    set.insert("application/x-latex");
-    set.insert("application/xml+opml");
-    set.insert("application/x-opml+xml");
-    set.insert("application/x-research-info-systems");
-    set.insert("application/x-pubmed");
-    set.insert("application/x-typst");
-    set.insert("text/csv");
-    set.insert("text/tab-separated-values");
-    set.insert("text/troff");
-    set.insert("text/x-commonmark");
-    set.insert("text/x-dokuwiki");
-    set.insert("text/x-gfm");
-    set.insert("text/x-markdown-extra");
-    set.insert("text/x-mdoc");
-    set.insert("text/x-multimarkdown");
-    set.insert("text/x-opml");
-    set.insert("text/x-org");
-    set.insert("text/x-pod");
-    set.insert("text/x-rst");
-
-    set.insert(EXCEL_MIME_TYPE);
-    set.insert(EXCEL_BINARY_MIME_TYPE);
-    set.insert(EXCEL_MACRO_MIME_TYPE);
-    set.insert(EXCEL_BINARY_2007_MIME_TYPE);
-    set.insert(EXCEL_ADDON_MIME_TYPE);
-    set.insert(EXCEL_TEMPLATE_MIME_TYPE);
-    set.insert(OPENDOC_SPREADSHEET_MIME_TYPE);
-
-    set.insert(PDF_MIME_TYPE);
-    set.insert(POWER_POINT_MIME_TYPE);
-    set.insert("application/vnd.openxmlformats-officedocument.presentationml.slideshow"); // PPSX
-    set.insert("application/vnd.ms-powerpoint.presentation.macroEnabled.12"); // PPTM
-    set.insert(LEGACY_WORD_MIME_TYPE);
-    set.insert(LEGACY_POWERPOINT_MIME_TYPE);
-    set.insert(HTML_MIME_TYPE);
-    set.insert(EML_MIME_TYPE);
-    set.insert(MSG_MIME_TYPE);
-    set.insert(JSON_MIME_TYPE);
-    set.insert("text/json");
-    set.insert(YAML_MIME_TYPE);
-    set.insert("text/yaml");
-    set.insert("text/x-yaml");
-    set.insert("application/yaml");
-    set.insert(TOML_MIME_TYPE);
-    set.insert("text/toml");
-    set.insert(XML_MIME_TYPE);
-    set.insert(XML_TEXT_MIME_TYPE);
-    set.insert(SVG_MIME_TYPE);
-
-    set.insert("application/zip");
-    set.insert("application/x-zip-compressed");
-    set.insert("application/x-tar");
-    set.insert("application/tar");
-    set.insert("application/x-gtar");
-    set.insert("application/x-ustar");
-    set.insert("application/gzip");
-    set.insert("application/x-gzip");
-    set.insert("application/x-7z-compressed");
-
-    set.insert("text/djot");
-    set.insert("text/x-djot");
-
-    // Additional extractor-supported MIME types that must stay in sync
-    set.insert("text/jats");
-    set.insert("application/x-epub+zip");
-    set.insert("application/vnd.epub+zip");
-    set.insert("text/rtf");
-    set.insert("text/prs.fallenstein.rst");
-    set.insert("text/x-tex");
-    set.insert("text/org");
-    set.insert("application/x-org");
-    set.insert("application/xhtml+xml");
-    set.insert("text/x-typst");
-    set.insert("image/jpg");
-
+    for entry in FORMATS {
+        set.insert(entry.mime_type);
+        for alias in entry.aliases {
+            set.insert(*alias);
+        }
+    }
     set
 });
 
@@ -511,6 +728,34 @@ pub fn get_extensions_for_mime(mime_type: &str) -> Result<Vec<String>> {
         "No known extensions for MIME type: {}",
         mime_type
     )))
+}
+
+/// List all supported document formats.
+///
+/// Returns a list of all file extensions and their corresponding MIME types
+/// that Kreuzberg can process. Derived from the centralized [`FORMATS`] registry.
+///
+/// The list is sorted alphabetically by file extension.
+///
+/// # Example
+///
+/// ```
+/// use kreuzberg::core::mime::list_supported_formats;
+///
+/// let formats = list_supported_formats();
+/// assert!(!formats.is_empty());
+/// assert!(formats.iter().any(|f| f.extension == "pdf"));
+/// ```
+pub fn list_supported_formats() -> Vec<SupportedFormat> {
+    let mut formats: Vec<SupportedFormat> = EXT_TO_MIME
+        .iter()
+        .map(|(ext, mime)| SupportedFormat {
+            extension: ext.to_string(),
+            mime_type: mime.to_string(),
+        })
+        .collect();
+    formats.sort_by(|a, b| a.extension.cmp(&b.extension));
+    formats
 }
 
 #[cfg(test)]
@@ -776,5 +1021,88 @@ mod tests {
         ];
         let mime = detect_mime_type_from_bytes(plain_zip_bytes).unwrap();
         assert_eq!(mime, "application/zip", "Plain ZIP should remain as application/zip");
+    }
+
+    #[test]
+    fn test_list_supported_formats_not_empty() {
+        let formats = list_supported_formats();
+        assert!(!formats.is_empty(), "Supported formats list should not be empty");
+    }
+
+    #[test]
+    fn test_list_supported_formats_sorted() {
+        let formats = list_supported_formats();
+        let extensions: Vec<&str> = formats.iter().map(|f| f.extension.as_str()).collect();
+        let mut sorted = extensions.clone();
+        sorted.sort();
+        assert_eq!(extensions, sorted, "Formats should be sorted by extension");
+    }
+
+    #[test]
+    fn test_list_supported_formats_includes_common_formats() {
+        let formats = list_supported_formats();
+        let extensions: Vec<&str> = formats.iter().map(|f| f.extension.as_str()).collect();
+
+        assert!(extensions.contains(&"pdf"), "Should include pdf");
+        assert!(extensions.contains(&"md"), "Should include md");
+        assert!(extensions.contains(&"docx"), "Should include docx");
+        assert!(extensions.contains(&"html"), "Should include html");
+        assert!(extensions.contains(&"txt"), "Should include txt");
+        assert!(extensions.contains(&"csv"), "Should include csv");
+        assert!(extensions.contains(&"json"), "Should include json");
+        assert!(extensions.contains(&"xlsx"), "Should include xlsx");
+    }
+
+    #[test]
+    fn test_list_supported_formats_has_valid_mime_types() {
+        let formats = list_supported_formats();
+        for format in &formats {
+            assert!(!format.extension.is_empty(), "Extension should not be empty");
+            assert!(!format.mime_type.is_empty(), "MIME type should not be empty");
+            assert!(format.mime_type.contains('/'), "MIME type should contain '/'");
+        }
+    }
+
+    #[test]
+    fn test_formats_registry_consistency() {
+        // Every extension in EXT_TO_MIME should map to a MIME type that is in SUPPORTED_MIME_TYPES
+        for (ext, mime) in EXT_TO_MIME.iter() {
+            assert!(
+                SUPPORTED_MIME_TYPES.contains(mime),
+                "Extension '{}' maps to MIME '{}' which is not in SUPPORTED_MIME_TYPES",
+                ext,
+                mime
+            );
+        }
+    }
+
+    #[test]
+    fn test_formats_registry_mdx() {
+        // MDX extension mapping
+        assert_eq!(EXT_TO_MIME.get("mdx"), Some(&"text/mdx"));
+        // MDX MIME types are valid
+        assert!(SUPPORTED_MIME_TYPES.contains("text/mdx"));
+        assert!(SUPPORTED_MIME_TYPES.contains("text/x-mdx"));
+    }
+
+    #[test]
+    fn test_formats_registry_aliases() {
+        // Verify key aliases are in SUPPORTED_MIME_TYPES
+        assert!(
+            SUPPORTED_MIME_TYPES.contains("text/x-markdown"),
+            "text/x-markdown alias"
+        );
+        assert!(SUPPORTED_MIME_TYPES.contains("text/json"), "text/json alias");
+        assert!(SUPPORTED_MIME_TYPES.contains("text/yaml"), "text/yaml alias");
+        assert!(SUPPORTED_MIME_TYPES.contains("text/xml"), "text/xml alias");
+        assert!(SUPPORTED_MIME_TYPES.contains("application/xhtml+xml"), "xhtml alias");
+        assert!(SUPPORTED_MIME_TYPES.contains("image/pjpeg"), "pjpeg alias");
+        assert!(SUPPORTED_MIME_TYPES.contains("image/x-bmp"), "x-bmp alias");
+        assert!(
+            SUPPORTED_MIME_TYPES.contains("application/x-zip-compressed"),
+            "zip alias"
+        );
+        assert!(SUPPORTED_MIME_TYPES.contains("text/rtf"), "rtf alias");
+        assert!(SUPPORTED_MIME_TYPES.contains("text/x-typst"), "typst alias");
     }
 }

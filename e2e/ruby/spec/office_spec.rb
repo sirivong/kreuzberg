@@ -320,6 +320,74 @@ RSpec.describe 'office fixtures' do
     end
   end
 
+  it 'office_mdx_basic' do
+    E2ERuby.run_fixture(
+      'office_mdx_basic',
+      'markdown/sample.mdx',
+      nil,
+      requirements: [],
+      notes: nil,
+      skip_if_missing: true
+    ) do |result|
+      E2ERuby::Assertions.assert_expected_mime(
+        result,
+        ['text/mdx', 'text/x-mdx']
+      )
+      E2ERuby::Assertions.assert_min_content_length(result, 50)
+    end
+  end
+
+  it 'office_mdx_getting_started' do
+    E2ERuby.run_fixture(
+      'office_mdx_getting_started',
+      'markdown/mdx_getting_started.mdx',
+      nil,
+      requirements: [],
+      notes: nil,
+      skip_if_missing: true
+    ) do |result|
+      E2ERuby::Assertions.assert_expected_mime(
+        result,
+        ['text/mdx', 'text/x-mdx']
+      )
+      E2ERuby::Assertions.assert_min_content_length(result, 2_000)
+    end
+  end
+
+  it 'office_mdx_troubleshooting' do
+    E2ERuby.run_fixture(
+      'office_mdx_troubleshooting',
+      'markdown/mdx_troubleshooting.mdx',
+      nil,
+      requirements: [],
+      notes: nil,
+      skip_if_missing: true
+    ) do |result|
+      E2ERuby::Assertions.assert_expected_mime(
+        result,
+        ['text/mdx', 'text/x-mdx']
+      )
+      E2ERuby::Assertions.assert_min_content_length(result, 2_000)
+    end
+  end
+
+  it 'office_mdx_using_mdx' do
+    E2ERuby.run_fixture(
+      'office_mdx_using_mdx',
+      'markdown/mdx_using_mdx.mdx',
+      nil,
+      requirements: [],
+      notes: nil,
+      skip_if_missing: true
+    ) do |result|
+      E2ERuby::Assertions.assert_expected_mime(
+        result,
+        ['text/mdx', 'text/x-mdx']
+      )
+      E2ERuby::Assertions.assert_min_content_length(result, 2_000)
+    end
+  end
+
   it 'office_ods_basic' do
     E2ERuby.run_fixture(
       'office_ods_basic',

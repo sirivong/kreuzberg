@@ -341,6 +341,70 @@ public class OfficeTest {
   }
 
   @Test
+  public void officeMdxBasic() throws Exception {
+    JsonNode config = null;
+    E2EHelpers.runFixture(
+        "office_mdx_basic",
+        "markdown/sample.mdx",
+        config,
+        Collections.emptyList(),
+        null,
+        true,
+        result -> {
+          E2EHelpers.Assertions.assertExpectedMime(result, Arrays.asList("text/mdx", "text/x-mdx"));
+          E2EHelpers.Assertions.assertMinContentLength(result, 50);
+        });
+  }
+
+  @Test
+  public void officeMdxGettingStarted() throws Exception {
+    JsonNode config = null;
+    E2EHelpers.runFixture(
+        "office_mdx_getting_started",
+        "markdown/mdx_getting_started.mdx",
+        config,
+        Collections.emptyList(),
+        null,
+        true,
+        result -> {
+          E2EHelpers.Assertions.assertExpectedMime(result, Arrays.asList("text/mdx", "text/x-mdx"));
+          E2EHelpers.Assertions.assertMinContentLength(result, 2000);
+        });
+  }
+
+  @Test
+  public void officeMdxTroubleshooting() throws Exception {
+    JsonNode config = null;
+    E2EHelpers.runFixture(
+        "office_mdx_troubleshooting",
+        "markdown/mdx_troubleshooting.mdx",
+        config,
+        Collections.emptyList(),
+        null,
+        true,
+        result -> {
+          E2EHelpers.Assertions.assertExpectedMime(result, Arrays.asList("text/mdx", "text/x-mdx"));
+          E2EHelpers.Assertions.assertMinContentLength(result, 2000);
+        });
+  }
+
+  @Test
+  public void officeMdxUsingMdx() throws Exception {
+    JsonNode config = null;
+    E2EHelpers.runFixture(
+        "office_mdx_using_mdx",
+        "markdown/mdx_using_mdx.mdx",
+        config,
+        Collections.emptyList(),
+        null,
+        true,
+        result -> {
+          E2EHelpers.Assertions.assertExpectedMime(result, Arrays.asList("text/mdx", "text/x-mdx"));
+          E2EHelpers.Assertions.assertMinContentLength(result, 2000);
+        });
+  }
+
+  @Test
   public void officeOdsBasic() throws Exception {
     JsonNode config = null;
     E2EHelpers.runFixture(

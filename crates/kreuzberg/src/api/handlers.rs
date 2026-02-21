@@ -193,6 +193,24 @@ pub async fn extract_handler(
     Ok(Json(results))
 }
 
+/// Formats endpoint handler.
+///
+/// GET /formats
+///
+/// Returns all supported file extensions and their corresponding MIME types.
+#[utoipa::path(
+    get,
+    path = "/formats",
+    tag = "health",
+    responses(
+        (status = 200, description = "Supported formats", body = Vec<crate::SupportedFormat>),
+    )
+)]
+#[cfg_attr(feature = "otel", tracing::instrument(name = "api.formats"))]
+pub async fn formats_handler() -> Json<Vec<crate::SupportedFormat>> {
+    Json(crate::list_supported_formats())
+}
+
 /// Cache stats endpoint handler.
 ///
 /// GET /cache/stats

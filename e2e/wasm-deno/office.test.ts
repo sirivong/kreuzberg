@@ -379,6 +379,86 @@ Deno.test("office_markdown_basic", { permissions: { read: true } }, async () => 
 	assertions.assertMinContentLength(result, 10);
 });
 
+Deno.test("office_mdx_basic", { permissions: { read: true } }, async () => {
+	const config = buildConfig(undefined);
+	let result: ExtractionResult | null = null;
+	try {
+		const documentBytes = await resolveDocument("markdown/sample.mdx");
+		// Sync file extraction - WASM uses extractBytes with pre-read bytes
+		result = await extractBytes(documentBytes, "text/mdx", config);
+	} catch (error) {
+		if (shouldSkipFixture(error, "office_mdx_basic", [], undefined)) {
+			return;
+		}
+		throw error;
+	}
+	if (result === null) {
+		return;
+	}
+	assertions.assertExpectedMime(result, ["text/mdx", "text/x-mdx"]);
+	assertions.assertMinContentLength(result, 50);
+});
+
+Deno.test("office_mdx_getting_started", { permissions: { read: true } }, async () => {
+	const config = buildConfig(undefined);
+	let result: ExtractionResult | null = null;
+	try {
+		const documentBytes = await resolveDocument("markdown/mdx_getting_started.mdx");
+		// Sync file extraction - WASM uses extractBytes with pre-read bytes
+		result = await extractBytes(documentBytes, "text/mdx", config);
+	} catch (error) {
+		if (shouldSkipFixture(error, "office_mdx_getting_started", [], undefined)) {
+			return;
+		}
+		throw error;
+	}
+	if (result === null) {
+		return;
+	}
+	assertions.assertExpectedMime(result, ["text/mdx", "text/x-mdx"]);
+	assertions.assertMinContentLength(result, 2000);
+});
+
+Deno.test("office_mdx_troubleshooting", { permissions: { read: true } }, async () => {
+	const config = buildConfig(undefined);
+	let result: ExtractionResult | null = null;
+	try {
+		const documentBytes = await resolveDocument("markdown/mdx_troubleshooting.mdx");
+		// Sync file extraction - WASM uses extractBytes with pre-read bytes
+		result = await extractBytes(documentBytes, "text/mdx", config);
+	} catch (error) {
+		if (shouldSkipFixture(error, "office_mdx_troubleshooting", [], undefined)) {
+			return;
+		}
+		throw error;
+	}
+	if (result === null) {
+		return;
+	}
+	assertions.assertExpectedMime(result, ["text/mdx", "text/x-mdx"]);
+	assertions.assertMinContentLength(result, 2000);
+});
+
+Deno.test("office_mdx_using_mdx", { permissions: { read: true } }, async () => {
+	const config = buildConfig(undefined);
+	let result: ExtractionResult | null = null;
+	try {
+		const documentBytes = await resolveDocument("markdown/mdx_using_mdx.mdx");
+		// Sync file extraction - WASM uses extractBytes with pre-read bytes
+		result = await extractBytes(documentBytes, "text/mdx", config);
+	} catch (error) {
+		if (shouldSkipFixture(error, "office_mdx_using_mdx", [], undefined)) {
+			return;
+		}
+		throw error;
+	}
+	if (result === null) {
+		return;
+	}
+	assertions.assertExpectedMime(result, ["text/mdx", "text/x-mdx"]);
+	assertions.assertMinContentLength(result, 2000);
+});
+
 Deno.test("office_ods_basic", { permissions: { read: true } }, async () => {
 	const config = buildConfig(undefined);
 	let result: ExtractionResult | null = null;

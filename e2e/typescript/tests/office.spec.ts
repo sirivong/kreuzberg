@@ -521,6 +521,114 @@ describe("office fixtures", () => {
 	);
 
 	it(
+		"office_mdx_basic",
+		() => {
+			const documentPath = resolveDocument("markdown/sample.mdx");
+			if (!existsSync(documentPath)) {
+				console.warn("Skipping office_mdx_basic: missing document at", documentPath);
+				return;
+			}
+			const config = buildConfig(undefined);
+			let result: ExtractionResult | null = null;
+			try {
+				result = extractFileSync(documentPath, null, config);
+			} catch (error) {
+				if (shouldSkipFixture(error, "office_mdx_basic", [], undefined)) {
+					return;
+				}
+				throw error;
+			}
+			if (result === null) {
+				return;
+			}
+			assertions.assertExpectedMime(result, ["text/mdx", "text/x-mdx"]);
+			assertions.assertMinContentLength(result, 50);
+		},
+		TEST_TIMEOUT_MS,
+	);
+
+	it(
+		"office_mdx_getting_started",
+		() => {
+			const documentPath = resolveDocument("markdown/mdx_getting_started.mdx");
+			if (!existsSync(documentPath)) {
+				console.warn("Skipping office_mdx_getting_started: missing document at", documentPath);
+				return;
+			}
+			const config = buildConfig(undefined);
+			let result: ExtractionResult | null = null;
+			try {
+				result = extractFileSync(documentPath, null, config);
+			} catch (error) {
+				if (shouldSkipFixture(error, "office_mdx_getting_started", [], undefined)) {
+					return;
+				}
+				throw error;
+			}
+			if (result === null) {
+				return;
+			}
+			assertions.assertExpectedMime(result, ["text/mdx", "text/x-mdx"]);
+			assertions.assertMinContentLength(result, 2000);
+		},
+		TEST_TIMEOUT_MS,
+	);
+
+	it(
+		"office_mdx_troubleshooting",
+		() => {
+			const documentPath = resolveDocument("markdown/mdx_troubleshooting.mdx");
+			if (!existsSync(documentPath)) {
+				console.warn("Skipping office_mdx_troubleshooting: missing document at", documentPath);
+				return;
+			}
+			const config = buildConfig(undefined);
+			let result: ExtractionResult | null = null;
+			try {
+				result = extractFileSync(documentPath, null, config);
+			} catch (error) {
+				if (shouldSkipFixture(error, "office_mdx_troubleshooting", [], undefined)) {
+					return;
+				}
+				throw error;
+			}
+			if (result === null) {
+				return;
+			}
+			assertions.assertExpectedMime(result, ["text/mdx", "text/x-mdx"]);
+			assertions.assertMinContentLength(result, 2000);
+		},
+		TEST_TIMEOUT_MS,
+	);
+
+	it(
+		"office_mdx_using_mdx",
+		() => {
+			const documentPath = resolveDocument("markdown/mdx_using_mdx.mdx");
+			if (!existsSync(documentPath)) {
+				console.warn("Skipping office_mdx_using_mdx: missing document at", documentPath);
+				return;
+			}
+			const config = buildConfig(undefined);
+			let result: ExtractionResult | null = null;
+			try {
+				result = extractFileSync(documentPath, null, config);
+			} catch (error) {
+				if (shouldSkipFixture(error, "office_mdx_using_mdx", [], undefined)) {
+					return;
+				}
+				throw error;
+			}
+			if (result === null) {
+				return;
+			}
+			assertions.assertExpectedMime(result, ["text/mdx", "text/x-mdx"]);
+			assertions.assertMinContentLength(result, 2000);
+		},
+		TEST_TIMEOUT_MS,
+	);
+
+	it(
 		"office_ods_basic",
 		() => {
 			const documentPath = resolveDocument("data_formats/test_01.ods");

@@ -426,6 +426,94 @@ defmodule E2E.OfficeTest do
       end
     end
 
+    test "office_mdx_basic" do
+      case E2E.Helpers.run_fixture(
+             "office_mdx_basic",
+             "markdown/sample.mdx",
+             nil,
+             requirements: [],
+             notes: nil,
+             skip_if_missing: true
+           ) do
+        {:ok, result} ->
+          result
+          |> E2E.Helpers.assert_expected_mime(["text/mdx", "text/x-mdx"])
+          |> E2E.Helpers.assert_min_content_length(50)
+
+        {:skipped, reason} ->
+          IO.puts("SKIPPED: #{reason}")
+
+        {:error, reason} ->
+          flunk("Extraction failed: #{inspect(reason)}")
+      end
+    end
+
+    test "office_mdx_getting_started" do
+      case E2E.Helpers.run_fixture(
+             "office_mdx_getting_started",
+             "markdown/mdx_getting_started.mdx",
+             nil,
+             requirements: [],
+             notes: nil,
+             skip_if_missing: true
+           ) do
+        {:ok, result} ->
+          result
+          |> E2E.Helpers.assert_expected_mime(["text/mdx", "text/x-mdx"])
+          |> E2E.Helpers.assert_min_content_length(2_000)
+
+        {:skipped, reason} ->
+          IO.puts("SKIPPED: #{reason}")
+
+        {:error, reason} ->
+          flunk("Extraction failed: #{inspect(reason)}")
+      end
+    end
+
+    test "office_mdx_troubleshooting" do
+      case E2E.Helpers.run_fixture(
+             "office_mdx_troubleshooting",
+             "markdown/mdx_troubleshooting.mdx",
+             nil,
+             requirements: [],
+             notes: nil,
+             skip_if_missing: true
+           ) do
+        {:ok, result} ->
+          result
+          |> E2E.Helpers.assert_expected_mime(["text/mdx", "text/x-mdx"])
+          |> E2E.Helpers.assert_min_content_length(2_000)
+
+        {:skipped, reason} ->
+          IO.puts("SKIPPED: #{reason}")
+
+        {:error, reason} ->
+          flunk("Extraction failed: #{inspect(reason)}")
+      end
+    end
+
+    test "office_mdx_using_mdx" do
+      case E2E.Helpers.run_fixture(
+             "office_mdx_using_mdx",
+             "markdown/mdx_using_mdx.mdx",
+             nil,
+             requirements: [],
+             notes: nil,
+             skip_if_missing: true
+           ) do
+        {:ok, result} ->
+          result
+          |> E2E.Helpers.assert_expected_mime(["text/mdx", "text/x-mdx"])
+          |> E2E.Helpers.assert_min_content_length(2_000)
+
+        {:skipped, reason} ->
+          IO.puts("SKIPPED: #{reason}")
+
+        {:error, reason} ->
+          flunk("Extraction failed: #{inspect(reason)}")
+      end
+    end
+
     test "office_ods_basic" do
       case E2E.Helpers.run_fixture(
              "office_ods_basic",

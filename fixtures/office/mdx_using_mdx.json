@@ -1,0 +1,19 @@
+{
+	"id": "office_mdx_using_mdx",
+	"category": "office",
+	"description": "Real-world MDX extraction from mdx-js/mdx using-mdx.mdx with complex JSX examples, component passing, and MDX provider patterns.",
+	"document": {
+		"path": "markdown/mdx_using_mdx.mdx",
+		"media_type": "text/mdx"
+	},
+	"extraction": {
+		"config": {}
+	},
+	"assertions": {
+		"expected_mime": ["text/mdx", "text/x-mdx"],
+		"min_content_length": 2000,
+		"content_contains": ["Using MDX", "How MDX works", "MDX content", "Props", "Components", "Layout", "MDX provider"],
+		"content_not_contains": ["import {Note}", "export const info", "export const navSortSelf"],
+		"requires_feature": ["mdx"]
+	}
+}

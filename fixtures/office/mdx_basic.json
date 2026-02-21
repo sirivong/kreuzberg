@@ -1,0 +1,19 @@
+{
+	"id": "office_mdx_basic",
+	"category": "office",
+	"description": "MDX document extraction with JSX stripping and frontmatter.",
+	"document": {
+		"path": "markdown/sample.mdx",
+		"media_type": "text/mdx"
+	},
+	"extraction": {
+		"config": {}
+	},
+	"assertions": {
+		"expected_mime": ["text/mdx", "text/x-mdx"],
+		"min_content_length": 50,
+		"content_contains": ["MDX Sample Document", "warning message", "Conclusion"],
+		"content_not_contains": ["import", "export const meta"],
+		"requires_feature": ["mdx"]
+	}
+}

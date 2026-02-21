@@ -51,6 +51,7 @@ email = ["dep:mail-parser", "dep:cfb"]
 html = ["dep:html-to-markdown-rs"]
 xml = ["dep:quick-xml", "dep:roxmltree"]
 archives = ["dep:zip", "dep:tar", "dep:sevenz-rust2", "dep:lzma-rust2", "dep:flate2"]
+mdx = ["dep:pulldown-cmark"]
 
 ocr = [
     "dep:kreuzberg-tesseract",
@@ -90,7 +91,17 @@ mcp-http = ["mcp", "api"]
 
 otel = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:tracing-opentelemetry"]
 
-wasm-target = ["pdf", "html", "xml", "email", "language-detection", "chunking", "quality", "office"]
+wasm-target = [
+    "pdf",
+    "html",
+    "xml",
+    "email",
+    "language-detection",
+    "chunking",
+    "quality",
+    "office",
+    "mdx",
+]
 wasm-threads = ["dep:wasm-bindgen-rayon"]
 
 full = [
@@ -108,6 +119,7 @@ full = [
     "embeddings",
     "quality",
     "keywords",
+    "mdx",
     "api",
     "mcp",
     "otel",
@@ -124,6 +136,7 @@ cli = [
     "language-detection",
     "chunking",
     "quality",
+    "mdx",
 ]
 
 [build-dependencies]

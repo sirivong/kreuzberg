@@ -116,6 +116,30 @@ func TestOfficeOfficeMarkdownBasic(t *testing.T) {
 	assertMinContentLength(t, result, 10)
 }
 
+func TestOfficeOfficeMdxBasic(t *testing.T) {
+	result := runExtraction(t, "markdown/sample.mdx", nil)
+	assertExpectedMime(t, result, []string{"text/mdx", "text/x-mdx"})
+	assertMinContentLength(t, result, 50)
+}
+
+func TestOfficeOfficeMdxGettingStarted(t *testing.T) {
+	result := runExtraction(t, "markdown/mdx_getting_started.mdx", nil)
+	assertExpectedMime(t, result, []string{"text/mdx", "text/x-mdx"})
+	assertMinContentLength(t, result, 2000)
+}
+
+func TestOfficeOfficeMdxTroubleshooting(t *testing.T) {
+	result := runExtraction(t, "markdown/mdx_troubleshooting.mdx", nil)
+	assertExpectedMime(t, result, []string{"text/mdx", "text/x-mdx"})
+	assertMinContentLength(t, result, 2000)
+}
+
+func TestOfficeOfficeMdxUsingMdx(t *testing.T) {
+	result := runExtraction(t, "markdown/mdx_using_mdx.mdx", nil)
+	assertExpectedMime(t, result, []string{"text/mdx", "text/x-mdx"})
+	assertMinContentLength(t, result, 2000)
+}
+
 func TestOfficeOfficeOdsBasic(t *testing.T) {
 	result := runExtraction(t, "data_formats/test_01.ods", nil)
 	assertExpectedMime(t, result, []string{"application/vnd.oasis.opendocument.spreadsheet"})

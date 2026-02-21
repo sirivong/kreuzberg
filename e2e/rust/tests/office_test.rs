@@ -458,6 +458,98 @@ fn test_office_markdown_basic() {
 }
 
 #[test]
+fn test_office_mdx_basic() {
+    // MDX document extraction with JSX stripping and frontmatter.
+
+    let document_path = resolve_document("markdown/sample.mdx");
+    if !document_path.exists() {
+        println!(
+            "Skipping office_mdx_basic: missing document at {}",
+            document_path.display()
+        );
+        return;
+    }
+    let config = ExtractionConfig::default();
+
+    let result = match kreuzberg::extract_file_sync(&document_path, None, &config) {
+        Err(err) => panic!("Extraction failed for office_mdx_basic: {err:?}"),
+        Ok(result) => result,
+    };
+
+    assertions::assert_expected_mime(&result, &["text/mdx", "text/x-mdx"]);
+    assertions::assert_min_content_length(&result, 50);
+}
+
+#[test]
+fn test_office_mdx_getting_started() {
+    // Real-world MDX extraction from mdx-js/mdx getting-started.mdx with imports, exports, JSX components, code blocks, and reference links.
+
+    let document_path = resolve_document("markdown/mdx_getting_started.mdx");
+    if !document_path.exists() {
+        println!(
+            "Skipping office_mdx_getting_started: missing document at {}",
+            document_path.display()
+        );
+        return;
+    }
+    let config = ExtractionConfig::default();
+
+    let result = match kreuzberg::extract_file_sync(&document_path, None, &config) {
+        Err(err) => panic!("Extraction failed for office_mdx_getting_started: {err:?}"),
+        Ok(result) => result,
+    };
+
+    assertions::assert_expected_mime(&result, &["text/mdx", "text/x-mdx"]);
+    assertions::assert_min_content_length(&result, 2000);
+}
+
+#[test]
+fn test_office_mdx_troubleshooting() {
+    // Real-world MDX extraction from mdx-js/mdx troubleshooting-mdx.mdx with error documentation, code blocks, and JSX comments.
+
+    let document_path = resolve_document("markdown/mdx_troubleshooting.mdx");
+    if !document_path.exists() {
+        println!(
+            "Skipping office_mdx_troubleshooting: missing document at {}",
+            document_path.display()
+        );
+        return;
+    }
+    let config = ExtractionConfig::default();
+
+    let result = match kreuzberg::extract_file_sync(&document_path, None, &config) {
+        Err(err) => panic!("Extraction failed for office_mdx_troubleshooting: {err:?}"),
+        Ok(result) => result,
+    };
+
+    assertions::assert_expected_mime(&result, &["text/mdx", "text/x-mdx"]);
+    assertions::assert_min_content_length(&result, 2000);
+}
+
+#[test]
+fn test_office_mdx_using_mdx() {
+    // Real-world MDX extraction from mdx-js/mdx using-mdx.mdx with complex JSX examples, component passing, and MDX provider patterns.
+
+    let document_path = resolve_document("markdown/mdx_using_mdx.mdx");
+    if !document_path.exists() {
+        println!(
+            "Skipping office_mdx_using_mdx: missing document at {}",
+            document_path.display()
+        );
+        return;
+    }
+    let config = ExtractionConfig::default();
+
+    let result = match kreuzberg::extract_file_sync(&document_path, None, &config) {
+        Err(err) => panic!("Extraction failed for office_mdx_using_mdx: {err:?}"),
+        Ok(result) => result,
+    };
+
+    assertions::assert_expected_mime(&result, &["text/mdx", "text/x-mdx"]);
+    assertions::assert_min_content_length(&result, 2000);
+}
+
+#[test]
 fn test_office_ods_basic() {
     // Basic ODS spreadsheet extraction.
 

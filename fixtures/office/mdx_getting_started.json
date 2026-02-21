@@ -1,0 +1,30 @@
+{
+	"id": "office_mdx_getting_started",
+	"category": "office",
+	"description": "Real-world MDX extraction from mdx-js/mdx getting-started.mdx with imports, exports, JSX components, code blocks, and reference links.",
+	"document": {
+		"path": "markdown/mdx_getting_started.mdx",
+		"media_type": "text/mdx"
+	},
+	"extraction": {
+		"config": {}
+	},
+	"assertions": {
+		"expected_mime": ["text/mdx", "text/x-mdx"],
+		"min_content_length": 2000,
+		"content_contains": [
+			"Getting started",
+			"Prerequisites",
+			"Quick start",
+			"Bundler",
+			"Security",
+			"Integrations",
+			"esbuild",
+			"Rollup",
+			"webpack",
+			"React"
+		],
+		"content_not_contains": ["import {Note}", "export const info", "export const navSortSelf"],
+		"requires_feature": ["mdx"]
+	}
+}

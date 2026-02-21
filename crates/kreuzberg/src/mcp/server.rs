@@ -226,6 +226,22 @@ impl KreuzbergMcp {
         Ok(CallToolResult::success(vec![Content::text(response)]))
     }
 
+    /// List all supported document formats.
+    ///
+    /// This tool returns all file extensions and MIME types that Kreuzberg can process.
+    #[tool(
+        description = "List all supported document formats with their file extensions and MIME types.",
+        annotations(title = "List Formats", read_only_hint = true, idempotent_hint = true)
+    )]
+    fn list_formats(
+        &self,
+        Parameters(_): Parameters<super::params::EmptyParams>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
+        let formats = crate::list_supported_formats();
+        let response = serde_json::to_string_pretty(&formats).unwrap_or_default();
+        Ok(CallToolResult::success(vec![Content::text(response)]))
+    }
+
     /// Clear the cache.
     ///
     /// This tool removes all cached files and returns the number of files removed and space freed.
@@ -455,11 +471,12 @@ mod tests {
         assert!(router.has_route("extract_bytes"));
         assert!(router.has_route("batch_extract_files"));
         assert!(router.has_route("detect_mime_type"));
+        assert!(router.has_route("list_formats"));
         assert!(router.has_route("cache_stats"));
         assert!(router.has_route("cache_clear"));
 
         let tools = router.list_all();
-        assert_eq!(tools.len(), 6);
+        assert_eq!(tools.len(), 7);
     }
 
     #[test]
@@ -586,6 +603,7 @@ mod tests {
             "extract_bytes",
             "batch_extract_files",
             "detect_mime_type",
+            "list_formats",
             "cache_stats",
             "cache_clear",
         ];
@@ -600,7 +618,7 @@ mod tests {
         let router = KreuzbergMcp::tool_router();
         let tools = router.list_all();
 
-        assert_eq!(tools.len(), 6, "Expected 6 tools, found {}", tools.len());
+        assert_eq!(tools.len(), 7, "Expected 7 tools, found {}", tools.len());
     }
 
     #[tokio::test]
