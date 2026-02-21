@@ -341,6 +341,50 @@ fn test_pdfium_quality_gate() {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// Section 1b: Docling.pdf Parity Test
+//
+// This paper is our primary quality benchmark. We compare against
+// docling's own output as ground truth reference.
+// ═══════════════════════════════════════════════════════════════════
+
+#[test]
+fn test_docling_pdf_parity() {
+    let pdf_path = get_test_file_path("pdf/docling.pdf");
+    if !pdf_path.exists() {
+        println!("Skipping: docling.pdf not found");
+        return;
+    }
+
+    let gt_path = get_test_file_path("ground_truth/docling-docling.md");
+    if !gt_path.exists() {
+        println!("Skipping: docling-docling.md ground truth not found");
+        return;
+    }
+
+    let gt = std::fs::read_to_string(&gt_path).expect("should read docling ground truth");
+    let result = extract_markdown_pdfium(&pdf_path).expect("should extract docling.pdf");
+
+    let (precision, recall, f1) = word_f1(&result.content, &gt);
+
+    println!("=== docling.pdf parity check ===");
+    println!(
+        "  Precision: {:.1}%  Recall: {:.1}%  F1: {:.1}%",
+        precision * 100.0,
+        recall * 100.0,
+        f1 * 100.0
+    );
+    println!("  Extracted words: {}", tokenize(&result.content).len());
+    println!("  GT words: {}", tokenize(&gt).len());
+
+    // Docling.pdf F1 must stay above 75% (current baseline: ~83%)
+    assert!(
+        f1 >= 0.75,
+        "docling.pdf F1 ({:.1}%) regressed below 75% threshold",
+        f1 * 100.0
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Section 2: OCR Path — Regression Tests (slow, run with --ignored)
 // ═══════════════════════════════════════════════════════════════════
 

@@ -63,6 +63,7 @@ use std::sync::Arc;
 ///             document: None,
 ///             quality_score: None,
 ///             processing_warnings: vec![],
+///             annotations: None,
 ///         })
 ///     }
 ///

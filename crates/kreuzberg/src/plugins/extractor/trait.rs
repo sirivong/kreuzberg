@@ -70,6 +70,7 @@ use crate::KreuzbergError;
 ///             document: None,
 ///             quality_score: None,
 ///             processing_warnings: vec![],
+///             annotations: None,
 ///         })
 ///     }
 ///
@@ -155,6 +156,7 @@ pub trait DocumentExtractor: Plugin {
     ///         document: None,
     ///         quality_score: None,
     ///         processing_warnings: vec![],
+    ///         annotations: None,
     ///     })
     /// }
     /// # }
@@ -232,6 +234,7 @@ pub trait DocumentExtractor: Plugin {
     ///         document: None,
     ///         quality_score: None,
     ///         processing_warnings: vec![],
+    ///         annotations: None,
     ///     })
     /// }
     /// # }

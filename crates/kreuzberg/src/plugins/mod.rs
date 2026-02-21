@@ -54,6 +54,7 @@
 //! #             document: None,
 //! #             quality_score: None,
 //! #             processing_warnings: vec![],
+//! #             annotations: None,
 //! #         })
 //! #     }
 //! #     async fn extract_file(&self, _: &std::path::Path, _: &str, _: &kreuzberg::ExtractionConfig)
@@ -73,6 +74,7 @@
 //! #             document: None,
 //! #             quality_score: None,
 //! #             processing_warnings: vec![],
+//! #             annotations: None,
 //! #         })
 //! #     }
 //! #     fn supported_mime_types(&self) -> &[&str] { &[] }
@@ -141,6 +143,7 @@
 //!             document: None,
 //!             quality_score: None,
 //!             processing_warnings: vec![],
+//!             annotations: None,
 //!         })
 //!     }
 //!
