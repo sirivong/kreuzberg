@@ -245,7 +245,7 @@ tempfile = { workspace = true }
 filetime = "0.2"
 tar = "0.4.44"
 zip = { version = "8.1.0", default-features = false, features = ["deflate-flate2"] }
-serial_test = "3.3.1"
+serial_test = "3.4.0"
 anyhow = { workspace = true }
 tokio-test = "0.4"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
