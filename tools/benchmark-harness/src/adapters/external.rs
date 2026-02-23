@@ -29,17 +29,18 @@ fn get_supported_formats(framework_name: &str) -> Vec<String> {
     match framework_name {
         // Pandoc: 45+ input formats, but CANNOT read PDF (output only)
         // See: pandoc --list-input-formats
+        // Only list formats that pandoc can auto-detect from file extension
+        // and reliably convert to plain text via --to=plain.
+        // Excluded: pptx, xlsx (return empty text), bib (needs explicit --from=biblatex),
+        //           ris (returns empty text), dbk (unreliable auto-detection)
         "pandoc" => vec![
-            // Office documents
-            "docx", "odt", "pptx", "xlsx", // Markup languages
-            "md", "markdown", "rst", "org", "typst", // Web formats
-            "html", "htm", // Data formats
-            "csv", "tsv", // Scientific/technical
-            "tex", "latex", "bib", "ipynb", // Bibliography
-            "ris",   // E-books
-            "epub",  // Other documents
-            "rtf", "txt", // XML-based document formats (auto-detected by extension)
-            "dbk",
+            "docx", "odt", // Office documents
+            "md", "markdown", "rst", "org", "typst", // Markup languages
+            "html", "htm", // Web formats
+            "csv", "tsv", // Data formats
+            "tex", "latex", "ipynb", // Scientific/technical
+            "epub",  // E-books
+            "rtf", "txt", // Other documents
         ]
         .into_iter()
         .map(|s| s.to_string())
