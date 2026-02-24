@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	kz "github.com/kreuzberg-dev/kreuzberg/packages/go/v4"
@@ -18,6 +19,11 @@ func debug(msg string, args ...interface{}) {
 	if debugEnabled {
 		fmt.Fprintf(os.Stderr, "[DEBUG] "+msg+"\n", args...)
 	}
+}
+
+type extractRequest struct {
+	Path     string `json:"path"`
+	ForceOCR bool   `json:"force_ocr"`
 }
 
 type payload struct {
@@ -33,6 +39,17 @@ func peakMemoryBytes() uint64 {
 	var m runtime.MemStats
 	runtime.ReadMemStats(&m)
 	return m.Sys
+}
+
+func parseRequest(line string) (string, bool) {
+	trimmed := strings.TrimSpace(line)
+	if strings.HasPrefix(trimmed, "{") {
+		var req extractRequest
+		if err := json.Unmarshal([]byte(trimmed), &req); err == nil {
+			return req.Path, req.ForceOCR
+		}
+	}
+	return trimmed, false
 }
 
 func main() {
@@ -107,7 +124,7 @@ func getWorkingDir() string {
 }
 
 // determineOcrUsed checks extraction result metadata to determine if OCR was actually used.
-// Mirrors the native Rust adapter logic: OCR is used when format_type is "ocr",
+// Mirrors the native Rust adapter logic: OCR is used when format_type is "ocr" or "pdf",
 // or when format_type is "image" and OCR was enabled in config.
 func determineOcrUsed(meta map[string]any, ocrEnabled bool) bool {
 	if meta == nil {
@@ -117,7 +134,7 @@ func determineOcrUsed(meta map[string]any, ocrEnabled bool) bool {
 	if formatType == "ocr" {
 		return true
 	}
-	if formatType == "image" && ocrEnabled {
+	if (formatType == "image" || formatType == "pdf") && ocrEnabled {
 		return true
 	}
 	return false
@@ -125,11 +142,11 @@ func determineOcrUsed(meta map[string]any, ocrEnabled bool) bool {
 
 func boolPtr(v bool) *bool { return &v }
 
-func createConfig(ocrEnabled bool) *kz.ExtractionConfig {
+func createConfig(ocrEnabled bool, forceOCR bool) *kz.ExtractionConfig {
 	config := &kz.ExtractionConfig{
 		UseCache: boolPtr(false),
 	}
-	if ocrEnabled {
+	if ocrEnabled || forceOCR {
 		config.OCR = &kz.OCRConfig{}
 	}
 	return config
@@ -137,17 +154,18 @@ func createConfig(ocrEnabled bool) *kz.ExtractionConfig {
 
 func runServer(ocrEnabled bool) {
 	debug("Server mode: reading paths from stdin")
-	config := createConfig(ocrEnabled)
 	scanner := bufio.NewScanner(os.Stdin)
 
 	// Signal readiness after runtime + FFI initialization is complete
 	fmt.Println("READY")
 
 	for scanner.Scan() {
-		filePath := scanner.Text()
+		filePath, forceOCR := parseRequest(scanner.Text())
 		if filePath = filepath.Clean(filePath); filePath == "" {
 			continue
 		}
+
+		config := createConfig(ocrEnabled, forceOCR)
 
 		absPath, err := filepath.Abs(filePath)
 		if err != nil {
@@ -176,7 +194,7 @@ func runServer(ocrEnabled bool) {
 			Content:          result.Content,
 			Metadata:         meta,
 			ExtractionTimeMs: elapsed,
-			OcrUsed:          determineOcrUsed(meta, ocrEnabled),
+			OcrUsed:          determineOcrUsed(meta, ocrEnabled || forceOCR),
 			PeakMemoryBytes:  peakMemoryBytes(),
 		}
 		mustEncodeNoNewline(p)
@@ -200,7 +218,7 @@ func extractSync(path string, ocrEnabled bool) (*payload, error) {
 	}
 	debug("Resolved absolute path: %s", absPath)
 
-	config := createConfig(ocrEnabled)
+	config := createConfig(ocrEnabled, false)
 	result, err := kz.ExtractFileSync(absPath, config)
 	if err != nil {
 		debug("ExtractFileSync failed: %v", err)
@@ -237,7 +255,7 @@ func extractBatch(paths []string, ocrEnabled bool) (any, error) {
 		debug("Resolved path %d: %s -> %s", i, path, absPath)
 	}
 
-	config := createConfig(ocrEnabled)
+	config := createConfig(ocrEnabled, false)
 	results, err := kz.BatchExtractFilesSync(absPaths, config)
 	if err != nil {
 		debug("BatchExtractFilesSync failed: %v", err)

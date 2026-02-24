@@ -6,11 +6,12 @@
 //!
 //! Protocol:
 //! - Prints "READY" on startup
-//! - Reads file paths from stdin (one per line)
+//! - Reads JSON requests from stdin: {"path": "/path/to/file", "force_ocr": true}
+//!   (also accepts plain file paths for backward compatibility)
 //! - Outputs JSON to stdout: {"content": "...", "_extraction_time_ms": 123.4, "_ocr_used": false}
 //! - On error: {"error": "message"}
 
-use kreuzberg::{ExtractionConfig, OcrConfig, extract_file_sync};
+use kreuzberg::{ExtractionConfig, FormatMetadata, OcrConfig, extract_file_sync};
 use serde_json::json;
 use std::io::{self, BufRead, Write};
 use std::time::Instant;
@@ -67,23 +68,50 @@ fn main() {
 
     let stdin = io::stdin();
     for line in stdin.lock().lines() {
-        let file_path = match line {
+        let raw_line = match line {
             Ok(l) => l.trim().to_string(),
             Err(_) => break,
+        };
+
+        if raw_line.is_empty() {
+            continue;
+        }
+
+        // Parse JSON request or fall back to plain file path
+        let (file_path, force_ocr) = if raw_line.starts_with('{') {
+            match serde_json::from_str::<serde_json::Value>(&raw_line) {
+                Ok(req) => {
+                    let path = req.get("path").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    let fo = req.get("force_ocr").and_then(|v| v.as_bool()).unwrap_or(false);
+                    (path, fo)
+                }
+                Err(_) => (raw_line, false),
+            }
+        } else {
+            (raw_line, false)
         };
 
         if file_path.is_empty() {
             continue;
         }
 
+        // Apply force_ocr override to config for this request
+        let effective_config = if force_ocr && !config.force_ocr {
+            let mut c = config.clone();
+            c.force_ocr = true;
+            c
+        } else {
+            config.clone()
+        };
+
         let start = Instant::now();
-        match extract_file_sync(&file_path, None, &config) {
+        match extract_file_sync(&file_path, None, &effective_config) {
             Ok(result) => {
                 let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
-                let ocr_used = ocr_enabled
+                let ocr_used = (ocr_enabled || force_ocr)
                     && matches!(
                         &result.metadata.format,
-                        Some(kreuzberg::FormatMetadata::Ocr(_)) | Some(kreuzberg::FormatMetadata::Image(_))
+                        Some(FormatMetadata::Ocr(_)) | Some(FormatMetadata::Image(_)) | Some(FormatMetadata::Pdf(_))
                     );
 
                 let output = json!({

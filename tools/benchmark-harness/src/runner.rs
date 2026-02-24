@@ -277,6 +277,7 @@ impl BenchmarkRunner {
     /// * `adapter` - Framework adapter to use
     /// * `config` - Benchmark configuration
     /// * `cold_start_duration` - Optional cold start duration for this framework
+    /// * `force_ocr` - When true, force OCR even if the document has a text layer
     ///
     /// # Returns
     /// Aggregated benchmark result with iterations and statistics
@@ -285,12 +286,13 @@ impl BenchmarkRunner {
         adapter: Arc<dyn FrameworkAdapter>,
         config: &BenchmarkConfig,
         cold_start_duration: Option<Duration>,
+        force_ocr: bool,
     ) -> Result<BenchmarkResult> {
         let mut all_results = Vec::new();
 
         let estimated_task_duration_ms = if config.profiling.enabled {
             let warmup_start = std::time::Instant::now();
-            let warmup_result = adapter.extract(file_path, config.timeout).await?;
+            let warmup_result = adapter.extract(file_path, config.timeout, force_ocr).await?;
             let _warmup_duration = warmup_start.elapsed();
             warmup_result.duration.as_millis() as u64
         } else {
@@ -323,7 +325,7 @@ impl BenchmarkRunner {
         let warmup_start = if config.profiling.enabled { 1 } else { 0 };
         let mut warmup_timed_out = false;
         for _iteration in warmup_start..config.warmup_iterations {
-            let result = adapter.extract(file_path, config.timeout).await?;
+            let result = adapter.extract(file_path, config.timeout, force_ocr).await?;
             if result.error_kind == ErrorKind::Timeout {
                 warmup_timed_out = true;
                 break;
@@ -345,7 +347,7 @@ impl BenchmarkRunner {
         };
         'outer: for _iteration in 0..effective_iterations {
             for _amp in 0..amplification_factor {
-                let result = adapter.extract(file_path, config.timeout).await?;
+                let result = adapter.extract(file_path, config.timeout, force_ocr).await?;
                 let timed_out = result.error_kind == ErrorKind::Timeout;
                 all_results.push(result);
                 if timed_out {
@@ -536,13 +538,14 @@ impl BenchmarkRunner {
         adapter: Arc<dyn FrameworkAdapter>,
         config: &BenchmarkConfig,
         cold_start_duration: Option<Duration>,
+        force_ocr_flags: Vec<bool>,
     ) -> Result<Vec<BenchmarkResult>> {
         let total_iterations = config.warmup_iterations + config.benchmark_iterations;
         let mut all_batch_results = Vec::new();
 
         for iteration in 0..total_iterations {
             let refs: Vec<&std::path::Path> = file_paths.iter().map(|p| p.as_path()).collect();
-            let batch_results = adapter.extract_batch(&refs, config.timeout).await?;
+            let batch_results = adapter.extract_batch(&refs, config.timeout, &force_ocr_flags).await?;
 
             let has_timeout = batch_results.iter().any(|r| r.error_kind == ErrorKind::Timeout);
 
@@ -763,13 +766,14 @@ impl BenchmarkRunner {
         if use_batch {
             use std::collections::HashMap;
 
-            let mut adapter_files: HashMap<String, Vec<PathBuf>> = HashMap::new();
+            let mut adapter_files: HashMap<String, Vec<(PathBuf, bool)>> = HashMap::new();
 
             for (fixture_path, fixture) in self.fixtures.fixtures() {
                 // Skip OCR-requiring fixtures when OCR is disabled
                 if !self.config.ocr_enabled && fixture.requires_ocr() {
                     continue;
                 }
+                let force_ocr = fixture.requires_ocr();
                 for adapter in &frameworks {
                     if !adapter.supports_format(&fixture.file_type) {
                         continue;
@@ -781,7 +785,7 @@ impl BenchmarkRunner {
                     adapter_files
                         .entry(adapter.name().to_string())
                         .or_default()
-                        .push(document_path);
+                        .push((document_path, force_ocr));
                 }
             }
 
@@ -790,18 +794,27 @@ impl BenchmarkRunner {
             for adapter in &frameworks {
                 let adapter_name = adapter.name();
 
-                if let Some(file_paths) = adapter_files.get(adapter_name) {
-                    if file_paths.is_empty() {
+                if let Some(entries) = adapter_files.get(adapter_name) {
+                    if entries.is_empty() {
                         continue;
                     }
 
+                    let (file_paths, force_ocr_flags): (Vec<PathBuf>, Vec<bool>) = entries.iter().cloned().unzip();
+
                     if adapter.supports_batch() {
                         let adapter = Arc::clone(adapter);
-                        let file_paths = file_paths.clone();
                         let config = config.clone();
                         let cold_start = self.cold_start_durations.get(adapter_name).copied();
 
-                        match Self::run_batch_iterations_static(file_paths, adapter, &config, cold_start).await {
+                        match Self::run_batch_iterations_static(
+                            file_paths,
+                            adapter,
+                            &config,
+                            cold_start,
+                            force_ocr_flags,
+                        )
+                        .await
+                        {
                             Ok(mut batch_results) => {
                                 // Enrich each result with framework size information
                                 for result in &mut batch_results {
@@ -814,13 +827,13 @@ impl BenchmarkRunner {
                             }
                         }
                     } else {
-                        for file_path in file_paths {
+                        for (file_path, force_ocr) in file_paths.into_iter().zip(force_ocr_flags) {
                             let adapter = Arc::clone(adapter);
-                            let file_path = file_path.clone();
                             let config = config.clone();
                             let cold_start = self.cold_start_durations.get(adapter_name).copied();
 
-                            match Self::run_iterations_static(&file_path, adapter, &config, cold_start).await {
+                            match Self::run_iterations_static(&file_path, adapter, &config, cold_start, force_ocr).await
+                            {
                                 Ok(mut result) => {
                                     self.enrich_with_framework_size(&mut result);
                                     results.push(result);
@@ -834,13 +847,14 @@ impl BenchmarkRunner {
                 }
             }
         } else {
-            let mut task_queue: Vec<(PathBuf, String, Arc<dyn FrameworkAdapter>)> = Vec::new();
+            let mut task_queue: Vec<(PathBuf, String, Arc<dyn FrameworkAdapter>, bool)> = Vec::new();
 
             for (fixture_path, fixture) in self.fixtures.fixtures() {
                 // Skip OCR-requiring fixtures when OCR is disabled
                 if !self.config.ocr_enabled && fixture.requires_ocr() {
                     continue;
                 }
+                let force_ocr = fixture.requires_ocr();
                 for adapter in &frameworks {
                     if !adapter.supports_format(&fixture.file_type) {
                         continue;
@@ -849,15 +863,20 @@ impl BenchmarkRunner {
                     let fixture_dir = fixture_path.parent().unwrap_or_else(|| std::path::Path::new("."));
                     let document_path = fixture.resolve_document_path(fixture_dir);
 
-                    task_queue.push((document_path, adapter.name().to_string(), Arc::clone(adapter)));
+                    task_queue.push((
+                        document_path,
+                        adapter.name().to_string(),
+                        Arc::clone(adapter),
+                        force_ocr,
+                    ));
                 }
             }
 
             let config = self.config.clone();
 
-            for (file_path, framework_name, adapter) in task_queue {
+            for (file_path, framework_name, adapter, force_ocr) in task_queue {
                 let cold_start = self.cold_start_durations.get(&framework_name).copied();
-                match Self::run_iterations_static(&file_path, adapter, &config, cold_start).await {
+                match Self::run_iterations_static(&file_path, adapter, &config, cold_start, force_ocr).await {
                     Ok(mut result) => {
                         self.enrich_with_framework_size(&mut result);
                         results.push(result);

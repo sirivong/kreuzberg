@@ -142,11 +142,22 @@ def _run_with_timeout(fn, args, timeout):
             return {"error": str(e), "_extraction_time_ms": 0}
 
 
+def _parse_path(line: str) -> str:
+    """Parse a request line: JSON object with path field, or plain file path."""
+    stripped = line.strip()
+    if stripped.startswith("{"):
+        try:
+            return json.loads(stripped).get("path", "")
+        except (json.JSONDecodeError, ValueError):
+            pass
+    return stripped
+
+
 def run_server(timeout=None) -> None:
     """Persistent server mode: read paths from stdin, write JSON to stdout."""
     print("READY", flush=True)
     for line in sys.stdin:
-        file_path = line.strip()
+        file_path = _parse_path(line)
         if not file_path:
             continue
         if timeout is not None:

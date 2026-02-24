@@ -84,13 +84,15 @@ function determineOcrUsed(metadata: Record<string, unknown>, ocrEnabled: boolean
 	const formatType = (metadata?.format_type as string) || "";
 	if (formatType === "ocr") return true;
 	if (formatType === "image" && ocrEnabled) return true;
+	if (formatType === "pdf" && ocrEnabled) return true;
 	return false;
 }
 
-function createConfig(ocrEnabled: boolean): ExtractionConfig {
+function createConfig(ocrEnabled: boolean, forceOcr?: boolean): ExtractionConfig {
 	return {
 		useCache: false,
 		...(ocrEnabled && { ocr: { enabled: true } }),
+		...(forceOcr && { forceOcr: true }),
 	};
 }
 
@@ -133,6 +135,19 @@ async function extractBatch(filePaths: string[], ocrEnabled: boolean): Promise<E
 	});
 }
 
+function parseRequest(line: string): { path: string; forceOcr: boolean } {
+	const trimmed = line.trim();
+	if (trimmed.startsWith("{")) {
+		try {
+			const req = JSON.parse(trimmed);
+			return { path: req.path || "", forceOcr: req.force_ocr || false };
+		} catch {
+			// Fall through to plain path
+		}
+	}
+	return { path: trimmed, forceOcr: false };
+}
+
 async function runServer(ocrEnabled: boolean): Promise<void> {
 	const rl = readline.createInterface({
 		input: process.stdin,
@@ -144,13 +159,25 @@ async function runServer(ocrEnabled: boolean): Promise<void> {
 	console.log("READY");
 
 	for await (const line of rl) {
-		const filePath = line.trim();
+		const { path: filePath, forceOcr } = parseRequest(line);
 		if (!filePath) {
 			continue;
 		}
 		const start = performance.now();
 		try {
-			const payload = await extractAsync(filePath, ocrEnabled);
+			const config = createConfig(ocrEnabled || forceOcr, forceOcr);
+			const mimeType = guessMimeType(filePath);
+			const result = await extractFile(filePath, mimeType, config);
+			const durationMs = performance.now() - start;
+
+			const metadata = (result.metadata as Record<string, unknown>) ?? {};
+			const payload: ExtractionOutput = {
+				content: result.content,
+				metadata,
+				_extraction_time_ms: durationMs,
+				_ocr_used: determineOcrUsed(metadata, ocrEnabled || forceOcr),
+				_peak_memory_bytes: process.memoryUsage().rss,
+			};
 			console.log(JSON.stringify(payload));
 		} catch (err) {
 			const durationMs = performance.now() - start;

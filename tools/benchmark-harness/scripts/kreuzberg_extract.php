@@ -44,9 +44,25 @@ function get_peak_memory_bytes(): int
 }
 
 /**
+ * Parse a request line (either plain file path or JSON object).
+ * Returns array: [filePath, forceOcr]
+ */
+function parseRequest(string $line): array
+{
+    $trimmed = trim($line);
+    if (str_starts_with($trimmed, '{')) {
+        $req = json_decode($trimmed, true);
+        if (is_array($req)) {
+            return [$req['path'] ?? '', $req['force_ocr'] ?? false];
+        }
+    }
+    return [$trimmed, false];
+}
+
+/**
  * Determine if OCR was actually used based on extraction result metadata.
  * Mirrors the native Rust adapter logic: OCR is used when format_type is "ocr",
- * or when format_type is "image" and OCR was enabled in config.
+ * when format_type is "pdf" and OCR was enabled, or when format_type is "image" and OCR was enabled in config.
  */
 function determine_ocr_used(array|object $metadata, bool $ocrEnabled): bool
 {
@@ -55,7 +71,7 @@ function determine_ocr_used(array|object $metadata, bool $ocrEnabled): bool
     if ($formatType === 'ocr') {
         return true;
     }
-    if ($formatType === 'image' && $ocrEnabled) {
+    if (($formatType === 'image' || $formatType === 'pdf') && $ocrEnabled) {
         return true;
     }
     return false;
@@ -190,24 +206,37 @@ function run_server(?ExtractionConfig $config = null, bool $ocrEnabled = false):
             break;
         }
 
-        $filePath = trim($line);
+        [$filePath, $forceOcr] = parseRequest($line);
         if (empty($filePath)) {
             continue;
         }
 
         debug_log("Processing file: {$filePath}");
+        if ($forceOcr) {
+            debug_log("Force OCR enabled for this request");
+        }
 
         try {
             $start = microtime(true);
-            $result = Kreuzberg\extract_file($filePath, null, $config);
+            // Create request-specific config if forceOcr is true
+            $requestConfig = $config;
+            if ($forceOcr && !$config?->ocr) {
+                $requestConfig = new ExtractionConfig(
+                    useCache: false,
+                    ocr: new OcrConfig(),
+                );
+            }
+
+            $result = Kreuzberg\extract_file($filePath, null, $requestConfig);
             $durationMs = (microtime(true) - $start) * 1000.0;
 
             $metadata = $result->metadata ?? [];
+            $effectiveOcrEnabled = $ocrEnabled || $forceOcr;
             $payload = [
                 'content' => $result->content,
                 'metadata' => $metadata,
                 '_extraction_time_ms' => $durationMs,
-                '_ocr_used' => determine_ocr_used($metadata, $ocrEnabled),
+                '_ocr_used' => determine_ocr_used($metadata, $effectiveOcrEnabled),
                 '_peak_memory_bytes' => get_peak_memory_bytes(),
             ];
 

@@ -91,7 +91,9 @@ try
         var result = KreuzbergClient.ExtractBytesSync(content, mimeType, benchConfig);
         sw.Stop();
 
-        var ocrUsed = result.Metadata?.Format?.Type == FormatType.Ocr;
+        var formatType = result.Metadata?.Format?.Type;
+        var ocrUsed = formatType == FormatType.Ocr
+            || ((formatType == FormatType.Image || formatType == FormatType.Pdf) && ocrEnabled);
         var output = new
         {
             content = result.Content,
@@ -131,11 +133,13 @@ try
 
             try
             {
-                if (!File.Exists(line))
+                var (filePath, forceOcr) = ParseRequest(line);
+
+                if (!File.Exists(filePath))
                 {
                     var errorOutput = new
                     {
-                        error = $"File not found: {line}",
+                        error = $"File not found: {filePath}",
                         _extraction_time_ms = 0.0
                     };
                     var errorJson = JsonSerializer.Serialize(errorOutput);
@@ -144,14 +148,23 @@ try
                     continue;
                 }
 
-                var content = await File.ReadAllBytesAsync(line);
-                var mimeType = GuessMimeType(line);
+                var content = await File.ReadAllBytesAsync(filePath);
+                var mimeType = GuessMimeType(filePath);
+
+                var requestConfig = benchConfig;
+                if (forceOcr && requestConfig.Ocr == null)
+                {
+                    requestConfig = new ExtractionConfig { UseCache = benchConfig.UseCache, Ocr = new OcrConfig { } };
+                }
 
                 var sw = System.Diagnostics.Stopwatch.StartNew();
-                var result = KreuzbergClient.ExtractBytesSync(content, mimeType, benchConfig);
+                var result = KreuzbergClient.ExtractBytesSync(content, mimeType, requestConfig);
                 sw.Stop();
 
-                var ocrUsed = result.Metadata?.Format?.Type == FormatType.Ocr;
+                var formatType = result.Metadata?.Format?.Type;
+                var effectiveOcr = ocrEnabled || forceOcr;
+                var ocrUsed = formatType == FormatType.Ocr
+                    || ((formatType == FormatType.Image || formatType == FormatType.Pdf) && effectiveOcr);
                 var output = new
                 {
                     content = result.Content,
@@ -165,7 +178,7 @@ try
 
                 if (debug)
                 {
-                    Console.Error.WriteLine($"[DEBUG] Successfully extracted: {line}");
+                    Console.Error.WriteLine($"[DEBUG] Successfully extracted: {filePath}");
                 }
             }
             catch (Exception ex)
@@ -208,6 +221,27 @@ catch (Exception ex)
         Console.Error.WriteLine($"[DEBUG] Full exception: {ex}");
     }
     return 1;
+}
+
+static (string path, bool forceOcr) ParseRequest(string line)
+{
+    var trimmed = line.Trim();
+    if (trimmed.StartsWith("{"))
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(trimmed);
+            var root = doc.RootElement;
+            var path = root.TryGetProperty("path", out var pathElem) ? pathElem.GetString() ?? "" : "";
+            var forceOcr = root.TryGetProperty("force_ocr", out var foElem) && foElem.GetBoolean();
+            return (path, forceOcr);
+        }
+        catch (JsonException)
+        {
+            // Fall through to plain path
+        }
+    }
+    return (trimmed, false);
 }
 
 static string GuessMimeType(string path)

@@ -24,6 +24,41 @@ public final class KreuzbergExtractJava {
         return builder.build();
     }
 
+    /**
+     * Parse JSON request from stdin.
+     * Supports both plain file paths and JSON objects like:
+     * {"path": "/path/to/file", "force_ocr": true}
+     *
+     * Returns: [filePath, forceOcrString]
+     */
+    private static String[] parseRequest(String line) {
+        String trimmed = line.trim();
+        if (trimmed.startsWith("{")) {
+            // Minimal JSON parsing for {"path": "...", "force_ocr": true/false}
+            int pathStart = trimmed.indexOf("\"path\"");
+            String path = "";
+            boolean forceOcr = false;
+
+            if (pathStart >= 0) {
+                int colonIdx = trimmed.indexOf(':', pathStart);
+                int firstQuote = trimmed.indexOf('"', colonIdx + 1);
+                int lastQuote = trimmed.indexOf('"', firstQuote + 1);
+                if (firstQuote >= 0 && lastQuote > firstQuote) {
+                    path = trimmed.substring(firstQuote + 1, lastQuote);
+                }
+            }
+
+            if (trimmed.contains("\"force_ocr\":true") || trimmed.contains("\"force_ocr\": true")) {
+                forceOcr = true;
+            }
+
+            return new String[]{path, String.valueOf(forceOcr)};
+        }
+
+        // Plain file path
+        return new String[]{trimmed, "false"};
+    }
+
     public static void main(String[] args) throws Exception {
         boolean ocrEnabled = false;
         List<String> positionalArgs = new ArrayList<>();
@@ -109,20 +144,27 @@ public final class KreuzbergExtractJava {
         System.out.println("READY");
         System.out.flush();
 
-        ExtractionConfig benchConfig = buildBenchmarkConfig(ocrEnabled);
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String line;
         while ((line = reader.readLine()) != null) {
-            String filePath = line.trim();
+            String[] req = parseRequest(line);
+            String filePath = req[0];
+            boolean forceOcr = Boolean.parseBoolean(req[1]);
+
             if (filePath.isEmpty()) {
                 continue;
             }
+
+            // Determine OCR config for this request
+            boolean useOcr = ocrEnabled || forceOcr;
+            ExtractionConfig benchConfig = buildBenchmarkConfig(useOcr);
+
             long start = System.nanoTime();
             try {
                 Path path = Path.of(filePath);
                 ExtractionResult result = Kreuzberg.extractFile(path, benchConfig);
                 double elapsedMs = (System.nanoTime() - start) / NANOS_IN_MILLISECOND;
-                String json = toJson(result, elapsedMs, ocrEnabled);
+                String json = toJson(result, elapsedMs, useOcr);
                 System.out.println(json);
                 System.out.flush();
             } catch (Exception e) {
@@ -234,7 +276,7 @@ public final class KreuzbergExtractJava {
     /**
      * Determine if OCR was actually used based on extraction result metadata.
      * Mirrors the native Rust adapter logic: OCR is used when format_type is "ocr",
-     * or when format_type is "image" and OCR was enabled in config.
+     * or when format_type is "pdf" or "image" and OCR was enabled in config.
      */
     private static boolean determineOcrUsed(ExtractionResult result, boolean ocrEnabled) {
         Object formatTypeObj = result.getMetadata().getAdditional().get("format_type");
@@ -242,7 +284,7 @@ public final class KreuzbergExtractJava {
         if ("ocr".equals(formatType)) {
             return true;
         }
-        if ("image".equals(formatType) && ocrEnabled) {
+        if (("image".equals(formatType) || "pdf".equals(formatType)) && ocrEnabled) {
             return true;
         }
         return false;

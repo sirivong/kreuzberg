@@ -26,22 +26,36 @@ interface ExtractionOutput {
  * Mirrors the native Rust adapter logic: OCR is used when format_type is "ocr",
  * or when format_type is "image" and OCR was enabled in config.
  */
+function parseRequest(line: string): { path: string; forceOcr: boolean } {
+	const trimmed = line.trim();
+	if (trimmed.startsWith("{")) {
+		try {
+			const req = JSON.parse(trimmed);
+			return { path: req.path || "", forceOcr: req.force_ocr || false };
+		} catch {
+			// Fall through to plain path
+		}
+	}
+	return { path: trimmed, forceOcr: false };
+}
+
 function determineOcrUsed(metadata: Record<string, unknown>, ocrEnabled: boolean): boolean {
 	const formatType = (metadata?.format_type as string) || "";
 	if (formatType === "ocr") return true;
-	if (formatType === "image" && ocrEnabled) return true;
+	if ((formatType === "image" || formatType === "pdf") && ocrEnabled) return true;
 	return false;
 }
 
-function createConfig(ocrEnabled: boolean): ExtractionConfig {
+function createConfig(ocrEnabled: boolean, forceOcr = false): ExtractionConfig {
 	return {
 		useCache: false,
 		...(ocrEnabled && { ocr: { backend: "tesseract", language: "eng" } }),
+		...(forceOcr && { forceOcr: true }),
 	};
 }
 
-async function extractAsync(filePath: string, ocrEnabled: boolean): Promise<ExtractionOutput> {
-	const config = createConfig(ocrEnabled);
+async function extractAsync(filePath: string, ocrEnabled: boolean, forceOcr = false): Promise<ExtractionOutput> {
+	const config = createConfig(ocrEnabled, forceOcr);
 	const start = performance.now();
 	const result = await extractFile(filePath, config);
 	const durationMs = performance.now() - start;
@@ -51,7 +65,7 @@ async function extractAsync(filePath: string, ocrEnabled: boolean): Promise<Extr
 		content: result.content,
 		metadata,
 		_extraction_time_ms: durationMs,
-		_ocr_used: determineOcrUsed(metadata as Record<string, unknown>, ocrEnabled),
+		_ocr_used: determineOcrUsed(metadata as Record<string, unknown>, ocrEnabled || forceOcr),
 		_peak_memory_bytes: process.memoryUsage().rss,
 	};
 }
@@ -103,13 +117,13 @@ async function runServer(ocrEnabled: boolean): Promise<void> {
 	console.log("READY");
 
 	for await (const line of rl) {
-		const filePath = line.trim();
+		const { path: filePath, forceOcr } = parseRequest(line);
 		if (!filePath) {
 			continue;
 		}
 		const start = performance.now();
 		try {
-			const payload = await extractAsync(filePath, ocrEnabled);
+			const payload = await extractAsync(filePath, ocrEnabled, forceOcr);
 			console.log(JSON.stringify(payload));
 		} catch (err) {
 			const durationMs = performance.now() - start;

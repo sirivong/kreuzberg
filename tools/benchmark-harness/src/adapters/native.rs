@@ -123,8 +123,17 @@ impl FrameworkAdapter for NativeAdapter {
         )
     }
 
-    async fn extract(&self, file_path: &Path, timeout: Duration) -> Result<BenchmarkResult> {
+    async fn extract(&self, file_path: &Path, timeout: Duration, force_ocr: bool) -> Result<BenchmarkResult> {
         let file_size = std::fs::metadata(file_path).map_err(Error::Io)?.len();
+
+        // Apply force_ocr override when requested
+        let config = if force_ocr && !self.config.force_ocr {
+            let mut c = self.config.clone();
+            c.force_ocr = true;
+            c
+        } else {
+            self.config.clone()
+        };
 
         let monitor = ResourceMonitor::new();
         let sampling_interval_ms = Self::calculate_adaptive_sampling_interval(file_size);
@@ -135,7 +144,7 @@ impl FrameworkAdapter for NativeAdapter {
         // Start extraction timing (same as total for native - no subprocess overhead)
         let extraction_start = Instant::now();
 
-        let timed_result = tokio::time::timeout(timeout, extract_file(file_path, None, &self.config)).await;
+        let timed_result = tokio::time::timeout(timeout, extract_file(file_path, None, &config)).await;
         let timed_out = timed_result.is_err();
         let extraction_result = match timed_result {
             Ok(inner) => inner.map_err(|e| Error::Benchmark(format!("Extraction failed: {}", e))),
@@ -203,7 +212,7 @@ impl FrameworkAdapter for NativeAdapter {
         }
 
         let extraction_result = extraction_result.unwrap();
-        let ocr_status = determine_ocr_status(&extraction_result, &self.config);
+        let ocr_status = determine_ocr_status(&extraction_result, &config);
 
         let metrics = PerformanceMetrics {
             peak_memory_bytes: resource_stats.peak_memory_bytes,
@@ -251,11 +260,26 @@ impl FrameworkAdapter for NativeAdapter {
         })
     }
 
-    async fn extract_batch(&self, file_paths: &[&Path], timeout: Duration) -> Result<Vec<BenchmarkResult>> {
+    async fn extract_batch(
+        &self,
+        file_paths: &[&Path],
+        timeout: Duration,
+        force_ocr: &[bool],
+    ) -> Result<Vec<BenchmarkResult>> {
         // Early return if file_paths is empty
         if file_paths.is_empty() {
             return Ok(Vec::new());
         }
+
+        // If any file needs force_ocr, apply it to the config
+        let any_force_ocr = force_ocr.iter().any(|&f| f);
+        let config = if any_force_ocr && !self.config.force_ocr {
+            let mut c = self.config.clone();
+            c.force_ocr = true;
+            c
+        } else {
+            self.config.clone()
+        };
 
         let total_file_size: u64 = file_paths
             .iter()
@@ -271,7 +295,7 @@ impl FrameworkAdapter for NativeAdapter {
 
         let paths: Vec<PathBuf> = file_paths.iter().map(|p| p.to_path_buf()).collect();
 
-        let timed_result = tokio::time::timeout(timeout, batch_extract_file(paths.clone(), &self.config)).await;
+        let timed_result = tokio::time::timeout(timeout, batch_extract_file(paths.clone(), &config)).await;
         let timed_out = timed_result.is_err();
         let batch_result = match timed_result {
             Ok(inner) => inner.map_err(|e| Error::Benchmark(format!("Batch extraction failed: {}", e))),
@@ -420,7 +444,7 @@ impl FrameworkAdapter for NativeAdapter {
                     file_extension,
                     framework_capabilities: FrameworkCapabilities::default(),
                     pdf_metadata: None,
-                    ocr_status: determine_ocr_status(extraction_result, &self.config),
+                    ocr_status: determine_ocr_status(extraction_result, &config),
                     extracted_text: Some(extraction_result.content.clone()),
                 }
             })
@@ -501,7 +525,10 @@ mod tests {
         let file_path = temp_dir.path().join("test.txt");
         std::fs::write(&file_path, "Hello, world!").unwrap();
 
-        let result = adapter.extract(&file_path, Duration::from_secs(10)).await.unwrap();
+        let result = adapter
+            .extract(&file_path, Duration::from_secs(10), false)
+            .await
+            .unwrap();
 
         assert!(result.success);
         assert_eq!(result.framework, "kreuzberg-rust");

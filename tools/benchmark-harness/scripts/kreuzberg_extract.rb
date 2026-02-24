@@ -63,13 +63,26 @@ debug_log "=== Initialization Complete ===" if DEBUG
 
 # Determine if OCR was actually used based on extraction result metadata.
 # Mirrors the native Rust adapter logic: OCR is used when format_type is "ocr",
-# or when format_type is "image" and OCR was enabled in config.
+# or when format_type is "image"/"pdf" and OCR was enabled in config.
 def determine_ocr_used(metadata, ocr_enabled)
   format_type = metadata&.dig('format_type') || metadata&.dig(:format_type) || ''
   return true if format_type == 'ocr'
-  return true if format_type == 'image' && ocr_enabled
+  return true if (format_type == 'image' || format_type == 'pdf') && ocr_enabled
 
   false
+end
+
+def parse_request(line)
+  stripped = line.strip
+  if stripped.start_with?('{')
+    begin
+      req = JSON.parse(stripped)
+      return [req['path'] || '', req['force_ocr'] || false]
+    rescue JSON::ParserError
+      # Fall through to plain path
+    end
+  end
+  [stripped, false]
 end
 
 def extract_sync(file_path, config = {})
@@ -176,15 +189,15 @@ def extract_server(ocr_enabled)
   $stdout.flush
 
   STDIN.each_line do |line|
-    file_path = line.strip
+    file_path, force_ocr = parse_request(line)
     next if file_path.empty?
 
-    debug_log "Processing file: #{file_path}"
+    debug_log "Processing file: #{file_path}, force_ocr: #{force_ocr}"
     begin
       config = {
         use_cache: false
       }
-      config[:ocr] = { enabled: true } if ocr_enabled
+      config[:ocr] = { enabled: true } if (ocr_enabled || force_ocr)
 
       start = Process.clock_gettime(Process::CLOCK_MONOTONIC)
       result = Kreuzberg.extract_file(path: file_path, config: config)
@@ -195,7 +208,7 @@ def extract_server(ocr_enabled)
         content: result.content,
         metadata: metadata,
         _extraction_time_ms: duration_ms,
-        _ocr_used: determine_ocr_used(metadata, ocr_enabled),
+        _ocr_used: determine_ocr_used(metadata, (ocr_enabled || force_ocr)),
         _peak_memory_bytes: peak_memory_bytes
       }
 

@@ -66,7 +66,7 @@ defmodule KreuzbergExtract do
   @doc """
   Determine if OCR was actually used based on extraction result metadata.
   Mirrors the native Rust adapter logic: OCR is used when format_type is "ocr",
-  or when format_type is "image" and OCR was enabled in config.
+  or when format_type is "image"/"pdf" and OCR was enabled in config.
   """
   def determine_ocr_used(metadata, ocr_enabled) do
     format_type = cond do
@@ -76,8 +76,27 @@ defmodule KreuzbergExtract do
 
     cond do
       format_type == "ocr" -> true
-      format_type == "image" and ocr_enabled -> true
+      (format_type == "image" or format_type == "pdf") and ocr_enabled -> true
       true -> false
+    end
+  end
+
+  @doc """
+  Parse a request line as either plain path or JSON request.
+  Returns {path, force_ocr} tuple.
+  """
+  defp parse_request(line) do
+    trimmed = String.trim(line)
+    if String.starts_with?(trimmed, "{") do
+      case Jason.decode(trimmed) do
+        {:ok, %{"path" => path} = req} ->
+          force_ocr = Map.get(req, "force_ocr", false)
+          {path, force_ocr}
+        _ ->
+          {trimmed, false}
+      end
+    else
+      {trimmed, false}
     end
   end
 
@@ -213,13 +232,24 @@ defmodule KreuzbergExtract do
     IO.puts("READY")
 
     IO.stream(:stdio, :line)
-    |> Stream.map(&String.trim/1)
-    |> Stream.reject(&(&1 == ""))
-    |> Stream.each(fn file_path ->
-      debug_log("Processing file: #{file_path}")
+    |> Stream.reject(&(String.trim(&1) == ""))
+    |> Stream.each(fn line ->
+      {file_path, force_ocr} = parse_request(line)
+      debug_log("Processing file: #{file_path}, force_ocr: #{force_ocr}")
+
+      # Merge force_ocr into config if enabled
+      request_config =
+        if force_ocr do
+          Map.put(config, "ocr", %{"enabled" => true})
+        else
+          config
+        end
+
+      # Use force_ocr or ocr_enabled flag
+      effective_ocr = ocr_enabled or force_ocr
 
       try do
-        case extract_sync(file_path, config, ocr_enabled) do
+        case extract_sync(file_path, request_config, effective_ocr) do
           {:ok, payload} ->
             try do
               json = Jason.encode!(payload)

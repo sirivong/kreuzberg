@@ -390,7 +390,12 @@ impl SubprocessAdapter {
     }
 
     /// Execute extraction via persistent subprocess (stdin/stdout protocol)
-    async fn execute_persistent(&self, file_path: &Path, timeout: Duration) -> Result<(String, Duration)> {
+    async fn execute_persistent(
+        &self,
+        file_path: &Path,
+        timeout: Duration,
+        force_ocr: bool,
+    ) -> Result<(String, Duration)> {
         let absolute_path = if file_path.is_absolute() {
             file_path.to_path_buf()
         } else {
@@ -404,9 +409,13 @@ impl SubprocessAdapter {
 
         let start = Instant::now();
 
-        // Send file path
+        // Send JSON request with path and force_ocr flag
+        let request = serde_json::json!({
+            "path": absolute_path.to_string_lossy(),
+            "force_ocr": force_ocr,
+        });
         proc.stdin
-            .write_all(absolute_path.to_string_lossy().as_bytes())
+            .write_all(request.to_string().as_bytes())
             .await
             .map_err(|e| Error::Benchmark(format!("Failed to write to persistent process: {}", e)))?;
         proc.stdin
@@ -597,7 +606,7 @@ impl FrameworkAdapter for SubprocessAdapter {
             .any(|fmt| fmt.to_lowercase() == file_type_lower)
     }
 
-    async fn extract(&self, file_path: &Path, timeout: Duration) -> Result<BenchmarkResult> {
+    async fn extract(&self, file_path: &Path, timeout: Duration, force_ocr: bool) -> Result<BenchmarkResult> {
         let timeout = self.effective_timeout(timeout);
         let file_size = std::fs::metadata(file_path).map_err(Error::Io)?.len();
 
@@ -621,7 +630,7 @@ impl FrameworkAdapter for SubprocessAdapter {
         monitor.start(Duration::from_millis(sampling_ms)).await;
 
         let (stdout, _stderr, duration) = if self.persistent {
-            match self.execute_persistent(file_path, timeout).await {
+            match self.execute_persistent(file_path, timeout, force_ocr).await {
                 Ok((stdout, dur)) => (stdout, String::new(), dur),
                 Err(e) => {
                     let samples = monitor.stop().await;
@@ -913,7 +922,12 @@ impl FrameworkAdapter for SubprocessAdapter {
         self.supports_batch
     }
 
-    async fn extract_batch(&self, file_paths: &[&Path], timeout: Duration) -> Result<Vec<BenchmarkResult>> {
+    async fn extract_batch(
+        &self,
+        file_paths: &[&Path],
+        timeout: Duration,
+        force_ocr: &[bool],
+    ) -> Result<Vec<BenchmarkResult>> {
         let timeout = self.effective_timeout(timeout);
         // Early return if file_paths is empty
         if file_paths.is_empty() {
@@ -922,8 +936,9 @@ impl FrameworkAdapter for SubprocessAdapter {
 
         if !self.supports_batch {
             let mut results = Vec::new();
-            for path in file_paths {
-                results.push(self.extract(path, timeout).await?);
+            for (i, path) in file_paths.iter().enumerate() {
+                let fo = force_ocr.get(i).copied().unwrap_or(false);
+                results.push(self.extract(path, timeout, fo).await?);
             }
             return Ok(results);
         }
@@ -1319,7 +1334,7 @@ for line in sys.stdin:
 
         // Warmup extraction (like CI does)
         let warmup_result = adapter
-            .extract(&small_file, Duration::from_secs(10))
+            .extract(&small_file, Duration::from_secs(10), false)
             .await
             .expect("warmup should succeed");
         eprintln!(
@@ -1331,7 +1346,7 @@ for line in sys.stdin:
         let files = [&small_file, &medium_file, &large_file];
         for (i, file) in files.iter().enumerate() {
             let result = adapter
-                .extract(file, Duration::from_secs(30))
+                .extract(file, Duration::from_secs(30), false)
                 .await
                 .expect("extract should succeed");
 
@@ -1367,8 +1382,14 @@ for line in sys.stdin:
         }
 
         // Verify durations scale with file size
-        let r_small = adapter.extract(&small_file, Duration::from_secs(10)).await.unwrap();
-        let r_large = adapter.extract(&large_file, Duration::from_secs(30)).await.unwrap();
+        let r_small = adapter
+            .extract(&small_file, Duration::from_secs(10), false)
+            .await
+            .unwrap();
+        let r_large = adapter
+            .extract(&large_file, Duration::from_secs(30), false)
+            .await
+            .unwrap();
         eprintln!(
             "Small duration: {:?}, Large duration: {:?}",
             r_small.duration, r_large.duration
@@ -1579,14 +1600,14 @@ for line in sys.stdin:
         adapter.setup().await.expect("setup should succeed");
 
         // Run warmup + 3 iterations (like CI)
-        let warmup = adapter.extract(&test_file, Duration::from_secs(30)).await;
+        let warmup = adapter.extract(&test_file, Duration::from_secs(30), false).await;
         eprintln!(
             "Kreuzberg warmup: {:?}",
             warmup.as_ref().map(|r| (r.success, r.duration, r.extraction_duration))
         );
 
         for i in 0..3 {
-            let result = adapter.extract(&test_file, Duration::from_secs(30)).await;
+            let result = adapter.extract(&test_file, Duration::from_secs(30), false).await;
             match &result {
                 Ok(r) => {
                     eprintln!(
@@ -1652,19 +1673,28 @@ for line in sys.stdin:
         adapter.setup().await.expect("setup should succeed");
 
         // 1. Fast file should work
-        let r1 = adapter.extract(&fast_file, Duration::from_secs(10)).await.unwrap();
+        let r1 = adapter
+            .extract(&fast_file, Duration::from_secs(10), false)
+            .await
+            .unwrap();
         assert!(r1.success, "fast file should succeed");
         eprintln!("fast file OK: {:?}", r1.duration);
 
         // 2. Slow file should timeout (5s sleep > 2s timeout)
-        let r2 = adapter.extract(&slow_file, Duration::from_secs(10)).await.unwrap();
+        let r2 = adapter
+            .extract(&slow_file, Duration::from_secs(10), false)
+            .await
+            .unwrap();
         assert!(!r2.success, "slow file should fail with timeout");
         assert_eq!(r2.error_kind, ErrorKind::Timeout);
         eprintln!("slow file timed out as expected: {:?}", r2.error_message);
 
         // 3. KEY TEST: fast file should STILL work after the timeout
         //    (proves the process was killed and restarted, not left in a desync state)
-        let r3 = adapter.extract(&fast_file, Duration::from_secs(10)).await.unwrap();
+        let r3 = adapter
+            .extract(&fast_file, Duration::from_secs(10), false)
+            .await
+            .unwrap();
         assert!(
             r3.success,
             "fast file after timeout should succeed (process was restarted)"
@@ -1712,7 +1742,10 @@ for line in sys.stdin:
         adapter.setup().await.expect("setup should succeed");
 
         // 1. Fast file through forked child — should succeed
-        let r1 = adapter.extract(&fast_file, Duration::from_secs(30)).await.unwrap();
+        let r1 = adapter
+            .extract(&fast_file, Duration::from_secs(30), false)
+            .await
+            .unwrap();
         assert!(r1.success, "fast file should succeed through fork");
         assert!(
             r1.extracted_text.as_deref().unwrap().contains("hello fast"),
@@ -1725,7 +1758,10 @@ for line in sys.stdin:
 
         // 2. Slow file should be timed out by the Python side (2s < 10s sleep)
         let start = std::time::Instant::now();
-        let r2 = adapter.extract(&slow_file, Duration::from_secs(30)).await.unwrap();
+        let r2 = adapter
+            .extract(&slow_file, Duration::from_secs(30), false)
+            .await
+            .unwrap();
         let elapsed = start.elapsed();
 
         assert!(!r2.success, "slow file should fail");
@@ -1755,7 +1791,10 @@ for line in sys.stdin:
         // 3. KEY TEST: fast file should STILL work immediately after timeout.
         //    This proves the parent Python process stayed alive — no kill+restart.
         let start = std::time::Instant::now();
-        let r3 = adapter.extract(&fast_file, Duration::from_secs(30)).await.unwrap();
+        let r3 = adapter
+            .extract(&fast_file, Duration::from_secs(30), false)
+            .await
+            .unwrap();
         let elapsed = start.elapsed();
 
         assert!(
@@ -1771,13 +1810,19 @@ for line in sys.stdin:
         eprintln!("3. fast file after timeout OK in {:?}", elapsed);
 
         // 4. Another slow file to test repeated timeouts don't break anything
-        let r4 = adapter.extract(&slow_file, Duration::from_secs(30)).await.unwrap();
+        let r4 = adapter
+            .extract(&slow_file, Duration::from_secs(30), false)
+            .await
+            .unwrap();
         assert!(!r4.success, "second slow file should also timeout");
         assert_eq!(r4.error_kind, ErrorKind::Timeout);
         eprintln!("4. second timeout OK: {:?}", r4.error_message);
 
         // 5. Final fast file — parent still alive after two timeouts
-        let r5 = adapter.extract(&fast_file, Duration::from_secs(30)).await.unwrap();
+        let r5 = adapter
+            .extract(&fast_file, Duration::from_secs(30), false)
+            .await
+            .unwrap();
         assert!(r5.success, "fast file after two timeouts should still succeed");
         eprintln!("5. fast file after two timeouts OK: {:?}", r5.duration);
 

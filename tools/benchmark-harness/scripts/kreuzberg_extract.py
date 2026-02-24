@@ -42,22 +42,24 @@ def _determine_ocr_used(metadata: dict[str, Any], ocr_enabled: bool) -> bool:
     """Determine if OCR was actually used based on extraction result metadata.
 
     Mirrors the native Rust adapter logic: OCR is used when format_type is "ocr",
-    or when format_type is "image" and OCR was enabled in config.
+    or when format_type is "image" or "pdf" and OCR was enabled in config.
     """
     format_type = (metadata or {}).get("format_type", "")
     if format_type == "ocr":
         return True
-    if format_type == "image" and ocr_enabled:
+    if format_type in ("image", "pdf") and ocr_enabled:
         return True
     return False
 
 
-def extract_sync(file_path: str, ocr_enabled: bool) -> dict[str, Any]:
+def extract_sync(file_path: str, ocr_enabled: bool, *, force_ocr: bool = False) -> dict[str, Any]:
     """Extract using synchronous API."""
     # Use minimal config with cache disabled for benchmarking
     config = ExtractionConfig(use_cache=False)
     if ocr_enabled:
         config.ocr = OcrConfig(backend="tesseract")
+    if force_ocr:
+        config.force_ocr = True
 
     start = time.perf_counter()
     result = extract_file_sync(file_path, config=config)
@@ -68,17 +70,19 @@ def extract_sync(file_path: str, ocr_enabled: bool) -> dict[str, Any]:
         "content": result.content,
         "metadata": metadata,
         "_extraction_time_ms": duration_ms,
-        "_ocr_used": _determine_ocr_used(metadata, ocr_enabled),
+        "_ocr_used": _determine_ocr_used(metadata, ocr_enabled or force_ocr),
         "_peak_memory_bytes": _get_peak_memory_bytes(),
     }
 
 
-async def extract_async(file_path: str, ocr_enabled: bool) -> dict[str, Any]:
+async def extract_async(file_path: str, ocr_enabled: bool, *, force_ocr: bool = False) -> dict[str, Any]:
     """Extract using asynchronous API."""
     # Use minimal config with cache disabled for benchmarking
     config = ExtractionConfig(use_cache=False)
     if ocr_enabled:
         config.ocr = OcrConfig(backend="tesseract")
+    if force_ocr:
+        config.force_ocr = True
 
     start = time.perf_counter()
     result = await extract_file(file_path, config=config)
@@ -89,7 +93,7 @@ async def extract_async(file_path: str, ocr_enabled: bool) -> dict[str, Any]:
         "content": result.content,
         "metadata": metadata,
         "_extraction_time_ms": duration_ms,
-        "_ocr_used": _determine_ocr_used(metadata, ocr_enabled),
+        "_ocr_used": _determine_ocr_used(metadata, ocr_enabled or force_ocr),
         "_peak_memory_bytes": _get_peak_memory_bytes(),
     }
 
@@ -120,17 +124,29 @@ def extract_batch_sync(file_paths: list[str], ocr_enabled: bool) -> list[dict[st
     return output
 
 
+def _parse_request(line: str) -> tuple[str, bool]:
+    """Parse a request line: JSON object with path+force_ocr, or plain file path."""
+    stripped = line.strip()
+    if stripped.startswith("{"):
+        try:
+            req = json.loads(stripped)
+            return req.get("path", ""), req.get("force_ocr", False)
+        except json.JSONDecodeError:
+            pass
+    return stripped, False
+
+
 def run_server(ocr_enabled: bool) -> None:
     """Persistent server mode: read paths from stdin, write JSON to stdout."""
     # Signal readiness after Python + FFI initialization
     print("READY", flush=True)
     for line in sys.stdin:
-        file_path = line.strip()
+        file_path, force_ocr = _parse_request(line)
         if not file_path:
             continue
         start = time.perf_counter()
         try:
-            payload = extract_sync(file_path, ocr_enabled)
+            payload = extract_sync(file_path, ocr_enabled, force_ocr=force_ocr)
             print(json.dumps(payload), flush=True)
         except Exception as e:
             duration_ms = (time.perf_counter() - start) * 1000.0
