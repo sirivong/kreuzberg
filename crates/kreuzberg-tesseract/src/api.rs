@@ -17,7 +17,7 @@ pub struct TesseractConfiguration {
 }
 
 /// Main interface to the Tesseract OCR engine.
-#[cfg(feature = "build-tesseract")]
+#[cfg(any(feature = "build-tesseract", feature = "build-tesseract-wasm"))]
 pub struct TesseractAPI {
     /// Handle to the Tesseract engine.
     pub handle: Arc<Mutex<*mut c_void>>,
@@ -27,7 +27,7 @@ pub struct TesseractAPI {
 unsafe impl Send for TesseractAPI {}
 unsafe impl Sync for TesseractAPI {}
 
-#[cfg(feature = "build-tesseract")]
+#[cfg(any(feature = "build-tesseract", feature = "build-tesseract-wasm"))]
 impl TesseractAPI {
     /// Creates a new instance of the Tesseract API.
     ///
@@ -1636,7 +1636,7 @@ impl TesseractAPI {
     }
 }
 
-#[cfg(feature = "build-tesseract")]
+#[cfg(any(feature = "build-tesseract", feature = "build-tesseract-wasm"))]
 impl Drop for TesseractAPI {
     /// Drops the TesseractAPI instance.
     ///
@@ -1663,7 +1663,7 @@ impl Drop for TesseractAPI {
     }
 }
 
-#[cfg(feature = "build-tesseract")]
+#[cfg(any(feature = "build-tesseract", feature = "build-tesseract-wasm"))]
 impl Clone for TesseractAPI {
     /// Clones the TesseractAPI instance, attempting to clone its configuration and state.
     ///
@@ -1702,7 +1702,7 @@ impl Clone for TesseractAPI {
     }
 }
 
-#[cfg(feature = "build-tesseract")]
+#[cfg(any(feature = "build-tesseract", feature = "build-tesseract-wasm"))]
 unsafe extern "C" {
     fn TessBaseAPIMeanTextConf(handle: *mut c_void) -> c_int;
     fn TessBaseAPISetVariable(handle: *mut c_void, name: *const c_char, value: *const c_char) -> c_int;

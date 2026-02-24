@@ -72,7 +72,7 @@ repos:
 
   # Rust: unused dependency detection
   - repo: https://github.com/bnjbvr/cargo-machete
-    rev: 3026399e8ccbe119a9624e9376afc8c5f21fb60f
+    rev: v0.9.1
     hooks:
       - id: cargo-machete
 
@@ -108,6 +108,12 @@ repos:
     rev: v0.11.0
     hooks:
       - id: shellcheck
+
+  # CMake: linting
+  - repo: https://github.com/cmake-lint/cmake-lint
+    rev: 1.4.3
+    hooks:
+      - id: cmakelint
 
   # GitHub Actions: linting
   - repo: https://github.com/rhysd/actionlint

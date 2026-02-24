@@ -1,4 +1,7 @@
-#![cfg_attr(not(feature = "build-tesseract"), allow(unused_variables, dead_code))]
+#![cfg_attr(
+    not(any(feature = "build-tesseract", feature = "build-tesseract-wasm")),
+    allow(unused_variables, dead_code)
+)]
 #![allow(clippy::arc_with_non_send_sync)]
 #![allow(clippy::missing_transmute_annotations)]
 #![allow(clippy::type_complexity)]
@@ -125,6 +128,22 @@
 //! ```
 pub use error::{Result, TesseractError};
 mod error;
+
+// WASM: Override __cxa_atexit to be a no-op. WASI SDK's __cxa_atexit calls calloc during
+// C++ static initialization, which crashes because dlmalloc's heap isn't properly set up
+// for wasm32-unknown-unknown. Since WASM modules never exit normally, atexit handlers
+// are unnecessary.
+#[cfg(all(target_arch = "wasm32", not(target_os = "emscripten")))]
+mod wasm_compat {
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn __cxa_atexit(
+        _func: Option<unsafe extern "C" fn(*mut core::ffi::c_void)>,
+        _arg: *mut core::ffi::c_void,
+        _dso_handle: *mut core::ffi::c_void,
+    ) -> i32 {
+        0 // Success, but don't actually register anything
+    }
+}
 mod page_iterator;
 pub use page_iterator::PageIterator;
 mod result_iterator;

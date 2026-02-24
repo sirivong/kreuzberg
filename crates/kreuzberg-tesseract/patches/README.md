@@ -1,6 +1,6 @@
 # Tesseract WASM Patches
 
-This directory contains patches needed to compile Tesseract for WebAssembly (WASM) targets using Emscripten.
+This directory contains patches needed to compile Tesseract for WebAssembly (WASM) targets using WASI SDK.
 
 These patches are vendored from the [tesseract-wasm](https://github.com/naptha/tesseract.js) project and have been proven to work with WASM compilation.
 
@@ -29,9 +29,9 @@ A comprehensive patch that makes Tesseract compatible with WASM compilation. The
 
 #### 2. SIMD Detection Fixes (src/arch/simddetect.cpp)
 
-- Guards CPUID detection with `#if !defined(__EMSCRIPTEN__)`
-- Prevents attempts to use CPU feature detection that don't exist in Emscripten
-- The HAS_CPUID macro is only defined for non-Emscripten builds
+- Guards CPUID detection with `#if !defined(__wasm__)`
+- Prevents attempts to use CPU feature detection that don't exist in WASM
+- The HAS_CPUID macro is only defined for non-WASM builds
 - This allows the code to gracefully handle WASM's SIMD limitations
 
 #### 3. Pointer Type Fixes (src/ccmain/pageiterator.cpp, src/ccmain/pagesegmain.cpp, src/ccmain/tesseractclass.cpp)
@@ -62,7 +62,7 @@ A comprehensive patch that makes Tesseract compatible with WASM compilation. The
 These patches are applied during the WASM build process. They modify the Tesseract source code to:
 
 1. Disable WASM-incompatible features (OpenCL, viewers, renderers)
-2. Prevent CPUID detection in Emscripten environment
+2. Prevent CPUID detection in WASM environment
 3. Use heap allocation instead of stack allocation for large objects
 4. Handle missing pointer initialization gracefully
 

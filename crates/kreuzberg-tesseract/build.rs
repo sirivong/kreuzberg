@@ -1,6 +1,6 @@
 #![allow(clippy::uninlined_format_args)]
 
-#[cfg(feature = "build-tesseract")]
+#[cfg(any(feature = "build-tesseract", feature = "build-tesseract-wasm"))]
 mod build_tesseract {
     use cmake::Config;
     use std::env;
@@ -202,30 +202,92 @@ mod build_tesseract {
         }
     }
 
-    #[allow(dead_code)]
-    fn find_emsdk() -> Result<PathBuf, String> {
-        if let Ok(emsdk_path) = env::var("EMSDK") {
-            let path = PathBuf::from(emsdk_path);
-            if path.exists() {
+    /// Find the WASI SDK installation directory.
+    /// Checks `WASI_SDK_PATH` env var first, then common install locations.
+    fn find_wasi_sdk() -> Result<PathBuf, String> {
+        if let Ok(sdk_path) = env::var("WASI_SDK_PATH") {
+            let path = PathBuf::from(sdk_path);
+            if path.join("share/wasi-sysroot").exists() {
                 return Ok(path);
             }
         }
 
+        let home = env::var("HOME").unwrap_or_default();
         let common_paths = vec![
-            PathBuf::from("/opt/homebrew/opt/emscripten"),
-            PathBuf::from("/usr/local/opt/emscripten"),
-            PathBuf::from(env::var("HOME").unwrap_or_default()).join(".emsdk"),
-            PathBuf::from("/usr/lib/emscripten"),
-            PathBuf::from("/opt/emsdk"),
+            PathBuf::from(&home).join("wasi-sdk"),
+            PathBuf::from("/opt/wasi-sdk"),
+            PathBuf::from("/usr/local/opt/wasi-sdk"),
         ];
 
+        // Also check for versioned directories
+        for base in &["/opt", &home] {
+            if let Ok(entries) = fs::read_dir(base) {
+                for entry in entries.flatten() {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    if name.starts_with("wasi-sdk-") {
+                        let path = entry.path();
+                        if path.join("share/wasi-sysroot").exists() {
+                            return Ok(path);
+                        }
+                    }
+                }
+            }
+        }
+
         for path in common_paths {
-            if path.exists() {
+            if path.join("share/wasi-sysroot").exists() {
                 return Ok(path);
             }
         }
 
-        Err("EMSDK not found. Please install via: brew install emscripten (macOS) or apt-get install emscripten (Linux)".to_string())
+        Err(
+            "WASI SDK not found. Install from https://github.com/WebAssembly/wasi-sdk/releases and set WASI_SDK_PATH"
+                .to_string(),
+        )
+    }
+
+    /// Find the WASI SDK CMake toolchain file.
+    fn find_wasi_toolchain(wasi_sdk_dir: &Path) -> PathBuf {
+        let candidate = wasi_sdk_dir.join("share/cmake/wasi-sdk.cmake");
+        if candidate.exists() {
+            println!("cargo:warning=Found WASI SDK toolchain: {}", candidate.display());
+            return candidate;
+        }
+        panic!(
+            "Could not find WASI SDK CMake toolchain file at: {}\nEnsure WASI SDK is properly installed.",
+            candidate.display()
+        );
+    }
+
+    /// Find the WASI SDK pthread CMake toolchain file (for C++ code using std::mutex/std::thread).
+    fn find_wasi_pthread_toolchain(wasi_sdk_dir: &Path) -> PathBuf {
+        let candidate = wasi_sdk_dir.join("share/cmake/wasi-sdk-pthread.cmake");
+        if candidate.exists() {
+            println!(
+                "cargo:warning=Found WASI SDK pthread toolchain: {}",
+                candidate.display()
+            );
+            return candidate;
+        }
+        panic!(
+            "Could not find WASI SDK pthread CMake toolchain at: {}\nEnsure WASI SDK is properly installed.",
+            candidate.display()
+        );
+    }
+
+    /// Find the compiler-rt builtins library in WASI SDK.
+    fn find_wasi_compiler_rt(wasi_sdk_dir: &Path) -> Option<PathBuf> {
+        // Search lib/clang/*/lib/wasi/ for libclang_rt.builtins-wasm32.a
+        let clang_lib = wasi_sdk_dir.join("lib/clang");
+        if let Ok(entries) = fs::read_dir(&clang_lib) {
+            for entry in entries.flatten() {
+                let rt_dir = entry.path().join("lib/wasi");
+                if rt_dir.join("libclang_rt.builtins-wasm32.a").exists() {
+                    return Some(rt_dir);
+                }
+            }
+        }
+        None
     }
 
     pub fn build() {
@@ -751,6 +813,111 @@ mod build_tesseract {
         path.to_string_lossy().replace('\\', "/")
     }
 
+    /// Apply the WASM patch to Tesseract source. Uses `git apply` if available, falls back to manual application.
+    fn apply_tesseract_wasm_patch(tesseract_dir: &Path) {
+        let patch_file = Path::new(env!("CARGO_MANIFEST_DIR")).join("patches/tesseract.diff");
+        if !patch_file.exists() {
+            println!(
+                "cargo:warning=Tesseract WASM patch not found at {:?}, skipping",
+                patch_file
+            );
+            return;
+        }
+
+        println!("cargo:warning=Applying tesseract WASM patch from {:?}", patch_file);
+
+        // Try git apply first
+        let result = std::process::Command::new("git")
+            .args(["apply", "--directory"])
+            .arg(tesseract_dir)
+            .arg(&patch_file)
+            .output();
+
+        match result {
+            Ok(output) if output.status.success() => {
+                println!("cargo:warning=Successfully applied tesseract WASM patch via git apply");
+            }
+            _ => {
+                println!("cargo:warning=git apply failed, trying patch command...");
+                // Try patch command
+                let result = std::process::Command::new("patch")
+                    .args(["-p1", "-d"])
+                    .arg(tesseract_dir)
+                    .arg("-i")
+                    .arg(&patch_file)
+                    .output();
+
+                match result {
+                    Ok(output) if output.status.success() => {
+                        println!("cargo:warning=Successfully applied tesseract WASM patch via patch command");
+                    }
+                    Ok(output) => {
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        panic!("Failed to apply tesseract WASM patch: {}", stderr);
+                    }
+                    Err(e) => {
+                        panic!("Failed to run patch command: {}. Install git or patch utility.", e);
+                    }
+                }
+            }
+        }
+
+        // Tesseract 5.5.2 moved source lists to cmake/SourceLists.cmake.
+        // The diff patch modifies CMakeLists.txt but the viewer/renderer sources
+        // are now defined in SourceLists.cmake. Fix them programmatically.
+        let source_lists = tesseract_dir.join("cmake/SourceLists.cmake");
+        if source_lists.exists() {
+            println!("cargo:warning=Patching cmake/SourceLists.cmake for WASM compatibility");
+            let content = fs::read_to_string(&source_lists).expect("Failed to read cmake/SourceLists.cmake");
+
+            let mut patched = content;
+
+            // Remove viewer from TESSERACT_SRC_CORE
+            patched = patched.replace("    ${TESSERACT_SRC_VIEWER}\n", "");
+
+            // Strip API sources down to baseapi.cpp and hocrrenderer.cpp
+            // Replace the entire TESSERACT_SRC_API block
+            if let Some(start) = patched.find("set(TESSERACT_SRC_API\n")
+                && let Some(end) = patched[start..].find(")\n")
+            {
+                let replacement = "set(TESSERACT_SRC_API\n    src/api/baseapi.cpp\n    src/api/hocrrenderer.cpp\n)\n";
+                patched = format!("{}{}{}", &patched[..start], replacement, &patched[start + end + 2..]);
+            }
+
+            fs::write(&source_lists, patched).expect("Failed to write patched cmake/SourceLists.cmake");
+            println!("cargo:warning=Successfully patched cmake/SourceLists.cmake");
+        }
+
+        // Remove the tesseract CLI binary target from CMakeLists.txt
+        // In 5.5.2, the patch's BUILD_TESSERACT_BINARY guard may not apply cleanly
+        let cmakelists = tesseract_dir.join("CMakeLists.txt");
+        if cmakelists.exists() {
+            let content = fs::read_to_string(&cmakelists).expect("Failed to read CMakeLists.txt");
+            let mut patched = content;
+
+            // Comment out the tesseract executable build
+            patched = patched.replace(
+                "add_executable(tesseract src/tesseract.cpp)",
+                "# WASM: disabled tesseract binary\n# add_executable(tesseract src/tesseract.cpp)",
+            );
+            patched = patched.replace(
+                "target_link_libraries(tesseract libtesseract)",
+                "# target_link_libraries(tesseract libtesseract)",
+            );
+            patched = patched.replace(
+                "target_link_libraries(tesseract pthread)",
+                "# target_link_libraries(tesseract pthread)",
+            );
+            patched = patched.replace(
+                "install(TARGETS tesseract DESTINATION bin)",
+                "# install(TARGETS tesseract DESTINATION bin)",
+            );
+
+            fs::write(&cmakelists, patched).expect("Failed to write patched CMakeLists.txt");
+            println!("cargo:warning=Disabled tesseract binary build in CMakeLists.txt");
+        }
+    }
+
     fn clean_cache(cache_dir: &Path) {
         println!("Cleaning cache directory: {:?}", cache_dir);
         if cache_dir.exists() {
@@ -758,52 +925,17 @@ mod build_tesseract {
         }
     }
 
-    #[allow(dead_code)]
-    fn setup_emsdk_environment(emsdk_root: &Path) {
-        let emsdk_root_str = emsdk_root.to_string_lossy().to_string();
-
-        unsafe {
-            env::set_var("EMSDK", &emsdk_root_str);
-        }
-        println!("cargo:warning=Set EMSDK={}", emsdk_root_str);
-
-        let emscripten_path = format!("{}/upstream/emscripten", emsdk_root_str);
-        unsafe {
-            env::set_var("EMSCRIPTEN", &emscripten_path);
-        }
-        println!("cargo:warning=Set EMSCRIPTEN={}", emscripten_path);
-
-        let em_config = format!("{}/.emscripten", emsdk_root_str);
-        unsafe {
-            env::set_var("EM_CONFIG", &em_config);
-        }
-        println!("cargo:warning=Set EM_CONFIG={}", em_config);
-
-        let emsdk_bin_paths = [
-            format!("{}/upstream/emscripten", emsdk_root_str),
-            format!("{}/upstream/bin", emsdk_root_str),
-        ];
-
-        let current_path = env::var("PATH").unwrap_or_default();
-        let new_path = format!(
-            "{}{}{}",
-            emsdk_bin_paths.join(":"),
-            if current_path.is_empty() { "" } else { ":" },
-            current_path
-        );
-        unsafe {
-            env::set_var("PATH", &new_path);
-        }
-        println!("cargo:warning=Updated PATH with EMSDK tools");
-    }
-
-    #[allow(dead_code)]
-    fn build_leptonica_wasm(leptonica_src: &Path, leptonica_install: &Path, emsdk_dir: &Path) {
-        let toolchain_file = emsdk_dir.join("upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake");
+    fn build_leptonica_wasm(leptonica_src: &Path, leptonica_install: &Path, wasi_sdk_dir: &Path) {
+        let toolchain_file = find_wasi_toolchain(wasi_sdk_dir);
+        let sysroot = wasi_sdk_dir.join("share/wasi-sysroot");
+        let clang = wasi_sdk_dir.join("bin/clang");
 
         let mut config = Config::new(leptonica_src);
 
+        config.target("wasm32-wasi");
         config.define("CMAKE_TOOLCHAIN_FILE", &toolchain_file);
+        config.define("CMAKE_SYSROOT", &sysroot);
+        config.define("CMAKE_C_COMPILER", &clang);
 
         config
             .define("CMAKE_BUILD_TYPE", "Release")
@@ -822,14 +954,19 @@ mod build_tesseract {
             .define("NO_CONSOLE_IO", "ON")
             .define("HAVE_LIBZ", "0")
             .define("ENABLE_LTO", "OFF")
+            // Disable LTO in compiler flags to avoid LLVM bitcode version mismatch with Rust's linker.
+            // Enable WASI emulated process clocks for getrusage() support.
+            // Suppress implicit-function-declaration errors for POSIX functions not in WASI
+            // (e.g., mkstemp — WASI has no temp directories). These code paths are never reached
+            // in WASM since OCR is fully in-memory.
+            .define("CMAKE_C_FLAGS", "-fPIC -Os -fno-lto -fno-exceptions -D_WASI_EMULATED_PROCESS_CLOCKS -D_WASI_EMULATED_SIGNAL -Wno-implicit-function-declaration")
             .define("CMAKE_INSTALL_PREFIX", leptonica_install);
 
         config.build();
     }
 
-    #[allow(dead_code)]
     fn build_wasm() {
-        println!("cargo:warning=Building for WASM target with Emscripten SDK");
+        println!("cargo:warning=Building for WASM target with WASI SDK");
 
         let custom_out_dir = prepare_out_dir();
         let cache_dir = custom_out_dir.join("cache");
@@ -838,26 +975,24 @@ mod build_tesseract {
         let project_dir = custom_out_dir.clone();
         let third_party_dir = project_dir.join("third_party");
 
-        println!("cargo:warning=Looking for pre-installed Emscripten SDK...");
-        let emsdk_dir = match find_emsdk() {
+        println!("cargo:warning=Looking for WASI SDK...");
+        let wasi_sdk_dir = match find_wasi_sdk() {
             Ok(path) => {
-                println!("cargo:warning=Found EMSDK at: {}", path.display());
+                println!("cargo:warning=Found WASI SDK at: {}", path.display());
                 path
             }
             Err(err) => {
-                panic!("{}
+                panic!(
+                    "{}
 
 Installation instructions:
-  macOS:    brew install emscripten
-  Ubuntu:   sudo apt-get install emscripten
-  Arch:     sudo pacman -S emscripten
-  Manual:   git clone https://github.com/emscripten-core/emsdk.git ~/.emsdk && cd ~/.emsdk && ./emsdk install latest && ./emsdk activate latest
-
-After installation, set EMSDK environment variable or ensure it's in a standard location.", err);
+  Download from: https://github.com/WebAssembly/wasi-sdk/releases
+  Extract to ~/wasi-sdk or /opt/wasi-sdk
+  Set WASI_SDK_PATH environment variable to the extracted directory",
+                    err
+                );
             }
         };
-
-        setup_emsdk_environment(&emsdk_dir);
 
         let leptonica_dir = if third_party_dir.join("leptonica").exists() {
             println!("cargo:warning=Using existing leptonica source");
@@ -872,7 +1007,10 @@ After installation, set EMSDK environment variable or ensure it's in a standard 
             third_party_dir.join("tesseract")
         } else {
             fs::create_dir_all(&third_party_dir).expect("Failed to create third_party directory");
-            download_and_extract(&third_party_dir, &tesseract_url(), "tesseract")
+            let dir = download_and_extract(&third_party_dir, &tesseract_url(), "tesseract");
+            // Apply WASM patches to tesseract source
+            apply_tesseract_wasm_patch(&dir);
+            dir
         };
 
         let leptonica_install_dir = custom_out_dir.join("leptonica");
@@ -881,7 +1019,7 @@ After installation, set EMSDK environment variable or ensure it's in a standard 
         let _leptonica_link_name =
             build_or_use_cached("leptonica", &leptonica_cache_dir, &leptonica_install_dir, || {
                 println!("cargo:warning=Building Leptonica for WASM...");
-                build_leptonica_wasm(&leptonica_dir, &leptonica_install_dir, &emsdk_dir);
+                build_leptonica_wasm(&leptonica_dir, &leptonica_install_dir, &wasi_sdk_dir);
             });
 
         let tesseract_install_dir = custom_out_dir.join("tesseract");
@@ -894,7 +1032,7 @@ After installation, set EMSDK environment variable or ensure it's in a standard 
                     &tesseract_dir,
                     &tesseract_install_dir,
                     &leptonica_install_dir,
-                    &emsdk_dir,
+                    &wasi_sdk_dir,
                     true,
                 );
             });
@@ -908,39 +1046,93 @@ After installation, set EMSDK environment variable or ensure it's in a standard 
         println!("cargo:rustc-link-lib=static=tesseract");
         println!("cargo:rustc-link-lib=static=leptonica");
 
+        // Link WASI SDK sysroot libraries for C/C++ standard library symbols.
+        // Use wasm32-wasi-threads variant for C++ (has std::mutex/std::thread),
+        // and wasm32-wasi for C libs.
+        let sysroot_threads_lib = wasi_sdk_dir.join("share/wasi-sysroot/lib/wasm32-wasi-threads");
+        let sysroot_lib = wasi_sdk_dir.join("share/wasi-sysroot/lib/wasm32-wasi");
+        println!(
+            "cargo:warning=Linking WASI SDK sysroot (threads) from: {}",
+            sysroot_threads_lib.display()
+        );
+
+        println!("cargo:rustc-link-search=native={}", sysroot_threads_lib.display());
+        println!("cargo:rustc-link-search=native={}", sysroot_lib.display());
+        // C++ libs from threads sysroot (has std::mutex/std::thread support)
+        println!("cargo:rustc-link-lib=static=c++");
+        println!("cargo:rustc-link-lib=static=c++abi");
+        println!("cargo:rustc-link-lib=static=c");
+        println!("cargo:rustc-link-lib=static=pthread");
+        // WASI emulation libraries for POSIX functions used by Leptonica/Tesseract
+        println!("cargo:rustc-link-lib=static=wasi-emulated-process-clocks");
+        println!("cargo:rustc-link-lib=static=wasi-emulated-signal");
+
+        // Link compiler-rt builtins
+        if let Some(rt_dir) = find_wasi_compiler_rt(&wasi_sdk_dir) {
+            println!("cargo:warning=Linking compiler-rt from: {}", rt_dir.display());
+            println!("cargo:rustc-link-search=native={}", rt_dir.display());
+            println!("cargo:rustc-link-lib=static=clang_rt.builtins-wasm32");
+        } else {
+            println!("cargo:warning=compiler-rt builtins not found in WASI SDK, some symbols may be unresolved");
+        }
+
         println!("cargo:warning=WASM build completed successfully!");
         println!("cargo:warning=Leptonica install dir: {:?}", leptonica_install_dir);
         println!("cargo:warning=Tesseract install dir: {:?}", tesseract_install_dir);
     }
 
-    #[allow(dead_code)]
     fn build_tesseract_wasm(
         src_dir: &Path,
         tesseract_install: &Path,
         leptonica_install: &Path,
-        emsdk_dir: &Path,
+        wasi_sdk_dir: &Path,
         enable_simd: bool,
     ) {
-        let toolchain_file = emsdk_dir.join("upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake");
+        // Use the pthread-enabled WASI toolchain for Tesseract since it uses std::mutex/std::thread.
+        // The wasm32-wasi-threads target provides these via the threads-enabled libc++.
+        let toolchain_file = find_wasi_pthread_toolchain(wasi_sdk_dir);
+        let sysroot = wasi_sdk_dir.join("share/wasi-sysroot");
+        let clang = wasi_sdk_dir.join("bin/clang");
+        let clangxx = wasi_sdk_dir.join("bin/clang++");
 
         let mut config = Config::new(src_dir);
 
+        // Use wasm32-wasi-threads for C++ std::mutex/std::thread support
+        config.target("wasm32-wasi-threads");
         config.define("CMAKE_TOOLCHAIN_FILE", &toolchain_file);
+        config.define("CMAKE_SYSROOT", &sysroot);
+        config.define("CMAKE_C_COMPILER", &clang);
+        config.define("CMAKE_CXX_COMPILER", &clangxx);
+        // Use the pthread-enabled cmake toolchain
+        config.define("WASI_SDK_PREFIX", wasi_sdk_dir);
+
+        let leptonica_lib_dir = leptonica_install.join("lib");
+        let leptonica_include_dir = leptonica_install.join("include");
 
         config.define("Leptonica_DIR", leptonica_install);
         config.define("CMAKE_PREFIX_PATH", leptonica_install);
+        // Help the linker find leptonica during try_compile checks
+        config.define("CMAKE_EXE_LINKER_FLAGS", format!("-L{}", leptonica_lib_dir.display()));
 
-        let mut cxx_flags = String::from("-DTESSERACT_IMAGEDATA_AS_PIX ");
+        let mut cxx_flags = String::from(
+            "-DTESSERACT_IMAGEDATA_AS_PIX -fno-exceptions -pthread -D_WASI_EMULATED_PROCESS_CLOCKS -D_WASI_EMULATED_SIGNAL ",
+        );
         if enable_simd {
             cxx_flags.push_str("-msimd128 ");
         }
-        cxx_flags.push_str("-fno-exceptions -fPIC -Os");
+        cxx_flags.push_str(&format!("-fPIC -Os -fno-lto -I{}", leptonica_include_dir.display()));
 
-        let c_flags = "-fno-exceptions -fPIC -Os";
+        let c_flags = format!(
+            "-fPIC -Os -fno-lto -fno-exceptions -pthread -D_WASI_EMULATED_PROCESS_CLOCKS -D_WASI_EMULATED_SIGNAL -I{}",
+            leptonica_include_dir.display()
+        );
 
         config
             .define("CMAKE_BUILD_TYPE", "Release")
             .define("CMAKE_POLICY_VERSION_MINIMUM", "3.5")
+            // Cross-compilation: provide try_run results since we can't execute WASM binaries
+            .define("LEPT_TIFF_RESULT", "1")
+            .define("LEPT_TIFF_RESULT__TRYRUN_OUTPUT", "")
             .define("BUILD_TESSERACT_BINARY", "OFF")
             .define("BUILD_TRAINING_TOOLS", "OFF")
             .define("INSTALL_CONFIGS", "ON")
@@ -962,18 +1154,19 @@ After installation, set EMSDK environment variable or ensure it's in a standard 
             .define("DISABLE_GIF", "ON")
             .define("DISABLE_DEBUG_MESSAGES", "ON")
             .define("GRAPHICS_DISABLED", "ON")
-            .define("DISABLED_LEGACY_ENGINE", "ON")
             .define("USE_OPENCL", "OFF")
             .define("OPENMP_BUILD", "OFF")
-            .define("ENABLE_LTO", "ON")
-            .define("HAVE_SSE4_1", if enable_simd { "ON" } else { "OFF" })
+            .define("ENABLE_LTO", "OFF")
+            // For WASM, disable x86-specific SIMD detection (cpuid.h).
+            // WASM SIMD is enabled via -msimd128 compiler flag instead.
+            .define("HAVE_SSE4_1", "OFF")
             .define("HAVE_AVX", "OFF")
             .define("HAVE_AVX2", "OFF")
             .define("HAVE_AVX512F", "OFF")
             .define("HAVE_FMA", "OFF")
             .define("CMAKE_INSTALL_PREFIX", tesseract_install)
             .define("CMAKE_CXX_FLAGS", &cxx_flags)
-            .define("CMAKE_C_FLAGS", c_flags);
+            .define("CMAKE_C_FLAGS", &c_flags);
 
         config.build();
     }
@@ -1170,7 +1363,7 @@ After installation, set EMSDK environment variable or ensure it's in a standard 
 }
 
 fn main() {
-    #[cfg(feature = "build-tesseract")]
+    #[cfg(any(feature = "build-tesseract", feature = "build-tesseract-wasm"))]
     {
         build_tesseract::build();
     }
