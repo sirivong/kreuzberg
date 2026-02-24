@@ -2933,6 +2933,12 @@ jobs:
           package_json_file: package.json
           run_install: false
 
+      - name: Install system dependencies
+        uses: ./.github/actions/install-system-deps
+
+      - name: Install WASI SDK
+        uses: ./.github/actions/install-wasi-sdk
+
       - name: Setup Rust toolchain
         uses: ./.github/actions/setup-rust
         with:

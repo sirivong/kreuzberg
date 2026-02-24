@@ -15,6 +15,7 @@ on:
       - 'Cargo.lock'
       - 'crates/kreuzberg/**'
       - 'crates/kreuzberg-wasm/**'
+      - 'crates/kreuzberg-tesseract/**'
       - 'packages/typescript/core/**'
       - 'packages/wasm/**'
       - 'e2e/wasm/**'
@@ -39,6 +40,7 @@ on:
       - 'Cargo.lock'
       - 'crates/kreuzberg/**'
       - 'crates/kreuzberg-wasm/**'
+      - 'crates/kreuzberg-tesseract/**'
       - 'packages/typescript/core/**'
       - 'packages/wasm/**'
       - 'e2e/wasm/**'
@@ -96,6 +98,9 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
+      - name: Install WASI SDK
+        uses: ./.github/actions/install-wasi-sdk
+
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
         with:
@@ -149,6 +154,9 @@ jobs:
 
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
+
+      - name: Install WASI SDK
+        uses: ./.github/actions/install-wasi-sdk
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
@@ -211,6 +219,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         id: checkout
+
+      - name: Install WASI SDK
+        uses: ./.github/actions/install-wasi-sdk
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
@@ -309,6 +320,9 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
+      - name: Install WASI SDK
+        uses: ./.github/actions/install-wasi-sdk
+
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
         with:
@@ -332,6 +346,12 @@ jobs:
         with:
           deno-version: "2.x"
 
+      - name: Download tessdata
+        shell: bash
+        run: |
+          mkdir -p tessdata
+          wget -q https://github.com/tesseract-ocr/tessdata_fast/raw/main/eng.traineddata -O tessdata/eng.traineddata
+
       - name: Build WASM (all targets for E2E)
         shell: bash
         run: task wasm:build:all
@@ -343,6 +363,8 @@ jobs:
       - name: Run Deno E2E tests
         shell: bash
         run: task wasm:e2e:deno:test
+        env:
+          TESSDATA_PREFIX: ${{ github.workspace }}/tessdata
 
       - name: Cleanup Rust cache
         if: always() && steps.checkout.outcome == 'success'
@@ -362,6 +384,9 @@ jobs:
 
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
+
+      - name: Install WASI SDK
+        uses: ./.github/actions/install-wasi-sdk
 
       - name: Setup Rust
         uses: ./.github/actions/setup-rust
