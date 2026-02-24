@@ -9,5 +9,9 @@
 		"size_class": "medium",
 		"requires_ocr": true,
 		"content_type": "chart"
+	},
+	"ground_truth": {
+		"text_file": "../../../test_documents/ground_truth/jpg/image_chart.md",
+		"source": "vision"
 	}
 }

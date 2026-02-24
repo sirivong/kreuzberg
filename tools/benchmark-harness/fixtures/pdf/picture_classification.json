@@ -21,7 +21,7 @@
 		"size_category": "small"
 	},
 	"ground_truth": {
-		"text_file": "../../../../test_documents/ground_truth/pdf/picture_classification.txt",
-		"source": "pdftotext"
+		"text_file": "../../../../test_documents/ground_truth/pdf/picture_classification.md",
+		"source": "vision"
 	}
 }

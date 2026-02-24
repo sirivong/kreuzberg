@@ -1135,10 +1135,10 @@ jobs:
           python-version: "3.11"
           cache-prefix: benchmark-docling
 
-      - name: Install build tools
+      - name: Install build tools and system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config
+          sudo apt-get install -y build-essential pkg-config libgl1 libglib2.0-0 tesseract-ocr tesseract-ocr-eng
 
       - name: Install docling benchmark dependencies
         run: uv sync --no-build-package kreuzberg --group dev --group bench-docling --all-extras --all-packages --no-install-project --no-install-workspace

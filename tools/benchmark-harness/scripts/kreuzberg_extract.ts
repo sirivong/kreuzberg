@@ -114,7 +114,14 @@ async function runServer(ocrEnabled: boolean): Promise<void> {
 		} catch (err) {
 			const durationMs = performance.now() - start;
 			const error = err as Error;
-			console.log(JSON.stringify({ error: error.message, _extraction_time_ms: durationMs, _ocr_used: false, _peak_memory_bytes: process.memoryUsage().rss }));
+			console.log(
+				JSON.stringify({
+					error: error.message,
+					_extraction_time_ms: durationMs,
+					_ocr_used: false,
+					_peak_memory_bytes: process.memoryUsage().rss,
+				}),
+			);
 		}
 	}
 }

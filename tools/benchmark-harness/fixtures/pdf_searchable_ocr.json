@@ -1,13 +1,13 @@
 {
-    "document": "../../../test_documents/pdf/searchable.pdf",
-    "file_type": "pdf",
-    "file_size": 18810,
-    "expected_frameworks": ["kreuzberg", "kreuzberg-python", "kreuzberg-node", "kreuzberg-wasm", "kreuzberg-ruby"],
-    "metadata": {
-        "requires_ocr": false
-    },
-    "ground_truth": {
-        "text_file": "../../../test_documents/ground_truth/pdf/pdf_searchable_ocr.md",
-        "source": "vision"
-    }
+	"document": "../../../test_documents/pdf/searchable.pdf",
+	"file_type": "pdf",
+	"file_size": 18810,
+	"expected_frameworks": ["kreuzberg", "kreuzberg-python", "kreuzberg-node", "kreuzberg-wasm", "kreuzberg-ruby"],
+	"metadata": {
+		"requires_ocr": false
+	},
+	"ground_truth": {
+		"text_file": "../../../test_documents/ground_truth/pdf/pdf_searchable_ocr.md",
+		"source": "vision"
+	}
 }

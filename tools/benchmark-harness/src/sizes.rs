@@ -137,13 +137,7 @@ const SYSTEM_PACKAGES: &[(&str, &[&str])] = &[
     // pdfplumber depends on Pillow which needs imaging libs
     (
         "pdfplumber",
-        &[
-            "libjpeg-turbo8",
-            "libpng16-16",
-            "libtiff6",
-            "libfreetype6",
-            "zlib1g",
-        ],
+        &["libjpeg-turbo8", "libpng16-16", "libtiff6", "libfreetype6", "zlib1g"],
     ),
 ];
 
@@ -221,11 +215,7 @@ fn measure_system_deps_via_dpkg(packages: &[&str]) -> Option<(u64, HashMap<Strin
     }
 
     // Only return measured result if we found at least one package
-    if detail.is_empty() {
-        None
-    } else {
-        Some((total, detail))
-    }
+    if detail.is_empty() { None } else { Some((total, detail)) }
 }
 
 /// Measure framework sizes

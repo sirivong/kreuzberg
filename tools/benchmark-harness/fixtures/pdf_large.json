@@ -20,7 +20,7 @@
 		"category": "presentation"
 	},
 	"ground_truth": {
-		"text_file": "../../../test_documents/ground_truth/pdf/pdf_large.txt",
-		"source": "pdftotext"
+		"text_file": "../../../test_documents/ground_truth/pdf/pdf_large.md",
+		"source": "vision"
 	}
 }

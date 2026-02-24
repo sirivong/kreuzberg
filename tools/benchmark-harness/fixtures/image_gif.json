@@ -6,5 +6,9 @@
 	"metadata": {
 		"description": "GIF image with text for OCR testing",
 		"category": "image"
+	},
+	"ground_truth": {
+		"text_file": "../../../test_documents/ground_truth/gif/image_gif.md",
+		"source": "vision"
 	}
 }

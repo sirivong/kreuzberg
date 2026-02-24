@@ -602,11 +602,7 @@ fn build_comparison(by_framework_mode: &HashMap<String, FrameworkModeAggregation
         }
 
         let weighted_avg = |items: &[(f64, usize)]| -> f64 {
-            let finite: Vec<(f64, usize)> = items
-                .iter()
-                .copied()
-                .filter(|(v, _)| v.is_finite())
-                .collect();
+            let finite: Vec<(f64, usize)> = items.iter().copied().filter(|(v, _)| v.is_finite()).collect();
             let total_weight: usize = finite.iter().map(|(_, w)| w).sum();
             if total_weight == 0 {
                 f64::NAN

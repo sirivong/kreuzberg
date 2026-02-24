@@ -256,7 +256,12 @@ impl SubprocessAdapter {
         let stdin = BufWriter::new(child.stdin.take().unwrap());
         let stdout = BufReader::new(child.stdout.take().unwrap());
 
-        Ok(PersistentProcess { stdin, stdout, child, child_pid })
+        Ok(PersistentProcess {
+            stdin,
+            stdout,
+            child,
+            child_pid,
+        })
     }
 
     /// Execute the extraction subprocess
@@ -824,9 +829,7 @@ impl FrameworkAdapter for SubprocessAdapter {
         // External monitoring via ResourceMonitor often misses subprocess memory for fast
         // extractions (<10ms) because the subprocess exits before the sampler captures it.
         // Scripts report _peak_memory_bytes via resource.getrusage or equivalent.
-        let self_reported_memory = parsed
-            .get("_peak_memory_bytes")
-            .and_then(|v| v.as_u64());
+        let self_reported_memory = parsed.get("_peak_memory_bytes").and_then(|v| v.as_u64());
 
         let metrics = if let Some(reported_mem) = self_reported_memory {
             PerformanceMetrics {
