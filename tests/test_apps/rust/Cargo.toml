@@ -1,3 +1,5 @@
+[workspace]
+
 [package]
 name = "kreuzberg-test-app-rust"
 version = "4.3.8"

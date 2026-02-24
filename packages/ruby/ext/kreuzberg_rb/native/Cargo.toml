@@ -29,7 +29,7 @@ html-to-markdown-rs = { version = "2.25.1", default-features = false }
 reqwest = { version = "0.13.2", default-features = false }
 image = { version = "0.25.9", default-features = false }
 toml = "1.0.3"
-tempfile = "3.25.0"
+tempfile = "3.26.0"
 lzma-rust2 = { version = "0.16.2" }
 log = "0.4"
 getrandom = { version = "0.4.1", features = ["wasm_js"] }
