@@ -201,7 +201,7 @@ pub fn aggregate_new_format(results: &[BenchmarkResult]) -> NewConsolidatedResul
     // Validate input - HIGH PRIORITY FIX
     if results.is_empty() {
         return NewConsolidatedResults {
-            schema_version: "2.1.0".to_string(),
+            schema_version: "2.2.0".to_string(),
             by_framework_mode: HashMap::new(),
             disk_sizes: HashMap::new(),
             comparison: ComparisonData {
@@ -292,7 +292,7 @@ pub fn aggregate_new_format(results: &[BenchmarkResult]) -> NewConsolidatedResul
     let comparison = build_comparison(&aggregated_by_framework_mode);
 
     NewConsolidatedResults {
-        schema_version: "2.1.0".to_string(),
+        schema_version: "2.2.0".to_string(),
         by_framework_mode: aggregated_by_framework_mode,
         disk_sizes,
         comparison,
@@ -559,17 +559,23 @@ fn extract_framework_and_mode(framework_name: &str) -> (&str, &str) {
 }
 
 /// Build cross-framework comparison rankings from aggregated data
+///
+/// Metrics are weighted by successful_sample_count so that file types with more
+/// samples (e.g., 93 PDFs) dominate the ranking over file types with fewer samples
+/// (e.g., 1 BMP). This prevents frameworks that handle more file types or do OCR
+/// from being unfairly penalized in the overall ranking.
 fn build_comparison(by_framework_mode: &HashMap<String, FrameworkModeAggregation>) -> ComparisonData {
-    // Collect median metrics per framework:mode by averaging across file types
+    // Collect weighted median metrics per framework:mode
     // (key, duration_p50, throughput_p50, memory_p50, quality_p50, cpu_p50)
     let mut metrics: Vec<(String, f64, f64, f64, f64, f64)> = Vec::new();
 
     for (key, agg) in by_framework_mode {
-        let mut durations = Vec::new();
-        let mut throughputs = Vec::new();
-        let mut memories = Vec::new();
-        let mut qualities = Vec::new();
-        let mut cpus = Vec::new();
+        // (value, weight) pairs for weighted averaging
+        let mut durations: Vec<(f64, usize)> = Vec::new();
+        let mut throughputs: Vec<(f64, usize)> = Vec::new();
+        let mut memories: Vec<(f64, usize)> = Vec::new();
+        let mut qualities: Vec<(f64, usize)> = Vec::new();
+        let mut cpus: Vec<(f64, usize)> = Vec::new();
 
         for ft in agg.by_file_type.values() {
             for perf in [&ft.no_ocr, &ft.with_ocr].into_iter().flatten() {
@@ -578,14 +584,15 @@ fn build_comparison(by_framework_mode: &HashMap<String, FrameworkModeAggregation
                 if perf.successful_sample_count == 0 {
                     continue;
                 }
-                durations.push(perf.duration.p50);
-                throughputs.push(perf.throughput.p50);
-                memories.push(perf.memory.p50);
+                let weight = perf.successful_sample_count;
+                durations.push((perf.duration.p50, weight));
+                throughputs.push((perf.throughput.p50, weight));
+                memories.push((perf.memory.p50, weight));
                 if let Some(q) = &perf.quality {
-                    qualities.push(q.quality_score_p50);
+                    qualities.push((q.quality_score_p50, weight));
                 }
                 if let Some(c) = &perf.cpu {
-                    cpus.push(c.p50);
+                    cpus.push((c.p50, weight));
                 }
             }
         }
@@ -594,22 +601,27 @@ fn build_comparison(by_framework_mode: &HashMap<String, FrameworkModeAggregation
             continue;
         }
 
-        let avg = |v: &[f64]| -> f64 {
-            let finite: Vec<f64> = v.iter().copied().filter(|x| x.is_finite()).collect();
-            if finite.is_empty() {
+        let weighted_avg = |items: &[(f64, usize)]| -> f64 {
+            let finite: Vec<(f64, usize)> = items
+                .iter()
+                .copied()
+                .filter(|(v, _)| v.is_finite())
+                .collect();
+            let total_weight: usize = finite.iter().map(|(_, w)| w).sum();
+            if total_weight == 0 {
                 f64::NAN
             } else {
-                finite.iter().sum::<f64>() / finite.len() as f64
+                finite.iter().map(|(v, w)| v * (*w as f64)).sum::<f64>() / total_weight as f64
             }
         };
 
         metrics.push((
             key.clone(),
-            avg(&durations),
-            avg(&throughputs),
-            avg(&memories),
-            avg(&qualities),
-            avg(&cpus),
+            weighted_avg(&durations),
+            weighted_avg(&throughputs),
+            weighted_avg(&memories),
+            weighted_avg(&qualities),
+            weighted_avg(&cpus),
         ));
     }
 

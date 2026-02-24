@@ -1,6 +1,7 @@
 //! Core types for benchmark results and metrics
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -203,6 +204,12 @@ pub struct DiskSizeInfo {
 
     /// Human-readable description
     pub description: String,
+
+    /// Breakdown of system dependency sizes by package name
+    /// Keys are package names (e.g., "poppler-utils"), values are installed sizes in bytes.
+    /// Only populated when runtime measurement via dpkg-query succeeds.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub system_deps_detail: HashMap<String, u64>,
 }
 
 /// PDF-specific metadata

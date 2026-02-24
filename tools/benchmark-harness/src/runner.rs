@@ -204,6 +204,7 @@ impl BenchmarkRunner {
                                 system_deps_bytes: fs.system_deps_bytes,
                                 method: fs.method,
                                 description: fs.description,
+                                system_deps_detail: fs.system_deps_detail,
                             },
                         )
                     })

@@ -30,6 +30,10 @@ pub struct FrameworkSize {
     /// If we cannot measure a size, we return an error instead of an estimate.
     #[serde(default)]
     pub estimated: bool,
+    /// Breakdown of system dependency sizes by package name.
+    /// Populated when runtime measurement via dpkg-query succeeds.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub system_deps_detail: HashMap<String, u64>,
 }
 
 /// Framework size measurement results
@@ -62,42 +66,180 @@ const FRAMEWORKS: &[(&str, &str, &str)] = &[
     ("pdftotext", "pip_package", "pdftotext poppler Python binding"),
 ];
 
-/// Known system dependency sizes (in bytes) for frameworks that require
-/// OS-level packages (libreoffice, tesseract, ffmpeg, etc.).
-/// Sizes are approximate installed sizes on Linux (Ubuntu/Debian amd64).
-fn system_deps_bytes(framework: &str) -> u64 {
+/// System packages required by each framework.
+/// Used for both runtime measurement (dpkg-query) and fallback estimation.
+/// Package names are Debian/Ubuntu amd64 package names.
+const SYSTEM_PACKAGES: &[(&str, &[&str])] = &[
+    // pdftotext requires the full poppler shared library chain + rendering deps.
+    // The Python binding (pdftotext) calls libpoppler-cpp which transitively pulls
+    // in fontconfig, freetype, cairo, libjpeg, libpng, libtiff, openjpeg, lcms2.
+    (
+        "pdftotext",
+        &[
+            "poppler-utils",
+            "libpoppler-cpp-dev",
+            "libpoppler-cpp0v5",
+            "libpoppler-dev",
+            "libpoppler130",
+            "libfreetype6",
+            "libfontconfig1",
+            "libjpeg-turbo8",
+            "libpng16-16",
+            "libtiff6",
+            "libopenjp2-7",
+            "libcairo2",
+            "liblcms2-2",
+        ],
+    ),
+    // docling requires OpenGL (via OpenCV), GLib, and tesseract for OCR
+    (
+        "docling",
+        &[
+            "libgl1",
+            "libglib2.0-0",
+            "tesseract-ocr",
+            "tesseract-ocr-eng",
+            "liblept5",
+        ],
+    ),
+    // unstructured requires libreoffice, tesseract, pandoc, poppler, libmagic
+    (
+        "unstructured",
+        &[
+            "libreoffice-core",
+            "tesseract-ocr",
+            "tesseract-ocr-eng",
+            "pandoc",
+            "poppler-utils",
+            "libmagic1",
+        ],
+    ),
+    // markitdown requires ffmpeg and exiftool
+    ("markitdown", &["ffmpeg", "libimage-exiftool-perl"]),
+    // mineru requires OpenGL, GLib, fonts, and tesseract
+    (
+        "mineru",
+        &[
+            "libgl1",
+            "libglib2.0-0",
+            "fonts-noto-cjk",
+            "fonts-noto-core",
+            "fontconfig",
+            "tesseract-ocr",
+            "tesseract-ocr-eng",
+        ],
+    ),
+    // tika requires a JRE/JDK to run the JAR
+    ("tika", &["default-jre-headless"]),
+    // pymupdf4llm bundles MuPDF native libs (measured via pip-weigh, but
+    // the C library transitive deps are system-level)
+    ("pymupdf4llm", &["libmupdf-dev"]),
+    // pdfplumber depends on Pillow which needs imaging libs
+    (
+        "pdfplumber",
+        &[
+            "libjpeg-turbo8",
+            "libpng16-16",
+            "libtiff6",
+            "libfreetype6",
+            "zlib1g",
+        ],
+    ),
+];
+
+/// Fallback system dependency sizes (in bytes) when dpkg-query is unavailable.
+/// These are conservative estimates based on actual installed sizes on Ubuntu 22.04 amd64.
+fn system_deps_fallback_bytes(framework: &str) -> u64 {
     match framework {
-        // libreoffice ~300MB, tesseract-ocr+lang ~30MB, pandoc ~40MB,
-        // poppler-utils ~20MB, libmagic ~1MB
+        // poppler full chain: poppler-utils + libpoppler-cpp + shared libs
+        // (fontconfig, freetype, cairo, libjpeg, libpng, libtiff, openjpeg, lcms2)
+        "pdftotext" => 80_000_000,
+        // libgl1, libglib2.0-0, tesseract-ocr+eng, leptonica
+        "docling" => 45_000_000,
+        // libreoffice-core ~300MB, tesseract ~30MB, pandoc ~40MB, poppler ~20MB, libmagic ~1MB
         "unstructured" => 400_000_000,
         // ffmpeg ~100MB, exiftool ~25MB
         "markitdown" => 125_000_000,
-        // libgl1 ~1MB, fonts-noto-cjk ~88MB, fonts-noto-core ~10MB, fontconfig ~2MB
-        "mineru" => 101_000_000,
-        // libgl1 ~1MB, libglib2.0-0 ~4MB, tesseract-ocr+eng ~20MB
-        "docling" => 25_000_000,
-        // JRE/JDK ~200MB (required to run Tika JAR)
+        // libgl1, libglib2.0-0, fonts-noto-cjk ~88MB, fonts-noto-core ~10MB,
+        // fontconfig ~2MB, tesseract ~30MB
+        "mineru" => 131_000_000,
+        // JRE/JDK ~200MB
         "tika" => 200_000_000,
-        // poppler-utils ~20MB (required by pdftotext Python binding)
-        "pdftotext" => 20_000_000,
-        // PyMuPDF bundles MuPDF native libs ~30MB
+        // MuPDF native libs ~30MB
         "pymupdf4llm" => 30_000_000,
-        // pdfminer.six + Pillow native ~15MB
+        // Pillow imaging deps: libjpeg, libpng, libtiff, freetype, zlib
         "pdfplumber" => 15_000_000,
         _ => 0,
+    }
+}
+
+/// Measure system dependency sizes at runtime using dpkg-query.
+/// Returns (total_bytes, per_package_detail) on success, or falls back to
+/// hardcoded estimates if dpkg-query is unavailable (e.g., on macOS).
+fn measure_system_deps(framework: &str) -> (u64, HashMap<String, u64>) {
+    let packages = match SYSTEM_PACKAGES.iter().find(|(name, _)| *name == framework) {
+        Some((_, pkgs)) => *pkgs,
+        None => return (0, HashMap::new()),
+    };
+
+    // Try runtime measurement via dpkg-query (Debian/Ubuntu)
+    if let Some((total, detail)) = measure_system_deps_via_dpkg(packages) {
+        return (total, detail);
+    }
+
+    // Fall back to hardcoded estimates
+    (system_deps_fallback_bytes(framework), HashMap::new())
+}
+
+/// Query dpkg for installed sizes of the given packages.
+/// Returns None if dpkg-query is not available (non-Debian systems).
+fn measure_system_deps_via_dpkg(packages: &[&str]) -> Option<(u64, HashMap<String, u64>)> {
+    let mut detail = HashMap::new();
+    let mut total: u64 = 0;
+
+    for pkg in packages {
+        // dpkg-query -W -f='${Installed-Size}\n' reports size in KB
+        let output = Command::new("dpkg-query")
+            .args(["-W", "-f=${Installed-Size}\n", pkg])
+            .output()
+            .ok()?;
+
+        if !output.status.success() {
+            // Package not installed -- skip it but continue measuring others.
+            // This is expected: not all listed packages may be installed in every
+            // CI environment (e.g., pdftotext lists libpoppler130 which may be
+            // libpoppler131 on newer Ubuntu).
+            continue;
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if let Ok(kb) = stdout.trim().parse::<u64>() {
+            let bytes = kb * 1024;
+            detail.insert(pkg.to_string(), bytes);
+            total += bytes;
+        }
+    }
+
+    // Only return measured result if we found at least one package
+    if detail.is_empty() {
+        None
+    } else {
+        Some((total, detail))
     }
 }
 
 /// Measure framework sizes
 /// Returns sizes for all frameworks that can be measured.
 /// Frameworks that are not installed are silently skipped.
+/// System dependency sizes are measured at runtime via dpkg-query when available,
+/// falling back to hardcoded estimates on non-Debian systems.
 pub fn measure_framework_sizes() -> Result<FrameworkSizes> {
     let mut sizes = HashMap::new();
 
     for (name, method, description) in FRAMEWORKS {
         match measure_framework(name, method) {
             Ok(Some(pkg_size)) => {
-                let sys_size = system_deps_bytes(name);
+                let (sys_size, sys_detail) = measure_system_deps(name);
                 sizes.insert(
                     name.to_string(),
                     FrameworkSize {
@@ -107,6 +249,7 @@ pub fn measure_framework_sizes() -> Result<FrameworkSizes> {
                         method: method.to_string(),
                         description: description.to_string(),
                         estimated: false,
+                        system_deps_detail: sys_detail,
                     },
                 );
             }
@@ -131,7 +274,7 @@ pub fn measure_framework_sizes_strict() -> Result<FrameworkSizes> {
     for (name, method, description) in FRAMEWORKS {
         match measure_framework(name, method) {
             Ok(Some(pkg_size)) => {
-                let sys_size = system_deps_bytes(name);
+                let (sys_size, sys_detail) = measure_system_deps(name);
                 sizes.insert(
                     name.to_string(),
                     FrameworkSize {
@@ -141,6 +284,7 @@ pub fn measure_framework_sizes_strict() -> Result<FrameworkSizes> {
                         method: method.to_string(),
                         description: description.to_string(),
                         estimated: false,
+                        system_deps_detail: sys_detail,
                     },
                 );
             }
