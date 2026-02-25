@@ -95,7 +95,7 @@
 		"copy:pkg": "node scripts/copy-pkg.js",
 		"build": "npm run build:wasm:web && npm run fix:wasi && npm run build:ts && npm run copy:pkg",
 		"build:ci": "npm run build:wasm:web && npm run fix:wasi && npm run build:ts:minify && npm run copy:pkg",
-		"build:all": "npm run build:wasm:web && npm run fix:wasi && npm run build:wasm:bundler && npm run build:wasm:nodejs && npm run build:wasm:deno && npm run build:ts && npm run copy:pkg",
+		"build:all": "npm run build:wasm:web && npm run build:wasm:bundler && npm run build:wasm:nodejs && npm run build:wasm:deno && npm run fix:wasi && npm run build:ts && npm run copy:pkg",
 		"typecheck": "tsc --noEmit",
 		"lint": "biome check typescript && oxlint typescript",
 		"lint:fix": "biome check --write typescript",

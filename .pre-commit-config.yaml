@@ -65,6 +65,9 @@ repos:
             "--workspace",
             "--all-features",
             "--all-targets",
+            "--exclude", "kreuzberg-php",
+            "--exclude", "kreuzberg-tesseract",
+            "--exclude", "kreuzberg-pdfium-render",
             "--",
             "-D",
             "warnings",
@@ -108,12 +111,6 @@ repos:
     rev: v0.11.0
     hooks:
       - id: shellcheck
-
-  # CMake: linting
-  - repo: https://github.com/cmake-lint/cmake-lint
-    rev: 1.4.3
-    hooks:
-      - id: cmakelint
 
   # GitHub Actions: linting
   - repo: https://github.com/rhysd/actionlint

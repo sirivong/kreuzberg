@@ -101,16 +101,17 @@ describe("WASM Adapter", () => {
 				},
 				chunking: {
 					maxChars: 1000,
-					chunkOverlap: 100,
+					maxOverlap: 100,
 				},
 			};
 
 			const result = configToJS(config);
 
+			// configToJS converts camelCase keys to snake_case for Rust serde
 			expect(result.ocr).toEqual({ backend: "tesseract", language: "eng" });
 			expect(result.chunking).toEqual({
-				maxChars: 1000,
-				chunkOverlap: 100,
+				max_chars: 1000,
+				max_overlap: 100,
 			});
 		});
 
@@ -156,15 +157,16 @@ describe("WASM Adapter", () => {
 			const config: ExtractionConfig = {
 				chunking: {
 					maxChars: 1000,
-					chunkOverlap: 100,
+					maxOverlap: 100,
 				},
 			};
 
 			const result = configToJS(config);
 			const chunking = result.chunking as Record<string, unknown>;
 
-			expect(chunking.maxChars).toBe(1000);
-			expect(chunking.chunkOverlap).toBe(100);
+			// configToJS converts camelCase keys to snake_case for Rust serde
+			expect(chunking.max_chars).toBe(1000);
+			expect(chunking.max_overlap).toBe(100);
 		});
 
 		it("should preserve boolean values", () => {
@@ -177,7 +179,8 @@ describe("WASM Adapter", () => {
 			const result = configToJS(config as ExtractionConfig);
 			const images = result.images as Record<string, unknown>;
 
-			expect(images.extractImages).toBe(true);
+			// configToJS converts camelCase keys to snake_case for Rust serde
+			expect(images.extract_images).toBe(true);
 		});
 	});
 
