@@ -41,3 +41,39 @@ test_that("extraction_config serializes to JSON", {
   expect_true(parsed$force_ocr)
   expect_equal(parsed$output_format, "markdown")
 })
+
+test_that("config builders accept extra arguments", {
+  config <- extraction_config(custom_field = "value")
+  expect_equal(config$custom_field, "value")
+
+  config <- ocr_config(custom_option = TRUE)
+  expect_true(config$custom_option)
+
+  config <- chunking_config(strategy = "semantic")
+  expect_equal(config$strategy, "semantic")
+})
+
+# --- Input validation tests ---
+
+test_that("ocr_config validates dpi is positive", {
+  expect_error(ocr_config(dpi = -100), "dpi must be a positive")
+  expect_error(ocr_config(dpi = 0), "dpi must be a positive")
+})
+
+test_that("chunking_config validates max_characters is positive", {
+  expect_error(chunking_config(max_characters = -1), "max_characters must be a positive")
+  expect_error(chunking_config(max_characters = 0), "max_characters must be a positive")
+})
+
+test_that("chunking_config validates overlap is non-negative", {
+  expect_error(chunking_config(overlap = -1), "overlap must be non-negative")
+})
+
+test_that("ocr_config validates backend is character", {
+  expect_error(ocr_config(backend = 123))
+})
+
+test_that("from_file validates path argument", {
+  expect_error(from_file(123))
+  expect_error(from_file(c("a", "b")))
+})

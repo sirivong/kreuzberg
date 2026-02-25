@@ -36,7 +36,7 @@ pub fn cache_stats_impl() -> extendr_api::Result<List> {
         (total_entries as i32).into_robj(),
         (total_bytes.round() as i64).into_robj(),
     ];
-    Ok(List::from_names_and_values(names, values).unwrap())
+    List::from_names_and_values(names, values).map_err(to_r_error)
 }
 
 fn cache_root_dir() -> std::path::PathBuf {

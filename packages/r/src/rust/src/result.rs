@@ -8,7 +8,7 @@ use extendr_api::prelude::*;
 pub fn extraction_result_to_list(result: kreuzberg::ExtractionResult) -> extendr_api::Result<List> {
     // Serialize to JSON then convert to R objects
     let json_value = serde_json::to_value(&result).map_err(to_r_error)?;
-    let robj = json_to_robj(&json_value);
+    let robj = json_to_robj(&json_value)?;
 
     // Convert to list and add class attribute
     let list = List::try_from(robj).map_err(to_r_error)?;

@@ -1,6 +1,6 @@
 //! R list -> ExtractionConfig conversion
 
-use crate::error::to_r_error;
+use crate::error::{kreuzberg_error, to_r_error};
 use extendr_api::prelude::*;
 
 /// Parse a JSON config string into an ExtractionConfig
@@ -17,14 +17,14 @@ pub fn parse_config(config_json: Nullable<&str>) -> extendr_api::Result<kreuzber
 
 /// Load an ExtractionConfig from a file (TOML, YAML, or JSON)
 pub fn from_file_impl(path: &str) -> extendr_api::Result<Nullable<String>> {
-    let config = kreuzberg::ExtractionConfig::from_file(path).map_err(to_r_error)?;
+    let config = kreuzberg::ExtractionConfig::from_file(path).map_err(kreuzberg_error)?;
     let json = serde_json::to_string(&config).map_err(to_r_error)?;
     Ok(Nullable::NotNull(json))
 }
 
 /// Discover an ExtractionConfig from kreuzberg.toml in current or parent directories
 pub fn discover_impl() -> extendr_api::Result<Nullable<String>> {
-    match kreuzberg::ExtractionConfig::discover().map_err(to_r_error)? {
+    match kreuzberg::ExtractionConfig::discover().map_err(kreuzberg_error)? {
         Some(config) => {
             let json = serde_json::to_string(&config).map_err(to_r_error)?;
             Ok(Nullable::NotNull(json))

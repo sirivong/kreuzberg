@@ -48,5 +48,32 @@ export(validate_mime_type)
 export(clear_cache)
 export(cache_stats)
 
-# Result
+# Validation
+export(validate_ocr_backend_name)
+export(validate_language_code)
+export(validate_output_format)
+
+# Result S3 class
+export(as_kreuzberg_result)
 export(print.kreuzberg_result)
+export(summary.kreuzberg_result)
+export(format.kreuzberg_result)
+
+# S3 generics
+export(content)
+export(mime_type)
+export(page_count)
+export(chunk_count)
+export(detected_language)
+export(metadata_field)
+
+# S3 method registrations
+S3method(print, kreuzberg_result)
+S3method(summary, kreuzberg_result)
+S3method(format, kreuzberg_result)
+S3method(content, kreuzberg_result)
+S3method(mime_type, kreuzberg_result)
+S3method(page_count, kreuzberg_result)
+S3method(chunk_count, kreuzberg_result)
+S3method(detected_language, kreuzberg_result)
+S3method(metadata_field, kreuzberg_result)

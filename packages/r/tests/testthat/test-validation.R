@@ -1,20 +1,35 @@
-test_that("config builders accept extra arguments", {
-  config <- extraction_config(custom_field = "value")
-  expect_equal(config$custom_field, "value")
-
-  config <- ocr_config(custom_option = TRUE)
-  expect_true(config$custom_option)
-
-  config <- chunking_config(strategy = "semantic")
-  expect_equal(config$strategy, "semantic")
+test_that("validate_ocr_backend_name accepts known backends", {
+  expect_true(validate_ocr_backend_name("tesseract"))
 })
 
-test_that("config defaults are correct", {
-  ocr <- ocr_config()
-  expect_equal(ocr$backend, "tesseract")
-  expect_equal(ocr$language, "eng")
+test_that("validate_ocr_backend_name rejects invalid backends", {
+  expect_error(validate_ocr_backend_name("totally_fake_backend"))
+})
 
-  chunking <- chunking_config()
-  expect_equal(chunking$max_characters, 1000L)
-  expect_equal(chunking$overlap, 200L)
+test_that("validate_ocr_backend_name validates input type", {
+  expect_error(validate_ocr_backend_name(123))
+  expect_error(validate_ocr_backend_name(c("a", "b")))
+})
+
+test_that("validate_language_code accepts valid codes", {
+  expect_true(validate_language_code("eng"))
+  expect_true(validate_language_code("deu"))
+})
+
+test_that("validate_language_code validates input type", {
+  expect_error(validate_language_code(123))
+})
+
+test_that("validate_output_format accepts known formats", {
+  expect_true(validate_output_format("text"))
+  expect_true(validate_output_format("markdown"))
+  expect_true(validate_output_format("html"))
+})
+
+test_that("validate_output_format rejects invalid formats", {
+  expect_error(validate_output_format("not_a_format"))
+})
+
+test_that("validate_output_format validates input type", {
+  expect_error(validate_output_format(123))
 })

@@ -6,6 +6,9 @@
 #' @return A \code{kreuzberg_result} object.
 #' @export
 extract_file_sync <- function(path, mime_type = NULL, config = NULL) {
+  stopifnot(is.character(path), length(path) == 1L)
+  if (!file.exists(path)) stop("File not found: ", path, call. = FALSE)
+  if (!is.null(mime_type)) stopifnot(is.character(mime_type), length(mime_type) == 1L)
   config_json <- if (!is.null(config)) jsonlite::toJSON(config, auto_unbox = TRUE) else NULL
   result <- check_native_result(extract_file_sync_native(path, mime_type, config_json))
   as_kreuzberg_result(result)
@@ -19,6 +22,9 @@ extract_file_sync <- function(path, mime_type = NULL, config = NULL) {
 #' @return A \code{kreuzberg_result} object.
 #' @export
 extract_file <- function(path, mime_type = NULL, config = NULL) {
+  stopifnot(is.character(path), length(path) == 1L)
+  if (!file.exists(path)) stop("File not found: ", path, call. = FALSE)
+  if (!is.null(mime_type)) stopifnot(is.character(mime_type), length(mime_type) == 1L)
   config_json <- if (!is.null(config)) jsonlite::toJSON(config, auto_unbox = TRUE) else NULL
   result <- check_native_result(extract_file_native(path, mime_type, config_json))
   as_kreuzberg_result(result)
@@ -32,6 +38,8 @@ extract_file <- function(path, mime_type = NULL, config = NULL) {
 #' @return A \code{kreuzberg_result} object.
 #' @export
 extract_bytes_sync <- function(data, mime_type, config = NULL) {
+  stopifnot(is.raw(data))
+  stopifnot(is.character(mime_type), length(mime_type) == 1L)
   config_json <- if (!is.null(config)) jsonlite::toJSON(config, auto_unbox = TRUE) else NULL
   result <- check_native_result(extract_bytes_sync_native(data, mime_type, config_json))
   as_kreuzberg_result(result)
@@ -45,6 +53,8 @@ extract_bytes_sync <- function(data, mime_type, config = NULL) {
 #' @return A \code{kreuzberg_result} object.
 #' @export
 extract_bytes <- function(data, mime_type, config = NULL) {
+  stopifnot(is.raw(data))
+  stopifnot(is.character(mime_type), length(mime_type) == 1L)
   config_json <- if (!is.null(config)) jsonlite::toJSON(config, auto_unbox = TRUE) else NULL
   result <- check_native_result(extract_bytes_native(data, mime_type, config_json))
   as_kreuzberg_result(result)
