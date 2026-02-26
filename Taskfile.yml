@@ -27,6 +27,8 @@ includes:
     taskfile: .task/languages/elixir.yml
   r:
     taskfile: .task/languages/r.yml
+  c:
+    taskfile: .task/languages/c.yml
 
   _build_wf:
     taskfile: .task/workflows/build.yml
@@ -89,6 +91,7 @@ tasks:
       - task: csharp:install
       - task: php:install
       - task: r:install
+      - task: c:install
       - echo "Setup complete - safe to re-run anytime"
 
   build:
@@ -103,6 +106,7 @@ tasks:
       - task: php:build
       - task: elixir:build
       - task: r:build
+      - task: c:build
 
   test:
     desc: Run test suites for all languages (in parallel)
@@ -118,6 +122,7 @@ tasks:
       - task: elixir:test
       - task: r:test
       - task: wasm:test
+      - task: c:test
 
   check:
     desc: Run all linting and formatting checks via prek
@@ -149,6 +154,8 @@ tasks:
       - task: elixir:update
       - echo "Updating R dependencies..."
       - task: r:update
+      - echo "Updating C dependencies..."
+      - task: c:update
       - echo "Updating prek dependencies..."
       - prek autoupdate
       - echo "All dependencies updated"
@@ -167,6 +174,7 @@ tasks:
       - task: elixir:clean
       - task: r:clean
       - task: wasm:clean
+      - task: c:clean
 
   build:all:
     desc: Build all bindings across all languages

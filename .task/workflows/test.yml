@@ -15,6 +15,7 @@ tasks:
       - task: php:test
       - task: elixir:test
       - task: r:test
+      - task: c:test
 
   all:parallel:
     desc: Run all tests in parallel (using deps)
@@ -30,6 +31,7 @@ tasks:
       - task: php:test
       - task: elixir:test
       - task: r:test
+      - task: c:test
 
   all:ci:
     desc: Run all tests in CI mode (with extra diagnostics)
@@ -45,6 +47,7 @@ tasks:
       - task: php:test
       - task: elixir:test:ci
       - task: r:test:ci
+      - task: c:test:ci
 
   quick:
     desc: Run quick test subset (Rust + Python only)
@@ -93,11 +96,12 @@ tasks:
       - task: wasm:test
 
   systems:
-    desc: Test systems languages (Rust, Go, C#)
+    desc: Test systems languages (Rust, Go, C#, C)
     cmds:
       - task: rust:test
       - task: go:test
       - task: csharp:test
+      - task: c:test
 
   systems:ci:
     desc: Test systems languages in CI mode
@@ -105,6 +109,7 @@ tasks:
       - task: rust:test:ci
       - task: go:test:ci
       - task: csharp:test:ci
+      - task: c:test:ci
 
   jvm-bindings:
     desc: Test JVM-dependent bindings (Java, C#, Ruby, PHP)

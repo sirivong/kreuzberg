@@ -16,6 +16,7 @@ tasks:
       - task: php:e2e:generate
       - task: elixir:e2e:generate
       - task: r:e2e:generate
+      - task: c:e2e:generate
 
   test:all:
     desc: Run all E2E tests across all supported languages
@@ -31,6 +32,7 @@ tasks:
       - task: ruby:e2e:test
       - task: php:e2e:test
       - task: r:e2e:test
+      - task: c:e2e:test
 
   verify:all:
     desc: Full E2E pipeline - generate, lint, and test all suites
@@ -53,6 +55,7 @@ tasks:
       - task: ruby:e2e:lint
       - task: php:e2e:lint
       - task: r:e2e:lint
+      - task: c:e2e:lint
 
   rust:generate:
     desc: Generate Rust E2E tests from fixtures
@@ -248,11 +251,12 @@ tasks:
       - task: go:e2e:verify
 
   systems:
-    desc: E2E test systems languages (Rust, Go, C#)
+    desc: E2E test systems languages (Rust, Go, C#, C)
     cmds:
       - task: rust:e2e:test
       - task: go:e2e:test
       - task: csharp:e2e:test
+      - task: c:e2e:test
 
   systems:verify:
     desc: Full systems E2E pipeline (generate + test)
@@ -260,6 +264,7 @@ tasks:
       - task: rust:e2e:verify
       - task: go:e2e:verify
       - task: csharp:e2e:verify
+      - task: c:e2e:verify
 
   jvm:
     desc: E2E test JVM languages (Java, C#, PHP)
@@ -330,3 +335,25 @@ tasks:
       - task: r:e2e:generate
       - task: r:e2e:lint
       - task: r:e2e:test
+
+  c:generate:
+    desc: Generate C E2E tests from fixtures
+    cmds:
+      - task: c:e2e:generate
+
+  c:lint:
+    desc: Lint C E2E code
+    cmds:
+      - task: c:e2e:lint
+
+  c:test:
+    desc: Run C E2E tests
+    cmds:
+      - task: c:e2e:test
+
+  c:verify:
+    desc: Full C E2E pipeline (generate + lint + test)
+    cmds:
+      - task: c:e2e:generate
+      - task: c:e2e:lint
+      - task: c:e2e:test

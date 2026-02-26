@@ -16,6 +16,7 @@ tasks:
       - task: php:build
       - task: elixir:build
       - task: r:build
+      - task: c:build
 
   all:dev:
     desc: Build all bindings in debug mode
@@ -32,6 +33,7 @@ tasks:
       - task: php:build:dev
       - task: elixir:build:dev
       - task: r:build:dev
+      - task: c:build:dev
 
   all:release:
     desc: Build all bindings in release mode (optimized)
@@ -48,6 +50,7 @@ tasks:
       - task: php:build:release
       - task: elixir:build:release
       - task: r:build:release
+      - task: c:build:release
 
   all:ci:
     desc: Build all bindings in CI mode
@@ -64,6 +67,7 @@ tasks:
       - task: php:build:ci
       - task: elixir:build:ci
       - task: r:build:ci
+      - task: c:build:ci
 
   cli-only:
     desc: Build Rust CLI only
@@ -177,12 +181,13 @@ tasks:
       - task: python:build:release
 
   systems:
-    desc: Build systems languages (Rust, Go, C#)
+    desc: Build systems languages (Rust, Go, C#, C)
     cmds:
       - task: rust:build
       - task: rust:ffi:build
       - task: go:build
       - task: csharp:build
+      - task: c:build
 
   systems:dev:
     desc: Build systems languages in debug mode
@@ -191,6 +196,7 @@ tasks:
       - task: rust:ffi:build:dev
       - task: go:build:dev
       - task: csharp:build:dev
+      - task: c:build:dev
 
   systems:release:
     desc: Build systems languages in release mode
@@ -199,6 +205,7 @@ tasks:
       - task: rust:ffi:build:release
       - task: go:build:release
       - task: csharp:build:release
+      - task: c:build:release
 
   web:
     desc: Build web-focused bindings (Node.js, WASM, Python)
