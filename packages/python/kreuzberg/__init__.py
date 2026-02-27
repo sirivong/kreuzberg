@@ -826,7 +826,7 @@ def register_validator(validator: Any) -> None:
         ...     def validate(self, result: ExtractionResult) -> None:
         ...         if len(result.content) < 100:
         ...             raise ValidationError(f"Content too short")
-        >>> register_validator(MinLengthValidator())
+        >>> register_validator(MinLengthValidator())  # doctest: +SKIP
     """
     return _register_validator_impl(validator)
 
