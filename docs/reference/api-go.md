@@ -1,4 +1,4 @@
-# Go API Reference <span class="version-badge">v4.0.0</span>
+# Go API Reference <span class="version-badge">v4.4.0</span>
 
 Complete reference for the Kreuzberg Go bindings using cgo to access the Rust-powered extraction pipeline.
 
@@ -43,7 +43,7 @@ When building outside the monorepo, provide the static library via `CGO_LDFLAGS`
 
 ```bash title="Terminal"
 # Option 1: Download pre-built from GitHub Releases
-curl -LO https://github.com/kreuzberg-dev/kreuzberg/releases/download/v4.3.8/go-ffi-linux-x86_64.tar.gz
+curl -LO https://github.com/kreuzberg-dev/kreuzberg/releases/download/v4.4.0/go-ffi-linux-x86_64.tar.gz
 tar -xzf go-ffi-linux-x86_64.tar.gz
 mkdir -p ~/kreuzberg/lib
 cp kreuzberg-ffi/lib/libkreuzberg_ffi.a ~/kreuzberg/lib/
@@ -462,7 +462,7 @@ func LibraryVersion() string
 
 **Returns:**
 
-- `string`: Version string (e.g., "4.3.8")
+- `string`: Version string (e.g., "4.4.0")
 
 **Example:**
 

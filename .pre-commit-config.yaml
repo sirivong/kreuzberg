@@ -67,6 +67,14 @@ repos:
             "--allow-staged",
             "--workspace",
             "--exclude=kreuzberg-php",
+            "--exclude=kreuzberg-py",
+            "--exclude=kreuzberg-node",
+            "--exclude=kreuzberg-wasm",
+            "--exclude=kreuzberg_rustler",
+            "--exclude=benchmark-harness",
+            "--exclude=kreuzberg-e2e-generator",
+            "--exclude=snippet-runner",
+            "--exclude=kreuzberg-e2e-rust",
             "--all-features",
             "--all-targets",
             "--",
@@ -74,9 +82,35 @@ repos:
             "warnings",
           ]
         - id: cargo-doc
-          args: [ "--no-deps", "--document-private-items" ]
+          args: [
+            "--no-deps",
+            "--document-private-items",
+            "--workspace",
+            "--exclude=kreuzberg-php",
+            "--exclude=kreuzberg-py",
+            "--exclude=kreuzberg-node",
+            "--exclude=kreuzberg-wasm",
+            "--exclude=kreuzberg_rustler",
+            "--exclude=benchmark-harness",
+            "--exclude=kreuzberg-e2e-generator",
+            "--exclude=snippet-runner",
+            "--exclude=kreuzberg-e2e-rust",
+          ]
         - id: cargo-fix
-          args: [ "--allow-dirty", "--allow-staged" ]
+          args: [
+            "--allow-dirty",
+            "--allow-staged",
+            "--workspace",
+            "--exclude=kreuzberg-php",
+            "--exclude=kreuzberg-py",
+            "--exclude=kreuzberg-node",
+            "--exclude=kreuzberg-wasm",
+            "--exclude=kreuzberg_rustler",
+            "--exclude=benchmark-harness",
+            "--exclude=kreuzberg-e2e-generator",
+            "--exclude=snippet-runner",
+            "--exclude=kreuzberg-e2e-rust",
+          ]
 
   - repo: https://github.com/bnjbvr/cargo-machete
     rev: v0.9.1

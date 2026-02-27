@@ -1,4 +1,4 @@
-# Java API Reference <span class="version-badge">v4.0.0</span>
+# Java API Reference <span class="version-badge">v4.4.0</span>
 
 Complete reference for the Kreuzberg Java bindings using Java 25+ Foreign Function & Memory API (FFM/Panama).
 
@@ -10,7 +10,7 @@ Add the dependency to your Maven `pom.xml`:
 <dependency>
     <groupId>dev.kreuzberg</groupId>
     <artifactId>kreuzberg</artifactId>
-    <version>4.3.8</version>
+    <version>4.4.0</version>
 </dependency>
 ```
 
@@ -18,7 +18,7 @@ Or with Gradle:
 
 ```gradle title="build.gradle"
 dependencies {
-    implementation 'dev.kreuzberg:kreuzberg:4.3.8'
+    implementation 'dev.kreuzberg:kreuzberg:4.4.0'
 }
 ```
 

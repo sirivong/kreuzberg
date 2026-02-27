@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [4.4.0]
 
 ### Added
 
@@ -45,6 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **WASM metadata serialization**: Fixed `#[serde(flatten)]` with internally-tagged enums dropping `format_type` and format-specific metadata fields. Switched from `serde_wasm_bindgen` to `serde_json` + `JSON.parse()` for output serialization.
 - **WASM config deserialization**: Fixed camelCase TypeScript config keys (e.g. `outputFormat`, `extractAnnotations`) not being recognized by Rust serde. Config keys are now converted to snake_case before passing to the WASM boundary.
 - **WASM PDFium module loading**: Fixed `copy-pkg.js` overwriting the real PDFium Emscripten module with a stub init helper. The build script now locates and copies the actual PDFium ESM module (`pdfium.esm.js` + `pdfium.esm.wasm`) from the Cargo build output, with a Deno compatibility fix for bare `import("module")`.
+- **Email header extraction loses display names**: EML and MSG parsers extracted only bare email addresses, discarding sender/recipient display names. From, To, CC, and BCC fields now use `"Display Name" <email@example.com>` format when a display name is available.
+- **Email date header normalized to RFC 3339**: The EML parser always converted dates to RFC 3339 format, losing the original date string. Now preserves the raw `Date` header value and only falls back to RFC 3339 normalization when the raw header is unavailable.
+- **Docker builds fail due to missing snippet-runner exclusion**: The `sed` command in `Dockerfile.cli`, `Dockerfile.core`, and `Dockerfile.full` did not remove the `snippet-runner` workspace member, causing build failures when the crate directory was not COPY'd into the build context.
+- **WASM Deno e2e tests skip OCR fixtures**: Generated Deno test files called `initWasm()` but never called `enableOcr()`, so the Tesseract OCR backend was never registered and all OCR tests silently skipped. The e2e generator now calls `enableOcr()` after `initWasm()` in every generated test file.
+- **WASM Deno e2e tests ignore pages config**: The `buildConfig()` helper in generated Deno tests did not map the `pages` extraction config (page markers, page extraction), causing tests with page-related assertions to use defaults. Added `mapPageConfig()` to the test helper template.
 
 ### Removed
 
