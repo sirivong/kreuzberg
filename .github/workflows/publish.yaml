@@ -1349,7 +1349,7 @@ jobs:
           - os: windows-latest
             label: windows-x86_64
             target: x86_64-pc-windows-gnu
-            build_features: core
+            build_features: ""
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -2202,7 +2202,7 @@ jobs:
           - os: windows-latest
             label: windows-x86_64
             target: x86_64-pc-windows-gnu
-            build_features: core
+            build_features: ""
     steps:
       - name: Checkout
         uses: actions/checkout@v4
