@@ -385,8 +385,12 @@ Main configuration class for extraction operations.
   for custom text processing. `None` = use defaults. Default: `None`
 - `max_concurrent_extractions` (`int | None`): Maximum concurrent extractions
   in batch operations. `None` = `num_cpus * 2`. Default: `None`
+- `security_limits` (`dict[str, int] | None`): Security limits for archive extraction
+  (e.g., `{"max_archive_size": 500000000}`). `None` = use defaults. Default: `None`
 - `html_options` (`HtmlConversionOptions | None`): HTML conversion options for
   converting documents to markdown. Default: `None`
+- `include_document_structure` (`bool`): Extract the hierarchical document structure
+  and populate the `document` field in the result. Default: `False`
 - `result_format` (`str`): Result format for extraction output.
   Specifies whether results use unified format (all content in `content` field)
   or element-based format (with semantic elements for Unstructured-compatible output).
@@ -446,7 +450,7 @@ ocr_config = OcrConfig(backend="tesseract", language="eng")
 ```python title="with_ocr.py"
 from kreuzberg import OcrConfig
 
-ocr_config = OcrConfig(backend="easyocr", language="en")
+ocr_config = OcrConfig(backend="easyocr", language="eng")
 ```
 
 ---
@@ -687,6 +691,12 @@ class ExtractionResult:
     pages: list[PageContent] | None
     elements: list[Element] | None
     djot_content: DjotContent | None
+    ocr_elements: list[OcrElement] | None
+    document: DocumentStructure | None
+    extracted_keywords: list[Keyword] | None
+    quality_score: float | None
+    processing_warnings: list[ProcessingWarning]
+    annotations: list[PdfAnnotation] | None
     output_format: str | None
     result_format: str | None
     def get_page_count(self) -> int: ...
@@ -707,6 +717,12 @@ class ExtractionResult:
 - `pages` (list[PageContent] | None): Per-page extracted content when page extraction is enabled via `PageConfig.extract_pages = true`
 - `elements` (list[Element] | None): Semantic elements when `result_format="element_based"`
 - `djot_content` (DjotContent | None): Structured djot content when `output_format="djot"`
+- `ocr_elements` (list[OcrElement] | None): OCR elements with bounding geometry and confidence
+- `document` (DocumentStructure | None): Hierarchical document tree when `include_document_structure` is True
+- `extracted_keywords` (list[Keyword] | None): Extracted keywords (RAKE/YAKE algorithms)
+- `quality_score` (float | None): Document quality score (0.0 to 1.0) indicating text quality
+- `processing_warnings` (list[ProcessingWarning]): Non-fatal pipeline warnings
+- `annotations` (list[PdfAnnotation] | None): PDF annotations (highlights, stamps, text notes)
 - `output_format` (str | None): Requested output format (`"plain"`, `"markdown"`, `"djot"`, `"html"`)
 - `result_format` (str | None): Result layout (`"unified"` or `"element_based"`)
 
