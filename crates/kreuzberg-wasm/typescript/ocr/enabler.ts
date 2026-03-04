@@ -11,7 +11,8 @@ import { isInitialized } from "../extraction/internal.js";
 import { getWasmModule } from "../initialization/state.js";
 import { registerOcrBackend } from "../ocr/registry.js";
 import { TesseractWasmBackend } from "../ocr/tesseract-wasm-backend.js";
-import { isBrowser } from "../runtime.js";
+import { createOcrWorker, runOcrInWorker, terminateOcrWorker } from "../ocr/worker-bridge.js";
+import { isBrowser, isNode } from "../runtime.js";
 import type { OcrBackendProtocol } from "../types.js";
 
 /** Default CDN URL for tessdata files (Tesseract fast models) */
@@ -87,11 +88,41 @@ class NativeWasmOcrBackend implements OcrBackendProtocol {
 				"Native WASM OCR is not available. Build with the 'ocr-wasm' feature to enable kreuzberg-tesseract.",
 			);
 		}
+
+		// Resolve path to the WASM glue module for the worker thread
+		let wasmGluePath: string;
+		let wasmBinary: Uint8Array | undefined;
+
+		if (isNode()) {
+			const nodePath = await import(/* @vite-ignore */ "node:path");
+			const nodeUrl = await import(/* @vite-ignore */ "node:url");
+			const nodeFs = await import(/* @vite-ignore */ "node:fs/promises");
+			const __dirname = nodePath.dirname(nodeUrl.fileURLToPath(import.meta.url));
+			wasmGluePath = nodePath.join(__dirname, "..", "pkg", "kreuzberg_wasm.js");
+			try {
+				const wasmPath = nodePath.join(__dirname, "..", "pkg", "kreuzberg_wasm_bg.wasm");
+				const buf = await nodeFs.readFile(wasmPath);
+				wasmBinary = new Uint8Array(buf);
+			} catch {
+				// Binary will be loaded by glue code's default() fetch
+			}
+		} else {
+			wasmGluePath = new URL("../pkg/kreuzberg_wasm.js", import.meta.url).href;
+		}
+
+		// Direct (blocking) fallback for when workers are unavailable
+		const directFallback = (imageData: Uint8Array, tessdata: Uint8Array, language: string): string => {
+			if (!wasm.ocrRecognize) throw new Error("ocrRecognize not available");
+			return wasm.ocrRecognize(imageData, tessdata, language);
+		};
+
+		await createOcrWorker(wasmGluePath, wasmBinary, directFallback);
 	}
 
 	async shutdown(): Promise<void> {
 		this.tessdataCache.clear();
 		this.progressCallback = null;
+		await terminateOcrWorker();
 	}
 
 	setProgressCallback(callback: (progress: number) => void): void {
@@ -107,11 +138,6 @@ class NativeWasmOcrBackend implements OcrBackendProtocol {
 		metadata: Record<string, unknown>;
 		tables: unknown[];
 	}> {
-		const wasm = getWasmModule();
-		if (!wasm?.ocrRecognize) {
-			throw new Error("Native WASM OCR function not available");
-		}
-
 		const normalizedLang = language.toLowerCase();
 
 		this.reportProgress(10);
@@ -135,8 +161,9 @@ class NativeWasmOcrBackend implements OcrBackendProtocol {
 
 		this.reportProgress(50);
 
-		// Call native WASM OCR (image decoding + tesseract, all in Rust)
-		const text = wasm.ocrRecognize(imageData, tessdata, normalizedLang);
+		// Run OCR in a worker thread to avoid blocking the main event loop.
+		// Falls back to direct (blocking) call if workers are unavailable.
+		const text = await runOcrInWorker(imageData, tessdata, normalizedLang);
 
 		this.reportProgress(90);
 

@@ -103,7 +103,7 @@ const MIME_MAP: Record<string, string> = {
 	".zip": "application/zip",
 	".tar": "application/x-tar",
 	".gz": "application/gzip",
-	".tgz": "application/x-tar",
+	".tgz": "application/gzip",
 	".7z": "application/x-7z-compressed",
 };
 

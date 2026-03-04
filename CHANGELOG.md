@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **WASM OCR blocking event loop**: The `ocrRecognize()` function in the WASM package was running synchronously on the main thread, blocking the Node.js event loop during image decoding and Tesseract OCR processing. This prevented timeouts and other async operations from firing while OCR was in progress. OCR now runs in a worker thread (Node.js `worker_threads` / browser `Web Worker`), keeping the main thread responsive.
+
 ### Added
 
 - **OMML-to-LaTeX math conversion for DOCX**: Mathematical equations in DOCX files (Office Math Markup Language) are now converted to LaTeX notation instead of being rendered as concatenated Unicode text. Supports superscripts, subscripts, fractions (`\frac`), radicals (`\sqrt`), n-ary operators (`\sum`, `\int`), delimiters, function names, accents, equation arrays, limits, bars, border boxes, matrices, and pre-sub-superscripts. Display math uses `$$...$$` and inline math uses `$...$` in markdown output. Plain text output includes raw LaTeX without delimiters.

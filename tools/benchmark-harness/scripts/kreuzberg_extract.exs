@@ -81,7 +81,16 @@ defmodule KreuzbergExtract do
   """
   def determine_ocr_used(metadata, ocr_enabled) do
     format_type = cond do
-      is_map(metadata) -> Map.get(metadata, "format_type", Map.get(metadata, :format_type, ""))
+      is_map(metadata) ->
+        # Check root level first (flat metadata from Rust JSON)
+        root = Map.get(metadata, "format_type", Map.get(metadata, :format_type, nil))
+        if root do
+          root
+        else
+          # struct_to_map/1 nests format fields under "format" key — check there too
+          fmt = Map.get(metadata, "format", Map.get(metadata, :format, nil))
+          if is_map(fmt), do: Map.get(fmt, "format_type", Map.get(fmt, :format_type, "")), else: ""
+        end
       true -> ""
     end
 

@@ -99,8 +99,11 @@ export async function batchExtractBytes(
 /**
  * Batch extract content from multiple byte arrays synchronously
  *
- * Synchronous version of batchExtractBytes. Extracts content from multiple documents
- * in a single batch operation without async operations.
+ * Synchronous version of {@link batchExtractBytes}. Extracts content from multiple
+ * documents in a single batch operation without async/await.
+ *
+ * **Note:** This function blocks the current thread until all extractions complete.
+ * For large batches, prefer the async {@link batchExtractBytes} function.
  *
  * @param files - Array of objects containing data (Uint8Array) and mimeType (string)
  * @param config - Optional extraction configuration applied to all files
@@ -110,8 +113,8 @@ export async function batchExtractBytes(
  * @example
  * ```typescript
  * const files = [
- *   { data: pdfBytes, mimeType: 'application/pdf' },
- *   { data: docxBytes, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }
+ *   { data: txtBytes, mimeType: 'text/plain' },
+ *   { data: htmlBytes, mimeType: 'text/html' }
  * ];
  * const results = batchExtractBytesSync(files);
  * results.forEach((result) => console.log(result.content));

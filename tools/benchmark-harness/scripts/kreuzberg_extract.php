@@ -67,7 +67,7 @@ function parseRequest(string $line): array
 function determine_ocr_used(array|object $metadata, bool $ocrEnabled): bool
 {
     $meta = (array)$metadata;
-    $formatType = $meta['format_type'] ?? '';
+    $formatType = $meta['format_type'] ?? $meta['formatType'] ?? '';
     if ($formatType === 'ocr') {
         return true;
     }

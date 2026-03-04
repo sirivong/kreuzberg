@@ -16,6 +16,7 @@ use crate::Result;
 use crate::adapters::subprocess::SubprocessAdapter;
 use std::env;
 use std::path::{Path, PathBuf};
+use std::time::Duration;
 
 /// Get supported formats for Kreuzberg bindings
 /// Kreuzberg supports 50+ document, text, data, and image formats
@@ -587,13 +588,10 @@ pub fn create_wasm_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
     args.push("server".to_string());
 
     let supported_formats = get_kreuzberg_wasm_supported_formats();
-    Ok(SubprocessAdapter::with_persistent_mode(
-        "kreuzberg-wasm",
-        command,
-        args,
-        vec![],
-        supported_formats,
-    ))
+    Ok(
+        SubprocessAdapter::with_persistent_mode("kreuzberg-wasm", command, args, vec![], supported_formats)
+            .with_max_timeout(Duration::from_secs(180)),
+    )
 }
 
 /// Create WASM batch adapter (Promise.all extractFile via @kreuzberg/wasm)
@@ -606,13 +604,10 @@ pub fn create_wasm_batch_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter>
     args.push("batch".to_string());
 
     let supported_formats = get_kreuzberg_wasm_supported_formats();
-    Ok(SubprocessAdapter::with_batch_support(
-        "kreuzberg-wasm-batch",
-        command,
-        args,
-        vec![],
-        supported_formats,
-    ))
+    Ok(
+        SubprocessAdapter::with_batch_support("kreuzberg-wasm-batch", command, args, vec![], supported_formats)
+            .with_max_timeout(Duration::from_secs(180)),
+    )
 }
 
 /// Create Ruby adapter (persistent server mode)

@@ -36,6 +36,12 @@ export const batchExtractBytesSync = () => [
 		metadata: { pageCount: 1 },
 		tables: [],
 	},
+	{
+		content: "test content 2",
+		mimeType: "application/pdf",
+		metadata: { pageCount: 1 },
+		tables: [],
+	},
 ];
 
 export const detectMimeFromBytes = () => "application/pdf";

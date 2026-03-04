@@ -86,11 +86,14 @@ export async function extractBytes(
 /**
  * Extract content from bytes synchronously
  *
- * Synchronous version of extractBytes. Performs extraction without async operations.
- * Note: Some extraction features may still be async internally, but the wrapper is synchronous.
+ * Synchronous version of {@link extractBytes}. Extracts text, metadata, tables,
+ * and other content from document bytes without async/await.
+ *
+ * **Note:** This function blocks the current thread until extraction completes.
+ * For large documents, prefer the async {@link extractBytes} function.
  *
  * @param data - The document bytes to extract from
- * @param mimeType - MIME type of the document
+ * @param mimeType - MIME type of the document (e.g., 'application/pdf', 'image/jpeg')
  * @param config - Optional extraction configuration
  * @returns The extraction result
  * @throws {Error} If WASM module is not initialized or extraction fails
@@ -98,7 +101,7 @@ export async function extractBytes(
  * @example
  * ```typescript
  * const bytes = new Uint8Array(buffer);
- * const result = extractBytesSync(bytes, 'application/pdf');
+ * const result = extractBytesSync(bytes, 'text/plain');
  * console.log(result.content);
  * ```
  */

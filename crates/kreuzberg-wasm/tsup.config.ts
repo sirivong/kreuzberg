@@ -7,6 +7,7 @@ export default defineConfig({
 		"typescript/adapters/wasm-adapter.ts",
 		"typescript/ocr/registry.ts",
 		"typescript/ocr/tesseract-wasm-backend.ts",
+		"typescript/ocr/ocr-worker.ts",
 	],
 	// ESM only - CJS is not supported due to top-level await in WASM initialization
 	// Modern Node.js (>= 14), Deno, and browsers all support ESM natively
