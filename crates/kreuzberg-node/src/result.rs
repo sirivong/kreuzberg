@@ -6,7 +6,6 @@ use kreuzberg::{
 };
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
-use serde_json::Value;
 
 #[napi(object)]
 #[derive(serde::Serialize, serde::Deserialize)]

@@ -240,6 +240,27 @@ Deno.test("pdf_non_english_german", { permissions: { read: true, net: true } }, 
 	assertions.assertMetadataExpectation(result, "formatType", { eq: "pdf" });
 });
 
+Deno.test("pdf_password_protected", { permissions: { read: true, net: true } }, async () => {
+	const config = buildConfig(undefined);
+	let result: ExtractionResult | null = null;
+	try {
+		const documentBytes = await resolveDocument("pdf/copy_protected.pdf");
+		// Sync file extraction - WASM uses extractBytes with pre-read bytes
+		result = await extractBytes(documentBytes, "application/pdf", config);
+	} catch (error) {
+		if (shouldSkipFixture(error, "pdf_password_protected", [], undefined)) {
+			return;
+		}
+		throw error;
+	}
+	if (result === null) {
+		return;
+	}
+	assertions.assertExpectedMime(result, ["application/pdf"]);
+	assertions.assertMinContentLength(result, 50);
+	assertions.assertContentContainsAny(result, ["LayoutParser", "document image analysis", "deep learning"]);
+});
+
 Deno.test("pdf_right_to_left", { permissions: { read: true, net: true } }, async () => {
 	const config = buildConfig(undefined);
 	let result: ExtractionResult | null = null;

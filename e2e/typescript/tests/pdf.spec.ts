@@ -309,6 +309,34 @@ describe("pdf fixtures", () => {
 	);
 
 	it(
+		"pdf_password_protected",
+		() => {
+			const documentPath = resolveDocument("pdf/copy_protected.pdf");
+			if (!existsSync(documentPath)) {
+				console.warn("Skipping pdf_password_protected: missing document at", documentPath);
+				return;
+			}
+			const config = buildConfig(undefined);
+			let result: ExtractionResult | null = null;
+			try {
+				result = extractFileSync(documentPath, null, config);
+			} catch (error) {
+				if (shouldSkipFixture(error, "pdf_password_protected", [], undefined)) {
+					return;
+				}
+				throw error;
+			}
+			if (result === null) {
+				return;
+			}
+			assertions.assertExpectedMime(result, ["application/pdf"]);
+			assertions.assertMinContentLength(result, 50);
+			assertions.assertContentContainsAny(result, ["LayoutParser", "document image analysis", "deep learning"]);
+		},
+		TEST_TIMEOUT_MS,
+	);
+
+	it(
 		"pdf_right_to_left",
 		() => {
 			const documentPath = resolveDocument("pdf/right_to_left_01.pdf");

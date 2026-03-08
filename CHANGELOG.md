@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.4.5]
+
+### Fixed
+
+- **Node worker pool password bug**: `extractFileInWorker` was passing the `password` argument as `mime_type` to `extract_file_sync`, meaning passwords were never applied and MIME detection could break. Password is now correctly injected into `config.pdf_options.passwords`.
+- **Unused import in kreuzberg-node**: Removed unused `use serde_json::Value` import in `result.rs` that caused clippy warnings.
+- **WASM Deno OCR test hang**: OCR tests hung indefinitely on WASM Deno because Tesseract synchronous initialization blocks the single-threaded runtime. OCR fixtures are now skipped for the wasm-deno target.
+
+### Added
+
+- **CLI `--pdf-password` flag**: New `--pdf-password` option on `extract` and `batch` commands for encrypted PDF support. Can be specified multiple times.
+- **MCP `pdf_password` parameter**: Added `pdf_password` field to `extract_file`, `extract_bytes`, and `batch_extract_files` MCP tool params for better discoverability.
+- **API `pdf_password` multipart field**: The HTTP API extract endpoint now accepts a `pdf_password` multipart field for encrypted PDFs.
+- **`PdfConfig` Default impl**: Added `Default` implementation for `PdfConfig` to support ergonomic config construction.
+- **Binding crate clippy in CI**: Added clippy steps to `ci-node`, `ci-python`, and `ci-wasm` workflows (gated to Linux). Added `node:clippy`, `python:clippy`, and `wasm:clippy` task commands.
+- **E2E password-protected PDF fixture**: Added `pdf_password_protected` fixture testing copy-protected PDF extraction across all bindings.
+
 ## [4.4.4]
 
 ### Fixed

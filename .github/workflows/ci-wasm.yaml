@@ -126,6 +126,11 @@ jobs:
           report-stats: 'true'
           target: wasm32-unknown-unknown
 
+      - name: Clippy (kreuzberg-wasm)
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: cargo clippy -p kreuzberg-wasm --target wasm32-unknown-unknown -- -D warnings
+
       - name: Setup Node
         uses: ./.github/actions/setup-node-workspace
 

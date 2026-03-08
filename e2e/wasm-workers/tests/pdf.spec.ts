@@ -270,6 +270,31 @@ describe("pdf", () => {
 		assertions.assertMetadataExpectation(result, "formatType", { eq: "pdf" });
 	});
 
+	it("pdf_password_protected", async () => {
+		const documentBytes = getFixture("pdf/copy_protected.pdf");
+		if (documentBytes === null) {
+			console.warn("[SKIP] Test skipped: fixture not available in Cloudflare Workers environment");
+			return;
+		}
+
+		const config = buildConfig(undefined);
+		let result: ExtractionResult | null = null;
+		try {
+			result = await extractBytes(documentBytes, "application/pdf", config);
+		} catch (error) {
+			if (shouldSkipFixture(error, "pdf_password_protected", [], undefined)) {
+				return;
+			}
+			throw error;
+		}
+		if (result === null) {
+			return;
+		}
+		assertions.assertExpectedMime(result, ["application/pdf"]);
+		assertions.assertMinContentLength(result, 50);
+		assertions.assertContentContainsAny(result, ["LayoutParser", "document image analysis", "deep learning"]);
+	});
+
 	it("pdf_right_to_left", async () => {
 		const documentBytes = getFixture("pdf/right_to_left_01.pdf");
 		if (documentBytes === null) {

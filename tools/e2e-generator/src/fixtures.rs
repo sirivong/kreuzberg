@@ -659,6 +659,12 @@ pub fn should_include_for_wasm(fixture: &Fixture, target: WasmTarget) -> bool {
         }
     }
 
+    // OCR tests hang indefinitely on WASM Deno because Tesseract synchronous
+    // initialization blocks the single-threaded WASM runtime.
+    if target == WasmTarget::Deno && fixture.category() == "ocr" {
+        return false;
+    }
+
     // Jupyter notebook parsing is not supported in the WASM Deno environment
     if target == WasmTarget::Deno && fixture.id == "office_jupyter_basic" {
         return false;
