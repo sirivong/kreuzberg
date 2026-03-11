@@ -39,8 +39,8 @@ homepage = "https://kreuzberg.dev"
 collapsible_if = "allow"
 
 [workspace.dependencies]
-kreuzberg = { path = "./crates/kreuzberg", default-features = false }
-kreuzberg-ffi = { path = "./crates/kreuzberg-ffi" }
+kreuzberg = { path = "./crates/kreuzberg", version = "4.4.5", default-features = false }
+kreuzberg-ffi = { path = "./crates/kreuzberg-ffi", version = "4.4.5" }
 
 # Pinned: fastembed 5.12 requires exact =2.0.0-rc.11, kreuzberg-paddle-ocr must match
 ort = { version = "=2.0.0-rc.11", default-features = false }

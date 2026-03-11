@@ -9,14 +9,13 @@
 use crate::ffi_panic_guard;
 use crate::ffi_panic_guard_i32;
 use crate::helpers::{clear_last_error, set_last_error};
-use kreuzberg::{ExtractionConfig, PageConfig};
-use kreuzberg::types::OutputFormat as ResultFormat;
-use kreuzberg::core::config::{
-    ChunkingConfig, ImageExtractionConfig, LanguageDetectionConfig, OcrConfig, PdfConfig,
-    PostProcessorConfig,
-};
-use kreuzberg::core::config::formats::OutputFormat;
 use kreuzberg::TokenReductionConfig;
+use kreuzberg::core::config::formats::OutputFormat;
+use kreuzberg::core::config::{
+    ChunkingConfig, ImageExtractionConfig, LanguageDetectionConfig, OcrConfig, PdfConfig, PostProcessorConfig,
+};
+use kreuzberg::types::OutputFormat as ResultFormat;
+use kreuzberg::{ExtractionConfig, PageConfig};
 use std::ffi::{CStr, c_char};
 use std::ptr;
 
@@ -62,8 +61,8 @@ impl ConfigBuilder {
     }
 
     fn set_token_reduction_from_json(&mut self, tr_json: &str) -> Result<(), String> {
-        let tr_config: TokenReductionConfig = serde_json::from_str(tr_json)
-            .map_err(|e| format!("Failed to parse token reduction config JSON: {}", e))?;
+        let tr_config: TokenReductionConfig =
+            serde_json::from_str(tr_json).map_err(|e| format!("Failed to parse token reduction config JSON: {}", e))?;
         self.config.token_reduction = Some(tr_config);
         Ok(())
     }
@@ -105,15 +104,15 @@ impl ConfigBuilder {
 
     #[cfg(any(feature = "keywords-yake", feature = "keywords-rake"))]
     fn set_keywords_from_json(&mut self, keywords_json: &str) -> Result<(), String> {
-        let keywords_config: kreuzberg::keywords::KeywordConfig = serde_json::from_str(keywords_json)
-            .map_err(|e| format!("Failed to parse keywords config JSON: {}", e))?;
+        let keywords_config: kreuzberg::keywords::KeywordConfig =
+            serde_json::from_str(keywords_json).map_err(|e| format!("Failed to parse keywords config JSON: {}", e))?;
         self.config.keywords = Some(keywords_config);
         Ok(())
     }
 
     fn set_html_options_from_json(&mut self, html_json: &str) -> Result<(), String> {
-        let html_opts: html_to_markdown_rs::ConversionOptions = serde_json::from_str(html_json)
-            .map_err(|e| format!("Failed to parse HTML options JSON: {}", e))?;
+        let html_opts: html_to_markdown_rs::ConversionOptions =
+            serde_json::from_str(html_json).map_err(|e| format!("Failed to parse HTML options JSON: {}", e))?;
         self.config.html_options = Some(html_opts);
         Ok(())
     }
@@ -130,16 +129,15 @@ impl ConfigBuilder {
     }
 
     fn set_security_limits_from_json(&mut self, security_json: &str) -> Result<(), String> {
-        let security_limits: kreuzberg::extractors::security::SecurityLimits = serde_json::from_str(security_json)
-            .map_err(|e| format!("Failed to parse security limits JSON: {}", e))?;
+        let security_limits: kreuzberg::extractors::security::SecurityLimits =
+            serde_json::from_str(security_json).map_err(|e| format!("Failed to parse security limits JSON: {}", e))?;
         self.config.security_limits = Some(security_limits);
         Ok(())
     }
 
     fn set_output_format(&mut self, format_str: &str) -> Result<(), String> {
-        let format: OutputFormat =
-            serde_json::from_str(&format!("\"{}\"", format_str))
-                .map_err(|e| format!("Invalid output format '{}': {}", format_str, e))?;
+        let format: OutputFormat = serde_json::from_str(&format!("\"{}\"", format_str))
+            .map_err(|e| format!("Invalid output format '{}': {}", format_str, e))?;
         self.config.output_format = format;
         Ok(())
     }

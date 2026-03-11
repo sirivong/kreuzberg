@@ -349,21 +349,21 @@ def main() -> None:
             # Only update tesseract path if it was actually copied
             if "kreuzberg-tesseract" in copied_crates:
                 content = re.sub(
-                    r'kreuzberg-tesseract = \{ version = "[^"]*", optional = true \}',
+                    r'kreuzberg-tesseract = \{ (?:path = "[^"]*", )?version = "[^"]*", optional = true \}',
                     'kreuzberg-tesseract = { path = "../kreuzberg-tesseract", optional = true }',
                     content
                 )
             # Only update paddle-ocr path if it was actually copied
             if "kreuzberg-paddle-ocr" in copied_crates:
                 content = re.sub(
-                    r'kreuzberg-paddle-ocr = \{ version = "[^"]*", optional = true \}',
+                    r'kreuzberg-paddle-ocr = \{ (?:path = "[^"]*", )?version = "[^"]*", optional = true \}',
                     'kreuzberg-paddle-ocr = { path = "../kreuzberg-paddle-ocr", optional = true }',
                     content
                 )
             # Only update pdfium-render path if it was actually copied
             if "kreuzberg-pdfium-render" in copied_crates:
                 content = re.sub(
-                    r'pdfium-render = \{ package = "kreuzberg-pdfium-render", version = "[^"]*"',
+                    r'pdfium-render = \{ package = "kreuzberg-pdfium-render", (?:path = "[^"]*", )?version = "[^"]*"',
                     'pdfium-render = { package = "kreuzberg-pdfium-render", path = "../kreuzberg-pdfium-render"',
                     content
                 )

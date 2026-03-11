@@ -253,8 +253,8 @@ pub fn to_c_extraction_result(result: ExtractionResult) -> std::result::Result<*
 
     let djot_content_json_guard = match djot_content {
         Some(djot) => {
-            let json = serde_json::to_string(&djot)
-                .map_err(|e| format!("Failed to serialize djot content to JSON: {}", e))?;
+            let json =
+                serde_json::to_string(&djot).map_err(|e| format!("Failed to serialize djot content to JSON: {}", e))?;
             Some(CStringGuard::new(CString::new(json).map_err(|e| {
                 format!("Failed to convert djot content JSON to C string: {}", e)
             })?))
@@ -264,8 +264,8 @@ pub fn to_c_extraction_result(result: ExtractionResult) -> std::result::Result<*
 
     let annotations_json_guard = match annotations {
         Some(anns) if !anns.is_empty() => {
-            let json = serde_json::to_string(&anns)
-                .map_err(|e| format!("Failed to serialize annotations to JSON: {}", e))?;
+            let json =
+                serde_json::to_string(&anns).map_err(|e| format!("Failed to serialize annotations to JSON: {}", e))?;
             Some(CStringGuard::new(CString::new(json).map_err(|e| {
                 format!("Failed to convert annotations JSON to C string: {}", e)
             })?))
