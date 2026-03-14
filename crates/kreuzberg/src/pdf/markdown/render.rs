@@ -3,7 +3,7 @@
 use crate::pdf::hierarchy::SegmentData;
 
 use super::lines::needs_space_between;
-use super::types::{PdfLine, PdfParagraph};
+use super::types::{LayoutHintClass, PdfLine, PdfParagraph};
 
 /// Render a single paragraph to the output string.
 pub(super) fn render_paragraph_to_output(para: &PdfParagraph, output: &mut String) {
@@ -35,6 +35,12 @@ pub(super) fn render_paragraph_to_output(para: &PdfParagraph, output: &mut Strin
         let text = render_paragraph_with_inline_markup(para);
         let normalized = normalize_list_prefix(&text);
         output.push_str(&normalized);
+    } else if matches!(para.layout_class, Some(LayoutHintClass::Caption)) {
+        // Captions are rendered in italic to visually distinguish them from body text.
+        let text = escape_html_entities(&join_line_texts(&para.lines));
+        output.push('*');
+        output.push_str(&text);
+        output.push('*');
     } else {
         let text = render_paragraph_with_inline_markup(para);
         output.push_str(&text);
@@ -664,6 +670,47 @@ mod tests {
         // Protocol-relative URL also counts
         let proto = "ftp://host/file_name.txt";
         assert_eq!(escape_html_entities(proto), proto);
+    }
+
+    #[test]
+    fn test_render_caption_layout_class() {
+        let para = PdfParagraph {
+            lines: vec![make_line(vec![make_segment("Figure 1. A caption.", false, false)])],
+            dominant_font_size: 10.0,
+            heading_level: None,
+            is_bold: false,
+            is_list_item: false,
+            is_code_block: false,
+            is_formula: false,
+            is_page_furniture: false,
+            layout_class: Some(LayoutHintClass::Caption),
+            caption_for: None,
+            block_bbox: None,
+        };
+        let mut output = String::new();
+        render_paragraph_to_output(&para, &mut output);
+        assert_eq!(output, "*Figure 1. A caption.*");
+    }
+
+    #[test]
+    fn test_render_non_caption_layout_class_not_italic() {
+        // A paragraph with Footnote layout_class should not be wrapped in italics.
+        let para = PdfParagraph {
+            lines: vec![make_line(vec![make_segment("Footnote text.", false, false)])],
+            dominant_font_size: 8.0,
+            heading_level: None,
+            is_bold: false,
+            is_list_item: false,
+            is_code_block: false,
+            is_formula: false,
+            is_page_furniture: false,
+            layout_class: Some(LayoutHintClass::Footnote),
+            caption_for: None,
+            block_bbox: None,
+        };
+        let mut output = String::new();
+        render_paragraph_to_output(&para, &mut output);
+        assert_eq!(output, "Footnote text.");
     }
 
     #[test]

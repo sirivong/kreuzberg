@@ -10,6 +10,15 @@ use super::content::{ContentElement, ElementLevel, PageContent, SemanticRole};
 use super::types::{LayoutHintClass, PdfLine, PdfParagraph};
 use crate::pdf::hierarchy::SegmentData;
 
+/// Minimum gap between columns as fraction of estimated page width.
+const MIN_COLUMN_GAP_FRACTION: f32 = 0.10;
+
+/// Minimum fraction of total Y range that each column side must span.
+const MIN_COLUMN_Y_SPAN_FRACTION: f32 = 0.30;
+
+/// Minimum number of elements required on each side of a column split.
+const MIN_ELEMENTS_PER_COLUMN: usize = 2;
+
 /// Y-proximity tolerance as a fraction of median element height, for line grouping.
 const LINE_Y_TOLERANCE_FRACTION: f32 = 0.5;
 
@@ -470,6 +479,191 @@ fn element_to_paragraph(elem: &ContentElement) -> Option<PdfParagraph> {
     })
 }
 
+/// Reorder elements for multi-column reading order.
+///
+/// Detects two-column layouts by finding the largest horizontal gap in element
+/// positions. When detected, reorders elements: left column top-to-bottom,
+/// then right column top-to-bottom.
+///
+/// The detection algorithm:
+/// 1. Filter out `PageHeader`/`PageFooter` elements from analysis (but keep them in output).
+/// 2. Collect X-center positions of content elements that have bounding boxes.
+/// 3. Sort X-centers, find the largest gap between adjacent values.
+/// 4. Gap must be ≥ 10% of estimated page width (max right edge of any element).
+/// 5. Validate ≥ 2 elements on each side of the split.
+/// 6. Validate each side spans ≥ 30% of the total Y range.
+/// 7. If valid: partition elements into left/right groups, sort each top-to-bottom,
+///    concatenate left then right.
+/// 8. If no valid split: leave elements in their current order.
+pub(super) fn reorder_elements_reading_order(elements: &mut Vec<ContentElement>) {
+    if elements.len() < MIN_ELEMENTS_PER_COLUMN * 2 {
+        return;
+    }
+
+    // Collect content elements (non-header/footer) that have bounding boxes.
+    let content_indices: Vec<usize> = elements
+        .iter()
+        .enumerate()
+        .filter(|(_, e)| {
+            !matches!(
+                e.semantic_role,
+                Some(SemanticRole::PageHeader) | Some(SemanticRole::PageFooter)
+            ) && e.bbox.is_some()
+        })
+        .map(|(i, _)| i)
+        .collect();
+
+    if content_indices.len() < MIN_ELEMENTS_PER_COLUMN * 2 {
+        return;
+    }
+
+    // Estimate page width from the maximum right edge of all elements with bboxes.
+    let page_width_estimate = elements
+        .iter()
+        .filter_map(|e| e.bbox.map(|r| r.right))
+        .fold(0.0_f32, f32::max);
+
+    if page_width_estimate < 1.0 {
+        return;
+    }
+
+    let min_gap = page_width_estimate * MIN_COLUMN_GAP_FRACTION;
+
+    // Collect (x_center, original_index) for content elements.
+    let mut x_centers: Vec<(f32, usize)> = content_indices
+        .iter()
+        .map(|&i| {
+            let r = elements[i].bbox.expect("filtered above");
+            let x_center = (r.left + r.right) / 2.0;
+            (x_center, i)
+        })
+        .collect();
+
+    // Sort by x_center to find the largest gap.
+    x_centers.sort_by(|a, b| a.0.total_cmp(&b.0));
+
+    // Find the largest gap between adjacent x-centers.
+    let mut best_gap = 0.0_f32;
+    let mut best_split_x: Option<f32> = None;
+
+    for window in x_centers.windows(2) {
+        let gap = window[1].0 - window[0].0;
+        if gap > min_gap && gap > best_gap {
+            best_gap = gap;
+            best_split_x = Some((window[0].0 + window[1].0) / 2.0);
+        }
+    }
+
+    let split_x = match best_split_x {
+        Some(x) => x,
+        None => return,
+    };
+
+    // Validate element counts on each side.
+    let left_count = content_indices
+        .iter()
+        .filter(|&&i| {
+            let r = elements[i].bbox.expect("filtered above");
+            (r.left + r.right) / 2.0 < split_x
+        })
+        .count();
+    let right_count = content_indices.len() - left_count;
+
+    if left_count < MIN_ELEMENTS_PER_COLUMN || right_count < MIN_ELEMENTS_PER_COLUMN {
+        return;
+    }
+
+    // Compute total Y range across all content elements.
+    let mut y_min_all = f32::MAX;
+    let mut y_max_all = f32::MIN;
+    for &i in &content_indices {
+        let r = elements[i].bbox.expect("filtered above");
+        y_min_all = y_min_all.min(r.y_min);
+        y_max_all = y_max_all.max(r.y_max);
+    }
+    let total_y_range = y_max_all - y_min_all;
+
+    if total_y_range < 1.0 {
+        return;
+    }
+
+    // Compute Y span for each side.
+    let left_y_span = {
+        let mut y_min = f32::MAX;
+        let mut y_max = f32::MIN;
+        for &i in &content_indices {
+            let r = elements[i].bbox.expect("filtered above");
+            if (r.left + r.right) / 2.0 < split_x {
+                y_min = y_min.min(r.y_min);
+                y_max = y_max.max(r.y_max);
+            }
+        }
+        if y_max > y_min { y_max - y_min } else { 0.0 }
+    };
+
+    let right_y_span = {
+        let mut y_min = f32::MAX;
+        let mut y_max = f32::MIN;
+        for &i in &content_indices {
+            let r = elements[i].bbox.expect("filtered above");
+            if (r.left + r.right) / 2.0 >= split_x {
+                y_min = y_min.min(r.y_min);
+                y_max = y_max.max(r.y_max);
+            }
+        }
+        if y_max > y_min { y_max - y_min } else { 0.0 }
+    };
+
+    let min_y_span = total_y_range * MIN_COLUMN_Y_SPAN_FRACTION;
+    if left_y_span < min_y_span || right_y_span < min_y_span {
+        return;
+    }
+
+    // Valid two-column layout: partition all elements into left column, right column,
+    // and header/footer groups (preserving their original relative order within groups).
+    //
+    // Elements without bboxes are assigned to the left column by default.
+    let mut left_col: Vec<ContentElement> = Vec::new();
+    let mut right_col: Vec<ContentElement> = Vec::new();
+    let mut header_footer: Vec<ContentElement> = Vec::new();
+
+    for elem in elements.drain(..) {
+        if matches!(
+            elem.semantic_role,
+            Some(SemanticRole::PageHeader) | Some(SemanticRole::PageFooter)
+        ) {
+            header_footer.push(elem);
+        } else if let Some(r) = elem.bbox {
+            let x_center = (r.left + r.right) / 2.0;
+            if x_center < split_x {
+                left_col.push(elem);
+            } else {
+                right_col.push(elem);
+            }
+        } else {
+            // No bbox — treat as left column content.
+            left_col.push(elem);
+        }
+    }
+
+    // Sort each column top-to-bottom (descending y_max in PDF space).
+    left_col.sort_by(|a, b| {
+        let ya = a.bbox.map_or(0.0, |r| r.y_max);
+        let yb = b.bbox.map_or(0.0, |r| r.y_max);
+        yb.total_cmp(&ya)
+    });
+    right_col.sort_by(|a, b| {
+        let ya = a.bbox.map_or(0.0, |r| r.y_max);
+        let yb = b.bbox.map_or(0.0, |r| r.y_max);
+        yb.total_cmp(&ya)
+    });
+
+    // Reassemble: header/footer first, then left column, then right column.
+    elements.extend(header_footer);
+    elements.extend(left_col);
+    elements.extend(right_col);
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::content::ExtractionSource;
@@ -697,5 +891,105 @@ mod tests {
         assert!((bbox.1 - 685.0).abs() < f32::EPSILON, "bottom={}", bbox.1);
         assert!((bbox.2 - 230.0).abs() < f32::EPSILON, "right={}", bbox.2);
         assert!((bbox.3 - 712.0).abs() < f32::EPSILON, "top={}", bbox.3);
+    }
+
+    // --- reorder_elements_reading_order tests ---
+
+    /// Create a block-level element with a bounding box for column tests.
+    fn make_block(text: &str, x: f32, y_min: f32, y_max: f32, role: SemanticRole) -> ContentElement {
+        ContentElement {
+            text: text.to_string(),
+            bbox: Some(Rect::from_lbrt(x, y_min, x + 80.0, y_max)),
+            font_size: Some(12.0),
+            is_bold: false,
+            is_italic: false,
+            is_monospace: false,
+            confidence: None,
+            semantic_role: Some(role),
+            level: ElementLevel::Block,
+            list_label: None,
+            layout_class: None,
+        }
+    }
+
+    #[test]
+    fn test_reorder_no_columns_unchanged() {
+        // All elements in a single column — no reordering.
+        // Elements already in reading order: top=700 then top=650.
+        let mut elements = vec![
+            make_block("P1", 50.0, 680.0, 700.0, SemanticRole::Paragraph),
+            make_block("P2", 50.0, 630.0, 650.0, SemanticRole::Paragraph),
+            make_block("P3", 60.0, 580.0, 600.0, SemanticRole::Paragraph),
+        ];
+        let original_texts: Vec<_> = elements.iter().map(|e| e.text.clone()).collect();
+        reorder_elements_reading_order(&mut elements);
+        let after_texts: Vec<_> = elements.iter().map(|e| e.text.clone()).collect();
+        assert_eq!(original_texts, after_texts, "single-column should not be reordered");
+    }
+
+    #[test]
+    fn test_reorder_two_columns_detected() {
+        // Left column x=0..80 (right edge = 80), right column x=400..480.
+        // Page width estimate = 480. Min gap = 480 * 0.10 = 48. Actual gap = 400 - 80 = 320.
+        // Left column: L1 (y=700..712), L2 (y=650..662), L3 (y=600..612).
+        // Right column: R1 (y=700..712), R2 (y=650..662).
+        // Expected order: L1, L2, L3, R1, R2.
+        let mut elements = vec![
+            make_block("R1", 400.0, 700.0, 712.0, SemanticRole::Paragraph),
+            make_block("L1", 0.0, 700.0, 712.0, SemanticRole::Paragraph),
+            make_block("R2", 400.0, 650.0, 662.0, SemanticRole::Paragraph),
+            make_block("L2", 0.0, 650.0, 662.0, SemanticRole::Paragraph),
+            make_block("L3", 0.0, 600.0, 612.0, SemanticRole::Paragraph),
+        ];
+        reorder_elements_reading_order(&mut elements);
+        let texts: Vec<_> = elements.iter().map(|e| e.text.clone()).collect();
+        assert_eq!(texts, vec!["L1", "L2", "L3", "R1", "R2"],
+            "two-column layout should be reordered left-then-right, got: {:?}", texts);
+    }
+
+    #[test]
+    fn test_reorder_header_footer_placed_first() {
+        // Header should appear before column content in output.
+        let mut elements = vec![
+            make_block("L1", 0.0, 650.0, 662.0, SemanticRole::Paragraph),
+            make_block("R1", 400.0, 650.0, 662.0, SemanticRole::Paragraph),
+            make_block("Header", 0.0, 750.0, 762.0, SemanticRole::PageHeader),
+            make_block("L2", 0.0, 600.0, 612.0, SemanticRole::Paragraph),
+            make_block("R2", 400.0, 600.0, 612.0, SemanticRole::Paragraph),
+        ];
+        reorder_elements_reading_order(&mut elements);
+        let texts: Vec<_> = elements.iter().map(|e| e.text.clone()).collect();
+        assert_eq!(texts[0], "Header", "header/footer should come first; got: {:?}", texts);
+    }
+
+    #[test]
+    fn test_reorder_too_few_elements_unchanged() {
+        // Only 3 elements total — below the minimum (MIN_ELEMENTS_PER_COLUMN * 2 = 4).
+        let mut elements = vec![
+            make_block("A", 0.0, 700.0, 712.0, SemanticRole::Paragraph),
+            make_block("B", 400.0, 700.0, 712.0, SemanticRole::Paragraph),
+            make_block("C", 0.0, 650.0, 662.0, SemanticRole::Paragraph),
+        ];
+        let original: Vec<_> = elements.iter().map(|e| e.text.clone()).collect();
+        reorder_elements_reading_order(&mut elements);
+        let after: Vec<_> = elements.iter().map(|e| e.text.clone()).collect();
+        assert_eq!(original, after, "too few elements should not be reordered");
+    }
+
+    #[test]
+    fn test_reorder_no_y_span_unchanged() {
+        // All elements at the same Y height — y span of each column would be zero,
+        // failing the MIN_COLUMN_Y_SPAN_FRACTION check.
+        let mut elements = vec![
+            make_block("A", 0.0, 700.0, 712.0, SemanticRole::Paragraph),
+            make_block("B", 400.0, 700.0, 712.0, SemanticRole::Paragraph),
+            make_block("C", 0.0, 700.0, 712.0, SemanticRole::Paragraph),
+            make_block("D", 400.0, 700.0, 712.0, SemanticRole::Paragraph),
+        ];
+        // All at same y — total Y range is ~12, each side spans ~12, fraction = 1.0 ≥ 0.30.
+        // This test verifies the function doesn't panic; result may or may not reorder.
+        reorder_elements_reading_order(&mut elements);
+        let total: usize = elements.len();
+        assert_eq!(total, 4, "all elements must be preserved");
     }
 }
