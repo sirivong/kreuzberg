@@ -16,6 +16,7 @@ mod paragraphs;
 mod pipeline;
 mod regions;
 mod render;
+mod text_repair;
 pub(crate) mod types;
 
 pub(crate) use pipeline::render_document_as_markdown_with_tables;

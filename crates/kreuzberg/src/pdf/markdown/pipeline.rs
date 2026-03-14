@@ -5,11 +5,7 @@ use crate::pdf::hierarchy::{BoundingBox, SegmentData, TextBlock, assign_heading_
 use pdfium_render::prelude::*;
 
 use super::assembly::assemble_markdown_with_tables;
-use super::bridge::{
-    ImagePosition, apply_ligature_repairs, build_ligature_repair_map, extracted_blocks_to_paragraphs,
-    filter_sidebar_blocks, normalize_unicode_text, objects_to_page_data, repair_broken_word_spacing,
-    repair_contextual_ligatures, text_has_broken_word_spacing, text_has_ligature_corruption,
-};
+use super::bridge::{ImagePosition, extracted_blocks_to_paragraphs, filter_sidebar_blocks, objects_to_page_data};
 use super::classify::{
     classify_paragraphs, demote_heading_runs, demote_unnumbered_subsections, mark_cross_page_repeating_text,
     refine_heading_hierarchy,
@@ -22,6 +18,10 @@ use super::constants::{
 use super::lines::{is_cjk_char, segments_to_lines};
 use super::paragraphs::{lines_to_paragraphs, merge_continuation_paragraphs, split_embedded_list_items};
 use super::render::inject_image_placeholders;
+use super::text_repair::{
+    apply_ligature_repairs, build_ligature_repair_map, normalize_unicode_text, repair_broken_word_spacing,
+    repair_contextual_ligatures, text_has_broken_word_spacing, text_has_ligature_corruption,
+};
 use super::types::{LayoutHint, PdfParagraph};
 
 /// Render a PDF document as markdown, with tables interleaved at their positions.
