@@ -12,6 +12,8 @@ use std::borrow::Cow;
 pub(super) fn execute_chunking(result: &mut ExtractionResult, config: &ExtractionConfig) -> Result<()> {
     #[cfg(feature = "chunking")]
     if let Some(ref chunking_config) = config.chunking {
+        let resolved_config = chunking_config.resolve_preset();
+        let chunking_config = &resolved_config;
         let page_boundaries = result.metadata.pages.as_ref().and_then(|ps| ps.boundaries.as_deref());
 
         match crate::chunking::chunk_text(&result.content, chunking_config, page_boundaries) {

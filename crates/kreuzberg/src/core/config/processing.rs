@@ -184,6 +184,54 @@ impl ChunkingConfig {
         self.sizing = sizing;
         self
     }
+
+    /// Resolve a preset name into concrete chunking and embedding configuration.
+    ///
+    /// When `preset` is set (e.g., `"balanced"`), this overrides `max_characters` and
+    /// `overlap` from the preset definition, and configures the embedding model if
+    /// no embedding config was explicitly provided.
+    ///
+    /// If the preset name is not recognized, a warning is logged and the config
+    /// is returned unchanged.
+    pub fn resolve_preset(&self) -> Self {
+        let preset_name = match &self.preset {
+            Some(name) => name,
+            None => return self.clone(),
+        };
+
+        let preset = match crate::embeddings::get_preset(preset_name) {
+            Some(p) => p,
+            None => {
+                tracing::warn!(
+                    "Unknown chunking preset '{}', using manual config. Available: {:?}",
+                    preset_name,
+                    crate::embeddings::list_presets()
+                );
+                return self.clone();
+            }
+        };
+
+        let embedding = match &self.embedding {
+            Some(existing) => Some(existing.clone()),
+            None => Some(EmbeddingConfig {
+                model: EmbeddingModelType::Preset {
+                    name: preset_name.clone(),
+                },
+                ..EmbeddingConfig::default()
+            }),
+        };
+
+        Self {
+            max_characters: preset.chunk_size,
+            overlap: preset.overlap,
+            embedding,
+            // Preserve caller's other settings
+            trim: self.trim,
+            chunker_type: self.chunker_type,
+            preset: self.preset.clone(),
+            sizing: self.sizing.clone(),
+        }
+    }
 }
 
 impl Default for ChunkingConfig {
@@ -424,6 +472,71 @@ mod tests {
         assert!(json.contains(r#""type":"custom""#), "Should contain type:custom field");
         assert!(json.contains(r#""model_id":"#), "Should contain model_id field");
         assert!(json.contains(r#""dimensions":384"#), "Should contain dimensions field");
+    }
+
+    #[test]
+    fn test_resolve_preset_balanced() {
+        let config = ChunkingConfig {
+            preset: Some("balanced".to_string()),
+            ..Default::default()
+        };
+        let resolved = config.resolve_preset();
+        assert_eq!(resolved.max_characters, 1024);
+        assert_eq!(resolved.overlap, 100);
+        assert!(resolved.embedding.is_some());
+        match &resolved.embedding.unwrap().model {
+            EmbeddingModelType::Preset { name } => assert_eq!(name, "balanced"),
+            _ => panic!("Expected Preset model type"),
+        }
+    }
+
+    #[test]
+    fn test_resolve_preset_preserves_explicit_embedding() {
+        let explicit_embedding = EmbeddingConfig {
+            model: EmbeddingModelType::Custom {
+                model_id: "custom/model".to_string(),
+                dimensions: 512,
+            },
+            batch_size: 64,
+            ..Default::default()
+        };
+        let config = ChunkingConfig {
+            preset: Some("fast".to_string()),
+            embedding: Some(explicit_embedding),
+            ..Default::default()
+        };
+        let resolved = config.resolve_preset();
+        assert_eq!(resolved.max_characters, 512);
+        assert_eq!(resolved.overlap, 50);
+        // Explicit embedding config preserved
+        match &resolved.embedding.unwrap().model {
+            EmbeddingModelType::Custom { model_id, .. } => assert_eq!(model_id, "custom/model"),
+            _ => panic!("Expected Custom model type to be preserved"),
+        }
+    }
+
+    #[test]
+    fn test_resolve_preset_no_preset_returns_unchanged() {
+        let config = ChunkingConfig {
+            max_characters: 500,
+            overlap: 50,
+            ..Default::default()
+        };
+        let resolved = config.resolve_preset();
+        assert_eq!(resolved.max_characters, 500);
+        assert_eq!(resolved.overlap, 50);
+        assert!(resolved.embedding.is_none());
+    }
+
+    #[test]
+    fn test_resolve_preset_unknown_name_returns_unchanged() {
+        let config = ChunkingConfig {
+            max_characters: 500,
+            preset: Some("nonexistent".to_string()),
+            ..Default::default()
+        };
+        let resolved = config.resolve_preset();
+        assert_eq!(resolved.max_characters, 500);
     }
 
     /// Tests Custom model type deserialization.
