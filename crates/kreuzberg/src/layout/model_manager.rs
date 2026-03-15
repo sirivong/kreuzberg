@@ -37,7 +37,7 @@ const MODELS: &[ModelDefinition] = &[
         remote_filename: "slanet-plus/model.onnx",
         local_filename: "slanet-plus.onnx",
         sha256_checksum: "e48a401a4ebcddd47fe3822427db24d867a557324f58e438692f588bbe9231de",
-        size_bytes: 7_781_263,
+        size_bytes: 7_781_309,
     },
 ];
 
