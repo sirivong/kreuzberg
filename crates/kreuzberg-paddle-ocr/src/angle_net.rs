@@ -41,7 +41,7 @@ impl BaseNet for AngleNet {
 
 impl AngleNet {
     pub fn get_angles(
-        &mut self,
+        &self,
         part_imgs: &[image::RgbImage],
         do_angle: bool,
         most_angle: bool,
@@ -70,8 +70,8 @@ impl AngleNet {
         Ok(angles)
     }
 
-    fn get_angle(&mut self, img_src: &image::RgbImage) -> Result<Angle, OcrError> {
-        let Some(session) = &mut self.session else {
+    fn get_angle(&self, img_src: &image::RgbImage) -> Result<Angle, OcrError> {
+        let Some(session) = &self.session else {
             return Err(OcrError::SessionNotInitialized);
         };
 
@@ -86,7 +86,12 @@ impl AngleNet {
 
         let input_tensors = Tensor::from_array(input_tensors)?;
 
-        let outputs = session.run(inputs![self.input_names[0].as_str() => input_tensors])?;
+        // SAFETY: ONNX Runtime C API is thread-safe for concurrent inference.
+        #[allow(unsafe_code)]
+        let outputs = unsafe {
+            let session_ptr = session as *const Session as *mut Session;
+            (*session_ptr).run(inputs![self.input_names[0].as_str() => input_tensors])?
+        };
 
         let angle = Self::score_to_angle(&outputs, ANGLE_COLS)?;
 

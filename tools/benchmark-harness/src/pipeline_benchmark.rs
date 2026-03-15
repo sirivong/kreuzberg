@@ -164,6 +164,7 @@ fn build_config(pipeline: Pipeline) -> kreuzberg::ExtractionConfig {
             ocr: Some(OcrConfig {
                 backend: "paddleocr".to_string(),
                 language: "eng".to_string(),
+                auto_rotate: true,
                 ..Default::default()
             }),
             ..base
@@ -173,6 +174,7 @@ fn build_config(pipeline: Pipeline) -> kreuzberg::ExtractionConfig {
             ocr: Some(OcrConfig {
                 backend: "paddleocr".to_string(),
                 language: "eng".to_string(),
+                auto_rotate: true,
                 ..Default::default()
             }),
             layout: Some(LayoutDetectionConfig {
@@ -186,6 +188,7 @@ fn build_config(pipeline: Pipeline) -> kreuzberg::ExtractionConfig {
             ocr: Some(OcrConfig {
                 backend: "paddleocr".to_string(),
                 language: "eng".to_string(),
+                auto_rotate: true,
                 paddle_ocr_config: Some(serde_json::json!({"model_tier": "mobile"})),
                 ..Default::default()
             }),
@@ -196,6 +199,7 @@ fn build_config(pipeline: Pipeline) -> kreuzberg::ExtractionConfig {
             ocr: Some(OcrConfig {
                 backend: "paddleocr".to_string(),
                 language: "eng".to_string(),
+                auto_rotate: true,
                 paddle_ocr_config: Some(serde_json::json!({"model_tier": "mobile"})),
                 ..Default::default()
             }),

@@ -4,8 +4,6 @@
 //! Used as a PaddleOCR-native alternative to Tesseract's `DetectOrientationScript`
 //! when `auto_rotate` is enabled with the PaddleOCR backend.
 
-use std::sync::Mutex;
-
 use image::RgbImage;
 use ort::session::Session;
 use ort::session::builder::SessionBuilder;
@@ -38,8 +36,9 @@ pub struct OrientationResult {
 }
 
 /// Detects document page orientation using the PP-LCNet model.
+/// Thread-safe: uses unsafe pointer cast for ONNX session (same pattern as embedding engine).
 pub struct DocOrientationDetector {
-    session: Mutex<Option<Session>>,
+    session: once_cell::sync::OnceCell<Session>,
     model_manager: ModelManager,
 }
 
@@ -47,7 +46,7 @@ impl DocOrientationDetector {
     /// Creates a new detector. The model is loaded lazily on first use.
     pub fn new(model_manager: ModelManager) -> Self {
         Self {
-            session: Mutex::new(None),
+            session: once_cell::sync::OnceCell::new(),
             model_manager,
         }
     }
@@ -55,17 +54,9 @@ impl DocOrientationDetector {
     /// Detect document page orientation.
     ///
     /// Returns the detected orientation (0°, 90°, 180°, 270°) and confidence.
+    /// Thread-safe: can be called concurrently from multiple pages.
     pub fn detect(&self, image: &RgbImage) -> Result<OrientationResult> {
-        let session_guard = self.get_or_init_session()?;
-        let mut session = session_guard.lock().map_err(|e| KreuzbergError::Plugin {
-            message: format!("Failed to acquire doc_ori session lock: {e}"),
-            plugin_name: "paddle-ocr".to_string(),
-        })?;
-
-        let session = session.as_mut().ok_or_else(|| KreuzbergError::Plugin {
-            message: "Doc orientation session not initialized".to_string(),
-            plugin_name: "paddle-ocr".to_string(),
-        })?;
+        let session = self.get_or_init_session()?;
 
         // Preprocess: resize short side to 256, center crop 224×224
         let preprocessed = preprocess(image);
@@ -77,13 +68,17 @@ impl DocOrientationDetector {
             source: None,
         })?;
 
-        // Run inference (input name defaults to "x" for PP-LCNet models)
-        let outputs = session
-            .run(ort::inputs!["x" => tensor])
-            .map_err(|e| KreuzbergError::Ocr {
-                message: format!("Doc orientation inference failed: {e}"),
-                source: None,
-            })?;
+        // SAFETY: ONNX Runtime C API is thread-safe for concurrent inference.
+        // The ort crate's &mut self on Session::run is overly conservative.
+        #[allow(unsafe_code)]
+        let outputs = unsafe {
+            let session_ptr = session as *const Session as *mut Session;
+            (*session_ptr).run(ort::inputs!["x" => tensor])
+        }
+        .map_err(|e| KreuzbergError::Ocr {
+            message: format!("Doc orientation inference failed: {e}"),
+            source: None,
+        })?;
 
         // Parse output: find argmax
         let (_, output_value) = outputs.iter().next().ok_or_else(|| KreuzbergError::Ocr {
@@ -120,54 +115,34 @@ impl DocOrientationDetector {
         })
     }
 
-    /// Get or initialize the ONNX session.
-    fn get_or_init_session(&self) -> Result<&Mutex<Option<Session>>> {
-        {
-            let guard = self.session.lock().map_err(|e| KreuzbergError::Plugin {
-                message: format!("Failed to acquire doc_ori lock: {e}"),
-                plugin_name: "paddle-ocr".to_string(),
-            })?;
-            if guard.is_some() {
-                drop(guard);
-                return Ok(&self.session);
-            }
-        }
+    /// Get or initialize the ONNX session (lazy, thread-safe via OnceCell).
+    fn get_or_init_session(&self) -> Result<&Session> {
+        self.session.get_or_try_init(|| {
+            let model_dir = self.model_manager.ensure_doc_ori_model()?;
+            let model_path = model_dir.join("model.onnx");
 
-        // Download model if needed
-        let model_dir = self.model_manager.ensure_doc_ori_model()?;
-        let model_path = model_dir.join("model.onnx");
+            crate::ort_discovery::ensure_ort_available();
 
-        crate::ort_discovery::ensure_ort_available();
+            let num_threads = num_cpus::get().min(4);
+            let session = SessionBuilder::new()
+                .map_err(|e| KreuzbergError::Ocr {
+                    message: format!("Failed to create doc_ori session builder: {e}"),
+                    source: None,
+                })?
+                .with_intra_threads(num_threads)
+                .map_err(|e| KreuzbergError::Ocr {
+                    message: format!("Failed to set doc_ori thread count: {e}"),
+                    source: None,
+                })?
+                .commit_from_file(&model_path)
+                .map_err(|e| KreuzbergError::Ocr {
+                    message: format!("Failed to load doc_ori model: {e}"),
+                    source: None,
+                })?;
 
-        let num_threads = num_cpus::get().min(4);
-        let session = SessionBuilder::new()
-            .map_err(|e| KreuzbergError::Ocr {
-                message: format!("Failed to create doc_ori session builder: {e}"),
-                source: None,
-            })?
-            .with_intra_threads(num_threads)
-            .map_err(|e| KreuzbergError::Ocr {
-                message: format!("Failed to set doc_ori thread count: {e}"),
-                source: None,
-            })?
-            .commit_from_file(&model_path)
-            .map_err(|e| KreuzbergError::Ocr {
-                message: format!("Failed to load doc_ori model: {e}"),
-                source: None,
-            })?;
-
-        let mut guard = self.session.lock().map_err(|e| KreuzbergError::Plugin {
-            message: format!("Failed to acquire doc_ori lock: {e}"),
-            plugin_name: "paddle-ocr".to_string(),
-        })?;
-
-        if guard.is_none() {
-            *guard = Some(session);
             tracing::info!("Doc orientation model loaded");
-        }
-
-        drop(guard);
-        Ok(&self.session)
+            Ok(session)
+        })
     }
 }
 

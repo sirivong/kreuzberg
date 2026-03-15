@@ -43,8 +43,10 @@ pub struct PaddleOcrBackend {
     config: Arc<PaddleOcrConfig>,
     model_manager: ModelManager,
     shared_paths: Mutex<Option<SharedModelPaths>>,
-    /// Per-script-family OCR engines, lazily initialized.
-    engine_pool: Mutex<HashMap<String, Arc<Mutex<OcrLite>>>>,
+    /// Per-model OCR engines, lazily initialized. Keyed by "{tier}/{model_key}".
+    /// Multiple script families may share the same engine (e.g. chinese+japanese use unified_server).
+    /// OcrLite inference methods take `&self`, enabling lock-free concurrent page OCR.
+    engine_pool: Mutex<HashMap<String, Arc<OcrLite>>>,
     /// Document orientation detector, lazily initialized.
     doc_ori_detector: once_cell::sync::OnceCell<super::doc_orientation::DocOrientationDetector>,
 }
@@ -89,7 +91,7 @@ impl PaddleOcrBackend {
     /// This ensures that:
     /// - Multiple families sharing the same unified model reuse one engine
     /// - Different tiers get different engines (different det model)
-    fn get_or_init_engine_for_family(&self, family: &str) -> Result<Arc<Mutex<OcrLite>>> {
+    fn get_or_init_engine_for_family(&self, family: &str) -> Result<Arc<OcrLite>> {
         let tier = &self.config.model_tier;
         let resolved = self.model_manager.resolve_rec_model(family, tier)?;
         let pool_key = format!("{tier}/{}", resolved.model_key);
@@ -152,7 +154,7 @@ impl PaddleOcrBackend {
 
         tracing::info!(family, model_key = %resolved.model_key, "PaddleOCR engine initialized successfully");
 
-        let engine = Arc::new(Mutex::new(ocr_lite));
+        let engine = Arc::new(ocr_lite);
 
         // Insert into pool (with double-check for concurrent initialization)
         let mut pool = self.engine_pool.lock().map_err(|e| crate::KreuzbergError::Plugin {
@@ -312,9 +314,10 @@ impl PaddleOcrBackend {
     }
 
     /// Perform actual OCR inference (runs in blocking context).
+    /// OcrLite::detect takes &self — no Mutex needed, enabling true parallel page OCR.
     fn perform_ocr(
         image_bytes: &[u8],
-        ocr_engine: &Arc<Mutex<OcrLite>>,
+        ocr_engine: &Arc<OcrLite>,
         config: &PaddleOcrConfig,
     ) -> Result<Vec<kreuzberg_paddle_ocr::TextBlock>> {
         let img = crate::extraction::image::load_image_for_ocr(image_bytes)
@@ -324,11 +327,6 @@ impl PaddleOcrBackend {
             })?
             .to_rgb8();
 
-        let mut engine_guard = ocr_engine.lock().map_err(|e| crate::KreuzbergError::Plugin {
-            message: format!("Failed to acquire OCR engine lock: {}", e),
-            plugin_name: "paddle-ocr".to_string(),
-        })?;
-
         let padding = config.padding;
         let max_side_len = config.det_limit_side_len;
         let box_score_thresh = config.det_db_thresh;
@@ -337,7 +335,7 @@ impl PaddleOcrBackend {
         let do_angle = config.use_angle_cls;
         let most_angle = false;
 
-        let result = engine_guard
+        let result = ocr_engine
             .detect(
                 &img,
                 padding,
