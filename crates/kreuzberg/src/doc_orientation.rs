@@ -8,7 +8,7 @@
 //! on raw images without DPI metadata.
 
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use image::RgbImage;
 use ort::session::Session;
