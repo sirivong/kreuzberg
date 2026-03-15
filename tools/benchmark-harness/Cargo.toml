@@ -43,6 +43,7 @@ shellexpand = "3"
 pprof = { version = "0.15", features = ["flamegraph", "criterion"], optional = true }
 tikv-jemallocator = { version = "0.6", optional = true }
 tikv-jemalloc-ctl = { version = "0.6", features = ["stats"], optional = true }
+rayon = { workspace = true }
 tempfile = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

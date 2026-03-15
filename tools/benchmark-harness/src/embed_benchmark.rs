@@ -11,6 +11,8 @@
 
 use std::time::Instant;
 
+use rayon::prelude::*;
+
 use kreuzberg::embeddings::{EMBEDDING_PRESETS, EmbeddingPreset, generate_embeddings_for_chunks};
 use kreuzberg::{Chunk, ChunkMetadata, EmbeddingConfig, EmbeddingModelType};
 
@@ -48,11 +50,30 @@ pub struct BatchSweepResult {
     pub ms_per_chunk: f64,
 }
 
+/// Parallel inference benchmark result.
+#[derive(Debug)]
+pub struct ParallelResult {
+    pub num_batches: usize,
+    pub chunks_per_batch: usize,
+    pub total_chunks: usize,
+    /// Sequential baseline time in milliseconds.
+    pub sequential_ms: f64,
+    /// Sequential throughput in chunks per second.
+    pub sequential_chunks_per_sec: f64,
+    /// Parallel (rayon) time in milliseconds.
+    pub parallel_ms: f64,
+    /// Parallel throughput in chunks per second.
+    pub parallel_chunks_per_sec: f64,
+    /// Speedup factor (sequential_ms / parallel_ms).
+    pub speedup: f64,
+}
+
 /// Full embed benchmark output.
 #[derive(Debug)]
 pub struct EmbedBenchmarkResults {
     pub presets: Vec<PresetResult>,
     pub batch_sweep: Vec<BatchSweepResult>,
+    pub parallel: Option<ParallelResult>,
 }
 
 /// Generate synthetic text chunks for benchmarking.
@@ -245,6 +266,7 @@ pub fn run_embed_benchmark() -> EmbedBenchmarkResults {
             return EmbedBenchmarkResults {
                 presets: preset_results,
                 batch_sweep: Vec::new(),
+                parallel: None,
             };
         }
     };
@@ -286,6 +308,60 @@ pub fn run_embed_benchmark() -> EmbedBenchmarkResults {
         });
     }
 
+    // --- Parallel inference test ---
+    println!("\n--- Parallel inference test (balanced preset) ---\n");
+
+    let parallel_batches: usize = 8;
+    let chunks_per_batch: usize = 50;
+
+    // Generate independent batches (one per simulated "document").
+    let mut batches: Vec<Vec<Chunk>> = (0..parallel_batches)
+        .map(|_| generate_test_chunks(chunks_per_batch, WORDS_PER_CHUNK))
+        .collect();
+
+    let parallel_config = config_for_preset(balanced, 32);
+
+    // Sequential baseline: process each batch one after another.
+    let mut seq_batches = batches.clone();
+    let seq_start = Instant::now();
+    for batch in &mut seq_batches {
+        generate_embeddings_for_chunks(batch, &parallel_config).expect("Sequential embedding failed");
+    }
+    let seq_ms = seq_start.elapsed().as_secs_f64() * 1000.0;
+
+    // Parallel via rayon: each thread calls engine.embed(&self) concurrently.
+    // This works because EmbeddingEngine uses thread-local ONNX sessions
+    // behind Arc<EmbeddingEngine>, so concurrent reads are safe.
+    let par_start = Instant::now();
+    batches.par_iter_mut().for_each(|batch| {
+        generate_embeddings_for_chunks(batch, &parallel_config).expect("Parallel embedding failed");
+    });
+    let par_ms = par_start.elapsed().as_secs_f64() * 1000.0;
+
+    let total_chunks = parallel_batches * chunks_per_batch;
+    let speedup = seq_ms / par_ms;
+    let seq_chunks_per_sec = total_chunks as f64 / (seq_ms / 1000.0);
+    let par_chunks_per_sec = total_chunks as f64 / (par_ms / 1000.0);
+
+    println!(
+        "{} batches x {} chunks = {} total chunks",
+        parallel_batches, chunks_per_batch, total_chunks
+    );
+    println!("  Sequential: {:.0} ms ({:.1} chunks/sec)", seq_ms, seq_chunks_per_sec);
+    println!("  Parallel:   {:.0} ms ({:.1} chunks/sec)", par_ms, par_chunks_per_sec);
+    println!("  Speedup:    {:.2}x", speedup);
+
+    let parallel_result = Some(ParallelResult {
+        num_batches: parallel_batches,
+        chunks_per_batch,
+        total_chunks,
+        sequential_ms: seq_ms,
+        sequential_chunks_per_sec: seq_chunks_per_sec,
+        parallel_ms: par_ms,
+        parallel_chunks_per_sec: par_chunks_per_sec,
+        speedup,
+    });
+
     // --- Summary table ---
     if !preset_results.is_empty() {
         println!("\n=== Summary ===\n");
@@ -305,5 +381,6 @@ pub fn run_embed_benchmark() -> EmbedBenchmarkResults {
     EmbedBenchmarkResults {
         presets: preset_results,
         batch_sweep: sweep_results,
+        parallel: parallel_result,
     }
 }

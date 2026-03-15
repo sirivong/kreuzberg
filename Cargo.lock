@@ -442,6 +442,7 @@ dependencies = [
  "kreuzberg",
  "num_cpus",
  "pprof",
+ "rayon",
  "serde",
  "serde_json",
  "shellexpand",
