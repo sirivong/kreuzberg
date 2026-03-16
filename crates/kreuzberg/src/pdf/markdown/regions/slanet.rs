@@ -121,7 +121,13 @@ pub(in crate::pdf::markdown) fn recognize_tables_for_native_page(
             cells = rows.iter().map(|r| r.len()).sum::<usize>(),
             cell_bboxes = slanet_result.cell_bboxes.len(),
             crop = format!("{}x{}", crop_w, crop_h),
-            tokens_preview = slanet_result.structure_tokens.iter().take(15).cloned().collect::<Vec<_>>().join(", "),
+            tokens_preview = slanet_result
+                .structure_tokens
+                .iter()
+                .take(15)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", "),
             "SLANet inference result"
         );
         if rows.is_empty() {

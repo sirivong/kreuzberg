@@ -916,6 +916,7 @@ mod tests {
             has_map_error: false,
             is_symbolic: false,
             is_hyphen: false,
+            text_object_id: 0,
         }
     }
 

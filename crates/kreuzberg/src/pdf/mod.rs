@@ -56,6 +56,10 @@ pub mod markdown;
 #[cfg(feature = "pdf")]
 pub mod metadata;
 #[cfg(feature = "pdf")]
+pub(crate) mod oxide_text;
+#[cfg(feature = "pdf-oxide")]
+pub(crate) mod oxide_text;
+#[cfg(feature = "pdf")]
 pub mod rendering;
 #[cfg(feature = "pdf")]
 pub mod table;
@@ -63,13 +67,13 @@ pub mod table;
 pub mod table_reconstruct;
 #[cfg(feature = "pdf")]
 pub mod text;
-#[cfg(feature = "pdf-oxide")]
-pub(crate) mod oxide_text;
 // Stub for when pdf-oxide is disabled — provides set/get for thread-local path
 #[cfg(all(feature = "pdf", not(feature = "pdf-oxide")))]
 pub(crate) mod oxide_text {
     pub(crate) fn set_current_pdf_path(_path: Option<std::path::PathBuf>) {}
-    pub(crate) fn current_pdf_path() -> Option<std::path::PathBuf> { None }
+    pub(crate) fn current_pdf_path() -> Option<std::path::PathBuf> {
+        None
+    }
 }
 
 #[cfg(feature = "pdf")]
