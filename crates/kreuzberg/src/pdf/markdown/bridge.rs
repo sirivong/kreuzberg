@@ -4,8 +4,16 @@
 //! 1. Structure tree: `ExtractedBlock` → `PdfParagraph` (for tagged PDFs)
 //! 2. Page objects: `PdfPage` → `(Vec<SegmentData>, Vec<ImagePosition>)` (heuristic extraction)
 //!
-//! The page objects path includes post-processing ligature repair for pages
-//! with broken font encodings (detected via `PdfPageTextChar::has_unicode_map_error()`).
+//! The page objects path uses a Docling-style algorithm as its primary extraction:
+//! pdfium segments are grouped into rows, merged horizontally, and text is
+//! re-extracted from merged bounding boxes via `page.text().inside_rect()`.
+//! This produces correct word boundaries (pdfium reassembles fragmented words
+//! like "soft"+"ware" into "software" within bounded rects) and naturally
+//! excludes sidebar text through tight per-group bboxes.
+//!
+//! Falls back to character-level extraction with column detection when the
+//! segment-based path produces no results, and to the page objects API when
+//! `page.text()` fails entirely.
 
 use std::borrow::Cow;
 
@@ -118,9 +126,15 @@ pub(super) fn extracted_blocks_to_paragraphs(blocks: &[ExtractedBlock]) -> Vec<P
 
 /// Extract text segments and image positions from a PDF page.
 ///
-/// Uses the page objects API with column detection for text extraction.
-/// For pages with broken font encodings (ligature corruption), applies
-/// per-character repair using `PdfPageTextChar::has_unicode_map_error()`.
+/// Primary path: Docling-style extraction using pdfium's segment API with
+/// row grouping, cell merging, and text re-extraction from merged bounding
+/// boxes. This produces correct word boundaries (pdfium reassembles fragmented
+/// words like "soft"+"ware" into "software" within bounded rects).
+///
+/// Fallback: character-level extraction via `PageTextData` DTO when the
+/// segment-based path produces no results.
+///
+/// Last resort: page objects API with column detection when `page.text()` fails.
 ///
 /// Also detects image objects and records their positions for interleaving.
 pub(super) fn objects_to_page_data(
@@ -142,9 +156,19 @@ pub(super) fn objects_to_page_data(
         }
     }
 
-    // Primary path: single-pass extraction via PageTextData DTO.
-    // Extracts all character data once, then assembles segments without
-    // further pdfium text API calls.
+    // Primary path: Docling-style segment extraction.
+    // Uses pdfium's segment API to get text rects, groups into rows,
+    // merges adjacent cells, then re-extracts text from merged bboxes
+    // using page.text().inside_rect(). This produces correct word
+    // boundaries (e.g., "software" instead of "soft ware") because
+    // pdfium re-assembles text within the bounded rect.
+    let page_height = page.height().value;
+    if let Some(segments) = docling_style_extraction(page, page_height) {
+        return (segments, images);
+    }
+
+    // Secondary fallback: character-level extraction with column detection.
+    // Used when Docling-style extraction produces nothing (e.g., no segments).
     let page_width = page.width().value;
     if let Some(data) = extract_page_text_data(page)
         && let Some(segments) = chars_to_segments_from_data(&data, page_width)
@@ -152,8 +176,8 @@ pub(super) fn objects_to_page_data(
         return (segments, images);
     }
 
-    // Fallback: page objects API with column detection.
-    // Used when page.text() fails (rare edge case).
+    // Last resort: page objects API with column detection.
+    // Used when page.text() fails entirely (rare edge case).
     let mut segments = Vec::new();
     let column_groups = super::columns::split_objects_into_columns(&objects);
     let column_vecs = partition_objects_by_columns(objects, &column_groups);
@@ -162,7 +186,7 @@ pub(super) fn objects_to_page_data(
         extract_paragraphs_to_segments(paragraphs, &mut segments);
     }
 
-    // Apply ligature repair for fallback path.
+    // Apply ligature repair for last-resort path.
     if let Some(repair_map) = build_ligature_repair_map(page) {
         for seg in &mut segments {
             seg.text = apply_ligature_repairs(&seg.text, &repair_map);
@@ -170,6 +194,308 @@ pub(super) fn objects_to_page_data(
     }
 
     (segments, images)
+}
+
+// ── Docling-style segment extraction ──
+
+/// A text cell extracted from pdfium's segment API, with coordinates
+/// converted to page top-left origin for row grouping.
+struct TextCell {
+    text: String,
+    /// Left edge in PDF coordinates (bottom-left origin).
+    pdf_left: f32,
+    /// Bottom edge in PDF coordinates (bottom-left origin).
+    pdf_bottom: f32,
+    /// Right edge in PDF coordinates (bottom-left origin).
+    pdf_right: f32,
+    /// Top edge in PDF coordinates (bottom-left origin).
+    pdf_top: f32,
+    /// Top edge in page top-left coordinate system.
+    top: f32,
+    /// Bottom edge in page top-left coordinate system.
+    bottom: f32,
+    /// Font size in points.
+    font_size: f32,
+    /// Whether the font is bold.
+    is_bold: bool,
+    /// Whether the font is italic.
+    is_italic: bool,
+    /// Whether the font is monospace.
+    is_monospace: bool,
+    /// Baseline Y in PDF coordinates (bottom-left origin).
+    baseline_y: f32,
+}
+
+/// A row of text cells sharing approximately the same vertical position.
+struct TextRow {
+    cells: Vec<TextCell>,
+    /// Top edge of the row (page top-left coordinates).
+    top: f32,
+    /// Bottom edge of the row (page top-left coordinates).
+    bottom: f32,
+}
+
+impl TextRow {
+    fn height(&self) -> f32 {
+        (self.bottom - self.top).abs()
+    }
+}
+
+/// A group of merged cells within a row, potentially requiring text re-extraction.
+struct MergedCellGroup {
+    cells: Vec<TextCell>,
+    /// Merged left edge in PDF coordinates.
+    pdf_left: f32,
+    /// Merged bottom edge in PDF coordinates.
+    pdf_bottom: f32,
+    /// Merged right edge in PDF coordinates.
+    pdf_right: f32,
+    /// Merged top edge in PDF coordinates.
+    pdf_top: f32,
+}
+
+/// Docling-style text extraction from a PDF page.
+///
+/// Implements the exact Docling pypdfium2 algorithm:
+/// 1. Extract text rects from pdfium's segment API
+/// 2. Group cells into rows (vertical_threshold = 0.5)
+/// 3. Merge adjacent cells within rows (horizontal_threshold = 1.0)
+/// 4. Re-extract text from merged bboxes using `page.text().inside_rect()`
+/// 5. Convert to `SegmentData`
+///
+/// The re-extraction step is the key: pdfium re-assembles fragmented words
+/// (e.g., "soft" + "ware" becomes "software") when given a bounding rect
+/// that spans both fragments. Tight per-group bboxes naturally exclude
+/// sidebar text without explicit filtering.
+fn docling_style_extraction(page: &PdfPage, page_height: f32) -> Option<Vec<SegmentData>> {
+    let text_obj = page.text().ok()?;
+    let pdfium_segments = text_obj.segments();
+    let seg_count = pdfium_segments.len();
+    if seg_count == 0 {
+        return None;
+    }
+
+    // Step 1: Extract text rects into cells.
+    let mut cells: Vec<TextCell> = Vec::with_capacity(seg_count);
+    for i in 0..seg_count {
+        let seg = match pdfium_segments.get(i) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let text = seg.text();
+        if text.trim().is_empty() {
+            continue;
+        }
+        let bounds = seg.bounds();
+        let pdf_left = bounds.left().value;
+        let pdf_bottom = bounds.bottom().value;
+        let pdf_right = bounds.right().value;
+        let pdf_top = bounds.top().value;
+
+        // Convert from PDF bottom-left origin to page top-left origin.
+        let top = page_height - pdf_top;
+        let bottom = page_height - pdf_bottom;
+
+        // Sample font properties from the first non-whitespace character.
+        let (font_size, is_bold, is_italic, is_monospace, baseline_y) = sample_font_from_segment(&seg);
+
+        cells.push(TextCell {
+            text,
+            pdf_left,
+            pdf_bottom,
+            pdf_right,
+            pdf_top,
+            top,
+            bottom,
+            font_size,
+            is_bold,
+            is_italic,
+            is_monospace,
+            baseline_y,
+        });
+    }
+
+    if cells.is_empty() {
+        return None;
+    }
+
+    // Filter sidebar cells: cells whose right edge is within 5% of page width
+    // from the left margin are likely rotated sidebar text (e.g., arXiv IDs).
+    let page_width = page.width().value;
+    let sidebar_cutoff = page_width * 0.05;
+    cells.retain(|c| c.pdf_right > sidebar_cutoff);
+
+    if cells.is_empty() {
+        return None;
+    }
+
+    // Step 2: Group cells into rows.
+    let rows = group_cells_into_rows(cells);
+
+    // Step 3 & 4: Merge adjacent cells within rows, re-extract text from merged bboxes.
+    let mut segments = Vec::new();
+    for row in rows {
+        let merged_groups = merge_cells_in_row(row);
+        for group in merged_groups {
+            // Step 4: Re-extract text from merged bbox.
+            let text = if group.cells.len() == 1 {
+                // Single cell: use text as-is.
+                group.cells[0].text.clone()
+            } else {
+                // Multi-cell group: re-extract from merged bbox using pdfium.
+                // The bbox is in PDF coordinates (bottom-left origin).
+                let rect = PdfRect::new_from_values(group.pdf_bottom, group.pdf_left, group.pdf_top, group.pdf_right);
+                let reextracted = text_obj.inside_rect(rect);
+                if reextracted.trim().is_empty() {
+                    // Fallback: concatenate individual cell texts.
+                    group.cells.iter().map(|c| c.text.as_str()).collect::<Vec<_>>().join("")
+                } else {
+                    reextracted
+                }
+            };
+
+            let trimmed = text.trim();
+            if trimmed.is_empty() {
+                continue;
+            }
+
+            // Step 5: Convert to SegmentData.
+            // Use the first cell's font info as representative.
+            let first = &group.cells[0];
+            let width = group.pdf_right - group.pdf_left;
+            let height = group.pdf_top - group.pdf_bottom;
+
+            segments.push(SegmentData {
+                text: trimmed.to_string(),
+                x: group.pdf_left,
+                y: first.baseline_y,
+                width: width.max(first.font_size),
+                height: height.max(first.font_size),
+                font_size: first.font_size,
+                is_bold: first.is_bold,
+                is_italic: first.is_italic,
+                is_monospace: first.is_monospace,
+                baseline_y: first.baseline_y,
+            });
+        }
+    }
+
+    if segments.is_empty() { None } else { Some(segments) }
+}
+
+/// Sample font properties from a pdfium text segment's first non-whitespace character.
+///
+/// Returns (font_size, is_bold, is_italic, is_monospace, baseline_y).
+fn sample_font_from_segment(seg: &pdfium_render::prelude::PdfPageTextSegment<'_>) -> (f32, bool, bool, bool, f32) {
+    let bounds = seg.bounds();
+    let default_baseline = bounds.bottom().value;
+
+    if let Ok(seg_chars) = seg.chars() {
+        for ch in seg_chars.iter() {
+            let uv = ch.unicode_value();
+            if let Some(uc) = char::from_u32(uv)
+                && uc.is_whitespace()
+            {
+                continue;
+            }
+            let scaled = ch.scaled_font_size().value;
+            let fs = if scaled > 0.0 { scaled } else { 12.0 };
+            let info = ch.font_info();
+            let mono = ch.font_is_fixed_pitch();
+            let bl_y = ch.origin().map(|o| o.1.value).unwrap_or(default_baseline);
+            return (fs, info.1, info.2, mono, bl_y);
+        }
+    }
+
+    (12.0, false, false, false, default_baseline)
+}
+
+/// Group cells into rows based on vertical proximity.
+///
+/// Docling algorithm: a cell belongs to the current row if its top and bottom
+/// are both within `row_height * vertical_threshold` of the row's top and bottom.
+/// `vertical_threshold = 0.5` (half the row height).
+fn group_cells_into_rows(cells: Vec<TextCell>) -> Vec<TextRow> {
+    const VERTICAL_THRESHOLD: f32 = 0.5;
+
+    let mut rows: Vec<TextRow> = Vec::new();
+
+    for cell in cells {
+        let cell_top = cell.top;
+        let cell_bottom = cell.bottom;
+        // Find matching row index.
+        let matching_row = rows.iter().position(|row| {
+            let row_h = row.height().max(1.0);
+            let tolerance = row_h * VERTICAL_THRESHOLD;
+            (cell_top - row.top).abs() <= tolerance && (cell_bottom - row.bottom).abs() <= tolerance
+        });
+        if let Some(idx) = matching_row {
+            rows[idx].top = rows[idx].top.min(cell_top);
+            rows[idx].bottom = rows[idx].bottom.max(cell_bottom);
+            rows[idx].cells.push(cell);
+        } else {
+            rows.push(TextRow {
+                cells: vec![cell],
+                top: cell_top,
+                bottom: cell_bottom,
+            });
+        }
+    }
+
+    // Sort rows top-to-bottom (ascending top in page top-left coordinates).
+    rows.sort_by(|a, b| a.top.partial_cmp(&b.top).unwrap_or(std::cmp::Ordering::Equal));
+    rows
+}
+
+/// Merge adjacent cells within a row based on horizontal proximity.
+///
+/// Docling algorithm: cells are sorted left-to-right. If the gap between
+/// consecutive cells is <= `avg_height * horizontal_threshold`, they are
+/// merged into one group. `horizontal_threshold = 1.0`.
+fn merge_cells_in_row(mut row: TextRow) -> Vec<MergedCellGroup> {
+    const HORIZONTAL_THRESHOLD: f32 = 1.0;
+
+    // Sort cells left-to-right by their left edge (PDF coordinates).
+    row.cells
+        .sort_by(|a, b| a.pdf_left.partial_cmp(&b.pdf_left).unwrap_or(std::cmp::Ordering::Equal));
+
+    // Compute average height across all cells in the row.
+    let avg_height = if row.cells.is_empty() {
+        12.0
+    } else {
+        row.cells.iter().map(|c| (c.pdf_top - c.pdf_bottom).abs()).sum::<f32>() / row.cells.len() as f32
+    };
+    let merge_threshold = avg_height * HORIZONTAL_THRESHOLD;
+
+    let mut groups: Vec<MergedCellGroup> = Vec::new();
+
+    for cell in row.cells {
+        let should_merge = if let Some(last_group) = groups.last() {
+            let gap = cell.pdf_left - last_group.pdf_right;
+            gap <= merge_threshold
+        } else {
+            false
+        };
+
+        if should_merge {
+            let group = groups.last_mut().unwrap();
+            group.pdf_left = group.pdf_left.min(cell.pdf_left);
+            group.pdf_bottom = group.pdf_bottom.min(cell.pdf_bottom);
+            group.pdf_right = group.pdf_right.max(cell.pdf_right);
+            group.pdf_top = group.pdf_top.max(cell.pdf_top);
+            group.cells.push(cell);
+        } else {
+            groups.push(MergedCellGroup {
+                pdf_left: cell.pdf_left,
+                pdf_bottom: cell.pdf_bottom,
+                pdf_right: cell.pdf_right,
+                pdf_top: cell.pdf_top,
+                cells: vec![cell],
+            });
+        }
+    }
+
+    groups
 }
 
 /// Partition page objects into column groups by moving objects out of the source vec.
@@ -622,14 +948,14 @@ fn assemble_segments_from_chars(char_infos: &[CharInfo], repair_map: Option<&[(c
     // Compute the right margin: maximum right_x of the last non-space char
     // across all lines that have at least a few characters (to exclude short
     // title/heading lines from inflating the margin).
-    let right_margin = compute_right_margin(char_infos, &line_ranges);
+    let _right_margin = compute_right_margin(char_infos, &line_ranges);
 
     // ── Pass 2: emit segments, merging cross-line word breaks ──
     let mut segments = Vec::new();
     let mut pending_text: Option<String> = None;
     let mut pending_start: usize = 0;
 
-    for (range_idx, &(start, end)) in line_ranges.iter().enumerate() {
+    for &(start, end) in line_ranges.iter() {
         let line_text = build_line_text(&char_infos[start..end], repair_map);
         let trimmed = line_text.trim();
         if trimmed.is_empty() {
@@ -649,16 +975,7 @@ fn assemble_segments_from_chars(char_infos: &[CharInfo], repair_map: Option<&[(c
         // positives on documents with variable line lengths. Cross-line word
         // breaks ("soft ware") remain as separate segments.
         // TODO: re-enable with a more precise heuristic.
-        let merge_with_next = false
-            && range_idx + 1 < line_ranges.len()
-            && should_merge_line_break(
-                char_infos,
-                start,
-                end,
-                line_ranges[range_idx + 1].0,
-                line_ranges[range_idx + 1].1,
-                right_margin,
-            );
+        let merge_with_next = false;
 
         if merge_with_next {
             // Keep accumulating into pending_text.
@@ -750,6 +1067,7 @@ fn compute_right_margin(char_infos: &[CharInfo], line_ranges: &[(usize, usize)])
 /// the PDF renderer wraps a word across lines. Short lines (headings, list
 /// items, last lines of paragraphs) are not merged because they don't reach
 /// the right margin.
+#[allow(dead_code)]
 fn should_merge_line_break(
     char_infos: &[CharInfo],
     _curr_start: usize,
@@ -1495,7 +1813,13 @@ mod tests {
         let right_margin_x = 300.0;
         let mut chars = Vec::new();
         chars.extend(make_word_chars("this", 10.0, 100.0, fs));
-        chars.push(make_char_exact(' ', 10.0 + 4.0 * cw + 1.0, 100.0, fs, 10.0 + 4.0 * cw + 1.0 + cw));
+        chars.push(make_char_exact(
+            ' ',
+            10.0 + 4.0 * cw + 1.0,
+            100.0,
+            fs,
+            10.0 + 4.0 * cw + 1.0 + cw,
+        ));
         chars.extend(make_word_chars("is", 10.0 + 5.0 * cw + 2.0, 100.0, fs));
         chars.push(make_char_exact(
             ' ',
@@ -1510,7 +1834,13 @@ mod tests {
 
         // Line 2: "ware is great" — starts with lowercase continuation
         chars.extend(make_word_chars("ware", 10.0, 80.0, fs));
-        chars.push(make_char_exact(' ', 10.0 + 4.0 * cw + 1.0, 80.0, fs, 10.0 + 4.0 * cw + 1.0 + cw));
+        chars.push(make_char_exact(
+            ' ',
+            10.0 + 4.0 * cw + 1.0,
+            80.0,
+            fs,
+            10.0 + 4.0 * cw + 1.0 + cw,
+        ));
         chars.extend(make_word_chars("is", 10.0 + 5.0 * cw + 2.0, 80.0, fs));
         chars.push(make_char_exact(
             ' ',
@@ -1523,14 +1853,10 @@ mod tests {
         chars.extend(make_word_chars("great", great_start, 80.0, fs));
 
         let segments = assemble_segments_from_chars(&chars, None);
-        // The two lines should merge because "soft" ends at the right margin
-        // and "ware" starts with lowercase.
-        assert_eq!(segments.len(), 1, "Should merge into a single segment");
-        assert!(
-            segments[0].text.contains("software"),
-            "Expected 'software' in merged text, got: {}",
-            segments[0].text
-        );
+        // Word-break merge is disabled; lines remain separate segments.
+        assert_eq!(segments.len(), 2, "Lines stay as separate segments");
+        assert!(segments[0].text.contains("soft"), "Line 1 ends with 'soft'");
+        assert!(segments[1].text.starts_with("ware"), "Line 2 starts with 'ware'");
     }
 
     /// Short line ending with lowercase + next line starting with lowercase
@@ -1613,7 +1939,13 @@ mod tests {
 
         // Line 2: "next line" — starts with lowercase
         chars.extend(make_word_chars("next", 10.0, 80.0, fs));
-        chars.push(make_char_exact(' ', 10.0 + 4.0 * cw + 1.0, 80.0, fs, 10.0 + 5.0 * cw + 1.0));
+        chars.push(make_char_exact(
+            ' ',
+            10.0 + 4.0 * cw + 1.0,
+            80.0,
+            fs,
+            10.0 + 5.0 * cw + 1.0,
+        ));
         let line2_start = right_margin_x - 4.0 * cw;
         chars.extend(make_word_chars("line", line2_start, 80.0, fs));
 
@@ -1635,14 +1967,26 @@ mod tests {
         let mut chars = Vec::new();
         // Line 1: "the recog" — full-width, ends lowercase
         chars.extend(make_word_chars("the", 10.0, 100.0, fs));
-        chars.push(make_char_exact(' ', 10.0 + 3.0 * cw + 1.0, 100.0, fs, 10.0 + 4.0 * cw + 1.0));
+        chars.push(make_char_exact(
+            ' ',
+            10.0 + 3.0 * cw + 1.0,
+            100.0,
+            fs,
+            10.0 + 4.0 * cw + 1.0,
+        ));
         let recog_start = right_margin_x - 5.0 * cw;
         chars.extend(make_word_chars("recog", recog_start, 100.0, fs));
 
         // Line 2: "nition is" — full-width
         let ni_start = 10.0;
         chars.extend(make_word_chars("nition", ni_start, 80.0, fs));
-        chars.push(make_char_exact(' ', ni_start + 6.0 * cw + 1.0, 80.0, fs, ni_start + 7.0 * cw + 1.0));
+        chars.push(make_char_exact(
+            ' ',
+            ni_start + 6.0 * cw + 1.0,
+            80.0,
+            fs,
+            ni_start + 7.0 * cw + 1.0,
+        ));
         let is_start = right_margin_x - 2.0 * cw;
         chars.extend(make_word_chars("is", is_start, 80.0, fs));
 
@@ -1650,12 +1994,10 @@ mod tests {
         chars.extend(make_word_chars("great", 10.0, 60.0, fs));
 
         let segments = assemble_segments_from_chars(&chars, None);
-        // Line 1 ends lowercase at margin, line 2 starts lowercase => merge
-        // The merged text should contain "recognition"
-        let all_text: String = segments.iter().map(|s| s.text.as_str()).collect::<Vec<_>>().join(" ");
-        assert!(
-            all_text.contains("recognition"),
-            "Expected 'recognition' in output, got: {all_text}",
-        );
+        // Word-break merge is disabled; lines remain separate segments.
+        // "recog" and "nition" appear in separate segments.
+        assert_eq!(segments.len(), 3, "Three separate line segments");
+        assert!(segments[0].text.contains("recog"), "Line 1 has 'recog'");
+        assert!(segments[1].text.starts_with("nition"), "Line 2 starts with 'nition'");
     }
 }

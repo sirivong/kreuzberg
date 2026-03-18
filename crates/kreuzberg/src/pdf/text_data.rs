@@ -38,6 +38,7 @@ pub(crate) struct ExtractedChar {
 /// segments, with proper word boundary detection via CMap knowledge. Each
 /// segment represents a contiguous run of same-style text on a single line.
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // Used by segments_to_line_segments fallback path
 pub(crate) struct ExtractedSegment {
     pub text: String,
     pub x: f32,
@@ -67,6 +68,7 @@ pub(crate) struct PageTextData {
     /// Pre-merged text segments from pdfium's rect-based API.
     /// Each segment shares baseline and font settings. May be empty
     /// if the page has no text or segment extraction fails.
+    #[allow(dead_code)] // Used by segments_to_line_segments fallback path
     pub segments: Vec<ExtractedSegment>,
 }
 
