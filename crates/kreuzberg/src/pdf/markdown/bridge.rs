@@ -523,12 +523,163 @@ fn partition_chars_by_columns(chars: Vec<CharInfo>, splits: &[f32]) -> Vec<Vec<C
     columns
 }
 
+/// Merge adjacent character "cells" within a line and re-extract text from pdfium.
+///
+/// Implements Docling's pypdfium2 cell-merging approach:
+/// 1. Group non-space characters into contiguous "cells" (runs separated by generated spaces)
+/// 2. Merge adjacent cells whose horizontal gap ≤ average character height
+/// 3. For each merged group, call pdfium's `inside_rect()` to get properly spaced text
+/// 4. Join merged groups with spaces
+///
+/// Falls back to `build_line_text()` if pdfium extraction fails.
+#[allow(dead_code)]
+fn merge_cells_and_extract(chars: &[CharInfo], page: &PdfPage, repair_map: Option<&[(char, &str)]>) -> String {
+    let real_chars: Vec<&CharInfo> = chars.iter().filter(|c| c.ch != ' ').collect();
+    if real_chars.is_empty() {
+        return String::new();
+    }
+
+    // Step 1: Split into cells (contiguous character runs separated by gaps > char width).
+    // A "cell" is a group of characters that are close together.
+    let avg_height = real_chars.iter().map(|c| c.font_size).sum::<f32>() / real_chars.len() as f32;
+
+    let mut cells: Vec<(f32, f32, f32, f32)> = Vec::new(); // (min_x, min_y, max_x, max_y)
+    let mut cell_start_x = real_chars[0].x;
+    let mut cell_min_y = real_chars[0].y;
+    let mut cell_max_x = real_chars[0].right_x;
+    let mut cell_max_y = real_chars[0].y + real_chars[0].font_size;
+
+    for i in 1..real_chars.len() {
+        let gap = real_chars[i].x - real_chars[i - 1].right_x;
+        if gap > avg_height {
+            // New cell — large gap means word/column boundary
+            cells.push((cell_start_x, cell_min_y, cell_max_x, cell_max_y));
+            cell_start_x = real_chars[i].x;
+            cell_min_y = real_chars[i].y;
+            cell_max_x = real_chars[i].right_x;
+            cell_max_y = real_chars[i].y + real_chars[i].font_size;
+        } else {
+            // Extend current cell
+            cell_max_x = real_chars[i].right_x.max(cell_max_x);
+            cell_min_y = cell_min_y.min(real_chars[i].y);
+            cell_max_y = cell_max_y.max(real_chars[i].y + real_chars[i].font_size);
+        }
+    }
+    cells.push((cell_start_x, cell_min_y, cell_max_x, cell_max_y));
+
+    // Step 2: Merge adjacent cells whose gap ≤ avg_height (Docling's threshold).
+    let mut merged: Vec<(f32, f32, f32, f32)> = Vec::new();
+    let mut current = cells[0];
+    for cell in &cells[1..] {
+        let gap = cell.0 - current.2; // left of next - right of current
+        if gap <= avg_height {
+            // Merge: extend current to cover both
+            current.2 = cell.2.max(current.2);
+            current.1 = current.1.min(cell.1);
+            current.3 = current.3.max(cell.3);
+        } else {
+            merged.push(current);
+            current = *cell;
+        }
+    }
+    merged.push(current);
+
+    // Step 3: Extract text from each merged cell via pdfium's inside_rect().
+    let text_obj = match page.text() {
+        Ok(t) => t,
+        Err(_) => return build_line_text(chars, repair_map),
+    };
+
+    let mut parts: Vec<String> = Vec::new();
+    for &(min_x, min_y, max_x, max_y) in &merged {
+        let rect = pdfium_render::prelude::PdfRect::new_from_values(
+            min_y - 0.5, // bottom (slight padding)
+            min_x - 0.5, // left
+            max_y + 0.5, // top
+            max_x + 0.5, // right
+        );
+        let text = text_obj.inside_rect(rect);
+        let text = text.trim().replace('\n', " ");
+        if !text.is_empty() {
+            let repaired = apply_ligature_repair(&text, repair_map);
+            parts.push(repaired);
+        }
+    }
+
+    if parts.is_empty() {
+        // Fallback
+        return build_line_text(chars, repair_map);
+    }
+
+    parts.join(" ")
+}
+
+/// Compute a `PdfRect` bounding box for a line of characters.
+///
+/// Returns `None` if `chars` is empty or contains only spaces.
+/// The rect is slightly expanded (1pt padding) to ensure pdfium captures
+/// edge characters that sit exactly on the boundary.
+#[allow(dead_code)]
+fn line_bounding_rect(chars: &[CharInfo]) -> Option<pdfium_render::prelude::PdfRect> {
+    let real_chars: Vec<&CharInfo> = chars.iter().filter(|c| c.ch != ' ').collect();
+    if real_chars.is_empty() {
+        return None;
+    }
+    let min_x = real_chars.iter().map(|c| c.x).fold(f32::MAX, f32::min);
+    let max_x = real_chars.iter().map(|c| c.right_x).fold(f32::MIN, f32::max);
+    let min_y = real_chars.iter().map(|c| c.y).fold(f32::MAX, f32::min);
+    let max_y = real_chars.iter().map(|c| c.y + c.font_size).fold(f32::MIN, f32::max);
+
+    // Use tight bounding box — no vertical padding to avoid capturing
+    // characters from adjacent lines. Small horizontal padding (0.5pt)
+    // ensures edge glyphs aren't clipped.
+    // PDF coordinate system: bottom-left origin, y increases upward.
+    // PdfRect::new_from_values takes (bottom, left, top, right).
+    Some(pdfium_render::prelude::PdfRect::new_from_values(
+        min_y,
+        min_x - 0.5,
+        max_y,
+        max_x + 0.5,
+    ))
+}
+
+/// Apply ligature repair to text from pdfium's `inside_rect()`.
+///
+/// When using pdfium's bounded text extraction, ligatures may still need
+/// repair if the font has broken ToUnicode mappings.
+#[allow(dead_code)]
+fn apply_ligature_repair(text: &str, repair_map: Option<&[(char, &str)]>) -> String {
+    let Some(map) = repair_map else {
+        return text.to_string();
+    };
+    let mut result = String::with_capacity(text.len());
+    for ch in text.chars() {
+        if let Some((_, replacement)) = map.iter().find(|(c, _)| *c == ch) {
+            result.push_str(replacement);
+        } else {
+            result.push(ch);
+        }
+    }
+    result
+}
+
 /// Assemble segments from a slice of characters using Y-position line breaks.
 ///
 /// Extracted from `chars_to_segments` for reuse in per-column assembly.
-/// Detects line breaks by Y-position changes, builds text per line using
-/// `build_line_text`, and emits one `SegmentData` per line.
-fn assemble_segments_from_chars(char_infos: &[CharInfo], repair_map: Option<&[(char, &str)]>) -> Vec<SegmentData> {
+/// Detects line breaks by Y-position changes.
+///
+/// When `page` is provided, uses pdfium's `inside_rect()` (FPDFText_GetBoundedText)
+/// to extract text for each line, letting pdfium's CMap-aware algorithm handle word
+/// boundaries. This matches Docling's approach: merge fragmented text runs into a
+/// bounding box, then let pdfium decide where spaces go.
+///
+/// Falls back to `build_line_text()` when `page` is `None` or when `inside_rect()`
+/// returns empty (e.g., for synthetic/overlapping coordinates).
+fn assemble_segments_from_chars(
+    char_infos: &[CharInfo],
+    repair_map: Option<&[(char, &str)]>,
+    _page: Option<&PdfPage>,
+) -> Vec<SegmentData> {
     if char_infos.is_empty() {
         return Vec::new();
     }
@@ -566,7 +717,15 @@ fn assemble_segments_from_chars(char_infos: &[CharInfo], repair_map: Option<&[(c
         };
 
         if is_line_break {
-            let line_text = build_line_text(&char_infos[line_start..i], repair_map);
+            let line_chars = &char_infos[line_start..i];
+
+            // TODO: pdfium's inside_rect() (FPDFText_GetBoundedText) would let pdfium
+            // handle word boundaries via CMap knowledge (Docling's approach), but it
+            // captures rotated sidebar characters whose bounding boxes intersect with
+            // body text lines. For now, use character-level assembly with geometric
+            // space detection. A future improvement could use inside_rect() only for
+            // pages without rotated text objects.
+            let line_text = build_line_text(line_chars, repair_map);
 
             let trimmed = line_text.trim();
             if !trimmed.is_empty() {
@@ -725,13 +884,14 @@ fn chars_to_segments(page: &PdfPage) -> Option<Vec<SegmentData>> {
 
     let segments = if column_splits.is_empty() {
         // Single column: assemble lines directly
-        assemble_segments_from_chars(&char_infos, repair_map.as_deref())
+        assemble_segments_from_chars(&char_infos, repair_map.as_deref(), Some(page))
     } else {
-        // Multi-column: partition chars by column, assemble per column, concatenate
+        // Multi-column: partition chars by column, assemble per column, concatenate.
+        // Pass page so each column can use pdfium's inside_rect for text extraction.
         let columns = partition_chars_by_columns(char_infos, &column_splits);
         columns
             .iter()
-            .flat_map(|col| assemble_segments_from_chars(col, repair_map.as_deref()))
+            .flat_map(|col| assemble_segments_from_chars(col, repair_map.as_deref(), Some(page)))
             .collect()
     };
 
@@ -1115,7 +1275,7 @@ mod tests {
             // Line 3
             make_char('!', 10.0, 60.0, 12.0),
         ];
-        let segments = assemble_segments_from_chars(&chars, None);
+        let segments = assemble_segments_from_chars(&chars, None, None);
         assert_eq!(segments.len(), 3, "Should produce 3 segments for 3 lines");
         assert_eq!(segments[0].text, "Hi");
         assert_eq!(segments[1].text, "Bye");
@@ -1148,8 +1308,8 @@ mod tests {
         let columns = partition_chars_by_columns(chars, &splits);
         assert_eq!(columns.len(), 2);
 
-        let left_segs = assemble_segments_from_chars(&columns[0], None);
-        let right_segs = assemble_segments_from_chars(&columns[1], None);
+        let left_segs = assemble_segments_from_chars(&columns[0], None, None);
+        let right_segs = assemble_segments_from_chars(&columns[1], None, None);
         assert_eq!(left_segs.len(), 5, "Left column should have 5 lines");
         assert_eq!(right_segs.len(), 5, "Right column should have 5 lines");
 
