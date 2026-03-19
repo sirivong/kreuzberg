@@ -187,7 +187,6 @@ pub(super) fn objects_to_page_data(
             let merged_diff = (merged_tokens as f64 - ref_tokens as f64).abs();
 
             if dto_result.is_some() && merged_result.is_some() {
-                // Both available: pick closer to reference, prefer DTO on ties
                 let dto_within_10pct = dto_diff <= merged_diff * 1.1;
                 if dto_within_10pct {
                     dto_result
@@ -195,7 +194,6 @@ pub(super) fn objects_to_page_data(
                     merged_result
                 }
             } else {
-                // Only one available
                 dto_result.or(merged_result)
             }
         };
@@ -229,7 +227,9 @@ pub(super) fn objects_to_page_data(
     // Apply ligature repair for last-resort path.
     if let Some(repair_map) = build_ligature_repair_map(page) {
         for seg in &mut segments {
-            seg.text = apply_ligature_repairs(&seg.text, &repair_map);
+            if let Cow::Owned(s) = apply_ligature_repairs(&seg.text, &repair_map) {
+                seg.text = s;
+            }
         }
     }
 

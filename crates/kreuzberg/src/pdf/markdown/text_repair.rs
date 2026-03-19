@@ -111,7 +111,16 @@ pub(super) fn build_ligature_repair_map(page: &PdfPage) -> Option<Vec<(char, &'s
 /// from the replacement: e.g., "ﬁ rst" → "fi rst" → "first". When a ligature
 /// expansion is immediately followed by a space and a lowercase letter, the
 /// space is removed (matching the reference regex-based post-processing).
-pub(super) fn apply_ligature_repairs(text: &str, repair_map: &[(char, &str)]) -> String {
+pub(super) fn apply_ligature_repairs<'a>(text: &'a str, repair_map: &[(char, &str)]) -> Cow<'a, str> {
+    // Fast path: if no characters in the text match the repair map, return borrowed.
+    if repair_map.is_empty()
+        || !text
+            .chars()
+            .any(|c| repair_map.iter().any(|(rc, _)| *rc == c))
+    {
+        return Cow::Borrowed(text);
+    }
+
     let mut result = String::with_capacity(text.len() + 16);
     for ch in text.chars() {
         if let Some((_, replacement)) = repair_map.iter().find(|(c, _)| *c == ch) {
@@ -129,12 +138,10 @@ pub(super) fn apply_ligature_repairs(text: &str, repair_map: &[(char, &str)]) ->
     let mut chars = result.chars().peekable();
     while let Some(ch) = chars.next() {
         if ch == ' ' && !collapsed.is_empty() {
-            // Look ahead: is the next character a lowercase letter?
             if chars.peek().is_some_and(|&nc| nc.is_lowercase()) {
-                // Check if the text before the space ends with a ligature expansion
-                let should_collapse = ligature_endings.iter().any(|lig| collapsed.ends_with(lig));
+                let should_collapse =
+                    ligature_endings.iter().any(|lig| collapsed.ends_with(lig));
                 if should_collapse {
-                    // Skip the space — don't push it
                     continue;
                 }
             }
@@ -142,7 +149,7 @@ pub(super) fn apply_ligature_repairs(text: &str, repair_map: &[(char, &str)]) ->
         collapsed.push(ch);
     }
 
-    collapsed
+    Cow::Owned(collapsed)
 }
 
 /// Repair ligature corruption using contextual heuristics.
@@ -665,8 +672,9 @@ pub(super) fn apply_to_all_segments(paragraphs: &mut [PdfParagraph], repair_fn: 
     for para in paragraphs {
         for line in &mut para.lines {
             for seg in &mut line.segments {
-                let input = seg.text.clone();
-                if let Cow::Owned(s) = repair_fn(&input) {
+                // Borrow directly — only allocate when the repair actually modifies text.
+                // Previously this cloned every segment's text unconditionally.
+                if let Cow::Owned(s) = repair_fn(&seg.text) {
                     seg.text = s;
                 }
             }

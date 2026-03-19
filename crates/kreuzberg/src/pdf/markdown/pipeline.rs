@@ -1,5 +1,7 @@
 //! Main PDF-to-Markdown pipeline orchestrator.
 
+use std::borrow::Cow;
+
 use crate::pdf::error::Result;
 use crate::pdf::hierarchy::{BoundingBox, SegmentData, TextBlock, assign_heading_levels_smart, cluster_font_sizes};
 use pdfium_render::prelude::*;
@@ -75,7 +77,7 @@ fn extract_structure_tree_pages(
                 // Try error-flag-based repair first (most accurate).
                 if let Some(repair_map) = build_ligature_repair_map(&page) {
                     has_font_encoding_issues = true;
-                    apply_to_all_segments(&mut paragraphs, |t| apply_ligature_repairs(t, &repair_map).into());
+                    apply_to_all_segments(&mut paragraphs, |t| apply_ligature_repairs(t, &repair_map));
                 }
                 // Then apply contextual ligature repair for fonts where
                 // pdfium doesn't flag encoding errors. Check the actual
@@ -101,17 +103,23 @@ fn extract_structure_tree_pages(
                         apply_to_all_segments(&mut paragraphs, repair_broken_word_spacing);
                     }
                 }
-                // Normalize text encoding: strip pdfium's \x02 soft-hyphen markers
-                // and handle Unicode soft hyphens.
-                apply_to_all_segments(&mut paragraphs, normalize_text_encoding);
-                // Repair ligature-glyph spaces ("eff iciently" → "efficiently").
-                apply_to_all_segments(&mut paragraphs, repair_ligature_spaces);
-                // Expand Unicode ligature characters (ﬁ, ﬂ, etc.) and absorb spurious spaces.
-                apply_to_all_segments(&mut paragraphs, expand_ligatures_with_space_absorption);
-                // Normalize Unicode characters (curly quotes, fraction slash, etc.)
-                apply_to_all_segments(&mut paragraphs, normalize_unicode_text);
-                // Clean up duplicate punctuation (`, ,` → `,`) from overlapping cell extraction.
-                apply_to_all_segments(&mut paragraphs, clean_duplicate_punctuation);
+                // Fused text normalization pass: apply all 5 text repairs in a single
+                // traversal instead of 5 separate passes over all segments.
+                apply_to_all_segments(&mut paragraphs, |text| {
+                    let t1 = normalize_text_encoding(text);
+                    let t2 = repair_ligature_spaces(&t1);
+                    let t3 = expand_ligatures_with_space_absorption(&t2);
+                    let t4 = normalize_unicode_text(&t3);
+                    let t5 = clean_duplicate_punctuation(&t4);
+                    // If any step produced Owned, the chain references locals.
+                    // Convert to Owned to return safely, or Borrowed if nothing changed.
+                    match (&t1, &t2, &t3, &t4, &t5) {
+                        (Cow::Borrowed(_), Cow::Borrowed(_), Cow::Borrowed(_), Cow::Borrowed(_), Cow::Borrowed(_)) => {
+                            Cow::Borrowed(text)
+                        }
+                        _ => Cow::Owned(t5.into_owned()),
+                    }
+                });
                 // Dehyphenate: rejoin trailing hyphens. Use positional
                 // data for full-line checks when bounds are available.
                 let has_positions = paragraphs.iter().any(|p| {
@@ -501,18 +509,21 @@ fn process_single_page(
                 apply_to_all_segments(&mut paragraphs, repair_broken_word_spacing);
             }
         }
-        // Normalize text encoding: strip pdfium's \x02 soft-hyphen markers
-        // (rejoining word fragments like "soft\x02 ware" → "software") and
-        // handle Unicode soft hyphens.
-        apply_to_all_segments(&mut paragraphs, normalize_text_encoding);
-        // Repair ligature-glyph spaces ("eff iciently" → "efficiently").
-        apply_to_all_segments(&mut paragraphs, repair_ligature_spaces);
-        // Expand Unicode ligature characters (ﬁ, ﬂ, etc.) and absorb spurious spaces.
-        apply_to_all_segments(&mut paragraphs, expand_ligatures_with_space_absorption);
-        // Normalize Unicode characters (curly quotes, fraction slash, etc.)
-        apply_to_all_segments(&mut paragraphs, normalize_unicode_text);
-        // Clean up duplicate punctuation (`, ,` → `,`) from overlapping cell extraction.
-        apply_to_all_segments(&mut paragraphs, clean_duplicate_punctuation);
+        // Fused text normalization pass: apply all 5 text repairs in a single
+        // traversal instead of 5 separate passes over all segments.
+        apply_to_all_segments(&mut paragraphs, |text| {
+            let t1 = normalize_text_encoding(text);
+            let t2 = repair_ligature_spaces(&t1);
+            let t3 = expand_ligatures_with_space_absorption(&t2);
+            let t4 = normalize_unicode_text(&t3);
+            let t5 = clean_duplicate_punctuation(&t4);
+            match (&t1, &t2, &t3, &t4, &t5) {
+                (Cow::Borrowed(_), Cow::Borrowed(_), Cow::Borrowed(_), Cow::Borrowed(_), Cow::Borrowed(_)) => {
+                    Cow::Borrowed(text)
+                }
+                _ => Cow::Owned(t5.into_owned()),
+            }
+        });
         // Dehyphenate: heuristic path has positional data for
         // full-line detection, enabling both hyphen and no-hyphen joins.
         dehyphenate_paragraphs(&mut paragraphs, true);
@@ -1098,9 +1109,13 @@ fn paragraph_alphanum_len(para: &PdfParagraph) -> usize {
     para.lines
         .iter()
         .flat_map(|line| line.segments.iter())
-        .flat_map(|seg| seg.text.chars())
-        .filter(|c| c.is_alphanumeric())
-        .count()
+        .map(|seg| {
+            seg.text
+                .bytes()
+                .filter(|b| b.is_ascii_alphanumeric())
+                .count()
+        })
+        .sum()
 }
 
 /// Remove standalone page numbers from segments.
@@ -1383,18 +1398,24 @@ fn deduplicate_paragraphs(all_pages: &mut [Vec<PdfParagraph>]) {
 }
 
 /// Extract normalized text from a paragraph for dedup comparison.
+/// Builds result directly without intermediate Vec allocations.
 fn paragraph_text_normalized(p: &PdfParagraph) -> String {
-    let raw: String = p
-        .lines
-        .iter()
-        .flat_map(|l| l.segments.iter())
-        .map(|s| s.text.as_str())
-        .collect::<Vec<_>>()
-        .join(" ");
-    raw.split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-        .to_lowercase()
+    let mut result = String::new();
+    for line in &p.lines {
+        for seg in &line.segments {
+            for word in seg.text.split_whitespace() {
+                if !result.is_empty() {
+                    result.push(' ');
+                }
+                for c in word.chars() {
+                    for lc in c.to_lowercase() {
+                        result.push(lc);
+                    }
+                }
+            }
+        }
+    }
+    result
 }
 
 /// Check if a paragraph is eligible for deduplication.
