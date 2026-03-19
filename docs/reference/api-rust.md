@@ -692,7 +692,7 @@ pub struct HierarchyConfig {
 
 ---
 
-### LayoutDetectionConfig
+### LayoutDetectionConfig <span class="version-badge">v4.5.0</span>
 
 Layout detection configuration (requires `layout-detection` feature). Analyzes document structure using RT-DETR/YOLO models.
 

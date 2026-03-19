@@ -3342,7 +3342,7 @@ Configuration for reducing token count in extracted text, useful for optimizing 
 
 ---
 
-## LayoutDetectionConfig
+## LayoutDetectionConfig <span class="version-badge">v4.5.0</span>
 
 Configuration for ONNX-based document layout detection. Analyzes PDF pages to identify structural regions such as tables, figures, headers, and text blocks.
 
@@ -3432,7 +3432,7 @@ Configuration for ONNX-based document layout detection. Analyzes PDF pages to id
 
 ---
 
-## AccelerationConfig
+## AccelerationConfig <span class="version-badge">v4.5.0</span>
 
 Controls hardware acceleration for ONNX Runtime inference (layout detection and embeddings).
 

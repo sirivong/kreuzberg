@@ -319,6 +319,41 @@ result = Kreuzberg.extract_file_sync("document.pdf", config: config)
 
 ---
 
+### Kreuzberg::Config::LayoutDetection <span class="version-badge">v4.5.0</span>
+
+Configure layout detection for document structure analysis.
+
+**Fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `preset` | String | "accurate" | Model preset: "fast" (YOLO DocLayNet, 11 classes) or "accurate" (RT-DETR v2, 17 classes) |
+| `confidence_threshold` | Float\|nil | nil | Minimum confidence score (0.0-1.0) for layout detection results. If nil, no filtering applied |
+| `apply_heuristics` | Boolean | true | Apply post-processing heuristics to refine layout results |
+
+**Example:**
+
+```ruby title="layout_detection.rb"
+require 'kreuzberg'
+
+config = Kreuzberg::Config::Extraction.new(
+  layout: Kreuzberg::Config::LayoutDetection.new(
+    preset: 'accurate',
+    confidence_threshold: 0.5,
+    apply_heuristics: true
+  )
+)
+
+result = Kreuzberg.extract_file_sync("document.pdf", config: config)
+
+if result.document
+  puts "Document structure detected"
+  puts "Sections: #{result.document['sections'].length}"
+end
+```
+
+---
+
 ## Results & Types
 
 ### Kreuzberg::Result

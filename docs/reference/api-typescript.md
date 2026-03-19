@@ -728,6 +728,41 @@ const config: ExtractionConfig = {
 };
 ```
 
+### LayoutDetectionConfig <span class="version-badge">v4.5.0</span>
+
+Configuration for ONNX-based document layout analysis.
+
+**Type Definition:**
+
+<!-- skip -->
+```typescript title="TypeScript"
+interface LayoutDetectionConfig {
+  preset?: string;              // "fast" or "accurate" (default)
+  confidenceThreshold?: number; // minimum detection confidence
+  applyHeuristics?: boolean;    // post-processing refinement (default: true)
+}
+```
+
+**Fields:**
+
+- `preset` (string): Model preset — `"accurate"` (RT-DETR v2, 17 classes) or `"fast"` (YOLO DocLayNet, 11 classes). Default: `"accurate"`
+- `confidenceThreshold` (number | null): Minimum confidence for layout detections. Default: null (model default)
+- `applyHeuristics` (boolean): Apply post-processing heuristics to refine results. Default: true
+
+**Example:**
+
+<!-- skip -->
+```typescript title="layout_config.ts"
+const config: ExtractionConfig = {
+  layout: {
+    preset: "accurate"
+  },
+  acceleration: {
+    provider: "cuda"
+  }
+};
+```
+
 ---
 
 

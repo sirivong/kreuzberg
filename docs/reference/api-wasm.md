@@ -1355,6 +1355,42 @@ Configuration for extraction parallelization.
 
 ---
 
+### LayoutDetectionConfig <span class="version-badge">v4.5.0</span>
+
+Configuration for layout detection and document structure analysis.
+
+**Fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `preset` | string | "accurate" | Model preset: "fast" (YOLO DocLayNet, 11 classes) or "accurate" (RT-DETR v2, 17 classes) |
+| `confidenceThreshold` | number \| undefined | undefined | Minimum confidence score (0.0-1.0) for layout detection results. If undefined, no filtering applied |
+| `applyHeuristics` | boolean | true | Apply post-processing heuristics to refine layout results |
+
+**Example:**
+
+```typescript title="layout_detection.ts"
+import { Kreuzberg } from '@kreuzberg/wasm';
+
+const config: ExtractionConfig = {
+  layout: {
+    preset: 'accurate',
+    confidenceThreshold: 0.5,
+    applyHeuristics: true
+  }
+};
+
+const kreuzberg = new Kreuzberg(config);
+const result = await kreuzberg.extractFromPath('document.pdf');
+
+if (result.document) {
+  console.log('Document structure detected');
+  console.log(`Sections: ${result.document.sections.length}`);
+}
+```
+
+---
+
 ### ChunkingConfig
 
 Configuration for text chunking.

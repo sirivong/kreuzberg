@@ -580,7 +580,7 @@ Document hierarchy detection configuration (used with `PdfConfig.hierarchy`).
 
 ---
 
-### LayoutDetectionConfig
+### LayoutDetectionConfig <span class="version-badge">v4.5.0</span>
 
 Layout detection configuration (requires `layout-detection` feature).
 

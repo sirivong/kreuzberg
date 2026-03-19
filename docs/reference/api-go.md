@@ -806,7 +806,7 @@ type RakeParams struct {
 
 ---
 
-### LayoutDetectionConfig
+### LayoutDetectionConfig <span class="version-badge">v4.5.0</span>
 
 Configure ONNX-based document layout detection.
 

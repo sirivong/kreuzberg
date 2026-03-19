@@ -1040,6 +1040,39 @@ When configuring `concurrency` map:
 
 ---
 
+### LayoutDetectionConfig <span class="version-badge">v4.5.0</span>
+
+Configure layout detection for document structure analysis.
+
+**Fields:**
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `"preset"` | String | "accurate" | Model preset: "fast" (YOLO DocLayNet, 11 classes) or "accurate" (RT-DETR v2, 17 classes) |
+| `"confidence_threshold"` | Float\|nil | nil | Minimum confidence score (0.0-1.0) for layout detection results. If nil, no filtering applied |
+| `"apply_heuristics"` | Boolean | true | Apply post-processing heuristics to refine layout results |
+
+**Example:**
+
+```elixir title="layout_detection.exs"
+config = %Kreuzberg.ExtractionConfig{
+  layout: %{
+    "preset" => "accurate",
+    "confidence_threshold" => 0.5,
+    "apply_heuristics" => true
+  }
+}
+
+{:ok, result} = Kreuzberg.extract_file("document.pdf", nil, config)
+
+if result.document do
+  IO.puts("Document structure detected")
+  IO.puts("Sections: #{length(result.document["sections"])}")
+end
+```
+
+---
+
 ## Results & Types
 
 ### ExtractionResult

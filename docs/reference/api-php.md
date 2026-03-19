@@ -1078,6 +1078,48 @@ $config = new LanguageDetectionConfig(
 
 ---
 
+### LayoutDetectionConfig <span class="version-badge">v4.5.0</span>
+
+Layout detection configuration (requires `layout-detection` feature).
+
+**Signature:**
+
+```php title="PHP"
+readonly class LayoutDetectionConfig
+{
+    public function __construct(
+        public string $preset = 'accurate',
+        public ?float $confidenceThreshold = null,
+        public bool $applyHeuristics = true,
+    );
+}
+```
+
+**Fields:**
+
+- `$preset` (string): Model selection preset. `"fast"` (YOLO DocLayNet, 11 classes) or `"accurate"` (RT-DETR v2, 17 classes). Default: `"accurate"`
+- `$confidenceThreshold` (float|null): Confidence threshold for layout detection (0.0-1.0). Default: `null`
+- `$applyHeuristics` (bool): Apply post-processing heuristics to refine layout results. Default: `true`
+
+**Example:**
+
+```php title="layout_detection_config.php"
+<?php
+
+use Kreuzberg\Config\LayoutDetectionConfig;
+use Kreuzberg\Config\ExtractionConfig;
+
+$config = new ExtractionConfig(
+    layout: new LayoutDetectionConfig(
+        preset: 'accurate',
+        confidenceThreshold: 0.5,
+        applyHeuristics: true
+    )
+);
+```
+
+---
+
 ### KeywordConfig
 
 Keyword extraction configuration.

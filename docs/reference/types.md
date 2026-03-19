@@ -3754,7 +3754,7 @@ type PostProcessorConfig struct {
 }
 ```
 
-### LayoutDetectionConfig
+### LayoutDetectionConfig <span class="version-badge">v4.5.0</span>
 
 Layout detection configuration for ONNX-based document structure analysis. Controls model selection, confidence thresholds, and postprocessing heuristics. Requires the `layout-detection` feature.
 

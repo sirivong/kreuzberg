@@ -1822,7 +1822,7 @@ Configuration for PDF-specific extraction options.
 
 ---
 
-### LayoutDetectionConfig
+### LayoutDetectionConfig <span class="version-badge">v4.5.0</span>
 
 Configuration for ONNX-based document layout detection.
 

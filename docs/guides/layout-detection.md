@@ -1,4 +1,4 @@
-# Layout Detection
+# Layout Detection <span class="version-badge">v4.5.0</span>
 
 Detect document layout regions (tables, figures, headers, text blocks, etc.) in PDFs using ONNX-based deep learning models.
 
@@ -15,6 +15,44 @@ Kreuzberg ships two model presets:
 
 !!! note "Feature gate"
     Layout detection requires the `layout-detection` Cargo feature. It is not included in the default feature set.
+
+## Performance Impact
+
+Layout detection improves extraction quality at the cost of processing time:
+
+| Pipeline | SF1 (Structure) | TF1 (Text) | Avg Time/Doc |
+|----------|-----------------|------------|--------------|
+| Baseline | 33.9% | 87.4% | 447ms |
+| Layout   | 41.1% | 90.1% | 1500ms |
+| **Delta** | **+7.2%** | **+2.7%** | **3.4x slower** |
+
+*Benchmarked on a 171-document PDF corpus (CPU only). GPU acceleration significantly reduces the time penalty.*
+
+!!! tip "GPU Acceleration Recommended"
+    Layout detection runs ONNX-optimized models that benefit significantly from GPU acceleration.
+    On CPU, expect ~3.4x slower extraction. For layout-heavy workloads, we recommend:
+
+    - **NVIDIA GPUs**: Enable CUDA or TensorRT via `AccelerationConfig(provider="cuda")`
+    - **Apple Silicon**: CoreML acceleration is enabled automatically
+    - **CPU fallback**: Works correctly but is slower for large document batches
+
+    See [GPU Acceleration](#gpu-acceleration) below for configuration details.
+
+## When to Enable Layout Detection
+
+**Recommended for:**
+
+- Complex PDFs with multi-column layouts, tables, and mixed content
+- Scanned documents where structure recognition improves OCR targeting
+- Academic papers with headings, formulas, figures, and references
+- Business forms with checkboxes, key-value pairs, and tables
+- Documents where table extraction quality matters (layout enables SLANet neural table recognition)
+
+**Less beneficial for:**
+
+- Simple single-column text documents (minimal quality improvement)
+- High-throughput pipelines where 3.4x latency increase is unacceptable (consider GPU)
+- Documents already well-handled by the PDF structure tree
 
 ## When to Use Layout Detection
 
@@ -177,6 +215,13 @@ All model backends map their native class IDs to a shared set of 17 canonical cl
 | `CheckboxUnselected`  | 14 | --   | Yes      | Unchecked checkbox                     |
 | `Form`                | 15 | --   | Yes      | Form region                            |
 | `KeyValueRegion`      | 16 | --   | Yes      | Key-value pair region                  |
+
+## Acknowledgments
+
+Layout detection in Kreuzberg builds on outstanding work from the open-source community:
+
+- **[Docling](https://github.com/DS4SD/docling)** — We use the Docling Heron RT-DETR v2 model for document layout analysis. The Docling project's approach to document understanding, heuristics, and layout classification has been a significant influence on our pipeline design.
+- **[TATR (Table Transformer)](https://github.com/microsoft/table-transformer)** — Table structure recognition uses a TATR ONNX model to detect rows, columns, headers, and spanning cells within layout-detected table regions, enabling accurate markdown table generation with colspan/rowspan support.
 
 ## Related Documentation
 
