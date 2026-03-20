@@ -189,9 +189,8 @@ tasks:
 
   update:
     desc: Update WASM dependencies
-    dir: crates/kreuzberg-wasm
     cmds:
-      - pnpm up --latest
+      - echo "WASM dependencies updated via node:update (pnpm workspace)"
 
   e2e:deno:generate:
     desc: Generate and format Deno WASM E2E tests from fixtures

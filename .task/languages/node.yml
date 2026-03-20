@@ -109,12 +109,12 @@ tasks:
       - python -c "import shutil, os; [shutil.rmtree(os.path.join(r, d), ignore_errors=True) for r, dirs, _ in os.walk('.') for d in dirs if d == '.turbo']"
 
   update:
-    desc: Update Node/TypeScript dependencies
-    dir: crates/kreuzberg-node
+    desc: Update Node/TypeScript dependencies (all workspace packages)
     cmds:
-      - echo "Updating Node/TypeScript dependencies..."
+      - echo "Updating Node/TypeScript dependencies across workspace..."
       - corepack up
-      - pnpm up --latest
+      - pnpm up --latest -r
+      - pnpm up --latest -w
 
   e2e:generate:
     desc: Generate and format TypeScript E2E tests

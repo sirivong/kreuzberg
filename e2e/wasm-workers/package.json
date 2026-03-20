@@ -10,8 +10,8 @@
 		"lint": "biome check tests/"
 	},
 	"devDependencies": {
-		"@cloudflare/vitest-pool-workers": "^0.13.0",
-		"@cloudflare/workers-types": "^4.20260316.1",
+		"@cloudflare/vitest-pool-workers": "^0.13.2",
+		"@cloudflare/workers-types": "^4.20260317.1",
 		"@kreuzberg/test-utils": "workspace:*",
 		"@kreuzberg/wasm": "workspace:*",
 		"@vitest/runner": "~4.1.0",

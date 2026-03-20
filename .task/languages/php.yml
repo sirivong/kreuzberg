@@ -130,6 +130,9 @@ tasks:
   update:
     desc: Update PHP dependencies to latest versions (including major versions)
     cmds:
+      - echo "Updating root composer.json dependencies..."
+      - composer outdated --direct --format=json | jq -r '.installed[]? | .name' | grep -v '^$' | xargs -r -I {} composer require {} --dev --no-update --no-interaction || true
+      - composer update --with-all-dependencies
       - echo "Updating packages/php dependencies to latest versions..."
       - cd packages/php && composer outdated --direct --format=json | jq -r '.installed[]? | .name' | grep -v '^$' | xargs -r -I {} composer require {} --dev --no-update --no-interaction || true
       - cd packages/php && composer update --with-all-dependencies
