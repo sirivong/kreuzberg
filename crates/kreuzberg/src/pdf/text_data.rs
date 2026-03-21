@@ -123,12 +123,25 @@ fn extract_segments_from_api(text_obj: &PdfPageText) -> Vec<ExtractedSegment> {
     let seg_count = pdfium_segments.len();
     let mut segments = Vec::with_capacity(seg_count);
 
+    // Detect at page level whether word spacing is broken.
+    // Only then apply the expensive per-char respacing to all segments.
+    let page_text = text_obj.all();
+    let page_needs_respacing =
+        crate::pdf::markdown::text_repair::text_has_broken_word_spacing(&page_text);
+    if page_needs_respacing {
+        tracing::debug!("Page has broken word spacing, applying respacing to all segments");
+    }
+
     for i in 0..seg_count {
         let seg = match pdfium_segments.get(i) {
             Ok(s) => s,
             Err(_) => continue,
         };
-        let text = seg.text();
+        let text = if page_needs_respacing {
+            seg.text_respaced(0.33)
+        } else {
+            seg.text()
+        };
         if text.trim().is_empty() {
             continue;
         }

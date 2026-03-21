@@ -326,7 +326,7 @@ pub(super) fn text_has_ligature_corruption(text: &str) -> bool {
 ///
 /// Returns true if the density of suspicious fragments exceeds a threshold,
 /// indicating systematic font-metric corruption on this page.
-pub(super) fn text_has_broken_word_spacing(text: &str) -> bool {
+pub(in crate::pdf) fn text_has_broken_word_spacing(text: &str) -> bool {
     if text.len() < 20 {
         return false;
     }
