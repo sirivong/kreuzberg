@@ -3201,6 +3201,7 @@ dependencies = [
  "calamine",
  "cfb 0.14.0",
  "chardetng",
+ "chrono",
  "criterion 0.8.2",
  "dashmap",
  "dbase",
