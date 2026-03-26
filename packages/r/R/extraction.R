@@ -98,9 +98,9 @@ render_pdf_pages_iter <- function(path, dpi = 150L, callback) {
       render_pdf_page(path, page_index, dpi),
       error = function(e) {
         if (grepl("not found|out of bounds|Page.*not found", conditionMessage(e), ignore.case = TRUE)) {
-          return(NULL)  # end of pages
+          return(NULL) # end of pages
         }
-        stop(e)  # re-raise real errors
+        stop(e) # re-raise real errors
       }
     )
     if (is.null(result)) break

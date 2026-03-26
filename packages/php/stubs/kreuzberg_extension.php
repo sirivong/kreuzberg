@@ -294,6 +294,19 @@ function kreuzberg_batch_extract_bytes_async(array $dataList, array $mimeTypes, 
 }
 
 /**
+ * Render a single PDF page to PNG bytes.
+ *
+ * @param string $filePath Path to the PDF file
+ * @param int $pageIndex Zero-based page index
+ * @param int|null $dpi Rendering DPI (default: 150)
+ * @return string PNG image data
+ * @throws \Exception If rendering fails
+ */
+function kreuzberg_render_pdf_page(string $filePath, int $pageIndex, ?int $dpi = null): string
+{
+}
+
+/**
  * Create a new PDF page iterator (native extension function).
  *
  * @param string $filePath Path to the PDF file

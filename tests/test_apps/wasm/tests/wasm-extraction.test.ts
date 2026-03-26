@@ -1,3 +1,4 @@
+import { assert, assertEquals, assertExists } from "jsr:@std/assert";
 import { resolve } from "node:path";
 import type {
 	ChunkingConfig,
@@ -22,7 +23,6 @@ import {
 	isValidExtractionResult,
 	wrapWasmError,
 } from "@kreuzberg/wasm";
-import { assertEquals, assertExists, assert } from "jsr:@std/assert";
 
 const TEST_DOCS_DIR = resolve(
 	Deno.env.get("TEST_DOCS_DIR") || resolve(new URL(".", import.meta.url).pathname, "../../../../test_documents"),
@@ -189,7 +189,7 @@ Deno.test("should handle plain text files synchronously", () => {
 Deno.test("should handle empty byte arrays gracefully", () => {
 	const emptyBytes = new Uint8Array(0);
 	const result = tryExtractionSync(emptyBytes, "text/plain");
-	assert(result === null || result === null);
+	assert(result === null || result !== undefined);
 });
 
 Deno.test("should handle large byte arrays", () => {

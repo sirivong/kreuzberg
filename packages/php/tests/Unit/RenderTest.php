@@ -12,11 +12,12 @@ declare(strict_types=1);
 namespace Kreuzberg\Tests\Unit;
 
 use Kreuzberg\Exceptions\KreuzbergException;
-use PHPUnit\Framework\Attributes\Test;
-use PHPUnit\Framework\TestCase;
 
 use function Kreuzberg\render_pdf_page;
 use function Kreuzberg\render_pdf_pages_iter;
+
+use PHPUnit\Framework\Attributes\Test;
+use PHPUnit\Framework\TestCase;
 
 final class RenderTest extends TestCase
 {

@@ -25,44 +25,69 @@ class DockerKreuzbergClient {
 
   async startContainer(): Promise<void> {
     console.log("Starting Kreuzberg Docker container...");
-    const cmd = `docker run -d --name ${this.containerName} -p ${this.apiPort}:8000 ${this.containerImage}`;
+    const cmd = `;
+docker;
+run - d--;
+name;
+$;
+{
+	this.containerName;
+}
+-p;
+$;
+{
+	this.apiPort;
+}
+:8000 $
+{
+	this.containerImage;
+}
+`;
     await execAsync(cmd);
-    console.log(`Container started on http://localhost:${this.apiPort}`);
-  }
-
-  async extractFile(filePath: string): Promise<string> {
-    const fileContent = readFileSync(filePath);
-    const form = new FormData();
-    form.append("file", fileContent, basename(filePath));
-
-    const response = await axios.post(
-      `http://localhost:${this.apiPort}/api/extract`,
-      form,
-      { headers: form.getHeaders() }
-    );
-
-    return response.data.content;
-  }
-
-  async stopContainer(): Promise<void> {
-    console.log("Stopping Kreuzberg Docker container...");
-    await execAsync(`docker stop ${this.containerName}`);
-    await execAsync(`docker rm ${this.containerName}`);
-    console.log("Container stopped and removed");
-  }
+    console.log(`;
+Container;
+started;
+on;
+http: //localhost:${this.apiPort}`);
 }
 
-(async () => {
-  const dockerClient = new DockerKreuzbergClient();
+  async extractFile(filePath: string): Promise<string>
+{
+	const fileContent = readFileSync(filePath);
+	const form = new FormData();
+	form.append("file", fileContent, basename(filePath));
 
-  try {
-    await dockerClient.startContainer();
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+	const response = await axios.post(`http://localhost:${this.apiPort}/api/extract`, form, {
+		headers: form.getHeaders(),
+	});
 
-    const content = await dockerClient.extractFile("document.pdf");
-    console.log(`Extracted content:\n${content}`);
-  } finally {
-    await dockerClient.stopContainer();
-  }
-})();
+	return response.data.content;
+}
+
+async;
+stopContainer();
+: Promise<void>
+{
+	console.log("Stopping Kreuzberg Docker container...");
+	await execAsync(`docker stop ${this.containerName}`);
+	await execAsync(`docker rm ${this.containerName}`);
+	console.log("Container stopped and removed");
+}
+}
+
+(async () =>
+{
+	const dockerClient = new DockerKreuzbergClient();
+
+	try {
+		await dockerClient.startContainer();
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+
+		const content = await dockerClient.extractFile("document.pdf");
+		console.log(`Extracted content:\n${content}`);
+	} finally {
+		await dockerClient.stopContainer();
+	}
+}
+)()
 ```

@@ -125,21 +125,21 @@ export {
 	batchExtractFiles,
 	batchExtractFilesSync,
 } from "./extraction/batch.js";
+export type { PdfPageResult } from "./extraction/render.js";
+export {
+	iteratePdfPages,
+	iteratePdfPagesSync,
+	PdfPageIterator,
+	pdfPageCount,
+	renderPdfPage,
+	renderPdfPageSync,
+} from "./extraction/render.js";
 export {
 	extractBytes,
 	extractBytesSync,
 	extractFile,
 	extractFileSync,
 } from "./extraction/single.js";
-export {
-	iteratePdfPages,
-	iteratePdfPagesSync,
-	pdfPageCount,
-	PdfPageIterator,
-	renderPdfPage,
-	renderPdfPageSync,
-} from "./extraction/render.js";
-export type { PdfPageResult } from "./extraction/render.js";
 
 // ============================================================================
 // Worker Pool APIs
@@ -227,7 +227,7 @@ export {
 // Version
 // ============================================================================
 
-export const __version__ = "4.6.1";
+export const __version__ = "4.6.2";
 
 // ============================================================================
 // Test Utilities

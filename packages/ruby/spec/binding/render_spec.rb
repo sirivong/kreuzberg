@@ -15,18 +15,18 @@ RSpec.describe 'PDF Rendering' do
 
   describe '.render_pdf_page' do
     it 'raises an error for a nonexistent file' do
-      expect {
+      expect do
         Kreuzberg.render_pdf_page('/nonexistent/path/to/document.pdf', 0)
-      }.to raise_error(Kreuzberg::Errors::IOError)
+      end.to raise_error(Kreuzberg::Errors::IOError)
     end
 
     it 'raises an error for an out-of-bounds page index' do
       pdf_path = test_document_path('pdf/tiny.pdf')
       skip 'Test PDF not available' unless File.exist?(pdf_path)
 
-      expect {
+      expect do
         Kreuzberg.render_pdf_page(pdf_path, 9999)
-      }.to raise_error(StandardError)
+      end.to raise_error(StandardError)
     end
   end
 
@@ -35,25 +35,25 @@ RSpec.describe 'PDF Rendering' do
       pdf_path = test_document_path('pdf/tiny.pdf')
       skip 'Test PDF not available' unless File.exist?(pdf_path)
 
-      expect {
+      expect do
         Kreuzberg.render_pdf_page(pdf_path, -1)
-      }.to raise_error(ArgumentError)
+      end.to raise_error(ArgumentError)
     end
   end
 
   describe '.render_pdf_pages_iter' do
     it 'raises an error for a nonexistent file' do
-      expect {
-        Kreuzberg.render_pdf_pages_iter('/nonexistent/path/to/document.pdf') { |_, _| }
-      }.to raise_error(Kreuzberg::Errors::IOError)
+      expect do
+        Kreuzberg.render_pdf_pages_iter('/nonexistent/path/to/document.pdf') { |_, _| nil }
+      end.to raise_error(Kreuzberg::Errors::IOError)
     end
   end
 
   describe '.render_pdf_page with empty path' do
     it 'raises an error for an empty path' do
-      expect {
+      expect do
         Kreuzberg.render_pdf_page('', 0)
-      }.to raise_error(StandardError)
+      end.to raise_error(StandardError)
     end
   end
 

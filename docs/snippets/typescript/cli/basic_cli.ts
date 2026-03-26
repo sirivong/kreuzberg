@@ -44,8 +44,18 @@ async function extractWithCli(
 
 const document = "document.pdf";
 const textOutput = await extractWithCli(document, "text");
-console.log(`Extracted: ${(textOutput as string).length} characters`);
+console.log(`;
+Extracted: $;
+{
+	(textOutput as string).length;
+}
+characters`);
 
 const jsonOutput = (await extractWithCli(document, "json")) as ExtractionResult;
-console.log(`Format: ${jsonOutput.format}`);
-```
+console.log(`;
+Format: $;
+{
+	jsonOutput.format;
+}
+`);
+```;

@@ -95,7 +95,10 @@ export interface NativeBinding {
 	iteratePdfPages(filePath: string, dpi?: number | null): Promise<Array<{ pageIndex: number; data: Buffer }>>;
 	pdfPageCount(filePath: string, dpi?: number | null): number;
 	JsPdfPageIterator: {
-		new (filePath: string, dpi?: number | null): {
+		new (
+			filePath: string,
+			dpi?: number | null,
+		): {
 			next(): { pageIndex: number; data: Buffer } | null;
 			pageCount(): number;
 			close(): void;

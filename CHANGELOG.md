@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [4.6.2] - 2026-03-26
 
 ### Added
 
@@ -17,15 +17,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Table recognition coordinate mismatch on scanned PDFs** (#582): Layout detection bboxes (640x640 model space) are now scaled to OCR render resolution before TATR table recognition. Previously, coordinate space mismatch caused zero tables to be found.
 - **OCR elements report `page_number: 1` for all pages** (#582): Tesseract resets page numbers per single-page render. Page numbers are now correctly stamped after OCR in the batch loop.
-- **Elixir doctest failures**: Updated `ExtractionConfig.to_map/1` doctests to include `force_ocr_pages` field.
+- **Rust E2E tests missing PDF feature**: Added `pdf` feature to the e2e-generator Rust template, fixing 41 `UnsupportedFormat("application/pdf")` failures.
+- **HWP styled extraction empty on ARM**: Added `skip_on_platform` support to Python and Java e2e generators, skipping the `hwp_styled` fixture on `aarch64-unknown-linux-gnu`.
+- **WASM CI build failure**: Made `kreuzberg-node` prepare script resilient to missing native addon, preventing `ENOENT: dist/cli.js` during pnpm workspace install.
+- **Go C header stale at 4.5.0**: Synced header and `DefaultVersion` constant to match current version.
+- **Ruby gem missing ONNX Runtime**: Added `ort-bundled` feature to Ruby native Cargo.toml.
+- **Elixir doctest failures**: Updated `ExtractionConfig.to_map/1` doctests for `force_ocr_pages` field.
+- **WASM benchmark timeout**: Reduced per-extraction timeout from 600s to 120s and job timeout from 6h to 2h.
 
 ### Improved
 
-- **`version:sync` now syncs Go C header and DefaultVersion**: `sync_versions.py` copies the generated `kreuzberg.h` to Go bindings and updates the `DefaultVersion` constant. Also syncs Docker compose image tags.
-- **Publish pipeline commits Elixir checksums**: The Hex publish step now commits the regenerated NIF checksum file back to main, preventing stale checksums.
-- **Ruby gem bundles ONNX Runtime**: Added `ort-bundled` feature to Ruby native Cargo.toml for feature parity with Node.js bindings.
-- **WASM test app migrated to Deno**: Replaced Node.js/vitest with Deno test runner, fixing `fetch()` unavailability in Node WASM environments.
-- **Docs migrated from MkDocs to Zensical**: Replaced mkdocs with zensical static site generator (4-5x faster incremental builds).
+- **`version:sync` now syncs Go C header, DefaultVersion, and Docker compose tags**: Prevents version drift across language bindings.
+- **Publish pipeline commits Elixir NIF checksums back to main**: Prevents stale checksums after releases.
+- **WASM test app migrated to Deno**: Replaced Node.js/vitest with Deno test runner, fixing `fetch()` unavailability.
+- **Docs migrated from MkDocs to Zensical**: 4-5x faster incremental builds.
 
 ---
 

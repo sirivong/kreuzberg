@@ -329,7 +329,7 @@ module Kreuzberg
     # @raise [Errors::ParsingError] If rendering fails
     def render_pdf_page(path, page_index, dpi: 150)
       path_str = path.to_s
-      raise ArgumentError, "page_index must be non-negative" if page_index.negative?
+      raise ArgumentError, 'page_index must be non-negative' if page_index.negative?
       raise Errors::IOError, "File not found: #{path_str}" unless File.exist?(path_str)
 
       native_render_pdf_page(path_str, page_index, dpi)

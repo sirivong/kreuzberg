@@ -478,7 +478,7 @@ function batch_extract_bytes_async(
 function render_pdf_page(string $filePath, int $pageIndex, int $dpi = 150): string
 {
     try {
-        /** @var string|array<int> $result */
+        /** @var string $result */
         $result = \kreuzberg_render_pdf_page($filePath, $pageIndex, $dpi);
 
         return is_array($result) ? pack('C*', ...$result) : $result;
@@ -519,7 +519,7 @@ function render_pdf_pages_iter(string $filePath, int $dpi = 150): \Generator
         $pageIndex = 0;
         try {
             while (true) {
-                /** @var string|array<int>|null $png */
+                /** @var string|null $png */
                 $png = \kreuzberg_pdf_page_iterator_next($handle);
                 if ($png === null) {
                     break;

@@ -448,8 +448,10 @@ jobs:
   bench-wasm:
     name: kreuzberg-wasm (${{ matrix.mode }})
     needs: setup
-    runs-on: ubuntu-24.04-arm
-    timeout-minutes: 360
+    # WASM runs on x86 — Node.js V8 WASM runtime has initialization issues on ARM64 Linux
+    # that cause extractions to hang indefinitely. Works fine on x86 and macOS ARM.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
     permissions:
       contents: read
     strategy:
@@ -510,8 +512,8 @@ jobs:
           FRAMEWORK: kreuzberg-wasm
           MODE: ${{ matrix.mode }}
           ITERATIONS: "1"
-          TIMEOUT: "600"
-          READY_TIMEOUT: "600"
+          TIMEOUT: "120"
+          READY_TIMEOUT: "120"
         run: scripts/benchmarks/run-benchmark.sh
 
       - name: Upload artifacts
