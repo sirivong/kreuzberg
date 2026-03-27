@@ -305,6 +305,29 @@ readonly class ExtractionConfig
          * @default null
          */
         public ?int $extractionTimeoutSecs = null,
+
+        /**
+         * Maximum archive extraction depth.
+         *
+         * Controls how many levels deep nested archives (zip within zip, etc.)
+         * are extracted. Prevents excessive recursion from deeply nested archives.
+         *
+         * @var int
+         * @default 3
+         */
+        public int $maxArchiveDepth = 3,
+
+        /**
+         * Layout detection configuration.
+         *
+         * Configures document layout analysis including region detection presets,
+         * confidence filtering, heuristic post-processing, and table structure
+         * recognition model selection.
+         *
+         * @var LayoutDetectionConfig|null
+         * @default null
+         */
+        public ?LayoutDetectionConfig $layout = null,
     ) {
     }
 
@@ -500,6 +523,20 @@ readonly class ExtractionConfig
             $extractionTimeoutSecs = (int) $extractionTimeoutSecs;
         }
 
+        /** @var int $maxArchiveDepth */
+        $maxArchiveDepth = $data['max_archive_depth'] ?? 3;
+        if (!is_int($maxArchiveDepth)) {
+            /** @var int $maxArchiveDepth */
+            $maxArchiveDepth = (int) $maxArchiveDepth;
+        }
+
+        $layout = null;
+        if (isset($data['layout']) && is_array($data['layout'])) {
+            /** @var array<string, mixed> $layoutData */
+            $layoutData = $data['layout'];
+            $layout = LayoutDetectionConfig::fromArray($layoutData);
+        }
+
         $securityLimits = null;
         if (isset($data['security_limits']) && is_array($data['security_limits'])) {
             /** @var array<string, mixed> $securityLimitsData */
@@ -533,6 +570,8 @@ readonly class ExtractionConfig
             cacheNamespace: $cacheNamespace,
             cacheTtlSecs: $cacheTtlSecs,
             extractionTimeoutSecs: $extractionTimeoutSecs,
+            maxArchiveDepth: $maxArchiveDepth,
+            layout: $layout,
         );
     }
 
@@ -703,6 +742,7 @@ readonly class ExtractionConfig
             'acceleration' => $this->acceleration?->toArray(),
             'email' => $this->email?->toArray(),
             'concurrency' => $this->concurrency?->toArray(),
+            'layout' => $this->layout?->toArray(),
         ];
 
         // Add simple boolean/string fields only if explicitly set to non-default values
@@ -749,6 +789,10 @@ readonly class ExtractionConfig
         // extractionTimeoutSecs defaults to null, so only add if set
         if ($this->extractionTimeoutSecs !== null) {
             $result['extraction_timeout_secs'] = $this->extractionTimeoutSecs;
+        }
+        // maxArchiveDepth defaults to 3, so only add if different
+        if ($this->maxArchiveDepth !== 3) {
+            $result['max_archive_depth'] = $this->maxArchiveDepth;
         }
 
         return array_filter($result, static fn ($value): bool => $value !== null);

@@ -106,6 +106,7 @@ type ExtractionConfig struct {
 	CacheNamespace           *string                  `json:"cache_namespace,omitempty"`
 	CacheTTLSecs             *uint64                  `json:"cache_ttl_secs,omitempty"`
 	ExtractionTimeoutSecs    *uint64                  `json:"extraction_timeout_secs,omitempty"`
+	MaxArchiveDepth          *int                     `json:"max_archive_depth,omitempty"`
 }
 
 // SecurityLimitsConfig controls security thresholds for archive extraction.

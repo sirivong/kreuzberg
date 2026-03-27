@@ -56,6 +56,8 @@ public final class ExtractionConfig {
 	private final String cacheNamespace;
 	private final Long cacheTtlSecs;
 	private final Long extractionTimeoutSecs;
+	private final Integer maxArchiveDepth;
+	private final boolean maxArchiveDepthSet;
 
 	private ExtractionConfig(Builder builder) {
 		this.useCache = builder.useCache;
@@ -88,6 +90,8 @@ public final class ExtractionConfig {
 		this.cacheNamespace = builder.cacheNamespace;
 		this.cacheTtlSecs = builder.cacheTtlSecs;
 		this.extractionTimeoutSecs = builder.extractionTimeoutSecs;
+		this.maxArchiveDepth = builder.maxArchiveDepth;
+		this.maxArchiveDepthSet = builder.maxArchiveDepthSet;
 	}
 
 	public static Builder builder() {
@@ -264,6 +268,15 @@ public final class ExtractionConfig {
 	 */
 	public Long getExtractionTimeoutSecs() {
 		return extractionTimeoutSecs;
+	}
+
+	/**
+	 * Get the maximum recursion depth for archive extraction (ZIP, TAR, 7Z, GZIP).
+	 *
+	 * @return the maximum archive depth, or null if not set (defaults to 3)
+	 */
+	public Integer getMaxArchiveDepth() {
+		return maxArchiveDepth;
 	}
 
 	/**
@@ -582,6 +595,9 @@ public final class ExtractionConfig {
 		if (extractionTimeoutSecs != null) {
 			map.put("extraction_timeout_secs", extractionTimeoutSecs);
 		}
+		if (maxArchiveDepthSet || maxArchiveDepth != null) {
+			map.put("max_archive_depth", maxArchiveDepth);
+		}
 		return map;
 	}
 
@@ -700,6 +716,9 @@ public final class ExtractionConfig {
 				builder.extractionTimeoutSecs(((Number) val).longValue());
 			}
 		}
+		if (raw.containsKey("max_archive_depth")) {
+			builder.maxArchiveDepth(asInteger(raw.get("max_archive_depth")));
+		}
 	}
 
 	private static boolean asBoolean(Object value, boolean defaultValue) {
@@ -778,6 +797,8 @@ public final class ExtractionConfig {
 		private String cacheNamespace;
 		private Long cacheTtlSecs;
 		private Long extractionTimeoutSecs;
+		private Integer maxArchiveDepth;
+		private boolean maxArchiveDepthSet = false;
 
 		private Builder() {
 		}
@@ -1018,6 +1039,19 @@ public final class ExtractionConfig {
 		 */
 		public Builder extractionTimeoutSecs(Long extractionTimeoutSecs) {
 			this.extractionTimeoutSecs = extractionTimeoutSecs;
+			return this;
+		}
+
+		/**
+		 * Set the maximum recursion depth for archive extraction (ZIP, TAR, 7Z, GZIP).
+		 *
+		 * @param maxArchiveDepth
+		 *            maximum archive depth (default: 3)
+		 * @return this builder for chaining
+		 */
+		public Builder maxArchiveDepth(Integer maxArchiveDepth) {
+			this.maxArchiveDepth = maxArchiveDepth;
+			this.maxArchiveDepthSet = true;
 			return this;
 		}
 

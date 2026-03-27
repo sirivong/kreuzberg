@@ -19,7 +19,9 @@
 #' @param postprocessor Named list. Post-processor configuration.
 #' @param security_limits Named list. Security limits configuration.
 #' @param max_concurrent_extractions Integer. Max concurrent extractions.
+#' @param max_archive_depth Integer. Maximum depth for nested archive extraction. Default 3L.
 #' @param layout Layout detection configuration created by \code{layout_detection_config()}.
+#' @param acceleration Acceleration configuration created by \code{acceleration_config()}.
 #' @param email Email configuration created by \code{email_config()}.
 #' @param concurrency Concurrency configuration created by \code{concurrency_config()}.
 #' @param cache_namespace Character or NULL. Cache namespace for tenant isolation.
@@ -44,8 +46,9 @@ extraction_config <- function(force_ocr = FALSE, force_ocr_pages = NULL, ocr = N
                               html_options = NULL, postprocessor = NULL,
                               security_limits = NULL,
                               max_concurrent_extractions = NULL,
-                              layout = NULL, email = NULL,
-                              concurrency = NULL,
+                              max_archive_depth = 3L,
+                              layout = NULL, acceleration = NULL,
+                              email = NULL, concurrency = NULL,
                               cache_namespace = NULL, cache_ttl_secs = NULL,
                               extraction_timeout_secs = NULL,
                               ...) {
@@ -81,7 +84,13 @@ extraction_config <- function(force_ocr = FALSE, force_ocr_pages = NULL, ocr = N
   if (!is.null(max_concurrent_extractions)) {
     config$max_concurrent_extractions <- as.integer(max_concurrent_extractions)
   }
+  if (!is.null(max_archive_depth)) {
+    max_archive_depth <- as.integer(max_archive_depth)
+    if (max_archive_depth < 0L) stop("max_archive_depth must be a non-negative integer", call. = FALSE)
+    config$max_archive_depth <- max_archive_depth
+  }
   if (!is.null(layout)) config$layout <- layout
+  if (!is.null(acceleration)) config$acceleration <- acceleration
   if (!is.null(email)) config$email <- email
   if (!is.null(concurrency)) config$concurrency <- concurrency
   if (!is.null(cache_namespace)) {
@@ -250,6 +259,31 @@ email_config <- function(msg_fallback_codepage = NULL) {
     config$msg_fallback_codepage <- msg_fallback_codepage
   }
   config
+}
+
+#' Create a hardware acceleration configuration
+#'
+#' @param provider Character. Execution provider for ONNX model inference.
+#'   Supported values: "auto" (default), "cpu", "coreml", "cuda", "tensorrt".
+#' @param device_id Integer. Device ID for GPU selection. Default 0L.
+#' @return A named list representing the acceleration configuration.
+#' @export
+acceleration_config <- function(provider = "auto", device_id = 0L) {
+  stopifnot(is.character(provider), length(provider) == 1L)
+  valid_providers <- c("auto", "cpu", "coreml", "cuda", "tensorrt")
+  if (!provider %in% valid_providers) {
+    stop(
+      paste0(
+        "provider must be one of: ",
+        paste(valid_providers, collapse = ", "),
+        ", got: ", provider
+      ),
+      call. = FALSE
+    )
+  }
+  device_id <- as.integer(device_id)
+  if (device_id < 0L) stop("device_id must be a non-negative integer", call. = FALSE)
+  list(provider = provider, device_id = device_id)
 }
 
 #' Discover extraction configuration from kreuzberg.toml

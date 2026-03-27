@@ -460,4 +460,6 @@ export interface ExtractionConfig {
 	cacheTtlSecs?: number;
 	/** Default per-file extraction timeout in seconds for batch operations. None = no timeout. */
 	extractionTimeoutSecs?: number;
+	/** Maximum recursion depth for archive extraction (ZIP, TAR, 7Z, GZIP). Default: 3. */
+	maxArchiveDepth?: number;
 }

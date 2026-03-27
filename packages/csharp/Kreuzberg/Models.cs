@@ -2216,6 +2216,12 @@ public sealed class ExtractionConfig
     [JsonPropertyName("extraction_timeout_secs")]
     public ulong? ExtractionTimeoutSecs { get; init; }
 
+    /// <summary>
+    /// Maximum recursion depth for archive extraction (ZIP, TAR, 7Z, GZIP). Default: 3.
+    /// </summary>
+    [JsonPropertyName("max_archive_depth")]
+    public int? MaxArchiveDepth { get; init; }
+
 }
 
 /// <summary>

@@ -124,6 +124,7 @@ defmodule Kreuzberg.ExtractionConfig do
         "keywords" => nil,
         "language_detection" => nil,
         "layout" => nil,
+        "max_archive_depth" => 3,
         "max_concurrent_extractions" => nil,
         "ocr" => nil,
         "output_format" => "plain",
@@ -180,7 +181,8 @@ defmodule Kreuzberg.ExtractionConfig do
           include_document_structure: boolean(),
           cache_namespace: String.t() | nil,
           cache_ttl_secs: non_neg_integer() | nil,
-          extraction_timeout_secs: non_neg_integer() | nil
+          extraction_timeout_secs: non_neg_integer() | nil,
+          max_archive_depth: non_neg_integer()
         }
 
   @derive Jason.Encoder
@@ -210,7 +212,8 @@ defmodule Kreuzberg.ExtractionConfig do
     force_ocr_pages: nil,
     output_format: "plain",
     result_format: "unified",
-    include_document_structure: false
+    include_document_structure: false,
+    max_archive_depth: 3
   ]
 
   @doc """
@@ -328,6 +331,7 @@ defmodule Kreuzberg.ExtractionConfig do
         "keywords" => nil,
         "language_detection" => nil,
         "layout" => nil,
+        "max_archive_depth" => 3,
         "max_concurrent_extractions" => nil,
         "ocr" => nil,
         "output_format" => "markdown",
@@ -359,6 +363,7 @@ defmodule Kreuzberg.ExtractionConfig do
         "keywords" => nil,
         "language_detection" => nil,
         "layout" => nil,
+        "max_archive_depth" => 3,
         "max_concurrent_extractions" => nil,
         "ocr" => nil,
         "output_format" => "plain",
@@ -411,7 +416,8 @@ defmodule Kreuzberg.ExtractionConfig do
       "include_document_structure" => config.include_document_structure,
       "cache_namespace" => config.cache_namespace,
       "cache_ttl_secs" => config.cache_ttl_secs,
-      "extraction_timeout_secs" => config.extraction_timeout_secs
+      "extraction_timeout_secs" => config.extraction_timeout_secs,
+      "max_archive_depth" => config.max_archive_depth
     }
   end
 

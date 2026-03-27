@@ -177,6 +177,59 @@ export interface HtmlConversionOptions {
 }
 
 /**
+ * Hardware acceleration configuration for ONNX Runtime models.
+ *
+ * Configures which execution provider to use for ONNX model inference,
+ * enabling hardware acceleration on GPU devices (CUDA, TensorRT, CoreML).
+ */
+export interface AccelerationConfig {
+	/** Execution provider: "auto", "cpu", "coreml", "cuda", or "tensorrt" (default: "auto") */
+	provider?: string;
+	/** Device ID for GPU selection (default: 0) */
+	deviceId?: number;
+}
+
+/**
+ * Email extraction configuration.
+ *
+ * Configures email-specific extraction settings such as the fallback
+ * code page for MSG email body decoding.
+ */
+export interface EmailConfig {
+	/** Fallback Windows code page for MSG email body decoding (e.g., 1252 for Western European) */
+	msgFallbackCodepage?: number;
+}
+
+/**
+ * Layout detection configuration.
+ *
+ * Controls document layout analysis including region detection presets,
+ * confidence filtering, heuristic post-processing, and table structure
+ * recognition model selection.
+ */
+export interface LayoutDetectionConfig {
+	/** Model preset controlling accuracy vs speed trade-off: "fast" or "accurate" (default: "accurate") */
+	preset?: string;
+	/** Minimum confidence threshold for detected layout regions (0.0-1.0) */
+	confidenceThreshold?: number;
+	/** Whether to apply heuristic post-processing to refine layout regions (default: true) */
+	applyHeuristics?: boolean;
+	/** Table structure recognition model: "tatr", "slanet_wired", "slanet_wireless", "slanet_plus", "slanet_auto" */
+	tableModel?: string;
+}
+
+/**
+ * Concurrency configuration for thread pool management.
+ *
+ * Controls the maximum number of threads used for parallel processing
+ * during document extraction.
+ */
+export interface ConcurrencyConfig {
+	/** Maximum number of threads for parallel processing */
+	maxThreads?: number;
+}
+
+/**
  * Configuration for document extraction
  */
 export interface ExtractionConfig {
@@ -238,6 +291,20 @@ export interface ExtractionConfig {
 	includeDocumentStructure?: boolean;
 	/** Default per-file extraction timeout in seconds for batch operations. undefined = no timeout. */
 	extractionTimeoutSecs?: number;
+	/** Maximum archive extraction depth (default: 3) */
+	maxArchiveDepth?: number;
+	/** Hardware acceleration configuration for ONNX Runtime models */
+	acceleration?: AccelerationConfig;
+	/** Layout detection configuration */
+	layout?: LayoutDetectionConfig;
+	/** Email extraction configuration */
+	email?: EmailConfig;
+	/** Concurrency configuration for thread pool management */
+	concurrency?: ConcurrencyConfig;
+	/** Cache namespace for tenant isolation */
+	cacheNamespace?: string;
+	/** Per-request cache TTL in seconds */
+	cacheTtlSecs?: number;
 }
 
 /**

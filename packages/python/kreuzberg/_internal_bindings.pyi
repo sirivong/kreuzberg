@@ -559,6 +559,7 @@ class ExtractionConfig:
     cache_namespace: str | None
     cache_ttl_secs: int | None
     extraction_timeout_secs: int | None
+    max_archive_depth: int
 
     def __init__(
         self,
@@ -589,6 +590,7 @@ class ExtractionConfig:
         cache_namespace: str | None = ...,
         cache_ttl_secs: int | None = ...,
         extraction_timeout_secs: int | None = ...,
+        max_archive_depth: int = ...,
     ) -> None: ...
     @staticmethod
     def from_file(path: str | Path) -> ExtractionConfig: ...
