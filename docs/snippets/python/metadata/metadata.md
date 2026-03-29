@@ -9,8 +9,8 @@ if metadata.get("page_count"):
     print(f"Pages: {metadata['page_count']}")
 if metadata.get("title"):
     print(f"Title: {metadata['title']}")
-if metadata.get("created_by"):
-    print(f"Author: {metadata['created_by']}")
+if metadata.get("authors"):
+    print(f"Authors: {', '.join(metadata['authors'])}")
 
 result = extract_file_sync("page.html", config=ExtractionConfig())
 metadata = result.metadata

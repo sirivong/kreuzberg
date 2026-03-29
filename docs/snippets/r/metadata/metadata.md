@@ -8,9 +8,9 @@ cat("Quality Score:", result$quality_score, "\n")
 cat("Keywords:", paste(result$keywords, collapse=", "), "\n\n")
 
 cat("Metadata fields:\n")
-created_by <- metadata_field(result, "created_by")
-if (!is.null(created_by)) {
-  cat("Author:", created_by, "\n")
+authors <- metadata_field(result, "authors")
+if (!is.null(authors)) {
+  cat("Authors:", paste(authors, collapse=", "), "\n")
 }
 
 created <- metadata_field(result, "created_date")

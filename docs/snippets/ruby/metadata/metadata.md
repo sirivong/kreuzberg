@@ -11,8 +11,8 @@ end
 if metadata['title']
   puts "Title: #{metadata['title']}"
 end
-if metadata['created_by']
-  puts "Author: #{metadata['created_by']}"
+if metadata['authors']
+  puts "Authors: #{metadata['authors'].join(', ')}"
 end
 
 # Access HTML metadata

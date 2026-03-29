@@ -15,7 +15,7 @@ public class Main {
             // Metadata is flat — format-specific fields are at the top level
             Metadata metadata = result.getMetadata();
             metadata.getTitle().ifPresent(t -> System.out.println("Title: " + t));
-            metadata.getCreatedBy().ifPresent(a -> System.out.println("Author: " + a));
+            metadata.getAuthors().ifPresent(a -> System.out.println("Authors: " + String.join(", ", a)));
 
             // Format-specific fields are in the additional map
             Map<String, Object> extra = metadata.getAdditional();
