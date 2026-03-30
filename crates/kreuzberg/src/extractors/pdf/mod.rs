@@ -916,6 +916,33 @@ impl PdfExtractor {
             }
         }
 
+        // Extract bookmarks/outlines as URIs.
+        #[cfg(feature = "pdf")]
+        {
+            if let Ok(lopdf_doc) = lopdf::Document::load_mem(content) {
+                let bookmark_uris = crate::pdf::bookmarks::extract_bookmarks(&lopdf_doc);
+                for uri in bookmark_uris {
+                    doc.push_uri(uri);
+                }
+            }
+        }
+
+        // Extract embedded files (PDF portfolios/attachments).
+        #[cfg(all(feature = "pdf", feature = "tokio-runtime"))]
+        {
+            let (embedded_children, embedded_warnings) =
+                crate::pdf::embedded_files::extract_and_process_embedded_files(content, config).await;
+            if !embedded_children.is_empty() {
+                match doc.children {
+                    Some(ref mut existing) => existing.extend(embedded_children),
+                    None => doc.children = Some(embedded_children),
+                }
+            }
+            for warning in embedded_warnings {
+                doc.processing_warnings.push(warning);
+            }
+        }
+
         // Attach pre-built per-page content so derive_extraction_result can use it.
         doc.prebuilt_pages = final_pages;
 

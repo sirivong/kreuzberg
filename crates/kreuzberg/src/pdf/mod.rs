@@ -39,6 +39,10 @@
 pub mod annotations;
 #[cfg(feature = "pdf")]
 pub(crate) mod bindings;
+#[cfg(feature = "pdf")]
+pub mod bookmarks;
+#[cfg(all(feature = "pdf", feature = "tokio-runtime"))]
+pub mod embedded_files;
 #[cfg(all(feature = "pdf", feature = "bundled-pdfium"))]
 pub mod bundled;
 #[cfg(feature = "pdf")]

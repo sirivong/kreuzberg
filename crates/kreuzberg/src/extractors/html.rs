@@ -9,6 +9,7 @@ use crate::types::document_structure::TextAnnotation;
 use crate::types::extraction::ExtractedImage;
 use crate::types::internal::InternalDocument;
 use crate::types::internal_builder::InternalDocumentBuilder;
+use crate::types::uri::{Uri, classify_uri};
 use crate::types::{HtmlMetadata, Metadata, Table};
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -76,12 +77,14 @@ impl HtmlExtractor {
                 HC::Heading { level, text } => {
                     let elem_idx = b.push_heading(*level, text, None, None);
                     let annotations = map_annotations(&node.annotations);
+                    push_link_uris_from_annotations(&annotations, text, b);
                     if !annotations.is_empty() {
                         b.set_annotations(elem_idx, annotations);
                     }
                 }
                 HC::Paragraph { text } => {
                     let annotations = map_annotations(&node.annotations);
+                    push_link_uris_from_annotations(&annotations, text, b);
                     b.push_paragraph(text, annotations, None, None);
                 }
                 HC::List { ordered } => {
@@ -98,6 +101,7 @@ impl HtmlExtractor {
                         .map(|parent| matches!(parent.content, HC::List { ordered: true }))
                         .unwrap_or(false);
                     let annotations = map_annotations(&node.annotations);
+                    push_link_uris_from_annotations(&annotations, text, b);
                     b.push_list_item(text, ordered, annotations, None, None);
                 }
                 HC::Table { grid } => {
@@ -125,6 +129,10 @@ impl HtmlExtractor {
                             text.to_string()
                         };
                         b.push_paragraph(&display, vec![], None, None);
+                    }
+                    // Collect image URI reference
+                    if let Some(img_src) = src.as_ref().filter(|s| !s.is_empty()) {
+                        b.push_uri(Uri::image(img_src.as_str(), description.clone()));
                     }
                 }
                 HC::Code { text, language } => {
@@ -185,6 +193,33 @@ fn map_annotations(annotations: &[html_to_markdown_rs::types::TextAnnotation]) -
             }
         })
         .collect()
+}
+
+/// Extract URIs from link annotations and push them into the builder.
+fn push_link_uris_from_annotations(
+    annotations: &[TextAnnotation],
+    text: &str,
+    b: &mut InternalDocumentBuilder,
+) {
+    for ann in annotations {
+        if let crate::types::document_structure::AnnotationKind::Link { url, .. } = &ann.kind {
+            if url.is_empty() {
+                continue;
+            }
+            let label = if ann.start < ann.end && (ann.end as usize) <= text.len() {
+                let slice = &text[ann.start as usize..ann.end as usize];
+                if slice.is_empty() { None } else { Some(slice.to_string()) }
+            } else {
+                None
+            };
+            b.push_uri(Uri {
+                url: url.clone(),
+                label,
+                page: None,
+                kind: classify_uri(url),
+            });
+        }
+    }
 }
 
 impl Plugin for HtmlExtractor {
