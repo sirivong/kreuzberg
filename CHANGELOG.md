@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Multi-format benchmark support**: Pipeline benchmark now scores all document formats (not just PDF), shows file type per document, replaces NaN with "—", and reports ground truth loading errors.
 - **Comprehensive PDF pipeline tracing**: Trace-level logging across heading lifecycle (layout overrides, demotion passes, furniture detection, render layer) for debugging.
 - **Pages API for PDF extraction**: Per-page content now properly wired through the extraction pipeline via `prebuilt_pages` on `InternalDocument`, making `result.pages` available for PDF documents.
+- **TOON wire format**: Token-Oriented Object Notation support across CLI (`--format toon`), API (`Accept: application/toon`), MCP (`response_format: "toon"`), and all 11 language bindings (Python, Node.js, WASM, C FFI, PHP, Ruby, Elixir, Go, Java, C#, R). TOON is a token-efficient alternative to JSON for LLM prompts — losslessly convertible to/from JSON but uses ~30-50% fewer tokens. Core functions `serialize_to_toon()` and `serialize_to_json()` exposed as public API.
+- **Renderer registry**: Trait-based `Renderer` and `RendererRegistry` for custom output format plugins. Built-in renderers (markdown, HTML, djot, plain) registered at startup. External crates can register custom renderers (e.g., DOCX output) via `register_renderer()`.
+- **comrak-based rendering**: Markdown and HTML rendering now uses comrak AST bridge instead of hand-rolled string building. Produces GFM-compliant markdown and semantic HTML5. Paragraph consolidation merges consecutive same-format paragraphs at sentence boundaries (fixes DOCX CV fragmentation where each visual line was a separate `*...*` italic block).
+- **Benchmark quality scoring improvements**: Content normalization for HTML blocks in markdown scoring, Image↔Paragraph and Table↔ListItem type compatibility, `correct` field in `QualityMetrics`, HTML detection in ground truth validation.
 
 ### Fixed
 
@@ -52,6 +56,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **PDF text extraction**: Full rewrite from segment-indexed assembly to `page.text().all()` + char-indexed font metadata. Produces cleaner text with correct word spacing.
 - **hOCR table reconstruction vendored**: `HocrWord`, `reconstruct_table`, `table_to_markdown` moved from `html-to-markdown-rs::hocr` to `kreuzberg::table_core` module.
+- **CLI format flags**: `--format` (`-f`) now supports `text`, `json`, and `toon` wire formats. `--output-format` renamed to `--content-format` (deprecated alias kept with warning). `OutputFormat` enum gains `Custom(String)` variant for extensible format plugins.
+- **html-to-markdown-rs v3.0.0**: Switched from git dependency to crates.io release.
+- **License policy**: MPL-2.0 and LGPL-2.1 no longer globally allowed — pinned to specific crate exceptions (cbindgen, option-ext, r-efi). Unicode-DFS-2016 allowed for comrak dependency.
 
 ---
 
