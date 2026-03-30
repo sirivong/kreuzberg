@@ -4,10 +4,10 @@ use crate::Result;
 use crate::core::config::ExtractionConfig;
 use crate::extractors::SyncExtractor;
 use crate::plugins::{DocumentExtractor, Plugin};
-use crate::types::EmailMetadata;
 use crate::types::internal::InternalDocument;
 use crate::types::internal_builder::InternalDocumentBuilder;
 use crate::types::metadata::Metadata;
+use crate::types::{ArchiveEntry, EmailMetadata, ProcessingWarning};
 use ahash::AHashMap;
 use async_trait::async_trait;
 use std::borrow::Cow;
@@ -205,7 +205,23 @@ impl DocumentExtractor for EmailExtractor {
         mime_type: &str,
         config: &ExtractionConfig,
     ) -> Result<InternalDocument> {
-        self.extract_sync(content, mime_type, config)
+        let mut doc = self.extract_sync(content, mime_type, config)?;
+
+        // Recursively extract attachment content when archive depth allows it.
+        if config.max_archive_depth > 0 {
+            let fallback_codepage = config.email.as_ref().and_then(|e| e.msg_fallback_codepage);
+            if let Ok(email_result) =
+                crate::extraction::email::extract_email_content(content, mime_type, fallback_codepage)
+            {
+                let (children, warnings) = extract_attachment_children(&email_result.attachments, config).await;
+                if !children.is_empty() {
+                    doc.children = Some(children);
+                }
+                doc.processing_warnings.extend(warnings);
+            }
+        }
+
+        Ok(doc)
     }
 
     #[cfg(feature = "tokio-runtime")]
@@ -231,6 +247,72 @@ impl DocumentExtractor for EmailExtractor {
     fn as_sync_extractor(&self) -> Option<&dyn crate::extractors::SyncExtractor> {
         Some(self)
     }
+}
+
+/// Recursively extract content from email attachments.
+///
+/// For each attachment with binary data, detects its MIME type and dispatches
+/// to the appropriate extractor. Follows the same pattern as archive extractors.
+/// Errors on individual attachments are captured as warnings, never failing
+/// the whole extraction.
+pub(crate) async fn extract_attachment_children(
+    attachments: &[crate::types::EmailAttachment],
+    config: &ExtractionConfig,
+) -> (Vec<ArchiveEntry>, Vec<ProcessingWarning>) {
+    let mut children = Vec::new();
+    let mut warnings = Vec::new();
+
+    for (idx, attachment) in attachments.iter().enumerate() {
+        let bytes = match &attachment.data {
+            Some(data) if !data.is_empty() => data,
+            _ => continue,
+        };
+
+        let filename = attachment
+            .filename
+            .clone()
+            .or_else(|| attachment.name.clone())
+            .unwrap_or_else(|| format!("attachment_{}", idx));
+
+        // Detect MIME type from bytes, falling back to extension-based detection,
+        // then to the attachment's declared MIME type.
+        let detected_mime = crate::core::mime::detect_mime_type_from_bytes(bytes)
+            .ok()
+            .or_else(|| {
+                std::path::Path::new(&filename)
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .and_then(|ext| mime_guess::from_ext(ext).first())
+                    .map(|m| m.to_string())
+            })
+            .or_else(|| attachment.mime_type.clone().filter(|m| m != "application/octet-stream"));
+
+        let file_mime = match detected_mime {
+            Some(m) if m != "application/octet-stream" => m,
+            _ => continue,
+        };
+
+        let mut child_config = config.clone();
+        child_config.max_archive_depth = config.max_archive_depth.saturating_sub(1);
+
+        match crate::core::extractor::extract_bytes(bytes, &file_mime, &child_config).await {
+            Ok(result) => {
+                children.push(ArchiveEntry {
+                    path: filename,
+                    mime_type: file_mime,
+                    result: Box::new(result),
+                });
+            }
+            Err(e) => {
+                warnings.push(ProcessingWarning {
+                    source: Cow::Borrowed("email_attachment_extraction"),
+                    message: Cow::Owned(format!("Failed to extract '{}': {}", filename, e)),
+                });
+            }
+        }
+    }
+
+    (children, warnings)
 }
 
 #[cfg(test)]

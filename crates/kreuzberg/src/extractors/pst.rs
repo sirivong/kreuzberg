@@ -117,7 +117,22 @@ impl DocumentExtractor for PstExtractor {
         mime_type: &str,
         config: &ExtractionConfig,
     ) -> Result<InternalDocument> {
-        self.extract_sync(content, mime_type, config)
+        let mut doc = self.extract_sync(content, mime_type, config)?;
+
+        // Recursively extract attachments from all messages when depth allows.
+        if config.max_archive_depth > 0
+            && let Ok((messages, _)) = crate::extraction::pst::extract_pst_messages(content)
+        {
+            let all_attachments: Vec<_> = messages.iter().flat_map(|m| m.attachments.iter()).cloned().collect();
+            let (children, warnings) =
+                crate::extractors::email::extract_attachment_children(&all_attachments, config).await;
+            if !children.is_empty() {
+                doc.children = Some(children);
+            }
+            doc.processing_warnings.extend(warnings);
+        }
+
+        Ok(doc)
     }
 
     #[cfg(feature = "tokio-runtime")]
@@ -130,7 +145,6 @@ impl DocumentExtractor for PstExtractor {
     async fn extract_file(&self, path: &Path, mime_type: &str, config: &ExtractionConfig) -> Result<InternalDocument> {
         // Call extract_pst_from_path directly to avoid reading the whole file into memory
         // before writing it back out to a tempfile — PSTs can be multi-GB.
-        let _ = config;
         let (messages, _processing_warnings) = crate::extraction::pst::extract_pst_from_path(path)?;
 
         let mut doc = InternalDocument::new("pst");
@@ -186,6 +200,17 @@ impl DocumentExtractor for PstExtractor {
             additional,
             ..Default::default()
         };
+
+        // Recursively extract attachments from all messages when depth allows.
+        if config.max_archive_depth > 0 {
+            let all_attachments: Vec<_> = messages.iter().flat_map(|m| m.attachments.iter()).cloned().collect();
+            let (children, warnings) =
+                crate::extractors::email::extract_attachment_children(&all_attachments, config).await;
+            if !children.is_empty() {
+                doc.children = Some(children);
+            }
+            doc.processing_warnings.extend(warnings);
+        }
 
         Ok(doc)
     }
