@@ -17,6 +17,7 @@ mod plugins;
 mod rendering;
 mod result;
 mod result_pool;
+mod serialize;
 mod result_view;
 mod string_intern;
 mod types;
@@ -79,6 +80,7 @@ pub use result::{
     CMetadataField, kreuzberg_result_get_chunk_count, kreuzberg_result_get_detected_language,
     kreuzberg_result_get_metadata_field, kreuzberg_result_get_page_count,
 };
+pub use serialize::{kreuzberg_serialize_to_json, kreuzberg_serialize_to_toon};
 pub use result_pool::{
     CResultPoolStats, ResultPool, kreuzberg_extract_file_into_pool, kreuzberg_extract_file_into_pool_view,
     kreuzberg_result_pool_free, kreuzberg_result_pool_new, kreuzberg_result_pool_reset, kreuzberg_result_pool_stats,
