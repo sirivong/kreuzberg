@@ -156,3 +156,18 @@ pub use plugins::registry::{
 
 #[cfg(feature = "embeddings")]
 pub use embeddings::{EMBEDDING_PRESETS, EmbeddingPreset, download_model, get_preset, list_presets, warm_model};
+
+/// Serialize an [`ExtractionResult`] to TOON (Token-Oriented Object Notation).
+///
+/// TOON is a token-efficient alternative to JSON for LLM prompts.
+/// Losslessly convertible to/from JSON but uses fewer tokens.
+pub fn serialize_to_toon(result: &ExtractionResult) -> Result<String> {
+    serde_toon::to_string(result)
+        .map_err(|e| KreuzbergError::serialization(format!("TOON serialization failed: {e}")))
+}
+
+/// Serialize an [`ExtractionResult`] to pretty-printed JSON.
+pub fn serialize_to_json(result: &ExtractionResult) -> Result<String> {
+    serde_json::to_string_pretty(result)
+        .map_err(|e| KreuzbergError::serialization(format!("JSON serialization failed: {e}")))
+}
