@@ -255,7 +255,6 @@ hex = { workspace = true }
 html-to-markdown-rs = { workspace = true, features = [
     "inline-images",
     "metadata",
-    "visitor",
 ], optional = true }
 image = { workspace = true, default-features = false, features = [
     "png",

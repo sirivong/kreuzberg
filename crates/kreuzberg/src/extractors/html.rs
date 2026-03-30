@@ -1,6 +1,5 @@
 //! HTML document extractor.
 
-use super::annotation_utils::adjust_annotations_for_trim;
 use crate::Result;
 use crate::core::config::{ExtractionConfig, OutputFormat};
 use crate::extractors::SyncExtractor;
@@ -9,8 +8,6 @@ use crate::text::utf8_validation;
 use crate::types::document_structure::TextAnnotation;
 use crate::types::extraction::ExtractedImage;
 use crate::types::internal::InternalDocument;
-use crate::types::internal::RelationshipKind;
-use crate::types::internal::RelationshipTarget;
 use crate::types::internal_builder::InternalDocumentBuilder;
 use crate::types::{HtmlMetadata, Metadata, Table};
 use async_trait::async_trait;
@@ -36,423 +33,158 @@ impl HtmlExtractor {
 }
 
 impl HtmlExtractor {
-    /// Build an `InternalDocument` from raw HTML source.
+    /// Map html-to-markdown's `DocumentStructure` into kreuzberg's `InternalDocument`.
     ///
-    /// Captures structural elements, anchor IDs, internal links (`href="#..."`),
-    /// figcaption-to-figure relationships, and label-for relationships.
-    pub fn build_internal_document(html: &str) -> InternalDocument {
+    /// Walks the flat node array from html-to-markdown and uses `InternalDocumentBuilder`
+    /// to construct the equivalent kreuzberg representation. Skips `RawBlock` nodes
+    /// (script/style content) and `MetadataBlock` nodes (handled by metadata extraction).
+    fn map_document_structure(doc_structure: &html_to_markdown_rs::types::DocumentStructure) -> InternalDocument {
         let mut b = InternalDocumentBuilder::new("html");
 
-        // Tracking state for the tag-level parser
-        let mut text_buf = String::new();
-        let mut text_annotations: Vec<TextAnnotation> = Vec::new();
-        // Annotation tracking: stack of (kind_tag: u8, start_offset: u32, optional_url: Option<String>)
-        // kind_tag: 0=bold, 1=italic, 2=code, 3=link
-        let mut annotation_starts: Vec<(u8, u32, Option<String>)> = Vec::new();
-        let mut pending_id: Option<String> = None;
-        let mut pending_tag: Option<String> = None; // current block-level tag
-        let mut in_pre = false;
-        let mut pre_lang: Option<String> = None;
-        let mut pre_text = String::new();
-        let mut list_stack: Vec<bool> = Vec::new();
-        let mut table_rows: Vec<Vec<String>> = Vec::new();
-        let mut in_table = false;
-        let mut in_cell = false;
-        let mut cell_text = String::new();
-        let mut current_row: Vec<String> = Vec::new();
-        let mut in_figure = false;
-        let mut figure_element_idx: Option<u32> = None;
-        let mut in_figcaption = false;
-        let mut figcaption_text = String::new();
-        // Deferred: (source_element_idx, target_key, kind) — source=u32::MAX means "next element"
-        let mut deferred_rels: Vec<(u32, String, RelationshipKind)> = Vec::new();
+        // Track which nodes are list containers so we can manage open/close
+        // We need to walk top-level nodes and handle children via the tree structure.
+        // html-to-markdown uses a flat array with parent/children indices.
+        // We do a depth-first walk using the children structure.
 
-        let bytes = html.as_bytes();
-        let mut pos = 0;
+        let root_indices: Vec<usize> = doc_structure
+            .nodes
+            .iter()
+            .enumerate()
+            .filter(|(_, n)| n.parent.is_none())
+            .map(|(i, _)| i)
+            .collect();
 
-        while pos < html.len() {
-            // Skip HTML comments
-            if html[pos..].starts_with("<!--") {
-                if let Some(end) = html[pos..].find("-->") {
-                    pos += end + 3;
-                } else {
-                    break;
-                }
-                continue;
-            }
+        Self::walk_nodes(doc_structure, &root_indices, &mut b);
 
-            if bytes[pos] == b'<' {
-                let Some(end) = html[pos..].find('>') else { break };
-                let tag_content = &html[pos + 1..pos + end];
-                pos += end + 1;
-
-                let is_closing = tag_content.starts_with('/');
-                let raw_tag = if is_closing { &tag_content[1..] } else { tag_content };
-                let name_end = raw_tag
-                    .find(|c: char| c.is_whitespace() || c == '/' || c == '>')
-                    .unwrap_or(raw_tag.len());
-                let tag_name = raw_tag[..name_end].to_ascii_lowercase();
-                let attrs_str = raw_tag[name_end..].trim_end_matches('/');
-
-                if is_closing {
-                    match tag_name.as_str() {
-                        "h1" | "h2" | "h3" | "h4" | "h5" | "h6" => {
-                            let level: u8 = tag_name[1..].parse().unwrap_or(1);
-                            let text = std::mem::take(&mut text_buf);
-                            let trimmed = text.trim();
-                            if !trimmed.is_empty() {
-                                let annotations =
-                                    adjust_annotations_for_trim(std::mem::take(&mut text_annotations), &text, trimmed);
-                                let idx = b.push_heading(level, trimmed, None, None);
-                                if !annotations.is_empty() {
-                                    b.set_annotations(idx, annotations);
-                                }
-                                if let Some(id) = pending_id.take() {
-                                    b.set_anchor(idx, &id);
-                                }
-                                Self::resolve_deferred(&mut deferred_rels, &mut b, idx);
-                            } else {
-                                text_annotations.clear();
-                            }
-                            annotation_starts.clear();
-                            pending_tag = None;
-                        }
-                        "p" => {
-                            let text = std::mem::take(&mut text_buf);
-                            let trimmed = text.trim();
-                            if !trimmed.is_empty() {
-                                let annotations =
-                                    adjust_annotations_for_trim(std::mem::take(&mut text_annotations), &text, trimmed);
-                                let idx = b.push_paragraph(trimmed, annotations, None, None);
-                                if let Some(id) = pending_id.take() {
-                                    b.set_anchor(idx, &id);
-                                }
-                                Self::resolve_deferred(&mut deferred_rels, &mut b, idx);
-                            } else {
-                                text_annotations.clear();
-                            }
-                            annotation_starts.clear();
-                            pending_tag = None;
-                        }
-                        "li" => {
-                            let text = std::mem::take(&mut text_buf);
-                            let trimmed = text.trim();
-                            let ordered = list_stack.last().copied().unwrap_or(false);
-                            if !trimmed.is_empty() {
-                                let annotations =
-                                    adjust_annotations_for_trim(std::mem::take(&mut text_annotations), &text, trimmed);
-                                let idx = b.push_list_item(trimmed, ordered, annotations, None, None);
-                                if let Some(id) = pending_id.take() {
-                                    b.set_anchor(idx, &id);
-                                }
-                            } else {
-                                text_annotations.clear();
-                            }
-                            annotation_starts.clear();
-                        }
-                        "ul" | "ol" => {
-                            list_stack.pop();
-                            b.end_list();
-                        }
-                        "pre" => {
-                            if in_pre {
-                                let code = std::mem::take(&mut pre_text);
-                                let lang = pre_lang.take();
-                                b.push_code(&code, lang.as_deref(), None, None);
-                                in_pre = false;
-                            }
-                        }
-                        "code" if !in_pre => {
-                            // Inline code annotation
-                            if let Some(i) = annotation_starts.iter().rposition(|(k, _, _)| *k == 2) {
-                                let (_, start, _) = annotation_starts.remove(i);
-                                let end = text_buf.len() as u32;
-                                if start < end {
-                                    text_annotations.push(crate::types::builder::code(start, end));
-                                }
-                            }
-                        }
-                        "code" => {} // handled by </pre>
-                        "strong" | "b" => {
-                            if let Some(i) = annotation_starts.iter().rposition(|(k, _, _)| *k == 0) {
-                                let (_, start, _) = annotation_starts.remove(i);
-                                let end = text_buf.len() as u32;
-                                if start < end {
-                                    text_annotations.push(crate::types::builder::bold(start, end));
-                                }
-                            }
-                        }
-                        "em" | "i" => {
-                            if let Some(i) = annotation_starts.iter().rposition(|(k, _, _)| *k == 1) {
-                                let (_, start, _) = annotation_starts.remove(i);
-                                let end = text_buf.len() as u32;
-                                if start < end {
-                                    text_annotations.push(crate::types::builder::italic(start, end));
-                                }
-                            }
-                        }
-                        "a" => {
-                            if let Some(i) = annotation_starts.iter().rposition(|(k, _, _)| *k == 3) {
-                                let (_, start, url_opt) = annotation_starts.remove(i);
-                                let end = text_buf.len() as u32;
-                                if start < end
-                                    && let Some(url) = url_opt
-                                {
-                                    text_annotations.push(crate::types::builder::link(start, end, &url, None));
-                                }
-                            }
-                        }
-                        "td" | "th" => {
-                            if in_cell {
-                                current_row.push(std::mem::take(&mut cell_text).trim().to_string());
-                                in_cell = false;
-                            }
-                        }
-                        "tr" => {
-                            if !current_row.is_empty() {
-                                table_rows.push(std::mem::take(&mut current_row));
-                            }
-                        }
-                        "table" => {
-                            if in_table && !table_rows.is_empty() {
-                                let cells = std::mem::take(&mut table_rows);
-                                b.push_table_from_cells(&cells, None, None);
-                            }
-                            in_table = false;
-                        }
-                        "figure" => {
-                            in_figure = false;
-                            figure_element_idx = None;
-                        }
-                        "figcaption" => {
-                            if in_figcaption {
-                                let cap = std::mem::take(&mut figcaption_text);
-                                let cap = cap.trim();
-                                if !cap.is_empty() {
-                                    let cap_idx = b.push_paragraph(cap, vec![], None, None);
-                                    if let Some(fig_idx) = figure_element_idx {
-                                        b.push_relationship(
-                                            cap_idx,
-                                            RelationshipTarget::Index(fig_idx),
-                                            RelationshipKind::Caption,
-                                        );
-                                    }
-                                }
-                                in_figcaption = false;
-                            }
-                        }
-                        _ => {}
-                    }
-                } else {
-                    // Opening tag
-                    let id_attr = extract_attr(attrs_str, "id");
-
-                    match tag_name.as_str() {
-                        "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "p" => {
-                            // Flush stale text
-                            let prev = std::mem::take(&mut text_buf);
-                            let prev = prev.trim().to_string();
-                            if !prev.is_empty() {
-                                b.push_paragraph(&prev, vec![], None, None);
-                            }
-                            pending_id = id_attr;
-                            pending_tag = Some(tag_name.clone());
-                        }
-                        "ul" => {
-                            list_stack.push(false);
-                            b.push_list(false);
-                        }
-                        "ol" => {
-                            list_stack.push(true);
-                            b.push_list(true);
-                        }
-                        "li" => {
-                            text_buf.clear();
-                            pending_id = id_attr;
-                        }
-                        "pre" => {
-                            in_pre = true;
-                            pre_text.clear();
-                            pre_lang = None;
-                        }
-                        "code" if in_pre => {
-                            if let Some(cls) = extract_attr(attrs_str, "class") {
-                                for part in cls.split_whitespace() {
-                                    if let Some(lang) = part.strip_prefix("language-") {
-                                        pre_lang = Some(lang.to_string());
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        "code" => {
-                            // Inline code — track annotation start
-                            annotation_starts.push((2, text_buf.len() as u32, None));
-                        }
-                        "strong" | "b" => {
-                            annotation_starts.push((0, text_buf.len() as u32, None));
-                        }
-                        "em" | "i" => {
-                            annotation_starts.push((1, text_buf.len() as u32, None));
-                        }
-                        "table" => {
-                            in_table = true;
-                            table_rows.clear();
-                        }
-                        "td" | "th" => {
-                            in_cell = true;
-                            cell_text.clear();
-                        }
-                        "tr" => {
-                            current_row = Vec::new();
-                        }
-                        "img" => {
-                            let alt = extract_attr(attrs_str, "alt").unwrap_or_default();
-                            let idx = b.push_paragraph(&format!("[image: {}]", alt), vec![], None, None);
-                            if let Some(ref id) = id_attr {
-                                b.set_anchor(idx, id.as_str());
-                            }
-                            if in_figure {
-                                figure_element_idx = Some(idx);
-                            }
-                        }
-                        "figure" => {
-                            in_figure = true;
-                            figure_element_idx = None;
-                        }
-                        "figcaption" => {
-                            in_figcaption = true;
-                            figcaption_text.clear();
-                        }
-                        "a" => {
-                            if let Some(href) = extract_attr(attrs_str, "href") {
-                                if let Some(target_id) = href.strip_prefix('#') {
-                                    // Mark u32::MAX to mean "associate with next pushed element"
-                                    deferred_rels.push((
-                                        u32::MAX,
-                                        target_id.to_string(),
-                                        RelationshipKind::InternalLink,
-                                    ));
-                                }
-                                // Track link annotation for inline text
-                                annotation_starts.push((3, text_buf.len() as u32, Some(href)));
-                            }
-                        }
-                        "label" => {
-                            if let Some(for_id) = extract_attr(attrs_str, "for") {
-                                deferred_rels.push((u32::MAX, for_id, RelationshipKind::Label));
-                            }
-                        }
-                        _ => {
-                            // Any element with an id: push a placeholder so anchors are available
-                            if let Some(id) = id_attr {
-                                // If we're inside a block element, set pending_id
-                                if pending_tag.is_some() {
-                                    // nested element inside a block: store for later
-                                } else {
-                                    // standalone element with id — create a group marker
-                                    let idx = b.push_paragraph("", vec![], None, None);
-                                    b.set_anchor(idx, &id);
-                                }
-                                let _ = id;
-                            }
-                        }
-                    }
-                }
-            } else {
-                // Text content
-                let start = pos;
-                while pos < html.len() && bytes[pos] != b'<' {
-                    pos += 1;
-                }
-                let raw = &html[start..pos];
-                let decoded = decode_html_entities(raw);
-
-                if in_pre {
-                    pre_text.push_str(&decoded);
-                } else if in_cell {
-                    cell_text.push_str(&decoded);
-                } else if in_figcaption {
-                    figcaption_text.push_str(&decoded);
-                } else {
-                    text_buf.push_str(&decoded);
-                }
-            }
-        }
-
-        // Flush remaining text
-        let remaining = text_buf.trim().to_string();
-        if !remaining.is_empty() {
-            let annotations = adjust_annotations_for_trim(std::mem::take(&mut text_annotations), &text_buf, &remaining);
-            b.push_paragraph(&remaining, annotations, None, None);
-        }
-
-        // Emit any remaining deferred relationships as Key-based
-        let mut doc = b.build();
-        for (source, target_key, kind) in deferred_rels {
-            if source != u32::MAX {
-                doc.push_relationship(crate::types::internal::Relationship {
-                    source,
-                    target: RelationshipTarget::Key(target_key),
-                    kind,
-                });
-            }
-            // u32::MAX entries that weren't resolved are dropped — they belonged to
-            // anchor links in non-structural positions.
-        }
-
-        doc
+        b.build()
     }
 
-    /// Resolve deferred relationships whose source is `u32::MAX` (meaning "next element").
-    fn resolve_deferred(
-        deferred: &mut Vec<(u32, String, RelationshipKind)>,
+    /// Recursively walk document nodes and push them into the builder.
+    fn walk_nodes(
+        doc: &html_to_markdown_rs::types::DocumentStructure,
+        indices: &[usize],
         b: &mut InternalDocumentBuilder,
-        current_idx: u32,
     ) {
-        let mut i = 0;
-        while i < deferred.len() {
-            if deferred[i].0 == u32::MAX {
-                let (_, target_key, kind) = deferred.remove(i);
-                b.push_relationship(current_idx, RelationshipTarget::Key(target_key), kind);
-            } else {
-                i += 1;
+        use html_to_markdown_rs::types::NodeContent as HC;
+
+        for &idx in indices {
+            let Some(node) = doc.nodes.get(idx) else {
+                continue;
+            };
+
+            match &node.content {
+                HC::Heading { level, text } => {
+                    let elem_idx = b.push_heading(*level, text, None, None);
+                    let annotations = map_annotations(&node.annotations);
+                    if !annotations.is_empty() {
+                        b.set_annotations(elem_idx, annotations);
+                    }
+                }
+                HC::Paragraph { text } => {
+                    let annotations = map_annotations(&node.annotations);
+                    b.push_paragraph(text, annotations, None, None);
+                }
+                HC::List { ordered } => {
+                    b.push_list(*ordered);
+                    let child_indices: Vec<usize> = node.children.iter().map(|&i| i as usize).collect();
+                    Self::walk_nodes(doc, &child_indices, b);
+                    b.end_list();
+                }
+                HC::ListItem { text } => {
+                    // Determine if parent is ordered
+                    let ordered = node
+                        .parent
+                        .and_then(|p| doc.nodes.get(p as usize))
+                        .map(|parent| matches!(parent.content, HC::List { ordered: true }))
+                        .unwrap_or(false);
+                    let annotations = map_annotations(&node.annotations);
+                    b.push_list_item(text, ordered, annotations, None, None);
+                }
+                HC::Table { grid } => {
+                    // Convert grid to 2D cells for the builder
+                    let mut cells = vec![vec![String::new(); grid.cols as usize]; grid.rows as usize];
+                    for cell in &grid.cells {
+                        if (cell.row as usize) < cells.len() && (cell.col as usize) < cells[0].len() {
+                            cells[cell.row as usize][cell.col as usize] = cell.content.clone();
+                        }
+                    }
+                    b.push_table_from_cells(&cells, None, None);
+                }
+                HC::Image { description, src, .. } => {
+                    // Push as a paragraph with image description for now.
+                    // Actual image data extraction is handled separately via extract_html_inline_images.
+                    let text = description.as_deref().unwrap_or("");
+                    if !text.is_empty() || src.is_some() {
+                        let display = if let Some(src) = src {
+                            if text.is_empty() {
+                                format!("![]({})", src)
+                            } else {
+                                format!("![{}]({})", text, src)
+                            }
+                        } else {
+                            text.to_string()
+                        };
+                        b.push_paragraph(&display, vec![], None, None);
+                    }
+                }
+                HC::Code { text, language } => {
+                    b.push_code(text, language.as_deref(), None, None);
+                }
+                HC::Quote => {
+                    b.push_quote_start();
+                    let child_indices: Vec<usize> = node.children.iter().map(|&i| i as usize).collect();
+                    Self::walk_nodes(doc, &child_indices, b);
+                    b.push_quote_end();
+                }
+                HC::DefinitionList => {
+                    // Walk children (DefinitionItem nodes)
+                    let child_indices: Vec<usize> = node.children.iter().map(|&i| i as usize).collect();
+                    Self::walk_nodes(doc, &child_indices, b);
+                }
+                HC::DefinitionItem { term, definition } => {
+                    b.push_definition_term(term, None);
+                    b.push_definition_description(definition, None);
+                }
+                HC::Group { label, .. } => {
+                    b.push_group_start(label.as_deref(), None);
+                    let child_indices: Vec<usize> = node.children.iter().map(|&i| i as usize).collect();
+                    Self::walk_nodes(doc, &child_indices, b);
+                    b.push_group_end();
+                }
+                // Skip RawBlock (script/style content) and MetadataBlock (handled by metadata extraction)
+                HC::RawBlock { .. } | HC::MetadataBlock { .. } => {}
             }
         }
     }
 }
 
-/// Extract an attribute value from an HTML tag's attribute string.
-fn extract_attr(attrs: &str, name: &str) -> Option<String> {
-    // Case-insensitive search for name=
-    let lower_attrs = attrs.to_ascii_lowercase();
-    let search = format!("{}=", name.to_ascii_lowercase());
-    let pos = lower_attrs.find(&search)?;
-    let after = &attrs[pos + search.len()..];
-    let after = after.trim_start();
-    if let Some(inner) = after.strip_prefix('"') {
-        let end = inner.find('"')?;
-        Some(inner[..end].to_string())
-    } else if let Some(inner) = after.strip_prefix('\'') {
-        let end = inner.find('\'')?;
-        Some(inner[..end].to_string())
-    } else {
-        let end = after
-            .find(|c: char| c.is_whitespace() || c == '>' || c == '/')
-            .unwrap_or(after.len());
-        Some(after[..end].to_string())
-    }
-}
-
-/// Decode common HTML entities.
-fn decode_html_entities(s: &str) -> String {
-    s.replace("&amp;", "&")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&apos;", "'")
-        .replace("&nbsp;", " ")
+/// Map html-to-markdown annotations to kreuzberg annotations.
+fn map_annotations(annotations: &[html_to_markdown_rs::types::TextAnnotation]) -> Vec<TextAnnotation> {
+    annotations
+        .iter()
+        .filter_map(|a| {
+            use html_to_markdown_rs::types::AnnotationKind as AK;
+            let kind = match &a.kind {
+                AK::Bold => crate::types::document_structure::AnnotationKind::Bold,
+                AK::Italic => crate::types::document_structure::AnnotationKind::Italic,
+                AK::Underline => crate::types::document_structure::AnnotationKind::Underline,
+                AK::Strikethrough => crate::types::document_structure::AnnotationKind::Strikethrough,
+                AK::Code => crate::types::document_structure::AnnotationKind::Code,
+                AK::Subscript => crate::types::document_structure::AnnotationKind::Subscript,
+                AK::Superscript => crate::types::document_structure::AnnotationKind::Superscript,
+                AK::Highlight => crate::types::document_structure::AnnotationKind::Highlight,
+                AK::Link { url, title } => crate::types::document_structure::AnnotationKind::Link {
+                    url: url.clone(),
+                    title: title.clone(),
+                },
+            };
+            Some(TextAnnotation {
+                start: a.start,
+                end: a.end,
+                kind,
+            })
+        })
+        .collect()
 }
 
 impl Plugin for HtmlExtractor {
@@ -479,11 +211,12 @@ impl SyncExtractor for HtmlExtractor {
             .map(|s| s.to_string())
             .unwrap_or_else(|_| String::from_utf8_lossy(content).into_owned());
 
-        let (_content_text, html_metadata, table_data) = crate::extraction::html::convert_html_to_markdown_with_tables(
-            &html,
-            config.html_options.clone(),
-            Some(config.output_format),
-        )?;
+        let (content_text, html_metadata, table_data, doc_structure) =
+            crate::extraction::html::convert_html_to_markdown_with_tables(
+                &html,
+                config.html_options.clone(),
+                Some(config.output_format),
+            )?;
 
         let tables: Vec<Table> = table_data
             .into_iter()
@@ -515,8 +248,28 @@ impl SyncExtractor for HtmlExtractor {
             _ => None,
         };
 
-        // Build InternalDocument from the original HTML.
-        let mut doc = Self::build_internal_document(&html);
+        // Build InternalDocument from html-to-markdown's DocumentStructure.
+        // If the structure has nodes, map them to InternalDocument elements.
+        // Otherwise, fall back to a single paragraph with the converter's text output.
+        let mut doc = if let Some(ref structure) = doc_structure {
+            let mapped = Self::map_document_structure(structure);
+            if mapped.elements.is_empty() && !content_text.is_empty() {
+                // Structure collector didn't produce nodes (e.g. only images/lists which
+                // aren't collected yet). Use the converter's text as a paragraph.
+                let mut b = InternalDocumentBuilder::new("html");
+                b.push_paragraph(&content_text, vec![], None, None);
+                b.build()
+            } else {
+                mapped
+            }
+        } else if !content_text.is_empty() {
+            let mut b = InternalDocumentBuilder::new("html");
+            b.push_paragraph(&content_text, vec![], None, None);
+            b.build()
+        } else {
+            InternalDocumentBuilder::new("html").build()
+        };
+
         doc.metadata = Metadata {
             output_format: pre_formatted,
             format: format_metadata,
@@ -614,7 +367,7 @@ mod tests {
 
     /// Helper to extract tables from HTML using the unified converter.
     fn extract_tables(html: &str) -> Vec<Table> {
-        let (_, _, table_data): (String, _, Vec<html_to_markdown_rs::types::TableData>) =
+        let (_, _, table_data, _): (String, _, Vec<html_to_markdown_rs::types::TableData>, _) =
             crate::extraction::html::convert_html_to_markdown_with_tables(html, None, None).unwrap();
         table_data
             .into_iter()
@@ -824,10 +577,9 @@ mod tests {
         let result =
             crate::extraction::derive::derive_extraction_result(result, true, crate::core::config::OutputFormat::Plain);
 
-        // The HTML extractor produces 2 table entries: one from build_internal_document
-        // and one from convert_html_to_markdown_with_tables. Both contain the same data.
-        assert_eq!(result.tables.len(), 2);
-        // Verify table content (both tables contain the same data)
+        // Tables come from document structure extraction (single source now)
+        assert!(!result.tables.is_empty(), "Should have at least one table");
+        // Verify table content
         let table = &result.tables[0];
         assert_eq!(table.cells.len(), 3);
         assert_eq!(table.cells[0], vec!["Name", "Age"]);
@@ -860,7 +612,6 @@ mod tests {
             crate::extraction::derive::derive_extraction_result(result, true, crate::core::config::OutputFormat::Plain);
 
         assert_eq!(result.mime_type, "text/html");
-        // The derive pipeline produces plain text content; heading/emphasis markers are in DocumentStructure
         assert!(
             result.content.contains("Test Page"),
             "Should contain heading text: {}",
@@ -908,5 +659,82 @@ mod tests {
         // Content should be identical - no re-conversion should occur
         assert_eq!(pipeline_result.content, original_content);
         assert_eq!(pipeline_result.mime_type, "text/html");
+    }
+
+    #[test]
+    fn test_map_document_structure_basic() {
+        let html = "<h1>Title</h1><p>Hello world.</p>";
+        let (_, _, _, doc_structure) =
+            crate::extraction::html::convert_html_to_markdown_with_tables(html, None, None).unwrap();
+        let doc_structure = doc_structure.expect("should have document structure");
+        let doc = HtmlExtractor::map_document_structure(&doc_structure);
+        assert!(!doc.elements.is_empty(), "Should have elements");
+    }
+
+    #[tokio::test]
+    async fn test_extract_sync_plain_text_has_content() {
+        let html = r#"<h1>Title</h1><p>Hello world</p>"#;
+        let extractor = HtmlExtractor::new();
+        let config = ExtractionConfig::default(); // Plain text
+        let result = extractor
+            .extract_bytes(html.as_bytes(), "text/html", &config)
+            .await
+            .unwrap();
+        // Check that InternalDocument has elements
+        assert!(
+            !result.elements.is_empty(),
+            "InternalDocument should have elements, got: {:?}",
+            result.elements.len()
+        );
+        let content = result.content();
+        assert!(
+            content.contains("Title"),
+            "Content should contain heading: '{}'",
+            content
+        );
+    }
+
+    #[test]
+    fn test_no_css_or_script_leaking() {
+        let html = r#"
+        <html>
+            <head>
+                <style>body { color: red; } .hidden { display: none; }</style>
+                <script>alert('xss');</script>
+                <script type="application/ld+json">{"@type": "Article"}</script>
+            </head>
+            <body>
+                <h1>Clean Content</h1>
+                <p>This should be the only content.</p>
+            </body>
+        </html>
+        "#;
+
+        let doc_structure = {
+            let (_, _, _, ds) =
+                crate::extraction::html::convert_html_to_markdown_with_tables(html, None, None).unwrap();
+            ds.expect("should have document structure")
+        };
+        let doc = HtmlExtractor::map_document_structure(&doc_structure);
+
+        // Check that no element contains CSS or script content
+        for elem in &doc.elements {
+            let text = elem.text.as_str();
+            assert!(
+                !text.contains("color: red"),
+                "CSS should not leak into elements: {:?}",
+                text
+            );
+            assert!(
+                !text.contains("alert("),
+                "Script should not leak into elements: {:?}",
+                text
+            );
+            assert!(
+                !text.contains("@type"),
+                "JSON-LD should not leak into elements: {:?}",
+                text
+            );
+        }
     }
 }
