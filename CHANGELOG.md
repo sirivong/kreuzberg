@@ -72,7 +72,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Layout detection preset removed**: The `preset` field on `LayoutDetectionConfig` has been removed across all bindings. Layout detection now uses the RT-DETR v2 model unconditionally — no "fast" vs "accurate" distinction. The `--layout-preset` CLI flag is removed. Old configs with `"preset": "..."` are silently ignored for backward compatibility.
 - **Table model config typed**: `table_model` on `LayoutDetectionConfig` changed from `Option<String>` to a `TableModel` enum (`tatr`, `slanet_wired`, `slanet_wireless`, `slanet_plus`, `slanet_auto`, `disabled`). Defaults to `tatr`. String values still accepted in JSON/TOML configs.
-- **`code_intelligence` field added to ExtractionResult**: All bindings updated. Field is `Option<ProcessResult>`, populated for source code files.
 
 ### Fixed
 
