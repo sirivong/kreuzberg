@@ -471,14 +471,13 @@ fn count_blocks(content: &str) -> HashMap<String, usize> {
         if trimmed.starts_with('#') {
             *counts.entry("headings".to_string()).or_insert(0) += 1;
         }
-        // List items (unordered)
-        else if trimmed.starts_with("- ") || trimmed.starts_with("* ") || trimmed.starts_with("+ ") {
-            *counts.entry("list_items".to_string()).or_insert(0) += 1;
-        }
-        // List items (ordered)
-        else if trimmed.len() > 2
-            && trimmed.chars().next().is_some_and(|c| c.is_ascii_digit())
-            && trimmed.contains(". ")
+        // List items (unordered or ordered)
+        else if trimmed.starts_with("- ")
+            || trimmed.starts_with("* ")
+            || trimmed.starts_with("+ ")
+            || (trimmed.len() > 2
+                && trimmed.chars().next().is_some_and(|c| c.is_ascii_digit())
+                && trimmed.contains(". "))
         {
             *counts.entry("list_items".to_string()).or_insert(0) += 1;
         }
@@ -550,7 +549,7 @@ struct TestDoc {
     md_plain_threshold: f64,
     /// Whether the source document is HTML (relaxed thresholds due to
     /// round-trip divergence).
-    is_html_input: bool,
+    _is_html_input: bool,
 }
 
 const TEST_DOCS: &[TestDoc] = &[
@@ -562,7 +561,7 @@ const TEST_DOCS: &[TestDoc] = &[
         md_html_threshold: 0.95,
         md_djot_threshold: 0.85,
         md_plain_threshold: 0.85,
-        is_html_input: false,
+        _is_html_input: false,
     },
     // Markdown readme.md — headings, lists, code block. No extra features needed.
     TestDoc {
@@ -572,7 +571,7 @@ const TEST_DOCS: &[TestDoc] = &[
         md_html_threshold: 0.95,
         md_djot_threshold: 0.85,
         md_plain_threshold: 0.85,
-        is_html_input: false,
+        _is_html_input: false,
     },
     // RST document — requires office feature for the RST extractor.
     TestDoc {
@@ -582,7 +581,7 @@ const TEST_DOCS: &[TestDoc] = &[
         md_html_threshold: 0.95,
         md_djot_threshold: 0.85,
         md_plain_threshold: 0.85,
-        is_html_input: false,
+        _is_html_input: false,
     },
     // HTML page — requires html feature. The taylor_swift page is large and
     // markup-stripping introduces divergence; use relaxed thresholds.
@@ -593,7 +592,7 @@ const TEST_DOCS: &[TestDoc] = &[
         md_html_threshold: 0.75,
         md_djot_threshold: 0.85,
         md_plain_threshold: 0.75,
-        is_html_input: true,
+        _is_html_input: true,
     },
     // LaTeX document — requires office feature.
     TestDoc {
@@ -603,7 +602,7 @@ const TEST_DOCS: &[TestDoc] = &[
         md_html_threshold: 0.95,
         md_djot_threshold: 0.85,
         md_plain_threshold: 0.85,
-        is_html_input: false,
+        _is_html_input: false,
     },
     // EPUB — requires office feature.
     TestDoc {
@@ -613,7 +612,7 @@ const TEST_DOCS: &[TestDoc] = &[
         md_html_threshold: 0.95,
         md_djot_threshold: 0.85,
         md_plain_threshold: 0.85,
-        is_html_input: false,
+        _is_html_input: false,
     },
     // DOCX — requires office feature.
     TestDoc {
@@ -623,7 +622,7 @@ const TEST_DOCS: &[TestDoc] = &[
         md_html_threshold: 0.95,
         md_djot_threshold: 0.85,
         md_plain_threshold: 0.85,
-        is_html_input: false,
+        _is_html_input: false,
     },
     // HTML table document — requires html feature.
     TestDoc {
@@ -633,7 +632,7 @@ const TEST_DOCS: &[TestDoc] = &[
         md_html_threshold: 0.75,
         md_djot_threshold: 0.85,
         md_plain_threshold: 0.75,
-        is_html_input: true,
+        _is_html_input: true,
     },
     // LaTeX tables — requires office feature.
     TestDoc {
@@ -643,7 +642,7 @@ const TEST_DOCS: &[TestDoc] = &[
         md_html_threshold: 0.95,
         md_djot_threshold: 0.80,
         md_plain_threshold: 0.80,
-        is_html_input: false,
+        _is_html_input: false,
     },
 ];
 
@@ -654,6 +653,8 @@ const TEST_DOCS: &[TestDoc] = &[
 /// Check whether a required feature is available at runtime by attempting an
 /// extraction. Returns false if extraction fails (feature likely not compiled).
 fn feature_available(feature: &str) -> bool {
+    // Each arm evaluates a different cfg! macro, so matches! is not appropriate.
+    #[allow(clippy::match_like_matches_macro)]
     match feature {
         "" => true,
         "html" => cfg!(feature = "html"),

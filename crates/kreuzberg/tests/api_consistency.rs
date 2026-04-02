@@ -457,6 +457,7 @@ fn test_tree_sitter_config_defaults() {
 #[test]
 fn test_tree_sitter_config_serialization_roundtrip() {
     let config = TreeSitterConfig {
+        enabled: true,
         cache_dir: Some("/tmp/grammars".into()),
         languages: Some(vec!["python".to_string(), "rust".to_string()]),
         groups: Some(vec!["web".to_string()]),
@@ -469,6 +470,7 @@ fn test_tree_sitter_config_serialization_roundtrip() {
             symbols: false,
             diagnostics: false,
             chunk_max_size: Some(4000),
+            content_mode: Default::default(),
         },
     };
 
@@ -541,6 +543,7 @@ fn test_tree_sitter_process_config_all_fields_serialized() {
         symbols: true,
         diagnostics: true,
         chunk_max_size: Some(2000),
+        content_mode: Default::default(),
     };
 
     let json = serde_json::to_value(&config).expect("Failed to serialize");
