@@ -5,8 +5,53 @@
 
 use crate::Result;
 use crate::core::config::ExtractionConfig;
-use crate::types::{ExtractionResult, ProcessingWarning};
+use crate::types::{ExtractionResult, PageBoundary, ProcessingWarning};
 use std::borrow::Cow;
+
+/// Recompute page boundaries against the rendered `content` string.
+///
+/// `PageBoundary` offsets produced during extraction are computed against raw
+/// pdfium/source text, but `result.content` is produced by `render_plain` which
+/// may have different byte lengths (e.g. normalised whitespace, Unicode
+/// normalisation, dropped control characters).  This function re-derives the
+/// boundaries by locating each page's rendered content inside the combined
+/// `content` string, so that the byte offsets passed to the chunker are valid
+/// indices into `result.content`.
+///
+/// Pages whose content cannot be found are silently skipped (the chunker will
+/// still produce output, just without page-range metadata for those pages).
+#[cfg(feature = "chunking")]
+fn recompute_boundaries_from_pages(content: &str, pages: &[crate::types::PageContent]) -> Vec<PageBoundary> {
+    let mut boundaries = Vec::with_capacity(pages.len());
+    let mut search_offset = 0usize;
+
+    for page in pages {
+        if page.content.is_empty() {
+            // Keep a zero-length marker so page numbers stay sequential.
+            boundaries.push(PageBoundary {
+                page_number: page.page_number,
+                byte_start: search_offset,
+                byte_end: search_offset,
+            });
+            continue;
+        }
+
+        if let Some(pos) = content[search_offset..].find(&page.content) {
+            let byte_start = search_offset + pos;
+            let byte_end = byte_start + page.content.len();
+            boundaries.push(PageBoundary {
+                page_number: page.page_number,
+                byte_start,
+                byte_end,
+            });
+            search_offset = byte_end;
+        }
+        // If the page content is not found we skip it — partial mismatch is
+        // better than passing an out-of-range offset to the chunker.
+    }
+
+    boundaries
+}
 
 /// Map TSLP `CodeChunk`s directly to kreuzberg `Chunk`s, bypassing text-splitter.
 ///
@@ -107,7 +152,19 @@ pub(super) fn execute_chunking(result: &mut ExtractionResult, config: &Extractio
 
         let resolved_config = chunking_config.resolve_preset();
         let chunking_config = &resolved_config;
-        let page_boundaries = result.metadata.pages.as_ref().and_then(|ps| ps.boundaries.as_deref());
+
+        // Recompute page boundaries against `result.content` (rendered by `render_plain`)
+        // if per-page content is available.  The boundaries stored in
+        // `result.metadata.pages.boundaries` were computed against the raw extractor text
+        // and may have different byte offsets than the rendered content (fix for #636).
+        let recomputed_boundaries: Option<Vec<PageBoundary>> = result
+            .pages
+            .as_deref()
+            .map(|pages| recompute_boundaries_from_pages(&result.content, pages));
+
+        let page_boundaries: Option<&[PageBoundary]> = recomputed_boundaries
+            .as_deref()
+            .or_else(|| result.metadata.pages.as_ref().and_then(|ps| ps.boundaries.as_deref()));
 
         // Pass formatted_content (markdown) for heading context resolution when available.
         // Plain-text rendering strips heading markers, but the markdown chunker needs them

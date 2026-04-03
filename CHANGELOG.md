@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Fixed
+
+- **Chunking page boundary regression** (#636): Page boundaries were computed against raw extractor text but `result.content` uses rendered text with different byte lengths. Chunks now recompute boundaries from per-page content, fixing `first_page`/`last_page` being null and the "Page boundary byte_end exceeds text length" validation warning.
+
+---
+
 ## [4.7.0] - 2026-03-30
 
 
