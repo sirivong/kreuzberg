@@ -3291,7 +3291,7 @@ jobs:
     if: |
       always() && !cancelled() &&
       github.repository == 'kreuzberg-dev/kreuzberg' && github.actor != 'dependabot[bot]' &&
-      (github.event_name == 'workflow_dispatch' || needs.changes.outputs.core == 'true' || needs.changes.outputs.ffi == 'true')
+      (github.event_name == 'workflow_dispatch' || needs.changes.outputs.core == 'true' || needs.changes.outputs.ffi == 'true' || needs.changes.outputs.rust == 'true')
     needs: [build-ffi, changes]
     timeout-minutes: 60
     strategy:

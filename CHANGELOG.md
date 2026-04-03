@@ -28,6 +28,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OCR layout false heading classification** — Tesseract+layout pipeline was worse than pure tesseract (33% vs 41% SF1) because layout confidence threshold was too low (0.5). Raised to 0.7 for OCR path where font-size validation is unavailable.
 - **OCR table rendering** — OCR-detected tables were not linked to InternalDocument elements, causing comrak to skip them entirely. Tables now properly registered via `push_table()` with corresponding `ElementKind::Table` elements.
 - **Spurious table detection** — Multi-column prose with short cells (like nougat_008) bypassed the prose row check due to a 30-char minimum row length. Lowered to 15 chars so short-cell prose tables are correctly rejected.
+- **PHP enum registration** — PHP enums (ContentLayer, ElementType, etc.) were registered with `.class()` instead of `.enumeration()`, causing empty case lists. Virtual properties on ExtractionResult and ArchiveEntry now declared via builder modifiers for reflection visibility.
+- **Go macOS FFI linking** — monorepo dev build (`ffi_dev.go`) was missing `-framework Foundation` in CGO LDFLAGS, causing linker failures on macOS with CoreML-enabled ONNX Runtime.
+- **Unified WASM e2e tests** — replaced broken separate Deno/Workers e2e generators with a single vitest-based WASM generator. ORT-dependent features (embeddings, layout, paddle-ocr) gracefully skip.
 
 ---
 

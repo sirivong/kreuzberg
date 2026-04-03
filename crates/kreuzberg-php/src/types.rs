@@ -2,10 +2,47 @@
 //!
 //! Provides PHP-friendly wrappers around extraction result types.
 
+use ext_php_rs::builders::ClassBuilder;
 use ext_php_rs::convert::IntoZval;
+use ext_php_rs::flags::PropertyFlags;
 use ext_php_rs::prelude::*;
 use ext_php_rs::types::Zval;
 use std::collections::HashMap;
+
+// ---------------------------------------------------------------------------
+// ClassBuilder modifier functions for virtual properties
+// ---------------------------------------------------------------------------
+
+/// Declare virtual properties on ExtractionResult that are accessible via
+/// `__get()` magic method or `#[php(getter)]` methods but not stored as
+/// `#[php(prop)]` fields. These declarations make `ReflectionClass::hasProperty()`
+/// return true for all fields in the parity manifest.
+pub fn extraction_result_builder_modifier(builder: ClassBuilder) -> ClassBuilder {
+    builder
+        // JSON-backed virtual properties (accessed via __get)
+        .property("metadata", PropertyFlags::Public, None, &[])
+        .property("djotContent", PropertyFlags::Public, None, &[])
+        .property("elements", PropertyFlags::Public, None, &[])
+        .property("document", PropertyFlags::Public, None, &[])
+        .property("ocrElements", PropertyFlags::Public, None, &[])
+        .property("children", PropertyFlags::Public, None, &[])
+        .property("uris", PropertyFlags::Public, None, &[])
+        // Getter-backed virtual properties (#[php(getter)] methods)
+        .property("tables", PropertyFlags::Public, None, &[])
+        .property("images", PropertyFlags::Public, None, &[])
+        .property("chunks", PropertyFlags::Public, None, &[])
+        .property("pages", PropertyFlags::Public, None, &[])
+        .property("extractedKeywords", PropertyFlags::Public, None, &[])
+        .property("annotations", PropertyFlags::Public, None, &[])
+        .property("processingWarnings", PropertyFlags::Public, None, &[])
+}
+
+/// Declare the `result` virtual property on ArchiveEntry. The actual value is
+/// stored in the `result` field and exposed via a `#[php(getter)]` method,
+/// but `ReflectionClass::hasProperty()` requires a declared property.
+pub fn archive_entry_builder_modifier(builder: ClassBuilder) -> ClassBuilder {
+    builder.property("result", PropertyFlags::Public, None, &[])
+}
 
 // ---------------------------------------------------------------------------
 // PHP Enums (backed enums via #[php_enum])
@@ -161,7 +198,7 @@ pub enum UriKind {
 
 /// Archive entry containing extraction result for a file within an archive.
 #[php_class]
-#[php(name = "Kreuzberg\\Types\\ArchiveEntry")]
+#[php(name = "Kreuzberg\\Types\\ArchiveEntry", modifier = archive_entry_builder_modifier)]
 #[derive(Clone)]
 pub struct ArchiveEntry {
     /// MIME type of the archived file
@@ -424,7 +461,7 @@ pub(crate) fn json_value_to_php(value: &serde_json::Value) -> PhpResult<Zval> {
 /// }
 /// ```
 #[php_class]
-#[php(name = "Kreuzberg\\Types\\ExtractionResult")]
+#[php(name = "Kreuzberg\\Types\\ExtractionResult", modifier = extraction_result_builder_modifier)]
 #[derive(Clone)]
 pub struct ExtractionResult {
     /// Extracted text content

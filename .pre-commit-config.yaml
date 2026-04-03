@@ -163,6 +163,7 @@ repos:
     rev: v0.11.0
     hooks:
       - id: shellcheck
+        args: ['-x']
         exclude: ^tests/test_apps/docker/tests/
 
   # Markdown: linting

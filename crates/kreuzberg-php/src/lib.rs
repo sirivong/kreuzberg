@@ -112,17 +112,18 @@ pub fn get_module(module: ModuleBuilder) -> ModuleBuilder {
 
     // Register all PHP classes (order matters for dependencies)
     // Types module - enums (must be registered before structs that reference them)
+    // Use .enumeration::<T>() so that PHP enum cases are registered (not just the class skeleton)
     module = module
-        .class::<types::ContentLayer>()
-        .class::<types::ElementType>()
-        .class::<types::KeywordAlgorithm>()
-        .class::<types::OcrElementLevel>()
-        .class::<types::OutputFormat>()
-        .class::<types::PageUnitType>()
-        .class::<types::RelationshipKind>()
-        .class::<types::ResultFormat>()
-        .class::<types::UriKind>()
-        .class::<types::PdfAnnotationType>(); // Must be registered before PdfAnnotation
+        .enumeration::<types::ContentLayer>()
+        .enumeration::<types::ElementType>()
+        .enumeration::<types::KeywordAlgorithm>()
+        .enumeration::<types::OcrElementLevel>()
+        .enumeration::<types::OutputFormat>()
+        .enumeration::<types::PageUnitType>()
+        .enumeration::<types::RelationshipKind>()
+        .enumeration::<types::ResultFormat>()
+        .enumeration::<types::UriKind>()
+        .enumeration::<types::PdfAnnotationType>(); // Must be registered before PdfAnnotation
 
     // Types module - struct types
     module = module
