@@ -751,9 +751,8 @@ pub(crate) async fn extract_with_ocr(
 
                 // Scale layout detection bounding boxes from layout-model resolution
                 // (e.g. 640×640) to OCR render resolution so that coordinates are
-                // consistent when passed to recognize_page_tables and detection_to_layout_hints.
-                // `width` and `height` come from the encoded PNG dimensions, i.e. they are
-                // the actual pixel dimensions of the OCR-rendered page image.
+                // consistent when passed to recognize_page_tables and
+                // apply_layout_to_ocr_document (both use pixel-space coordinates).
                 let ocr_render_width = encoded_batch[offset].2;
                 let ocr_render_height = encoded_batch[offset].3;
                 let scaled_detection: Option<crate::layout::DetectionResult> = detection.map(|det| {
@@ -1155,62 +1154,6 @@ fn ensure_elements_enabled(config: &crate::core::config::ocr::OcrConfig) -> crat
         }
     }
     config
-}
-
-/// Convert pixel-space layout detections to `LayoutHint`s in the pseudo-PDF
-/// coordinate space used by the OCR markdown pipeline.
-///
-/// The OCR path uses `from_ocr_elements(elements, page_height)` which flips
-/// image y-coordinates to PDF convention (y=0 at bottom, y increases upward)
-/// by computing `pdf_y = page_height - pixel_y`. Layout hints must use the
-/// same coordinate space so `apply_layout_overrides` can spatially match
-/// paragraphs to layout regions.
-///
-/// This bridges the gap between the raw layout detection output (pixel space,
-/// y=0 at top) and the markdown pipeline's expectation (PDF space, y=0 at bottom).
-/// The same LayoutClass→LayoutHintClass mapping used by the native PDF path
-/// (`extractors/pdf/extraction.rs:convert_results_to_hints`) is replicated here
-/// because that function operates on `PageLayoutResult` (already in PDF coords),
-/// while we have raw `DetectionResult` (pixel coords).
-#[cfg(all(feature = "ocr", feature = "layout-detection"))]
-fn detection_to_layout_hints(
-    detection: &crate::layout::DetectionResult,
-    page_height: f32,
-) -> Vec<crate::pdf::structure::types::LayoutHint> {
-    use crate::layout::LayoutClass;
-    use crate::pdf::structure::types::{LayoutHint, LayoutHintClass};
-
-    detection
-        .detections
-        .iter()
-        .map(|det| {
-            let class = match det.class {
-                LayoutClass::Title => LayoutHintClass::Title,
-                LayoutClass::SectionHeader => LayoutHintClass::SectionHeader,
-                LayoutClass::Code => LayoutHintClass::Code,
-                LayoutClass::Formula => LayoutHintClass::Formula,
-                LayoutClass::ListItem => LayoutHintClass::ListItem,
-                LayoutClass::Caption => LayoutHintClass::Caption,
-                LayoutClass::Footnote => LayoutHintClass::Footnote,
-                LayoutClass::PageHeader => LayoutHintClass::PageHeader,
-                LayoutClass::PageFooter => LayoutHintClass::PageFooter,
-                LayoutClass::Table => LayoutHintClass::Table,
-                LayoutClass::Picture => LayoutHintClass::Picture,
-                LayoutClass::Text => LayoutHintClass::Text,
-                _ => LayoutHintClass::Other,
-            };
-            // Flip y: pixel y1 (top of bbox, small value) → PDF top (large value)
-            // pixel y2 (bottom of bbox, large value) → PDF bottom (small value)
-            LayoutHint {
-                class,
-                confidence: det.confidence,
-                left: det.bbox.x1,
-                right: det.bbox.x2,
-                top: page_height - det.bbox.y1,
-                bottom: page_height - det.bbox.y2,
-            }
-        })
-        .collect()
 }
 
 /// Apply layout detection classifications to an hOCR-derived `InternalDocument`.

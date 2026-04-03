@@ -5,8 +5,6 @@ use pdfium_render::prelude::{ContentRole, ExtractedBlock};
 
 use super::content::{ContentElement, ElementLevel, PageContent, SemanticRole};
 use super::geometry::Rect;
-#[cfg(feature = "layout-detection")]
-use super::types::LayoutHintClass;
 // ── Structure tree adapter ──────────────────────────────────────────────
 
 /// Convert structure-tree `ExtractedBlock`s into a [`PageContent`].
@@ -72,96 +70,6 @@ fn map_content_role(role: &ContentRole) -> (SemanticRole, Option<String>) {
 }
 
 // ── OCR adapter ─────────────────────────────────────────────────────────
-
-/// Convert `OcrElement`s into a [`PageContent`].
-///
-/// Coordinates are flipped from image space (y=0 at top) to PDF space
-/// (y=0 at bottom) using `page_height`.
-#[cfg(feature = "layout-detection")]
-pub(crate) fn from_ocr_elements(elements: &[crate::types::OcrElement], page_height: f32) -> PageContent {
-    let content_elements = elements
-        .iter()
-        .filter(|e| !e.text.trim().is_empty())
-        .map(|e| {
-            let (left, top, width, height) = e.geometry.to_aabb();
-            let left_f = left as f32;
-            let top_f = top as f32;
-            let w_f = width as f32;
-            let h_f = height as f32;
-
-            // Flip from image coords (y=0 top) to PDF coords (y=0 bottom).
-            let pdf_bottom = page_height - (top_f + h_f);
-            let pdf_top = page_height - top_f;
-
-            let bbox = if w_f > 0.0 || h_f > 0.0 {
-                Some(Rect::from_lbrt(left_f, pdf_bottom, left_f + w_f, pdf_top))
-            } else {
-                None
-            };
-
-            let level = match e.level {
-                crate::types::OcrElementLevel::Word => ElementLevel::Word,
-                crate::types::OcrElementLevel::Line => ElementLevel::Line,
-                crate::types::OcrElementLevel::Block | crate::types::OcrElementLevel::Page => ElementLevel::Block,
-            };
-
-            // Read rich metadata from Tesseract iterator extraction (if available).
-            let meta = &e.backend_metadata;
-            let is_bold = meta.get("is_bold").and_then(|v| v.as_bool()).unwrap_or(false);
-            let is_italic = meta.get("is_italic").and_then(|v| v.as_bool()).unwrap_or(false);
-            let is_monospace = meta.get("is_monospace").and_then(|v| v.as_bool()).unwrap_or(false);
-            let font_size = meta
-                .get("pointsize")
-                .and_then(|v| v.as_f64())
-                .filter(|&s| s > 0.0)
-                .map(|s| s as f32);
-
-            // Map block type to semantic role.
-            let block_type_str = meta.get("block_type").and_then(|v| v.as_str());
-
-            let mut semantic_role = block_type_str.and_then(|bt| match bt {
-                // Default to level 2; classify.rs will refine based on font-size clustering.
-                "PT_HEADING_TEXT" => Some(SemanticRole::Heading { level: 2 }),
-                "PT_TABLE" => Some(SemanticRole::TableCell),
-                "PT_CAPTION_TEXT" => Some(SemanticRole::Caption),
-                "PT_EQUATION" | "PT_INLINE_EQUATION" => Some(SemanticRole::Formula),
-                _ => None,
-            });
-
-            // Override with list item if paragraph info says so.
-            if meta.get("is_list_item").and_then(|v| v.as_bool()).unwrap_or(false) {
-                semantic_role = Some(SemanticRole::ListItem);
-            }
-
-            // Map block type to layout hint class for layout-aware processing.
-            let layout_class = block_type_str.and_then(|bt| match bt {
-                "PT_HEADING_TEXT" => Some(LayoutHintClass::SectionHeader),
-                "PT_TABLE" => Some(LayoutHintClass::Table),
-                "PT_CAPTION_TEXT" => Some(LayoutHintClass::Caption),
-                "PT_EQUATION" | "PT_INLINE_EQUATION" => Some(LayoutHintClass::Formula),
-                "PT_FLOWING_TEXT" => Some(LayoutHintClass::Text),
-                _ => None,
-            });
-
-            ContentElement {
-                text: e.text.clone(),
-                bbox,
-                font_size,
-                is_bold,
-                is_italic,
-                is_monospace,
-                semantic_role,
-                level,
-                list_label: None,
-                layout_class,
-            }
-        })
-        .collect();
-
-    PageContent {
-        elements: content_elements,
-    }
-}
 
 #[cfg(test)]
 mod tests {
