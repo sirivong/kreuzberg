@@ -535,7 +535,9 @@ fn elixir_spec() -> AdapterSpec {
 }
 
 fn find_elixir() -> Result<(PathBuf, Vec<String>)> {
-    Ok((find_tool("elixir")?, vec![]))
+    // Use `mix run` instead of bare `elixir` so the Kreuzberg OTP application
+    // is loaded from the compiled project in packages/elixir.
+    Ok((find_tool("mix")?, vec!["run".to_string()]))
 }
 
 fn build_elixir_env() -> Result<Vec<(String, String)>> {
@@ -640,12 +642,17 @@ pub fn create_php_batch_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> 
 
 /// Create Elixir adapter (persistent server mode)
 pub fn create_elixir_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
-    create_from_spec(&elixir_spec(), ocr_enabled, false)
+    let mut adapter = create_from_spec(&elixir_spec(), ocr_enabled, false)?;
+    // mix run must execute from the Elixir project directory
+    adapter.set_working_dir(workspace_root()?.join("packages/elixir"));
+    Ok(adapter)
 }
 
 /// Create Elixir batch adapter (batch_extract_files)
 pub fn create_elixir_batch_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
-    create_from_spec(&elixir_spec(), ocr_enabled, true)
+    let mut adapter = create_from_spec(&elixir_spec(), ocr_enabled, true)?;
+    adapter.set_working_dir(workspace_root()?.join("packages/elixir"));
+    Ok(adapter)
 }
 
 // ---------------------------------------------------------------------------

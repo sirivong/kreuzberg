@@ -14,6 +14,20 @@ use std::process::Stdio;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+/// Extract JSON content from raw stdout, stripping non-JSON prefix lines.
+///
+/// Some runtimes (notably Elixir's BEAM VM) emit log messages to stdout
+/// during module initialization before the script can redirect them. This
+/// function finds the first `[` or `{` character and returns everything
+/// from that point, ignoring any preceding log lines.
+fn extract_json_from_stdout(raw: &str) -> &str {
+    if let Some(pos) = raw.find('[').or_else(|| raw.find('{')) {
+        &raw[pos..]
+    } else {
+        raw
+    }
+}
+
 /// Map a harness `Error` to the appropriate `ErrorKind`.
 fn error_to_error_kind(e: &Error) -> ErrorKind {
     match e {
@@ -310,7 +324,8 @@ impl SubprocessAdapter {
 
         let duration = start.elapsed();
 
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let raw_stdout = String::from_utf8_lossy(&output.stdout);
+        let stdout = extract_json_from_stdout(&raw_stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
         if !output.status.success() {
@@ -375,7 +390,8 @@ impl SubprocessAdapter {
 
         let duration = start.elapsed();
 
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+        let raw_stdout = String::from_utf8_lossy(&output.stdout);
+        let stdout = extract_json_from_stdout(&raw_stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
         if !output.status.success() {
@@ -966,8 +982,13 @@ impl FrameworkAdapter for SubprocessAdapter {
         let resource_stats = ResourceMonitor::calculate_stats(&samples, &snapshots, baseline);
 
         // Parse batch output to extract per-file OCR status and extraction times
-        // Try to parse as JSON array; fall back to defaults if parsing fails
-        let parsed_batch: Option<Vec<serde_json::Value>> = serde_json::from_str(&stdout).ok();
+        // Try to parse as JSON array; fall back to single object wrapped in array
+        let parsed_batch: Option<Vec<serde_json::Value>> = serde_json::from_str::<Vec<serde_json::Value>>(&stdout)
+            .ok()
+            .or_else(|| {
+                // Some adapters return a single object for 1-file batches
+                serde_json::from_str::<serde_json::Value>(&stdout).ok().map(|v| vec![v])
+            });
 
         let batch_ocr_statuses: Vec<OcrStatus> = parsed_batch
             .as_ref()

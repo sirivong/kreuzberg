@@ -7,9 +7,10 @@
 
 require Logger
 
-# Configure Logger to suppress debug messages and use stderr for all output
-# This ensures only the JSON result goes to stdout
-Logger.configure(level: :warning)
+# Suppress ALL log output to stdout — any stray log messages corrupt JSON output.
+# Must be done before any Kreuzberg modules are loaded, as Plugin.Registry
+# emits a [debug] message during module initialization.
+Logger.configure(level: :none)
 
 # Guard Logger backend configuration — :standard_error device may not be
 # available in all subprocess contexts, and writing to it during boot can
@@ -396,12 +397,8 @@ defmodule KreuzbergExtract do
             case extract_batch(file_paths, config, ocr_enabled) do
               {:ok, results} ->
                 try do
-                  json =
-                    if length(file_paths) == 1 do
-                      Jason.encode!(hd(results))
-                    else
-                      Jason.encode!(results)
-                    end
+                  # Always return a JSON array, even for a single file
+                  json = Jason.encode!(results)
 
                   debug_log("Output JSON: #{String.slice(json, 0..200)}...")
                   IO.puts(json)
