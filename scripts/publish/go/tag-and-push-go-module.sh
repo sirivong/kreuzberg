@@ -4,34 +4,41 @@ set -euo pipefail
 tag="${1:?Release tag argument required (e.g. v4.0.0-rc.7)}"
 
 version="${tag#v}"
-# Extract major version for the Go module subdirectory path.
-# Go module at packages/go/v4 requires tags of the form packages/go/v4/vX.Y.Z
 major="${version%%.*}"
+
+# Two tag formats for backwards compatibility:
+#   - packages/go/v4/vX.Y.Z  (correct per Go module spec, module path includes /v4)
+#   - packages/go/vX.Y.Z     (legacy format, existing consumers may depend on it)
 module_tag="packages/go/v${major}/${tag}"
+legacy_tag="packages/go/${tag}"
 
-if git rev-parse "$module_tag" >/dev/null 2>&1; then
-  echo "::notice::Go module tag $module_tag already exists locally; skipping."
-  exit 0
-fi
-
-# Check if tag exists on remote
-if git ls-remote --tags origin | grep -q "refs/tags/${module_tag}$"; then
-  echo "::notice::Go module tag $module_tag already exists on remote; skipping."
-  exit 0
-fi
-
-# Resolve the commit SHA the release tag points to
+repo="${GITHUB_REPOSITORY:-kreuzberg-dev/kreuzberg}"
 sha=$(git rev-parse "$tag^{commit}")
 
-# Create tag locally
-git tag "$module_tag" "$tag"
+create_tag() {
+  local t="$1"
 
-# Push via the GitHub API to avoid the GITHUB_TOKEN 'workflows' permission
-# restriction that blocks `git push` when the repo contains workflow files.
-repo="${GITHUB_REPOSITORY:-kreuzberg-dev/kreuzberg}"
-gh api "repos/${repo}/git/refs" \
-  -f "ref=refs/tags/${module_tag}" \
-  -f "sha=${sha}" \
-  --silent
+  if git rev-parse "$t" >/dev/null 2>&1; then
+    echo "::notice::Go module tag $t already exists locally; skipping."
+    return
+  fi
 
-echo "✅ Go module tag created: $module_tag (sha: ${sha:0:12})"
+  if git ls-remote --tags origin | grep -q "refs/tags/${t}$"; then
+    echo "::notice::Go module tag $t already exists on remote; skipping."
+    return
+  fi
+
+  git tag -a "$t" "$tag" -m "Go module tag ${t}"
+
+  # Push via the GitHub API to avoid the GITHUB_TOKEN 'workflows' permission
+  # restriction that blocks git push when the repo contains workflow files.
+  gh api "repos/${repo}/git/refs" \
+    -f "ref=refs/tags/${t}" \
+    -f "sha=${sha}" \
+    --silent
+
+  echo "✅ Go module tag created: $t (sha: ${sha:0:12})"
+}
+
+create_tag "$module_tag"
+create_tag "$legacy_tag"
