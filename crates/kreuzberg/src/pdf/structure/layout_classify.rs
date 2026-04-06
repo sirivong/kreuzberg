@@ -380,6 +380,12 @@ pub(super) fn apply_hint_to_paragraph(para: &mut PdfParagraph, hint: &LayoutHint
         LayoutHintClass::PageHeader | LayoutHintClass::PageFooter => {
             para.is_page_furniture = true;
         }
+        LayoutHintClass::Picture => {
+            // Text classified as Picture by layout model is figure-internal text
+            // (diagram labels, axis text, etc.) — suppress from body output.
+            para.is_page_furniture = true;
+            para.heading_level = None;
+        }
         LayoutHintClass::Text | LayoutHintClass::Caption | LayoutHintClass::Footnote
             // Layout model says this is body text, not a heading.
             // Demote font-size-classified headings when layout has high confidence.

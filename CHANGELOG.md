@@ -14,9 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Re-added `--layout` boolean CLI flag for easy layout detection enablement (use `--layout` to enable with model defaults, `--layout false` to explicitly disable)
 - arXiv watermark/sidebar noise filtering for academic PDFs — strips LaTeX sidebar identifiers from extracted text
 - Second-tier cross-page repeating text detection — catches conference headers and journal running titles that repeat on >70% of pages but appear outside the margin zone
+- Figure/picture text suppression — text inside layout-detected Picture regions is now marked as page furniture and excluded from body output
 
 ### Fixed
 
+- **Figure-internal text leaking into body output** — Text from inside figures and diagrams (e.g., diagram labels, axis text) was incorrectly included in the extracted body content, sometimes promoted to headings. The layout detection pipeline now suppresses text paragraphs classified as Picture regions.
 - CLI tests now correctly reference `--content-format` instead of deprecated `--output-format`
 - **Empty image references in PDF markdown/HTML output** — PDFs with embedded images produced empty `![]()` references in markdown and `<img src="" alt="">` in HTML output. The PDF structure pipeline now extracts actual image pixel data via pdfium and populates document images, producing proper `![](image_N.png)` references.
 - **Invalid `extractFromFile` config in documentation** — Demo code in the TypeScript API reference included invalid configuration parameters that caused runtime errors.
