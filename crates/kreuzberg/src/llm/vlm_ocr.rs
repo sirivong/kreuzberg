@@ -70,17 +70,21 @@ pub async fn vlm_ocr(
     request.temperature = config.temperature;
     request.max_tokens = config.max_tokens;
 
-    let response = client
-        .chat(request)
-        .await
-        .map_err(|e| crate::KreuzbergError::ocr(format!("VLM OCR request failed (model={}): {e}", config.model)))?;
+    let response = client.chat(request).await.map_err(|e| {
+        crate::KreuzbergError::ocr(format!(
+            "VLM OCR request failed: model={}, language={}, image_size={}KB: {e}",
+            config.model,
+            language,
+            image_bytes.len() / 1024
+        ))
+    })?;
 
     // Extract the text content from the first choice.
     let text = response
         .choices
         .first()
         .and_then(|choice| choice.message.content.as_deref())
-        .unwrap_or("")
+        .ok_or_else(|| crate::KreuzbergError::ocr(format!("VLM OCR returned no content (model={})", config.model)))?
         .to_string();
 
     Ok(text)

@@ -661,11 +661,16 @@ pub fn embed_texts<T: AsRef<str>>(
     match &config.model {
         #[cfg(feature = "liter-llm")]
         crate::core::config::EmbeddingModelType::Llm { llm } => {
-            let llm = llm.clone();
             let normalize = config.normalize;
-            // Run the async LLM call on the current Tokio runtime.
-            let rt = tokio::runtime::Handle::current();
-            rt.block_on(crate::llm::vlm_embeddings::embed_via_llm(texts, &llm, normalize))
+            // Create a dedicated runtime for the sync LLM call to avoid deadlocking
+            // the caller's runtime. This is only hit from the sync embed_texts() path.
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| {
+                    crate::KreuzbergError::embedding(format!("Failed to create runtime for LLM embeddings: {e}"))
+                })?;
+            rt.block_on(crate::llm::vlm_embeddings::embed_via_llm(texts, llm, normalize))
         }
         #[cfg(not(feature = "liter-llm"))]
         crate::core::config::EmbeddingModelType::Llm { .. } => Err(crate::KreuzbergError::MissingDependency(

@@ -581,6 +581,32 @@ mod tests {
         assert_eq!(resolved.max_characters, 500);
     }
 
+    #[test]
+    fn test_embedding_model_type_llm_roundtrip() {
+        let model_type = EmbeddingModelType::Llm {
+            llm: crate::core::config::llm::LlmConfig {
+                model: "openai/text-embedding-3-small".to_string(),
+                api_key: None,
+                base_url: None,
+                timeout_secs: None,
+                max_retries: None,
+                temperature: None,
+                max_tokens: None,
+            },
+        };
+        let json = serde_json::to_string(&model_type).unwrap();
+        assert!(json.contains("\"type\":\"llm\""));
+        assert!(json.contains("openai/text-embedding-3-small"));
+
+        let deserialized: EmbeddingModelType = serde_json::from_str(&json).unwrap();
+        match deserialized {
+            EmbeddingModelType::Llm { llm } => {
+                assert_eq!(llm.model, "openai/text-embedding-3-small");
+            }
+            _ => panic!("Expected Llm variant"),
+        }
+    }
+
     /// Tests Custom model type deserialization.
     #[test]
     fn test_embedding_model_type_custom_deserialization() {

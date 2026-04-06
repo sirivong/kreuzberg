@@ -628,7 +628,7 @@ async fn extract_structured_impl(
     let structured_config = crate::core::config::llm::StructuredExtractionConfig {
         schema: params.schema,
         schema_name: params.schema_name,
-        schema_description: None,
+        schema_description: params.schema_description,
         strict: params.strict,
         prompt: params.prompt,
         llm: crate::core::config::llm::LlmConfig {

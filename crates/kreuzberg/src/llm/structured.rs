@@ -66,7 +66,7 @@ pub async fn extract_structured(
         json_schema: liter_llm::JsonSchemaFormat {
             name: config.schema_name.clone(),
             description: config.schema_description.clone(),
-            schema: config.schema.clone(),
+            schema: config.schema.clone(), // Clone required: liter-llm takes owned Value
             strict: Some(config.strict),
         },
     });
@@ -74,16 +74,16 @@ pub async fn extract_structured(
     let response = client
         .chat(request)
         .await
-        .map_err(|e| crate::KreuzbergError::Other(format!("LLM structured extraction request failed: {e}")))?;
+        .map_err(|e| crate::KreuzbergError::parsing(format!("LLM structured extraction request failed: {e}")))?;
 
     // Extract text content from the first choice
     let text = response
         .choices
         .first()
         .and_then(|c| c.message.content.as_deref())
-        .ok_or_else(|| crate::KreuzbergError::Other("LLM structured extraction returned no content".to_string()))?;
+        .ok_or_else(|| crate::KreuzbergError::parsing("LLM structured extraction returned no content"))?;
 
     // Parse the response as JSON
     serde_json::from_str(text)
-        .map_err(|e| crate::KreuzbergError::Other(format!("LLM structured extraction returned invalid JSON: {e}")))
+        .map_err(|e| crate::KreuzbergError::parsing(format!("LLM structured extraction returned invalid JSON: {e}")))
 }

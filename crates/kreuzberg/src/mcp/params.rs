@@ -128,6 +128,9 @@ pub struct ExtractStructuredParams {
     /// Schema name (default: "extraction")
     #[serde(default = "default_schema_name")]
     pub schema_name: String,
+    /// Schema description for the LLM
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub schema_description: Option<String>,
     /// Custom Jinja2 prompt template
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,

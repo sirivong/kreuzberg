@@ -14,7 +14,7 @@ use crate::core::config::LlmConfig;
 /// When `api_key` is `None`, liter-llm falls back to the provider's standard
 /// environment variable (e.g., `OPENAI_API_KEY`).
 pub fn create_client(config: &LlmConfig) -> crate::Result<DefaultClient> {
-    let api_key = config.api_key.as_deref().unwrap_or("");
+    let api_key = config.api_key.as_deref().unwrap_or_default();
     let mut builder = ClientConfigBuilder::new(api_key);
 
     if let Some(ref base_url) = config.base_url {
