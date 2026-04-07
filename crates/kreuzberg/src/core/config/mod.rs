@@ -9,6 +9,8 @@ pub mod content_filter;
 pub mod email;
 pub mod extraction;
 pub mod formats;
+#[cfg(feature = "html-styled")]
+pub mod html_output;
 pub mod layout;
 pub mod llm;
 pub mod merge;
@@ -28,6 +30,8 @@ pub use extraction::{
     ExtractionConfig, FileExtractionConfig, ImageExtractionConfig, LanguageDetectionConfig, TokenReductionConfig,
 };
 pub use formats::OutputFormat;
+#[cfg(feature = "html-styled")]
+pub use html_output::{HtmlOutputConfig, HtmlTheme};
 #[cfg(feature = "layout-detection")]
 pub use layout::{LayoutDetectionConfig, TableModel};
 pub use llm::{LlmConfig, StructuredExtractionConfig};

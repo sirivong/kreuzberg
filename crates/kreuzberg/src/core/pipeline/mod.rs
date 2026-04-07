@@ -73,10 +73,43 @@ pub async fn run_pipeline(doc: InternalDocument, config: &ExtractionConfig) -> R
         }
     };
 
+    // Pre-render styled HTML before `doc` is consumed by `derive_extraction_result`.
+    // When `html-styled` is active and the caller has configured `html_output`, we
+    // render the document here and inject the result after derivation.
+    #[cfg(feature = "html-styled")]
+    let styled_html_prerender: Option<String> = {
+        use crate::plugins::Renderer as _;
+        if config.output_format == crate::core::config::OutputFormat::Html {
+            config.html_output.as_ref().and_then(|html_cfg| {
+                match crate::rendering::StyledHtmlRenderer::new(html_cfg.clone()) {
+                    Ok(renderer) => match renderer.render(&doc) {
+                        Ok(html) => Some(html),
+                        Err(e) => {
+                            tracing::warn!("StyledHtmlRenderer render failed, falling back to default HTML: {e}");
+                            None
+                        }
+                    },
+                    Err(e) => {
+                        tracing::warn!("StyledHtmlRenderer construction failed, falling back to default HTML: {e}");
+                        None
+                    }
+                }
+            })
+        } else {
+            None
+        }
+    };
+
     // 1. Derive ExtractionResult from InternalDocument
     let include_structure = config.include_document_structure;
     let mut result =
         crate::extraction::derive::derive_extraction_result(doc, include_structure, config.output_format.clone());
+
+    // Inject pre-rendered styled HTML (overrides the default render_html output).
+    #[cfg(feature = "html-styled")]
+    if let Some(html) = styled_html_prerender {
+        result.formatted_content = Some(html);
+    }
 
     // 1.5. Process extracted images with OCR if configured
     #[cfg(all(feature = "ocr", feature = "tokio-runtime"))]
@@ -216,10 +249,41 @@ pub fn run_pipeline_sync(doc: InternalDocument, config: &ExtractionConfig) -> Re
         }
     };
 
+    // Pre-render styled HTML before `doc` is consumed (mirrors async path).
+    #[cfg(feature = "html-styled")]
+    let styled_html_prerender: Option<String> = {
+        use crate::plugins::Renderer as _;
+        if config.output_format == crate::core::config::OutputFormat::Html {
+            config.html_output.as_ref().and_then(|html_cfg| {
+                match crate::rendering::StyledHtmlRenderer::new(html_cfg.clone()) {
+                    Ok(renderer) => match renderer.render(&doc) {
+                        Ok(html) => Some(html),
+                        Err(e) => {
+                            tracing::warn!("StyledHtmlRenderer render failed, falling back to default HTML: {e}");
+                            None
+                        }
+                    },
+                    Err(e) => {
+                        tracing::warn!("StyledHtmlRenderer construction failed, falling back to default HTML: {e}");
+                        None
+                    }
+                }
+            })
+        } else {
+            None
+        }
+    };
+
     // 1. Derive ExtractionResult from InternalDocument
     let include_structure = config.include_document_structure;
     let mut result =
         crate::extraction::derive::derive_extraction_result(doc, include_structure, config.output_format.clone());
+
+    // Inject pre-rendered styled HTML.
+    #[cfg(feature = "html-styled")]
+    if let Some(html) = styled_html_prerender {
+        result.formatted_content = Some(html);
+    }
 
     #[cfg(feature = "chunking")]
     let chunker_only_markdown = result.formatted_content.is_none();

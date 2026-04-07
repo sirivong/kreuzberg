@@ -245,6 +245,33 @@ pub struct ExtractionOverrides {
     /// Per-request cache TTL in seconds (0 = skip cache).
     #[arg(long)]
     pub cache_ttl_secs: Option<u64>,
+
+    // ── HTML styled output ────────────────────────────────────────────
+    /// Built-in colour theme for styled HTML output (default, github, dark, light, unstyled).
+    /// Implies --content-format html and enables the html-styled renderer.
+    #[cfg(feature = "html-styled")]
+    #[arg(long, value_name = "THEME")]
+    pub html_theme: Option<String>,
+
+    /// Inline CSS string appended after the theme stylesheet in styled HTML output.
+    #[cfg(feature = "html-styled")]
+    #[arg(long, value_name = "CSS")]
+    pub html_css: Option<String>,
+
+    /// Path to a CSS file loaded once and appended after the theme stylesheet in styled HTML output.
+    #[cfg(feature = "html-styled")]
+    #[arg(long, value_name = "PATH")]
+    pub html_css_file: Option<std::path::PathBuf>,
+
+    /// CSS class prefix used on every emitted class name (default: "kb-").
+    #[cfg(feature = "html-styled")]
+    #[arg(long, value_name = "PREFIX")]
+    pub html_class_prefix: Option<String>,
+
+    /// Suppress the embedded <style> block in styled HTML output.
+    #[cfg(feature = "html-styled")]
+    #[arg(long)]
+    pub html_no_embed_css: bool,
 }
 
 impl ExtractionOverrides {
@@ -355,6 +382,7 @@ impl ExtractionOverrides {
         self.apply_token_reduction(config);
         self.apply_email(config);
         self.apply_cache(config);
+        self.apply_html_styled(config);
     }
 
     // ── Private helpers ──────────────────────────────────────────────
@@ -674,6 +702,53 @@ impl ExtractionOverrides {
         }
         if let Some(ttl) = self.cache_ttl_secs {
             config.cache_ttl_secs = Some(ttl);
+        }
+    }
+
+    #[allow(unused_variables)]
+    fn apply_html_styled(&self, config: &mut ExtractionConfig) {
+        #[cfg(feature = "html-styled")]
+        {
+            let has_flag = self.html_theme.is_some()
+                || self.html_css.is_some()
+                || self.html_css_file.is_some()
+                || self.html_class_prefix.is_some()
+                || self.html_no_embed_css;
+
+            if has_flag {
+                // Force content format to HTML when any html-styled flag is used.
+                config.output_format = kreuzberg::OutputFormat::Html;
+
+                let mut html_cfg = config.html_output.clone().unwrap_or_default();
+
+                if let Some(ref theme_str) = self.html_theme {
+                    html_cfg.theme = match theme_str.to_lowercase().as_str() {
+                        "github" => kreuzberg::HtmlTheme::GitHub,
+                        "dark" => kreuzberg::HtmlTheme::Dark,
+                        "light" => kreuzberg::HtmlTheme::Light,
+                        "unstyled" => kreuzberg::HtmlTheme::Unstyled,
+                        _ => kreuzberg::HtmlTheme::Default,
+                    };
+                }
+
+                if let Some(ref css) = self.html_css {
+                    html_cfg.css = Some(css.clone());
+                }
+
+                if let Some(ref path) = self.html_css_file {
+                    html_cfg.css_file = Some(path.clone());
+                }
+
+                if let Some(ref prefix) = self.html_class_prefix {
+                    html_cfg.class_prefix = prefix.clone();
+                }
+
+                if self.html_no_embed_css {
+                    html_cfg.embed_css = false;
+                }
+
+                config.html_output = Some(html_cfg);
+            }
         }
     }
 }

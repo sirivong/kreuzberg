@@ -121,6 +121,18 @@ pub struct ExtractionConfig {
     #[serde(default)]
     pub html_options: Option<html_to_markdown_rs::ConversionOptions>,
 
+    /// Styled HTML output configuration.
+    ///
+    /// When set alongside `output_format = OutputFormat::Html`, the extraction
+    /// pipeline uses [`StyledHtmlRenderer`](crate::rendering::StyledHtmlRenderer)
+    /// which emits stable `kb-*` CSS class hooks on every structural element
+    /// and optionally embeds theme CSS or user-supplied CSS in a `<style>` block.
+    ///
+    /// When `None`, the existing plain comrak-based HTML renderer is used.
+    #[cfg(feature = "html-styled")]
+    #[serde(default)]
+    pub html_output: Option<crate::core::config::html_output::HtmlOutputConfig>,
+
     /// Default per-file timeout in seconds for batch extraction.
     ///
     /// When set, each file in a batch will be canceled after this duration
@@ -272,6 +284,8 @@ impl Default for ExtractionConfig {
             postprocessor: None,
             #[cfg(feature = "html")]
             html_options: None,
+            #[cfg(feature = "html-styled")]
+            html_output: None,
             extraction_timeout_secs: None,
             max_concurrent_extractions: None,
             #[cfg(feature = "archives")]

@@ -226,6 +226,21 @@ public static class TestHelpers
         }
     }
 
+    public static void AssertContentContainsNone(ExtractionResult result, IEnumerable<string> snippets)
+    {
+        var list = snippets.ToArray();
+        if (list.Length == 0)
+        {
+            return;
+        }
+        var lowered = result.Content.ToLowerInvariant();
+        var found = list.Where(snippet => lowered.Contains(snippet.ToLowerInvariant())).ToArray();
+        if (found.Length > 0)
+        {
+            throw new XunitException($"Expected content to contain none of the snippets, but found: [{string.Join(", ", found)}]");
+        }
+    }
+
     public static void AssertTableCount(ExtractionResult result, int? min, int? max)
     {
         var count = result.Tables?.Count ?? 0;

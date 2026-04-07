@@ -18,6 +18,7 @@ from kreuzberg import (
     ExtractionConfig,
     FileExtractionConfig,
     HierarchyConfig,
+    HtmlOutputConfig,
     ImageExtractionConfig,
     KeywordAlgorithm,
     KeywordConfig,
@@ -119,6 +120,13 @@ def _build_config_objects(config: dict[str, Any], kwargs: dict[str, Any]) -> Non
         kwargs["acceleration"] = AccelerationConfig(**accel_data)
     if (email_data := config.get("email")) is not None and isinstance(email_data, dict):
         kwargs["email"] = EmailConfig(**email_data)
+    if (html_output := config.get("html_output")) is not None and isinstance(html_output, dict):
+        kwargs["html_output"] = HtmlOutputConfig(**html_output)
+    _apply_tree_sitter(config, kwargs)
+
+
+def _apply_tree_sitter(config: dict[str, Any], kwargs: dict[str, Any]) -> None:
+    """Apply tree_sitter config if present (extracted to keep _build_config_objects complexity low)."""
     if (tree_sitter_data := config.get("tree_sitter")) is not None:
         ts = dict(tree_sitter_data)
         process_data = ts.pop("process", None)
@@ -225,6 +233,15 @@ def assert_content_contains_all(result: Any, snippets: list[str]) -> None:
     missing = [snippet for snippet in snippets if snippet.lower() not in lowered]
     if missing:
         pytest.fail(f"Expected content to contain all snippets {snippets!r}. Missing {missing!r}")
+
+
+def assert_content_contains_none(result: Any, snippets: list[str]) -> None:
+    if not snippets:
+        return
+    lowered = result.content.lower()
+    found = [snippet for snippet in snippets if snippet.lower() in lowered]
+    if found:
+        pytest.fail(f"Expected content to contain none of {snippets!r}. Found {found!r}")
 
 
 def assert_table_count(result: Any, minimum: int | None, maximum: int | None) -> None:

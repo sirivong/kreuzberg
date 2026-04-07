@@ -746,6 +746,68 @@ class ContractTest extends TestCase
     }
 
     /**
+     * HTML output with inline user CSS string is embedded verbatim in the style block
+     */
+    public function test_config_html_styled_custom_css(): void
+    {
+        $documentPath = Helpers::resolveDocument('pdf/fake_memo.pdf');
+        if (!file_exists($documentPath)) {
+            $this->markTestSkipped('Skipping config_html_styled_custom_css: missing document at ' . $documentPath);
+        }
+
+        Helpers::skipIfFeatureUnavailable('html-styled');
+
+        $config = Helpers::buildConfig(['output_format' => 'html', 'html_output' => ['theme' => 'unstyled', 'css' => '.kb-p { color: red; }', 'embed_css' => true]]);
+
+        $kreuzberg = new Kreuzberg($config);
+        $result = $kreuzberg->extractFile($documentPath);
+
+        Helpers::assertContentContainsAll($result, ['.kb-p { color: red; }', 'kb-doc']);
+    }
+
+    /**
+     * HTML output with default theme emits kb-* class hooks and an embedded style block
+     */
+    public function test_config_html_styled_default(): void
+    {
+        $documentPath = Helpers::resolveDocument('pdf/fake_memo.pdf');
+        if (!file_exists($documentPath)) {
+            $this->markTestSkipped('Skipping config_html_styled_default: missing document at ' . $documentPath);
+        }
+
+        Helpers::skipIfFeatureUnavailable('html-styled');
+
+        $config = Helpers::buildConfig(['output_format' => 'html', 'html_output' => ['theme' => 'default', 'embed_css' => true]]);
+
+        $kreuzberg = new Kreuzberg($config);
+        $result = $kreuzberg->extractFile($documentPath);
+
+        Helpers::assertExpectedMime($result, ['application/pdf']);
+        Helpers::assertContentContainsAll($result, ['kb-doc', 'kb-content', 'kb-p', '<style>']);
+    }
+
+    /**
+     * HTML output with embed_css false emits class hooks but no style block
+     */
+    public function test_config_html_styled_no_embed(): void
+    {
+        $documentPath = Helpers::resolveDocument('pdf/fake_memo.pdf');
+        if (!file_exists($documentPath)) {
+            $this->markTestSkipped('Skipping config_html_styled_no_embed: missing document at ' . $documentPath);
+        }
+
+        Helpers::skipIfFeatureUnavailable('html-styled');
+
+        $config = Helpers::buildConfig(['output_format' => 'html', 'html_output' => ['theme' => 'default', 'embed_css' => false]]);
+
+        $kreuzberg = new Kreuzberg($config);
+        $result = $kreuzberg->extractFile($documentPath);
+
+        Helpers::assertContentContainsAll($result, ['kb-doc', 'kb-content']);
+        Helpers::assertContentContainsNone($result, ['<style>']);
+    }
+
+    /**
      * Tests image extraction configuration with image assertions
      */
     public function test_config_images(): void

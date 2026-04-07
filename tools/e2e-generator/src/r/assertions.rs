@@ -40,6 +40,13 @@ pub fn render_assertions(assertions: &Assertions) -> String {
         ));
     }
 
+    if !assertions.content_contains_none.is_empty() {
+        buf.push_str(&format!(
+            "      assert_content_contains_none(result, {})\n",
+            render_string_vector(&assertions.content_contains_none)
+        ));
+    }
+
     if let Some(tables) = assertions.tables.as_ref() {
         let min_lit = tables
             .min

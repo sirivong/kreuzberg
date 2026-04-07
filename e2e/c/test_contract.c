@@ -472,6 +472,32 @@ static void test_contract_config_html_options(void) {
     kreuzberg_free_result(result);
 }
 
+static void test_contract_config_html_styled_custom_css(void) {
+    if (skip_if_feature_unavailable("html-styled")) return;
+    CExtractionResult *result = run_extraction("pdf/fake_memo.pdf", "{\"output_format\":\"html\",\"html_output\":{\"theme\":\"unstyled\",\"css\":\".kb-p { color: red; }\",\"embed_css\":true}}");
+    if (!result) return; /* skipped */
+    assert_content_contains_all(result, (const char *[]){".kb-p { color: red; }", "kb-doc"}, 2);
+    kreuzberg_free_result(result);
+}
+
+static void test_contract_config_html_styled_default(void) {
+    if (skip_if_feature_unavailable("html-styled")) return;
+    CExtractionResult *result = run_extraction("pdf/fake_memo.pdf", "{\"output_format\":\"html\",\"html_output\":{\"theme\":\"default\",\"embed_css\":true}}");
+    if (!result) return; /* skipped */
+    assert_expected_mime(result, (const char *[]){"application/pdf"}, 1);
+    assert_content_contains_all(result, (const char *[]){"kb-doc", "kb-content", "kb-p", "<style>"}, 4);
+    kreuzberg_free_result(result);
+}
+
+static void test_contract_config_html_styled_no_embed(void) {
+    if (skip_if_feature_unavailable("html-styled")) return;
+    CExtractionResult *result = run_extraction("pdf/fake_memo.pdf", "{\"output_format\":\"html\",\"html_output\":{\"theme\":\"default\",\"embed_css\":false}}");
+    if (!result) return; /* skipped */
+    assert_content_contains_all(result, (const char *[]){"kb-doc", "kb-content"}, 2);
+    assert_content_contains_none(result, (const char *[]){"<style>"}, 1);
+    kreuzberg_free_result(result);
+}
+
 static void test_contract_config_images(void) {
     CExtractionResult *result = run_extraction("pdf/embedded_images_tables.pdf", "{\"images\":{\"extract_images\":true}}");
     if (!result) return; /* skipped */
@@ -821,6 +847,9 @@ int main(void) {
     test_contract_config_force_ocr();
     test_contract_config_force_ocr_pages();
     test_contract_config_html_options();
+    test_contract_config_html_styled_custom_css();
+    test_contract_config_html_styled_default();
+    test_contract_config_html_styled_no_embed();
     test_contract_config_images();
     test_contract_config_images_with_formats();
     test_contract_config_keywords();

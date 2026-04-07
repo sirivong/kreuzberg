@@ -9,6 +9,8 @@ pub(crate) mod common;
 mod comrak_bridge;
 mod djot;
 mod html;
+#[cfg(feature = "html-styled")]
+pub mod html_styled;
 mod json;
 mod markdown;
 mod plain;
@@ -16,6 +18,8 @@ mod plain;
 pub use comrak_bridge::build_comrak_ast;
 pub use djot::render_djot;
 pub use html::render_html;
+#[cfg(feature = "html-styled")]
+pub use html_styled::StyledHtmlRenderer;
 pub use json::render_json;
 pub use markdown::render_markdown;
 pub use plain::render_plain;

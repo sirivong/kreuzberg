@@ -368,6 +368,45 @@ func TestContractConfigHtmlOptions(t *testing.T) {
 	assertContentNotEmpty(t, result)
 }
 
+func TestContractConfigHtmlStyledCustomCss(t *testing.T) {
+	skipIfFeatureUnavailable(t, "html-styled")
+	result := runExtraction(t, "pdf/fake_memo.pdf", []byte(`{
+"output_format": "html",
+"html_output": {
+	"theme": "unstyled",
+	"css": ".kb-p { color: red; }",
+	"embed_css": true
+}
+}`))
+	assertContentContainsAll(t, result, []string{".kb-p { color: red; }", "kb-doc"})
+}
+
+func TestContractConfigHtmlStyledDefault(t *testing.T) {
+	skipIfFeatureUnavailable(t, "html-styled")
+	result := runExtraction(t, "pdf/fake_memo.pdf", []byte(`{
+"output_format": "html",
+"html_output": {
+	"theme": "default",
+	"embed_css": true
+}
+}`))
+	assertExpectedMime(t, result, []string{"application/pdf"})
+	assertContentContainsAll(t, result, []string{"kb-doc", "kb-content", "kb-p", "<style>"})
+}
+
+func TestContractConfigHtmlStyledNoEmbed(t *testing.T) {
+	skipIfFeatureUnavailable(t, "html-styled")
+	result := runExtraction(t, "pdf/fake_memo.pdf", []byte(`{
+"output_format": "html",
+"html_output": {
+	"theme": "default",
+	"embed_css": false
+}
+}`))
+	assertContentContainsAll(t, result, []string{"kb-doc", "kb-content"})
+	assertContentContainsNone(t, result, []string{"<style>"})
+}
+
 func TestContractConfigImages(t *testing.T) {
 	result := runExtraction(t, "pdf/embedded_images_tables.pdf", []byte(`{
 "images": {

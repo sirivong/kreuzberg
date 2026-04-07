@@ -1,0 +1,27 @@
+{
+	"id": "config_html_styled_default",
+	"description": "HTML output with default theme emits kb-* class hooks and an embedded style block",
+	"tags": ["contract", "output_format", "html_styled"],
+	"document": {
+		"path": "pdf/fake_memo.pdf"
+	},
+	"extraction": {
+		"method": "sync",
+		"input_type": "file",
+		"config": {
+			"output_format": "html",
+			"html_output": {
+				"theme": "default",
+				"embed_css": true
+			}
+		}
+	},
+	"assertions": {
+		"expected_mime": "application/pdf",
+		"output_format_is": "html",
+		"content_contains_all": ["kb-doc", "kb-content", "kb-p", "<style>"]
+	},
+	"skip": {
+		"requires_feature": ["html-styled"]
+	}
+}

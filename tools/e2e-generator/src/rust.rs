@@ -416,6 +416,13 @@ fn render_assertions(assertions: &Assertions) -> String {
         ));
     }
 
+    if !assertions.content_contains_none.is_empty() {
+        buffer.push_str(&format!(
+            "    assertions::assert_content_contains_none(&result, &{});\n",
+            render_string_slice(&assertions.content_contains_none)
+        ));
+    }
+
     if let Some(tables) = assertions.tables.as_ref() {
         let min = tables
             .min

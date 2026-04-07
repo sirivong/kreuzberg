@@ -642,6 +642,53 @@ RSpec.describe 'contract fixtures' do
     end
   end
 
+  it 'config_html_styled_custom_css' do
+    E2ERuby.skip_if_feature_unavailable('html-styled')
+    E2ERuby.run_fixture(
+      'config_html_styled_custom_css',
+      'pdf/fake_memo.pdf',
+      { output_format: 'html', html_output: { theme: 'unstyled', css: '.kb-p { color: red; }', embed_css: true } },
+      requirements: %w[html-styled],
+      notes: nil,
+      skip_if_missing: true
+    ) do |result|
+      E2ERuby::Assertions.assert_content_contains_all(result, ['.kb-p { color: red; }', 'kb-doc'])
+    end
+  end
+
+  it 'config_html_styled_default' do
+    E2ERuby.skip_if_feature_unavailable('html-styled')
+    E2ERuby.run_fixture(
+      'config_html_styled_default',
+      'pdf/fake_memo.pdf',
+      { output_format: 'html', html_output: { theme: 'default', embed_css: true } },
+      requirements: %w[html-styled],
+      notes: nil,
+      skip_if_missing: true
+    ) do |result|
+      E2ERuby::Assertions.assert_expected_mime(
+        result,
+        ['application/pdf']
+      )
+      E2ERuby::Assertions.assert_content_contains_all(result, ['kb-doc', 'kb-content', 'kb-p', '<style>'])
+    end
+  end
+
+  it 'config_html_styled_no_embed' do
+    E2ERuby.skip_if_feature_unavailable('html-styled')
+    E2ERuby.run_fixture(
+      'config_html_styled_no_embed',
+      'pdf/fake_memo.pdf',
+      { output_format: 'html', html_output: { theme: 'default', embed_css: false } },
+      requirements: %w[html-styled],
+      notes: nil,
+      skip_if_missing: true
+    ) do |result|
+      E2ERuby::Assertions.assert_content_contains_all(result, %w[kb-doc kb-content])
+      E2ERuby::Assertions.assert_content_contains_none(result, ['<style>'])
+    end
+  end
+
   it 'config_images' do
     E2ERuby.run_fixture(
       'config_images',

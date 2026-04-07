@@ -1304,6 +1304,156 @@ fn test_config_html_options() {
 }
 
 #[test]
+fn test_config_html_styled_custom_css() {
+    // HTML output with inline user CSS string is embedded verbatim in the style block
+
+    let document_path = resolve_document("pdf/fake_memo.pdf");
+    if !document_path.exists() {
+        println!(
+            "Skipping config_html_styled_custom_css: missing document at {}",
+            document_path.display()
+        );
+        return;
+    }
+    let config: ExtractionConfig = serde_json::from_str(
+        r#"{
+  "output_format": "html",
+  "html_output": {
+    "theme": "unstyled",
+    "css": ".kb-p { color: red; }",
+    "embed_css": true
+  }
+}"#,
+    )
+    .expect("Fixture config should deserialize");
+
+    let result = match kreuzberg::extract_file_sync(&document_path, None, &config) {
+        Err(KreuzbergError::MissingDependency(dep)) => {
+            println!(
+                "Skipping config_html_styled_custom_css: missing dependency {dep}",
+                dep = dep
+            );
+            return;
+        }
+        Err(KreuzbergError::UnsupportedFormat(fmt)) => {
+            println!(
+                "Skipping config_html_styled_custom_css: unsupported format {fmt} (requires optional tool)",
+                fmt = fmt
+            );
+            return;
+        }
+        Err(KreuzbergError::Parsing { message: ref msg, .. }) => {
+            println!("Skipping config_html_styled_custom_css: parsing dependency unavailable: {msg}");
+            return;
+        }
+        Err(err) => panic!("Extraction failed for config_html_styled_custom_css: {err:?}"),
+        Ok(result) => result,
+    };
+
+    assertions::assert_content_contains_all(&result, &[".kb-p { color: red; }", "kb-doc"]);
+}
+
+#[test]
+fn test_config_html_styled_default() {
+    // HTML output with default theme emits kb-* class hooks and an embedded style block
+
+    let document_path = resolve_document("pdf/fake_memo.pdf");
+    if !document_path.exists() {
+        println!(
+            "Skipping config_html_styled_default: missing document at {}",
+            document_path.display()
+        );
+        return;
+    }
+    let config: ExtractionConfig = serde_json::from_str(
+        r#"{
+  "output_format": "html",
+  "html_output": {
+    "theme": "default",
+    "embed_css": true
+  }
+}"#,
+    )
+    .expect("Fixture config should deserialize");
+
+    let result = match kreuzberg::extract_file_sync(&document_path, None, &config) {
+        Err(KreuzbergError::MissingDependency(dep)) => {
+            println!(
+                "Skipping config_html_styled_default: missing dependency {dep}",
+                dep = dep
+            );
+            return;
+        }
+        Err(KreuzbergError::UnsupportedFormat(fmt)) => {
+            println!(
+                "Skipping config_html_styled_default: unsupported format {fmt} (requires optional tool)",
+                fmt = fmt
+            );
+            return;
+        }
+        Err(KreuzbergError::Parsing { message: ref msg, .. }) => {
+            println!("Skipping config_html_styled_default: parsing dependency unavailable: {msg}");
+            return;
+        }
+        Err(err) => panic!("Extraction failed for config_html_styled_default: {err:?}"),
+        Ok(result) => result,
+    };
+
+    assertions::assert_expected_mime(&result, &["application/pdf"]);
+    assertions::assert_content_contains_all(&result, &["kb-doc", "kb-content", "kb-p", "<style>"]);
+}
+
+#[test]
+fn test_config_html_styled_no_embed() {
+    // HTML output with embed_css false emits class hooks but no style block
+
+    let document_path = resolve_document("pdf/fake_memo.pdf");
+    if !document_path.exists() {
+        println!(
+            "Skipping config_html_styled_no_embed: missing document at {}",
+            document_path.display()
+        );
+        return;
+    }
+    let config: ExtractionConfig = serde_json::from_str(
+        r#"{
+  "output_format": "html",
+  "html_output": {
+    "theme": "default",
+    "embed_css": false
+  }
+}"#,
+    )
+    .expect("Fixture config should deserialize");
+
+    let result = match kreuzberg::extract_file_sync(&document_path, None, &config) {
+        Err(KreuzbergError::MissingDependency(dep)) => {
+            println!(
+                "Skipping config_html_styled_no_embed: missing dependency {dep}",
+                dep = dep
+            );
+            return;
+        }
+        Err(KreuzbergError::UnsupportedFormat(fmt)) => {
+            println!(
+                "Skipping config_html_styled_no_embed: unsupported format {fmt} (requires optional tool)",
+                fmt = fmt
+            );
+            return;
+        }
+        Err(KreuzbergError::Parsing { message: ref msg, .. }) => {
+            println!("Skipping config_html_styled_no_embed: parsing dependency unavailable: {msg}");
+            return;
+        }
+        Err(err) => panic!("Extraction failed for config_html_styled_no_embed: {err:?}"),
+        Ok(result) => result,
+    };
+
+    assertions::assert_content_contains_all(&result, &["kb-doc", "kb-content"]);
+    assertions::assert_content_contains_none(&result, &["<style>"]);
+}
+
+#[test]
 fn test_config_images() {
     // Tests image extraction configuration with image assertions
 

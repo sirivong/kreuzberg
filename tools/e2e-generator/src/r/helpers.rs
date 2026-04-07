@@ -160,6 +160,13 @@ assert_content_contains_all <- function(result, snippets) {
   testthat::expect_true(all(vapply(snippets, function(s) grepl(tolower(s), lowered, fixed = TRUE), logical(1))))
 }
 
+assert_content_contains_none <- function(result, snippets) {
+  if (length(snippets) == 0) return(invisible(NULL))
+  lowered <- tolower(result$content)
+  found <- snippets[vapply(snippets, function(s) grepl(tolower(s), lowered, fixed = TRUE), logical(1))]
+  testthat::expect_true(length(found) == 0, info = paste("Expected content to contain none of:", paste(snippets, collapse = ", "), "but found:", paste(found, collapse = ", ")))
+}
+
 assert_table_count <- function(result, minimum = NULL, maximum = NULL) {
   tables <- if (is.null(result$tables)) list() else result$tables
   if (!is.null(minimum)) testthat::expect_gte(length(tables), minimum)

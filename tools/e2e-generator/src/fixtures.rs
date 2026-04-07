@@ -267,6 +267,8 @@ pub struct Assertions {
     #[serde(default)]
     pub content_contains_all: Vec<String>,
     #[serde(default)]
+    pub content_contains_none: Vec<String>,
+    #[serde(default)]
     pub tables: Option<TableAssertion>,
     #[serde(default)]
     pub detected_languages: Option<DetectedLanguageAssertion>,

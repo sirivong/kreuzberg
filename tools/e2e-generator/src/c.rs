@@ -86,6 +86,9 @@ void assert_content_contains_any(const CExtractionResult *result,
 void assert_content_contains_all(const CExtractionResult *result,
                                  const char *const *snippets, size_t count);
 
+void assert_content_contains_none(const CExtractionResult *result,
+                                  const char *const *snippets, size_t count);
+
 void assert_content_not_empty(const CExtractionResult *result);
 
 /* min/max flags: pass -1 to disable that bound */
@@ -523,6 +526,19 @@ void assert_content_contains_all(const CExtractionResult *result,
         if (!str_contains_ci(content, snippets[i])) {
             fprintf(stderr,
                     "FAIL: expected content to contain \"%s\"\n", snippets[i]);
+            exit(1);
+        }
+    }
+}
+
+void assert_content_contains_none(const CExtractionResult *result,
+                                  const char *const *snippets, size_t count) {
+    if (!count) return;
+    const char *content = result->content ? result->content : "";
+    for (size_t i = 0; i < count; i++) {
+        if (str_contains_ci(content, snippets[i])) {
+            fprintf(stderr,
+                    "FAIL: expected content NOT to contain \"%s\"\n", snippets[i]);
             exit(1);
         }
     }
@@ -1267,6 +1283,15 @@ fn render_assertions(assertions: &Assertions) -> String {
             buf,
             "    assert_content_contains_all(result, {arr}, {});",
             assertions.content_contains_all.len()
+        )
+        .unwrap();
+    }
+    if !assertions.content_contains_none.is_empty() {
+        let arr = render_string_array(&assertions.content_contains_none);
+        writeln!(
+            buf,
+            "    assert_content_contains_none(result, {arr}, {});",
+            assertions.content_contains_none.len()
         )
         .unwrap();
     }

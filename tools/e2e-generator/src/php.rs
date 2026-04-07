@@ -170,6 +170,30 @@ class Helpers
         );
     }
 
+    public static function assertContentContainsNone(ExtractionResult $result, array $snippets): void
+    {
+        if (empty($snippets)) {
+            return;
+        }
+
+        $lowered = strtolower($result->content);
+        $found = [];
+        foreach ($snippets as $snippet) {
+            if (str_contains($lowered, strtolower($snippet))) {
+                $found[] = $snippet;
+            }
+        }
+
+        Assert::assertEmpty(
+            $found,
+            sprintf(
+                "Expected content to contain none of %s. Found %s",
+                json_encode($snippets),
+                json_encode($found)
+            )
+        );
+    }
+
     public static function assertTableCount(ExtractionResult $result, ?int $minimum, ?int $maximum): void
     {
         $count = count($result->tables ?? []);
@@ -1250,6 +1274,14 @@ fn render_assertions(assertions: &Assertions) -> String {
             buffer,
             "        Helpers::assertContentContainsAll($result, {});",
             render_string_array(&assertions.content_contains_all)
+        )
+        .unwrap();
+    }
+    if !assertions.content_contains_none.is_empty() {
+        writeln!(
+            buffer,
+            "        Helpers::assertContentContainsNone($result, {});",
+            render_string_array(&assertions.content_contains_none)
         )
         .unwrap();
     }

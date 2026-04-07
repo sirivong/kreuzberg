@@ -514,6 +514,47 @@ namespace Kreuzberg.E2E.Contract
         }
 
         [SkippableFact]
+        public void ConfigHtmlStyledCustomCss()
+        {
+            TestHelpers.SkipIfFeatureUnavailable("html-styled");
+            TestHelpers.SkipIfLegacyOfficeDisabled("pdf/fake_memo.pdf");
+            TestHelpers.SkipIfOfficeTestOnWindows("pdf/fake_memo.pdf");
+            var documentPath = TestHelpers.EnsureDocument("pdf/fake_memo.pdf", true);
+            var config = TestHelpers.BuildConfig("{\"output_format\":\"html\",\"html_output\":{\"theme\":\"unstyled\",\"css\":\".kb-p { color: red; }\",\"embed_css\":true}}");
+
+            var result = KreuzbergClient.ExtractFileSync(documentPath, config);
+            TestHelpers.AssertContentContainsAll(result, new[] { ".kb-p { color: red; }", "kb-doc" });
+        }
+
+        [SkippableFact]
+        public void ConfigHtmlStyledDefault()
+        {
+            TestHelpers.SkipIfFeatureUnavailable("html-styled");
+            TestHelpers.SkipIfLegacyOfficeDisabled("pdf/fake_memo.pdf");
+            TestHelpers.SkipIfOfficeTestOnWindows("pdf/fake_memo.pdf");
+            var documentPath = TestHelpers.EnsureDocument("pdf/fake_memo.pdf", true);
+            var config = TestHelpers.BuildConfig("{\"output_format\":\"html\",\"html_output\":{\"theme\":\"default\",\"embed_css\":true}}");
+
+            var result = KreuzbergClient.ExtractFileSync(documentPath, config);
+            TestHelpers.AssertExpectedMime(result, new[] { "application/pdf" });
+            TestHelpers.AssertContentContainsAll(result, new[] { "kb-doc", "kb-content", "kb-p", "<style>" });
+        }
+
+        [SkippableFact]
+        public void ConfigHtmlStyledNoEmbed()
+        {
+            TestHelpers.SkipIfFeatureUnavailable("html-styled");
+            TestHelpers.SkipIfLegacyOfficeDisabled("pdf/fake_memo.pdf");
+            TestHelpers.SkipIfOfficeTestOnWindows("pdf/fake_memo.pdf");
+            var documentPath = TestHelpers.EnsureDocument("pdf/fake_memo.pdf", true);
+            var config = TestHelpers.BuildConfig("{\"output_format\":\"html\",\"html_output\":{\"theme\":\"default\",\"embed_css\":false}}");
+
+            var result = KreuzbergClient.ExtractFileSync(documentPath, config);
+            TestHelpers.AssertContentContainsAll(result, new[] { "kb-doc", "kb-content" });
+            TestHelpers.AssertContentContainsNone(result, new[] { "<style>" });
+        }
+
+        [SkippableFact]
         public void ConfigImages()
         {
             TestHelpers.SkipIfLegacyOfficeDisabled("pdf/embedded_images_tables.pdf");

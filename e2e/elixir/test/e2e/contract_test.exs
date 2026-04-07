@@ -834,6 +834,71 @@ defmodule E2E.ContractTest do
       end
     end
 
+    test "config_html_styled_custom_css" do
+      case E2E.Helpers.run_fixture(
+             "config_html_styled_custom_css",
+             "pdf/fake_memo.pdf",
+             %{output_format: "html", html_output: %{theme: "unstyled", css: ".kb-p { color: red; }", embed_css: true}},
+             requirements: ["html-styled"],
+             notes: nil,
+             skip_if_missing: true
+           ) do
+        {:ok, result} ->
+          result
+          |> E2E.Helpers.assert_content_contains_all([".kb-p { color: red; }", "kb-doc"])
+
+        {:skipped, reason} ->
+          IO.puts("SKIPPED: #{reason}")
+
+        {:error, reason} ->
+          flunk("Extraction failed: #{inspect(reason)}")
+      end
+    end
+
+    test "config_html_styled_default" do
+      case E2E.Helpers.run_fixture(
+             "config_html_styled_default",
+             "pdf/fake_memo.pdf",
+             %{output_format: "html", html_output: %{theme: "default", embed_css: true}},
+             requirements: ["html-styled"],
+             notes: nil,
+             skip_if_missing: true
+           ) do
+        {:ok, result} ->
+          result
+          |> E2E.Helpers.assert_expected_mime(["application/pdf"])
+          |> E2E.Helpers.assert_content_contains_all(["kb-doc", "kb-content", "kb-p", "<style>"])
+
+        {:skipped, reason} ->
+          IO.puts("SKIPPED: #{reason}")
+
+        {:error, reason} ->
+          flunk("Extraction failed: #{inspect(reason)}")
+      end
+    end
+
+    test "config_html_styled_no_embed" do
+      case E2E.Helpers.run_fixture(
+             "config_html_styled_no_embed",
+             "pdf/fake_memo.pdf",
+             %{output_format: "html", html_output: %{theme: "default", embed_css: false}},
+             requirements: ["html-styled"],
+             notes: nil,
+             skip_if_missing: true
+           ) do
+        {:ok, result} ->
+          result
+          |> E2E.Helpers.assert_content_contains_all(["kb-doc", "kb-content"])
+          |> E2E.Helpers.assert_content_contains_none(["<style>"])
+
+        {:skipped, reason} ->
+          IO.puts("SKIPPED: #{reason}")
+
+        {:error, reason} ->
+          flunk("Extraction failed: #{inspect(reason)}")
+      end
+    end
+
     test "config_images" do
       case E2E.Helpers.run_fixture(
              "config_images",

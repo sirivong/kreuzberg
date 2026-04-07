@@ -1023,6 +1023,89 @@ describe("contract fixtures", () => {
 	);
 
 	it(
+		"config_html_styled_custom_css",
+		() => {
+			const documentPath = resolveDocument("pdf/fake_memo.pdf");
+			if (!existsSync(documentPath)) {
+				console.warn("Skipping config_html_styled_custom_css: missing document at", documentPath);
+				return;
+			}
+			const config = buildConfig({
+				output_format: "html",
+				html_output: { theme: "unstyled", css: ".kb-p { color: red; }", embed_css: true },
+			});
+			let result: ExtractionResult | null = null;
+			try {
+				result = extractFileSync(documentPath, null, config);
+			} catch (error) {
+				if (shouldSkipFixture(error, "config_html_styled_custom_css", ["html-styled"], undefined)) {
+					return;
+				}
+				throw error;
+			}
+			if (result === null) {
+				return;
+			}
+			assertions.assertContentContainsAll(result, [".kb-p { color: red; }", "kb-doc"]);
+		},
+		TEST_TIMEOUT_MS,
+	);
+
+	it(
+		"config_html_styled_default",
+		() => {
+			const documentPath = resolveDocument("pdf/fake_memo.pdf");
+			if (!existsSync(documentPath)) {
+				console.warn("Skipping config_html_styled_default: missing document at", documentPath);
+				return;
+			}
+			const config = buildConfig({ output_format: "html", html_output: { theme: "default", embed_css: true } });
+			let result: ExtractionResult | null = null;
+			try {
+				result = extractFileSync(documentPath, null, config);
+			} catch (error) {
+				if (shouldSkipFixture(error, "config_html_styled_default", ["html-styled"], undefined)) {
+					return;
+				}
+				throw error;
+			}
+			if (result === null) {
+				return;
+			}
+			assertions.assertExpectedMime(result, ["application/pdf"]);
+			assertions.assertContentContainsAll(result, ["kb-doc", "kb-content", "kb-p", "<style>"]);
+		},
+		TEST_TIMEOUT_MS,
+	);
+
+	it(
+		"config_html_styled_no_embed",
+		() => {
+			const documentPath = resolveDocument("pdf/fake_memo.pdf");
+			if (!existsSync(documentPath)) {
+				console.warn("Skipping config_html_styled_no_embed: missing document at", documentPath);
+				return;
+			}
+			const config = buildConfig({ output_format: "html", html_output: { theme: "default", embed_css: false } });
+			let result: ExtractionResult | null = null;
+			try {
+				result = extractFileSync(documentPath, null, config);
+			} catch (error) {
+				if (shouldSkipFixture(error, "config_html_styled_no_embed", ["html-styled"], undefined)) {
+					return;
+				}
+				throw error;
+			}
+			if (result === null) {
+				return;
+			}
+			assertions.assertContentContainsAll(result, ["kb-doc", "kb-content"]);
+			assertions.assertContentContainsNone(result, ["<style>"]);
+		},
+		TEST_TIMEOUT_MS,
+	);
+
+	it(
 		"config_images",
 		() => {
 			const documentPath = resolveDocument("pdf/embedded_images_tables.pdf");

@@ -268,6 +268,21 @@ defmodule E2E.Helpers do
     end
   end
 
+  def assert_content_contains_none(result, snippets) do
+    if Enum.empty?(snippets) do
+      result
+    else
+      lowered = String.downcase(result.content || "")
+      found = Enum.filter(snippets, fn snippet -> String.contains?(lowered, String.downcase(snippet)) end)
+
+      if Enum.empty?(found) do
+        result
+      else
+        flunk("Expected content to contain none of #{inspect(snippets)}, but found #{inspect(found)}")
+      end
+    end
+  end
+
   def assert_table_count(result, min_count, max_count) do
     tables = result.tables || []
     tables_len = length(tables)

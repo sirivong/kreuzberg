@@ -496,6 +496,15 @@ export const assertions = {
 		expect(snippets.every((snippet) => lowered.includes(snippet.toLowerCase()))).toBe(true);
 	},
 
+	assertContentContainsNone(result: ExtractionResult, snippets: string[]): void {
+		if (!snippets.length) {
+			return;
+		}
+		const lowered = result.content.toLowerCase();
+		const found = snippets.filter((snippet) => lowered.includes(snippet.toLowerCase()));
+		expect(found).toHaveLength(0);
+	},
+
 	assertTableCount(result: ExtractionResult, minimum?: number | null, maximum?: number | null): void {
 		const tables = Array.isArray(result.tables) ? result.tables : [];
 		if (typeof minimum === "number") {

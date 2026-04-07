@@ -364,6 +364,19 @@ void assert_content_contains_all(const CExtractionResult *result,
     }
 }
 
+void assert_content_contains_none(const CExtractionResult *result,
+                                  const char *const *snippets, size_t count) {
+    if (!count) return;
+    const char *content = result->content ? result->content : "";
+    for (size_t i = 0; i < count; i++) {
+        if (str_contains_ci(content, snippets[i])) {
+            fprintf(stderr,
+                    "FAIL: expected content NOT to contain \"%s\"\n", snippets[i]);
+            exit(1);
+        }
+    }
+}
+
 void assert_content_not_empty(const CExtractionResult *result) {
     size_t len = result->content ? strlen(result->content) : 0;
     if (!len) {

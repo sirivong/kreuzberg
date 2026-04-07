@@ -1,0 +1,27 @@
+{
+	"id": "config_html_styled_no_embed",
+	"description": "HTML output with embed_css false emits class hooks but no style block",
+	"tags": ["contract", "output_format", "html_styled"],
+	"document": {
+		"path": "pdf/fake_memo.pdf"
+	},
+	"extraction": {
+		"method": "sync",
+		"input_type": "file",
+		"config": {
+			"output_format": "html",
+			"html_output": {
+				"theme": "default",
+				"embed_css": false
+			}
+		}
+	},
+	"assertions": {
+		"output_format_is": "html",
+		"content_contains_all": ["kb-doc", "kb-content"],
+		"content_contains_none": ["<style>"]
+	},
+	"skip": {
+		"requires_feature": ["html-styled"]
+	}
+}

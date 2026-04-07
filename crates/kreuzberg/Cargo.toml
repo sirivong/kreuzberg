@@ -275,6 +275,7 @@ html-to-markdown-rs = { workspace = true, features = [
     "inline-images",
     "metadata",
 ], optional = true }
+v_htmlescape = { version = "0.15", optional = true }
 image = { workspace = true, default-features = false, features = [
     "png",
     "jpeg",

@@ -73,6 +73,9 @@ void assert_content_contains_any(const CExtractionResult *result,
 void assert_content_contains_all(const CExtractionResult *result,
                                  const char *const *snippets, size_t count);
 
+void assert_content_contains_none(const CExtractionResult *result,
+                                  const char *const *snippets, size_t count);
+
 void assert_content_not_empty(const CExtractionResult *result);
 
 /* min/max flags: pass -1 to disable that bound */

@@ -509,6 +509,47 @@ test_that("config_html_options", {
   assert_content_not_empty(result)
 })
 
+test_that("config_html_styled_custom_css", {
+  skip_if_feature_unavailable("html-styled")
+  result <- run_fixture(
+    "config_html_styled_custom_css",
+    "pdf/fake_memo.pdf",
+    list(output_format = "html", html_output = list(theme = "unstyled", css = ".kb-p { color: red; }", embed_css = TRUE)),
+    requirements = c("html-styled"),
+    notes = NULL,
+    skip_if_missing = TRUE
+  )
+  assert_content_contains_all(result, c(".kb-p { color: red; }", "kb-doc"))
+})
+
+test_that("config_html_styled_default", {
+  skip_if_feature_unavailable("html-styled")
+  result <- run_fixture(
+    "config_html_styled_default",
+    "pdf/fake_memo.pdf",
+    list(output_format = "html", html_output = list(theme = "default", embed_css = TRUE)),
+    requirements = c("html-styled"),
+    notes = NULL,
+    skip_if_missing = TRUE
+  )
+  assert_expected_mime(result, c("application/pdf"))
+  assert_content_contains_all(result, c("kb-doc", "kb-content", "kb-p", "<style>"))
+})
+
+test_that("config_html_styled_no_embed", {
+  skip_if_feature_unavailable("html-styled")
+  result <- run_fixture(
+    "config_html_styled_no_embed",
+    "pdf/fake_memo.pdf",
+    list(output_format = "html", html_output = list(theme = "default", embed_css = FALSE)),
+    requirements = c("html-styled"),
+    notes = NULL,
+    skip_if_missing = TRUE
+  )
+  assert_content_contains_all(result, c("kb-doc", "kb-content"))
+  assert_content_contains_none(result, c("<style>"))
+})
+
 test_that("config_images", {
   result <- run_fixture(
     "config_images",

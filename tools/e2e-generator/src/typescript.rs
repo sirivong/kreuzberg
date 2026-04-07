@@ -465,6 +465,15 @@ export const assertions = {
         ).toBe(true);
     },
 
+    assertContentContainsNone(result: ExtractionResult, snippets: string[]): void {
+        if (!snippets.length) {
+            return;
+        }
+        const lowered = result.content.toLowerCase();
+        const found = snippets.filter((snippet) => lowered.includes(snippet.toLowerCase()));
+        expect(found).toHaveLength(0);
+    },
+
     assertTableCount(result: ExtractionResult, minimum?: number | null, maximum?: number | null): void {
         const tables = Array.isArray(result.tables) ? result.tables : [];
         if (typeof minimum === "number") {
@@ -1433,6 +1442,13 @@ fn render_assertions(assertions: &Assertions) -> String {
         buffer.push_str(&format!(
             "    assertions.assertContentContainsAll(result, {});\n",
             render_string_array(&assertions.content_contains_all)
+        ));
+    }
+
+    if !assertions.content_contains_none.is_empty() {
+        buffer.push_str(&format!(
+            "    assertions.assertContentContainsNone(result, {});\n",
+            render_string_array(&assertions.content_contains_none)
         ));
     }
 

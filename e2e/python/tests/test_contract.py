@@ -744,6 +744,87 @@ def test_config_html_options() -> None:
     helpers.assert_content_not_empty(result)
 
 
+def test_config_html_styled_custom_css() -> None:
+    """HTML output with inline user CSS string is embedded verbatim in the style block"""
+
+    document_path = helpers.resolve_document("pdf/fake_memo.pdf")
+    if not document_path.exists():
+        pytest.skip(f"Skipping config_html_styled_custom_css: missing document at {document_path}")
+
+    try:
+        config = helpers.build_config(
+            {
+                "output_format": "html",
+                "html_output": {"theme": "unstyled", "css": ".kb-p { color: red; }", "embed_css": True},
+            }
+        )
+
+        result = extract_file_sync(document_path, None, config)
+
+        helpers.assert_content_contains_all(result, [".kb-p { color: red; }", "kb-doc"])
+        helpers.assert_output_format(result, "html")
+    except Exception as exc:
+        if (
+            "missing dependency" in str(exc).lower()
+            or "unsupported" in str(exc).lower()
+            or "parsing" in str(exc).lower()
+        ):
+            pytest.skip(f"Skipping config_html_styled_custom_css: {exc}")
+        raise
+
+
+def test_config_html_styled_default() -> None:
+    """HTML output with default theme emits kb-* class hooks and an embedded style block"""
+
+    document_path = helpers.resolve_document("pdf/fake_memo.pdf")
+    if not document_path.exists():
+        pytest.skip(f"Skipping config_html_styled_default: missing document at {document_path}")
+
+    try:
+        config = helpers.build_config({"output_format": "html", "html_output": {"theme": "default", "embed_css": True}})
+
+        result = extract_file_sync(document_path, None, config)
+
+        helpers.assert_expected_mime(result, ["application/pdf"])
+        helpers.assert_content_contains_all(result, ["kb-doc", "kb-content", "kb-p", "<style>"])
+        helpers.assert_output_format(result, "html")
+    except Exception as exc:
+        if (
+            "missing dependency" in str(exc).lower()
+            or "unsupported" in str(exc).lower()
+            or "parsing" in str(exc).lower()
+        ):
+            pytest.skip(f"Skipping config_html_styled_default: {exc}")
+        raise
+
+
+def test_config_html_styled_no_embed() -> None:
+    """HTML output with embed_css false emits class hooks but no style block"""
+
+    document_path = helpers.resolve_document("pdf/fake_memo.pdf")
+    if not document_path.exists():
+        pytest.skip(f"Skipping config_html_styled_no_embed: missing document at {document_path}")
+
+    try:
+        config = helpers.build_config(
+            {"output_format": "html", "html_output": {"theme": "default", "embed_css": False}}
+        )
+
+        result = extract_file_sync(document_path, None, config)
+
+        helpers.assert_content_contains_all(result, ["kb-doc", "kb-content"])
+        helpers.assert_content_contains_none(result, ["<style>"])
+        helpers.assert_output_format(result, "html")
+    except Exception as exc:
+        if (
+            "missing dependency" in str(exc).lower()
+            or "unsupported" in str(exc).lower()
+            or "parsing" in str(exc).lower()
+        ):
+            pytest.skip(f"Skipping config_html_styled_no_embed: {exc}")
+        raise
+
+
 def test_config_images() -> None:
     """Tests image extraction configuration with image assertions"""
 

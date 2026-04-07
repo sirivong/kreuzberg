@@ -158,6 +158,23 @@ func assertContentContainsAll(t *testing.T, result *kreuzberg.ExtractionResult, 
 	}
 }
 
+func assertContentContainsNone(t *testing.T, result *kreuzberg.ExtractionResult, snippets []string) {
+	t.Helper()
+	if len(snippets) == 0 {
+		return
+	}
+	lowered := strings.ToLower(result.Content)
+	found := make([]string, 0)
+	for _, snippet := range snippets {
+		if strings.Contains(lowered, strings.ToLower(snippet)) {
+			found = append(found, snippet)
+		}
+	}
+	if len(found) > 0 {
+		t.Fatalf("expected content to contain none of %v, but found %v", snippets, found)
+	}
+}
+
 func assertTableCount(t *testing.T, result *kreuzberg.ExtractionResult, minVal, maxVal *int) {
 	t.Helper()
 	count := len(result.Tables)
@@ -1080,6 +1097,14 @@ fn render_assertions(assertions: &Assertions) -> String {
             buffer,
             "    assertContentContainsAll(t, result, {})",
             render_string_slice(&assertions.content_contains_all)
+        )
+        .unwrap();
+    }
+    if !assertions.content_contains_none.is_empty() {
+        writeln!(
+            buffer,
+            "    assertContentContainsNone(t, result, {})",
+            render_string_slice(&assertions.content_contains_none)
         )
         .unwrap();
     }

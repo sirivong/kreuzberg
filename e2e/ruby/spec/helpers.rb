@@ -193,6 +193,14 @@ module E2ERuby
       expect(snippets.all? { |snippet| lowered.include?(snippet.downcase) }).to be(true)
     end
 
+    def self.assert_content_contains_none(result, snippets)
+      return if snippets.empty?
+
+      lowered = result.content.downcase
+      found = snippets.select { |snippet| lowered.include?(snippet.downcase) }
+      expect(found).to be_empty, "Expected content to contain none of #{snippets.inspect}, but found #{found.inspect}"
+    end
+
     def self.assert_table_count(result, minimum, maximum)
       tables = Array(result.tables)
       expect(tables.length).to be >= minimum if minimum
