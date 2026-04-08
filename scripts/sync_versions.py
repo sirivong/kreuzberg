@@ -793,6 +793,7 @@ def main():
     vendored_headers = [
         repo_root / "packages/go/v4/internal/ffi/kreuzberg.h",
         repo_root / "packages/ruby/vendor/kreuzberg-ffi/kreuzberg.h",
+        repo_root / "packages/r/vendor/kreuzberg-ffi/kreuzberg.h",
     ]
     if generated_header.exists():
         gen_content = generated_header.read_text()

@@ -3753,6 +3753,8 @@ jobs:
 
       - name: Create Go module tag
         if: ${{ needs.prepare.outputs.release_go == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: scripts/publish/go/tag-and-push-go-module.sh "${{ needs.prepare.outputs.tag }}"
 
       - name: Publish release from draft state

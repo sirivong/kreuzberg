@@ -177,7 +177,7 @@ jobs:
         run: |
           CANONICAL="crates/kreuzberg-ffi/kreuzberg.h"
           FAIL=0
-          for VENDORED in packages/go/v4/internal/ffi/kreuzberg.h packages/ruby/vendor/kreuzberg-ffi/kreuzberg.h; do
+          for VENDORED in packages/go/v4/internal/ffi/kreuzberg.h packages/ruby/vendor/kreuzberg-ffi/kreuzberg.h packages/r/vendor/kreuzberg-ffi/kreuzberg.h; do
             if [ -f "$VENDORED" ] && ! diff -q "$CANONICAL" "$VENDORED" > /dev/null 2>&1; then
               echo "::error::$VENDORED is out of sync with $CANONICAL — run 'python scripts/sync_versions.py'"
               diff "$CANONICAL" "$VENDORED" | head -20
