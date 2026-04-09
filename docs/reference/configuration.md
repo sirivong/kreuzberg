@@ -2079,19 +2079,15 @@ Extract and analyze document structure programmatically for compliance checking,
         if result.Pages != nil {
             for _, page := range result.Pages {
                 if page.Hierarchy != nil {
-                    fmt.Printf("Page %d: %d blocks
-
-", page.PageNumber, page.Hierarchy.BlockCount)
-for \_, block := range page.Hierarchy.Blocks {
-fmt.Printf(" [%s] %s...
-", block.Level, block.Text[:50])
-}
-}
-}
-}
-}
-
-````text
+                    fmt.Printf("Page %d: %d blocks\n", page.PageNumber, page.Hierarchy.BlockCount)
+                    for _, block := range page.Hierarchy.Blocks {
+                        fmt.Printf("  [%s] %s...\n", block.Level, block.Text[:50])
+                    }
+                }
+            }
+        }
+    }
+    ```
 
 === "Java"
 
@@ -2457,7 +2453,7 @@ Choose k_clusters based on your performance vs. detail requirements:
 
 The `ocr_coverage_threshold` parameter enables smart OCR triggering:
 
-````
+````text
 
 If (text_block_coverage < ocr_coverage_threshold) {
 run_ocr() // Trigger OCR on pages with insufficient text coverage
@@ -2775,19 +2771,15 @@ Extract and analyze document structure programmatically for compliance checking,
         if result.Pages != nil {
             for _, page := range result.Pages {
                 if page.Hierarchy != nil {
-                    fmt.Printf("Page %d: %d blocks
-
-", page.PageNumber, page.Hierarchy.BlockCount)
-for \_, block := range page.Hierarchy.Blocks {
-fmt.Printf(" [%s] %s...
-", block.Level, block.Text[:50])
-}
-}
-}
-}
-}
-
-````text
+                    fmt.Printf("Page %d: %d blocks\n", page.PageNumber, page.Hierarchy.BlockCount)
+                    for _, block := range page.Hierarchy.Blocks {
+                        fmt.Printf("  [%s] %s...\n", block.Level, block.Text[:50])
+                    }
+                }
+            }
+        }
+    }
+    ```
 
 === "Java"
 
@@ -3153,7 +3145,7 @@ Choose k_clusters based on your performance vs. detail requirements:
 
 The `ocr_coverage_threshold` parameter enables smart OCR triggering:
 
-````
+````text
 
 If (text_block_coverage < ocr_coverage_threshold) {
 run_ocr() // Trigger OCR on pages with insufficient text coverage

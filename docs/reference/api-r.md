@@ -847,8 +847,6 @@ tryCatch(
 
 ## Cache Management
 
-## Cache Management
-
 ### Cache_stats()
 
 Get cache statistics.

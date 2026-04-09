@@ -1806,8 +1806,6 @@ IO.puts("Word count: #{result.metadata["word_count"]}")
 
 ## Type Reference
 
-## Type Reference
-
 ### BoundingBox
 
 Coordinates for element positioning.

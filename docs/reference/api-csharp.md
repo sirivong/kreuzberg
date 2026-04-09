@@ -1151,7 +1151,7 @@ Configuration for document extraction, controlling extraction behavior and featu
 - `LanguageDetection` (LanguageDetectionConfig?): Language detection configuration.
 - `MaxConcurrentExtractions` (int?): Maximum number of concurrent extractions in batch operations.
 - `Layout` (LayoutDetectionConfig?): Layout detection configuration for document page analysis. If null, layout detection is disabled.
-- `Ocr` (OcrConfig?): OCR configuration for handling scanned documents and images. If null, OCR is disabled.
+- `Ocr` (OcrConfig?): OCR configuration for handling scanned documents and images. When null, OCR is disabled.
 - `Pages` (PageConfig?): Page extraction and tracking configuration.
 - `PdfOptions` (PdfConfig?): PDF-specific extraction options.
 - `Concurrency` (ConcurrencyConfig?): Concurrency configuration for extraction parallelization.
