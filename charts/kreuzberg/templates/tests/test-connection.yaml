@@ -9,7 +9,7 @@ metadata:
 spec:
   containers:
     - name: wget
-      image: busybox:latest
+      image: busybox:1.37-glibc
       command: ['wget']
       args: ['--spider', '--timeout=5', '{{ include "kreuzberg.fullname" . }}:{{ .Values.service.port }}/health']
   restartPolicy: Never

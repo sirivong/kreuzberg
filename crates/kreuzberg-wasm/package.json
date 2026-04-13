@@ -1,6 +1,6 @@
 {
 	"name": "@kreuzberg/wasm",
-	"version": "4.8.3",
+	"version": "4.8.4",
 	"type": "module",
 	"packageManager": "pnpm@10.17.0",
 	"description": "Kreuzberg document intelligence - WebAssembly bindings",
@@ -113,7 +113,7 @@
 		"@vitest/coverage-v8": "^4.1.4",
 		"@vitest/ui": "^4.1.4",
 		"jsdom": "^29.0.2",
-		"oxlint": "^1.59.0",
+		"oxlint": "^1.60.0",
 		"tsup": "^8.5.1",
 		"typescript": "^6.0.2",
 		"vitest": "^4.1.4"

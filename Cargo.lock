@@ -469,7 +469,7 @@ checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
 name = "benchmark-harness"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "ahash",
  "async-trait",
@@ -1017,9 +1017,9 @@ dependencies = [
 
 [[package]]
 name = "clap_complete"
-version = "4.6.1"
+version = "4.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "406e68b4de5c59cfb8f750a7cbd4d31ae153788b8352167c1e5f4fc26e8c91e9"
+checksum = "3ff7a1dccbdd8b078c2bdebff47e404615151534d5043da397ec50286816f9cb"
 dependencies = [
  "clap",
 ]
@@ -1500,12 +1500,12 @@ dependencies = [
 
 [[package]]
 name = "ctor"
-version = "0.9.1"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1c888a2a4f677017373fb6c01e13e318dd9e78758445ed5eb985e355d3f8281"
+checksum = "95d0d11eb38e7642efca359c3cf6eb7b2e528182d09110165de70192b0352775"
 dependencies = [
  "ctor-proc-macro 0.0.12",
- "dtor 0.6.0",
+ "dtor 0.7.0",
  "link-section",
 ]
 
@@ -1804,9 +1804,9 @@ dependencies = [
 
 [[package]]
 name = "dtor"
-version = "0.6.0"
+version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "30e4690622ab6700ced40fc370a3f07b7d111f0154bb6fb08f73b4c8834f75b6"
+checksum = "17f72721db8027a4e96dd6fb50d2a1d32259c9d3da1b63dee612ccd981e14293"
 dependencies = [
  "dtor-proc-macro 0.0.12",
 ]
@@ -1837,7 +1837,7 @@ checksum = "d0881ea181b1df73ff77ffaaf9c7544ecc11e82fba9b5f27b262a3c73a332555"
 
 [[package]]
 name = "e2e-rust"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "kreuzberg",
  "serde_json",
@@ -2100,12 +2100,9 @@ dependencies = [
 
 [[package]]
 name = "fearless_simd"
-version = "0.3.0"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fb2907d1f08b2b316b9223ced5b0e89d87028ba8deae9764741dba8ff7f3903"
-dependencies = [
- "bytemuck",
-]
+checksum = "76258897e51fd156ee03b6246ea53f3e0eb395d0b327e9961c4fc4c8b2fa151a"
 
 [[package]]
 name = "filetime"
@@ -2622,18 +2619,18 @@ checksum = "9f4d0e94ddd48749f06bbe4e5389fb9799a0c45bcaf00495042076ef05e3241a"
 
 [[package]]
 name = "hayro-jbig2"
-version = "0.2.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a23692ac727653ca0450420479a8b60a31fa3c35fa37fb74bb36e0c69e88833d"
+checksum = "69374b3668dd45aeb3d3145cda68f2c7b4f223aaa2511e67d076f1c7d741388d"
 dependencies = [
  "hayro-ccitt",
 ]
 
 [[package]]
 name = "hayro-jpeg2000"
-version = "0.3.4"
+version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1a74cfc18c0093ef8009a0d6c1ba3024df0cce228503a14c1372e1e23eed43e"
+checksum = "c75ab947623ef4ccaa7acf0579edf7cbb5a73838e3839a7be73335e522f433a1"
 dependencies = [
  "fearless_simd",
 ]
@@ -2827,15 +2824,14 @@ dependencies = [
 
 [[package]]
 name = "hyper-rustls"
-version = "0.27.7"
+version = "0.27.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e3c93eb611681b207e1fe55d5a71ecf91572ec8a6705cdb6857f7d8d5242cf58"
+checksum = "c2b52f86d1d4bc0d6b4e6826d960b1b333217e07d36b882dca570a5e1c48895b"
 dependencies = [
  "http",
  "hyper",
  "hyper-util",
  "rustls",
- "rustls-pki-types",
  "tokio",
  "tokio-rustls",
  "tower-service",
@@ -3460,7 +3456,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "ahash",
  "anyhow",
@@ -3567,7 +3563,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-cli"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "anstyle",
  "anyhow",
@@ -3587,7 +3583,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-e2e-generator"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "anyhow",
  "assert_cmd",
@@ -3604,13 +3600,13 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-ffi"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "ahash",
  "async-trait",
  "cbindgen",
  "criterion 0.8.2",
- "ctor 0.9.1",
+ "ctor 0.10.0",
  "html-to-markdown-rs",
  "kreuzberg",
  "log",
@@ -3624,13 +3620,13 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-node"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "ahash",
  "async-trait",
  "base64 0.22.1",
  "bytes",
- "ctor 0.9.1",
+ "ctor 0.10.0",
  "html-to-markdown-rs",
  "kreuzberg",
  "kreuzberg-ffi",
@@ -3647,7 +3643,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-paddle-ocr"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "geo-clipper",
  "geo-types",
@@ -3661,7 +3657,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-pdfium-render"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "bindgen",
  "bitflags 2.11.0",
@@ -3685,10 +3681,10 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-php"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "ahash",
- "ctor 0.9.1",
+ "ctor 0.10.0",
  "ext-php-rs",
  "kreuzberg",
  "num_cpus",
@@ -3701,7 +3697,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-py"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "ahash",
  "async-trait",
@@ -3718,7 +3714,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-tesseract"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "cc",
  "cmake",
@@ -3757,7 +3753,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg_rustler"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "kreuzberg",
  "rustler",
@@ -3791,9 +3787,9 @@ checksum = "2c4a545a15244c7d945065b5d392b2d2d7f21526fba56ce51467b06ed445e8f7"
 
 [[package]]
 name = "libc"
-version = "0.2.184"
+version = "0.2.185"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48f5d2a454e16a5ea0f4ced81bd44e4cfc7bd3a507b61887c99fd3538b28e4af"
+checksum = "52ff2c0fe9bc6cb6b14a0592c2ff4fa9ceb83eea9db979b0487cd054946a2b8f"
 
 [[package]]
 name = "libflate"
@@ -3869,9 +3865,9 @@ dependencies = [
 
 [[package]]
 name = "link-section"
-version = "0.0.12"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f52437d47b0358721ec869cc7374b2a21f7b2237af9b439c0391341a1fbfbf1b"
+checksum = "468808413fa8bdf0edbe61c2bbc182dfc59885b94f496cf3fb42c9c96b1e0149"
 
 [[package]]
 name = "linux-raw-sys"
@@ -4658,9 +4654,9 @@ checksum = "d6790f58c7ff633d8771f42965289203411a5e5c68388703c06e14f24770b41e"
 
 [[package]]
 name = "openssl"
-version = "0.10.76"
+version = "0.10.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "951c002c75e16ea2c65b8c7e4d3d51d5530d8dfa7d060b4776828c88cfb18ecf"
+checksum = "bfe4646e360ec77dff7dde40ed3d6c5fee52d156ef4a62f53973d38294dad87f"
 dependencies = [
  "bitflags 2.11.0",
  "cfg-if",
@@ -4690,9 +4686,9 @@ checksum = "7c87def4c32ab89d880effc9e097653c8da5d6ef28e6b539d313baaacfbafcbe"
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.112"
+version = "0.9.113"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57d55af3b3e226502be1526dfdba67ab0e9c96fc293004e79576b2b9edb0dbdb"
+checksum = "ad2f2c0eba47118757e4c6d2bff2838f3e0523380021356e7875e858372ce644"
 dependencies = [
  "cc",
  "libc",
@@ -4848,9 +4844,9 @@ dependencies = [
 
 [[package]]
 name = "pdf_oxide"
-version = "0.3.24"
+version = "0.3.30"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "479638f6eda9fe000a28694f93c7af40d3b548e9cf480a1c5da6897f4d59b570"
+checksum = "0cf2f190ea5092e1c45d2bde54573a38c01d3a9d4ae7626fd6cb082bb365e5d4"
 dependencies = [
  "aes",
  "base64 0.22.1",
@@ -4970,9 +4966,9 @@ checksum = "ad78bf43dcf80e8f950c92b84f938a0fc7590b7f6866fbcbeca781609c115590"
 
 [[package]]
 name = "pkg-config"
-version = "0.3.32"
+version = "0.3.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
+checksum = "19f132c84eca552bf34cab8ec81f1c1dcc229b811638f9d283dceabe58c5569e"
 
 [[package]]
 name = "plain"
@@ -5873,9 +5869,9 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.23.37"
+version = "0.23.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "758025cb5fccfd3bc2fd74708fd4682be41d99e5dff73c377c0646c6012c73a4"
+checksum = "69f9466fb2c14ea04357e91413efb882e2a6d4a406e625449bc0a5d360d53a21"
 dependencies = [
  "aws-lc-rs",
  "log",
@@ -6413,7 +6409,7 @@ checksum = "1b6b67fb9a61334225b5b790716f609cd58395f895b3fe8b328786812a40bc3b"
 
 [[package]]
 name = "snippet-runner"
-version = "4.8.3"
+version = "4.8.4"
 dependencies = [
  "clap",
  "rayon",

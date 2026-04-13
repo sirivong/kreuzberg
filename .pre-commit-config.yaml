@@ -31,6 +31,7 @@ repos:
       - id: check-json
       - id: check-yaml
         args: ["--allow-multiple-documents", "--unsafe"]
+        exclude: ^charts/.*/templates/
       - id: check-toml
       - id: check-case-conflict
 
@@ -324,3 +325,18 @@ repos:
         pass_filenames: false
         require_serial: true
         stages: [commit]
+
+      # Helm
+      - id: helm-lint
+        name: Helm lint (strict)
+        entry: bash -c 'for chart in charts/*/; do helm lint --strict "$chart" || exit 1; done'
+        language: system
+        files: ^charts/
+        pass_filenames: false
+
+      - id: kubeconform
+        name: kubeconform (Kubernetes schema validation)
+        entry: bash -c 'for chart in charts/*/; do helm template test "$chart" | kubeconform -strict -kubernetes-version 1.28.0 -summary || exit 1; done'
+        language: system
+        files: ^charts/
+        pass_filenames: false

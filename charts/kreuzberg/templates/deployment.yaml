@@ -30,8 +30,10 @@ spec:
       {{- if .Values.cache.enabled }}
       initContainers:
         - name: init-cache
-          image: busybox:latest
+          image: busybox:1.37-glibc
           command: ['sh', '-c', 'mkdir -p /app/.kreuzberg && chown -R 1000:1000 /app/.kreuzberg']
+          securityContext:
+            runAsUser: 0
           volumeMounts:
             - name: cache
               mountPath: /app/.kreuzberg

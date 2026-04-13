@@ -160,6 +160,12 @@ jobs:
       - name: Install Task
         uses: kreuzberg-dev/actions/install-task@v1
 
+      - name: Setup Helm
+        uses: azure/setup-helm@v5
+
+      - name: Setup kubeconform
+        uses: bmuschko/setup-kubeconform@v1
+
       - name: Run universal prek hooks
         uses: j178/prek-action@v2
         with:
@@ -168,7 +174,7 @@ jobs:
       - name: Run language-specific lint hooks
         uses: j178/prek-action@v2
         with:
-          extra-args: ruff ruff-format mypy biome-format biome-lint oxlint ruby-format ruby-lint cpd checkstyle java-verify csharp-format csharp-lint php-format php-lint mix-credo mix-format r-format r-lint --all-files
+          extra-args: ruff ruff-format mypy biome-format biome-lint oxlint ruby-format ruby-lint cpd checkstyle java-verify csharp-format csharp-lint php-format php-lint mix-credo mix-format r-format r-lint helm-lint kubeconform --all-files
 
       - name: Validate vendored C headers match canonical
         shell: bash

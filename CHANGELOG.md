@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.8.4] - 2026-04-13
+
+### Added
+
+- **Helm chart for Kubernetes deployment** — minimal, security-hardened Helm chart with Deployment, Service, Ingress, PVC, HPA, PDB, and ServiceAccount templates. Publishes to GHCR as an OCI artifact. (#695)
+- **Helm lint and kubeconform pre-commit hooks** — added `helm lint --strict` and `kubeconform` (k8s 1.28.0 schema validation) to pre-commit and CI pipeline.
+- **Helm chart publish workflow** — new `publish-helm.yaml` GitHub Actions workflow pushes versioned chart to `oci://ghcr.io/kreuzberg-dev/charts`.
+
+### Fixed
+
+- **Helm chart: init container cannot chown as non-root** — the `init-cache` container needs root to `chown` the PVC mount. Added `securityContext.runAsUser: 0` to the init container.
+- **Helm chart: unpinned busybox image tags** — pinned `busybox:latest` to `busybox:1.37-glibc` in init container and test pod for reproducibility.
+- **Comrak bridge panics on multi-byte UTF-8 boundaries** — annotation byte offsets landing inside multi-byte characters (e.g. Cyrillic, `\u00ab\u00bb`) caused panics in `build_inlines()`. Snaps offsets to valid char boundaries using `ceil_char_boundary()`/`floor_char_boundary()`. (#696)
+
+---
+
 ## [4.8.3] - 2026-04-12
 
 ### Fixed
