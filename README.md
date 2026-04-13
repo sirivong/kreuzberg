@@ -42,6 +42,9 @@
   <a href="https://github.com/kreuzberg-dev/kreuzberg/releases">
     <img src="https://img.shields.io/badge/C-FFI-007ec6" alt="C">
   </a>
+  <a href="https://artifacthub.io/packages/search?repo=kreuzberg">
+    <img src="https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/kreuzberg" alt="Artifact Hub">
+  </a>
 
   <!-- Project Info -->
   <a href="https://github.com/kreuzberg-dev/kreuzberg/blob/main/LICENSE">
