@@ -58,6 +58,17 @@ readonly class EmbeddingConfig
          * @default null (system default, typically 32)
          */
         public ?int $batchSize = null,
+
+        /**
+         * Hardware acceleration configuration for ONNX Runtime models.
+         *
+         * Configures which execution provider to use for ONNX model inference,
+         * enabling hardware acceleration on GPU devices (CUDA, TensorRT, CoreML).
+         *
+         * @var AccelerationConfig|null
+         * @default null
+         */
+        public ?AccelerationConfig $acceleration = null,
     ) {
     }
 
@@ -93,10 +104,18 @@ readonly class EmbeddingConfig
             $batchSize = (int) $batchSize;
         }
 
+        $acceleration = null;
+        if (isset($data['acceleration']) && is_array($data['acceleration'])) {
+            /** @var array<string, mixed> $accelerationData */
+            $accelerationData = $data['acceleration'];
+            $acceleration = AccelerationConfig::fromArray($accelerationData);
+        }
+
         return new self(
             model: $model,
             normalize: $normalize,
             batchSize: $batchSize,
+            acceleration: $acceleration,
         );
     }
 
@@ -140,6 +159,7 @@ readonly class EmbeddingConfig
             'model' => $this->model,
             'normalize' => $this->normalize,
             'batch_size' => $this->batchSize,
+            'acceleration' => $this->acceleration?->toArray(),
         ], static fn ($value): bool => $value !== null);
     }
 
@@ -160,6 +180,7 @@ readonly class EmbeddingConfig
             ],
             'normalize' => $this->normalize,
             'batch_size' => $this->batchSize,
+            'acceleration' => $this->acceleration?->toArray(),
         ], static fn ($value): bool => $value !== null);
     }
 

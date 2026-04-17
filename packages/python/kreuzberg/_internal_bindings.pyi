@@ -396,6 +396,7 @@ class LayoutDetectionConfig:
     confidence_threshold: float | None
     apply_heuristics: bool
     table_model: str | None
+    acceleration: AccelerationConfig | None
 
     def __init__(
         self,
@@ -404,6 +405,7 @@ class LayoutDetectionConfig:
         confidence_threshold: float | None = None,
         apply_heuristics: bool | None = None,
         table_model: str | None = None,
+        acceleration: AccelerationConfig | None = None,
     ) -> None: ...
 
 class AccelerationConfig:
@@ -1097,6 +1099,7 @@ class EmbeddingConfig:
 
     normalize: bool
     batch_size: int
+    acceleration: AccelerationConfig | None
 
     def __init__(
         self,
@@ -1106,6 +1109,7 @@ class EmbeddingConfig:
         batch_size: int | None = None,
         show_download_progress: bool | None = None,
         cache_dir: str | None = None,
+        acceleration: AccelerationConfig | None = None,
     ) -> None: ...
 
 class EmbeddingPreset:

@@ -2821,6 +2821,13 @@ public sealed class EmbeddingConfig
     /// </summary>
     [JsonPropertyName("use_cache")]
     public bool? UseCache { get; init; }
+
+    /// <summary>
+    /// Hardware acceleration configuration for ONNX Runtime models.
+    /// If null, uses default acceleration settings.
+    /// </summary>
+    [JsonPropertyName("acceleration")]
+    public AccelerationConfig? Acceleration { get; init; }
 }
 
 /// <summary>
@@ -4378,6 +4385,13 @@ public sealed class LayoutDetectionConfig
     /// </summary>
     [JsonPropertyName("table_model")]
     public string? TableModel { get; init; }
+
+    /// <summary>
+    /// Hardware acceleration configuration for ONNX Runtime models.
+    /// If null, uses default acceleration settings.
+    /// </summary>
+    [JsonPropertyName("acceleration")]
+    public AccelerationConfig? Acceleration { get; init; }
 }
 
 // ============================================================================

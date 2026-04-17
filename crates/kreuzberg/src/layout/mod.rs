@@ -50,6 +50,7 @@ pub fn config_from_extraction(layout_config: &LayoutDetectionConfig) -> LayoutEn
         confidence_threshold: layout_config.confidence_threshold,
         apply_heuristics: layout_config.apply_heuristics,
         cache_dir: None,
+        acceleration: layout_config.acceleration.clone(),
     }
 }
 
@@ -81,17 +82,20 @@ pub fn return_engine(engine: LayoutEngine) {
 /// Returns `None` if the model cannot be loaded. Once a load attempt fails,
 /// subsequent calls return `None` immediately without retrying, avoiding
 /// repeated download attempts and redundant warning logs.
-pub fn take_or_create_tatr() -> Option<models::tatr::TatrModel> {
+pub fn take_or_create_tatr(
+    accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
+) -> Option<models::tatr::TatrModel> {
     // Fast path: if we already know TATR is unavailable, skip immediately.
     if let Some(&false) = TATR_TRIED.get() {
         return None;
     }
 
+    let accel_cloned = accel.cloned();
     let result = CACHED_TATR.take_or_create(|| {
         crate::ort_discovery::ensure_ort_available();
         let manager = LayoutModelManager::new(None);
         let model_path = manager.ensure_tatr_model()?;
-        models::tatr::TatrModel::from_file(&model_path.to_string_lossy())
+        models::tatr::TatrModel::from_file(&model_path.to_string_lossy(), accel_cloned.as_ref())
     });
 
     match result {
@@ -139,7 +143,10 @@ static SLANET_PLUS_TRIED: OnceLock<bool> = OnceLock::new();
 static TABLE_CLASSIFIER_TRIED: OnceLock<bool> = OnceLock::new();
 
 /// Take a cached SLANeXT model for the given variant, or create a new one.
-pub fn take_or_create_slanet(variant: &str) -> Option<models::slanet::SlanetModel> {
+pub fn take_or_create_slanet(
+    variant: &str,
+    accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
+) -> Option<models::slanet::SlanetModel> {
     let (cache, tried) = match variant {
         "slanet_wired" => (&CACHED_SLANET_WIRED, &SLANET_WIRED_TRIED),
         "slanet_wireless" => (&CACHED_SLANET_WIRELESS, &SLANET_WIRELESS_TRIED),
@@ -151,11 +158,12 @@ pub fn take_or_create_slanet(variant: &str) -> Option<models::slanet::SlanetMode
         return None;
     }
 
+    let accel_cloned = accel.cloned();
     let result = cache.take_or_create(|| {
         crate::ort_discovery::ensure_ort_available();
         let manager = LayoutModelManager::new(None);
         let model_path = manager.ensure_slanet_model(variant)?;
-        models::slanet::SlanetModel::from_file(&model_path.to_string_lossy())
+        models::slanet::SlanetModel::from_file(&model_path.to_string_lossy(), accel_cloned.as_ref())
     });
 
     match result {
@@ -184,16 +192,19 @@ pub fn return_slanet(variant: &str, model: models::slanet::SlanetModel) {
 }
 
 /// Take a cached table classifier, or create a new one.
-pub fn take_or_create_table_classifier() -> Option<models::table_classifier::TableClassifier> {
+pub fn take_or_create_table_classifier(
+    accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
+) -> Option<models::table_classifier::TableClassifier> {
     if let Some(&false) = TABLE_CLASSIFIER_TRIED.get() {
         return None;
     }
 
+    let accel_cloned = accel.cloned();
     let result = CACHED_TABLE_CLASSIFIER.take_or_create(|| {
         crate::ort_discovery::ensure_ort_available();
         let manager = LayoutModelManager::new(None);
         let model_path = manager.ensure_table_classifier()?;
-        models::table_classifier::TableClassifier::from_file(&model_path.to_string_lossy())
+        models::table_classifier::TableClassifier::from_file(&model_path.to_string_lossy(), accel_cloned.as_ref())
     });
 
     match result {

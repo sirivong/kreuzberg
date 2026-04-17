@@ -24,6 +24,7 @@ public final class EmbeddingConfig {
 	private final Boolean useCache;
 	private final Boolean showDownloadProgress;
 	private final String cacheDir;
+	private final AccelerationConfig acceleration;
 
 	private EmbeddingConfig(Builder builder) {
 		this.model = builder.model;
@@ -33,6 +34,7 @@ public final class EmbeddingConfig {
 		this.useCache = builder.useCache;
 		this.showDownloadProgress = builder.showDownloadProgress;
 		this.cacheDir = builder.cacheDir;
+		this.acceleration = builder.acceleration;
 	}
 
 	public static Builder builder() {
@@ -104,6 +106,16 @@ public final class EmbeddingConfig {
 	}
 
 	/**
+	 * Get the acceleration configuration.
+	 *
+	 * @return the acceleration configuration, or null if not set
+	 * @since 4.5.0
+	 */
+	public AccelerationConfig getAcceleration() {
+		return acceleration;
+	}
+
+	/**
 	 * Convert configuration to map representation for serialization.
 	 *
 	 * @return map representation of this configuration
@@ -131,6 +143,9 @@ public final class EmbeddingConfig {
 		if (cacheDir != null) {
 			map.put("cache_dir", cacheDir);
 		}
+		if (acceleration != null) {
+			map.put("acceleration", acceleration.toMap());
+		}
 		return map;
 	}
 
@@ -145,6 +160,7 @@ public final class EmbeddingConfig {
 		private Boolean useCache;
 		private Boolean showDownloadProgress;
 		private String cacheDir;
+		private AccelerationConfig acceleration;
 
 		private Builder() {
 			// Default to balanced preset
@@ -292,6 +308,19 @@ public final class EmbeddingConfig {
 		}
 
 		/**
+		 * Set the acceleration configuration.
+		 *
+		 * @param acceleration
+		 *            the acceleration configuration
+		 * @return this builder for chaining
+		 * @since 4.5.0
+		 */
+		public Builder acceleration(AccelerationConfig acceleration) {
+			this.acceleration = acceleration;
+			return this;
+		}
+
+		/**
 		 * Build the EmbeddingConfig instance.
 		 *
 		 * @return a new EmbeddingConfig instance
@@ -357,6 +386,18 @@ public final class EmbeddingConfig {
 		if (cacheDirValue instanceof String) {
 			builder.cacheDir((String) cacheDirValue);
 		}
+		Map<String, Object> accelerationMap = asMap(map.get("acceleration"));
+		if (accelerationMap != null) {
+			builder.acceleration(AccelerationConfig.fromMap(accelerationMap));
+		}
 		return builder.build();
+	}
+
+	@SuppressWarnings({"unchecked", "PMD.ReturnEmptyCollectionRatherThanNull"})
+	private static Map<String, Object> asMap(Object value) {
+		if (value instanceof Map) {
+			return (Map<String, Object>) value;
+		}
+		return null;
 	}
 }

@@ -878,13 +878,14 @@ pub struct EmbeddingConfig {
 #[pymethods]
 impl EmbeddingConfig {
     #[new]
-    #[pyo3(signature = (model=None, normalize=None, batch_size=None, show_download_progress=None, cache_dir=None))]
+    #[pyo3(signature = (model=None, normalize=None, batch_size=None, show_download_progress=None, cache_dir=None, acceleration=None))]
     fn new(
         model: Option<EmbeddingModelType>,
         normalize: Option<bool>,
         batch_size: Option<usize>,
         show_download_progress: Option<bool>,
         cache_dir: Option<String>,
+        acceleration: Option<AccelerationConfig>,
     ) -> Self {
         Self {
             inner: kreuzberg::EmbeddingConfig {
@@ -895,6 +896,7 @@ impl EmbeddingConfig {
                 batch_size: batch_size.unwrap_or(32),
                 show_download_progress: show_download_progress.unwrap_or(false),
                 cache_dir: cache_dir.map(std::path::PathBuf::from),
+                acceleration: acceleration.map(Into::into),
             },
         }
     }
@@ -919,6 +921,16 @@ impl EmbeddingConfig {
         self.inner.batch_size = value;
     }
 
+    #[getter]
+    fn acceleration(&self) -> Option<AccelerationConfig> {
+        self.inner.acceleration.clone().map(Into::into)
+    }
+
+    #[setter]
+    fn set_acceleration(&mut self, value: Option<AccelerationConfig>) {
+        self.inner.acceleration = value.map(Into::into);
+    }
+
     fn __repr__(&self) -> String {
         format!(
             "EmbeddingConfig(normalize={}, batch_size={})",
@@ -938,6 +950,7 @@ impl Default for EmbeddingConfig {
                 batch_size: 32,
                 show_download_progress: false,
                 cache_dir: None,
+                acceleration: None,
             },
         }
     }
@@ -1601,13 +1614,19 @@ fn parse_table_model(s: &str) -> kreuzberg::core::config::layout::TableModel {
 #[pymethods]
 impl LayoutDetectionConfig {
     #[new]
-    #[pyo3(signature = (confidence_threshold=None, apply_heuristics=None, table_model=None))]
-    fn new(confidence_threshold: Option<f32>, apply_heuristics: Option<bool>, table_model: Option<String>) -> Self {
+    #[pyo3(signature = (confidence_threshold=None, apply_heuristics=None, table_model=None, acceleration=None))]
+    fn new(
+        confidence_threshold: Option<f32>,
+        apply_heuristics: Option<bool>,
+        table_model: Option<String>,
+        acceleration: Option<AccelerationConfig>,
+    ) -> Self {
         Self {
             inner: kreuzberg::core::config::layout::LayoutDetectionConfig {
                 confidence_threshold,
                 apply_heuristics: apply_heuristics.unwrap_or(true),
                 table_model: table_model.as_deref().map(parse_table_model).unwrap_or_default(),
+                acceleration: acceleration.map(Into::into),
             },
         }
     }
@@ -1640,6 +1659,16 @@ impl LayoutDetectionConfig {
     #[setter]
     fn set_table_model(&mut self, value: String) {
         self.inner.table_model = parse_table_model(&value);
+    }
+
+    #[getter]
+    fn acceleration(&self) -> Option<AccelerationConfig> {
+        self.inner.acceleration.clone().map(Into::into)
+    }
+
+    #[setter]
+    fn set_acceleration(&mut self, value: Option<AccelerationConfig>) {
+        self.inner.acceleration = value.map(Into::into);
     }
 
     fn __repr__(&self) -> String {

@@ -83,6 +83,27 @@ impl OcrLite {
         Ok(())
     }
 
+    /// Initialize models with dictionary file and custom session builder.
+    ///
+    /// Combines `init_models_with_dict` and `init_models_custom`: loads the
+    /// dictionary for the recognition model while applying a custom ORT
+    /// session builder (e.g. for GPU execution providers).
+    pub fn init_models_with_dict_custom(
+        &mut self,
+        det_path: &str,
+        cls_path: &str,
+        rec_path: &str,
+        dict_path: &str,
+        num_thread: usize,
+        builder_fn: Option<fn(SessionBuilder) -> Result<SessionBuilder, ort::Error>>,
+    ) -> Result<(), OcrError> {
+        self.db_net.init_model(det_path, num_thread, builder_fn)?;
+        self.angle_net.init_model(cls_path, num_thread, builder_fn)?;
+        self.crnn_net
+            .init_model_dict_file(rec_path, num_thread, builder_fn, dict_path)?;
+        Ok(())
+    }
+
     pub fn init_models_from_memory(
         &mut self,
         det_bytes: &[u8],

@@ -142,6 +142,10 @@ pub(crate) fn extract_all_from_document(
             config.layout.as_ref().map(|l| l.table_model).unwrap_or_default(),
             #[cfg(not(feature = "layout-detection"))]
             None,
+            #[cfg(feature = "layout-detection")]
+            config.acceleration.as_ref(),
+            #[cfg(not(feature = "layout-detection"))]
+            None,
             strip_repeating_text,
             include_headers,
             include_footers,

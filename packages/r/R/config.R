@@ -206,11 +206,15 @@ chunking_config <- function(max_characters = 1000L, overlap = 200L, ...) {
 #'   "tatr" (default), "slanet_wired", "slanet_wireless", "slanet_plus",
 #'   "slanet_auto", "disabled".
 #'   Default NULL (use engine default).
+#' @param acceleration Named list or NULL. Hardware acceleration configuration
+#'   (e.g., from \code{acceleration_config()}). Controls which ONNX execution
+#'   provider is used for layout and table models. Default NULL (auto-select).
 #' @param ... Additional layout detection options.
 #' @return A named list representing the layout detection configuration.
 #' @export
 layout_detection_config <- function(confidence_threshold = NULL,
-                                    apply_heuristics = TRUE, table_model = NULL, ...) {
+                                    apply_heuristics = TRUE, table_model = NULL,
+                                    acceleration = NULL, ...) {
   config <- list(apply_heuristics = apply_heuristics)
   if (!is.null(confidence_threshold)) {
     confidence_threshold <- as.double(confidence_threshold)
@@ -234,6 +238,7 @@ layout_detection_config <- function(confidence_threshold = NULL,
     }
     config$table_model <- table_model
   }
+  if (!is.null(acceleration)) config$acceleration <- acceleration
   extras <- list(...)
   if (length(extras) > 0) config <- c(config, extras)
   config
@@ -426,9 +431,13 @@ from_file <- function(path) {
 #' @param model Embedding model name or preset (e.g., "fast", "balanced", "quality", "multilingual").
 #' @param normalize Logical. Normalize embedding vectors to unit length. Default TRUE.
 #' @param batch_size Integer or NULL. Batch size for embedding generation. Default NULL.
+#' @param acceleration Named list or NULL. Hardware acceleration configuration
+#'   (e.g., from \code{acceleration_config()}). Controls which ONNX execution
+#'   provider is used for the embedding model. Default NULL (auto-select).
 #' @return A named list representing the embedding configuration.
 #' @export
-embedding_config <- function(model = "balanced", normalize = TRUE, batch_size = NULL) {
+embedding_config <- function(model = "balanced", normalize = TRUE, batch_size = NULL,
+                             acceleration = NULL) {
   stopifnot(is.character(model), length(model) == 1L)
   stopifnot(is.logical(normalize), length(normalize) == 1L)
 
@@ -442,6 +451,8 @@ embedding_config <- function(model = "balanced", normalize = TRUE, batch_size = 
     if (batch_size <= 0L) stop("batch_size must be a positive integer", call. = FALSE)
     config$batch_size <- batch_size
   }
+
+  if (!is.null(acceleration)) config$acceleration <- acceleration
 
   config
 }

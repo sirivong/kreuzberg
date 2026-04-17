@@ -450,6 +450,7 @@ fn get_or_init_engine(
     model_file: &str,
     pooling: engine::Pooling,
     cache_dir: Option<std::path::PathBuf>,
+    accel: Option<crate::core::config::acceleration::AccelerationConfig>,
 ) -> crate::Result<Arc<EmbeddingEngine>> {
     let cache_directory = resolve_cache_dir(cache_dir);
     let engine_key = format!(
@@ -527,6 +528,7 @@ fn get_or_init_engine(
             builder = builder
                 .with_inter_threads(1)
                 .map_err(|e| ort::Error::new(e.message()))?;
+            builder = crate::ort_discovery::apply_execution_providers(builder, accel.as_ref())?;
             builder.commit_from_file(&model_path)
         }))
         .map_err(|panic_payload| {
@@ -590,7 +592,7 @@ pub fn warm_model(
     cache_dir: Option<std::path::PathBuf>,
 ) -> crate::Result<()> {
     let (repo, model_file, pooling) = resolve_model_info(model_type)?;
-    get_or_init_engine(repo, model_file, pooling, cache_dir).map(|_| ())
+    get_or_init_engine(repo, model_file, pooling, cache_dir, None).map(|_| ())
 }
 
 /// Download an embedding model's files without initializing ONNX Runtime.
@@ -783,7 +785,13 @@ pub fn embed_texts<T: AsRef<str>>(
             // Local ONNX path for Preset and Custom model types.
             let chunk_count = texts.len();
             let (repo, model_file, pooling) = resolve_model_info(&config.model)?;
-            let engine = get_or_init_engine(repo, model_file, pooling, config.cache_dir.clone())?;
+            let engine = get_or_init_engine(
+                repo,
+                model_file,
+                pooling,
+                config.cache_dir.clone(),
+                config.acceleration.clone(),
+            )?;
 
             let text_refs: Vec<&str> = texts.iter().map(|t| t.as_ref()).collect();
             let mut embeddings = engine.embed(&text_refs, config.batch_size).map_err(|e| {

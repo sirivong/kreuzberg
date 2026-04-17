@@ -596,13 +596,15 @@ module Kreuzberg
       attr_reader batch_size: Integer?
       attr_reader show_download_progress: bool?
       attr_reader cache_dir: String?
+      attr_reader acceleration: Acceleration?
 
       def initialize: (
         ?model: Hash[Symbol, untyped],
         ?normalize: bool?,
         ?batch_size: Integer?,
         ?show_download_progress: bool?,
-        ?cache_dir: String?
+        ?cache_dir: String?,
+        ?acceleration: (Acceleration | Hash[Symbol, untyped])?
       ) -> void
       def to_h: () -> Hash[Symbol, untyped]
     end
@@ -799,8 +801,9 @@ module Kreuzberg
       attr_reader confidence_threshold: Float?
       attr_reader apply_heuristics: bool
       attr_reader table_model: String?
+      attr_reader acceleration: Acceleration?
 
-      def initialize: (?preset: String, ?confidence_threshold: Float?, ?apply_heuristics: bool, ?table_model: String?) -> void
+      def initialize: (?preset: String, ?confidence_threshold: Float?, ?apply_heuristics: bool, ?table_model: String?, ?acceleration: (Acceleration | Hash[Symbol, untyped])?) -> void
       def to_h: () -> Hash[Symbol, untyped]
     end
 

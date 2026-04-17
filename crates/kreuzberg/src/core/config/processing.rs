@@ -310,6 +310,13 @@ pub struct EmbeddingConfig {
     /// Allows full customization of model download location.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cache_dir: Option<PathBuf>,
+
+    /// Hardware acceleration for the embedding ONNX model.
+    ///
+    /// When set, controls which execution provider (CPU, CUDA, CoreML, TensorRT)
+    /// is used for inference. Defaults to `None` (auto-select per platform).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acceleration: Option<super::acceleration::AccelerationConfig>,
 }
 
 impl Default for EmbeddingConfig {
@@ -322,6 +329,7 @@ impl Default for EmbeddingConfig {
             batch_size: 32,
             show_download_progress: false,
             cache_dir: None,
+            acceleration: None,
         }
     }
 }
@@ -485,6 +493,7 @@ mod tests {
             batch_size: 64,
             show_download_progress: false,
             cache_dir: None,
+            acceleration: None,
         };
 
         let json = serde_json::to_string(&config).unwrap();

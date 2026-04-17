@@ -8,6 +8,7 @@ let embedding_config = EmbeddingConfig {
     normalize: true,
     show_download_progress: true,
     cache_dir: Some(std::path::PathBuf::from("~/.cache/kreuzberg/embeddings")),
+    acceleration: None,
 };
 
 // Available presets:
@@ -27,6 +28,7 @@ let embedding_config = EmbeddingConfig {
     normalize: true,
     show_download_progress: true,
     cache_dir: None,  // Uses default: .kreuzberg/embeddings/
+    acceleration: None,
 };
 
 // Popular ONNX-compatible models:
@@ -46,6 +48,7 @@ let embedding_config = EmbeddingConfig {
     normalize: true,
     show_download_progress: true,
     cache_dir: Some(std::path::PathBuf::from("/var/cache/embeddings")),
+    acceleration: None,
 };
 
 // Integration with ChunkingConfig

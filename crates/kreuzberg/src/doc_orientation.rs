@@ -51,6 +51,7 @@ pub struct OrientationResult {
 pub struct DocOrientationDetector {
     session: once_cell::sync::OnceCell<Session>,
     cache_dir: PathBuf,
+    acceleration: Option<crate::core::config::acceleration::AccelerationConfig>,
 }
 
 impl DocOrientationDetector {
@@ -60,6 +61,19 @@ impl DocOrientationDetector {
         Self {
             session: once_cell::sync::OnceCell::new(),
             cache_dir,
+            acceleration: None,
+        }
+    }
+
+    /// Creates a new detector with the given cache directory and acceleration config.
+    pub fn with_acceleration(
+        cache_dir: PathBuf,
+        accel: Option<crate::core::config::acceleration::AccelerationConfig>,
+    ) -> Self {
+        Self {
+            session: once_cell::sync::OnceCell::new(),
+            cache_dir,
+            acceleration: accel,
         }
     }
 
@@ -169,7 +183,7 @@ impl DocOrientationDetector {
             crate::ort_discovery::ensure_ort_available();
 
             let num_threads = crate::core::config::concurrency::resolve_thread_budget(None);
-            let session = SessionBuilder::new()
+            let builder = SessionBuilder::new()
                 .map_err(|e| KreuzbergError::Ocr {
                     message: format!("Failed to create doc_ori session builder: {e}"),
                     source: None,
@@ -188,12 +202,16 @@ impl DocOrientationDetector {
                 .map_err(|e| KreuzbergError::Ocr {
                     message: format!("Failed to set doc_ori inter threads: {e}"),
                     source: None,
-                })?
-                .commit_from_file(&model_path)
+                })?;
+            let mut builder = crate::ort_discovery::apply_execution_providers(builder, self.acceleration.as_ref())
                 .map_err(|e| KreuzbergError::Ocr {
-                    message: format!("Failed to load doc_ori model: {e}"),
+                    message: format!("Failed to set doc_ori execution providers: {e}"),
                     source: None,
                 })?;
+            let session = builder.commit_from_file(&model_path).map_err(|e| KreuzbergError::Ocr {
+                message: format!("Failed to load doc_ori model: {e}"),
+                source: None,
+            })?;
 
             tracing::info!("Doc orientation model loaded");
             Ok(session)

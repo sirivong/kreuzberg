@@ -177,9 +177,12 @@ impl TatrModel {
     ///
     /// Uses the default execution provider selection from `build_session`
     /// with a CPU-only fallback if the platform EP fails.
-    pub fn from_file(path: &str) -> Result<Self, LayoutError> {
+    pub fn from_file(
+        path: &str,
+        accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
+    ) -> Result<Self, LayoutError> {
         let budget = crate::core::config::concurrency::resolve_thread_budget(None);
-        let session = match build_session(path, None, budget) {
+        let session = match build_session(path, accel, budget) {
             Ok(s) => s,
             Err(first_err) => {
                 tracing::warn!("TATR: platform EP failed ({first_err}), retrying with CPU-only");

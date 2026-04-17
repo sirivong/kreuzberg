@@ -602,7 +602,7 @@ pub(crate) async fn extract_with_ocr(
     // TATR requires mutable access so pages are processed sequentially after OCR.
     #[cfg(feature = "layout-detection")]
     let mut tatr_model = if layout_detections.is_some() {
-        crate::layout::take_or_create_tatr()
+        crate::layout::take_or_create_tatr(config.acceleration.as_ref())
     } else {
         None
     };

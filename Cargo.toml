@@ -92,7 +92,7 @@ tokio = { version = "1.52.1", features = [
 ] }
 toml = "1.1.2"
 tracing = "0.1"
-tree-sitter-language-pack = { version = "1.6.0", default-features = false, features = ["serde"] }
+tree-sitter-language-pack = { version = "1.6.1", default-features = false, features = ["serde"] }
 wasm-bindgen = { version = "0.2", features = ["enable-interning"] }
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = [
@@ -111,7 +111,6 @@ kreuzberg = { path = "crates/kreuzberg" }
 kreuzberg-tesseract = { path = "crates/kreuzberg-tesseract" }
 kreuzberg-paddle-ocr = { path = "crates/kreuzberg-paddle-ocr" }
 kreuzberg-pdfium-render = { path = "crates/kreuzberg-pdfium-render" }
-tree-sitter-language-pack = { path = "../tree-sitter-language-pack/crates/ts-pack-core" }
 
 [profile.release]
 lto = "thin"

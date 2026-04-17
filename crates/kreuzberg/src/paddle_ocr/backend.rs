@@ -10,9 +10,24 @@
 use ahash::AHashMap;
 use async_trait::async_trait;
 use std::borrow::Cow;
+use std::cell::RefCell;
 use std::panic::catch_unwind;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
+
+// Thread-local storage for passing AccelerationConfig to PaddleOCR session builder.
+// Required because OcrLite's API uses function pointers (not closures).
+thread_local! {
+    static PADDLE_TL_ACCEL: RefCell<Option<crate::core::config::acceleration::AccelerationConfig>> = const { RefCell::new(None) };
+}
+
+// Session builder function that applies acceleration from thread-local storage.
+fn paddle_accel_builder_fn(
+    builder: ort::session::builder::SessionBuilder,
+) -> std::result::Result<ort::session::builder::SessionBuilder, ort::Error> {
+    let accel = PADDLE_TL_ACCEL.with(|cell| cell.borrow().clone());
+    crate::ort_discovery::apply_execution_providers(builder, accel.as_ref())
+}
 
 use crate::Result;
 use crate::core::config::OcrConfig;
@@ -48,6 +63,8 @@ pub struct PaddleOcrBackend {
     engine_pool: Mutex<AHashMap<String, Arc<OcrLite>>>,
     /// Document orientation detector, lazily initialized.
     doc_ori_detector: once_cell::sync::OnceCell<crate::doc_orientation::DocOrientationDetector>,
+    /// Hardware acceleration configuration for ORT sessions.
+    acceleration: Option<crate::core::config::acceleration::AccelerationConfig>,
 }
 
 impl PaddleOcrBackend {
@@ -65,6 +82,7 @@ impl PaddleOcrBackend {
             shared_paths: Mutex::new(None),
             engine_pool: Mutex::new(AHashMap::new()),
             doc_ori_detector: once_cell::sync::OnceCell::new(),
+            acceleration: None,
         })
     }
 
@@ -129,8 +147,24 @@ impl PaddleOcrBackend {
             source: None,
         })?;
 
+        // Build a custom session builder function if acceleration is configured.
+        // Uses module-level thread-local to pass AccelerationConfig to the fn pointer
+        // since OcrLite's API uses fn pointers (not closures).
+        let builder_fn: Option<
+            fn(
+                ort::session::builder::SessionBuilder,
+            ) -> std::result::Result<ort::session::builder::SessionBuilder, ort::Error>,
+        > = if self.acceleration.is_some() {
+            PADDLE_TL_ACCEL.with(|cell| {
+                *cell.borrow_mut() = self.acceleration.clone();
+            });
+            Some(paddle_accel_builder_fn)
+        } else {
+            None
+        };
+
         ocr_lite
-            .init_models_with_dict(
+            .init_models_with_dict_custom(
                 det_model_path.to_str().ok_or_else(|| crate::KreuzbergError::Ocr {
                     message: "Invalid detection model path".to_string(),
                     source: None,
@@ -145,6 +179,7 @@ impl PaddleOcrBackend {
                 })?,
                 dict_path,
                 num_threads,
+                builder_fn,
             )
             .map_err(|e| crate::KreuzbergError::Ocr {
                 message: format!(
@@ -219,7 +254,10 @@ impl PaddleOcrBackend {
     fn detect_and_rotate(&self, image_bytes: &[u8]) -> Result<Option<Vec<u8>>> {
         let detector = self.doc_ori_detector.get_or_try_init(|| {
             let cache_dir = crate::doc_orientation::resolve_cache_dir();
-            Ok::<_, crate::KreuzbergError>(crate::doc_orientation::DocOrientationDetector::new(cache_dir))
+            Ok::<_, crate::KreuzbergError>(crate::doc_orientation::DocOrientationDetector::with_acceleration(
+                cache_dir,
+                self.acceleration.clone(),
+            ))
         })?;
 
         crate::doc_orientation::detect_and_rotate(detector, image_bytes)

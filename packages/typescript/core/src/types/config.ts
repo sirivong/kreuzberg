@@ -108,6 +108,8 @@ export interface EmbeddingConfig {
 	showDownloadProgress?: boolean;
 	/** Custom cache directory for model storage */
 	cacheDir?: string;
+	/** Hardware acceleration configuration for ONNX Runtime inference */
+	acceleration?: AccelerationConfig;
 }
 
 export interface ChunkingConfig {
@@ -379,6 +381,9 @@ export interface LayoutDetectionConfig {
 	/** Table structure recognition model. Controls which model is used for table cell detection.
 	 * Options: "tatr" (default), "slanet_wired", "slanet_wireless", "slanet_plus", "slanet_auto". */
 	tableModel?: string;
+
+	/** Hardware acceleration configuration for ONNX Runtime inference */
+	acceleration?: AccelerationConfig;
 }
 
 /**

@@ -50,6 +50,8 @@ pub struct LayoutEngineConfig {
     pub apply_heuristics: bool,
     /// Custom cache directory for model files (None = default).
     pub cache_dir: Option<PathBuf>,
+    /// Hardware acceleration for ONNX inference.
+    pub acceleration: Option<crate::core::config::acceleration::AccelerationConfig>,
 }
 
 impl Default for LayoutEngineConfig {
@@ -59,6 +61,7 @@ impl Default for LayoutEngineConfig {
             confidence_threshold: None,
             apply_heuristics: true,
             cache_dir: None,
+            acceleration: None,
         }
     }
 }
@@ -102,18 +105,20 @@ impl LayoutEngine {
                 let manager = LayoutModelManager::new(config.cache_dir.clone());
                 let model_path = manager.ensure_rtdetr_model()?;
                 let path_str = model_path.to_string_lossy();
-                Box::new(RtDetrModel::from_file(&path_str)?)
+                Box::new(RtDetrModel::from_file(&path_str, config.acceleration.as_ref())?)
             }
             ModelBackend::Custom { path, variant } => {
                 let path_str = path.to_string_lossy();
+                let accel = config.acceleration.as_ref();
                 match variant {
-                    CustomModelVariant::RtDetr => Box::new(RtDetrModel::from_file(&path_str)?),
+                    CustomModelVariant::RtDetr => Box::new(RtDetrModel::from_file(&path_str, accel)?),
                     CustomModelVariant::YoloDocLayNet => Box::new(YoloModel::from_file(
                         &path_str,
                         YoloVariant::DocLayNet,
                         640,
                         640,
                         "Custom-YOLO-DocLayNet",
+                        accel,
                     )?),
                     CustomModelVariant::YoloDocStructBench => Box::new(YoloModel::from_file(
                         &path_str,
@@ -121,6 +126,7 @@ impl LayoutEngine {
                         1024,
                         1024,
                         "Custom-DocLayout-YOLO",
+                        accel,
                     )?),
                     CustomModelVariant::Yolox {
                         input_width,
@@ -131,6 +137,7 @@ impl LayoutEngine {
                         *input_width,
                         *input_height,
                         "Custom-YOLOX",
+                        accel,
                     )?),
                 }
             }

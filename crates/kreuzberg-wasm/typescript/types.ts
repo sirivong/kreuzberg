@@ -216,6 +216,8 @@ export interface LayoutDetectionConfig {
 	applyHeuristics?: boolean;
 	/** Table structure recognition model: "tatr", "slanet_wired", "slanet_wireless", "slanet_plus", "slanet_auto" */
 	tableModel?: string;
+	/** Hardware acceleration configuration for ONNX Runtime models used in layout detection */
+	acceleration?: AccelerationConfig;
 }
 
 /**

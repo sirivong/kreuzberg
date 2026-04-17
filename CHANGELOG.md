@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **PST message EntryID in extracted metadata** — the `entry_id` field from Outlook PST message entries is now included in the `metadata` HashMap of `EmailExtractionResult`, enabling callers to unambiguously link extracted data back to its source message. (#739)
+- **AccelerationConfig wired through all ORT model loading** — `AccelerationConfig` (CUDA, CoreML, TensorRT, Auto) is now propagated to all ONNX Runtime sessions: layout detection (RT-DETR, YOLO, SLANeT, TATR, TableClassifier), embeddings, document orientation, and PaddleOCR. Previously, GPU acceleration was silently ignored and all models used CPU. The `acceleration` field is also added to `LayoutDetectionConfig` and `EmbeddingConfig` across all 11 bindings (Python, TypeScript, Ruby, Go, Java, C#, PHP, R, Elixir, FFI, WASM). (#740)
 
 ### Fixed
 

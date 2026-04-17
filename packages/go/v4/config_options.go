@@ -797,6 +797,13 @@ func WithLayoutTableModel(m string) LayoutDetectionOption {
 	}
 }
 
+// WithLayoutAcceleration sets the ONNX Runtime execution provider for layout detection.
+func WithLayoutAcceleration(config *AccelerationConfig) LayoutDetectionOption {
+	return func(c *LayoutDetectionConfig) {
+		c.Acceleration = config
+	}
+}
+
 // ============================================================================
 // PostProcessorConfig Options
 // ============================================================================
@@ -930,6 +937,13 @@ func WithShowDownloadProgress(enabled bool) EmbeddingOption {
 func WithCacheDir(dir string) EmbeddingOption {
 	return func(c *EmbeddingConfig) {
 		c.CacheDir = &dir
+	}
+}
+
+// WithEmbeddingAcceleration sets the ONNX Runtime execution provider for embedding generation.
+func WithEmbeddingAcceleration(config *AccelerationConfig) EmbeddingOption {
+	return func(c *EmbeddingConfig) {
+		c.Acceleration = config
 	}
 }
 

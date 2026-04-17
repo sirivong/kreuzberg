@@ -12,11 +12,13 @@ public final class LayoutDetectionConfig {
 	private final Double confidenceThreshold;
 	private final Boolean applyHeuristics;
 	private final String tableModel;
+	private final AccelerationConfig acceleration;
 
 	private LayoutDetectionConfig(Builder builder) {
 		this.confidenceThreshold = builder.confidenceThreshold;
 		this.applyHeuristics = builder.applyHeuristics;
 		this.tableModel = builder.tableModel;
+		this.acceleration = builder.acceleration;
 	}
 
 	public static Builder builder() {
@@ -35,6 +37,16 @@ public final class LayoutDetectionConfig {
 		return tableModel;
 	}
 
+	/**
+	 * Get the acceleration configuration.
+	 *
+	 * @return the acceleration configuration, or null if not set
+	 * @since 4.5.0
+	 */
+	public AccelerationConfig getAcceleration() {
+		return acceleration;
+	}
+
 	public Map<String, Object> toMap() {
 		Map<String, Object> map = new HashMap<>();
 		if (confidenceThreshold != null) {
@@ -46,6 +58,9 @@ public final class LayoutDetectionConfig {
 		if (tableModel != null) {
 			map.put("table_model", tableModel);
 		}
+		if (acceleration != null) {
+			map.put("acceleration", acceleration.toMap());
+		}
 		return map;
 	}
 
@@ -53,6 +68,7 @@ public final class LayoutDetectionConfig {
 		private Double confidenceThreshold;
 		private Boolean applyHeuristics = true;
 		private String tableModel;
+		private AccelerationConfig acceleration;
 
 		private Builder() {
 		}
@@ -69,6 +85,19 @@ public final class LayoutDetectionConfig {
 
 		public Builder tableModel(String tableModel) {
 			this.tableModel = tableModel;
+			return this;
+		}
+
+		/**
+		 * Set the acceleration configuration.
+		 *
+		 * @param acceleration
+		 *            the acceleration configuration
+		 * @return this builder for chaining
+		 * @since 4.5.0
+		 */
+		public Builder acceleration(AccelerationConfig acceleration) {
+			this.acceleration = acceleration;
 			return this;
 		}
 
@@ -93,6 +122,18 @@ public final class LayoutDetectionConfig {
 		if (map.get("table_model") instanceof String) {
 			builder.tableModel((String) map.get("table_model"));
 		}
+		Map<String, Object> accelerationMap = asMap(map.get("acceleration"));
+		if (accelerationMap != null) {
+			builder.acceleration(AccelerationConfig.fromMap(accelerationMap));
+		}
 		return builder.build();
+	}
+
+	@SuppressWarnings({"unchecked", "PMD.ReturnEmptyCollectionRatherThanNull"})
+	private static Map<String, Object> asMap(Object value) {
+		if (value instanceof Map) {
+			return (Map<String, Object>) value;
+		}
+		return null;
 	}
 }

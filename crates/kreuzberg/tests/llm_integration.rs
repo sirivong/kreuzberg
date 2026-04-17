@@ -135,6 +135,7 @@ async fn test_llm_embed_openai() {
         batch_size: 32,
         show_download_progress: false,
         cache_dir: None,
+        acceleration: None,
     };
     let texts = vec!["Hello, world!".to_string(), "Rust is great".to_string()];
     let result = kreuzberg::embed_texts_async(texts, &config).await.unwrap();
@@ -160,6 +161,7 @@ async fn test_llm_embed_mistral() {
         batch_size: 32,
         show_download_progress: false,
         cache_dir: None,
+        acceleration: None,
     };
     let texts = vec!["Hello, world!".to_string()];
     let result = kreuzberg::embed_texts_async(texts, &config).await.unwrap();

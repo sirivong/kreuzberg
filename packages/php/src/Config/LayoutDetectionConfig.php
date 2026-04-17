@@ -33,11 +33,16 @@ readonly class LayoutDetectionConfig
      *                                Supported values: "tatr", "slanet_wired", "slanet_wireless",
      *                                "slanet_plus", "slanet_auto", "disabled".
      *                                Default null (use engine default, "tatr").
+     * @param AccelerationConfig|null $acceleration Hardware acceleration configuration for ONNX Runtime models.
+     *                                              Configures which execution provider to use for ONNX model
+     *                                              inference, enabling hardware acceleration on GPU devices
+     *                                              (CUDA, TensorRT, CoreML). Default null (use CPU).
      */
     public function __construct(
         public ?float $confidenceThreshold = null,
         public bool $applyHeuristics = true,
         public ?string $tableModel = null,
+        public ?AccelerationConfig $acceleration = null,
     ) {
     }
 
@@ -54,10 +59,18 @@ readonly class LayoutDetectionConfig
         $rawTableModel = $data['table_model'] ?? null;
         $tableModel = is_string($rawTableModel) ? $rawTableModel : null;
 
+        $acceleration = null;
+        if (isset($data['acceleration']) && is_array($data['acceleration'])) {
+            /** @var array<string, mixed> $accelerationData */
+            $accelerationData = $data['acceleration'];
+            $acceleration = AccelerationConfig::fromArray($accelerationData);
+        }
+
         return new self(
             confidenceThreshold: $confidenceThreshold,
             applyHeuristics: $applyHeuristics,
             tableModel: $tableModel,
+            acceleration: $acceleration,
         );
     }
 
@@ -78,6 +91,10 @@ readonly class LayoutDetectionConfig
 
         if ($this->tableModel !== null) {
             $result['table_model'] = $this->tableModel;
+        }
+
+        if ($this->acceleration !== null) {
+            $result['acceleration'] = $this->acceleration->toArray();
         }
 
         return $result;

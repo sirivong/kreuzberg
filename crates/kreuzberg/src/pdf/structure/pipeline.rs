@@ -540,6 +540,8 @@ pub fn extract_document_structure(
     allow_single_column: bool,
     #[cfg(feature = "layout-detection")] table_model: crate::core::config::layout::TableModel,
     #[cfg(not(feature = "layout-detection"))] _table_model: Option<()>,
+    #[cfg(feature = "layout-detection")] acceleration: Option<&crate::core::config::acceleration::AccelerationConfig>,
+    #[cfg(not(feature = "layout-detection"))] _acceleration: Option<()>,
     strip_repeating_text: bool,
     include_headers: bool,
     include_footers: bool,
@@ -752,7 +754,7 @@ pub fn extract_document_structure(
             } else if let Some(variant) = slanet_variant {
                 // SLANeXT path
                 let seed = if layout_images.is_some() {
-                    crate::layout::take_or_create_slanet(variant)
+                    crate::layout::take_or_create_slanet(variant, acceleration)
                 } else {
                     None
                 };
@@ -764,12 +766,12 @@ pub fn extract_document_structure(
                 }
                 // For auto mode, also seed wireless model + classifier
                 if is_auto && has {
-                    if let Some(alt) = crate::layout::take_or_create_slanet("slanet_wireless") {
+                    if let Some(alt) = crate::layout::take_or_create_slanet("slanet_wireless", acceleration) {
                         TL_SLANET_ALT.with(|cell| {
                             *cell.borrow_mut() = Some(alt);
                         });
                     }
-                    if let Some(cls) = crate::layout::take_or_create_table_classifier() {
+                    if let Some(cls) = crate::layout::take_or_create_table_classifier(acceleration) {
                         TL_CLASSIFIER.with(|cell| {
                             *cell.borrow_mut() = Some(cls);
                         });
@@ -779,7 +781,7 @@ pub fn extract_document_structure(
             } else {
                 // TATR path (default)
                 let seed = if layout_images.is_some() {
-                    crate::layout::take_or_create_tatr()
+                    crate::layout::take_or_create_tatr(acceleration)
                 } else {
                     None
                 };
@@ -817,20 +819,21 @@ pub fn extract_document_structure(
                                 TL_SLANET.with(|cell| {
                                     let mut slanet_ref = cell.borrow_mut();
                                     if slanet_ref.is_none() {
-                                        *slanet_ref = crate::layout::take_or_create_slanet(variant);
+                                        *slanet_ref = crate::layout::take_or_create_slanet(variant, acceleration);
                                     }
                                 });
                                 if is_auto {
                                     TL_SLANET_ALT.with(|cell| {
                                         let mut alt_ref = cell.borrow_mut();
                                         if alt_ref.is_none() {
-                                            *alt_ref = crate::layout::take_or_create_slanet("slanet_wireless");
+                                            *alt_ref =
+                                                crate::layout::take_or_create_slanet("slanet_wireless", acceleration);
                                         }
                                     });
                                     TL_CLASSIFIER.with(|cell| {
                                         let mut cls_ref = cell.borrow_mut();
                                         if cls_ref.is_none() {
-                                            *cls_ref = crate::layout::take_or_create_table_classifier();
+                                            *cls_ref = crate::layout::take_or_create_table_classifier(acceleration);
                                         }
                                     });
                                 }
@@ -923,7 +926,7 @@ pub fn extract_document_structure(
                                 TL_TATR.with(|cell| {
                                     let mut tatr_ref = cell.borrow_mut();
                                     if tatr_ref.is_none() {
-                                        *tatr_ref = crate::layout::take_or_create_tatr();
+                                        *tatr_ref = crate::layout::take_or_create_tatr(acceleration);
                                     }
                                     let Some(tatr) = tatr_ref.as_mut() else {
                                         tracing::warn!("TATR model unavailable in worker thread");
@@ -976,20 +979,21 @@ pub fn extract_document_structure(
                                 TL_SLANET.with(|cell| {
                                     let mut slanet_ref = cell.borrow_mut();
                                     if slanet_ref.is_none() {
-                                        *slanet_ref = crate::layout::take_or_create_slanet(variant);
+                                        *slanet_ref = crate::layout::take_or_create_slanet(variant, acceleration);
                                     }
                                 });
                                 if is_auto {
                                     TL_SLANET_ALT.with(|cell| {
                                         let mut alt_ref = cell.borrow_mut();
                                         if alt_ref.is_none() {
-                                            *alt_ref = crate::layout::take_or_create_slanet("slanet_wireless");
+                                            *alt_ref =
+                                                crate::layout::take_or_create_slanet("slanet_wireless", acceleration);
                                         }
                                     });
                                     TL_CLASSIFIER.with(|cell| {
                                         let mut cls_ref = cell.borrow_mut();
                                         if cls_ref.is_none() {
-                                            *cls_ref = crate::layout::take_or_create_table_classifier();
+                                            *cls_ref = crate::layout::take_or_create_table_classifier(acceleration);
                                         }
                                     });
                                 }
@@ -1076,7 +1080,7 @@ pub fn extract_document_structure(
                                 TL_TATR.with(|cell| {
                                     let mut tatr_ref = cell.borrow_mut();
                                     if tatr_ref.is_none() {
-                                        *tatr_ref = crate::layout::take_or_create_tatr();
+                                        *tatr_ref = crate::layout::take_or_create_tatr(acceleration);
                                     }
                                     let Some(tatr) = tatr_ref.as_mut() else {
                                         tracing::warn!("TATR model unavailable in worker thread");

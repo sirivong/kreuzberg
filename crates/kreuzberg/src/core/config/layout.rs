@@ -98,6 +98,13 @@ pub struct LayoutDetectionConfig {
     /// table regions. Defaults to [`TableModel::Tatr`].
     #[serde(default)]
     pub table_model: TableModel,
+
+    /// Hardware acceleration for ONNX models (layout detection + table structure).
+    ///
+    /// When set, controls which execution provider (CPU, CUDA, CoreML, TensorRT)
+    /// is used for inference. Defaults to `None` (auto-select per platform).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub acceleration: Option<super::acceleration::AccelerationConfig>,
 }
 
 impl Default for LayoutDetectionConfig {
@@ -106,6 +113,7 @@ impl Default for LayoutDetectionConfig {
             confidence_threshold: None,
             apply_heuristics: true,
             table_model: TableModel::default(),
+            acceleration: None,
         }
     }
 }

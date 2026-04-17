@@ -50,7 +50,16 @@ struct LayoutDetectionBundle {
 
 #[cfg(all(feature = "pdf", feature = "layout-detection"))]
 fn run_layout_detection(content: &[u8], config: &ExtractionConfig) -> Option<LayoutDetectionBundle> {
-    let layout_config = config.layout.as_ref()?;
+    let base = config.layout.as_ref()?;
+    // Merge top-level acceleration into layout config if not already set.
+    let mut owned;
+    let layout_config = if base.acceleration.is_none() && config.acceleration.is_some() {
+        owned = base.clone();
+        owned.acceleration = config.acceleration.clone();
+        &owned
+    } else {
+        base
+    };
 
     // We no longer pre-render all images here because `detect_layout_for_document`
     // now uses batched rendering under the hood to prevent OOMs.
