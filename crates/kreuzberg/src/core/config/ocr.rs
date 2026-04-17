@@ -339,7 +339,7 @@ impl OcrConfig {
                 language: None,
                 tesseract_config: self.tesseract_config.clone(),
                 paddle_ocr_config: None,
-                vlm_config: None,
+                vlm_config: self.vlm_config.clone(),
             }];
             // Only add paddleocr fallback if primary backend isn't already paddleocr
             if self.backend != "paddleocr" {

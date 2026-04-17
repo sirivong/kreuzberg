@@ -686,6 +686,16 @@ def assert_processing_warnings(result: Any, max_count: int | None = None, is_emp
         assert len(warnings) == 0, f"Expected empty processing_warnings, got {len(warnings)}"
 
 
+def assert_llm_usage(result: Any, max_count: int | None = None, is_empty: bool | None = None) -> None:
+    usage = getattr(result, "llm_usage", None) or []
+    if isinstance(result, dict):
+        usage = result.get("llm_usage", [])
+    if max_count is not None:
+        assert len(usage) <= max_count, f"llm_usage count {len(usage)} > {max_count}"
+    if is_empty is True:
+        assert len(usage) == 0, f"Expected empty llm_usage, got {len(usage)}"
+
+
 def assert_djot_content(result: Any, has_content: bool | None = None, min_blocks: int | None = None) -> None:
     djot = getattr(result, "djot_content", None)
     if isinstance(result, dict):

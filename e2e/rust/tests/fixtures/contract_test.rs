@@ -1287,7 +1287,7 @@ fn test_config_html_options() {
     let config: ExtractionConfig = serde_json::from_str(
         r#"{
   "html_options": {
-    "extractMetadata": true
+    "extract_metadata": true
   }
 }"#,
     )

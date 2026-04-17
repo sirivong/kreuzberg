@@ -666,6 +666,25 @@ pub mod assertions {
         }
     }
 
+    /// Assert LLM usage count and emptiness.
+    pub fn assert_llm_usage(result: &ExtractionResult, max_count: Option<usize>, is_empty: Option<bool>) {
+        let usage_count = result.llm_usage.as_ref().map(|u| u.len()).unwrap_or(0);
+        if let Some(max) = max_count {
+            assert!(
+                usage_count <= max,
+                "llm_usage count {} exceeds maximum {max}",
+                usage_count
+            );
+        }
+        if let Some(true) = is_empty {
+            assert!(
+                usage_count == 0,
+                "Expected llm_usage to be empty but found {}",
+                usage_count
+            );
+        }
+    }
+
     /// Assert annotations presence and count.
     pub fn assert_annotations(result: &ExtractionResult, has_annotations: bool, min_count: Option<usize>) {
         if has_annotations {

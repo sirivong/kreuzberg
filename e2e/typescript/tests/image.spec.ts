@@ -101,7 +101,7 @@ describe("image fixtures", () => {
 				console.warn("Skipping image_metadata_only: missing document at", documentPath);
 				return;
 			}
-			const config = buildConfig({ ocr: null });
+			const config = buildConfig({ ocr: null, disable_ocr: true });
 			let result: ExtractionResult | null = null;
 			try {
 				result = extractFileSync(documentPath, null, config);

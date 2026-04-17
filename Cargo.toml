@@ -52,7 +52,7 @@ dbase = "0.7"
 futures = "0.3"
 getrandom = { version = "0.4.2", features = ["wasm_js"] }
 hex = "0.4.3"
-html-to-markdown-rs = { version = "3.2.2", default-features = false }
+html-to-markdown-rs = { version = "3.2.4", default-features = false }
 image = { version = "0.25.10", default-features = false }
 itertools = "0.14"
 js-sys = "0.3"
@@ -111,6 +111,7 @@ kreuzberg = { path = "crates/kreuzberg" }
 kreuzberg-tesseract = { path = "crates/kreuzberg-tesseract" }
 kreuzberg-paddle-ocr = { path = "crates/kreuzberg-paddle-ocr" }
 kreuzberg-pdfium-render = { path = "crates/kreuzberg-pdfium-render" }
+tree-sitter-language-pack = { path = "../tree-sitter-language-pack/crates/ts-pack-core" }
 
 [profile.release]
 lto = "thin"

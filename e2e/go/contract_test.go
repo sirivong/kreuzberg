@@ -360,7 +360,7 @@ func TestContractConfigForceOcrPages(t *testing.T) {
 func TestContractConfigHtmlOptions(t *testing.T) {
 	result := runExtraction(t, "html/complex_table.html", []byte(`{
 "html_options": {
-	"extractMetadata": true
+	"extract_metadata": true
 }
 }`))
 	assertExpectedMime(t, result, []string{"text/html"})

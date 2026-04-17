@@ -697,6 +697,18 @@ export const assertions = {
 		}
 	},
 
+	assertLlmUsage(result: ExtractionResult, maxCount?: number | null, isEmpty?: boolean | null): void {
+		const usage = (result as unknown as PlainRecord).llmUsage ?? (result as unknown as PlainRecord).llm_usage;
+		if (isEmpty === true) {
+			if (usage != null) {
+				expect(Array.isArray(usage) && usage.length === 0).toBe(true);
+			}
+		}
+		if (Array.isArray(usage) && typeof maxCount === "number") {
+			expect(usage.length).toBeLessThanOrEqual(maxCount);
+		}
+	},
+
 	assertDjotContent(result: ExtractionResult, hasContent?: boolean | null, minBlocks?: number | null): void {
 		const djotContent =
 			(result as unknown as PlainRecord).djotContent ?? (result as unknown as PlainRecord).djot_content;

@@ -9,14 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **PST message EntryID in extracted metadata** — the `entry_id` field from Outlook PST message entries is now included in the `metadata` HashMap of `EmailExtractionResult`, enabling callers to unambiguously link extracted data back to its source message. (#739)
+
 ### Fixed
 
+- **VLM OCR backend ignored when paddle-ocr feature enabled** — the auto-constructed OCR pipeline hardcoded `vlm_config: None` on pipeline stages, silently discarding the user's VLM configuration. Users who configured `OcrConfig(backend="vlm", vlm_config=LlmConfig(...))` got tesseract/paddleocr output instead of VLM. The pipeline now propagates `vlm_config` from the parent `OcrConfig`. (#738)
 - **Doubled OCR content and corrupted page text in image extraction** — OCR elements were injected into the rendering pipeline as `OcrText` internal elements, causing `render_plain` to append every raw word token after the coherent HOCR string. `ExtractionResult.content` was effectively duplicated and `pages[*].content` contained a word-by-word dump instead of the readable text. OCR elements are now stored directly via `prebuilt_ocr_elements`, bypassing the rendering pipeline. (#706)
+- **Image OCR pages[] empty** — `include_elements` was not forced true for image extraction, so backends that gate element output (e.g. paddle-ocr) returned `None`, leaving `pages[]` empty. (#723)
 - **`LlmConfig` missing `Default` trait** — the documented `..Default::default()` struct-update pattern failed to compile with "trait not satisfied". Added `Default` to the derive macro; all optional fields default to `None`, `model` to `""`. (#716)
 - **Incorrect `llm` Cargo feature name in docs** — `llm-integration.md`, `api-rust.md`, and `configuration.md` referenced a `llm` feature that does not exist; the correct name is `liter-llm`. (#717)
 - **LLM embedding provider panics in server mode** — `embed_texts` called `block_on` inside a new runtime, which panics when already inside tokio (HTTP server, MCP). Uses `block_in_place` with the current runtime handle when available, falls back to a new runtime for standalone sync callers. (#713, #714)
 - **Duplicate `output_format` key in OCR metadata** — stale `additional` HashMap insert caused a duplicate JSON key violating RFC 8259. The value is already on the typed `Metadata::output_format` field. (#712)
 - **OCR table metadata serialized as strings instead of numbers** — `table_count`, `tables_detected`, `table_rows`, and `table_cols` were `"0"` instead of `0`, breaking numeric comparisons in all bindings. (#712)
+- **Ruby `structured_output` not exposed on Result** — the field was missing from the Ruby binding's `Result` class and not serialized from the native extension. (#736)
+- **Stale hf-hub lock files block embedding model downloads** — cleaned up orphaned lock files before downloading. (#721)
+- **WASM live demo `enableOcr()` not called** — OCR was silently unavailable in the demo; also throws on missing Rust registry export. (#719, #720)
+- **DOCX tables assigned wrong page numbers** — tables were numbered by index instead of by their actual document position based on page breaks. (#718)
+- **`ocr.enabled=false` config ignored** — OCR ran even when explicitly disabled; also dropped trailing newline in `--format text` output. (#715)
+- **Go module tag push fallback** — added `git push` fallback when tag push fails.
+- **Go E2E `LlmUsage` type mismatch** — generated Go test helper used `[]interface{}{}` instead of `[]kreuzberg.LlmUsage{}`.
+- **Rust E2E `extractMetadata` field name** — html_options fixture used camelCase `extractMetadata` instead of snake_case `extract_metadata` expected by html-to-markdown-rs v3.2.
+- **R package documentation stale** — 14 exported functions lacked `.Rd` man pages and `extraction_config.Rd` was missing 13 parameters added in v4.8.0–4.8.5. Regenerated all roxygen2 documentation.
+
+### Changed
+
+- Updated all dependencies including html-to-markdown-rs 3.1→3.2, pdf_oxide 0.3.30→0.3.32, tokio 1.51→1.52.
 
 ---
 

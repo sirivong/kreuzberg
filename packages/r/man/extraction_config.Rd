@@ -6,6 +6,8 @@
 \usage{
 extraction_config(
   force_ocr = FALSE,
+  disable_ocr = FALSE,
+  force_ocr_pages = NULL,
   ocr = NULL,
   chunking = NULL,
   output_format = NULL,
@@ -20,14 +22,29 @@ extraction_config(
   pages = NULL,
   pdf_options = NULL,
   html_options = NULL,
+  html_output = NULL,
   postprocessor = NULL,
   security_limits = NULL,
   max_concurrent_extractions = NULL,
+  max_archive_depth = 3L,
+  layout = NULL,
+  acceleration = NULL,
+  email = NULL,
+  concurrency = NULL,
+  cache_namespace = NULL,
+  cache_ttl_secs = NULL,
+  extraction_timeout_secs = NULL,
+  tree_sitter = NULL,
+  content_filter = NULL,
   ...
 )
 }
 \arguments{
 \item{force_ocr}{Logical. Force OCR processing. Default FALSE.}
+
+\item{disable_ocr}{Logical. Disable OCR entirely. Image files return empty content. Default FALSE.}
+
+\item{force_ocr_pages}{Integer vector or NULL. 1-indexed page numbers to force OCR on. Default NULL.}
 
 \item{ocr}{OCR configuration created by \code{ocr_config()}.}
 
@@ -57,11 +74,43 @@ extraction_config(
 
 \item{html_options}{Named list. HTML-specific options.}
 
+\item{html_output}{Named list. HTML styled output configuration.
+Controls styled HTML rendering with fields: theme (character, one of
+"default", "github", "dark", "light", "unstyled"), class_prefix (character,
+default "kb-"), embed_css (logical, default TRUE), css (character or NULL,
+custom CSS string), css_file (character or NULL, path to CSS file).}
+
 \item{postprocessor}{Named list. Post-processor configuration.}
 
 \item{security_limits}{Named list. Security limits configuration.}
 
 \item{max_concurrent_extractions}{Integer. Max concurrent extractions.}
+
+\item{max_archive_depth}{Integer. Maximum depth for nested archive extraction. Default 3L.}
+
+\item{layout}{Layout detection configuration created by \code{layout_detection_config()}.}
+
+\item{acceleration}{Acceleration configuration created by \code{acceleration_config()}.}
+
+\item{email}{Email configuration created by \code{email_config()}.}
+
+\item{concurrency}{Concurrency configuration created by \code{concurrency_config()}.}
+
+\item{cache_namespace}{Character or NULL. Cache namespace for tenant isolation.
+When set, cache keys are scoped to this namespace so that different tenants'
+cached results do not collide. When NULL, the default namespace is used.}
+
+\item{cache_ttl_secs}{Integer or NULL. Per-request cache TTL in seconds.
+Overrides the server default TTL for this extraction request. When NULL,
+the server default is used.}
+
+\item{extraction_timeout_secs}{Integer or NULL. Extraction timeout in seconds.
+When set, limits the maximum time allowed for an extraction operation.
+When NULL, the server default is used.}
+
+\item{tree_sitter}{Tree-sitter configuration created by \code{tree_sitter_config()}.}
+
+\item{content_filter}{Content filter configuration created by \code{content_filter_config()}.}
 
 \item{...}{Additional configuration options passed as named list elements.}
 }
