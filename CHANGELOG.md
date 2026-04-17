@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **PaddleOCR `model_tier` from TOML config ignored by API server** — the singleton PaddleOcrBackend always used `self.config.model_tier` (default "mobile") to resolve models, ignoring the per-request `paddle_ocr_config.model_tier` from the user's TOML/API config. Engine initialization now uses the effective per-request config. (#725)
 - **VLM OCR backend ignored when paddle-ocr feature enabled** — the auto-constructed OCR pipeline hardcoded `vlm_config: None` on pipeline stages, silently discarding the user's VLM configuration. Users who configured `OcrConfig(backend="vlm", vlm_config=LlmConfig(...))` got tesseract/paddleocr output instead of VLM. The pipeline now propagates `vlm_config` from the parent `OcrConfig`. (#738)
 - **Doubled OCR content and corrupted page text in image extraction** — OCR elements were injected into the rendering pipeline as `OcrText` internal elements, causing `render_plain` to append every raw word token after the coherent HOCR string. `ExtractionResult.content` was effectively duplicated and `pages[*].content` contained a word-by-word dump instead of the readable text. OCR elements are now stored directly via `prebuilt_ocr_elements`, bypassing the rendering pipeline. (#706)
 - **Image OCR pages[] empty** — `include_elements` was not forced true for image extraction, so backends that gate element output (e.g. paddle-ocr) returned `None`, leaving `pages[]` empty. (#723)

@@ -108,8 +108,14 @@ impl PaddleOcrBackend {
     /// This ensures that:
     /// - Multiple families sharing the same unified model reuse one engine
     /// - Different tiers get different engines (different det model)
-    fn get_or_init_engine_for_family(&self, family: &str) -> Result<Arc<OcrLite>> {
-        let tier = &self.config.model_tier;
+    /// Get or create an OCR engine for the given script family.
+    ///
+    /// The engine pool is keyed by a composite `"{tier}/{model_key}"` string.
+    /// This ensures that:
+    /// - Multiple families sharing the same unified model reuse one engine
+    /// - Different tiers get different engines (different det model)
+    fn get_or_init_engine_for_family(&self, family: &str, config: &PaddleOcrConfig) -> Result<Arc<OcrLite>> {
+        let tier = &config.model_tier;
         let resolved = self.model_manager.resolve_rec_model(family, tier)?;
         let pool_key = format!("{tier}/{}", resolved.model_key);
 
@@ -271,7 +277,7 @@ impl PaddleOcrBackend {
         effective_config: Arc<PaddleOcrConfig>,
     ) -> Result<(String, Vec<OcrElement>)> {
         let family = language_to_script_family(language);
-        let engine = self.get_or_init_engine_for_family(family)?;
+        let engine = self.get_or_init_engine_for_family(family, &effective_config)?;
 
         let image_bytes_owned = image_bytes.to_vec();
         let config = effective_config;
