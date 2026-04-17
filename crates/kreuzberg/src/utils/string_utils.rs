@@ -1,24 +1,24 @@
 use ahash::AHashMap;
 use chardetng::EncodingDetector;
 use encoding_rs::Encoding;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use std::borrow::Cow;
 use std::collections::VecDeque;
 use std::env;
+use std::sync::LazyLock;
 use std::sync::RwLock;
 
-static CONTROL_CHARS: Lazy<Regex> = Lazy::new(|| {
+static CONTROL_CHARS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F-\x9F]")
         .expect("Control chars regex pattern is valid and should compile")
 });
-static REPLACEMENT_CHARS: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"\u{FFFD}+").expect("Replacement chars regex pattern is valid and should compile"));
-static ISOLATED_COMBINING: Lazy<Regex> = Lazy::new(|| {
+static REPLACEMENT_CHARS: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"\u{FFFD}+").expect("Replacement chars regex pattern is valid and should compile"));
+static ISOLATED_COMBINING: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"[\u{0300}-\u{036F}]+")
         .expect("Isolated combining diacritics regex pattern is valid and should compile")
 });
-static HEBREW_AS_CYRILLIC: Lazy<Regex> = Lazy::new(|| {
+static HEBREW_AS_CYRILLIC: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"[\u{0400}-\u{04FF}]{3,}")
         .expect("Hebrew misencoded as Cyrillic regex pattern is valid and should compile")
 });
@@ -123,7 +123,7 @@ fn cache_limits() -> (usize, usize) {
     (max_entries, max_bytes)
 }
 
-static ENCODING_CACHE: Lazy<RwLock<EncodingCache>> = Lazy::new(|| {
+static ENCODING_CACHE: LazyLock<RwLock<EncodingCache>> = LazyLock::new(|| {
     let (entries, bytes) = cache_limits();
     RwLock::new(EncodingCache::new(entries, bytes))
 });

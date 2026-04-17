@@ -508,13 +508,11 @@ impl<'a, 'b> HtmlWalker<'a, 'b> {
                 self.in_head = true;
                 self.meta_entries.clear();
             }
-            "meta" => {
-                if self.in_head {
-                    let name = extract_attr(attrs_str, "name");
-                    let content_val = extract_attr(attrs_str, "content");
-                    if let (Some(n), Some(c)) = (name, content_val) {
-                        self.meta_entries.push((n.to_string(), c.to_string()));
-                    }
+            "meta" if self.in_head => {
+                let name = extract_attr(attrs_str, "name");
+                let content_val = extract_attr(attrs_str, "content");
+                if let (Some(n), Some(c)) = (name, content_val) {
+                    self.meta_entries.push((n.to_string(), c.to_string()));
                 }
             }
             "script" | "style" => {

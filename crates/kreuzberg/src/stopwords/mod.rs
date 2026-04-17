@@ -80,7 +80,7 @@
 //! ```
 
 use ahash::{AHashMap, AHashSet};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 mod languages;
 
@@ -117,7 +117,7 @@ mod languages;
 ///     println!("Available: {}", lang);
 /// }
 /// ```
-pub static STOPWORDS: Lazy<AHashMap<String, AHashSet<String>>> = Lazy::new(|| {
+pub static STOPWORDS: LazyLock<AHashMap<String, AHashSet<String>>> = LazyLock::new(|| {
     let mut map = AHashMap::new();
 
     // Load stopwords by language family

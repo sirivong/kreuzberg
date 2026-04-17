@@ -8,7 +8,7 @@ use crate::core::config::ExtractionConfig;
 use crate::plugins::registry::get_document_extractor_registry;
 
 use crate::types::internal::InternalDocument;
-use once_cell::sync::Lazy;
+use once_cell::sync::OnceCell;
 use std::sync::Arc;
 
 /// Trait for extractors that can work synchronously (WASM-compatible).
@@ -270,11 +270,12 @@ pub use xml::XmlExtractor;
 #[cfg(feature = "xml")]
 pub use docbook::DocbookExtractor;
 
-/// Lazy-initialized flag that ensures extractors are registered exactly once.
+/// One-time initialization guard for the built-in extractor registry.
 ///
-/// This static is accessed on first extraction operation to automatically
-/// register all built-in extractors with the plugin registry.
-static EXTRACTORS_INITIALIZED: Lazy<Result<()>> = Lazy::new(register_default_extractors);
+/// Set to `()` once registration succeeds. If registration fails the cell remains
+/// empty, so the next call will retry — unlike `Lazy<Result<()>>` which would
+/// permanently cache the error and prevent recovery.
+static EXTRACTORS_INITIALIZED: OnceCell<()> = OnceCell::new();
 
 /// Ensure built-in extractors are registered.
 ///
@@ -282,13 +283,7 @@ static EXTRACTORS_INITIALIZED: Lazy<Result<()>> = Lazy::new(register_default_ext
 /// It's safe to call multiple times - registration only happens once,
 /// unless the registry was cleared, in which case extractors are re-registered.
 pub fn ensure_initialized() -> Result<()> {
-    EXTRACTORS_INITIALIZED
-        .as_ref()
-        .map(|_| ())
-        .map_err(|e| crate::KreuzbergError::Plugin {
-            message: format!("Failed to register default extractors: {}", e),
-            plugin_name: "built-in-extractors".to_string(),
-        })?;
+    EXTRACTORS_INITIALIZED.get_or_try_init(register_default_extractors)?;
 
     let registry = get_document_extractor_registry();
     let registry_guard = registry.read();

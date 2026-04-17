@@ -17,9 +17,9 @@ pub use renderer::RendererRegistry;
 pub use validator::ValidatorRegistry;
 
 use crate::{KreuzbergError, Result};
-use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 use std::sync::Arc;
+use std::sync::LazyLock;
 
 /// Validate a plugin name before registration.
 ///
@@ -51,24 +51,24 @@ pub(super) fn validate_plugin_name(name: &str) -> Result<()> {
 }
 
 /// Global OCR backend registry singleton.
-pub static OCR_BACKEND_REGISTRY: Lazy<Arc<RwLock<OcrBackendRegistry>>> =
-    Lazy::new(|| Arc::new(RwLock::new(OcrBackendRegistry::new())));
+pub static OCR_BACKEND_REGISTRY: LazyLock<Arc<RwLock<OcrBackendRegistry>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(OcrBackendRegistry::new())));
 
 /// Global document extractor registry singleton.
-pub static DOCUMENT_EXTRACTOR_REGISTRY: Lazy<Arc<RwLock<DocumentExtractorRegistry>>> =
-    Lazy::new(|| Arc::new(RwLock::new(DocumentExtractorRegistry::new())));
+pub static DOCUMENT_EXTRACTOR_REGISTRY: LazyLock<Arc<RwLock<DocumentExtractorRegistry>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(DocumentExtractorRegistry::new())));
 
 /// Global post-processor registry singleton.
-pub static POST_PROCESSOR_REGISTRY: Lazy<Arc<RwLock<PostProcessorRegistry>>> =
-    Lazy::new(|| Arc::new(RwLock::new(PostProcessorRegistry::new())));
+pub static POST_PROCESSOR_REGISTRY: LazyLock<Arc<RwLock<PostProcessorRegistry>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(PostProcessorRegistry::new())));
 
 /// Global validator registry singleton.
-pub static VALIDATOR_REGISTRY: Lazy<Arc<RwLock<ValidatorRegistry>>> =
-    Lazy::new(|| Arc::new(RwLock::new(ValidatorRegistry::new())));
+pub static VALIDATOR_REGISTRY: LazyLock<Arc<RwLock<ValidatorRegistry>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(ValidatorRegistry::new())));
 
 /// Global renderer registry singleton.
-pub static RENDERER_REGISTRY: Lazy<Arc<RwLock<RendererRegistry>>> =
-    Lazy::new(|| Arc::new(RwLock::new(RendererRegistry::new())));
+pub static RENDERER_REGISTRY: LazyLock<Arc<RwLock<RendererRegistry>>> =
+    LazyLock::new(|| Arc::new(RwLock::new(RendererRegistry::new())));
 
 /// Get the global OCR backend registry.
 pub fn get_ocr_backend_registry() -> Arc<RwLock<OcrBackendRegistry>> {

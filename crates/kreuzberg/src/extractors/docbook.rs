@@ -297,11 +297,9 @@ fn build_docbook_internal_document(content: &str, inject_placeholders: bool) -> 
                     "chapter" | "sect1" | "sect2" | "sect3" | "sect4" | "sect5" | "section" => {
                         section_depth = section_depth.saturating_sub(1);
                     }
-                    "itemizedlist" | "orderedlist" => {
-                        if in_list {
-                            builder.end_list();
-                            in_list = false;
-                        }
+                    "itemizedlist" | "orderedlist" if in_list => {
+                        builder.end_list();
+                        in_list = false;
                     }
                     "table" | "informaltable" if in_table => {
                         if !current_table.is_empty() {
@@ -766,13 +764,11 @@ fn extract_figure_with_caption(reader: &mut Reader<&[u8]>) -> Result<String> {
                     depth -= 1;
                 }
             }
-            Ok(Event::Text(t)) => {
-                if caption.is_empty() {
-                    let decoded = String::from_utf8_lossy(t.as_ref()).to_string();
-                    let trimmed = decoded.trim();
-                    if !trimmed.is_empty() {
-                        caption.push_str(trimmed);
-                    }
+            Ok(Event::Text(t)) if caption.is_empty() => {
+                let decoded = String::from_utf8_lossy(t.as_ref()).to_string();
+                let trimmed = decoded.trim();
+                if !trimmed.is_empty() {
+                    caption.push_str(trimmed);
                 }
             }
             Ok(Event::Eof) => break,

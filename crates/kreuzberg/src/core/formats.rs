@@ -33,7 +33,7 @@
 //! ```
 
 use ahash::AHashSet;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 /// All known format field names across all extractors.
 ///
@@ -112,7 +112,7 @@ pub const KNOWN_FORMATS: &[&str] = &[
 ///
 /// Uses AHashSet for its excellent cache locality and performance characteristics
 /// with string keys. Built lazily on first use with minimal overhead.
-static FORMAT_FIELD_SET: Lazy<AHashSet<&'static str>> = Lazy::new(|| KNOWN_FORMATS.iter().copied().collect());
+static FORMAT_FIELD_SET: LazyLock<AHashSet<&'static str>> = LazyLock::new(|| KNOWN_FORMATS.iter().copied().collect());
 
 /// Validates whether a field name is in the known formats registry.
 ///

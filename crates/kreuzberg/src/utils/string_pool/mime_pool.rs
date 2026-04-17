@@ -4,8 +4,8 @@
 //! with lazy initialization of common MIME types on first access.
 
 use super::interned::InternedString;
-use once_cell::sync::Lazy;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::sync::Mutex;
 
 /// String pool for MIME types.
@@ -145,7 +145,7 @@ impl MimeStringPool {
 }
 
 /// Global MIME type string pool.
-pub(super) static MIME_POOL: Lazy<MimeStringPool> = Lazy::new(MimeStringPool::new);
+pub(super) static MIME_POOL: LazyLock<MimeStringPool> = LazyLock::new(MimeStringPool::new);
 
 /// Get or intern a MIME type string.
 ///

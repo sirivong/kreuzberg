@@ -5,9 +5,9 @@
 
 use crate::Result;
 use crate::plugins::{PostProcessor, ProcessingStage};
-use once_cell::sync::Lazy;
 use parking_lot::RwLock;
 use std::sync::Arc;
+use std::sync::LazyLock;
 
 /// Cached post-processors for each stage to reduce lock contention.
 ///
@@ -35,7 +35,7 @@ impl ProcessorCache {
 }
 
 /// Lazy processor cache - initialized on first use, then cached.
-pub(super) static PROCESSOR_CACHE: Lazy<RwLock<Option<ProcessorCache>>> = Lazy::new(|| RwLock::new(None));
+pub(super) static PROCESSOR_CACHE: LazyLock<RwLock<Option<ProcessorCache>>> = LazyLock::new(|| RwLock::new(None));
 
 /// Clear the processor cache (primarily for testing when registry changes).
 pub fn clear_processor_cache() -> Result<()> {

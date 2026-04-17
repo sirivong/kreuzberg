@@ -255,28 +255,24 @@ impl MdxExtractor {
                     heading_text.clear();
                     heading_annotations.clear();
                 }
-                Event::Start(Tag::Paragraph) => {
-                    if !in_heading && !in_list_item && footnote_def_label.is_none() {
-                        paragraph_text.clear();
-                        paragraph_annotations.clear();
-                        in_paragraph = true;
-                    }
+                Event::Start(Tag::Paragraph) if !in_heading && !in_list_item && footnote_def_label.is_none() => {
+                    paragraph_text.clear();
+                    paragraph_annotations.clear();
+                    in_paragraph = true;
                 }
-                Event::End(TagEnd::Paragraph) => {
-                    if in_paragraph {
-                        in_paragraph = false;
-                        let trimmed = paragraph_text.trim();
-                        if !trimmed.is_empty() {
-                            let annotations = adjust_annotations_for_trim(
-                                std::mem::take(&mut paragraph_annotations),
-                                &paragraph_text,
-                                trimmed,
-                            );
-                            b.push_paragraph(trimmed, annotations, None, None);
-                        }
-                        paragraph_text.clear();
-                        paragraph_annotations.clear();
+                Event::End(TagEnd::Paragraph) if in_paragraph => {
+                    in_paragraph = false;
+                    let trimmed = paragraph_text.trim();
+                    if !trimmed.is_empty() {
+                        let annotations = adjust_annotations_for_trim(
+                            std::mem::take(&mut paragraph_annotations),
+                            &paragraph_text,
+                            trimmed,
+                        );
+                        b.push_paragraph(trimmed, annotations, None, None);
                     }
+                    paragraph_text.clear();
+                    paragraph_annotations.clear();
                 }
                 Event::Start(Tag::Strong) => {
                     if in_paragraph {
@@ -440,10 +436,8 @@ impl MdxExtractor {
                     b.push_list(ordered);
                     list_stack.push(ordered);
                 }
-                Event::End(TagEnd::List(_)) => {
-                    if list_stack.pop().is_some() {
-                        b.end_list();
-                    }
+                Event::End(TagEnd::List(_)) if list_stack.pop().is_some() => {
+                    b.end_list();
                 }
                 Event::Start(Tag::Item) => {
                     list_item_text.clear();
@@ -486,10 +480,8 @@ impl MdxExtractor {
                 Event::Start(Tag::TableHead | Tag::TableRow) => {
                     current_row.clear();
                 }
-                Event::End(TagEnd::TableHead | TagEnd::TableRow) => {
-                    if !current_row.is_empty() {
-                        table_rows.push(std::mem::take(&mut current_row));
-                    }
+                Event::End(TagEnd::TableHead | TagEnd::TableRow) if !current_row.is_empty() => {
+                    table_rows.push(std::mem::take(&mut current_row));
                 }
                 Event::Start(Tag::TableCell) => {
                     current_cell.clear();
@@ -617,10 +609,8 @@ impl MdxExtractor {
                         paragraph_text.push_str(s);
                     }
                 }
-                Event::TaskListMarker(checked) => {
-                    if in_list_item {
-                        list_item_text.push_str(if *checked { "[x] " } else { "[ ] " });
-                    }
+                Event::TaskListMarker(checked) if in_list_item => {
+                    list_item_text.push_str(if *checked { "[x] " } else { "[ ] " });
                 }
                 _ => {}
             }

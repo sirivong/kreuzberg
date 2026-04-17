@@ -36,9 +36,9 @@
 
 use super::error::PdfError;
 use ahash::AHashMap;
-use once_cell::sync::Lazy;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::sync::RwLock;
 
 #[cfg(feature = "pdf")]
@@ -48,7 +48,7 @@ use pdfium_render::prelude::FontDescriptor;
 ///
 /// Uses `Arc<[u8]>` for zero-copy sharing when passing fonts to multiple Pdfium instances.
 /// Protected by `RwLock` for concurrent read access during PDF processing.
-static FONT_CACHE: Lazy<RwLock<FontCacheState>> = Lazy::new(|| {
+static FONT_CACHE: LazyLock<RwLock<FontCacheState>> = LazyLock::new(|| {
     RwLock::new(FontCacheState {
         fonts: AHashMap::new(),
         initialized: false,

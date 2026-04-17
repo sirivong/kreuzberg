@@ -3,9 +3,9 @@
 //! This module provides a pool of reusable String buffers that can be acquired,
 //! used, and automatically returned to the pool when dropped.
 
-use once_cell::sync::Lazy;
 use std::collections::VecDeque;
 use std::sync::Arc;
+use std::sync::LazyLock;
 
 #[cfg(feature = "pool-metrics")]
 use std::sync::atomic::AtomicUsize;
@@ -235,8 +235,8 @@ impl std::fmt::Debug for PooledString {
 }
 
 /// Global string buffer pool for temporary allocations during extraction.
-pub static STRING_BUFFER_POOL: Lazy<Arc<StringBufferPool>> =
-    Lazy::new(|| Arc::new(StringBufferPool::new(PoolConfig::default())));
+pub static STRING_BUFFER_POOL: LazyLock<Arc<StringBufferPool>> =
+    LazyLock::new(|| Arc::new(StringBufferPool::new(PoolConfig::default())));
 
 /// Acquire a string buffer from the global pool.
 ///

@@ -239,12 +239,11 @@ fn extract_message_content(message: &dyn PstMessage, entry_id: &EntryId) -> Emai
                         // PR_DISPLAY_NAME
                         display_name = prop_value_to_string(&value);
                     }
-                    0x39FE | 0x3003 => {
+                    0x39FE | 0x3003
                         // PR_SMTP_ADDRESS / PR_EMAIL_ADDRESS
-                        if smtp_email.is_none() {
+                        if smtp_email.is_none() => {
                             smtp_email = prop_value_to_string(&value);
                         }
-                    }
                     _ => {}
                 }
             }

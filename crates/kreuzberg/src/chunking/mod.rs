@@ -49,7 +49,7 @@
 //! - Processing large documents in batches
 //! - Maintaining context across chunk boundaries
 
-use once_cell::sync::Lazy;
+use once_cell::sync::OnceCell;
 use std::sync::Arc;
 
 // Module declarations
@@ -75,11 +75,11 @@ pub use validation::{ADAPTIVE_VALIDATION_THRESHOLD, precompute_utf8_boundaries, 
 
 use crate::error::Result;
 
-/// Lazy-initialized flag that ensures chunking processor is registered exactly once.
+/// One-time initialization guard for the chunking processor registry.
 ///
-/// This static is accessed on first use to automatically register the
-/// chunking processor with the plugin registry.
-static PROCESSOR_INITIALIZED: Lazy<Result<()>> = Lazy::new(register_chunking_processor);
+/// Set to `()` once registration succeeds. If registration fails the cell remains
+/// empty, allowing the next call to retry.
+static PROCESSOR_INITIALIZED: OnceCell<()> = OnceCell::new();
 
 /// Ensure the chunking processor is registered.
 ///
@@ -87,12 +87,8 @@ static PROCESSOR_INITIALIZED: Lazy<Result<()>> = Lazy::new(register_chunking_pro
 /// It's safe to call multiple times - registration only happens once.
 pub fn ensure_initialized() -> Result<()> {
     PROCESSOR_INITIALIZED
-        .as_ref()
+        .get_or_try_init(register_chunking_processor)
         .map(|_| ())
-        .map_err(|e| crate::KreuzbergError::Plugin {
-            message: format!("Failed to register chunking processor: {}", e),
-            plugin_name: "text-chunking".to_string(),
-        })
 }
 
 /// Register the chunking processor with the global registry.

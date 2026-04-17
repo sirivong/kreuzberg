@@ -4,7 +4,7 @@
 
 use crate::Result;
 use crate::core::config::LanguageDetectionConfig;
-use once_cell::sync::Lazy;
+use once_cell::sync::OnceCell;
 use std::sync::Arc;
 use whatlang::{Lang, detect};
 
@@ -201,11 +201,11 @@ pub fn register_language_detection_processor() -> Result<()> {
     Ok(())
 }
 
-/// Lazy-initialized flag that ensures language detection processor is registered exactly once.
+/// One-time initialization guard for the language detection processor registry.
 ///
-/// This static is accessed on first use to automatically register the
-/// language detection processor with the plugin registry.
-static PROCESSOR_INITIALIZED: Lazy<Result<()>> = Lazy::new(register_language_detection_processor);
+/// Set to `()` once registration succeeds. If registration fails the cell remains
+/// empty, allowing the next call to retry.
+static PROCESSOR_INITIALIZED: OnceCell<()> = OnceCell::new();
 
 /// Ensure the language detection processor is registered.
 ///
@@ -213,12 +213,8 @@ static PROCESSOR_INITIALIZED: Lazy<Result<()>> = Lazy::new(register_language_det
 /// It's safe to call multiple times - registration only happens once.
 pub fn ensure_initialized() -> Result<()> {
     PROCESSOR_INITIALIZED
-        .as_ref()
+        .get_or_try_init(register_language_detection_processor)
         .map(|_| ())
-        .map_err(|e| crate::KreuzbergError::Plugin {
-            message: format!("Failed to register language detection processor: {}", e),
-            plugin_name: "language-detection".to_string(),
-        })
 }
 
 #[cfg(test)]

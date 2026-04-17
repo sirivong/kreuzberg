@@ -93,12 +93,10 @@ impl DjotExtractor {
                     heading_text.clear();
                     heading_annotations.clear();
                 }
-                Event::Start(Container::Paragraph, _) => {
-                    if !in_heading && !in_list_item {
-                        paragraph_text.clear();
-                        paragraph_annotations.clear();
-                        in_paragraph = true;
-                    }
+                Event::Start(Container::Paragraph, _) if !in_heading && !in_list_item => {
+                    paragraph_text.clear();
+                    paragraph_annotations.clear();
+                    in_paragraph = true;
                 }
                 Event::End(Container::Paragraph) => {
                     if in_paragraph {
@@ -221,24 +219,22 @@ impl DjotExtractor {
                         verbatim_start = list_item_text.len() as u32;
                     }
                 }
-                Event::End(Container::Verbatim) => {
-                    if in_verbatim {
-                        in_verbatim = false;
-                        if in_paragraph {
-                            let end = paragraph_text.len() as u32;
-                            if verbatim_start < end {
-                                paragraph_annotations.push(builder::code(verbatim_start, end));
-                            }
-                        } else if in_heading {
-                            let end = heading_text.len() as u32;
-                            if verbatim_start < end {
-                                heading_annotations.push(builder::code(verbatim_start, end));
-                            }
-                        } else if in_list_item {
-                            let end = list_item_text.len() as u32;
-                            if verbatim_start < end {
-                                list_item_annotations.push(builder::code(verbatim_start, end));
-                            }
+                Event::End(Container::Verbatim) if in_verbatim => {
+                    in_verbatim = false;
+                    if in_paragraph {
+                        let end = paragraph_text.len() as u32;
+                        if verbatim_start < end {
+                            paragraph_annotations.push(builder::code(verbatim_start, end));
+                        }
+                    } else if in_heading {
+                        let end = heading_text.len() as u32;
+                        if verbatim_start < end {
+                            heading_annotations.push(builder::code(verbatim_start, end));
+                        }
+                    } else if in_list_item {
+                        let end = list_item_text.len() as u32;
+                        if verbatim_start < end {
+                            list_item_annotations.push(builder::code(verbatim_start, end));
                         }
                     }
                 }
@@ -338,10 +334,8 @@ impl DjotExtractor {
                     b.push_list(ordered);
                     list_stack.push(ordered);
                 }
-                Event::End(Container::List { .. }) => {
-                    if list_stack.pop().is_some() {
-                        b.end_list();
-                    }
+                Event::End(Container::List { .. }) if list_stack.pop().is_some() => {
+                    b.end_list();
                 }
                 Event::Start(Container::ListItem | Container::TaskListItem { .. }, _) => {
                     list_item_text.clear();
@@ -365,21 +359,17 @@ impl DjotExtractor {
                     list_item_text.clear();
                     list_item_annotations.clear();
                 }
-                Event::Start(Container::Math { display }, _) => {
-                    if *display {
-                        in_math = true;
-                        math_text.clear();
-                    }
+                Event::Start(Container::Math { display }, _) if *display => {
+                    in_math = true;
+                    math_text.clear();
                 }
-                Event::End(Container::Math { display }) => {
-                    if *display {
-                        in_math = false;
-                        let text = math_text.trim().to_string();
-                        if !text.is_empty() {
-                            b.push_formula(&text, None, None);
-                        }
-                        math_text.clear();
+                Event::End(Container::Math { display }) if *display => {
+                    in_math = false;
+                    let text = math_text.trim().to_string();
+                    if !text.is_empty() {
+                        b.push_formula(&text, None, None);
                     }
+                    math_text.clear();
                 }
                 Event::Start(Container::Image(..), _) => {
                     in_image = true;
@@ -425,16 +415,14 @@ impl DjotExtractor {
                     footnote_label = label.to_string();
                     footnote_text.clear();
                 }
-                Event::End(Container::Footnote { .. }) => {
-                    if in_footnote {
-                        in_footnote = false;
-                        let text = footnote_text.trim().to_string();
-                        if !text.is_empty() {
-                            b.push_footnote_definition(&text, &footnote_label, None);
-                        }
-                        footnote_text.clear();
-                        footnote_label.clear();
+                Event::End(Container::Footnote { .. }) if in_footnote => {
+                    in_footnote = false;
+                    let text = footnote_text.trim().to_string();
+                    if !text.is_empty() {
+                        b.push_footnote_definition(&text, &footnote_label, None);
                     }
+                    footnote_text.clear();
+                    footnote_label.clear();
                 }
                 Event::FootnoteReference(name) => {
                     b.push_footnote_ref(name, name, None);

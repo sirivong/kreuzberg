@@ -64,13 +64,13 @@ pub mod engine;
 use ahash::AHashMap;
 use std::sync::{Arc, RwLock};
 
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 use engine::EmbeddingEngine;
 
 type CachedEngine = Arc<EmbeddingEngine>;
 
-static ENGINE_CACHE: Lazy<RwLock<AHashMap<String, CachedEngine>>> = Lazy::new(|| RwLock::new(AHashMap::new()));
+static ENGINE_CACHE: LazyLock<RwLock<AHashMap<String, CachedEngine>>> = LazyLock::new(|| RwLock::new(AHashMap::new()));
 
 /// Global semaphore that limits concurrent ONNX embedding inference calls.
 ///
@@ -78,7 +78,7 @@ static ENGINE_CACHE: Lazy<RwLock<AHashMap<String, CachedEngine>>> = Lazy::new(||
 /// simultaneously. The permit count is set once on first access using the thread
 /// budget, matching the pattern used elsewhere (e.g., image OCR, batch extraction).
 #[cfg(feature = "tokio-runtime")]
-static EMBED_SEMAPHORE: Lazy<Arc<tokio::sync::Semaphore>> = Lazy::new(|| {
+static EMBED_SEMAPHORE: LazyLock<Arc<tokio::sync::Semaphore>> = LazyLock::new(|| {
     let budget = crate::core::config::concurrency::resolve_thread_budget(None);
     Arc::new(tokio::sync::Semaphore::new(budget))
 });

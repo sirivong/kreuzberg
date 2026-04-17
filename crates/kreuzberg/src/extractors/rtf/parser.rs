@@ -600,14 +600,14 @@ pub fn extract_rtf_formatting(content: &str) -> RtfFormattingData {
                                 "cf" => {
                                     update_fmt_field!(color_idx, param.unwrap_or(0) as u16);
                                 }
-                                "plain" => {
+                                "plain"
                                     // Reset all formatting
-                                    if fmt.bold
+                                    if (fmt.bold
                                         || fmt.italic
                                         || fmt.underline
                                         || fmt.strikethrough
-                                        || fmt.color_idx != 0
-                                    {
+                                        || fmt.color_idx != 0)
+                                    => {
                                         if text_offset > span_start {
                                             spans.push(RtfFormattingSpan {
                                                 start: span_start,
@@ -626,7 +626,6 @@ pub fn extract_rtf_formatting(content: &str) -> RtfFormattingData {
                                         fmt.strikethrough = false;
                                         fmt.color_idx = 0;
                                     }
-                                }
                                 "header" | "headerl" | "headerr" | "headerf" => {
                                     in_header = true;
                                     header_depth = group_depth;

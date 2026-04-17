@@ -41,7 +41,7 @@
 
 use crate::Result;
 use crate::plugins::registry::get_post_processor_registry;
-use once_cell::sync::Lazy;
+use once_cell::sync::OnceCell;
 use std::sync::Arc;
 
 pub mod config;
@@ -115,11 +115,11 @@ pub fn extract_keywords(text: &str, config: &KeywordConfig) -> Result<Vec<Keywor
     }
 }
 
-/// Lazy-initialized flag that ensures keyword processor is registered exactly once.
+/// One-time initialization guard for the keyword extraction processor registry.
 ///
-/// This static is accessed on first use to automatically register the
-/// keyword extraction processor with the plugin registry.
-static PROCESSOR_INITIALIZED: Lazy<Result<()>> = Lazy::new(register_keyword_processor);
+/// Set to `()` once registration succeeds. If registration fails the cell remains
+/// empty, allowing the next call to retry.
+static PROCESSOR_INITIALIZED: OnceCell<()> = OnceCell::new();
 
 /// Ensure the keyword processor is registered.
 ///
@@ -127,12 +127,8 @@ static PROCESSOR_INITIALIZED: Lazy<Result<()>> = Lazy::new(register_keyword_proc
 /// It's safe to call multiple times - registration only happens once.
 pub fn ensure_initialized() -> Result<()> {
     PROCESSOR_INITIALIZED
-        .as_ref()
+        .get_or_try_init(register_keyword_processor)
         .map(|_| ())
-        .map_err(|e| crate::KreuzbergError::Plugin {
-            message: format!("Failed to register keyword processor: {}", e),
-            plugin_name: "keyword-extraction".to_string(),
-        })
 }
 
 /// Register the keyword extraction processor with the global registry.

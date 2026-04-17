@@ -146,10 +146,8 @@ pub fn extract_metadata_from_yaml(yaml: &YamlValue) -> Metadata {
     // Keywords (support both string and array)
     if let Some(keywords) = yaml.get("keywords") {
         match keywords {
-            YamlValue::String(s) => {
-                if metadata.keywords.is_none() {
-                    metadata.keywords = Some(s.split(',').map(|k| k.trim().to_string()).collect());
-                }
+            YamlValue::String(s) if metadata.keywords.is_none() => {
+                metadata.keywords = Some(s.split(',').map(|k| k.trim().to_string()).collect());
             }
             YamlValue::Sequence(seq) => {
                 let kw_vec: Vec<String> = seq.iter().filter_map(|v| v.as_str()).map(|s| s.to_string()).collect();

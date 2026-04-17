@@ -4,8 +4,8 @@
 //! with lazy initialization of common language codes on first access.
 
 use super::interned::InternedString;
-use once_cell::sync::Lazy;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// String pool for language codes.
@@ -66,7 +66,7 @@ impl LanguageStringPool {
 }
 
 /// Global language code string pool.
-pub(super) static LANGUAGE_POOL: Lazy<LanguageStringPool> = Lazy::new(LanguageStringPool::new);
+pub(super) static LANGUAGE_POOL: LazyLock<LanguageStringPool> = LazyLock::new(LanguageStringPool::new);
 
 /// Get or intern a language code string.
 ///

@@ -180,10 +180,8 @@ pub fn parse_drawing(reader: &mut Reader<&[u8]>) -> Drawing {
                             description: get_attr(e, b"descr"),
                         });
                     }
-                    b"blip" => {
-                        if drawing.image_ref.is_none() {
-                            drawing.image_ref = get_attr(e, b"embed").or_else(|| get_attr(e, b"link"));
-                        }
+                    b"blip" if drawing.image_ref.is_none() => {
+                        drawing.image_ref = get_attr(e, b"embed").or_else(|| get_attr(e, b"link"));
                     }
                     b"wrapNone" => {
                         if let DrawingType::Anchored(ref mut anchor) = drawing.drawing_type {

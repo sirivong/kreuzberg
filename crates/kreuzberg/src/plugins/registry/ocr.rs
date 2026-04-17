@@ -33,11 +33,8 @@ impl OcrBackendRegistry {
     /// Registers the Tesseract backend by default if the "ocr" feature is enabled,
     /// and PaddleOCR if the "paddle-ocr" feature is enabled.
     ///
-    /// # Panics
-    ///
-    /// Panics if a compiled-in OCR backend fails to initialize or register.
-    /// This is intentional — a feature-enabled backend that cannot initialize
-    /// indicates a broken build or environment that must be fixed, not silently ignored.
+    /// If a backend fails to initialize or register it is skipped with a warning,
+    /// allowing the process to continue with whichever backends are available.
     #[tracing::instrument(name = "ocr_backend_registry_init")]
     pub fn new() -> Self {
         #[cfg(any(feature = "ocr", feature = "paddle-ocr", feature = "liter-llm"))]
@@ -54,38 +51,40 @@ impl OcrBackendRegistry {
         {
             use crate::ocr::tesseract_backend::TesseractBackend;
             tracing::info!("Initializing Tesseract OCR backend");
-            let backend = TesseractBackend::new().unwrap_or_else(|e| {
-                panic!(
-                    "Tesseract OCR backend initialization failed: {e}. \
-                     The 'ocr' feature is enabled but the backend cannot start. \
-                     Check TESSDATA_PREFIX environment variable, tessdata file permissions, \
-                     and cache directory writability."
-                );
-            });
-            registry.register(Arc::new(backend)).unwrap_or_else(|e| {
-                panic!(
-                    "Failed to register Tesseract OCR backend: {e}. \
-                     Check TESSDATA_PREFIX environment variable and tessdata file permissions."
-                );
-            });
-            tracing::info!("Tesseract OCR backend registered successfully");
+            match TesseractBackend::new() {
+                Ok(backend) => {
+                    registry.register(Arc::new(backend)).unwrap_or_else(|e| {
+                        tracing::warn!("Failed to register Tesseract backend: {e}");
+                    });
+                    tracing::info!("Tesseract OCR backend registered successfully");
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "Tesseract OCR backend unavailable: {e}. \
+                         Check TESSDATA_PREFIX and tessdata file permissions."
+                    );
+                }
+            }
         }
 
         #[cfg(feature = "paddle-ocr")]
         {
             use crate::paddle_ocr::PaddleOcrBackend;
             tracing::info!("Initializing PaddleOCR backend");
-            let backend = PaddleOcrBackend::new().unwrap_or_else(|e| {
-                panic!(
-                    "PaddleOCR backend initialization failed: {e}. \
-                     The 'paddle-ocr' feature is enabled but the backend cannot start. \
-                     Check ONNX Runtime availability and model files."
-                );
-            });
-            registry.register(Arc::new(backend)).unwrap_or_else(|e| {
-                panic!("Failed to register PaddleOCR backend: {e}.");
-            });
-            tracing::info!("PaddleOCR backend registered successfully");
+            match PaddleOcrBackend::new() {
+                Ok(backend) => {
+                    registry.register(Arc::new(backend)).unwrap_or_else(|e| {
+                        tracing::warn!("Failed to register PaddleOCR backend: {e}");
+                    });
+                    tracing::info!("PaddleOCR backend registered successfully");
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "PaddleOCR backend unavailable: {e}. \
+                         Check ONNX Runtime availability and model files."
+                    );
+                }
+            }
         }
 
         #[cfg(feature = "liter-llm")]

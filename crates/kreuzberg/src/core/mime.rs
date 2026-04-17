@@ -7,10 +7,10 @@
 //! mappings and supported MIME type validation are derived from this single source of truth.
 
 use crate::{KreuzbergError, Result};
-use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+use std::sync::LazyLock;
 
 /// A supported document format entry.
 ///
@@ -536,7 +536,7 @@ static FORMATS: &[FormatEntry] = &[
 ];
 
 /// Extension to MIME type mapping, derived from [`FORMATS`].
-static EXT_TO_MIME: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
+static EXT_TO_MIME: LazyLock<HashMap<&'static str, &'static str>> = LazyLock::new(|| {
     let mut m = HashMap::new();
     for entry in FORMATS {
         for ext in entry.extensions {
@@ -547,7 +547,7 @@ static EXT_TO_MIME: Lazy<HashMap<&'static str, &'static str>> = Lazy::new(|| {
 });
 
 /// All supported MIME types (primary + aliases), derived from [`FORMATS`].
-static SUPPORTED_MIME_TYPES: Lazy<HashSet<&'static str>> = Lazy::new(|| {
+static SUPPORTED_MIME_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     let mut set = HashSet::new();
     for entry in FORMATS {
         set.insert(entry.mime_type);

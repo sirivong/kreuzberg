@@ -438,7 +438,7 @@ pub(crate) async fn extract_mixed_ocr_native(
         .iter()
         .filter(|b| b.byte_end <= native_text.len() && b.byte_start <= b.byte_end)
         .collect();
-    sorted_boundaries.sort_unstable_by(|a, b| b.byte_start.cmp(&a.byte_start));
+    sorted_boundaries.sort_unstable_by_key(|b| std::cmp::Reverse(b.byte_start));
 
     for boundary in sorted_boundaries {
         if let Some(ocr_text) = ocr_results.get(&boundary.page_number) {

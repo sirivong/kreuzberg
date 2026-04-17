@@ -314,9 +314,9 @@ pub fn parse_markdown_blocks(md: &str) -> Vec<MdBlock> {
                 current_text.push_str("![");
                 let _ = dest_url; // alt text comes as Text events
             }
-            Event::End(TagEnd::Image) => {
+            Event::End(TagEnd::Image)
                 // current_text has "![alt text" — close it
-                if current_text.starts_with("![") {
+                if current_text.starts_with("![") => {
                     current_text.push(']');
                     blocks.push(MdBlock {
                         block_type: MdBlockType::Image,
@@ -325,27 +325,22 @@ pub fn parse_markdown_blocks(md: &str) -> Vec<MdBlock> {
                     });
                     index += 1;
                 }
-            }
-            Event::Start(Tag::Paragraph) => {
-                if !in_list_item && !in_table {
+            Event::Start(Tag::Paragraph)
+                if !in_list_item && !in_table => {
                     flush_text(&mut current_text, &mut blocks, &mut index, MdBlockType::Paragraph);
                 }
-            }
-            Event::End(TagEnd::Paragraph) => {
-                if !in_list_item && !in_table {
+            Event::End(TagEnd::Paragraph)
+                if !in_list_item && !in_table => {
                     flush_text(&mut current_text, &mut blocks, &mut index, MdBlockType::Paragraph);
                 }
-            }
-            Event::Start(Tag::Strong) => {
-                if !in_table && !in_code_block {
+            Event::Start(Tag::Strong)
+                if !in_table && !in_code_block => {
                     current_text.push_str("**");
                 }
-            }
-            Event::End(TagEnd::Strong) => {
-                if !in_table && !in_code_block {
+            Event::End(TagEnd::Strong)
+                if !in_table && !in_code_block => {
                     current_text.push_str("**");
                 }
-            }
             Event::Text(text) | Event::Code(text) => {
                 if in_table {
                     current_text.push_str(&text);
@@ -945,11 +940,10 @@ fn match_blocks_windowed(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<
 
     // Window half-size: ensure total pairs <= MAX_PAIRS_FOR_MATCHING
     // Total pairs = count_gt * (2 * half_window + 1), solve for half_window:
-    let half_window = if count_gt > 0 {
-        ((MAX_PAIRS_FOR_MATCHING / count_gt).max(1) - 1) / 2
-    } else {
-        0
-    };
+    let half_window = MAX_PAIRS_FOR_MATCHING
+        .checked_div(count_gt)
+        .map(|v| (v.max(1) - 1) / 2)
+        .unwrap_or(0);
     // Ensure minimum window of 10 blocks on each side for quality
     let half_window = half_window.max(10);
 

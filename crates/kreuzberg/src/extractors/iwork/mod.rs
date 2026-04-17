@@ -342,10 +342,8 @@ fn parse_plist_metadata(plist: &str, metadata: &mut crate::types::metadata::Meta
                 && let Some(value) = extract_plist_tag(lines[j], "string")
             {
                 match key.as_str() {
-                    "title" | "Title" => {
-                        if metadata.title.is_none() {
-                            metadata.title = Some(value);
-                        }
+                    "title" | "Title" if metadata.title.is_none() => {
+                        metadata.title = Some(value);
                     }
                     "author" | "Author" | "creator" | "Creator" => {
                         let authors = metadata.authors.get_or_insert_with(Vec::new);
@@ -362,10 +360,8 @@ fn parse_plist_metadata(plist: &str, metadata: &mut crate::types::metadata::Meta
                             }
                         }
                     }
-                    "language" | "Language" => {
-                        if metadata.language.is_none() {
-                            metadata.language = Some(value);
-                        }
+                    "language" | "Language" if metadata.language.is_none() => {
+                        metadata.language = Some(value);
                     }
                     _ => {}
                 }

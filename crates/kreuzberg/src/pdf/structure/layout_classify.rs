@@ -314,11 +314,10 @@ pub(super) fn apply_hint_to_paragraph(para: &mut PdfParagraph, hint: &LayoutHint
     match hint.class {
         LayoutHintClass::Title
             if !is_sep
-                && (para.heading_level.is_none() || hint.confidence >= 0.7) => {
-                    if word_count <= super::constants::MAX_HEADING_WORD_COUNT {
+                && (para.heading_level.is_none() || hint.confidence >= 0.7)
+                    && word_count <= super::constants::MAX_HEADING_WORD_COUNT => {
                         para.heading_level = Some(1);
                     }
-                }
         LayoutHintClass::SectionHeader
             if !is_sep
                 && (para.heading_level.is_none() || hint.confidence >= 0.7) => {
