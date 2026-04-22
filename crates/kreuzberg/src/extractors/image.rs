@@ -49,7 +49,7 @@ impl ImageExtractor {
             registry.get(&ocr_config.backend)?
         };
 
-        // Thread output_format from ExtractionConfig to OcrConfig
+        // Thread output_format and acceleration from ExtractionConfig to OcrConfig
         let mut ocr_config_with_format = ocr_config.clone();
         ocr_config_with_format.output_format = Some(config.output_format.clone());
         ocr_config_with_format.acceleration = config.acceleration.clone();
@@ -217,6 +217,9 @@ impl ImageExtractor {
         // Use plain text for per-region OCR (we build markdown structure ourselves)
         let mut region_ocr_config = ocr_config.clone();
         region_ocr_config.output_format = Some(crate::core::config::OutputFormat::Plain);
+        if region_ocr_config.acceleration.is_none() {
+            region_ocr_config.acceleration = config.acceleration.clone();
+        }
 
         // 5. Per-region OCR + formatting into InternalDocument
         let mut builder = InternalDocumentBuilder::new("image");

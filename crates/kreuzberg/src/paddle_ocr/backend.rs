@@ -63,7 +63,8 @@ pub struct PaddleOcrBackend {
     engine_pool: Mutex<AHashMap<String, Arc<OcrLite>>>,
     /// Document orientation detector, lazily initialized.
     doc_ori_detector: once_cell::sync::OnceCell<crate::doc_orientation::DocOrientationDetector>,
-    /// Hardware acceleration configuration for ORT sessions.
+    /// Hardware acceleration configuration for ORT sessions (set at construction).
+    /// Per-request acceleration from `OcrConfig.acceleration` takes precedence.
     acceleration: Option<crate::core::config::acceleration::AccelerationConfig>,
 }
 
@@ -86,6 +87,26 @@ impl PaddleOcrBackend {
         })
     }
 
+    /// Set hardware acceleration for ORT sessions.
+    pub fn with_acceleration(mut self, accel: crate::core::config::acceleration::AccelerationConfig) -> Self {
+        self.acceleration = Some(accel);
+        self
+    }
+
+    /// Get the current acceleration configuration, if any.
+    pub fn acceleration(&self) -> Option<&crate::core::config::acceleration::AccelerationConfig> {
+        self.acceleration.as_ref()
+    }
+
+    /// Resolve effective acceleration: per-request from OcrConfig takes precedence
+    /// over the backend-level default.
+    fn resolve_acceleration(
+        &self,
+        request_accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
+    ) -> Option<crate::core::config::acceleration::AccelerationConfig> {
+        request_accel.cloned().or_else(|| self.acceleration.clone())
+    }
+
     /// Get or initialize shared model paths (det + cls) for the configured tier.
     fn get_or_init_shared_paths(&self) -> Result<SharedModelPaths> {
         let mut paths = self.shared_paths.lock().map_err(|e| crate::KreuzbergError::Plugin {
@@ -104,14 +125,27 @@ impl PaddleOcrBackend {
 
     /// Get or create an OCR engine for the given script family.
     ///
-    /// The engine pool is keyed by a composite `"{tier}/{model_key}"` string.
+    /// The engine pool is keyed by a composite `"{tier}/{model_key}/{accel}"` string.
     /// This ensures that:
     /// - Multiple families sharing the same unified model reuse one engine
     /// - Different tiers get different engines (different det model)
-    fn get_or_init_engine_for_family(&self, family: &str, config: &PaddleOcrConfig) -> Result<Arc<OcrLite>> {
+    /// - Different acceleration configs get separate engines (CPU vs CUDA)
+    fn get_or_init_engine_for_family(
+        &self,
+        family: &str,
+        config: &PaddleOcrConfig,
+        accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
+    ) -> Result<Arc<OcrLite>> {
         let tier = &config.model_tier;
         let resolved = self.model_manager.resolve_rec_model(family, tier)?;
-        let pool_key = format!("{tier}/{}", resolved.model_key);
+        let accel_key = match accel.map(|a| &a.provider) {
+            Some(crate::core::config::acceleration::ExecutionProviderType::Cuda) => "cuda",
+            Some(crate::core::config::acceleration::ExecutionProviderType::TensorRt) => "tensorrt",
+            Some(crate::core::config::acceleration::ExecutionProviderType::CoreMl) => "coreml",
+            Some(crate::core::config::acceleration::ExecutionProviderType::Auto) => "auto",
+            Some(crate::core::config::acceleration::ExecutionProviderType::Cpu) | None => "cpu",
+        };
+        let pool_key = format!("{tier}/{}/{accel_key}", resolved.model_key);
 
         // Fast path: check if engine already exists
         {
@@ -268,9 +302,10 @@ impl PaddleOcrBackend {
         image_bytes: &[u8],
         language: &str,
         effective_config: Arc<PaddleOcrConfig>,
+        accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
     ) -> Result<(String, Vec<OcrElement>)> {
         let family = language_to_script_family(language);
-        let engine = self.get_or_init_engine_for_family(family, &effective_config)?;
+        let engine = self.get_or_init_engine_for_family(family, &effective_config, accel)?;
 
         let image_bytes_owned = image_bytes.to_vec();
         let config = effective_config;
@@ -428,8 +463,12 @@ impl OcrBackend for PaddleOcrBackend {
             std::borrow::Cow::Borrowed(image_bytes)
         };
 
+        // Resolve acceleration: per-request OcrConfig.acceleration takes precedence
+        // over the backend-level default (fixes #783).
+        let effective_accel = self.resolve_acceleration(config.acceleration.as_ref());
+
         let (text, ocr_elements) = self
-            .do_ocr(&ocr_image_bytes, paddle_lang, Arc::clone(&effective_config))
+            .do_ocr(&ocr_image_bytes, paddle_lang, Arc::clone(&effective_config), effective_accel.as_ref())
             .await?;
 
         let text_blocks_count = ocr_elements.len();

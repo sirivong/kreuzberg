@@ -369,18 +369,20 @@ pub(crate) async fn extract_mixed_ocr_native(
     use std::sync::Arc;
 
     let default_ocr_config = crate::core::config::OcrConfig::default();
-    let ocr_config = config.ocr.as_ref().unwrap_or(&default_ocr_config);
+    let mut ocr_config_resolved = config.ocr.as_ref().unwrap_or(&default_ocr_config).clone();
+    if ocr_config_resolved.acceleration.is_none() {
+        ocr_config_resolved.acceleration = config.acceleration.clone();
+    }
 
     let backend = {
         let registry = crate::plugins::registry::get_ocr_backend_registry();
         let registry = registry.read();
-        registry.get(&ocr_config.backend)?
+        registry.get(&ocr_config_resolved.backend)?
     };
 
     let batch_size = crate::core::config::concurrency::resolve_thread_budget(config.concurrency.as_ref());
 
-    let mut ocr_config_owned = ocr_config.clone();
-    ocr_config_owned.acceleration = config.acceleration.clone();
+    let ocr_config_owned = ocr_config_resolved;
     let total = page_images.len();
     let mut ocr_results: ahash::AHashMap<usize, String> = ahash::AHashMap::with_capacity(total);
     let mut accumulated_llm_usage: Vec<crate::types::LlmUsage> = Vec::new();
@@ -491,6 +493,19 @@ pub(crate) async fn extract_with_ocr(
 
     let default_ocr_config = crate::core::config::OcrConfig::default();
     let base_ocr_config = config.ocr.as_ref().unwrap_or(&default_ocr_config);
+
+    // Propagate acceleration from ExtractionConfig if not set on OcrConfig
+    let accel_ocr_config;
+    let base_ocr_config = if base_ocr_config.acceleration.is_none() && config.acceleration.is_some() {
+        accel_ocr_config = {
+            let mut c = base_ocr_config.clone();
+            c.acceleration = config.acceleration.clone();
+            c
+        };
+        &accel_ocr_config
+    } else {
+        base_ocr_config
+    };
 
     // When layout detections are available, ensure OCR produces elements
     // so the layout assembly module can use them for structured markdown.
