@@ -6,4 +6,4 @@ self-hosted-runner:
     - runner-large
     - runner-large-spot
     - runner-medium-arm64-spot
-    - runner-gpu-t4
+    - runner-gpu-l4

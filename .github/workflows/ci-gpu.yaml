@@ -37,7 +37,7 @@ permissions:
 jobs:
   gpu-tests:
     name: "GPU Tests (CUDA)"
-    runs-on: runner-gpu-t4
+    runs-on: runner-gpu-l4
     timeout-minutes: 30
 
     steps:
