@@ -119,13 +119,13 @@ jobs:
             python-version: '3.13'
             test-cmd: 'pip install maturin && cd packages/python && maturin develop --release && python3 -m pytest tests/ -q && cd ../../e2e/python && python3 -m pytest tests/ -q'
           - lang: node
-            node-version: '22'
+            node-version: '24'
             test-cmd: 'cd e2e/node && npx vitest run'
           - lang: go
-            go-version: '1.24'
+            go-version: '1.26'
             test-cmd: 'cd e2e/go && go test ./... -count=1 -v'
           - lang: ruby
-            ruby-version: '3.3'
+            ruby-version: '3.4'
             test-cmd: 'cd e2e/ruby && bundle exec rspec'
           - lang: java
             java-version: '25'
@@ -137,11 +137,11 @@ jobs:
             php-version: '8.4'
             test-cmd: 'cd e2e/php && composer install -q && vendor/bin/phpunit'
           - lang: elixir
-            elixir-version: '1.17'
-            otp-version: '27'
+            elixir-version: '1.19'
+            otp-version: '28'
             test-cmd: 'cd e2e/elixir && mix deps.get && mix test'
           - lang: wasm
-            node-version: '22'
+            node-version: '24'
             test-cmd: 'cd e2e/wasm && npm install && npm test'
           - lang: rust
             test-cmd: 'cd e2e/rust && cargo test'
@@ -236,18 +236,17 @@ jobs:
 
       - name: Setup PHP
         if: matrix.php-version
-        uses: shivammathur/setup-php@v2
+        uses: kreuzberg-dev/actions/setup-php@v1
         with:
           php-version: ${{ matrix.php-version }}
           tools: composer
 
       - name: Setup Elixir
         if: matrix.elixir-version
-        uses: erlef/setup-elixir@v1
+        uses: kreuzberg-dev/actions/setup-elixir@v1
         with:
           elixir-version: ${{ matrix.elixir-version }}
           otp-version: ${{ matrix.otp-version }}
-          version-type: strict
 
       - name: Setup R
         if: matrix.r-version

@@ -55,7 +55,7 @@ repos:
 
   # Python: ruff (linting + formatting) + mypy (type checking)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.11
+    rev: v0.15.12
     hooks:
       - id: ruff
         args: [--fix]
@@ -122,7 +122,7 @@ repos:
 
   # Markdown: linting
   - repo: https://github.com/rvben/rumdl-pre-commit
-    rev: "v0.1.80"
+    rev: "v0.1.81"
     hooks:
       - id: rumdl-fmt
         exclude: '^(tools/benchmark-harness/vendored/|docs/reference/(api-|configuration\.md|errors\.md|types\.md)|templates/readme/)'

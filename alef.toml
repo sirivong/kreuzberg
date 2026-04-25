@@ -2199,3 +2199,20 @@ rust = "cargo fmt --manifest-path {dir}/Cargo.toml"
 
 [e2e.fields_c_types]
 "extraction_result.metadata" = "Metadata"
+
+[publish]
+core_crate = "crates/kreuzberg"
+
+[publish.languages.ruby]
+vendor_mode = "core-only"
+
+[publish.languages.elixir]
+vendor_mode = "core-only"
+nif_versions = ["2.16", "2.17"]
+
+[publish.languages.r]
+vendor_mode = "full"
+
+[publish.languages.ffi]
+pkg_config = true
+cmake_config = true
