@@ -1,9 +1,15 @@
 default_install_hook_types:
   - pre-commit
   - commit-msg
-exclude: ^docs/snippets/|vendor/|node_modules/|target/|invalid*|dist/|artifacts/|test_documents/|scripts/ci/|^e2e/|^packages/|^crates/kreuzberg-(py|node|ffi|php|wasm)/|^docs/reference/api-
+exclude: ^docs/snippets/|vendor/|node_modules/|target/|invalid*|dist/|artifacts/|test_documents/|scripts/ci/|^e2e/|^packages/|^crates/kreuzberg-(py|node|ffi|php|wasm)/|^docs/reference/api-|\.cache/|\.venv/|rust-vendor/
 
 repos:
+  # AI-Rulez: auto-generate AI assistant configuration files
+  - repo: https://github.com/Goldziher/ai-rulez
+    rev: v4.0.4
+    hooks:
+      - id: ai-rulez-generate
+
   # Commit message linting
   - repo: https://github.com/Goldziher/gitfluff
     rev: v0.8.0
@@ -11,12 +17,6 @@ repos:
       - id: gitfluff-lint
         args: ["--write"]
         stages: [commit-msg]
-
-  # AI-Rulez: auto-generate AI assistant configuration files
-  - repo: https://github.com/Goldziher/ai-rulez
-    rev: v4.0.3
-    hooks:
-      - id: ai-rulez-generate
 
   # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -47,59 +47,40 @@ repos:
       - id: cargo-sort
         args: [-w]
 
-  # Python: ruff (linting + formatting) + mypy (type checking)
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.12
-    hooks:
-      - id: ruff
-        args: [--fix]
-      - id: ruff-format
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.20.2
-    hooks:
-      - id: mypy
-        exclude: "scripts/|benchmarks/"
-
   # Rust: formatting, linting, and license checking
   - repo: https://github.com/AndrejOrsula/pre-commit-cargo
     rev: 0.5.0
     hooks:
       - id: cargo-fmt
         args: ["--all"]
-        types: [rust]
       - id: cargo-clippy
-        name: clippy (workspace)
-        args: ["--fix", "--allow-dirty", "--allow-staged", "--workspace",
-               "--all-features", "--all-targets", "--", "-D", "warnings"]
-        files: ^(crates/|tools/|Cargo\.(toml|lock))
-        types_or: [rust, toml]
+        args:
+          [
+            "--fix",
+            "--allow-dirty",
+            "--allow-staged",
+            "--workspace",
+            "--exclude=kreuzberg-py",
+            "--exclude=kreuzberg-node",
+            "--exclude=kreuzberg-php",
+            "--all-features",
+            "--all-targets",
+            "--",
+            "-D",
+            "warnings",
+          ]
 
   - repo: https://github.com/bnjbvr/cargo-machete
     rev: v0.9.2
     hooks:
       - id: cargo-machete
+        exclude: ^e2e/
 
   - repo: https://github.com/EmbarkStudios/cargo-deny
     rev: 0.19.4
     hooks:
       - id: cargo-deny
         args: ["check"]
-
-  # JavaScript/TypeScript/JSON/CSS: biome (formatting + linting with autofixes)
-  - repo: https://github.com/biomejs/pre-commit
-    rev: v2.4.13
-    hooks:
-      - id: biome-format
-        exclude: ^tools/benchmark-harness/fixtures/
-      - id: biome-lint
-
-  - repo: https://github.com/oxc-project/mirrors-oxlint
-    rev: v1.60.0
-    hooks:
-      - id: oxlint
-        args: ["--fix"]
-        exclude: ^tools/benchmark-harness/fixtures/
 
   # Shell scripts: formatting and linting
   - repo: https://github.com/scop/pre-commit-shfmt
@@ -132,27 +113,20 @@ repos:
         exclude: ^docs/reference/(api-|configuration\.md|errors\.md|types\.md)
         pass_filenames: true
 
-  # Spelling: fast Rust-based spell checker
-  - repo: https://github.com/crate-ci/typos
-    rev: v1.45.1
+  # Alef: format and lint all binding languages, verify bindings, sync versions
+  - repo: https://github.com/kreuzberg-dev/alef
+    rev: v0.7.3
     hooks:
-      - id: typos
-        args: [--force-exclude]
+      - id: alef-fmt
+      - id: alef-lint
+      - id: alef-verify
+      - id: alef-sync-versions
 
   # GitHub Actions: linting
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.12
     hooks:
       - id: actionlint
-
-  # Alef: verify bindings are up to date
-  - repo: https://github.com/kreuzberg-dev/alef
-    rev: v0.7.2
-    hooks:
-      - id: alef-fmt
-      - id: alef-lint
-      - id: alef-verify
-      - id: alef-sync-versions
 
   # Helm
   - repo: local
@@ -170,3 +144,10 @@ repos:
         language: system
         files: ^charts/
         pass_filenames: false
+
+  # Spelling: fast Rust-based spell checker (last — runs after all formatters)
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.45.1
+    hooks:
+      - id: typos
+        args: [--force-exclude]
