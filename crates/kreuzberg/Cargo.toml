@@ -278,7 +278,9 @@ kamadak-exif = { version = "0.6.1", optional = true }
 
 kreuzberg-tesseract = { path = "../kreuzberg-tesseract", version = "4.9.5", optional = true }
 libc = { workspace = true }
-liter-llm = { workspace = true, optional = true }
+# liter-llm is declared in the platform-conditional dependencies block below — it must be
+# excluded on Windows because it pulls reqwest/rustls -> aws-lc-rs -> aws-lc-sys, which fails
+# to build on Windows MSVC.
 log = { workspace = true }
 lopdf = { version = "0.40.0", optional = true }
 mail-parser = { version = "0.11.2", optional = true }
@@ -354,6 +356,10 @@ zip = { version = ">=7.0.0", optional = true, default-features = false, features
 hf-hub = { version = "0.5", default-features = false, features = ["ureq"], optional = true }
 # PaddleOCR via ONNX Runtime - not available on WASM (vendored from paddle-ocr-rs)
 kreuzberg-paddle-ocr = { path = "../kreuzberg-paddle-ocr", version = "4.9.5", optional = true }
+# liter-llm pulls reqwest/rustls -> aws-lc-rs -> aws-lc-sys. aws-lc-sys 0.40 fails to build on
+# Windows MSVC (stdalign feature detection treats `-WX` warnings as errors). Until upstream ships
+# a fix, restrict liter-llm to non-Windows targets so Windows FFI/CLI builds don't pull aws-lc-sys.
+liter-llm = { workspace = true, optional = true }
 pprof = { version = "0.15.0", features = ["flamegraph"], optional = true }
 # Force ureq (transitive dep via hf-hub) to use rustls on non-Windows
 ureq = { version = "3.3", default-features = false, features = ["rustls", "json"], optional = true }

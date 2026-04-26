@@ -3,15 +3,15 @@
 //! This module provides VLM OCR, VLM embeddings, and structured extraction
 //! capabilities using liter-llm as the backend.
 
-#[cfg(feature = "liter-llm")]
+#[cfg(all(feature = "liter-llm", not(target_os = "windows")))]
 pub mod client;
-#[cfg(feature = "liter-llm")]
+#[cfg(all(feature = "liter-llm", not(target_os = "windows")))]
 pub mod prompts;
-#[cfg(feature = "liter-llm")]
+#[cfg(all(feature = "liter-llm", not(target_os = "windows")))]
 pub mod structured;
-#[cfg(feature = "liter-llm")]
+#[cfg(all(feature = "liter-llm", not(target_os = "windows")))]
 pub mod usage;
-#[cfg(feature = "liter-llm")]
+#[cfg(all(feature = "liter-llm", not(target_os = "windows")))]
 pub mod vlm_embeddings;
-#[cfg(feature = "liter-llm")]
+#[cfg(all(feature = "liter-llm", not(target_os = "windows")))]
 pub mod vlm_ocr;

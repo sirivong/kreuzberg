@@ -604,7 +604,7 @@ fn resolve_cache_base() -> std::path::PathBuf {
 }
 
 /// Structured extraction implementation when liter-llm feature is enabled.
-#[cfg(feature = "liter-llm")]
+#[cfg(all(feature = "liter-llm", not(target_os = "windows")))]
 async fn extract_structured_impl(
     mcp: &KreuzbergMcp,
     params: super::params::ExtractStructuredParams,
@@ -658,7 +658,7 @@ async fn extract_structured_impl(
 }
 
 /// Structured extraction implementation when liter-llm feature is disabled.
-#[cfg(not(feature = "liter-llm"))]
+#[cfg(any(not(feature = "liter-llm"), target_os = "windows"))]
 async fn extract_structured_impl(
     _mcp: &KreuzbergMcp,
     _params: super::params::ExtractStructuredParams,

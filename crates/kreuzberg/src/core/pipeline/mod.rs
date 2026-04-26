@@ -183,7 +183,7 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
 
     // Run LLM-based structured extraction BEFORE output formatting
     // so extraction sees plain text, not markdown/HTML
-    #[cfg(feature = "liter-llm")]
+    #[cfg(all(feature = "liter-llm", not(target_os = "windows")))]
     if let Some(ref structured_config) = config.structured_extraction {
         match crate::llm::structured::extract_structured(&result.content, structured_config).await {
             Ok((output, usage)) => {
@@ -200,7 +200,7 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
         }
     }
 
-    #[cfg(not(feature = "liter-llm"))]
+    #[cfg(any(not(feature = "liter-llm"), target_os = "windows"))]
     if config.structured_extraction.is_some() {
         result.processing_warnings.push(crate::types::ProcessingWarning {
             source: std::borrow::Cow::Borrowed("structured_extraction"),

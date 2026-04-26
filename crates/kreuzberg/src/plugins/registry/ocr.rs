@@ -37,12 +37,12 @@ impl OcrBackendRegistry {
     /// allowing the process to continue with whichever backends are available.
     #[tracing::instrument(name = "ocr_backend_registry_init")]
     pub fn new() -> Self {
-        #[cfg(any(feature = "ocr", feature = "paddle-ocr", feature = "liter-llm"))]
+        #[cfg(any(feature = "ocr", feature = "paddle-ocr", all(feature = "liter-llm", not(target_os = "windows"))))]
         let mut registry = Self {
             backends: AHashMap::new(),
         };
 
-        #[cfg(not(any(feature = "ocr", feature = "paddle-ocr", feature = "liter-llm")))]
+        #[cfg(not(any(feature = "ocr", feature = "paddle-ocr", all(feature = "liter-llm", not(target_os = "windows")))))]
         let registry = Self {
             backends: AHashMap::new(),
         };
@@ -87,7 +87,7 @@ impl OcrBackendRegistry {
             }
         }
 
-        #[cfg(feature = "liter-llm")]
+        #[cfg(all(feature = "liter-llm", not(target_os = "windows")))]
         {
             use crate::llm::vlm_ocr::VlmOcrBackend;
             tracing::info!("Registering VLM OCR backend");

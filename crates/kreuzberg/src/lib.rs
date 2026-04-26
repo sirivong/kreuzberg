@@ -63,7 +63,7 @@ pub mod mcp;
 #[cfg(feature = "chunking")]
 pub mod chunking;
 
-#[cfg(feature = "liter-llm")]
+#[cfg(all(feature = "liter-llm", not(target_os = "windows")))]
 pub mod llm;
 
 #[cfg(feature = "embeddings")]

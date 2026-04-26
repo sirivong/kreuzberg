@@ -811,7 +811,7 @@ pub fn embed_texts<T: AsRef<str>>(
 
     // Dispatch: LLM-hosted embeddings bypass the local ONNX engine entirely.
     match &config.model {
-        #[cfg(feature = "liter-llm")]
+        #[cfg(all(feature = "liter-llm", not(target_os = "windows")))]
         crate::core::config::EmbeddingModelType::Llm { llm } => {
             let normalize = config.normalize;
             // If we're already inside an async runtime (e.g. server mode),
@@ -832,7 +832,7 @@ pub fn embed_texts<T: AsRef<str>>(
             };
             result.map(|(embeddings, _usage)| embeddings)
         }
-        #[cfg(not(feature = "liter-llm"))]
+        #[cfg(any(not(feature = "liter-llm"), target_os = "windows"))]
         crate::core::config::EmbeddingModelType::Llm { .. } => Err(crate::KreuzbergError::MissingDependency(
             "LLM embeddings require the 'liter-llm' feature. Rebuild with --features liter-llm".into(),
         )),
@@ -976,13 +976,13 @@ pub async fn embed_texts_async<T: AsRef<str> + Send + 'static>(
     // Llm is cfg-gated; Plugin awaits the host-language backend directly (no spawn_blocking
     // round-trip since the trait is async); Preset/Custom fall through to the local ONNX path.
     match &config.model {
-        #[cfg(feature = "liter-llm")]
+        #[cfg(all(feature = "liter-llm", not(target_os = "windows")))]
         crate::core::config::EmbeddingModelType::Llm { llm } => {
             return crate::llm::vlm_embeddings::embed_via_llm(&texts, llm, config.normalize)
                 .await
                 .map(|(embeddings, _usage)| embeddings);
         }
-        #[cfg(not(feature = "liter-llm"))]
+        #[cfg(any(not(feature = "liter-llm"), target_os = "windows"))]
         crate::core::config::EmbeddingModelType::Llm { .. } => {
             return Err(crate::KreuzbergError::MissingDependency(
                 "LLM embeddings require the 'liter-llm' feature. Rebuild with --features liter-llm".into(),
@@ -1130,7 +1130,7 @@ mod tests {
     /// (e.g. server mode) must not panic with "cannot block inside runtime".
     /// The LLM path will fail with MissingDependency or a connection error,
     /// but it must NOT panic.
-    #[cfg(feature = "liter-llm")]
+    #[cfg(all(feature = "liter-llm", not(target_os = "windows")))]
     #[tokio::test]
     async fn test_embed_texts_llm_inside_runtime_does_not_panic() {
         let config = crate::core::config::EmbeddingConfig {
