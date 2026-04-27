@@ -2934,4 +2934,3 @@ Timing breakdown for a single page.
 | `mapping_ms` | `f64` | — | Time to map pixel-space bounding boxes to PDF coordinate space. |
 
 ---
-

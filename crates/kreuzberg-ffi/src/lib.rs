@@ -19,7 +19,7 @@
 
 use std::cell::RefCell;
 use std::ffi::c_void;
-use std::ffi::{CStr, CString, c_char};
+use std::ffi::{c_char, CStr, CString};
 use std::sync::Arc;
 
 thread_local! {
@@ -965,7 +965,11 @@ pub unsafe extern "C" fn kreuzberg_extraction_config_needs_image_processing(
     // SAFETY: null check above guarantees this is a valid pointer.
     let obj = unsafe { &*this };
     let result = obj.needs_image_processing();
-    if result { 1 } else { 0 }
+    if result {
+        1
+    } else {
+        0
+    }
 }
 
 /// Create a `FileExtractionConfig` from a JSON string. Returns null on failure.
@@ -5133,7 +5137,11 @@ pub unsafe extern "C" fn kreuzberg_server_config_cors_allows_all(this: *const kr
     // SAFETY: null check above guarantees this is a valid pointer.
     let obj = unsafe { &*this };
     let result = obj.cors_allows_all();
-    if result { 1 } else { 0 }
+    if result {
+        1
+    } else {
+        0
+    }
 }
 
 /// Check if a given origin is allowed by CORS configuration.
@@ -5186,7 +5194,11 @@ pub unsafe extern "C" fn kreuzberg_server_config_is_origin_allowed(
         }
     };
     let result = obj.is_origin_allowed(&origin_rs);
-    if result { 1 } else { 0 }
+    if result {
+        1
+    } else {
+        0
+    }
 }
 
 /// Get maximum request body size in megabytes (rounded up).
@@ -23256,7 +23268,11 @@ pub unsafe extern "C" fn kreuzberg_tessdata_manager_is_language_cached(
         }
     };
     let result = obj.is_language_cached(&lang_rs);
-    if result { 1 } else { 0 }
+    if result {
+        1
+    } else {
+        0
+    }
 }
 
 /// Downloads all tessdata_fast traineddata files to the cache directory.
@@ -26953,7 +26969,11 @@ pub unsafe extern "C" fn kreuzberg_validate_cache_key(key: *const std::ffi::c_ch
         }
     };
     let result = kreuzberg::cache::validate_cache_key(&key_rs);
-    if result { 1 } else { 0 }
+    if result {
+        1
+    } else {
+        0
+    }
 }
 
 /// Validate a port number for server configuration.
@@ -28348,7 +28368,11 @@ pub unsafe extern "C" fn kreuzberg_is_valid_format_field(field: *const std::ffi:
         }
     };
     let result = kreuzberg::is_valid_format_field(&field_rs);
-    if result { 1 } else { 0 }
+    if result {
+        1
+    } else {
+        0
+    }
 }
 
 /// Validate that a MIME type is supported.
@@ -29355,7 +29379,11 @@ pub unsafe extern "C" fn kreuzberg_is_valid_utf8(bytes: *const u8, bytes_len: us
     // SAFETY: null check above; ptr and len validated by caller; data is valid for len elements.
     let bytes_rs = unsafe { std::slice::from_raw_parts(bytes, bytes_len) }.to_vec();
     let result = kreuzberg::text::utf8_validation::is_valid_utf8(&bytes_rs);
-    if result { 1 } else { 0 }
+    if result {
+        1
+    } else {
+        0
+    }
 }
 
 /// # Safety

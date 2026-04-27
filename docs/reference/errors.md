@@ -48,4 +48,3 @@ and provides context for debugging.
 | `Other` | {0} | Other errors |
 
 ---
-

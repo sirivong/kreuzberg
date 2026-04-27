@@ -1246,4 +1246,3 @@ Uses a builder pattern for convenient configuration.
 | `model_tier` | `str` | — | Model tier controlling detection/recognition model size and accuracy trade-off. - `"mobile"` (default): Lightweight models (~4.5MB detection, ~16.5MB recognition), fast download and inference - `"server"`: Large, high-accuracy models (~88MB detection, ~84MB recognition), best for GPU or complex documents |
 
 ---
-
