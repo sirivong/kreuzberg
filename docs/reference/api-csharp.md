@@ -2065,7 +2065,7 @@ Validates plugins at startup to help diagnose configuration issues.
 **Signature:**
 
 ```csharp
-public static async Task<void> ServeDefaultAsync()
+public static async Task ServeDefaultAsync()
 ```
 
 **Returns:** `void`
@@ -5616,7 +5616,7 @@ result in place.
 **Signature:**
 
 ```csharp
-public async Task<void> ProcessAsync(ExtractionResult result, ExtractionConfig config)
+public async Task ProcessAsync(ExtractionResult result, ExtractionConfig config)
 ```
 
 ###### ProcessingStage()
@@ -6449,7 +6449,7 @@ if validation fails.
 **Signature:**
 
 ```csharp
-public async Task<void> ValidateAsync(ExtractionResult result, ExtractionConfig config)
+public async Task ValidateAsync(ExtractionResult result, ExtractionConfig config)
 ```
 
 ###### ShouldValidate()
