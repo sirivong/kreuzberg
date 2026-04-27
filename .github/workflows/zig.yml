@@ -1,0 +1,21 @@
+name: Zig
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Zig
+        uses: mlugg/setup-zig@v1
+        with:
+          version: 0.13.0
+      - name: Build Zig project
+        run: zig build --directory packages/zig
+      - name: Run tests
+        run: zig build test --directory packages/zig

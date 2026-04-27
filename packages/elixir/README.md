@@ -73,8 +73,6 @@ Extract text, tables, images, and metadata from 91+ file formats and 248 program
 ### Package Installation
 
 
-
-
 Add to your `mix.exs` dependencies:
 
 ```elixir
@@ -90,8 +88,6 @@ Then run:
 ```bash
 mix deps.get
 ```
-
-
 
 
 ### System Requirements
@@ -150,12 +146,10 @@ IO.puts("Metadata: #{inspect(result.metadata)}")
 ```
 
 
-
 #### Table Extraction
 
 
 See [Table Extraction Guide](https://kreuzberg.dev/features/table-extraction/) for detailed examples.
-
 
 
 #### Processing Multiple Files
@@ -179,8 +173,6 @@ IO.puts("Total files processed: #{length(results)}")
 ```
 
 
-
-
 #### Async Processing
 
 For non-blocking document processing:
@@ -202,16 +194,12 @@ end
 ```
 
 
-
-
-
 ### Next Steps
 
 - **[Installation Guide](https://kreuzberg.dev/getting-started/installation/)** - Platform-specific setup
 - **[API Documentation](https://kreuzberg.dev/api/)** - Complete API reference
 - **[Examples & Guides](https://kreuzberg.dev/guides/)** - Full code examples and usage guides
 - **[Configuration Guide](https://kreuzberg.dev/guides/configuration/)** - Advanced configuration options
-
 
 
 ## Features
@@ -313,11 +301,9 @@ Powered by [tree-sitter-language-pack](https://github.com/kreuzberg-dev/tree-sit
 | **Web formats** | 50-200 MB/s | Streaming | HTML, XML, JSON |
 
 
-
 ## OCR Support
 
 Kreuzberg supports multiple OCR backends for extracting text from scanned documents and images:
-
 
 
 - **Tesseract**
@@ -346,8 +332,6 @@ IO.puts("Metadata: #{inspect(result.metadata)}")
 ```
 
 
-
-
 ## Async Support
 
 This binding provides full async/await support for non-blocking document processing:
@@ -369,14 +353,11 @@ end
 ```
 
 
-
-
 ## Plugin System
 
 Kreuzberg supports extensible post-processing plugins for custom text transformation and filtering.
 
 For detailed plugin documentation, visit [Plugin System Guide](https://kreuzberg.dev/guides/plugins/).
-
 
 
 ### Plugin Example
@@ -462,16 +443,11 @@ IO.inspect(processors, label: "Registered Post-Processors")
 ```
 
 
-
-
-
 ## Embeddings Support
 
 Generate vector embeddings for extracted text using the built-in ONNX Runtime support. Requires ONNX Runtime installation.
 
 **[Embeddings Guide](https://kreuzberg.dev/features/#embeddings)**
-
-
 
 
 ## Batch Processing
@@ -494,7 +470,6 @@ end)
 IO.puts("Total files processed: #{length(results)}")
 ```
 ```
-
 
 
 ## Configuration

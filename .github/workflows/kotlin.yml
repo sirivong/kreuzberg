@@ -1,0 +1,22 @@
+name: Kotlin
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - name: Run Gradle build
+        run: gradle build --project-path packages/kotlin
+      - name: Run Gradle tests
+        run: gradle test --project-path packages/kotlin

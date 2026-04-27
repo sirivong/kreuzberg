@@ -6,7 +6,7 @@ exclude: ^docs/snippets/|vendor/|node_modules/|target/|invalid*|dist/|artifacts/
 repos:
   # AI-Rulez: auto-generate AI assistant configuration files
   - repo: https://github.com/Goldziher/ai-rulez
-    rev: v4.0.7
+    rev: v4.0.8
     hooks:
       - id: ai-rulez-generate
 
@@ -132,7 +132,7 @@ repos:
 
   # Node/TS/WASM: oxlint
   - repo: https://github.com/oxc-project/mirrors-oxlint
-    rev: v1.61.0
+    rev: v1.62.0
     hooks:
       - id: oxlint
         args: ["--fix"]
@@ -357,7 +357,7 @@ repos:
 
   # Alef: verify bindings and sync versions
   - repo: https://github.com/kreuzberg-dev/alef
-    rev: v0.10.0
+    rev: v0.10.3
     hooks:
       - id: alef-verify
       - id: alef-sync-versions
@@ -387,7 +387,7 @@ repos:
 
   # Spelling: fast Rust-based spell checker (last — runs after all formatters)
   - repo: https://github.com/crate-ci/typos
-    rev: v1.45.1
+    rev: v1.45.2
     hooks:
       - id: typos
         args: [--force-exclude]
