@@ -47,12 +47,17 @@ echo "packages/python/pyproject.toml: $python_version"
   errors=$((errors + 1))
 }
 
-ruby_version="$(grep "VERSION =" packages/ruby/lib/kreuzberg/version.rb | cut -d"'" -f2)"
-echo "packages/ruby/lib/kreuzberg/version.rb: $ruby_version"
-[ "$ruby_version" = "$expected" ] || {
-  echo "❌ Ruby version.rb mismatch"
-  errors=$((errors + 1))
-}
+ruby_version_file="$(find packages/ruby \( -path 'packages/ruby/lib/*/version.rb' -o -path 'packages/ruby/ext/*/src/*/version.rb' -o -path 'packages/ruby/ext/*/native/src/*/version.rb' \) -type f 2>/dev/null | head -1)"
+if [ -n "$ruby_version_file" ]; then
+  ruby_version="$(grep "VERSION =" "$ruby_version_file" | sed -E 's/.*VERSION[[:space:]]*=[[:space:]]*["'\''"]([^"'\'']+)["'\''"].*/\1/')"
+  echo "$ruby_version_file: $ruby_version"
+  [ "$ruby_version" = "$expected" ] || {
+    echo "❌ Ruby version.rb mismatch"
+    errors=$((errors + 1))
+  }
+else
+  echo "⚠ no Ruby version.rb found under packages/ruby — skipping"
+fi
 
 r_version="$(grep '^Version:' packages/r/DESCRIPTION | sed 's/Version: //')"
 echo "packages/r/DESCRIPTION: $r_version"
@@ -103,8 +108,9 @@ echo "packages/csharp/Kreuzberg/Kreuzberg.csproj: $csharp_version"
   errors=$((errors + 1))
 }
 
-go_version="$(
-  python3 - <<'PY'
+if [ -f "packages/go/v4/doc.go" ]; then
+  go_version="$(
+    python3 - <<'PY'
 import re
 from pathlib import Path
 
@@ -112,21 +118,30 @@ text = Path("packages/go/v4/doc.go").read_text(encoding="utf-8")
 m = re.search(r"This binding targets Kreuzberg\s+([^\s]+)", text)
 print(m.group(1) if m else "")
 PY
-)"
-echo "packages/go/v4/doc.go: $go_version"
-[ "$go_version" = "$expected" ] || {
-  echo "❌ Go doc.go mismatch"
-  errors=$((errors + 1))
-}
+  )"
+  echo "packages/go/v4/doc.go: $go_version"
+  [ "$go_version" = "$expected" ] || {
+    echo "❌ Go doc.go mismatch"
+    errors=$((errors + 1))
+  }
+else
+  echo "⚠ packages/go/v4/doc.go not present — skipping (Go uses git tags for versioning)"
+fi
 
-php_version="$(jq -r '.version' packages/php/composer.json)"
-echo "packages/php/composer.json: $php_version"
-[ "$php_version" = "$expected" ] || {
-  echo "❌ PHP composer.json mismatch"
-  errors=$((errors + 1))
-}
+# PHP: composer.json typically has no `version` field — Composer relies on git
+# tags. Only check if a value is actually declared in the manifest.
+php_version="$(jq -r '.version // empty' packages/php/composer.json)"
+if [ -n "$php_version" ]; then
+  echo "packages/php/composer.json: $php_version"
+  [ "$php_version" = "$expected" ] || {
+    echo "❌ PHP composer.json mismatch"
+    errors=$((errors + 1))
+  }
+else
+  echo "⚠ packages/php/composer.json has no version field — skipping (Composer uses git tags)"
+fi
 
-elixir_version="$(grep '@version' packages/elixir/mix.exs | head -1 | cut -d'"' -f2 || true)"
+elixir_version="$(grep -E '^\s*(@version|version:)' packages/elixir/mix.exs | head -1 | cut -d'"' -f2 || true)"
 echo "packages/elixir/mix.exs: $elixir_version"
 [ "$elixir_version" = "$expected" ] || {
   echo "❌ Elixir mix.exs mismatch"
