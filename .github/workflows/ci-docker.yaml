@@ -2,20 +2,9 @@ name: CI Docker
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'docker/**'
-      - 'Dockerfile*'
-      - 'charts/**'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'docker/**'
-      - 'Dockerfile*'
 
 concurrency:
-  group: ci-docker-${{ github.ref }}
+  group: ci-docker-${{ github.run_id }}
   cancel-in-progress: false
 
 env:

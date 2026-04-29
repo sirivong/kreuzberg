@@ -1,35 +1,11 @@
 name: CI GPU
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "crates/kreuzberg/src/**"
-      - "crates/kreuzberg/tests/gpu_acceleration.rs"
-      - "crates/kreuzberg-paddle-ocr/**"
-      - "test_documents/**"
-      - ".github/workflows/ci-gpu.yaml"
-      - ".github/actions/setup-paddle-ocr-models/**"
-      - ".github/actions/install-system-deps/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-  pull_request:
-    branches: [main]
-    paths:
-      - "crates/kreuzberg/src/**"
-      - "crates/kreuzberg/tests/gpu_acceleration.rs"
-      - "crates/kreuzberg-paddle-ocr/**"
-      - "test_documents/**"
-      - ".github/workflows/ci-gpu.yaml"
-      - ".github/actions/setup-paddle-ocr-models/**"
-      - ".github/actions/install-system-deps/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
   workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}-gpu
-  cancel-in-progress: true
+  group: ci-gpu-${{ github.run_id }}
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always

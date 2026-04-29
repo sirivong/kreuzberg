@@ -2,37 +2,13 @@ name: CI Docs
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'CHANGELOG.md'
-      - 'docs/**'
-      - 'pyproject.toml'
-      - 'zensical.toml'
-      - '.typos.toml'
-      - '.lychee.toml'
-      - '.textlintrc.json'
-      - '.github/workflows/ci-docs.yaml'
-      - 'scripts/ci/docs/**'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'CHANGELOG.md'
-      - 'docs/**'
-      - 'pyproject.toml'
-      - 'zensical.toml'
-      - '.typos.toml'
-      - '.lychee.toml'
-      - '.textlintrc.json'
-      - '.github/workflows/ci-docs.yaml'
-      - 'scripts/ci/docs/**'
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 concurrency:
-  group: ci-docs-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-docs-${{ github.run_id }}
+  cancel-in-progress: false
 
 permissions:
   contents: read

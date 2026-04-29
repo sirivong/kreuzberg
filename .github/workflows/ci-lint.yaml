@@ -2,44 +2,10 @@ name: CI Lint
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "crates/**"
-      - "packages/**"
-      - "e2e/**"
-      - "fixtures/**"
-      - "scripts/**"
-      - "tools/**"
-      - "charts/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "alef.toml"
-      - "templates/**"
-      - ".github/**"
-      - "Taskfile.yml"
-      - ".pre-commit-config.yaml"
-  pull_request:
-    branches: [main]
-    paths:
-      - "crates/**"
-      - "packages/**"
-      - "e2e/**"
-      - "fixtures/**"
-      - "scripts/**"
-      - "tools/**"
-      - "charts/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - "alef.toml"
-      - "templates/**"
-      - ".github/**"
-      - "Taskfile.yml"
-      - ".pre-commit-config.yaml"
 
 concurrency:
-  group: ci-lint-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ci-lint-${{ github.run_id }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
