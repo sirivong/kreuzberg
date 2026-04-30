@@ -51,7 +51,8 @@ repos:
     rev: v0.1.0
     hooks:
       - id: mypy
-        exclude: "^.*/tests/"
+        args: ["--strict", "--exclude", "(tests|examples|benchmarks|e2e)/", "readers", "node_parsers"]
+        exclude: "^.*/(tests|examples|benchmarks|e2e)/"
 
   - repo: https://github.com/rhysd/actionlint
     rev: v1.7.12
