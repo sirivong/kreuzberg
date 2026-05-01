@@ -38,7 +38,7 @@ bench-pypdf = [ "pypdf>=6.10.2" ]
 bench-unstructured = [ "unstructured[all-docs]>=0.18.21" ]
 
 [tool.uv]
-workspace.members = [ "e2e/python", "packages/python" ]
+workspace.members = [ "packages/python" ]
 cache-keys = [
   { file = "pyproject.toml" },
   { file = "Cargo.toml" },
