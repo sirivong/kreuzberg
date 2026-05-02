@@ -15,6 +15,8 @@ typedef struct KREUZBERGAnchorProperties KREUZBERGAnchorProperties;
 typedef struct KREUZBERGAnnotationKind KREUZBERGAnnotationKind;
 typedef struct KREUZBERGApiDoc KREUZBERGApiDoc;
 typedef struct KREUZBERGApiState KREUZBERGApiState;
+typedef struct KREUZBERGArchiveArchiveEntry KREUZBERGArchiveArchiveEntry;
+typedef struct KREUZBERGArchiveArchiveMetadata KREUZBERGArchiveArchiveMetadata;
 typedef struct KREUZBERGArchiveEntry KREUZBERGArchiveEntry;
 typedef struct KREUZBERGArchiveMetadata KREUZBERGArchiveMetadata;
 typedef struct KREUZBERGBBox KREUZBERGBBox;
@@ -155,6 +157,7 @@ typedef struct KREUZBERGOcrQualityThresholds KREUZBERGOcrQualityThresholds;
 typedef struct KREUZBERGOcrRotation KREUZBERGOcrRotation;
 typedef struct KREUZBERGOcrTable KREUZBERGOcrTable;
 typedef struct KREUZBERGOcrTableBoundingBox KREUZBERGOcrTableBoundingBox;
+typedef struct KREUZBERGOcrTesseractConfig KREUZBERGOcrTesseractConfig;
 typedef struct KREUZBERGOdtProperties KREUZBERGOdtProperties;
 typedef struct KREUZBERGOpenWebDocumentResponse KREUZBERGOpenWebDocumentResponse;
 typedef struct KREUZBERGOrientationResult KREUZBERGOrientationResult;
@@ -3199,6 +3202,69 @@ char *kreuzberg_image_ocr_result_boundaries(const KREUZBERGImageOcrResult *ptr);
  * Pointer must be a valid handle returned by this library.
  */
 char *kreuzberg_image_ocr_result_page_contents(const KREUZBERGImageOcrResult *ptr);
+
+/**
+ * Free a `ArchiveArchiveMetadata` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_archive_archive_metadata_free(KREUZBERGArchiveMetadata *ptr);
+
+/**
+ * Get the `format` field from a `ArchiveArchiveMetadata`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_archive_archive_metadata_format(const KREUZBERGArchiveMetadata *ptr);
+
+/**
+ * Get the `file_list` field from a `ArchiveArchiveMetadata`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_archive_archive_metadata_file_list(const KREUZBERGArchiveMetadata *ptr);
+
+/**
+ * Get the `file_count` field from a `ArchiveArchiveMetadata`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_archive_archive_metadata_file_count(const KREUZBERGArchiveMetadata *ptr);
+
+/**
+ * Get the `total_size` field from a `ArchiveArchiveMetadata`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uint64_t kreuzberg_archive_archive_metadata_total_size(const KREUZBERGArchiveMetadata *ptr);
+
+/**
+ * Free a `ArchiveArchiveEntry` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_archive_archive_entry_free(KREUZBERGArchiveEntry *ptr);
+
+/**
+ * Get the `path` field from a `ArchiveArchiveEntry`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_archive_archive_entry_path(const KREUZBERGArchiveEntry *ptr);
+
+/**
+ * Get the `size` field from a `ArchiveArchiveEntry`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uint64_t kreuzberg_archive_archive_entry_size(const KREUZBERGArchiveEntry *ptr);
+
+/**
+ * Get the `is_dir` field from a `ArchiveArchiveEntry`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_archive_archive_entry_is_dir(const KREUZBERGArchiveEntry *ptr);
 
 /**
  * Create a `HtmlExtractionResult` from a JSON string. Returns null on failure.
@@ -10186,6 +10252,197 @@ int32_t kreuzberg_tessdata_manager_is_language_cached(const KREUZBERGTessdataMan
  * Returned pointers must be freed with the appropriate free function.
  */
 uintptr_t kreuzberg_tessdata_manager_ensure_all_languages(const KREUZBERGTessdataManager *this_);
+
+/**
+ * Create a `OcrTesseractConfig` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_ocr_tesseract_config_free`.
+ */
+KREUZBERGTesseractConfig *kreuzberg_ocr_tesseract_config_from_json(const char *json);
+
+/**
+ * Serialize a `OcrTesseractConfig` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_ocr_tesseract_config_to_json(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Free a `OcrTesseractConfig` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_ocr_tesseract_config_free(KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `language` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_ocr_tesseract_config_language(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `psm` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uint8_t kreuzberg_ocr_tesseract_config_psm(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `output_format` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_ocr_tesseract_config_output_format(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `oem` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uint8_t kreuzberg_ocr_tesseract_config_oem(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `min_confidence` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+double kreuzberg_ocr_tesseract_config_min_confidence(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `preprocessing` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+KREUZBERGImagePreprocessingConfig *kreuzberg_ocr_tesseract_config_preprocessing(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `enable_table_detection` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_ocr_tesseract_config_enable_table_detection(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `table_min_confidence` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+double kreuzberg_ocr_tesseract_config_table_min_confidence(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `table_column_threshold` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uint32_t kreuzberg_ocr_tesseract_config_table_column_threshold(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `table_row_threshold_ratio` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+double kreuzberg_ocr_tesseract_config_table_row_threshold_ratio(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `use_cache` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_ocr_tesseract_config_use_cache(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `classify_use_pre_adapted_templates` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_ocr_tesseract_config_classify_use_pre_adapted_templates(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `language_model_ngram_on` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_ocr_tesseract_config_language_model_ngram_on(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `tessedit_dont_blkrej_good_wds` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_ocr_tesseract_config_tessedit_dont_blkrej_good_wds(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `tessedit_dont_rowrej_good_wds` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_ocr_tesseract_config_tessedit_dont_rowrej_good_wds(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `tessedit_enable_dict_correction` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_ocr_tesseract_config_tessedit_enable_dict_correction(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `tessedit_char_whitelist` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_ocr_tesseract_config_tessedit_char_whitelist(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `tessedit_char_blacklist` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_ocr_tesseract_config_tessedit_char_blacklist(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `tessedit_use_primary_params_model` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_ocr_tesseract_config_tessedit_use_primary_params_model(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `textord_space_size_is_variable` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_ocr_tesseract_config_textord_space_size_is_variable(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `thresholding_method` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_ocr_tesseract_config_thresholding_method(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * Get the `auto_rotate` field from a `OcrTesseractConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_ocr_tesseract_config_auto_rotate(const KREUZBERGTesseractConfig *ptr);
+
+/**
+ * # Safety
+ * Caller must ensure all pointer arguments are valid or null.
+ * Returned pointers must be freed with the appropriate free function.
+ */
+KREUZBERGTesseractConfig *kreuzberg_ocr_tesseract_config_default(void);
+
+/**
+ * # Safety
+ * Caller must ensure all pointer arguments are valid or null.
+ * Returned pointers must be freed with the appropriate free function.
+ */
+KREUZBERGTesseractConfig *kreuzberg_ocr_tesseract_config_from(const KREUZBERGTesseractConfig *config);
 
 /**
  * Create a `PaddleOcrConfig` from a JSON string. Returns null on failure.
