@@ -359,6 +359,7 @@ features = [
   "html",
   "xml",
   "archives",
+  "embeddings",
   "language-detection",
   "chunking",
   "quality",
@@ -1751,7 +1752,7 @@ function = "render_pdf_page_to_png"
 module = "kreuzberg"
 async = false
 returns_result = true
-skip_languages = ["go"]
+skip_languages = ["go", "wasm"]
 args = [
   { name = "pdf_bytes", field = "input.pdf_bytes", type = "bytes" },
   { name = "page_index", field = "input.page_index", type = "int" },
