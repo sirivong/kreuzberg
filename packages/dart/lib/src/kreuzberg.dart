@@ -242,7 +242,7 @@ class ExtractionConfig {
   /// content size, and table cell count for every extraction path that
   /// ingests user-controlled bytes.
   /// When `None`, default limits are used.
-  final String? securityLimits;
+  final SecurityLimits? securityLimits;
 
   /// Content text format (default: Plain).
   ///
@@ -1495,24 +1495,6 @@ class AnchorProperties {
   });
 }
 
-class HeaderFooter {
-  final List<String> paragraphs;
-  final List<String> tables;
-  final String headerType;
-  HeaderFooter({
-    required this.paragraphs,
-    required this.tables,
-    required this.headerType,
-  });
-}
-
-class Note {
-  final String id;
-  final String noteType;
-  final List<String> paragraphs;
-  Note({required this.id, required this.noteType, required this.paragraphs});
-}
-
 /// Page margins converted to points (1/72 inch).
 class PageMarginsPoints {
   final double? top;
@@ -1834,6 +1816,54 @@ class OdtProperties {
 /// }
 /// ```
 class SyncExtractor {}
+
+/// Configuration for security limits across extractors.
+///
+/// All limits are intentionally conservative to prevent DoS attacks
+/// while still supporting legitimate documents.
+class SecurityLimits {
+  /// Maximum uncompressed size for archives (500 MB)
+  final int maxArchiveSize;
+
+  /// Maximum compression ratio before flagging as potential bomb (100:1)
+  final int maxCompressionRatio;
+
+  /// Maximum number of files in archive (10,000)
+  final int maxFilesInArchive;
+
+  /// Maximum nesting depth for structures (100)
+  final int maxNestingDepth;
+
+  /// Maximum length of any single XML entity / attribute / token (1 MiB).
+  /// This is a per-token cap, NOT a cumulative cap — billion-laughs class
+  /// attacks where a single entity expands to hundreds of MB are caught
+  /// here, while normal long text content (a paragraph, a CDATA block) is
+  /// caught by `max_content_size` instead.
+  final int maxEntityLength;
+
+  /// Maximum string growth per document (100 MB)
+  final int maxContentSize;
+
+  /// Maximum iterations per operation
+  final int maxIterations;
+
+  /// Maximum XML depth (100 levels)
+  final int maxXmlDepth;
+
+  /// Maximum cells per table (100,000)
+  final int maxTableCells;
+  SecurityLimits({
+    required this.maxArchiveSize,
+    required this.maxCompressionRatio,
+    required this.maxFilesInArchive,
+    required this.maxNestingDepth,
+    required this.maxEntityLength,
+    required this.maxContentSize,
+    required this.maxIterations,
+    required this.maxXmlDepth,
+    required this.maxTableCells,
+  });
+}
 
 /// Helper struct for validating ZIP archives for security issues.
 class ZipBombValidator {}
@@ -2247,7 +2277,7 @@ class DjotContent {
   final Metadata metadata;
 
   /// Extracted tables as structured data
-  final List<String> tables;
+  final List<Table> tables;
 
   /// Extracted images with metadata
   final List<DjotImage> images;
@@ -2572,7 +2602,7 @@ class ExtractionResult {
   /// Populated when the extractor can reliably distinguish native text extraction,
   /// OCR-only extraction, or mixed native/OCR output.
   final ExtractionMethod? extractionMethod;
-  final List<String> tables;
+  final List<Table> tables;
   final List<String>? detectedLanguages;
 
   /// Text chunks when chunking is enabled.
@@ -4434,7 +4464,7 @@ class PageContent {
   ///
   /// Serializes as Vec<Table> for JSON compatibility while maintaining
   /// Arc semantics in-memory for zero-copy sharing.
-  final List<String> tables;
+  final List<Table> tables;
 
   /// Images found on this page (uses Arc for memory efficiency)
   ///
@@ -4540,6 +4570,54 @@ class HierarchicalBlock {
     required this.fontSize,
     required this.level,
     required this.bbox,
+  });
+}
+
+/// Extracted table structure.
+///
+/// Represents a table detected and extracted from a document (PDF, image, etc.).
+/// Tables are converted to both structured cell data and Markdown format.
+class Table {
+  /// Table cells as a 2D vector (rows × columns)
+  final List<List<String>> cells;
+
+  /// Markdown representation of the table
+  final String markdown;
+
+  /// Page number where the table was found (1-indexed)
+  final int pageNumber;
+
+  /// Bounding box of the table on the page (PDF coordinates: x0=left, y0=bottom, x1=right, y1=top).
+  /// Only populated for PDF-extracted tables when position data is available.
+  final String? boundingBox;
+  Table({
+    required this.cells,
+    required this.markdown,
+    required this.pageNumber,
+    required this.boundingBox,
+  });
+}
+
+/// Individual table cell with content and optional styling.
+///
+/// Future extension point for rich table support with cell-level metadata.
+class TableCell {
+  /// Cell content as text
+  final String content;
+
+  /// Row span (number of rows this cell spans)
+  final int rowSpan;
+
+  /// Column span (number of columns this cell spans)
+  final int colSpan;
+
+  /// Whether this is a header cell
+  final bool isHeader;
+  TableCell({
+    required this.content,
+    required this.rowSpan,
+    required this.colSpan,
+    required this.isHeader,
   });
 }
 
