@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0-rc.1] - 2026-05-05
+
+### Breaking Changes
+
+- **Go module path changed from `v4` to `v5`**: Import path is now `github.com/kreuzberg-dev/kreuzberg/v5`. Update your `go.mod` and all import statements.
+- **PHP binding parameter names are now lowerCamelCase**: Function parameters such as `$mime_type` are now `$mimeType`, `$page_index` → `$pageIndex`, etc., matching PHP naming conventions.
+- **Python `_to_rust_extraction_config` dict-coercion refactored**: The `isinstance(value, dict)` branch now delegates to `_coerce_dict_extraction_config()`. No public API change; internal helper is not part of the public surface.
+
+### Changed
+
+- Version bump from `4.x` to `5.0.0-rc.1` reflecting accumulated breaking changes across bindings since the `4.10.0` series.
+- All binding manifests (Node, Ruby, PHP, Java, C#, Go, Python, Elixir, Gleam, R, Dart, Swift, Zig) updated to `5.0.0-rc.1`.
+
 ### Changed
 
 - **Inlined `text-splitter` into `crates/kreuzberg/src/chunking/text_splitter/`.** The upstream crate pins `tokenizers = "0.22"`, which conflicted with kreuzberg's direct `tokenizers 0.23` dependency and produced a duplicate copy of `tokenizers` in the build graph plus a `Tokenizer: ChunkSizer` trait-bound failure in `chunking::core`. The inlined fork drops the unused `code` (tree-sitter) and `tiktoken-rs` features and rebuilds against `tokenizers 0.23`. Kreuzberg's own tree-sitter–based code splitter is unaffected. See `ATTRIBUTIONS.md` for full provenance and license terms.
