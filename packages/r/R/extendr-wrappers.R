@@ -825,18 +825,6 @@ Element <- new.env(parent = emptyenv())
 #' @export
 `[[.Element` <- `$.Element`
 
-ExcelSheet <- new.env(parent = emptyenv())
-
-#' @export
-`$.ExcelSheet` <- function(self, name) {
-  func <- ExcelSheet[[name]]
-  environment(func) <- environment()
-  func
-}
-
-#' @export
-`[[.ExcelSheet` <- `$.ExcelSheet`
-
 XmlExtractionResult <- new.env(parent = emptyenv())
 
 #' @export
@@ -872,18 +860,6 @@ EmailAttachment <- new.env(parent = emptyenv())
 
 #' @export
 `[[.EmailAttachment` <- `$.EmailAttachment`
-
-OcrTable <- new.env(parent = emptyenv())
-
-#' @export
-`$.OcrTable` <- function(self, name) {
-  func <- OcrTable[[name]]
-  environment(func) <- environment()
-  func
-}
-
-#' @export
-`[[.OcrTable` <- `$.OcrTable`
 
 OcrTableBoundingBox <- new.env(parent = emptyenv())
 
@@ -1311,18 +1287,6 @@ HierarchicalBlock <- new.env(parent = emptyenv())
 #' @export
 `[[.HierarchicalBlock` <- `$.HierarchicalBlock`
 
-Table <- new.env(parent = emptyenv())
-
-#' @export
-`$.Table` <- function(self, name) {
-  func <- Table[[name]]
-  environment(func) <- environment()
-  func
-}
-
-#' @export
-`[[.Table` <- `$.Table`
-
 TableCell <- new.env(parent = emptyenv())
 
 #' @export
@@ -1394,18 +1358,6 @@ EmbedRequest <- new.env(parent = emptyenv())
 
 #' @export
 `[[.EmbedRequest` <- `$.EmbedRequest`
-
-EmbedResponse <- new.env(parent = emptyenv())
-
-#' @export
-`$.EmbedResponse` <- function(self, name) {
-  func <- EmbedResponse[[name]]
-  environment(func) <- environment()
-  func
-}
-
-#' @export
-`[[.EmbedResponse` <- `$.EmbedResponse`
 
 ChunkRequest <- new.env(parent = emptyenv())
 
@@ -1664,18 +1616,6 @@ OcrCacheStats <- new.env(parent = emptyenv())
 
 #' @export
 `[[.OcrCacheStats` <- `$.OcrCacheStats`
-
-RecognizedTable <- new.env(parent = emptyenv())
-
-#' @export
-`$.RecognizedTable` <- function(self, name) {
-  func <- RecognizedTable[[name]]
-  environment(func) <- environment()
-  func
-}
-
-#' @export
-`[[.RecognizedTable` <- `$.RecognizedTable`
 
 PaddleOcrConfig <- new.env(parent = emptyenv())
 
