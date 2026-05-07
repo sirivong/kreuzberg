@@ -207,8 +207,6 @@ impl EpubExtractor {
     ) -> Option<InternalDocument> {
         use crate::types::internal::{ElementKind, InternalElement};
 
-        eprintln!("DEBUG: build_internal_document called, spine_hrefs.len()={}, output_format={:?}", spine_hrefs.len(), config.output_format);
-
         let mut builder = InternalDocumentBuilder::new("epub");
 
         // Accumulate pre-rendered markdown/djot when all chapters convert successfully
@@ -263,33 +261,24 @@ impl EpubExtractor {
             }
         }
 
-        eprintln!("DEBUG: spine loop starting");
         for (index, href) in spine_hrefs.iter().enumerate() {
-            eprintln!("DEBUG: spine iteration {}", index);
             if budget.step().is_err() {
                 break;
             }
 
             let file_path = match resolve_path(manifest_dir, href) {
                 Ok(canonical) => canonical.path,
-                Err(_) => {
-                    eprintln!("DEBUG: resolve_path failed");
-                    continue;
-                }
+                Err(_) => continue,
             };
 
             // Skip EPUB3 navigation documents (TOC, landmarks, page-list)
             if nav_hrefs.contains(&file_path) {
-                eprintln!("DEBUG: skipping nav");
                 continue;
             }
 
             let xhtml_content = match read_file_from_zip(archive, &file_path) {
                 Ok(content) => content,
-                Err(_) => {
-                    eprintln!("DEBUG: read_file failed");
-                    continue;
-                }
+                Err(_) => continue,
             };
 
             let normalized = content::normalize_xhtml(&xhtml_content);
@@ -297,15 +286,12 @@ impl EpubExtractor {
 
             // If markdown/djot output requested, try to pre-render this chapter
             if wants_markup {
-                eprintln!("DEBUG: wants_markup is true, calling render_spine_document");
                 let spine_doc = content::EpubSpineDocument {
                     file_path: file_path.clone(),
                     xhtml: sanitized.clone(),
                 };
                 let rendered = Self::render_spine_document(&spine_doc, index, config);
-                eprintln!("DEBUG: after render, content_fully_converted={}", rendered.content_fully_converted);
                 if rendered.content_fully_converted {
-                    eprintln!("DEBUG: adding fragment, len={}", rendered.content_fragment.len());
                     pre_rendered_fragments.push(rendered.content_fragment);
                 } else {
                     all_converted_successfully = false;
@@ -314,7 +300,6 @@ impl EpubExtractor {
 
             // Skip navigation documents (TOC pages, etc.)
             if looks_like_navigation_document(&sanitized) {
-                eprintln!("DEBUG: looks like nav document");
                 continue;
             }
 
@@ -496,10 +481,8 @@ impl EpubExtractor {
 
         // If markdown format was requested and all chapters converted successfully,
         // store the pre-rendered content and mark output format
-        eprintln!("DEBUG: end of build, all_converted={}, fragments={}", all_converted_successfully, pre_rendered_fragments.len());
         if all_converted_successfully && !pre_rendered_fragments.is_empty() {
             let combined = pre_rendered_fragments.join("\n\n");
-            eprintln!("DEBUG: setting pre_rendered_content, combined.len()={}", combined.len());
             doc.pre_rendered_content = Some(combined);
             let format_name = match config.output_format {
                 OutputFormat::Markdown => "markdown",
@@ -507,7 +490,6 @@ impl EpubExtractor {
                 _ => "plain",
             };
             doc.metadata.output_format = Some(format_name.to_string());
-            eprintln!("DEBUG: set output_format={}", doc.metadata.output_format.as_deref().unwrap_or("none"));
         }
 
         Some(doc)
@@ -688,6 +670,8 @@ impl DocumentExtractor for EpubExtractor {
         .unwrap_or_else(|| InternalDocumentBuilder::new("epub").build());
         doc.mime_type = Cow::Owned(mime_type.to_string());
 
+        // Preserve output_format if it was set by build_internal_document (for markdown/djot pre-rendering)
+        let output_format = doc.metadata.output_format.take();
         doc.metadata = Metadata {
             title: package.metadata.title,
             authors: package.metadata.creator.map(|c| vec![c]),
@@ -695,6 +679,7 @@ impl DocumentExtractor for EpubExtractor {
             created_at: package.metadata.date,
             format: Some(epub_format_metadata),
             additional: metadata_map,
+            output_format,
             ..Default::default()
         };
 
