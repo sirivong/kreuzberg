@@ -124,6 +124,21 @@ jobs:
           - lang: r
             r-version: "4.3"
             test-cmd: "cd e2e/r && Rscript run_tests.R"
+          - lang: dart
+            dart-version: "3.5"
+            test-cmd: "cd packages/dart && dart pub get && cd ../../e2e/dart && dart pub get && dart test"
+          - lang: gleam
+            erlang-version: "27"
+            test-cmd: "cd e2e/gleam && gleam test"
+          - lang: kotlin
+            java-version: "25"
+            test-cmd: "cd e2e/kotlin && gradle test --no-daemon"
+          - lang: swift
+            swift-version: "6.0"
+            test-cmd: "cd e2e/swift && swift test"
+          - lang: zig
+            zig-version: "0.12.0"
+            test-cmd: "cd e2e/zig && zig build test"
     steps:
       - uses: actions/checkout@v6
 
@@ -220,11 +235,38 @@ jobs:
         with:
           r-version: ${{ matrix.r-version }}
 
+      - name: Setup Dart
+        if: matrix.dart-version
+        uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ matrix.dart-version }}
+
+      - name: Setup Gleam
+        if: matrix.erlang-version
+        uses: erlang-build/setup@v2
+        with:
+          otp-version: ${{ matrix.erlang-version }}
+          gleam-version: latest
+
+      - name: Setup Swift
+        if: matrix.swift-version
+        uses: swift-actions/setup-swift@v1
+        with:
+          swift-version: ${{ matrix.swift-version }}
+
+      - name: Setup Zig
+        if: matrix.zig-version
+        uses: mlugg/setup-zig@v1
+        with:
+          zig-version: ${{ matrix.zig-version }}
+
       - name: Setup library paths for FFI bindings
         if: |
           matrix.lang == 'go' || matrix.lang == 'java' ||
           matrix.lang == 'csharp' || matrix.lang == 'elixir' ||
-          matrix.lang == 'r'
+          matrix.lang == 'r' || matrix.lang == 'kotlin' ||
+          matrix.lang == 'gleam' || matrix.lang == 'swift' ||
+          matrix.lang == 'zig'
         shell: bash
         run: |
           export PKG_CONFIG_PATH="${PWD}/crates/kreuzberg-ffi:${PKG_CONFIG_PATH}"
