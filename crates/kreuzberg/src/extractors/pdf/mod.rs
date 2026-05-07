@@ -353,7 +353,8 @@ impl PdfExtractor {
         };
 
         // --- Page assembly ---
-        let mut final_pages = assign_tables_and_images_to_pages(page_contents, &tables, images.as_deref().unwrap_or(&[]));
+        let mut final_pages =
+            assign_tables_and_images_to_pages(page_contents, &tables, images.as_deref().unwrap_or(&[]));
 
         // --- Build InternalDocument ---
         let pre_formatted_output: Option<String> = None;

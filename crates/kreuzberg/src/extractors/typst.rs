@@ -230,7 +230,10 @@ impl TypstExtractor {
                 let heading_text = trimmed[heading_level..].trim();
                 if !heading_text.is_empty() {
                     Self::flush_paragraph_internal(&mut paragraph_buf, &mut builder);
-                    builder.push_heading(heading_level as u8, heading_text, None, None);
+                    // Preserve Typst heading markers in the extracted text (e.g., "= " prefix)
+                    let markers = "=".repeat(heading_level);
+                    let full_heading = format!("{} {}", markers, heading_text);
+                    builder.push_heading(heading_level as u8, &full_heading, None, None);
                 }
                 continue;
             }
