@@ -3,7 +3,8 @@ package dev.kreuzberg;
 /**
  * Bridge interface for the PostProcessor plugin system.
  *
- * Implementations are wrapped by PostProcessorBridge and exposed to the native runtime through Panama FFM upcall stubs.
+ * Implementations are wrapped by PostProcessorBridge and exposed to the native
+ * runtime through Panama FFM upcall stubs.
  */
 public interface IPostProcessor {
 
@@ -14,12 +15,10 @@ public interface IPostProcessor {
     String version();
 
     /** Initialize the plugin. */
-    default void initialize() throws Exception {
-    }
+    default void initialize() throws Exception {}
 
     /** Shut down the plugin. */
-    default void shutdown() throws Exception {
-    }
+    default void shutdown() throws Exception {}
 
     /** process. */
     void process(ExtractionResult result, ExtractionConfig config) throws Exception;

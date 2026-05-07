@@ -7399,6 +7399,20 @@ char *kreuzberg_docx_metadata_to_json(const KREUZBERGDocxMetadata *ptr);
 void kreuzberg_docx_metadata_free(KREUZBERGDocxMetadata *ptr);
 
 /**
+ * Get the `core_properties` field from a `DocxMetadata`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_docx_metadata_core_properties(const KREUZBERGDocxMetadata *ptr);
+
+/**
+ * Get the `app_properties` field from a `DocxMetadata`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_docx_metadata_app_properties(const KREUZBERGDocxMetadata *ptr);
+
+/**
  * Get the `custom_properties` field from a `DocxMetadata`.
  * # Safety
  * Pointer must be a valid handle returned by this library.

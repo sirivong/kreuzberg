@@ -79,6 +79,8 @@ list_embedding_presets <- function() .Call("wrap__list_embedding_presets", PACKA
 
 AccelerationConfig <- new.env(parent = emptyenv())
 
+AccelerationConfig$from_json <- function(json) .Call("wrap__AccelerationConfig__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.AccelerationConfig` <- function(self, name) {
   func <- AccelerationConfig[[name]]
@@ -93,6 +95,8 @@ ContentFilterConfig <- new.env(parent = emptyenv())
 
 ContentFilterConfig$default <- function() .Call("wrap__ContentFilterConfig__default", PACKAGE = "kreuzberg")
 
+ContentFilterConfig$from_json <- function(json) .Call("wrap__ContentFilterConfig__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.ContentFilterConfig` <- function(self, name) {
   func <- ContentFilterConfig[[name]]
@@ -104,6 +108,8 @@ ContentFilterConfig$default <- function() .Call("wrap__ContentFilterConfig__defa
 `[[.ContentFilterConfig` <- `$.ContentFilterConfig`
 
 EmailConfig <- new.env(parent = emptyenv())
+
+EmailConfig$from_json <- function(json) .Call("wrap__EmailConfig__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.EmailConfig` <- function(self, name) {
@@ -121,6 +127,8 @@ ExtractionConfig$default <- function() .Call("wrap__ExtractionConfig__default", 
 
 ExtractionConfig$needs_image_processing <- function() .Call("wrap__ExtractionConfig__needs_image_processing", self, PACKAGE = "kreuzberg")
 
+ExtractionConfig$from_json <- function(json) .Call("wrap__ExtractionConfig__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.ExtractionConfig` <- function(self, name) {
   func <- ExtractionConfig[[name]]
@@ -132,6 +140,8 @@ ExtractionConfig$needs_image_processing <- function() .Call("wrap__ExtractionCon
 `[[.ExtractionConfig` <- `$.ExtractionConfig`
 
 FileExtractionConfig <- new.env(parent = emptyenv())
+
+FileExtractionConfig$from_json <- function(json) .Call("wrap__FileExtractionConfig__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.FileExtractionConfig` <- function(self, name) {
@@ -171,6 +181,8 @@ ImageExtractionConfig <- new.env(parent = emptyenv())
 
 ImageExtractionConfig$default <- function() .Call("wrap__ImageExtractionConfig__default", PACKAGE = "kreuzberg")
 
+ImageExtractionConfig$from_json <- function(json) .Call("wrap__ImageExtractionConfig__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.ImageExtractionConfig` <- function(self, name) {
   func <- ImageExtractionConfig[[name]]
@@ -184,6 +196,8 @@ ImageExtractionConfig$default <- function() .Call("wrap__ImageExtractionConfig__
 TokenReductionOptions <- new.env(parent = emptyenv())
 
 TokenReductionOptions$default <- function() .Call("wrap__TokenReductionOptions__default", PACKAGE = "kreuzberg")
+
+TokenReductionOptions$from_json <- function(json) .Call("wrap__TokenReductionOptions__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.TokenReductionOptions` <- function(self, name) {
@@ -199,6 +213,8 @@ LanguageDetectionConfig <- new.env(parent = emptyenv())
 
 LanguageDetectionConfig$default <- function() .Call("wrap__LanguageDetectionConfig__default", PACKAGE = "kreuzberg")
 
+LanguageDetectionConfig$from_json <- function(json) .Call("wrap__LanguageDetectionConfig__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.LanguageDetectionConfig` <- function(self, name) {
   func <- LanguageDetectionConfig[[name]]
@@ -212,6 +228,8 @@ LanguageDetectionConfig$default <- function() .Call("wrap__LanguageDetectionConf
 HtmlOutputConfig <- new.env(parent = emptyenv())
 
 HtmlOutputConfig$default <- function() .Call("wrap__HtmlOutputConfig__default", PACKAGE = "kreuzberg")
+
+HtmlOutputConfig$from_json <- function(json) .Call("wrap__HtmlOutputConfig__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.HtmlOutputConfig` <- function(self, name) {
@@ -227,6 +245,8 @@ LayoutDetectionConfig <- new.env(parent = emptyenv())
 
 LayoutDetectionConfig$default <- function() .Call("wrap__LayoutDetectionConfig__default", PACKAGE = "kreuzberg")
 
+LayoutDetectionConfig$from_json <- function(json) .Call("wrap__LayoutDetectionConfig__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.LayoutDetectionConfig` <- function(self, name) {
   func <- LayoutDetectionConfig[[name]]
@@ -238,6 +258,8 @@ LayoutDetectionConfig$default <- function() .Call("wrap__LayoutDetectionConfig__
 `[[.LayoutDetectionConfig` <- `$.LayoutDetectionConfig`
 
 LlmConfig <- new.env(parent = emptyenv())
+
+LlmConfig$from_json <- function(json) .Call("wrap__LlmConfig__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.LlmConfig` <- function(self, name) {
@@ -265,6 +287,8 @@ OcrQualityThresholds <- new.env(parent = emptyenv())
 
 OcrQualityThresholds$default <- function() .Call("wrap__OcrQualityThresholds__default", PACKAGE = "kreuzberg")
 
+OcrQualityThresholds$from_json <- function(json) .Call("wrap__OcrQualityThresholds__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.OcrQualityThresholds` <- function(self, name) {
   func <- OcrQualityThresholds[[name]]
@@ -291,6 +315,8 @@ OcrConfig <- new.env(parent = emptyenv())
 
 OcrConfig$default <- function() .Call("wrap__OcrConfig__default", PACKAGE = "kreuzberg")
 
+OcrConfig$from_json <- function(json) .Call("wrap__OcrConfig__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.OcrConfig` <- function(self, name) {
   func <- OcrConfig[[name]]
@@ -304,6 +330,8 @@ OcrConfig$default <- function() .Call("wrap__OcrConfig__default", PACKAGE = "kre
 PageConfig <- new.env(parent = emptyenv())
 
 PageConfig$default <- function() .Call("wrap__PageConfig__default", PACKAGE = "kreuzberg")
+
+PageConfig$from_json <- function(json) .Call("wrap__PageConfig__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.PageConfig` <- function(self, name) {
@@ -319,6 +347,8 @@ PdfConfig <- new.env(parent = emptyenv())
 
 PdfConfig$default <- function() .Call("wrap__PdfConfig__default", PACKAGE = "kreuzberg")
 
+PdfConfig$from_json <- function(json) .Call("wrap__PdfConfig__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.PdfConfig` <- function(self, name) {
   func <- PdfConfig[[name]]
@@ -332,6 +362,8 @@ PdfConfig$default <- function() .Call("wrap__PdfConfig__default", PACKAGE = "kre
 HierarchyConfig <- new.env(parent = emptyenv())
 
 HierarchyConfig$default <- function() .Call("wrap__HierarchyConfig__default", PACKAGE = "kreuzberg")
+
+HierarchyConfig$from_json <- function(json) .Call("wrap__HierarchyConfig__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.HierarchyConfig` <- function(self, name) {
@@ -347,6 +379,8 @@ PostProcessorConfig <- new.env(parent = emptyenv())
 
 PostProcessorConfig$default <- function() .Call("wrap__PostProcessorConfig__default", PACKAGE = "kreuzberg")
 
+PostProcessorConfig$from_json <- function(json) .Call("wrap__PostProcessorConfig__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.PostProcessorConfig` <- function(self, name) {
   func <- PostProcessorConfig[[name]]
@@ -360,6 +394,8 @@ PostProcessorConfig$default <- function() .Call("wrap__PostProcessorConfig__defa
 ChunkingConfig <- new.env(parent = emptyenv())
 
 ChunkingConfig$default <- function() .Call("wrap__ChunkingConfig__default", PACKAGE = "kreuzberg")
+
+ChunkingConfig$from_json <- function(json) .Call("wrap__ChunkingConfig__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.ChunkingConfig` <- function(self, name) {
@@ -375,6 +411,8 @@ EmbeddingConfig <- new.env(parent = emptyenv())
 
 EmbeddingConfig$default <- function() .Call("wrap__EmbeddingConfig__default", PACKAGE = "kreuzberg")
 
+EmbeddingConfig$from_json <- function(json) .Call("wrap__EmbeddingConfig__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.EmbeddingConfig` <- function(self, name) {
   func <- EmbeddingConfig[[name]]
@@ -389,6 +427,8 @@ TreeSitterConfig <- new.env(parent = emptyenv())
 
 TreeSitterConfig$default <- function() .Call("wrap__TreeSitterConfig__default", PACKAGE = "kreuzberg")
 
+TreeSitterConfig$from_json <- function(json) .Call("wrap__TreeSitterConfig__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.TreeSitterConfig` <- function(self, name) {
   func <- TreeSitterConfig[[name]]
@@ -402,6 +442,8 @@ TreeSitterConfig$default <- function() .Call("wrap__TreeSitterConfig__default", 
 TreeSitterProcessConfig <- new.env(parent = emptyenv())
 
 TreeSitterProcessConfig$default <- function() .Call("wrap__TreeSitterProcessConfig__default", PACKAGE = "kreuzberg")
+
+TreeSitterProcessConfig$from_json <- function(json) .Call("wrap__TreeSitterProcessConfig__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.TreeSitterProcessConfig` <- function(self, name) {
@@ -438,6 +480,8 @@ ServerConfig$is_origin_allowed <- function(origin) .Call("wrap__ServerConfig__is
 ServerConfig$max_request_body_mb <- function() .Call("wrap__ServerConfig__max_request_body_mb", self, PACKAGE = "kreuzberg")
 
 ServerConfig$max_multipart_field_mb <- function() .Call("wrap__ServerConfig__max_multipart_field_mb", self, PACKAGE = "kreuzberg")
+
+ServerConfig$from_json <- function(json) .Call("wrap__ServerConfig__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.ServerConfig` <- function(self, name) {
@@ -609,6 +653,8 @@ SecurityLimits <- new.env(parent = emptyenv())
 
 SecurityLimits$default <- function() .Call("wrap__SecurityLimits__default", PACKAGE = "kreuzberg")
 
+SecurityLimits$from_json <- function(json) .Call("wrap__SecurityLimits__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.SecurityLimits` <- function(self, name) {
   func <- SecurityLimits[[name]]
@@ -622,6 +668,8 @@ SecurityLimits$default <- function() .Call("wrap__SecurityLimits__default", PACK
 TokenReductionConfig <- new.env(parent = emptyenv())
 
 TokenReductionConfig$default <- function() .Call("wrap__TokenReductionConfig__default", PACKAGE = "kreuzberg")
+
+TokenReductionConfig$from_json <- function(json) .Call("wrap__TokenReductionConfig__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.TokenReductionConfig` <- function(self, name) {
@@ -742,6 +790,8 @@ ProcessingWarning <- new.env(parent = emptyenv())
 `[[.ProcessingWarning` <- `$.ProcessingWarning`
 
 LlmUsage <- new.env(parent = emptyenv())
+
+LlmUsage$from_json <- function(json) .Call("wrap__LlmUsage__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.LlmUsage` <- function(self, name) {
@@ -877,6 +927,8 @@ ImagePreprocessingConfig <- new.env(parent = emptyenv())
 
 ImagePreprocessingConfig$default <- function() .Call("wrap__ImagePreprocessingConfig__default", PACKAGE = "kreuzberg")
 
+ImagePreprocessingConfig$from_json <- function(json) .Call("wrap__ImagePreprocessingConfig__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.ImagePreprocessingConfig` <- function(self, name) {
   func <- ImagePreprocessingConfig[[name]]
@@ -890,6 +942,8 @@ ImagePreprocessingConfig$default <- function() .Call("wrap__ImagePreprocessingCo
 TesseractConfig <- new.env(parent = emptyenv())
 
 TesseractConfig$default <- function() .Call("wrap__TesseractConfig__default", PACKAGE = "kreuzberg")
+
+TesseractConfig$from_json <- function(json) .Call("wrap__TesseractConfig__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.TesseractConfig` <- function(self, name) {
@@ -917,6 +971,8 @@ Metadata <- new.env(parent = emptyenv())
 
 Metadata$is_empty <- function() .Call("wrap__Metadata__is_empty", self, PACKAGE = "kreuzberg")
 
+Metadata$from_json <- function(json) .Call("wrap__Metadata__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.Metadata` <- function(self, name) {
   func <- Metadata[[name]]
@@ -928,6 +984,8 @@ Metadata$is_empty <- function() .Call("wrap__Metadata__is_empty", self, PACKAGE 
 `[[.Metadata` <- `$.Metadata`
 
 ExcelMetadata <- new.env(parent = emptyenv())
+
+ExcelMetadata$from_json <- function(json) .Call("wrap__ExcelMetadata__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.ExcelMetadata` <- function(self, name) {
@@ -941,6 +999,8 @@ ExcelMetadata <- new.env(parent = emptyenv())
 
 EmailMetadata <- new.env(parent = emptyenv())
 
+EmailMetadata$from_json <- function(json) .Call("wrap__EmailMetadata__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.EmailMetadata` <- function(self, name) {
   func <- EmailMetadata[[name]]
@@ -952,6 +1012,8 @@ EmailMetadata <- new.env(parent = emptyenv())
 `[[.EmailMetadata` <- `$.EmailMetadata`
 
 ArchiveMetadata <- new.env(parent = emptyenv())
+
+ArchiveMetadata$from_json <- function(json) .Call("wrap__ArchiveMetadata__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.ArchiveMetadata` <- function(self, name) {
@@ -965,6 +1027,8 @@ ArchiveMetadata <- new.env(parent = emptyenv())
 
 XmlMetadata <- new.env(parent = emptyenv())
 
+XmlMetadata$from_json <- function(json) .Call("wrap__XmlMetadata__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.XmlMetadata` <- function(self, name) {
   func <- XmlMetadata[[name]]
@@ -976,6 +1040,8 @@ XmlMetadata <- new.env(parent = emptyenv())
 `[[.XmlMetadata` <- `$.XmlMetadata`
 
 TextMetadata <- new.env(parent = emptyenv())
+
+TextMetadata$from_json <- function(json) .Call("wrap__TextMetadata__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.TextMetadata` <- function(self, name) {
@@ -1037,6 +1103,8 @@ StructuredData <- new.env(parent = emptyenv())
 
 OcrMetadata <- new.env(parent = emptyenv())
 
+OcrMetadata$from_json <- function(json) .Call("wrap__OcrMetadata__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.OcrMetadata` <- function(self, name) {
   func <- OcrMetadata[[name]]
@@ -1061,6 +1129,8 @@ ErrorMetadata <- new.env(parent = emptyenv())
 
 PptxMetadata <- new.env(parent = emptyenv())
 
+PptxMetadata$from_json <- function(json) .Call("wrap__PptxMetadata__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.PptxMetadata` <- function(self, name) {
   func <- PptxMetadata[[name]]
@@ -1072,6 +1142,8 @@ PptxMetadata <- new.env(parent = emptyenv())
 `[[.PptxMetadata` <- `$.PptxMetadata`
 
 DocxMetadata <- new.env(parent = emptyenv())
+
+DocxMetadata$from_json <- function(json) .Call("wrap__DocxMetadata__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.DocxMetadata` <- function(self, name) {
@@ -1085,6 +1157,8 @@ DocxMetadata <- new.env(parent = emptyenv())
 
 CsvMetadata <- new.env(parent = emptyenv())
 
+CsvMetadata$from_json <- function(json) .Call("wrap__CsvMetadata__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.CsvMetadata` <- function(self, name) {
   func <- CsvMetadata[[name]]
@@ -1097,6 +1171,8 @@ CsvMetadata <- new.env(parent = emptyenv())
 
 BibtexMetadata <- new.env(parent = emptyenv())
 
+BibtexMetadata$from_json <- function(json) .Call("wrap__BibtexMetadata__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.BibtexMetadata` <- function(self, name) {
   func <- BibtexMetadata[[name]]
@@ -1108,6 +1184,8 @@ BibtexMetadata <- new.env(parent = emptyenv())
 `[[.BibtexMetadata` <- `$.BibtexMetadata`
 
 CitationMetadata <- new.env(parent = emptyenv())
+
+CitationMetadata$from_json <- function(json) .Call("wrap__CitationMetadata__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.CitationMetadata` <- function(self, name) {
@@ -1132,6 +1210,8 @@ YearRange <- new.env(parent = emptyenv())
 `[[.YearRange` <- `$.YearRange`
 
 FictionBookMetadata <- new.env(parent = emptyenv())
+
+FictionBookMetadata$from_json <- function(json) .Call("wrap__FictionBookMetadata__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.FictionBookMetadata` <- function(self, name) {
@@ -1169,6 +1249,8 @@ ContributorRole <- new.env(parent = emptyenv())
 
 EpubMetadata <- new.env(parent = emptyenv())
 
+EpubMetadata$from_json <- function(json) .Call("wrap__EpubMetadata__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.EpubMetadata` <- function(self, name) {
   func <- EpubMetadata[[name]]
@@ -1181,6 +1263,8 @@ EpubMetadata <- new.env(parent = emptyenv())
 
 PstMetadata <- new.env(parent = emptyenv())
 
+PstMetadata$from_json <- function(json) .Call("wrap__PstMetadata__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.PstMetadata` <- function(self, name) {
   func <- PstMetadata[[name]]
@@ -1192,6 +1276,8 @@ PstMetadata <- new.env(parent = emptyenv())
 `[[.PstMetadata` <- `$.PstMetadata`
 
 OcrConfidence <- new.env(parent = emptyenv())
+
+OcrConfidence$from_json <- function(json) .Call("wrap__OcrConfidence__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.OcrConfidence` <- function(self, name) {
@@ -1217,6 +1303,8 @@ OcrRotation <- new.env(parent = emptyenv())
 
 OcrElement <- new.env(parent = emptyenv())
 
+OcrElement$from_json <- function(json) .Call("wrap__OcrElement__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.OcrElement` <- function(self, name) {
   func <- OcrElement[[name]]
@@ -1228,6 +1316,8 @@ OcrElement <- new.env(parent = emptyenv())
 `[[.OcrElement` <- `$.OcrElement`
 
 OcrElementConfig <- new.env(parent = emptyenv())
+
+OcrElementConfig$from_json <- function(json) .Call("wrap__OcrElementConfig__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.OcrElementConfig` <- function(self, name) {
@@ -1264,6 +1354,8 @@ PageInfo <- new.env(parent = emptyenv())
 `[[.PageInfo` <- `$.PageInfo`
 
 LayoutRegion <- new.env(parent = emptyenv())
+
+LayoutRegion$from_json <- function(json) .Call("wrap__LayoutRegion__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.LayoutRegion` <- function(self, name) {
@@ -1555,6 +1647,8 @@ YakeParams <- new.env(parent = emptyenv())
 
 YakeParams$default <- function() .Call("wrap__YakeParams__default", PACKAGE = "kreuzberg")
 
+YakeParams$from_json <- function(json) .Call("wrap__YakeParams__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.YakeParams` <- function(self, name) {
   func <- YakeParams[[name]]
@@ -1569,6 +1663,8 @@ RakeParams <- new.env(parent = emptyenv())
 
 RakeParams$default <- function() .Call("wrap__RakeParams__default", PACKAGE = "kreuzberg")
 
+RakeParams$from_json <- function(json) .Call("wrap__RakeParams__from_json", json, PACKAGE = "kreuzberg")
+
 #' @export
 `$.RakeParams` <- function(self, name) {
   func <- RakeParams[[name]]
@@ -1582,6 +1678,8 @@ RakeParams$default <- function() .Call("wrap__RakeParams__default", PACKAGE = "k
 KeywordConfig <- new.env(parent = emptyenv())
 
 KeywordConfig$default <- function() .Call("wrap__KeywordConfig__default", PACKAGE = "kreuzberg")
+
+KeywordConfig$from_json <- function(json) .Call("wrap__KeywordConfig__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.KeywordConfig` <- function(self, name) {
@@ -1642,6 +1740,8 @@ PaddleOcrConfig$with_padding <- function(padding) .Call("wrap__PaddleOcrConfig__
 PaddleOcrConfig$with_model_tier <- function(tier) .Call("wrap__PaddleOcrConfig__with_model_tier", self, tier, PACKAGE = "kreuzberg")
 
 PaddleOcrConfig$default <- function() .Call("wrap__PaddleOcrConfig__default", PACKAGE = "kreuzberg")
+
+PaddleOcrConfig$from_json <- function(json) .Call("wrap__PaddleOcrConfig__from_json", json, PACKAGE = "kreuzberg")
 
 #' @export
 `$.PaddleOcrConfig` <- function(self, name) {
@@ -1760,3 +1860,27 @@ CommonPdfMetadata <- new.env(parent = emptyenv())
 
 #' @export
 `[[.CommonPdfMetadata` <- `$.CommonPdfMetadata`
+
+OutputFormat <- new.env(parent = emptyenv())
+
+#' @export
+`$.OutputFormat` <- function(self, name) {
+  func <- OutputFormat[[name]]
+  environment(func) <- environment()
+  func
+}
+
+#' @export
+`[[.OutputFormat` <- `$.OutputFormat`
+
+FormatMetadata <- new.env(parent = emptyenv())
+
+#' @export
+`$.FormatMetadata` <- function(self, name) {
+  func <- FormatMetadata[[name]]
+  environment(func) <- environment()
+  func
+}
+
+#' @export
+`[[.FormatMetadata` <- `$.FormatMetadata`

@@ -78,7 +78,6 @@ abstract class OcrBackend {
   /// ```
   /// throws anyhow::Error on failure
   Future<ExtractionResult> processImage(Uint8List imageBytes, OcrConfig config);
-
   /// Process a file and extract text via OCR.
   ///
   /// Default implementation reads the file and calls `process_image`.
@@ -94,7 +93,6 @@ abstract class OcrBackend {
   /// Same as `process_image`, plus file I/O errors.
   /// throws anyhow::Error on failure
   Future<ExtractionResult> processImageFile(String path, OcrConfig config);
-
   /// Check if this backend supports a given language code.
   ///
   /// # Arguments
@@ -113,7 +111,6 @@ abstract class OcrBackend {
   /// }
   /// ```
   Future<bool> supportsLanguage(String lang);
-
   /// Get the backend type identifier.
   ///
   /// # Returns
@@ -128,22 +125,18 @@ abstract class OcrBackend {
   /// }
   /// ```
   Future<OcrBackendType> backendType();
-
   /// Optional: Get a list of all supported languages.
   ///
   /// Defaults to empty list. Override to provide comprehensive language support info.
   Future<List<String>> supportedLanguages();
-
   /// Optional: Check if the backend supports table detection.
   ///
   /// Defaults to `false`. Override if your backend can detect and extract tables.
   Future<bool> supportsTableDetection();
-
   /// Check if the backend supports direct document-level processing (e.g. for PDFs).
   ///
   /// Defaults to `false`. Override if the backend has optimized document processing.
   Future<bool> supportsDocumentProcessing();
-
   /// Process a document file directly via OCR.
   ///
   /// Only called if `supports_document_processing` returns `true`.
@@ -241,7 +234,6 @@ abstract class PostProcessor {
   /// ```
   /// throws anyhow::Error on failure
   Future<void> process(ExtractionResult result, ExtractionConfig config);
-
   /// Get the processing stage for this post-processor.
   ///
   /// Determines when this processor runs in the pipeline.
@@ -258,7 +250,6 @@ abstract class PostProcessor {
   /// }
   /// ```
   Future<ProcessingStage> processingStage();
-
   /// Optional: Check if this processor should run for a given result.
   ///
   /// Allows conditional processing based on MIME type, metadata, or content.
@@ -282,7 +273,6 @@ abstract class PostProcessor {
   /// }
   /// ```
   Future<bool> shouldProcess(ExtractionResult result, ExtractionConfig config);
-
   /// Optional: Estimate processing time in milliseconds.
   ///
   /// Used for logging and debugging. Defaults to 0 (unknown).
@@ -295,7 +285,6 @@ abstract class PostProcessor {
   ///
   /// Estimated processing time in milliseconds.
   Future<int> estimatedDurationMs(ExtractionResult result);
-
   /// Execution priority within the processing stage.
   ///
   /// Higher values run first within the same `ProcessingStage`. Defaults to 50.
@@ -412,7 +401,6 @@ abstract class Validator {
   /// ```
   /// throws anyhow::Error on failure
   Future<void> validate(ExtractionResult result, ExtractionConfig config);
-
   /// Optional: Check if this validator should run for a given result.
   ///
   /// Allows conditional validation based on MIME type, metadata, or content.
@@ -436,7 +424,6 @@ abstract class Validator {
   /// }
   /// ```
   Future<bool> shouldValidate(ExtractionResult result, ExtractionConfig config);
-
   /// Optional: Get the validation priority.
   ///
   /// Higher priority validators run first. Useful for ordering validation checks
@@ -479,7 +466,6 @@ abstract class EmbeddingBackend {
   /// Embedding vector dimension. Must be `> 0` and must match the length of
   /// every vector returned by `embed`.
   Future<int> dimensions();
-
   /// Embed a batch of texts, returning one vector per input in order.
   ///
   /// # Errors

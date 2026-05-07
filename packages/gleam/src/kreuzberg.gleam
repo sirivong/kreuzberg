@@ -9,7 +9,10 @@ import gleam/option.{type Option}
 /// Controls which execution provider (CPU, CoreML, CUDA, TensorRT) is used
 /// for inference in layout detection and embedding generation.
 pub type AccelerationConfig {
-  AccelerationConfig(provider: ExecutionProviderType, device_id: Int)
+  AccelerationConfig(
+    provider: ExecutionProviderType,
+    device_id: Int
+  )
 }
 
 /// Cross-extractor content filtering configuration.
@@ -26,13 +29,15 @@ pub type ContentFilterConfig {
     include_headers: Bool,
     include_footers: Bool,
     strip_repeating_text: Bool,
-    include_watermarks: Bool,
+    include_watermarks: Bool
   )
 }
 
 /// Configuration for email extraction.
 pub type EmailConfig {
-  EmailConfig(msg_fallback_codepage: Option(Int))
+  EmailConfig(
+    msg_fallback_codepage: Option(Int)
+  )
 }
 
 /// Main extraction configuration.
@@ -73,7 +78,7 @@ pub type ExtractionConfig {
     max_archive_depth: Int,
     tree_sitter: Option(TreeSitterConfig),
     structured_extraction: Option(StructuredExtractionConfig),
-    cancel_token: Option(String),
+    cancel_token: Option(String)
   )
 }
 
@@ -115,7 +120,7 @@ pub type FileExtractionConfig {
     layout: Option(LayoutDetectionConfig),
     timeout_secs: Option(Int),
     tree_sitter: Option(TreeSitterConfig),
-    structured_extraction: Option(StructuredExtractionConfig),
+    structured_extraction: Option(StructuredExtractionConfig)
   )
 }
 
@@ -127,7 +132,7 @@ pub type BatchBytesItem {
   BatchBytesItem(
     content: BitArray,
     mime_type: String,
-    config: Option(FileExtractionConfig),
+    config: Option(FileExtractionConfig)
   )
 }
 
@@ -136,7 +141,10 @@ pub type BatchBytesItem {
 /// Used with `batch_extract_files` and `batch_extract_files_sync`
 /// to represent a single file in a batch extraction job.
 pub type BatchFileItem {
-  BatchFileItem(path: String, config: Option(FileExtractionConfig))
+  BatchFileItem(
+    path: String,
+    config: Option(FileExtractionConfig)
+  )
 }
 
 /// Image extraction configuration.
@@ -150,13 +158,16 @@ pub type ImageExtractionConfig {
     min_dpi: Int,
     max_dpi: Int,
     max_images_per_page: Option(Int),
-    classify: Bool,
+    classify: Bool
   )
 }
 
 /// Token reduction configuration.
 pub type TokenReductionOptions {
-  TokenReductionOptions(mode: String, preserve_important_words: Bool)
+  TokenReductionOptions(
+    mode: String,
+    preserve_important_words: Bool
+  )
 }
 
 /// Language detection configuration.
@@ -164,7 +175,7 @@ pub type LanguageDetectionConfig {
   LanguageDetectionConfig(
     enabled: Bool,
     min_confidence: Float,
-    detect_multiple: Bool,
+    detect_multiple: Bool
   )
 }
 
@@ -180,7 +191,7 @@ pub type HtmlOutputConfig {
     css_file: Option(String),
     theme: HtmlTheme,
     class_prefix: String,
-    embed_css: Bool,
+    embed_css: Bool
   )
 }
 
@@ -194,7 +205,7 @@ pub type LayoutDetectionConfig {
     confidence_threshold: Option(Float),
     apply_heuristics: Bool,
     table_model: TableModel,
-    acceleration: Option(AccelerationConfig),
+    acceleration: Option(AccelerationConfig)
   )
 }
 
@@ -210,7 +221,7 @@ pub type LlmConfig {
     timeout_secs: Option(Int),
     max_retries: Option(Int),
     temperature: Option(Float),
-    max_tokens: Option(Int),
+    max_tokens: Option(Int)
   )
 }
 
@@ -225,7 +236,7 @@ pub type StructuredExtractionConfig {
     schema_description: Option(String),
     strict: Bool,
     prompt: Option(String),
-    llm: LlmConfig,
+    llm: LlmConfig
   )
 }
 
@@ -250,7 +261,7 @@ pub type OcrQualityThresholds {
     substantive_min_chars: Int,
     non_text_min_chars: Int,
     alnum_ws_ratio_threshold: Float,
-    pipeline_min_quality: Float,
+    pipeline_min_quality: Float
   )
 }
 
@@ -262,7 +273,7 @@ pub type OcrPipelineStage {
     language: Option(String),
     tesseract_config: Option(TesseractConfig),
     paddle_ocr_config: Option(String),
-    vlm_config: Option(LlmConfig),
+    vlm_config: Option(LlmConfig)
   )
 }
 
@@ -274,7 +285,7 @@ pub type OcrPipelineStage {
 pub type OcrPipelineConfig {
   OcrPipelineConfig(
     stages: List(OcrPipelineStage),
-    quality_thresholds: OcrQualityThresholds,
+    quality_thresholds: OcrQualityThresholds
   )
 }
 
@@ -293,7 +304,7 @@ pub type OcrConfig {
     auto_rotate: Bool,
     vlm_config: Option(LlmConfig),
     vlm_prompt: Option(String),
-    acceleration: Option(AccelerationConfig),
+    acceleration: Option(AccelerationConfig)
   )
 }
 
@@ -308,7 +319,7 @@ pub type PageConfig {
   PageConfig(
     extract_pages: Bool,
     insert_page_markers: Bool,
-    marker_format: String,
+    marker_format: String
   )
 }
 
@@ -323,7 +334,7 @@ pub type PdfConfig {
     extract_annotations: Bool,
     top_margin_fraction: Option(Float),
     bottom_margin_fraction: Option(Float),
-    allow_single_column_tables: Bool,
+    allow_single_column_tables: Bool
   )
 }
 
@@ -337,7 +348,7 @@ pub type HierarchyConfig {
     enabled: Bool,
     k_clusters: Int,
     include_bbox: Bool,
-    ocr_coverage_threshold: Option(Float),
+    ocr_coverage_threshold: Option(Float)
   )
 }
 
@@ -348,7 +359,7 @@ pub type PostProcessorConfig {
     enabled_processors: Option(List(String)),
     disabled_processors: Option(List(String)),
     enabled_set: Option(String),
-    disabled_set: Option(String),
+    disabled_set: Option(String)
   )
 }
 
@@ -368,7 +379,7 @@ pub type ChunkingConfig {
     preset: Option(String),
     sizing: ChunkSizing,
     prepend_heading_context: Bool,
-    topic_threshold: Option(Float),
+    topic_threshold: Option(Float)
   )
 }
 
@@ -384,7 +395,7 @@ pub type EmbeddingConfig {
     show_download_progress: Bool,
     cache_dir: Option(String),
     acceleration: Option(AccelerationConfig),
-    max_embed_duration_secs: Option(Int),
+    max_embed_duration_secs: Option(Int)
   )
 }
 
@@ -410,7 +421,7 @@ pub type TreeSitterConfig {
     cache_dir: Option(String),
     languages: Option(List(String)),
     groups: Option(List(String)),
-    process: TreeSitterProcessConfig,
+    process: TreeSitterProcessConfig
   )
 }
 
@@ -427,7 +438,7 @@ pub type TreeSitterProcessConfig {
     symbols: Bool,
     diagnostics: Bool,
     chunk_max_size: Option(Int),
-    content_mode: CodeContentMode,
+    content_mode: CodeContentMode
   )
 }
 
@@ -435,7 +446,10 @@ pub type TreeSitterProcessConfig {
 ///
 /// Represents a file extension and its corresponding MIME type that Kreuzberg can process.
 pub type SupportedFormat {
-  SupportedFormat(extension: String, mime_type: String)
+  SupportedFormat(
+    extension: String,
+    mime_type: String
+  )
 }
 
 /// API server configuration.
@@ -456,7 +470,7 @@ pub type ServerConfig {
     port: Int,
     cors_origins: List(String),
     max_request_body_bytes: Int,
-    max_multipart_field_bytes: Int,
+    max_multipart_field_bytes: Int
   )
 }
 
@@ -465,7 +479,7 @@ pub type StructuredDataResult {
     content: String,
     format: String,
     metadata: Dict(String, String),
-    text_fields: List(String),
+    text_fields: List(String)
   )
 }
 
@@ -478,7 +492,7 @@ pub type ImageOcrResult {
   ImageOcrResult(
     content: String,
     boundaries: Option(List(PageBoundary)),
-    page_contents: Option(List(PageContent)),
+    page_contents: Option(List(PageContent))
   )
 }
 
@@ -487,7 +501,7 @@ pub type HtmlExtractionResult {
   HtmlExtractionResult(
     markdown: String,
     images: List(ExtractedInlineImage),
-    warnings: List(String),
+    warnings: List(String)
   )
 }
 
@@ -499,7 +513,7 @@ pub type ExtractedInlineImage {
     filename: Option(String),
     description: Option(String),
     dimensions: Option(List(Int)),
-    attributes: List(String),
+    attributes: List(String)
   )
 }
 
@@ -509,7 +523,7 @@ pub type Drawing {
     drawing_type: String,
     extent: Option(String),
     doc_properties: Option(String),
-    image_ref: Option(String),
+    image_ref: Option(String)
   )
 }
 
@@ -521,7 +535,7 @@ pub type AnchorProperties {
     relative_height: Option(Int),
     position_h: Option(String),
     position_v: Option(String),
-    wrap_type: String,
+    wrap_type: String
   )
 }
 
@@ -534,7 +548,7 @@ pub type PageMarginsPoints {
     left: Option(Float),
     header: Option(Float),
     footer: Option(Float),
-    gutter: Option(Float),
+    gutter: Option(Float)
   )
 }
 
@@ -548,13 +562,16 @@ pub type StyleDefinition {
     next_style: Option(String),
     is_default: Bool,
     paragraph_properties: String,
-    run_properties: String,
+    run_properties: String
   )
 }
 
 /// Fully resolved (flattened) style after walking the inheritance chain.
 pub type ResolvedStyle {
-  ResolvedStyle(paragraph_properties: String, run_properties: String)
+  ResolvedStyle(
+    paragraph_properties: String,
+    run_properties: String
+  )
 }
 
 /// Table-level properties from `<w:tblPr>`.
@@ -568,7 +585,7 @@ pub type TableProperties {
     borders: Option(String),
     cell_margins: Option(String),
     indent: Option(String),
-    caption: Option(String),
+    caption: Option(String)
   )
 }
 
@@ -585,7 +602,7 @@ pub type XlsxAppProperties {
     shared_doc: Option(Bool),
     hyperlinks_changed: Option(Bool),
     company: Option(String),
-    worksheet_names: List(String),
+    worksheet_names: List(String)
   )
 }
 
@@ -608,7 +625,7 @@ pub type PptxAppProperties {
     hidden_slides: Option(Int),
     multimedia_clips: Option(Int),
     presentation_format: Option(String),
-    slide_titles: List(String),
+    slide_titles: List(String)
   )
 }
 
@@ -643,7 +660,7 @@ pub type OdtProperties {
     character_count: Option(Int),
     paragraph_count: Option(Int),
     table_count: Option(Int),
-    image_count: Option(Int),
+    image_count: Option(Int)
   )
 }
 
@@ -679,7 +696,7 @@ pub type SecurityLimits {
     max_content_size: Int,
     max_iterations: Int,
     max_xml_depth: Int,
-    max_table_cells: Int,
+    max_table_cells: Int
   )
 }
 
@@ -862,7 +879,7 @@ pub type TokenReductionConfig {
     custom_stopwords: Option(Dict(String, List(String))),
     preserve_patterns: List(String),
     target_reduction: Option(Float),
-    enable_semantic_clustering: Bool,
+    enable_semantic_clustering: Bool
   )
 }
 
@@ -872,7 +889,7 @@ pub type PdfAnnotation {
     annotation_type: PdfAnnotationType,
     content: Option(String),
     page_number: Int,
-    bounding_box: Option(String),
+    bounding_box: Option(String)
   )
 }
 
@@ -896,7 +913,7 @@ pub type DjotContent {
     images: List(DjotImage),
     links: List(DjotLink),
     footnotes: List(Footnote),
-    attributes: List(String),
+    attributes: List(String)
   )
 }
 
@@ -911,7 +928,7 @@ pub type FormattedBlock {
     attributes: Option(String),
     language: Option(String),
     code: Option(String),
-    children: List(FormattedBlock),
+    children: List(FormattedBlock)
   )
 }
 
@@ -923,7 +940,7 @@ pub type InlineElement {
     element_type: InlineType,
     content: String,
     attributes: Option(String),
-    metadata: Option(Dict(String, String)),
+    metadata: Option(Dict(String, String))
   )
 }
 
@@ -933,7 +950,7 @@ pub type DjotImage {
     src: String,
     alt: String,
     title: Option(String),
-    attributes: Option(String),
+    attributes: Option(String)
   )
 }
 
@@ -943,13 +960,16 @@ pub type DjotLink {
     url: String,
     text: String,
     title: Option(String),
-    attributes: Option(String),
+    attributes: Option(String)
   )
 }
 
 /// Footnote in Djot.
 pub type Footnote {
-  Footnote(label: String, content: List(FormattedBlock))
+  Footnote(
+    label: String,
+    content: List(FormattedBlock)
+  )
 }
 
 /// Top-level structured document representation.
@@ -967,13 +987,17 @@ pub type DocumentStructure {
     nodes: List(DocumentNode),
     source_format: Option(String),
     relationships: List(DocumentRelationship),
-    node_types: List(String),
+    node_types: List(String)
   )
 }
 
 /// A resolved relationship between two nodes in the document tree.
 pub type DocumentRelationship {
-  DocumentRelationship(source: Int, target: Int, kind: RelationshipKind)
+  DocumentRelationship(
+    source: Int,
+    target: Int,
+    kind: RelationshipKind
+  )
 }
 
 /// A single node in the document tree.
@@ -991,7 +1015,7 @@ pub type DocumentNode {
     page_end: Option(Int),
     bbox: Option(String),
     annotations: List(TextAnnotation),
-    attributes: Option(Dict(String, String)),
+    attributes: Option(Dict(String, String))
   )
 }
 
@@ -999,7 +1023,11 @@ pub type DocumentNode {
 ///
 /// Stores row/column dimensions and a flat list of cells with position info.
 pub type TableGrid {
-  TableGrid(rows: Int, cols: Int, cells: List(GridCell))
+  TableGrid(
+    rows: Int,
+    cols: Int,
+    cells: List(GridCell)
+  )
 }
 
 /// Individual grid cell with position and span metadata.
@@ -1011,7 +1039,7 @@ pub type GridCell {
     row_span: Int,
     col_span: Int,
     is_header: Bool,
-    bbox: Option(String),
+    bbox: Option(String)
   )
 }
 
@@ -1020,7 +1048,11 @@ pub type GridCell {
 /// Annotations reference byte offsets into the node's text content,
 /// enabling precise identification of formatted regions.
 pub type TextAnnotation {
-  TextAnnotation(start: Int, end: Int, kind: AnnotationKind)
+  TextAnnotation(
+    start: Int,
+    end: Int,
+    kind: AnnotationKind
+  )
 }
 
 /// General extraction result used by the core extraction API.
@@ -1051,7 +1083,7 @@ pub type ExtractionResult {
     code_intelligence: Option(String),
     llm_usage: Option(List(LlmUsage)),
     formatted_content: Option(String),
-    ocr_internal_document: Option(String),
+    ocr_internal_document: Option(String)
   )
 }
 
@@ -1060,7 +1092,11 @@ pub type ExtractionResult {
 /// When archives (ZIP, TAR, 7Z, GZIP) are extracted with recursive extraction
 /// enabled, each processable file produces its own full `ExtractionResult`.
 pub type ArchiveEntry {
-  ArchiveEntry(path: String, mime_type: String, result: ExtractionResult)
+  ArchiveEntry(
+    path: String,
+    mime_type: String,
+    result: ExtractionResult
+  )
 }
 
 /// A non-fatal warning from a processing pipeline stage.
@@ -1068,7 +1104,10 @@ pub type ArchiveEntry {
 /// Captures errors from optional features that don't prevent extraction
 /// but may indicate degraded results.
 pub type ProcessingWarning {
-  ProcessingWarning(source: String, message: String)
+  ProcessingWarning(
+    source: String,
+    message: String
+  )
 }
 
 /// Token usage and cost data for a single LLM call made during extraction.
@@ -1084,7 +1123,7 @@ pub type LlmUsage {
     output_tokens: Option(Int),
     total_tokens: Option(Int),
     estimated_cost: Option(Float),
-    finish_reason: Option(String),
+    finish_reason: Option(String)
   )
 }
 
@@ -1098,7 +1137,7 @@ pub type Chunk {
     content: String,
     chunk_type: ChunkType,
     embedding: Option(List(Float)),
-    metadata: ChunkMetadata,
+    metadata: ChunkMetadata
   )
 }
 
@@ -1106,12 +1145,17 @@ pub type Chunk {
 ///
 /// Contains the heading hierarchy from document root to this chunk's section.
 pub type HeadingContext {
-  HeadingContext(headings: List(HeadingLevel))
+  HeadingContext(
+    headings: List(HeadingLevel)
+  )
 }
 
 /// A single heading in the hierarchy.
 pub type HeadingLevel {
-  HeadingLevel(level: Int, text: String)
+  HeadingLevel(
+    level: Int,
+    text: String
+  )
 }
 
 /// Metadata about a chunk's position in the original document.
@@ -1124,7 +1168,7 @@ pub type ChunkMetadata {
     total_chunks: Int,
     first_page: Option(Int),
     last_page: Option(Int),
-    heading_context: Option(HeadingContext),
+    heading_context: Option(HeadingContext)
   )
 }
 
@@ -1150,7 +1194,7 @@ pub type ExtractedImage {
     source_path: Option(String),
     image_kind: Option(ImageKind),
     kind_confidence: Option(Float),
-    cluster_id: Option(Int),
+    cluster_id: Option(Int)
   )
 }
 
@@ -1161,7 +1205,7 @@ pub type ElementMetadata {
     filename: Option(String),
     coordinates: Option(String),
     element_index: Option(Int),
-    additional: Dict(String, String),
+    additional: Dict(String, String)
   )
 }
 
@@ -1174,7 +1218,7 @@ pub type Element {
     element_id: String,
     element_type: ElementType,
     text: String,
-    metadata: ElementMetadata,
+    metadata: ElementMetadata
   )
 }
 
@@ -1183,7 +1227,10 @@ pub type Element {
 /// Contains all sheets from an Excel file (.xlsx, .xls, etc.) with
 /// extracted content and metadata.
 pub type ExcelWorkbook {
-  ExcelWorkbook(sheets: List(ExcelSheet), metadata: Dict(String, String))
+  ExcelWorkbook(
+    sheets: List(ExcelSheet),
+    metadata: Dict(String, String)
+  )
 }
 
 /// Single Excel worksheet.
@@ -1197,7 +1244,7 @@ pub type ExcelSheet {
     row_count: Int,
     col_count: Int,
     cell_count: Int,
-    table_cells: Option(List(List(String))),
+    table_cells: Option(List(List(String)))
   )
 }
 
@@ -1209,7 +1256,7 @@ pub type XmlExtractionResult {
   XmlExtractionResult(
     content: String,
     element_count: Int,
-    unique_elements: List(String),
+    unique_elements: List(String)
   )
 }
 
@@ -1225,7 +1272,7 @@ pub type TextExtractionResult {
     character_count: Int,
     headers: Option(List(String)),
     links: Option(List(String)),
-    code_blocks: Option(List(String)),
+    code_blocks: Option(List(String))
   )
 }
 
@@ -1244,7 +1291,7 @@ pub type PptxExtractionResult {
     page_contents: Option(List(PageContent)),
     document: Option(DocumentStructure),
     hyperlinks: List(String),
-    office_metadata: Dict(String, String),
+    office_metadata: Dict(String, String)
   )
 }
 
@@ -1265,7 +1312,7 @@ pub type EmailExtractionResult {
     html_content: Option(String),
     content: String,
     attachments: List(EmailAttachment),
-    metadata: Dict(String, String),
+    metadata: Dict(String, String)
   )
 }
 
@@ -1279,7 +1326,7 @@ pub type EmailAttachment {
     mime_type: Option(String),
     size: Option(Int),
     is_image: Bool,
-    data: Option(BitArray),
+    data: Option(BitArray)
   )
 }
 
@@ -1294,7 +1341,7 @@ pub type OcrExtractionResult {
     metadata: Dict(String, String),
     tables: List(OcrTable),
     ocr_elements: Option(List(OcrElement)),
-    internal_document: Option(String),
+    internal_document: Option(String)
   )
 }
 
@@ -1306,13 +1353,18 @@ pub type OcrTable {
     cells: List(List(String)),
     markdown: String,
     page_number: Int,
-    bounding_box: Option(OcrTableBoundingBox),
+    bounding_box: Option(OcrTableBoundingBox)
   )
 }
 
 /// Bounding box for an OCR-detected table in pixel coordinates.
 pub type OcrTableBoundingBox {
-  OcrTableBoundingBox(left: Int, top: Int, right: Int, bottom: Int)
+  OcrTableBoundingBox(
+    left: Int,
+    top: Int,
+    right: Int,
+    bottom: Int
+  )
 }
 
 /// Image preprocessing configuration for OCR.
@@ -1328,7 +1380,7 @@ pub type ImagePreprocessingConfig {
     denoise: Bool,
     contrast_enhance: Bool,
     binarization_method: String,
-    invert_colors: Bool,
+    invert_colors: Bool
   )
 }
 
@@ -1359,7 +1411,7 @@ pub type TesseractConfig {
     tessedit_char_blacklist: String,
     tessedit_use_primary_params_model: Bool,
     textord_space_size_is_variable: Bool,
-    thresholding_method: Bool,
+    thresholding_method: Bool
   )
 }
 
@@ -1380,7 +1432,7 @@ pub type ImagePreprocessingMetadata {
     dimension_clamped: Bool,
     calculated_dpi: Option(Int),
     skipped_resize: Bool,
-    resize_error: Option(String),
+    resize_error: Option(String)
   )
 }
 
@@ -1410,7 +1462,7 @@ pub type Metadata {
     document_version: Option(String),
     abstract_text: Option(String),
     output_format: Option(String),
-    additional: Dict(String, String),
+    additional: Dict(String, String)
   )
 }
 
@@ -1419,7 +1471,10 @@ pub type Metadata {
 /// Identifies the document as a spreadsheet source via the `FormatMetadata.Excel`
 /// discriminant. Sheet count and sheet names are stored inside this struct.
 pub type ExcelMetadata {
-  ExcelMetadata(sheet_count: Option(Int), sheet_names: Option(List(String)))
+  ExcelMetadata(
+    sheet_count: Option(Int),
+    sheet_names: Option(List(String))
+  )
 }
 
 /// Email metadata extracted from .eml and .msg files.
@@ -1433,7 +1488,7 @@ pub type EmailMetadata {
     cc_emails: List(String),
     bcc_emails: List(String),
     message_id: Option(String),
-    attachments: List(String),
+    attachments: List(String)
   )
 }
 
@@ -1446,7 +1501,7 @@ pub type ArchiveMetadata {
     file_count: Int,
     file_list: List(String),
     total_size: Int,
-    compressed_size: Option(Int),
+    compressed_size: Option(Int)
   )
 }
 
@@ -1454,7 +1509,10 @@ pub type ArchiveMetadata {
 ///
 /// Provides statistics about XML document structure.
 pub type XmlMetadata {
-  XmlMetadata(element_count: Int, unique_elements: List(String))
+  XmlMetadata(
+    element_count: Int,
+    unique_elements: List(String)
+  )
 }
 
 /// Text/Markdown metadata.
@@ -1468,7 +1526,7 @@ pub type TextMetadata {
     character_count: Int,
     headers: Option(List(String)),
     links: Option(List(String)),
-    code_blocks: Option(List(String)),
+    code_blocks: Option(List(String))
   )
 }
 
@@ -1479,7 +1537,7 @@ pub type HeaderMetadata {
     text: String,
     id: Option(String),
     depth: Int,
-    html_offset: Int,
+    html_offset: Int
   )
 }
 
@@ -1491,7 +1549,7 @@ pub type LinkMetadata {
     title: Option(String),
     link_type: LinkType,
     rel: List(String),
-    attributes: List(String),
+    attributes: List(String)
   )
 }
 
@@ -1503,7 +1561,7 @@ pub type ImageMetadataType {
     title: Option(String),
     dimensions: Option(List(Int)),
     image_type: ImageType,
-    attributes: List(String),
+    attributes: List(String)
   )
 }
 
@@ -1512,7 +1570,7 @@ pub type StructuredData {
   StructuredData(
     data_type: StructuredDataType,
     raw_json: String,
-    schema_type: Option(String),
+    schema_type: Option(String)
   )
 }
 
@@ -1536,7 +1594,7 @@ pub type HtmlMetadata {
     headers: List(HeaderMetadata),
     links: List(LinkMetadata),
     images: List(ImageMetadataType),
-    structured_data: List(StructuredData),
+    structured_data: List(StructuredData)
   )
 }
 
@@ -1550,13 +1608,16 @@ pub type OcrMetadata {
     output_format: String,
     table_count: Int,
     table_rows: Option(Int),
-    table_cols: Option(Int),
+    table_cols: Option(Int)
   )
 }
 
 /// Error metadata (for batch operations).
 pub type ErrorMetadata {
-  ErrorMetadata(error_type: String, message: String)
+  ErrorMetadata(
+    error_type: String,
+    message: String
+  )
 }
 
 /// PowerPoint presentation metadata.
@@ -1567,7 +1628,7 @@ pub type PptxMetadata {
     slide_count: Int,
     slide_names: List(String),
     image_count: Option(Int),
-    table_count: Option(Int),
+    table_count: Option(Int)
   )
 }
 
@@ -1579,7 +1640,7 @@ pub type DocxMetadata {
   DocxMetadata(
     core_properties: Option(String),
     app_properties: Option(String),
-    custom_properties: Option(Dict(String, String)),
+    custom_properties: Option(Dict(String, String))
   )
 }
 
@@ -1590,7 +1651,7 @@ pub type CsvMetadata {
     column_count: Int,
     delimiter: Option(String),
     has_header: Bool,
-    column_types: Option(List(String)),
+    column_types: Option(List(String))
   )
 }
 
@@ -1601,7 +1662,7 @@ pub type BibtexMetadata {
     citation_keys: List(String),
     authors: List(String),
     year_range: Option(YearRange),
-    entry_types: Option(Dict(String, Int)),
+    entry_types: Option(Dict(String, Int))
   )
 }
 
@@ -1613,13 +1674,17 @@ pub type CitationMetadata {
     authors: List(String),
     year_range: Option(YearRange),
     dois: List(String),
-    keywords: List(String),
+    keywords: List(String)
   )
 }
 
 /// Year range for bibliographic metadata.
 pub type YearRange {
-  YearRange(min: Option(Int), max: Option(Int), years: List(Int))
+  YearRange(
+    min: Option(Int),
+    max: Option(Int),
+    years: List(Int)
+  )
 }
 
 /// FictionBook (FB2) metadata.
@@ -1627,18 +1692,25 @@ pub type FictionBookMetadata {
   FictionBookMetadata(
     genres: List(String),
     sequences: List(String),
-    annotation: Option(String),
+    annotation: Option(String)
   )
 }
 
 /// dBASE (DBF) file metadata.
 pub type DbfMetadata {
-  DbfMetadata(record_count: Int, field_count: Int, fields: List(DbfFieldInfo))
+  DbfMetadata(
+    record_count: Int,
+    field_count: Int,
+    fields: List(DbfFieldInfo)
+  )
 }
 
 /// dBASE field information.
 pub type DbfFieldInfo {
-  DbfFieldInfo(name: String, field_type: String)
+  DbfFieldInfo(
+    name: String,
+    field_type: String
+  )
 }
 
 /// JATS (Journal Article Tag Suite) metadata.
@@ -1647,13 +1719,16 @@ pub type JatsMetadata {
     copyright: Option(String),
     license: Option(String),
     history_dates: Dict(String, String),
-    contributor_roles: List(ContributorRole),
+    contributor_roles: List(ContributorRole)
   )
 }
 
 /// JATS contributor with role.
 pub type ContributorRole {
-  ContributorRole(name: String, role: Option(String))
+  ContributorRole(
+    name: String,
+    role: Option(String)
+  )
 }
 
 /// EPUB metadata (Dublin Core extensions).
@@ -1664,13 +1739,15 @@ pub type EpubMetadata {
     relation: Option(String),
     source: Option(String),
     dc_type: Option(String),
-    cover_image: Option(String),
+    cover_image: Option(String)
   )
 }
 
 /// Outlook PST archive metadata.
 pub type PstMetadata {
-  PstMetadata(message_count: Int)
+  PstMetadata(
+    message_count: Int
+  )
 }
 
 /// Confidence scores for an OCR element.
@@ -1678,12 +1755,18 @@ pub type PstMetadata {
 /// Separates detection confidence (how confident that text exists at this location)
 /// from recognition confidence (how confident about the actual text content).
 pub type OcrConfidence {
-  OcrConfidence(detection: Option(Float), recognition: Float)
+  OcrConfidence(
+    detection: Option(Float),
+    recognition: Float
+  )
 }
 
 /// Rotation information for an OCR element.
 pub type OcrRotation {
-  OcrRotation(angle_degrees: Float, confidence: Option(Float))
+  OcrRotation(
+    angle_degrees: Float,
+    confidence: Option(Float)
+  )
 }
 
 /// A unified OCR element representing detected text with full metadata.
@@ -1699,7 +1782,7 @@ pub type OcrElement {
     rotation: Option(OcrRotation),
     page_number: Int,
     parent_id: Option(String),
-    backend_metadata: Dict(String, String),
+    backend_metadata: Dict(String, String)
   )
 }
 
@@ -1711,7 +1794,7 @@ pub type OcrElementConfig {
     include_elements: Bool,
     min_level: OcrElementLevel,
     min_confidence: Float,
-    build_hierarchy: Bool,
+    build_hierarchy: Bool
   )
 }
 
@@ -1724,7 +1807,7 @@ pub type PageStructure {
     total_count: Int,
     unit_type: PageUnitType,
     boundaries: Option(List(PageBoundary)),
-    pages: Option(List(PageInfo)),
+    pages: Option(List(PageInfo))
   )
 }
 
@@ -1734,7 +1817,11 @@ pub type PageStructure {
 /// enabling mapping from byte positions to page numbers. Offsets are guaranteed to be
 /// at valid UTF-8 character boundaries when using standard String methods (push_str, push, etc.).
 pub type PageBoundary {
-  PageBoundary(byte_start: Int, byte_end: Int, page_number: Int)
+  PageBoundary(
+    byte_start: Int,
+    byte_end: Int,
+    page_number: Int
+  )
 }
 
 /// Metadata for individual page/slide/sheet.
@@ -1750,7 +1837,7 @@ pub type PageInfo {
     table_count: Option(Int),
     hidden: Option(Bool),
     is_blank: Option(Bool),
-    has_vector_graphics: Bool,
+    has_vector_graphics: Bool
   )
 }
 
@@ -1776,7 +1863,7 @@ pub type PageContent {
     images: List(ExtractedImage),
     hierarchy: Option(PageHierarchy),
     is_blank: Option(Bool),
-    layout_regions: Option(List(LayoutRegion)),
+    layout_regions: Option(List(LayoutRegion))
   )
 }
 
@@ -1790,7 +1877,7 @@ pub type LayoutRegion {
     class_name: String,
     confidence: Float,
     bounding_box: String,
-    area_fraction: Float,
+    area_fraction: Float
   )
 }
 
@@ -1799,7 +1886,10 @@ pub type LayoutRegion {
 /// Used when PDF text hierarchy extraction is enabled. Contains hierarchical
 /// blocks with heading levels (H1-H6) for semantic document structure.
 pub type PageHierarchy {
-  PageHierarchy(block_count: Int, blocks: List(HierarchicalBlock))
+  PageHierarchy(
+    block_count: Int,
+    blocks: List(HierarchicalBlock)
+  )
 }
 
 /// A text block with hierarchy level assignment.
@@ -1811,7 +1901,7 @@ pub type HierarchicalBlock {
     text: String,
     font_size: Float,
     level: String,
-    bbox: Option(List(Float)),
+    bbox: Option(List(Float))
   )
 }
 
@@ -1824,7 +1914,7 @@ pub type Table {
     cells: List(List(String)),
     markdown: String,
     page_number: Int,
-    bounding_box: Option(String),
+    bounding_box: Option(String)
   )
 }
 
@@ -1832,7 +1922,12 @@ pub type Table {
 ///
 /// Future extension point for rich table support with cell-level metadata.
 pub type TableCell {
-  TableCell(content: String, row_span: Int, col_span: Int, is_header: Bool)
+  TableCell(
+    content: String,
+    row_span: Int,
+    col_span: Int,
+    is_header: Bool
+  )
 }
 
 /// A URI extracted from a document.
@@ -1841,7 +1936,12 @@ pub type TableCell {
 /// The `kind` field classifies the URI semantically, while `label` carries
 /// optional human-readable display text.
 pub type Uri {
-  Uri(url: String, label: Option(String), page: Option(Int), kind: UriKind)
+  Uri(
+    url: String,
+    label: Option(String),
+    page: Option(Int),
+    kind: UriKind
+  )
 }
 
 /// Trait for types that can be pooled and reused.
@@ -1877,7 +1977,10 @@ pub type ApiDoc {
 
 /// Server information response.
 pub type InfoResponse {
-  InfoResponse(version: String, rust_backend: Bool)
+  InfoResponse(
+    version: String,
+    rust_backend: Bool
+  )
 }
 
 /// Extraction response (list of results).
@@ -1887,7 +1990,10 @@ pub type ExtractResponse {
 
 /// Embedding request for generating embeddings from text.
 pub type EmbedRequest {
-  EmbedRequest(texts: List(String), config: Option(EmbeddingConfig))
+  EmbedRequest(
+    texts: List(String),
+    config: Option(EmbeddingConfig)
+  )
 }
 
 /// Embedding response containing generated embeddings.
@@ -1896,13 +2002,17 @@ pub type EmbedResponse {
     embeddings: List(List(Float)),
     model: String,
     dimensions: Int,
-    count: Int,
+    count: Int
   )
 }
 
 /// Chunk request with text and configuration.
 pub type ChunkRequest {
-  ChunkRequest(text: String, config: Option(String), chunker_type: String)
+  ChunkRequest(
+    text: String,
+    config: Option(String),
+    chunker_type: String
+  )
 }
 
 /// Chunk response with chunks and metadata.
@@ -1912,13 +2022,16 @@ pub type ChunkResponse {
     chunk_count: Int,
     config: String,
     input_size_bytes: Int,
-    chunker_type: String,
+    chunker_type: String
   )
 }
 
 /// MIME type detection response.
 pub type DetectResponse {
-  DetectResponse(mime_type: String, filename: Option(String))
+  DetectResponse(
+    mime_type: String,
+    filename: Option(String)
+  )
 }
 
 /// Model manifest entry for cache management.
@@ -1927,7 +2040,7 @@ pub type ManifestEntryResponse {
     relative_path: String,
     sha256: String,
     size_bytes: Int,
-    source_url: String,
+    source_url: String
   )
 }
 
@@ -1937,7 +2050,7 @@ pub type ManifestResponse {
     kreuzberg_version: String,
     total_size_bytes: Int,
     model_count: Int,
-    models: List(ManifestEntryResponse),
+    models: List(ManifestEntryResponse)
   )
 }
 
@@ -1946,7 +2059,7 @@ pub type WarmResponse {
   WarmResponse(
     cache_dir: String,
     downloaded: List(String),
-    already_cached: List(String),
+    already_cached: List(String)
   )
 }
 
@@ -1955,7 +2068,7 @@ pub type StructuredExtractionResponse {
   StructuredExtractionResponse(
     structured_output: String,
     content: String,
-    mime_type: String,
+    mime_type: String
   )
 }
 
@@ -1963,24 +2076,36 @@ pub type StructuredExtractionResponse {
 ///
 /// Returned by `PUT /process` for the OpenWebUI external document loader.
 pub type OpenWebDocumentResponse {
-  OpenWebDocumentResponse(page_content: String, metadata: String)
+  OpenWebDocumentResponse(
+    page_content: String,
+    metadata: String
+  )
 }
 
 /// OpenWebUI "Docling" engine response format.
 ///
 /// Returned by `POST /v1/convert/file` for docling-serve compatibility.
 pub type DoclingCompatResponse {
-  DoclingCompatResponse(document: String, status: String)
+  DoclingCompatResponse(
+    document: String,
+    status: String
+  )
 }
 
 /// Request parameters for MIME type detection.
 pub type DetectMimeTypeParams {
-  DetectMimeTypeParams(path: String, use_content: Bool)
+  DetectMimeTypeParams(
+    path: String,
+    use_content: Bool
+  )
 }
 
 /// Request parameters for cache warm (model download).
 pub type CacheWarmParams {
-  CacheWarmParams(all_embeddings: Bool, embedding_model: Option(String))
+  CacheWarmParams(
+    all_embeddings: Bool,
+    embedding_model: Option(String)
+  )
 }
 
 /// Request parameters for embedding generation.
@@ -1990,7 +2115,7 @@ pub type EmbedTextParams {
     preset: Option(String),
     model: Option(String),
     api_key: Option(String),
-    embedding_plugin: Option(String),
+    embedding_plugin: Option(String)
   )
 }
 
@@ -2004,7 +2129,7 @@ pub type ExtractStructuredParams {
     schema_description: Option(String),
     prompt: Option(String),
     api_key: Option(String),
-    strict: Bool,
+    strict: Bool
   )
 }
 
@@ -2015,25 +2140,35 @@ pub type ChunkTextParams {
     max_characters: Option(Int),
     overlap: Option(Int),
     chunker_type: Option(String),
-    topic_threshold: Option(Float),
+    topic_threshold: Option(Float)
   )
 }
 
 /// A detected structural boundary in the text.
 pub type DetectedBoundary {
-  DetectedBoundary(byte_offset: Int, is_header: Bool)
+  DetectedBoundary(
+    byte_offset: Int,
+    is_header: Bool
+  )
 }
 
 /// Result of a text chunking operation.
 ///
 /// Contains the generated chunks and metadata about the chunking.
 pub type ChunkingResult {
-  ChunkingResult(chunks: List(Chunk), chunk_count: Int)
+  ChunkingResult(
+    chunks: List(Chunk),
+    chunk_count: Int
+  )
 }
 
 /// A merged chunk produced by `merge_segments`.
 pub type MergedChunk {
-  MergedChunk(text: String, byte_start: Int, byte_end: Int)
+  MergedChunk(
+    text: String,
+    byte_start: Int,
+    byte_end: Int
+  )
 }
 
 /// Preset configurations for common RAG use cases.
@@ -2052,18 +2187,23 @@ pub type EmbeddingPreset {
     pooling: String,
     model_file: String,
     dimensions: Int,
-    description: String,
+    description: String
   )
 }
 
 /// YAKE-specific parameters.
 pub type YakeParams {
-  YakeParams(window_size: Int)
+  YakeParams(
+    window_size: Int
+  )
 }
 
 /// RAKE-specific parameters.
 pub type RakeParams {
-  RakeParams(min_word_length: Int, max_words_per_phrase: Int)
+  RakeParams(
+    min_word_length: Int,
+    max_words_per_phrase: Int
+  )
 }
 
 /// Keyword extraction configuration.
@@ -2075,7 +2215,7 @@ pub type KeywordConfig {
     ngram_range: List(Int),
     language: Option(String),
     yake_params: Option(YakeParams),
-    rake_params: Option(RakeParams),
+    rake_params: Option(RakeParams)
   )
 }
 
@@ -2085,12 +2225,15 @@ pub type Keyword {
     text: String,
     score: Float,
     algorithm: KeywordAlgorithm,
-    positions: Option(List(Int)),
+    positions: Option(List(Int))
   )
 }
 
 pub type OcrCacheStats {
-  OcrCacheStats(total_files: Int, total_size_mb: Float)
+  OcrCacheStats(
+    total_files: Int,
+    total_size_mb: Float
+  )
 }
 
 /// Pre-computed table markdown for a table detection region.
@@ -2098,7 +2241,7 @@ pub type RecognizedTable {
   RecognizedTable(
     detection_bbox: BBox,
     cells: List(List(String)),
-    markdown: String,
+    markdown: String
   )
 }
 
@@ -2124,7 +2267,7 @@ pub type PaddleOcrConfig {
     rec_batch_num: Int,
     padding: Int,
     drop_score: Float,
-    model_tier: String,
+    model_tier: String
   )
 }
 
@@ -2134,23 +2277,35 @@ pub type ModelPaths {
     det_model: String,
     cls_model: String,
     rec_model: String,
-    dict_file: String,
+    dict_file: String
   )
 }
 
 /// Document orientation detection result.
 pub type OrientationResult {
-  OrientationResult(degrees: Int, confidence: Float)
+  OrientationResult(
+    degrees: Int,
+    confidence: Float
+  )
 }
 
 /// Bounding box in original image coordinates (x1, y1) top-left, (x2, y2) bottom-right.
 pub type BBox {
-  BBox(x1: Float, y1: Float, x2: Float, y2: Float)
+  BBox(
+    x1: Float,
+    y1: Float,
+    x2: Float,
+    y2: Float
+  )
 }
 
 /// A single layout detection result.
 pub type LayoutDetection {
-  LayoutDetection(class_name: LayoutClass, confidence: Float, bbox: BBox)
+  LayoutDetection(
+    class_name: LayoutClass,
+    confidence: Float,
+    bbox: BBox
+  )
 }
 
 /// Page-level detection result containing all detections and page metadata.
@@ -2158,13 +2313,17 @@ pub type DetectionResult {
   DetectionResult(
     page_width: Int,
     page_height: Int,
-    detections: List(LayoutDetection),
+    detections: List(LayoutDetection)
   )
 }
 
 /// Embedded file descriptor extracted from the PDF name tree.
 pub type EmbeddedFile {
-  EmbeddedFile(name: String, data: BitArray, mime_type: Option(String))
+  EmbeddedFile(
+    name: String,
+    data: BitArray,
+    mime_type: Option(String)
+  )
 }
 
 pub type PdfImage {
@@ -2180,7 +2339,7 @@ pub type PdfImage {
     decoded_format: String,
     image_kind: Option(ImageKind),
     kind_confidence: Option(Float),
-    cluster_id: Option(Int),
+    cluster_id: Option(Int)
   )
 }
 
@@ -2192,7 +2351,7 @@ pub type PageLayoutResult {
     page_width_pts: Float,
     page_height_pts: Float,
     render_width_px: Int,
-    render_height_px: Int,
+    render_height_px: Int
   )
 }
 
@@ -2204,7 +2363,7 @@ pub type PageTiming {
     onnx_ms: Float,
     inference_ms: Float,
     postprocess_ms: Float,
-    mapping_ms: Float,
+    mapping_ms: Float
   )
 }
 
@@ -2217,7 +2376,7 @@ pub type CommonPdfMetadata {
     keywords: Option(List(String)),
     created_at: Option(String),
     modified_at: Option(String),
-    created_by: Option(String),
+    created_by: Option(String)
   )
 }
 
@@ -2254,7 +2413,9 @@ pub type OutputFormat {
   OutputFormatHtml
   Json
   Structured
-  OutputFormatCustom(String)
+  OutputFormatCustom(
+    String
+  )
 }
 
 /// Built-in HTML theme selection.
@@ -2322,15 +2483,27 @@ pub type ChunkerType {
 /// (e.g., `Xenova/gpt-4o`, `Xenova/cl100k_base`).
 pub type ChunkSizing {
   Characters
-  Tokenizer(model: String, cache_dir: Option(String))
+  Tokenizer(
+    model: String,
+    cache_dir: Option(String)
+  )
 }
 
 /// Embedding model types supported by Kreuzberg.
 pub type EmbeddingModelType {
-  Preset(name: String)
-  EmbeddingModelTypeCustom(model_id: String, dimensions: Int)
-  Llm(llm: LlmConfig)
-  EmbeddingModelTypePlugin(name: String)
+  Preset(
+    name: String
+  )
+  EmbeddingModelTypeCustom(
+    model_id: String,
+    dimensions: Int
+  )
+  Llm(
+    llm: LlmConfig
+  )
+  EmbeddingModelTypePlugin(
+    name: String
+  )
 }
 
 /// Content rendering mode for code extraction.
@@ -2453,34 +2626,71 @@ pub type ContentLayer {
 /// Uses `#[serde(tag = "node_type")]` to avoid "type" keyword collision in
 /// Go/Java/TypeScript bindings.
 pub type NodeContent {
-  NodeContentTitle(text: String)
-  NodeContentHeading(level: Int, text: String)
-  NodeContentParagraph(text: String)
-  List(ordered: Bool)
-  NodeContentListItem(text: String)
-  NodeContentTable(grid: TableGrid)
+  NodeContentTitle(
+    text: String
+  )
+  NodeContentHeading(
+    level: Int,
+    text: String
+  )
+  NodeContentParagraph(
+    text: String
+  )
+  List(
+    ordered: Bool
+  )
+  NodeContentListItem(
+    text: String
+  )
+  NodeContentTable(
+    grid: TableGrid
+  )
   NodeContentImage(
     description: Option(String),
     image_index: Option(Int),
-    src: Option(String),
+    src: Option(String)
   )
-  NodeContentCode(text: String, language: Option(String))
+  NodeContentCode(
+    text: String,
+    language: Option(String)
+  )
   Quote
-  NodeContentFormula(text: String)
-  NodeContentFootnote(text: String)
+  NodeContentFormula(
+    text: String
+  )
+  NodeContentFootnote(
+    text: String
+  )
   Group(
     label: Option(String),
     heading_level: Option(Int),
-    heading_text: Option(String),
+    heading_text: Option(String)
   )
   NodeContentPageBreak
-  NodeContentSlide(number: Int, title: Option(String))
+  NodeContentSlide(
+    number: Int,
+    title: Option(String)
+  )
   NodeContentDefinitionList
-  DefinitionItem(term: String, definition: String)
-  NodeContentCitation(key: String, text: String)
-  Admonition(kind: String, title: Option(String))
-  NodeContentRawBlock(format: String, content: String)
-  MetadataBlock(entries: List(String))
+  DefinitionItem(
+    term: String,
+    definition: String
+  )
+  NodeContentCitation(
+    key: String,
+    text: String
+  )
+  Admonition(
+    kind: String,
+    title: Option(String)
+  )
+  NodeContentRawBlock(
+    format: String,
+    content: String
+  )
+  MetadataBlock(
+    entries: List(String)
+  )
 }
 
 /// Types of inline text annotations.
@@ -2492,11 +2702,21 @@ pub type AnnotationKind {
   AnnotationKindCode
   AnnotationKindSubscript
   AnnotationKindSuperscript
-  AnnotationKindLink(url: String, title: Option(String))
+  AnnotationKindLink(
+    url: String,
+    title: Option(String)
+  )
   AnnotationKindHighlight
-  Color(value: String)
-  FontSize(value: String)
-  AnnotationKindCustom(name: String, value: Option(String))
+  Color(
+    value: String
+  )
+  FontSize(
+    value: String
+  )
+  AnnotationKindCustom(
+    name: String,
+    value: Option(String)
+  )
 }
 
 /// How the extracted text was produced.
@@ -2575,26 +2795,66 @@ pub type ElementType {
 /// Only one format type can exist per extraction result. This provides
 /// type-safe, clean metadata without nested optionals.
 pub type FormatMetadata {
-  Pdf(String)
-  Docx(DocxMetadata)
-  Excel(ExcelMetadata)
-  FormatMetadataEmail(EmailMetadata)
-  Pptx(PptxMetadata)
-  Archive(ArchiveMetadata)
-  FormatMetadataImage(String)
-  Xml(XmlMetadata)
-  FormatMetadataText(TextMetadata)
-  FormatMetadataHtml(HtmlMetadata)
-  FormatMetadataOcr(OcrMetadata)
-  Csv(CsvMetadata)
-  Bibtex(BibtexMetadata)
-  FormatMetadataCitation(CitationMetadata)
-  FictionBook(FictionBookMetadata)
-  Dbf(DbfMetadata)
-  Jats(JatsMetadata)
-  Epub(EpubMetadata)
-  Pst(PstMetadata)
-  FormatMetadataCode(String)
+  Pdf(
+    String
+  )
+  Docx(
+    DocxMetadata
+  )
+  Excel(
+    ExcelMetadata
+  )
+  FormatMetadataEmail(
+    EmailMetadata
+  )
+  Pptx(
+    PptxMetadata
+  )
+  Archive(
+    ArchiveMetadata
+  )
+  FormatMetadataImage(
+    String
+  )
+  Xml(
+    XmlMetadata
+  )
+  FormatMetadataText(
+    TextMetadata
+  )
+  FormatMetadataHtml(
+    HtmlMetadata
+  )
+  FormatMetadataOcr(
+    OcrMetadata
+  )
+  Csv(
+    CsvMetadata
+  )
+  Bibtex(
+    BibtexMetadata
+  )
+  FormatMetadataCitation(
+    CitationMetadata
+  )
+  FictionBook(
+    FictionBookMetadata
+  )
+  Dbf(
+    DbfMetadata
+  )
+  Jats(
+    JatsMetadata
+  )
+  Epub(
+    EpubMetadata
+  )
+  Pst(
+    PstMetadata
+  )
+  FormatMetadataCode(
+    String
+  )
 }
 
 /// Text direction enumeration for HTML documents.
@@ -2634,8 +2894,15 @@ pub type StructuredDataType {
 /// Supports both axis-aligned rectangles (from Tesseract) and 4-point quadrilaterals
 /// (from PaddleOCR and rotated text detection).
 pub type OcrBoundingGeometry {
-  Rectangle(left: Int, top: Int, width: Int, height: Int)
-  Quadrilateral(points: String)
+  Rectangle(
+    left: Int,
+    top: Int,
+    width: Int,
+    height: Int
+  )
+  Quadrilateral(
+    points: String
+  )
 }
 
 /// Hierarchical level of an OCR element.
@@ -2761,22 +3028,62 @@ pub type LayoutClass {
 /// - `UnsupportedFormat` - Unsupported MIME type or file format
 /// - `Other` - Catch-all for uncommon errors
 pub type KreuzbergError {
-  Io(String)
-  Parsing(message: String, source: Option(String))
-  KreuzbergErrorOcr(message: String, source: Option(String))
-  Validation(message: String, source: Option(String))
-  Cache(message: String, source: Option(String))
-  ImageProcessing(message: String, source: Option(String))
-  Serialization(message: String, source: Option(String))
-  MissingDependency(String)
-  KreuzbergErrorPlugin(message: String, plugin_name: String)
-  KreuzbergErrorLockPoisoned(String)
-  UnsupportedFormat(String)
-  Embedding(message: String, source: Option(String))
-  Timeout(elapsed_ms: Int, limit_ms: Int)
+  Io(
+    String
+  )
+  Parsing(
+    message: String,
+    source: Option(String)
+  )
+  KreuzbergErrorOcr(
+    message: String,
+    source: Option(String)
+  )
+  Validation(
+    message: String,
+    source: Option(String)
+  )
+  Cache(
+    message: String,
+    source: Option(String)
+  )
+  ImageProcessing(
+    message: String,
+    source: Option(String)
+  )
+  Serialization(
+    message: String,
+    source: Option(String)
+  )
+  MissingDependency(
+    String
+  )
+  KreuzbergErrorPlugin(
+    message: String,
+    plugin_name: String
+  )
+  KreuzbergErrorLockPoisoned(
+    String
+  )
+  UnsupportedFormat(
+    String
+  )
+  Embedding(
+    message: String,
+    source: Option(String)
+  )
+  Timeout(
+    elapsed_ms: Int,
+    limit_ms: Int
+  )
   Cancelled
-  Security(message: String, source: Option(String))
-  KreuzbergErrorOther(String)
+  Security(
+    message: String,
+    source: Option(String)
+  )
+  KreuzbergErrorOther(
+    String
+  )
 }
 
 /// Extract content from a byte array.
@@ -2797,11 +3104,7 @@ pub type KreuzbergError {
 /// Returns `KreuzbergError.Validation` if MIME type is invalid.
 /// Returns `KreuzbergError.UnsupportedFormat` if MIME type is not supported.
 @external(erlang, "Elixir.Kreuzberg.Native", "extract_bytes")
-pub fn extract_bytes(
-  content: BitArray,
-  mime_type: String,
-  config: ExtractionConfig,
-) -> Result(ExtractionResult, KreuzbergError)
+pub fn extract_bytes(content: BitArray, mime_type: String, config: ExtractionConfig) -> Result(ExtractionResult, KreuzbergError)
 
 /// Extract content from a file.
 ///
@@ -2822,11 +3125,7 @@ pub fn extract_bytes(
 /// Returns `KreuzbergError.Io` if the file doesn't exist (NotFound) or for other file I/O errors.
 /// Returns `KreuzbergError.UnsupportedFormat` if MIME type is not supported.
 @external(erlang, "Elixir.Kreuzberg.Native", "extract_file")
-pub fn extract_file(
-  path: String,
-  mime_type: Option(String),
-  config: ExtractionConfig,
-) -> Result(ExtractionResult, KreuzbergError)
+pub fn extract_file(path: String, mime_type: Option(String), config: ExtractionConfig) -> Result(ExtractionResult, KreuzbergError)
 
 /// Synchronous wrapper for `extract_file`.
 ///
@@ -2839,11 +3138,7 @@ pub fn extract_file(
 /// This function is only available with the `tokio-runtime` feature. For WASM targets,
 /// use a truly synchronous extraction approach instead.
 @external(erlang, "Elixir.Kreuzberg.Native", "extract_file_sync")
-pub fn extract_file_sync(
-  path: String,
-  mime_type: Option(String),
-  config: ExtractionConfig,
-) -> Result(ExtractionResult, KreuzbergError)
+pub fn extract_file_sync(path: String, mime_type: Option(String), config: ExtractionConfig) -> Result(ExtractionResult, KreuzbergError)
 
 /// Synchronous wrapper for `extract_bytes`.
 ///
@@ -2853,21 +3148,14 @@ pub fn extract_file_sync(
 /// With the `tokio-runtime` feature, this blocks the current thread using the global
 /// Tokio runtime. Without it (WASM), this calls a truly synchronous implementation.
 @external(erlang, "Elixir.Kreuzberg.Native", "extract_bytes_sync")
-pub fn extract_bytes_sync(
-  content: BitArray,
-  mime_type: String,
-  config: ExtractionConfig,
-) -> Result(ExtractionResult, KreuzbergError)
+pub fn extract_bytes_sync(content: BitArray, mime_type: String, config: ExtractionConfig) -> Result(ExtractionResult, KreuzbergError)
 
 /// Synchronous wrapper for `batch_extract_files`.
 ///
 /// Uses the global Tokio runtime for optimal performance.
 /// Only available with `tokio-runtime` (WASM has no filesystem).
 @external(erlang, "Elixir.Kreuzberg.Native", "batch_extract_files_sync")
-pub fn batch_extract_files_sync(
-  items: List(BatchFileItem),
-  config: ExtractionConfig,
-) -> Result(List(ExtractionResult), KreuzbergError)
+pub fn batch_extract_files_sync(items: List(BatchFileItem), config: ExtractionConfig) -> Result(List(ExtractionResult), KreuzbergError)
 
 /// Synchronous wrapper for `batch_extract_bytes`.
 ///
@@ -2876,10 +3164,7 @@ pub fn batch_extract_files_sync(
 /// Tokio runtime. Without it (WASM), this calls a truly synchronous implementation
 /// that iterates through items and calls `extract_bytes_sync()`.
 @external(erlang, "Elixir.Kreuzberg.Native", "batch_extract_bytes_sync")
-pub fn batch_extract_bytes_sync(
-  items: List(BatchBytesItem),
-  config: ExtractionConfig,
-) -> Result(List(ExtractionResult), KreuzbergError)
+pub fn batch_extract_bytes_sync(items: List(BatchBytesItem), config: ExtractionConfig) -> Result(List(ExtractionResult), KreuzbergError)
 
 /// Extract content from multiple files concurrently.
 ///
@@ -2910,10 +3195,7 @@ pub fn batch_extract_bytes_sync(
 ///
 /// Per-file configuration overrides:
 @external(erlang, "Elixir.Kreuzberg.Native", "batch_extract_files")
-pub fn batch_extract_files(
-  items: List(BatchFileItem),
-  config: ExtractionConfig,
-) -> Result(List(ExtractionResult), KreuzbergError)
+pub fn batch_extract_files(items: List(BatchFileItem), config: ExtractionConfig) -> Result(List(ExtractionResult), KreuzbergError)
 
 /// Extract content from multiple byte arrays concurrently.
 ///
@@ -2938,10 +3220,7 @@ pub fn batch_extract_files(
 ///
 /// Per-item configuration overrides:
 @external(erlang, "Elixir.Kreuzberg.Native", "batch_extract_bytes")
-pub fn batch_extract_bytes(
-  items: List(BatchBytesItem),
-  config: ExtractionConfig,
-) -> Result(List(ExtractionResult), KreuzbergError)
+pub fn batch_extract_bytes(items: List(BatchBytesItem), config: ExtractionConfig) -> Result(List(ExtractionResult), KreuzbergError)
 
 /// Detect MIME type from raw file bytes.
 ///
@@ -2959,9 +3238,7 @@ pub fn batch_extract_bytes(
 ///
 /// Returns `KreuzbergError.UnsupportedFormat` if MIME type cannot be determined.
 @external(erlang, "Elixir.Kreuzberg.Native", "detect_mime_type_from_bytes")
-pub fn detect_mime_type_from_bytes(
-  content: BitArray,
-) -> Result(String, KreuzbergError)
+pub fn detect_mime_type_from_bytes(content: BitArray) -> Result(String, KreuzbergError)
 
 /// Get file extensions for a given MIME type.
 ///
@@ -2971,9 +3248,7 @@ pub fn detect_mime_type_from_bytes(
 ///
 /// A vector of file extensions (without leading dot) for the MIME type.
 @external(erlang, "Elixir.Kreuzberg.Native", "get_extensions_for_mime")
-pub fn get_extensions_for_mime(
-  mime_type: String,
-) -> Result(List(String), KreuzbergError)
+pub fn get_extensions_for_mime(mime_type: String) -> Result(List(String), KreuzbergError)
 
 /// List names of all registered document extractors.
 @external(erlang, "Elixir.Kreuzberg.Native", "list_document_extractors")
@@ -3038,10 +3313,7 @@ pub fn clear_validators() -> Result(Nil, KreuzbergError)
 /// - `KreuzbergError.Embedding` if the preset name is unknown, model download fails,
 ///   or the blocking inference task panics
 @external(erlang, "Elixir.Kreuzberg.Native", "embed_texts_async")
-pub fn embed_texts_async(
-  texts: List(String),
-  config: EmbeddingConfig,
-) -> Result(List(List(Float)), KreuzbergError)
+pub fn embed_texts_async(texts: List(String), config: EmbeddingConfig) -> Result(List(List(Float)), KreuzbergError)
 
 /// Render a single PDF page to a PNG-encoded byte buffer.
 ///
@@ -3050,31 +3322,20 @@ pub fn embed_texts_async(
 /// Returns an error if the PDF is invalid, the page index is out of bounds,
 /// or if the page fails to render.
 @external(erlang, "Elixir.Kreuzberg.Native", "render_pdf_page_to_png")
-pub fn render_pdf_page_to_png(
-  pdf_bytes: BitArray,
-  page_index: Int,
-  dpi: Option(Int),
-  password: Option(String),
-) -> Result(BitArray, KreuzbergError)
+pub fn render_pdf_page_to_png(pdf_bytes: BitArray, page_index: Int, dpi: Option(Int), password: Option(String)) -> Result(BitArray, KreuzbergError)
 
 /// Detect the MIME type of a file at the given path.
 ///
 /// Uses the file extension and optionally the file content to determine the MIME type.
 /// Set `check_exists` to `true` to verify the file exists before detection.
 @external(erlang, "Elixir.Kreuzberg.Native", "detect_mime_type")
-pub fn detect_mime_type(
-  path: String,
-  check_exists: Bool,
-) -> Result(String, KreuzbergError)
+pub fn detect_mime_type(path: String, check_exists: Bool) -> Result(String, KreuzbergError)
 
 /// Embed a list of texts using the configured embedding model.
 ///
 /// Returns a 2D vector where each inner vector is the embedding for the corresponding text.
 @external(erlang, "Elixir.Kreuzberg.Native", "embed_texts")
-pub fn embed_texts(
-  texts: List(String),
-  config: EmbeddingConfig,
-) -> Result(List(List(Float)), KreuzbergError)
+pub fn embed_texts(texts: List(String), config: EmbeddingConfig) -> Result(List(List(Float)), KreuzbergError)
 
 /// Get an embedding preset by name.
 ///
@@ -3157,7 +3418,6 @@ pub fn list_embedding_presets() -> List(String)
 /// module is done via the Elixir/Rustler side (existing GenServer pattern).
 @external(erlang, "Elixir.Kreuzberg.Native", "register_ocr_backend")
 pub fn register_ocr_backend(pid: Dynamic, plugin_name: String) -> Nil
-
 /// Send the `process_image` response back to the Rustler reply-registry.
 ///
 /// Call this from your `handle_info/2` after processing a
@@ -3175,10 +3435,7 @@ pub fn register_ocr_backend(pid: Dynamic, plugin_name: String) -> Nil
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "ocr_backend_process_image_response")
-pub fn ocr_backend_process_image_response(
-  call_id: Dynamic,
-  result: Result(ExtractionResult, KreuzbergError),
-) -> Nil
+pub fn ocr_backend_process_image_response(call_id: Dynamic, result: Result(ExtractionResult, KreuzbergError)) -> Nil
 
 /// Send the `process_image_file` response back to the Rustler reply-registry.
 ///
@@ -3197,10 +3454,7 @@ pub fn ocr_backend_process_image_response(
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "ocr_backend_process_image_file_response")
-pub fn ocr_backend_process_image_file_response(
-  call_id: Dynamic,
-  result: Result(ExtractionResult, KreuzbergError),
-) -> Nil
+pub fn ocr_backend_process_image_file_response(call_id: Dynamic, result: Result(ExtractionResult, KreuzbergError)) -> Nil
 
 /// Send the `supports_language` response back to the Rustler reply-registry.
 ///
@@ -3219,10 +3473,7 @@ pub fn ocr_backend_process_image_file_response(
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "ocr_backend_supports_language_response")
-pub fn ocr_backend_supports_language_response(
-  call_id: Dynamic,
-  result: Result(Bool, String),
-) -> Nil
+pub fn ocr_backend_supports_language_response(call_id: Dynamic, result: Result(Bool, String)) -> Nil
 
 /// Send the `backend_type` response back to the Rustler reply-registry.
 ///
@@ -3241,10 +3492,7 @@ pub fn ocr_backend_supports_language_response(
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "ocr_backend_backend_type_response")
-pub fn ocr_backend_backend_type_response(
-  call_id: Dynamic,
-  result: Result(OcrBackendType, String),
-) -> Nil
+pub fn ocr_backend_backend_type_response(call_id: Dynamic, result: Result(OcrBackendType, String)) -> Nil
 
 /// Send the `supported_languages` response back to the Rustler reply-registry.
 ///
@@ -3263,10 +3511,7 @@ pub fn ocr_backend_backend_type_response(
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "ocr_backend_supported_languages_response")
-pub fn ocr_backend_supported_languages_response(
-  call_id: Dynamic,
-  result: Result(List(String), String),
-) -> Nil
+pub fn ocr_backend_supported_languages_response(call_id: Dynamic, result: Result(List(String), String)) -> Nil
 
 /// Send the `supports_table_detection` response back to the Rustler reply-registry.
 ///
@@ -3285,10 +3530,7 @@ pub fn ocr_backend_supported_languages_response(
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "ocr_backend_supports_table_detection_response")
-pub fn ocr_backend_supports_table_detection_response(
-  call_id: Dynamic,
-  result: Result(Bool, String),
-) -> Nil
+pub fn ocr_backend_supports_table_detection_response(call_id: Dynamic, result: Result(Bool, String)) -> Nil
 
 /// Send the `supports_document_processing` response back to the Rustler reply-registry.
 ///
@@ -3307,10 +3549,7 @@ pub fn ocr_backend_supports_table_detection_response(
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "ocr_backend_supports_document_processing_response")
-pub fn ocr_backend_supports_document_processing_response(
-  call_id: Dynamic,
-  result: Result(Bool, String),
-) -> Nil
+pub fn ocr_backend_supports_document_processing_response(call_id: Dynamic, result: Result(Bool, String)) -> Nil
 
 /// Send the `process_document` response back to the Rustler reply-registry.
 ///
@@ -3329,10 +3568,8 @@ pub fn ocr_backend_supports_document_processing_response(
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "ocr_backend_process_document_response")
-pub fn ocr_backend_process_document_response(
-  call_id: Dynamic,
-  result: Result(ExtractionResult, KreuzbergError),
-) -> Nil
+pub fn ocr_backend_process_document_response(call_id: Dynamic, result: Result(ExtractionResult, KreuzbergError)) -> Nil
+
 
 /// Complete a pending trait call with a successful JSON result.
 /// Call this from your GenServer after processing a trait_call message.
@@ -3420,7 +3657,6 @@ pub fn fail_trait_call(reply_id: Int, error_message: String) -> Nil
 /// module is done via the Elixir/Rustler side (existing GenServer pattern).
 @external(erlang, "Elixir.Kreuzberg.Native", "register_post_processor")
 pub fn register_post_processor(pid: Dynamic, plugin_name: String) -> Nil
-
 /// Send the `process` response back to the Rustler reply-registry.
 ///
 /// Call this from your `handle_info/2` after processing a
@@ -3438,10 +3674,7 @@ pub fn register_post_processor(pid: Dynamic, plugin_name: String) -> Nil
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "post_processor_process_response")
-pub fn post_processor_process_response(
-  call_id: Dynamic,
-  result: Result(Nil, KreuzbergError),
-) -> Nil
+pub fn post_processor_process_response(call_id: Dynamic, result: Result(Nil, KreuzbergError)) -> Nil
 
 /// Send the `processing_stage` response back to the Rustler reply-registry.
 ///
@@ -3460,10 +3693,7 @@ pub fn post_processor_process_response(
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "post_processor_processing_stage_response")
-pub fn post_processor_processing_stage_response(
-  call_id: Dynamic,
-  result: Result(ProcessingStage, String),
-) -> Nil
+pub fn post_processor_processing_stage_response(call_id: Dynamic, result: Result(ProcessingStage, String)) -> Nil
 
 /// Send the `should_process` response back to the Rustler reply-registry.
 ///
@@ -3482,10 +3712,7 @@ pub fn post_processor_processing_stage_response(
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "post_processor_should_process_response")
-pub fn post_processor_should_process_response(
-  call_id: Dynamic,
-  result: Result(Bool, String),
-) -> Nil
+pub fn post_processor_should_process_response(call_id: Dynamic, result: Result(Bool, String)) -> Nil
 
 /// Send the `estimated_duration_ms` response back to the Rustler reply-registry.
 ///
@@ -3504,10 +3731,7 @@ pub fn post_processor_should_process_response(
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "post_processor_estimated_duration_ms_response")
-pub fn post_processor_estimated_duration_ms_response(
-  call_id: Dynamic,
-  result: Result(Int, String),
-) -> Nil
+pub fn post_processor_estimated_duration_ms_response(call_id: Dynamic, result: Result(Int, String)) -> Nil
 
 /// Send the `priority` response back to the Rustler reply-registry.
 ///
@@ -3526,10 +3750,8 @@ pub fn post_processor_estimated_duration_ms_response(
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "post_processor_priority_response")
-pub fn post_processor_priority_response(
-  call_id: Dynamic,
-  result: Result(Int, String),
-) -> Nil
+pub fn post_processor_priority_response(call_id: Dynamic, result: Result(Int, String)) -> Nil
+
 
 /// Trait bridge shims for `Validator`.
 ///
@@ -3603,7 +3825,6 @@ pub fn post_processor_priority_response(
 /// module is done via the Elixir/Rustler side (existing GenServer pattern).
 @external(erlang, "Elixir.Kreuzberg.Native", "register_validator")
 pub fn register_validator(pid: Dynamic, plugin_name: String) -> Nil
-
 /// Send the `validate` response back to the Rustler reply-registry.
 ///
 /// Call this from your `handle_info/2` after processing a
@@ -3621,10 +3842,7 @@ pub fn register_validator(pid: Dynamic, plugin_name: String) -> Nil
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "validator_validate_response")
-pub fn validator_validate_response(
-  call_id: Dynamic,
-  result: Result(Nil, KreuzbergError),
-) -> Nil
+pub fn validator_validate_response(call_id: Dynamic, result: Result(Nil, KreuzbergError)) -> Nil
 
 /// Send the `should_validate` response back to the Rustler reply-registry.
 ///
@@ -3643,10 +3861,7 @@ pub fn validator_validate_response(
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "validator_should_validate_response")
-pub fn validator_should_validate_response(
-  call_id: Dynamic,
-  result: Result(Bool, String),
-) -> Nil
+pub fn validator_should_validate_response(call_id: Dynamic, result: Result(Bool, String)) -> Nil
 
 /// Send the `priority` response back to the Rustler reply-registry.
 ///
@@ -3665,10 +3880,8 @@ pub fn validator_should_validate_response(
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "validator_priority_response")
-pub fn validator_priority_response(
-  call_id: Dynamic,
-  result: Result(Int, String),
-) -> Nil
+pub fn validator_priority_response(call_id: Dynamic, result: Result(Int, String)) -> Nil
+
 
 /// Trait bridge shims for `EmbeddingBackend`.
 ///
@@ -3728,7 +3941,6 @@ pub fn validator_priority_response(
 /// module is done via the Elixir/Rustler side (existing GenServer pattern).
 @external(erlang, "Elixir.Kreuzberg.Native", "register_embedding_backend")
 pub fn register_embedding_backend(pid: Dynamic, plugin_name: String) -> Nil
-
 /// Send the `dimensions` response back to the Rustler reply-registry.
 ///
 /// Call this from your `handle_info/2` after processing a
@@ -3746,10 +3958,7 @@ pub fn register_embedding_backend(pid: Dynamic, plugin_name: String) -> Nil
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "embedding_backend_dimensions_response")
-pub fn embedding_backend_dimensions_response(
-  call_id: Dynamic,
-  result: Result(Int, String),
-) -> Nil
+pub fn embedding_backend_dimensions_response(call_id: Dynamic, result: Result(Int, String)) -> Nil
 
 /// Send the `embed` response back to the Rustler reply-registry.
 ///
@@ -3768,7 +3977,4 @@ pub fn embedding_backend_dimensions_response(
 /// // }
 /// ```
 @external(erlang, "Elixir.Kreuzberg.Native", "embedding_backend_embed_response")
-pub fn embedding_backend_embed_response(
-  call_id: Dynamic,
-  result: Result(List(List(Float)), KreuzbergError),
-) -> Nil
+pub fn embedding_backend_embed_response(call_id: Dynamic, result: Result(List(List(Float)), KreuzbergError)) -> Nil

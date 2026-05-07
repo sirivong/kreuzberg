@@ -5,7 +5,8 @@ import java.util.List;
 /**
  * Bridge interface for the OcrBackend plugin system.
  *
- * Implementations are wrapped by OcrBackendBridge and exposed to the native runtime through Panama FFM upcall stubs.
+ * Implementations are wrapped by OcrBackendBridge and exposed to the native
+ * runtime through Panama FFM upcall stubs.
  */
 public interface IOcrBackend {
 
@@ -16,12 +17,10 @@ public interface IOcrBackend {
     String version();
 
     /** Initialize the plugin. */
-    default void initialize() throws Exception {
-    }
+    default void initialize() throws Exception {}
 
     /** Shut down the plugin. */
-    default void shutdown() throws Exception {
-    }
+    default void shutdown() throws Exception {}
 
     /** process_image. */
     ExtractionResult process_image(byte[] image_bytes, OcrConfig config) throws Exception;

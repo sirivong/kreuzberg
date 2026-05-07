@@ -747,16 +747,14 @@ pub struct DocxMetadata {
     /// Contains title, creator, subject, keywords, dates, etc.
     /// Shared format across DOCX/PPTX/XLSX documents.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "api", schema(value_type = Option<Object>))]
-    pub core_properties: Option<crate::extraction::office_metadata::CoreProperties>,
+    pub core_properties: Option<serde_json::Value>,
 
     /// Application properties from docProps/app.xml (Word-specific statistics)
     ///
     /// Contains word count, page count, paragraph count, editing time, etc.
     /// DOCX-specific variant of Office application properties.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[cfg_attr(feature = "api", schema(value_type = Option<Object>))]
-    pub app_properties: Option<crate::extraction::office_metadata::DocxAppProperties>,
+    pub app_properties: Option<serde_json::Value>,
 
     /// Custom properties from docProps/custom.xml (user-defined properties)
     ///
