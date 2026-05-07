@@ -275,6 +275,10 @@ public typealias ServerConfig = RustBridge.ServerConfig
 
 public typealias StructuredDataResult = RustBridge.StructuredDataResult
 
+public typealias CharShape = RustBridge.CharShape
+
+public typealias HwpImage = RustBridge.HwpImage
+
 public typealias StreamReader = RustBridge.StreamReader
 
 /// Result of OCR extraction from an image with optional page tracking.

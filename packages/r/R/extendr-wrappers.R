@@ -502,6 +502,30 @@ StructuredDataResult <- new.env(parent = emptyenv())
 #' @export
 `[[.StructuredDataResult` <- `$.StructuredDataResult`
 
+CharShape <- new.env(parent = emptyenv())
+
+#' @export
+`$.CharShape` <- function(self, name) {
+  func <- CharShape[[name]]
+  environment(func) <- environment()
+  func
+}
+
+#' @export
+`[[.CharShape` <- `$.CharShape`
+
+HwpImage <- new.env(parent = emptyenv())
+
+#' @export
+`$.HwpImage` <- function(self, name) {
+  func <- HwpImage[[name]]
+  environment(func) <- environment()
+  func
+}
+
+#' @export
+`[[.HwpImage` <- `$.HwpImage`
+
 StreamReader <- new.env(parent = emptyenv())
 
 #' @export

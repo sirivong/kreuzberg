@@ -1252,6 +1252,26 @@ class StructuredDataResult {
   });
 }
 
+class CharShape {
+  final bool bold;
+  final bool italic;
+  final bool underline;
+  CharShape({
+    required this.bold,
+    required this.italic,
+    required this.underline,
+  });
+}
+
+class HwpImage {
+  final String name;
+  final Uint8List data;
+  HwpImage({
+    required this.name,
+    required this.data,
+  });
+}
+
 class StreamReader {}
 
 /// Result of OCR extraction from an image with optional page tracking.

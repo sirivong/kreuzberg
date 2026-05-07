@@ -328,6 +328,19 @@ pub struct StructuredDataResult {
     pub text_fields: Vec<String>,
 }
 
+#[frb(mirror(CharShape))]
+pub struct CharShape {
+    pub bold: bool,
+    pub italic: bool,
+    pub underline: bool,
+}
+
+#[frb(mirror(HwpImage))]
+pub struct HwpImage {
+    pub name: String,
+    pub data: Vec<u8>,
+}
+
 #[frb(mirror(StreamReader))]
 pub struct StreamReader {}
 

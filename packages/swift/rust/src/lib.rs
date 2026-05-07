@@ -560,6 +560,23 @@ mod ffi {
     }
 
     extern "Rust" {
+        type CharShape;
+        #[swift_bridge(init)]
+        fn new(bold: bool, italic: bool, underline: bool) -> CharShape;
+        fn bold(&self) -> bool;
+        fn italic(&self) -> bool;
+        fn underline(&self) -> bool;
+    }
+
+    extern "Rust" {
+        type HwpImage;
+        #[swift_bridge(init)]
+        fn new(name: String, data: Vec<u8>) -> HwpImage;
+        fn name(&self) -> String;
+        fn data(&self) -> Vec<u8>;
+    }
+
+    extern "Rust" {
         type StreamReader;
     }
 
@@ -4226,6 +4243,44 @@ impl StructuredDataResult {
             .ok()
             .and_then(|j| ::serde_json::from_value(j).ok())
             .unwrap_or_default()
+    }
+}
+
+pub struct CharShape(pub kreuzberg::extraction::hwp::model::CharShape);
+
+impl CharShape {
+    pub fn new(bold: bool, italic: bool, underline: bool) -> CharShape {
+        CharShape(kreuzberg::extraction::hwp::model::CharShape {
+            bold,
+            italic,
+            underline,
+        })
+    }
+    pub fn bold(&self) -> bool {
+        self.0.bold.clone()
+    }
+    pub fn italic(&self) -> bool {
+        self.0.italic.clone()
+    }
+    pub fn underline(&self) -> bool {
+        self.0.underline.clone()
+    }
+}
+
+pub struct HwpImage(pub kreuzberg::extraction::hwp::model::HwpImage);
+
+impl HwpImage {
+    pub fn new(name: String, data: Vec<u8>) -> HwpImage {
+        let mut __target: kreuzberg::extraction::hwp::model::HwpImage = ::std::default::Default::default();
+        // alef: name — String fallback in non-serde struct, left at default
+        __target.data = data.into();
+        HwpImage(__target)
+    }
+    pub fn name(&self) -> String {
+        format!("{:?}", &self.0.name)
+    }
+    pub fn data(&self) -> Vec<u8> {
+        self.0.data.to_vec()
     }
 }
 

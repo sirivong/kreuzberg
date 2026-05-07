@@ -488,6 +488,17 @@ pub const StructuredDataResult = struct {
     text_fields: []const [:0]const u8,
 };
 
+pub const CharShape = struct {
+    bold: bool,
+    italic: bool,
+    underline: bool,
+};
+
+pub const HwpImage = struct {
+    name: [:0]const u8,
+    data: []const u8,
+};
+
 pub const StreamReader = struct {
 };
 

@@ -482,6 +482,21 @@ pub type StructuredDataResult {
   )
 }
 
+pub type CharShape {
+  CharShape(
+    bold: Bool,
+    italic: Bool,
+    underline: Bool
+  )
+}
+
+pub type HwpImage {
+  HwpImage(
+    name: String,
+    data: BitArray
+  )
+}
+
 pub type StreamReader {
   StreamReader
 }

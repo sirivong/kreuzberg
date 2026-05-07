@@ -23,6 +23,7 @@ typedef struct KREUZBERGBibtexMetadata KREUZBERGBibtexMetadata;
 typedef struct KREUZBERGBlockType KREUZBERGBlockType;
 typedef struct KREUZBERGByteBufferPool KREUZBERGByteBufferPool;
 typedef struct KREUZBERGCacheWarmParams KREUZBERGCacheWarmParams;
+typedef struct KREUZBERGCharShape KREUZBERGCharShape;
 typedef struct KREUZBERGChunk KREUZBERGChunk;
 typedef struct KREUZBERGChunkMetadata KREUZBERGChunkMetadata;
 typedef struct KREUZBERGChunkRequest KREUZBERGChunkRequest;
@@ -100,6 +101,7 @@ typedef struct KREUZBERGHtmlExtractionResult KREUZBERGHtmlExtractionResult;
 typedef struct KREUZBERGHtmlMetadata KREUZBERGHtmlMetadata;
 typedef struct KREUZBERGHtmlOutputConfig KREUZBERGHtmlOutputConfig;
 typedef struct KREUZBERGHtmlTheme KREUZBERGHtmlTheme;
+typedef struct KREUZBERGHwpImage KREUZBERGHwpImage;
 typedef struct KREUZBERGImageExtractionConfig KREUZBERGImageExtractionConfig;
 typedef struct KREUZBERGImageKind KREUZBERGImageKind;
 typedef struct KREUZBERGImageMetadataType KREUZBERGImageMetadataType;
@@ -3098,6 +3100,56 @@ char *kreuzberg_structured_data_result_metadata(const KREUZBERGStructuredDataRes
  * Pointer must be a valid handle returned by this library.
  */
 char *kreuzberg_structured_data_result_text_fields(const KREUZBERGStructuredDataResult *ptr);
+
+/**
+ * Free a `CharShape` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_char_shape_free(KREUZBERGCharShape *ptr);
+
+/**
+ * Get the `bold` field from a `CharShape`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_char_shape_bold(const KREUZBERGCharShape *ptr);
+
+/**
+ * Get the `italic` field from a `CharShape`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_char_shape_italic(const KREUZBERGCharShape *ptr);
+
+/**
+ * Get the `underline` field from a `CharShape`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_char_shape_underline(const KREUZBERGCharShape *ptr);
+
+/**
+ * Free a `HwpImage` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_hwp_image_free(KREUZBERGHwpImage *ptr);
+
+/**
+ * Get the `name` field from a `HwpImage`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_hwp_image_name(const KREUZBERGHwpImage *ptr);
+
+/**
+ * Get the `data` field from a `HwpImage`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uint8_t *kreuzberg_hwp_image_data(const KREUZBERGHwpImage *ptr,
+                                  uintptr_t *out_len);
 
 /**
  * Free a `StreamReader` handle.
