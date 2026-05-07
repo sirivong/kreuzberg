@@ -58,10 +58,18 @@ impl EmailExtractor {
             builder.push_metadata_block(&header_entries, None);
         }
 
-        // Push body content: if HTML body is available, walk the HTML
-        // document structure for richer extraction; otherwise fall back to
-        // plain text paragraph splitting.
-        if let Some(ref html) = email_result.html_content {
+        // Push body content: use the extracted content (which already has HTML
+        // processing applied if needed - see email.rs clean_html_content()).
+        // For HTML emails, this is already text with tags stripped.
+        if !email_result.content.is_empty() {
+            for paragraph in email_result.content.split("\n\n") {
+                let trimmed = paragraph.trim();
+                if !trimmed.is_empty() {
+                    builder.push_paragraph(trimmed, vec![], None, None);
+                }
+            }
+        } else if let Some(ref html) = email_result.html_content {
+            // Fallback: if content is empty but HTML is available, try structured extraction
             let html_doc = crate::extraction::html::structure::build_document_structure(html);
             for node in &html_doc.nodes {
                 if node.parent.is_none() {
@@ -100,12 +108,18 @@ impl EmailExtractor {
                     }
                 }
             }
-        } else {
-            for paragraph in email_result.content.split("\n\n") {
-                let trimmed = paragraph.trim();
-                if !trimmed.is_empty() {
-                    builder.push_paragraph(trimmed, vec![], None, None);
-                }
+        }
+
+        // Add attachments section if there are attachments
+        if !email_result.attachments.is_empty() {
+            let attachment_names: Vec<String> = email_result
+                .attachments
+                .iter()
+                .filter_map(|att| att.filename.clone().or_else(|| att.name.clone()))
+                .collect();
+            if !attachment_names.is_empty() {
+                let attachments_text = format!("Attachments:\n{}", attachment_names.join("\n"));
+                builder.push_paragraph(&attachments_text, vec![], None, None);
             }
         }
 
