@@ -107,13 +107,15 @@ public final class EmbeddingBackendBridge implements AutoCloseable {
 
     private int handleInitialize(MemorySegment userData, MemorySegment outError) {
         try {
-            return impl.initialize(); return 0;
+            impl.initialize();
+            return 0;
         } catch (Throwable e) { return 1; }
     }
 
     private int handleShutdown(MemorySegment userData, MemorySegment outError) {
         try {
-            return impl.shutdown(); return 0;
+            impl.shutdown();
+            return 0;
         } catch (Throwable e) { return 1; }
     }
 
