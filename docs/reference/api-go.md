@@ -550,12 +550,15 @@ func EmbedTextsAsync(texts []string, config EmbeddingConfig) ([][]float32, error
 
 #### RenderPdfPageToPng()
 
-Render a single PDF page to a PNG-encoded byte buffer.
+Render a single PDF page to PNG bytes.
+
+Returns raw PNG-encoded bytes for the specified page at the given DPI.
+Uses pdf_oxide with tiny-skia for pure-Rust rendering.
 
 **Errors:**
 
-Returns an error if the PDF is invalid, the page index is out of bounds,
-or if the page fails to render.
+Returns `KreuzbergError.Parsing` if the PDF cannot be opened, authenticated,
+or rendered, or if `page_index` is out of range.
 
 **Signature:**
 
@@ -567,10 +570,10 @@ func RenderPdfPageToPng(pdfBytes []byte, pageIndex int, dpi int32, password stri
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `PdfBytes` | `[]byte` | Yes | The pdf bytes |
-| `PageIndex` | `int` | Yes | The page index |
-| `Dpi` | `*int32` | No | The dpi |
-| `Password` | `*string` | No | The password |
+| `PdfBytes` | `[]byte` | Yes | Raw PDF file bytes |
+| `PageIndex` | `int` | Yes | Zero-based page index |
+| `Dpi` | `*int32` | No | Resolution in dots per inch (default: 150) |
+| `Password` | `*string` | No | Optional password for encrypted PDFs |
 
 **Returns:** `[]byte`
 
@@ -828,6 +831,17 @@ Request parameters for cache warm (model download).
 
 ---
 
+#### CharShape
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Bold` | `bool` | — | Bold |
+| `Italic` | `bool` | — | Italic |
+| `Underline` | `bool` | — | Underline |
+
+
+---
+
 #### Chunk
 
 A text chunk with optional embedding and metadata.
@@ -971,23 +985,6 @@ Citation file metadata (RIS, PubMed, EndNote).
 
 ---
 
-#### CommonPdfMetadata
-
-Common metadata fields extracted from a PDF.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `Title` | `*string` | `nil` | Title |
-| `Subject` | `*string` | `nil` | Subject |
-| `Authors` | `*[]string` | `nil` | Authors |
-| `Keywords` | `*[]string` | `nil` | Keywords |
-| `CreatedAt` | `*string` | `nil` | Created at |
-| `ModifiedAt` | `*string` | `nil` | Modified at |
-| `CreatedBy` | `*string` | `nil` | Created by |
-
-
----
-
 #### ContentFilterConfig
 
 Cross-extractor content filtering configuration.
@@ -1028,6 +1025,34 @@ JATS contributor with role.
 |-------|------|---------|-------------|
 | `Name` | `string` | — | The name |
 | `Role` | `*string` | `nil` | Role |
+
+
+---
+
+#### CoreProperties
+
+Dublin Core metadata from docProps/core.xml
+
+Contains standard metadata fields defined by the Dublin Core standard
+and Office-specific extensions.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Title` | `*string` | `nil` | Document title |
+| `Subject` | `*string` | `nil` | Document subject/topic |
+| `Creator` | `*string` | `nil` | Document creator/author |
+| `Keywords` | `*string` | `nil` | Keywords or tags |
+| `Description` | `*string` | `nil` | Document description/abstract |
+| `LastModifiedBy` | `*string` | `nil` | User who last modified the document |
+| `Revision` | `*string` | `nil` | Revision number |
+| `Created` | `*string` | `nil` | Creation timestamp (ISO 8601) |
+| `Modified` | `*string` | `nil` | Last modification timestamp (ISO 8601) |
+| `Category` | `*string` | `nil` | Document category |
+| `ContentStatus` | `*string` | `nil` | Content status (Draft, Final, etc.) |
+| `Language` | `*string` | `nil` | Document language |
+| `Identifier` | `*string` | `nil` | Unique identifier |
+| `Version` | `*string` | `nil` | Document version |
+| `LastPrinted` | `*string` | `nil` | Last print timestamp (ISO 8601) |
 
 
 ---
@@ -1422,6 +1447,16 @@ construction paths (builder, derivation) call this automatically.
 func (o *DocumentStructure) FinalizeNodeTypes()
 ```
 
+###### IsEmpty()
+
+Check if the document structure is empty.
+
+**Signature:**
+
+```go
+func (o *DocumentStructure) IsEmpty() bool
+```
+
 ###### Default()
 
 **Signature:**
@@ -1429,6 +1464,34 @@ func (o *DocumentStructure) FinalizeNodeTypes()
 ```go
 func (o *DocumentStructure) Default() DocumentStructure
 ```
+
+
+---
+
+#### DocxAppProperties
+
+Application properties from docProps/app.xml for DOCX
+
+Contains Word-specific document statistics and metadata.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Application` | `*string` | `nil` | Application name (e.g., "Microsoft Office Word") |
+| `AppVersion` | `*string` | `nil` | Application version |
+| `Template` | `*string` | `nil` | Template filename |
+| `TotalTime` | `*int32` | `nil` | Total editing time in minutes |
+| `Pages` | `*int32` | `nil` | Number of pages |
+| `Words` | `*int32` | `nil` | Number of words |
+| `Characters` | `*int32` | `nil` | Number of characters (excluding spaces) |
+| `CharactersWithSpaces` | `*int32` | `nil` | Number of characters (including spaces) |
+| `Lines` | `*int32` | `nil` | Number of lines |
+| `Paragraphs` | `*int32` | `nil` | Number of paragraphs |
+| `Company` | `*string` | `nil` | Company name |
+| `DocSecurity` | `*int32` | `nil` | Document security level |
+| `ScaleCrop` | `*bool` | `nil` | Scale crop flag |
+| `LinksUpToDate` | `*bool` | `nil` | Links up to date flag |
+| `SharedDoc` | `*bool` | `nil` | Shared document flag |
+| `HyperlinksChanged` | `*bool` | `nil` | Hyperlinks changed flag |
 
 
 ---
@@ -1442,8 +1505,8 @@ Integrates with `office_metadata` module for core/app/custom properties.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `CoreProperties` | `*string` | `nil` | Core properties from docProps/core.xml (Dublin Core metadata) Contains title, creator, subject, keywords, dates, etc. Shared format across DOCX/PPTX/XLSX documents. |
-| `AppProperties` | `*string` | `nil` | Application properties from docProps/app.xml (Word-specific statistics) Contains word count, page count, paragraph count, editing time, etc. DOCX-specific variant of Office application properties. |
+| `CoreProperties` | `*CoreProperties` | `nil` | Core properties from docProps/core.xml (Dublin Core metadata) Contains title, creator, subject, keywords, dates, etc. Shared format across DOCX/PPTX/XLSX documents. |
+| `AppProperties` | `*DocxAppProperties` | `nil` | Application properties from docProps/app.xml (Word-specific statistics) Contains word count, page count, paragraph count, editing time, etc. DOCX-specific variant of Office application properties. |
 | `CustomProperties` | `*map[string]interface{}` | `nil` | Custom properties from docProps/custom.xml (user-defined properties) Contains key-value pairs defined by users or applications. Values can be strings, numbers, booleans, or dates. |
 
 
@@ -1879,7 +1942,7 @@ PIL.Image (Python), Sharp (Node.js), or other formats as needed.
 | `IsMask` | `bool` | — | Whether this image is a mask image |
 | `Description` | `*string` | `nil` | Optional description of the image |
 | `OcrResult` | `*ExtractionResult` | `nil` | Nested OCR extraction result (if image was OCRed) When OCR is performed on this image, the result is embedded here rather than in a separate collection, making the relationship explicit. |
-| `BoundingBox` | `*string` | `nil` | Bounding box of the image on the page (PDF coordinates: x0=left, y0=bottom, x1=right, y1=top). Only populated for PDF-extracted images when position data is available from pdf_oxide. |
+| `BoundingBox` | `*string` | `nil` | Bounding box of the image on the page (PDF coordinates: x0=left, y0=bottom, x1=right, y1=top). Only populated for PDF-extracted images when position data is available from the PDF extractor. |
 | `SourcePath` | `*string` | `nil` | Original source path of the image within the document archive (e.g., "media/image1.png" in DOCX). Used for rendering image references when the binary data is not extracted. |
 | `ImageKind` | `*ImageKind` | `nil` | Heuristic classification of what this image likely depicts. `nil` if classification was disabled or inconclusive. |
 | `KindConfidence` | `*float32` | `nil` | Confidence score for `image_kind`, in [0.0, 1.0]. |
@@ -2289,6 +2352,16 @@ func (o *HtmlOutputConfig) Default() HtmlOutputConfig
 
 ---
 
+#### HwpImage
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `Name` | `string` | — | The name |
+| `Data` | `[]byte` | — | Data |
+
+
+---
+
 #### ImageExtractionConfig
 
 Image extraction configuration.
@@ -2302,7 +2375,7 @@ Image extraction configuration.
 | `AutoAdjustDpi` | `bool` | `true` | Automatically adjust DPI based on image content |
 | `MinDpi` | `int32` | `72` | Minimum DPI threshold |
 | `MaxDpi` | `int32` | `600` | Maximum DPI threshold |
-| `MaxImagesPerPage` | `*uint32` | `nil` | Maximum number of image objects to extract per PDF page. Some PDFs (e.g. technical diagrams stored as thousands of raster fragments) can trigger extremely long or indefinite extraction times when every image object on a dense page is decoded individually via pdf_oxide. Setting this limit causes kreuzberg to stop collecting individual images once the count per page reaches the cap and emit a warning instead. `nil` (default) means no limit — all images are extracted. |
+| `MaxImagesPerPage` | `*uint32` | `nil` | Maximum number of image objects to extract per PDF page. Some PDFs (e.g. technical diagrams stored as thousands of raster fragments) can trigger extremely long or indefinite extraction times when every image object on a dense page is decoded individually via the PDF extractor. Setting this limit causes kreuzberg to stop collecting individual images once the count per page reaches the cap and emit a warning instead. `nil` (default) means no limit — all images are extracted. |
 | `Classify` | `bool` | `true` | When `true` (default), extracted images are classified by kind and grouped into clusters where they appear to belong to one figure. |
 
 ##### Methods
@@ -3423,22 +3496,6 @@ and visibility state (for presentations).
 
 ---
 
-#### PageLayoutResult
-
-Layout detection results for a single page.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `PageIndex` | `int` | — | Page index |
-| `Regions` | `[]string` | — | Regions |
-| `PageWidthPts` | `float32` | — | Page width pts |
-| `PageHeightPts` | `float32` | — | Page height pts |
-| `RenderWidthPx` | `uint32` | — | Width of the rendered image used for layout detection (pixels). |
-| `RenderHeightPx` | `uint32` | — | Height of the rendered image used for layout detection (pixels). |
-
-
----
-
 #### PageMarginsPoints
 
 Page margins converted to points (1/72 inch).
@@ -3469,22 +3526,6 @@ with character offset boundaries for chunk-to-page mapping.
 | `UnitType` | `PageUnitType` | — | Type of paginated unit |
 | `Boundaries` | `*[]PageBoundary` | `nil` | Character offset boundaries for each page Maps character ranges in the extracted content to page numbers. Used for chunk page range calculation. |
 | `Pages` | `*[]PageInfo` | `nil` | Detailed per-page metadata (optional, only when needed) |
-
-
----
-
-#### PageTiming
-
-Timing breakdown for a single page.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `RenderMs` | `float64` | — | Time to render the PDF page to a raster image (amortized from batch render). |
-| `PreprocessMs` | `float64` | — | Time spent in image preprocessing (resize, normalize, tensor construction). |
-| `OnnxMs` | `float64` | — | Time for the ONNX model session.run() call (actual neural network inference). |
-| `InferenceMs` | `float64` | — | Total model inference time (preprocess + onnx), as measured by the engine. |
-| `PostprocessMs` | `float64` | — | Time spent in postprocessing (confidence filtering, overlap resolution). |
-| `MappingMs` | `float64` | — | Time to map pixel-space bounding boxes to PDF coordinate space. |
 
 
 ---
@@ -3527,35 +3568,6 @@ PDF-specific configuration.
 ```go
 func (o *PdfConfig) Default() PdfConfig
 ```
-
-
----
-
-#### PdfImage
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `PageNumber` | `int` | — | Page number |
-| `ImageIndex` | `int` | — | Image index |
-| `Width` | `int64` | — | Width |
-| `Height` | `int64` | — | Height |
-| `ColorSpace` | `*string` | `nil` | Color space |
-| `BitsPerComponent` | `*int64` | `nil` | Bits per component |
-| `Filters` | `[]string` | — | Original PDF stream filters (e.g. `["FlateDecode"]`, `["DCTDecode"]`). |
-| `Data` | `[]byte` | — | The decoded image bytes in a standard format (JPEG, PNG, etc.). |
-| `DecodedFormat` | `string` | — | The format of `data` after decoding: `"jpeg"`, `"png"`, `"jpeg2000"`, `"ccitt"`, or `"raw"`. |
-| `ImageKind` | `*ImageKind` | `nil` | Heuristic classification of what this image likely depicts. |
-| `KindConfidence` | `*float32` | `nil` | Confidence score for `image_kind`, in [0.0, 1.0]. |
-| `ClusterId` | `*uint32` | `nil` | Identifier shared across images that form a single logical figure. |
-
-
----
-
-#### PdfUnifiedExtractionResult
-
-Result type for unified PDF text and metadata extraction.
-
-Contains text, optional page boundaries, optional per-page content, and metadata.
 
 
 ---
