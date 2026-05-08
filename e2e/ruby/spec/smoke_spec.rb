@@ -77,7 +77,7 @@ RSpec.describe 'smoke' do
     expect(result.content.to_s).to include('TOR')
     expect(result.tables.length).to be >= 1
     expect(result.metadata.format.excel.sheet_count).to be >= 2
-    expect(result.metadata.format.excel.sheet_names.any? { |item| alef_e2e_item_texts(item).any? { |t| t.include?('Stanley Cups') } }).to be(true)
+    expect(result.metadata.format.excel.sheet_names.any? { |name| name.include?('Stanley Cups') }).to be(true)
 
   end
 end
