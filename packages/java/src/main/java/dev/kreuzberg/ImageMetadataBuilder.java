@@ -47,11 +47,6 @@ public class ImageMetadataBuilder {
 
     /** Builds the ImageMetadata instance. */
     public ImageMetadata build() {
-        return new ImageMetadata(
-            width,
-            height,
-            format,
-            exif
-        );
+        return new ImageMetadata(width, height, format, exif);
     }
 }

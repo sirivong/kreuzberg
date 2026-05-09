@@ -9,10 +9,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 @JsonDeserialize(builder = HwpImageBuilder.class)
-public record HwpImage(
-    String name,
-    @JsonSerialize(using = ByteArrayToIntArraySerializer.class) byte[] data
-) {
+public record HwpImage(String name, @JsonSerialize(using = ByteArrayToIntArraySerializer.class) byte[] data) {
     public static HwpImageBuilder builder() {
         return new HwpImageBuilder();
     }
