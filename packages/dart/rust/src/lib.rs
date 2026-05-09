@@ -1585,17 +1585,6 @@ pub struct PdfMetadata {
     pub page_count: Option<i64>,
 }
 
-#[frb(mirror(CommonPdfMetadata))]
-pub struct CommonPdfMetadata {
-    pub title: Option<String>,
-    pub subject: Option<String>,
-    pub authors: Option<Vec<String>>,
-    pub keywords: Option<Vec<String>>,
-    pub created_at: Option<String>,
-    pub modified_at: Option<String>,
-    pub created_by: Option<String>,
-}
-
 #[frb(mirror(ExecutionProviderType))]
 pub enum ExecutionProviderType {
     Auto,
@@ -4162,20 +4151,6 @@ impl From<kreuzberg::pdf::metadata::PdfMetadata> for PdfMetadata {
     }
 }
 
-impl From<kreuzberg::pdf::metadata::CommonPdfMetadata> for CommonPdfMetadata {
-    fn from(v: kreuzberg::pdf::metadata::CommonPdfMetadata) -> Self {
-        CommonPdfMetadata {
-            title: v.title.map(|s| s.into()),
-            subject: v.subject.map(|s| s.into()),
-            authors: v.authors.map(|vec| vec.into_iter().map(|s| s.into()).collect()),
-            keywords: v.keywords.map(|vec| vec.into_iter().map(|s| s.into()).collect()),
-            created_at: v.created_at.map(|s| s.into()),
-            modified_at: v.modified_at.map(|s| s.into()),
-            created_by: v.created_by.map(|s| s.into()),
-        }
-    }
-}
-
 impl From<kreuzberg::ExecutionProviderType> for ExecutionProviderType {
     fn from(v: kreuzberg::ExecutionProviderType) -> Self {
         match v {
@@ -4824,6 +4799,644 @@ impl From<kreuzberg::LayoutClass> for LayoutClass {
     }
 }
 
+// From<T> for kreuzberg::T conversions for types with sanitized fields.
+// Used in bridge functions instead of transmute to avoid UB from layout mismatches.
+
+impl From<ExtractionConfig> for kreuzberg::ExtractionConfig {
+    fn from(v: ExtractionConfig) -> Self {
+        kreuzberg::ExtractionConfig {
+            use_cache: v.use_cache as _,
+            enable_quality_processing: v.enable_quality_processing as _,
+            ocr: v.ocr.map(OcrConfig::into),
+            force_ocr: v.force_ocr as _,
+            force_ocr_pages: v.force_ocr_pages.map(|vec| vec.into_iter().map(|x| x as _).collect()),
+            disable_ocr: v.disable_ocr as _,
+            chunking: v.chunking.map(ChunkingConfig::into),
+            content_filter: v.content_filter.map(ContentFilterConfig::into),
+            images: v.images.map(ImageExtractionConfig::into),
+            pdf_options: v.pdf_options.map(PdfConfig::into),
+            token_reduction: v.token_reduction.map(TokenReductionOptions::into),
+            language_detection: v.language_detection.map(LanguageDetectionConfig::into),
+            pages: v.pages.map(PageConfig::into),
+            keywords: v.keywords.map(KeywordConfig::into),
+            postprocessor: v.postprocessor.map(PostProcessorConfig::into),
+            html_options: Default::default(),
+            html_output: v.html_output.map(HtmlOutputConfig::into),
+            extraction_timeout_secs: v.extraction_timeout_secs.map(|x| x as _),
+            max_concurrent_extractions: v.max_concurrent_extractions.map(|x| x as _),
+            result_format: v.result_format.into(),
+            security_limits: v.security_limits.map(SecurityLimits::into),
+            output_format: v.output_format.into(),
+            layout: v.layout.map(LayoutDetectionConfig::into),
+            include_document_structure: v.include_document_structure as _,
+            acceleration: v.acceleration.map(AccelerationConfig::into),
+            cache_namespace: v.cache_namespace.map(Into::into),
+            cache_ttl_secs: v.cache_ttl_secs.map(|x| x as _),
+            email: v.email.map(EmailConfig::into),
+            concurrency: Default::default(),
+            max_archive_depth: v.max_archive_depth as _,
+            tree_sitter: v.tree_sitter.map(TreeSitterConfig::into),
+            structured_extraction: v.structured_extraction.map(StructuredExtractionConfig::into),
+            cancel_token: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<FileExtractionConfig> for kreuzberg::FileExtractionConfig {
+    fn from(v: FileExtractionConfig) -> Self {
+        kreuzberg::FileExtractionConfig {
+            enable_quality_processing: v.enable_quality_processing.map(|x| x as _),
+            ocr: v.ocr.map(OcrConfig::into),
+            force_ocr: v.force_ocr.map(|x| x as _),
+            force_ocr_pages: v.force_ocr_pages.map(|vec| vec.into_iter().map(|x| x as _).collect()),
+            disable_ocr: v.disable_ocr.map(|x| x as _),
+            chunking: v.chunking.map(ChunkingConfig::into),
+            content_filter: v.content_filter.map(ContentFilterConfig::into),
+            images: v.images.map(ImageExtractionConfig::into),
+            pdf_options: v.pdf_options.map(PdfConfig::into),
+            token_reduction: v.token_reduction.map(TokenReductionOptions::into),
+            language_detection: v.language_detection.map(LanguageDetectionConfig::into),
+            pages: v.pages.map(PageConfig::into),
+            keywords: v.keywords.map(KeywordConfig::into),
+            postprocessor: v.postprocessor.map(PostProcessorConfig::into),
+            html_options: Default::default(),
+            result_format: v.result_format.map(ResultFormat::into),
+            output_format: v.output_format.map(OutputFormat::into),
+            include_document_structure: v.include_document_structure.map(|x| x as _),
+            layout: v.layout.map(LayoutDetectionConfig::into),
+            timeout_secs: v.timeout_secs.map(|x| x as _),
+            tree_sitter: v.tree_sitter.map(TreeSitterConfig::into),
+            structured_extraction: v.structured_extraction.map(StructuredExtractionConfig::into),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<PostProcessorConfig> for kreuzberg::PostProcessorConfig {
+    fn from(v: PostProcessorConfig) -> Self {
+        kreuzberg::PostProcessorConfig {
+            enabled: v.enabled as _,
+            enabled_processors: v
+                .enabled_processors
+                .map(|vec| vec.into_iter().map(Into::into).collect()),
+            disabled_processors: v
+                .disabled_processors
+                .map(|vec| vec.into_iter().map(Into::into).collect()),
+            enabled_set: Default::default(),
+            disabled_set: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<StructuredDataResult> for kreuzberg::extraction::structured::StructuredDataResult {
+    fn from(v: StructuredDataResult) -> Self {
+        kreuzberg::extraction::structured::StructuredDataResult {
+            content: v.content.into(),
+            format: Default::default(),
+            metadata: v.metadata.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+            text_fields: v.text_fields.into_iter().map(Into::into).collect(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<ExtractedInlineImage> for kreuzberg::extraction::html::ExtractedInlineImage {
+    fn from(v: ExtractedInlineImage) -> Self {
+        kreuzberg::extraction::html::ExtractedInlineImage {
+            data: v.data.into(),
+            format: v.format.into(),
+            filename: v.filename.map(Into::into),
+            description: v.description.map(Into::into),
+            dimensions: Default::default(),
+            attributes: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<Drawing> for kreuzberg::extraction::docx::drawing::Drawing {
+    fn from(v: Drawing) -> Self {
+        kreuzberg::extraction::docx::drawing::Drawing {
+            drawing_type: Default::default(),
+            extent: Default::default(),
+            doc_properties: Default::default(),
+            image_ref: v.image_ref.map(Into::into),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<AnchorProperties> for kreuzberg::extraction::docx::drawing::AnchorProperties {
+    fn from(v: AnchorProperties) -> Self {
+        kreuzberg::extraction::docx::drawing::AnchorProperties {
+            behind_doc: v.behind_doc as _,
+            layout_in_cell: v.layout_in_cell as _,
+            relative_height: v.relative_height.map(|x| x as _),
+            position_h: Default::default(),
+            position_v: Default::default(),
+            wrap_type: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<StyleDefinition> for kreuzberg::extraction::docx::styles::StyleDefinition {
+    fn from(v: StyleDefinition) -> Self {
+        kreuzberg::extraction::docx::styles::StyleDefinition {
+            id: v.id.into(),
+            name: v.name.map(Into::into),
+            style_type: Default::default(),
+            based_on: v.based_on.map(Into::into),
+            next_style: v.next_style.map(Into::into),
+            is_default: v.is_default as _,
+            paragraph_properties: Default::default(),
+            run_properties: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<ResolvedStyle> for kreuzberg::extraction::docx::styles::ResolvedStyle {
+    fn from(v: ResolvedStyle) -> Self {
+        kreuzberg::extraction::docx::styles::ResolvedStyle {
+            paragraph_properties: Default::default(),
+            run_properties: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<TableProperties> for kreuzberg::extraction::docx::table::TableProperties {
+    fn from(v: TableProperties) -> Self {
+        kreuzberg::extraction::docx::table::TableProperties {
+            style_id: v.style_id.map(Into::into),
+            width: Default::default(),
+            alignment: v.alignment.map(Into::into),
+            layout: v.layout.map(Into::into),
+            look: Default::default(),
+            borders: Default::default(),
+            cell_margins: Default::default(),
+            indent: Default::default(),
+            caption: v.caption.map(Into::into),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<PdfAnnotation> for kreuzberg::PdfAnnotation {
+    fn from(v: PdfAnnotation) -> Self {
+        kreuzberg::PdfAnnotation {
+            annotation_type: v.annotation_type.into(),
+            content: v.content.map(Into::into),
+            page_number: v.page_number as _,
+            bounding_box: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<DjotContent> for kreuzberg::DjotContent {
+    fn from(v: DjotContent) -> Self {
+        kreuzberg::DjotContent {
+            plain_text: v.plain_text.into(),
+            blocks: v.blocks.into_iter().map(Into::into).collect(),
+            metadata: v.metadata.into(),
+            tables: v.tables.into_iter().map(Into::into).collect(),
+            images: v.images.into_iter().map(Into::into).collect(),
+            links: v.links.into_iter().map(Into::into).collect(),
+            footnotes: v.footnotes.into_iter().map(Into::into).collect(),
+            attributes: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<FormattedBlock> for kreuzberg::FormattedBlock {
+    fn from(v: FormattedBlock) -> Self {
+        kreuzberg::FormattedBlock {
+            block_type: v.block_type.into(),
+            level: v.level.map(|x| x as _),
+            inline_content: v.inline_content.into_iter().map(Into::into).collect(),
+            attributes: Default::default(),
+            language: v.language.map(Into::into),
+            code: v.code.map(Into::into),
+            children: v.children.into_iter().map(Into::into).collect(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<InlineElement> for kreuzberg::InlineElement {
+    fn from(v: InlineElement) -> Self {
+        kreuzberg::InlineElement {
+            element_type: v.element_type.into(),
+            content: v.content.into(),
+            attributes: Default::default(),
+            metadata: v
+                .metadata
+                .map(|m| m.into_iter().map(|(k, v)| (k.into(), v.into())).collect()),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<DjotImage> for kreuzberg::DjotImage {
+    fn from(v: DjotImage) -> Self {
+        kreuzberg::DjotImage {
+            src: v.src.into(),
+            alt: v.alt.into(),
+            title: v.title.map(Into::into),
+            attributes: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<DjotLink> for kreuzberg::DjotLink {
+    fn from(v: DjotLink) -> Self {
+        kreuzberg::DjotLink {
+            url: v.url.into(),
+            text: v.text.into(),
+            title: v.title.map(Into::into),
+            attributes: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<DocumentNode> for kreuzberg::DocumentNode {
+    fn from(v: DocumentNode) -> Self {
+        kreuzberg::DocumentNode {
+            id: Default::default(),
+            content: v.content.into(),
+            parent: v.parent.map(|x| kreuzberg::NodeIndex(x as _)),
+            children: v.children.into_iter().map(|x| x as _).collect(),
+            content_layer: v.content_layer.into(),
+            page: v.page.map(|x| x as _),
+            page_end: v.page_end.map(|x| x as _),
+            bbox: Default::default(),
+            annotations: v.annotations.into_iter().map(Into::into).collect(),
+            attributes: v
+                .attributes
+                .map(|m| m.into_iter().map(|(k, v)| (k.into(), v.into())).collect()),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<GridCell> for kreuzberg::GridCell {
+    fn from(v: GridCell) -> Self {
+        kreuzberg::GridCell {
+            content: v.content.into(),
+            row: v.row as _,
+            col: v.col as _,
+            row_span: v.row_span as _,
+            col_span: v.col_span as _,
+            is_header: v.is_header as _,
+            bbox: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<ExtractionResult> for kreuzberg::ExtractionResult {
+    fn from(v: ExtractionResult) -> Self {
+        kreuzberg::ExtractionResult {
+            content: v.content.into(),
+            mime_type: Default::default(),
+            metadata: v.metadata.into(),
+            extraction_method: v.extraction_method.map(ExtractionMethod::into),
+            tables: v.tables.into_iter().map(Into::into).collect(),
+            detected_languages: v
+                .detected_languages
+                .map(|vec| vec.into_iter().map(Into::into).collect()),
+            chunks: v.chunks.map(|vec| vec.into_iter().map(Into::into).collect()),
+            images: v.images.map(|vec| vec.into_iter().map(Into::into).collect()),
+            pages: v.pages.map(|vec| vec.into_iter().map(Into::into).collect()),
+            elements: v.elements.map(|vec| vec.into_iter().map(Into::into).collect()),
+            djot_content: v.djot_content.map(DjotContent::into),
+            ocr_elements: v.ocr_elements.map(|vec| vec.into_iter().map(Into::into).collect()),
+            document: v.document.map(DocumentStructure::into),
+            extracted_keywords: v
+                .extracted_keywords
+                .map(|vec| vec.into_iter().map(Into::into).collect()),
+            quality_score: v.quality_score.map(|x| x as _),
+            processing_warnings: v.processing_warnings.into_iter().map(Into::into).collect(),
+            annotations: v.annotations.map(|vec| vec.into_iter().map(Into::into).collect()),
+            children: v.children.map(|vec| vec.into_iter().map(Into::into).collect()),
+            uris: v.uris.map(|vec| vec.into_iter().map(Into::into).collect()),
+            structured_output: v
+                .structured_output
+                .as_deref()
+                .and_then(|s| serde_json::from_str(s).ok()),
+            code_intelligence: Default::default(),
+            llm_usage: v.llm_usage.map(|vec| vec.into_iter().map(Into::into).collect()),
+            formatted_content: v.formatted_content.map(Into::into),
+            ocr_internal_document: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<ProcessingWarning> for kreuzberg::ProcessingWarning {
+    fn from(v: ProcessingWarning) -> Self {
+        kreuzberg::ProcessingWarning {
+            source: Default::default(),
+            message: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<ExtractedImage> for kreuzberg::ExtractedImage {
+    fn from(v: ExtractedImage) -> Self {
+        kreuzberg::ExtractedImage {
+            data: v.data.into(),
+            format: Default::default(),
+            image_index: v.image_index as _,
+            page_number: v.page_number.map(|x| x as _),
+            width: v.width.map(|x| x as _),
+            height: v.height.map(|x| x as _),
+            colorspace: v.colorspace.map(Into::into),
+            bits_per_component: v.bits_per_component.map(|x| x as _),
+            is_mask: v.is_mask as _,
+            description: v.description.map(Into::into),
+            ocr_result: v.ocr_result.map(ExtractionResult::into),
+            bounding_box: Default::default(),
+            source_path: v.source_path.map(Into::into),
+            image_kind: v.image_kind.map(ImageKind::into),
+            kind_confidence: v.kind_confidence.map(|x| x as _),
+            cluster_id: v.cluster_id.map(|x| x as _),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<ElementMetadata> for kreuzberg::ElementMetadata {
+    fn from(v: ElementMetadata) -> Self {
+        kreuzberg::ElementMetadata {
+            page_number: v.page_number.map(|x| x as _),
+            filename: v.filename.map(Into::into),
+            coordinates: Default::default(),
+            element_index: v.element_index.map(|x| x as _),
+            additional: v.additional.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<Element> for kreuzberg::Element {
+    fn from(v: Element) -> Self {
+        kreuzberg::Element {
+            element_id: Default::default(),
+            element_type: v.element_type.into(),
+            text: v.text.into(),
+            metadata: v.metadata.into(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<TextExtractionResult> for kreuzberg::TextExtractionResult {
+    fn from(v: TextExtractionResult) -> Self {
+        kreuzberg::TextExtractionResult {
+            content: v.content.into(),
+            line_count: v.line_count as _,
+            word_count: v.word_count as _,
+            character_count: v.character_count as _,
+            headers: v.headers.map(|vec| vec.into_iter().map(Into::into).collect()),
+            links: Default::default(),
+            code_blocks: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<PptxExtractionResult> for kreuzberg::PptxExtractionResult {
+    fn from(v: PptxExtractionResult) -> Self {
+        kreuzberg::PptxExtractionResult {
+            content: v.content.into(),
+            metadata: v.metadata.into(),
+            slide_count: v.slide_count as _,
+            image_count: v.image_count as _,
+            table_count: v.table_count as _,
+            images: v.images.into_iter().map(Into::into).collect(),
+            page_structure: v.page_structure.map(PageStructure::into),
+            page_contents: v.page_contents.map(|vec| vec.into_iter().map(Into::into).collect()),
+            document: v.document.map(DocumentStructure::into),
+            hyperlinks: Default::default(),
+            office_metadata: v
+                .office_metadata
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<OcrExtractionResult> for kreuzberg::OcrExtractionResult {
+    fn from(v: OcrExtractionResult) -> Self {
+        kreuzberg::OcrExtractionResult {
+            content: v.content.into(),
+            mime_type: v.mime_type.into(),
+            metadata: v.metadata.into_iter().map(|(k, v)| (k.into(), v.into())).collect(),
+            tables: v.tables.into_iter().map(Into::into).collect(),
+            ocr_elements: v.ocr_elements.map(|vec| vec.into_iter().map(Into::into).collect()),
+            internal_document: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<ImagePreprocessingMetadata> for kreuzberg::ImagePreprocessingMetadata {
+    fn from(v: ImagePreprocessingMetadata) -> Self {
+        kreuzberg::ImagePreprocessingMetadata {
+            original_dimensions: Default::default(),
+            original_dpi: Default::default(),
+            target_dpi: v.target_dpi as _,
+            scale_factor: v.scale_factor as _,
+            auto_adjusted: v.auto_adjusted as _,
+            final_dpi: v.final_dpi as _,
+            new_dimensions: Default::default(),
+            resample_method: v.resample_method.into(),
+            dimension_clamped: v.dimension_clamped as _,
+            calculated_dpi: v.calculated_dpi.map(|x| x as _),
+            skipped_resize: v.skipped_resize as _,
+            resize_error: v.resize_error.map(Into::into),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<ArchiveMetadata> for kreuzberg::ArchiveMetadata {
+    fn from(v: ArchiveMetadata) -> Self {
+        kreuzberg::ArchiveMetadata {
+            format: Default::default(),
+            file_count: v.file_count as _,
+            file_list: v.file_list.into_iter().map(Into::into).collect(),
+            total_size: v.total_size as _,
+            compressed_size: v.compressed_size.map(|x| x as _),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<TextMetadata> for kreuzberg::TextMetadata {
+    fn from(v: TextMetadata) -> Self {
+        kreuzberg::TextMetadata {
+            line_count: v.line_count as _,
+            word_count: v.word_count as _,
+            character_count: v.character_count as _,
+            headers: v.headers.map(|vec| vec.into_iter().map(Into::into).collect()),
+            links: Default::default(),
+            code_blocks: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<LinkMetadata> for kreuzberg::LinkMetadata {
+    fn from(v: LinkMetadata) -> Self {
+        kreuzberg::LinkMetadata {
+            href: v.href.into(),
+            text: v.text.into(),
+            title: v.title.map(Into::into),
+            link_type: v.link_type.into(),
+            rel: v.rel.into_iter().map(Into::into).collect(),
+            attributes: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<ImageMetadataType> for kreuzberg::ImageMetadataType {
+    fn from(v: ImageMetadataType) -> Self {
+        kreuzberg::ImageMetadataType {
+            src: v.src.into(),
+            alt: v.alt.map(Into::into),
+            title: v.title.map(Into::into),
+            dimensions: Default::default(),
+            image_type: v.image_type.into(),
+            attributes: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<PageInfo> for kreuzberg::PageInfo {
+    fn from(v: PageInfo) -> Self {
+        kreuzberg::PageInfo {
+            number: v.number as _,
+            title: v.title.map(Into::into),
+            dimensions: Default::default(),
+            image_count: v.image_count.map(|x| x as _),
+            table_count: v.table_count.map(|x| x as _),
+            hidden: v.hidden.map(|x| x as _),
+            is_blank: v.is_blank.map(|x| x as _),
+            has_vector_graphics: v.has_vector_graphics as _,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<LayoutRegion> for kreuzberg::LayoutRegion {
+    fn from(v: LayoutRegion) -> Self {
+        kreuzberg::LayoutRegion {
+            class_name: v.class_name.into(),
+            confidence: v.confidence as _,
+            bounding_box: Default::default(),
+            area_fraction: v.area_fraction as _,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<HierarchicalBlock> for kreuzberg::HierarchicalBlock {
+    fn from(v: HierarchicalBlock) -> Self {
+        kreuzberg::HierarchicalBlock {
+            text: v.text.into(),
+            font_size: v.font_size as _,
+            level: v.level.into(),
+            bbox: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<Table> for kreuzberg::Table {
+    fn from(v: Table) -> Self {
+        kreuzberg::Table {
+            cells: v.cells.into_iter().map(Into::into).collect(),
+            markdown: v.markdown.into(),
+            page_number: v.page_number as _,
+            bounding_box: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<ChunkRequest> for kreuzberg::api::ChunkRequest {
+    fn from(v: ChunkRequest) -> Self {
+        kreuzberg::api::ChunkRequest {
+            text: v.text.into(),
+            config: Default::default(),
+            chunker_type: v.chunker_type.into(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<ChunkResponse> for kreuzberg::api::ChunkResponse {
+    fn from(v: ChunkResponse) -> Self {
+        kreuzberg::api::ChunkResponse {
+            chunks: Default::default(),
+            chunk_count: v.chunk_count as _,
+            config: Default::default(),
+            input_size_bytes: v.input_size_bytes as _,
+            chunker_type: v.chunker_type.into(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<OpenWebDocumentResponse> for kreuzberg::api::OpenWebDocumentResponse {
+    fn from(v: OpenWebDocumentResponse) -> Self {
+        kreuzberg::api::OpenWebDocumentResponse {
+            page_content: v.page_content.into(),
+            metadata: Default::default(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<DoclingCompatResponse> for kreuzberg::api::DoclingCompatResponse {
+    fn from(v: DoclingCompatResponse) -> Self {
+        kreuzberg::api::DoclingCompatResponse {
+            document: Default::default(),
+            status: v.status.into(),
+            ..Default::default()
+        }
+    }
+}
+
+impl From<KeywordConfig> for kreuzberg::KeywordConfig {
+    fn from(v: KeywordConfig) -> Self {
+        kreuzberg::KeywordConfig {
+            algorithm: v.algorithm.into(),
+            max_keywords: v.max_keywords as _,
+            min_score: v.min_score as _,
+            ngram_range: Default::default(),
+            language: v.language.map(Into::into),
+            yake_params: v.yake_params.map(YakeParams::into),
+            rake_params: v.rake_params.map(RakeParams::into),
+            ..Default::default()
+        }
+    }
+}
+
 /// Extract content from a byte array.
 ///
 /// This is the main entry point for in-memory extraction. It performs the following steps:
@@ -4846,12 +5459,10 @@ pub async fn extract_bytes(
     mime_type: String,
     config: ExtractionConfig,
 ) -> Result<ExtractionResult, String> {
-    kreuzberg::extract_bytes(&content, &mime_type, unsafe {
-        std::mem::transmute::<&ExtractionConfig, &kreuzberg::ExtractionConfig>(&config)
-    })
-    .await
-    .map(|v| ExtractionResult::from(v))
-    .map_err(|e| e.to_string())
+    kreuzberg::extract_bytes(&content, &mime_type, &kreuzberg::ExtractionConfig::from(config))
+        .await
+        .map(|v| ExtractionResult::from(v))
+        .map_err(|e| e.to_string())
 }
 
 /// Extract content from a file.
@@ -4877,9 +5488,11 @@ pub async fn extract_file(
     mime_type: Option<String>,
     config: ExtractionConfig,
 ) -> Result<ExtractionResult, String> {
-    kreuzberg::extract_file(std::path::PathBuf::from(path), mime_type.as_deref(), unsafe {
-        std::mem::transmute::<&ExtractionConfig, &kreuzberg::ExtractionConfig>(&config)
-    })
+    kreuzberg::extract_file(
+        std::path::PathBuf::from(path),
+        mime_type.as_deref(),
+        &kreuzberg::ExtractionConfig::from(config),
+    )
     .await
     .map(|v| ExtractionResult::from(v))
     .map_err(|e| e.to_string())
@@ -4900,9 +5513,11 @@ pub fn extract_file_sync(
     mime_type: Option<String>,
     config: ExtractionConfig,
 ) -> Result<ExtractionResult, String> {
-    kreuzberg::extract_file_sync(std::path::PathBuf::from(path), mime_type.as_deref(), unsafe {
-        std::mem::transmute::<&ExtractionConfig, &kreuzberg::ExtractionConfig>(&config)
-    })
+    kreuzberg::extract_file_sync(
+        std::path::PathBuf::from(path),
+        mime_type.as_deref(),
+        &kreuzberg::ExtractionConfig::from(config),
+    )
     .map(|v| ExtractionResult::from(v))
     .map_err(|e| e.to_string())
 }
@@ -4919,11 +5534,9 @@ pub fn extract_bytes_sync(
     mime_type: String,
     config: ExtractionConfig,
 ) -> Result<ExtractionResult, String> {
-    kreuzberg::extract_bytes_sync(&content, &mime_type, unsafe {
-        std::mem::transmute::<&ExtractionConfig, &kreuzberg::ExtractionConfig>(&config)
-    })
-    .map(|v| ExtractionResult::from(v))
-    .map_err(|e| e.to_string())
+    kreuzberg::extract_bytes_sync(&content, &mime_type, &kreuzberg::ExtractionConfig::from(config))
+        .map(|v| ExtractionResult::from(v))
+        .map_err(|e| e.to_string())
 }
 
 /// Synchronous wrapper for `batch_extract_files`.
@@ -4936,7 +5549,7 @@ pub fn batch_extract_files_sync(
 ) -> Result<Vec<ExtractionResult>, String> {
     kreuzberg::batch_extract_files_sync(
         unsafe { std::mem::transmute::<Vec<BatchFileItem>, Vec<kreuzberg::BatchFileItem>>(items) },
-        unsafe { std::mem::transmute::<&ExtractionConfig, &kreuzberg::ExtractionConfig>(&config) },
+        &kreuzberg::ExtractionConfig::from(config),
     )
     .map(|v| v.into_iter().map(ExtractionResult::from).collect())
     .map_err(|e| e.to_string())
@@ -4954,7 +5567,7 @@ pub fn batch_extract_bytes_sync(
 ) -> Result<Vec<ExtractionResult>, String> {
     kreuzberg::batch_extract_bytes_sync(
         unsafe { std::mem::transmute::<Vec<BatchBytesItem>, Vec<kreuzberg::BatchBytesItem>>(items) },
-        unsafe { std::mem::transmute::<&ExtractionConfig, &kreuzberg::ExtractionConfig>(&config) },
+        &kreuzberg::ExtractionConfig::from(config),
     )
     .map(|v| v.into_iter().map(ExtractionResult::from).collect())
     .map_err(|e| e.to_string())
@@ -4994,7 +5607,7 @@ pub async fn batch_extract_files(
 ) -> Result<Vec<ExtractionResult>, String> {
     kreuzberg::batch_extract_files(
         unsafe { std::mem::transmute::<Vec<BatchFileItem>, Vec<kreuzberg::BatchFileItem>>(items) },
-        unsafe { std::mem::transmute::<&ExtractionConfig, &kreuzberg::ExtractionConfig>(&config) },
+        &kreuzberg::ExtractionConfig::from(config),
     )
     .await
     .map(|v| v.into_iter().map(ExtractionResult::from).collect())
@@ -5029,7 +5642,7 @@ pub async fn batch_extract_bytes(
 ) -> Result<Vec<ExtractionResult>, String> {
     kreuzberg::batch_extract_bytes(
         unsafe { std::mem::transmute::<Vec<BatchBytesItem>, Vec<kreuzberg::BatchBytesItem>>(items) },
-        unsafe { std::mem::transmute::<&ExtractionConfig, &kreuzberg::ExtractionConfig>(&config) },
+        &kreuzberg::ExtractionConfig::from(config),
     )
     .await
     .map(|v| v.into_iter().map(ExtractionResult::from).collect())
