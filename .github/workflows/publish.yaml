@@ -684,9 +684,7 @@ jobs:
       matrix:
         include:
           - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu }
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl }
           - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu }
-          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
           - { os: macos-latest, target: aarch64-apple-darwin }
           - { os: windows-latest, target: x86_64-pc-windows-msvc }
     steps:
@@ -731,6 +729,52 @@ jobs:
             kreuzberg-cli-${{ matrix.target }}.tar.gz
             kreuzberg-cli-${{ matrix.target }}.zip
           if-no-files-found: ignore
+          retention-days: 14
+
+  cli-binaries-musl:
+    # Alpine container build: ort-sys ships no musl prebuilts, so we use Alpine's
+    # system onnxruntime-dev (apk) plus -C target-feature=-crt-static for cdylib.
+    # Each Dockerfile is single-arch (FROM alpine:3.21); arch-matched runners
+    # produce arch-matched binaries without qemu emulation.
+    name: Build CLI binary (${{ matrix.target }})
+    needs: [prepare, check-cli]
+    if: ${{ needs.prepare.outputs.release_cli == 'true' && (needs.check-cli.outputs.exists != 'true' || needs.prepare.outputs.force_republish == 'true') }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-musl }
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
+          fetch-depth: 0
+
+      - name: Build CLI via Alpine Docker
+        run: |
+          docker build -f docker/Dockerfile.musl-build \
+            --output type=local,dest=./build-output .
+
+      - name: Package CLI artifact (with bundled lib/)
+        env:
+          TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          STAGE="kreuzberg-cli-${TARGET}"
+          mkdir -p "$STAGE/lib"
+          cp build-output/kreuzberg "$STAGE/kreuzberg"
+          cp build-output/kreuzberg.bin "$STAGE/kreuzberg.bin"
+          cp -a build-output/lib/. "$STAGE/lib/"
+          chmod +x "$STAGE/kreuzberg"
+          tar -czf "${STAGE}.tar.gz" "$STAGE"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cli-${{ matrix.target }}
+          path: kreuzberg-cli-${{ matrix.target }}.tar.gz
+          if-no-files-found: error
           retention-days: 14
 
   go-ffi-libraries:
@@ -863,6 +907,7 @@ jobs:
           retention-days: 14
 
   java-natives-musl:
+    # Alpine container build via Dockerfile.musl-ffi (system onnxruntime-dev).
     name: Build Java natives (linux-musl-${{ matrix.arch }})
     needs: [prepare, check-maven]
     if: ${{ needs.prepare.outputs.release_java == 'true' && (needs.check-maven.outputs.java_exists != 'true' || needs.prepare.outputs.force_republish == 'true') }}
@@ -871,24 +916,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, arch: x86_64, target: x86_64-unknown-linux-musl, classifier: linux-musl-x86_64 }
-          - { os: ubuntu-24.04-arm, arch: aarch64, target: aarch64-unknown-linux-musl, classifier: linux-musl-aarch64 }
+          - { os: ubuntu-latest, arch: x86_64, classifier: linux-musl-x86_64 }
+          - { os: ubuntu-24.04-arm, arch: aarch64, classifier: linux-musl-aarch64 }
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ needs.prepare.outputs.checkout_ref }}
           fetch-depth: 0
 
-      - uses: kreuzberg-dev/actions/setup-rust@v1
-        with:
-          target: ${{ matrix.target }}
+      - name: Build kreuzberg-ffi via Alpine Docker
+        run: |
+          docker build -f docker/Dockerfile.musl-ffi \
+            --output type=local,dest=./build-output .
 
-      - uses: kreuzberg-dev/actions/build-java-natives@v1
-        with:
-          target: ${{ matrix.target }}
-          crate-name: kreuzberg-ffi
-          lib-name: kreuzberg_ffi
-          classifier: ${{ matrix.classifier }}
+      - name: Stage native lib for Java classifier layout
+        env:
+          CLASSIFIER: ${{ matrix.classifier }}
+        run: |
+          mkdir -p "dist/java-natives/${CLASSIFIER}"
+          cp build-output/libkreuzberg_ffi.so "dist/java-natives/${CLASSIFIER}/libkreuzberg_ffi.so"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -935,6 +981,7 @@ jobs:
           retention-days: 14
 
   csharp-natives-musl:
+    # Alpine container build via Dockerfile.musl-ffi (system onnxruntime-dev).
     name: Build C# natives (linux-musl-${{ matrix.arch }})
     needs: [prepare, check-nuget]
     if: ${{ needs.prepare.outputs.release_csharp == 'true' && (needs.check-nuget.outputs.exists != 'true' || needs.prepare.outputs.force_republish == 'true') }}
@@ -943,24 +990,25 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: ubuntu-latest, arch: x64, target: x86_64-unknown-linux-musl, rid: linux-musl-x64 }
-          - { os: ubuntu-24.04-arm, arch: arm64, target: aarch64-unknown-linux-musl, rid: linux-musl-arm64 }
+          - { os: ubuntu-latest, arch: x64, rid: linux-musl-x64 }
+          - { os: ubuntu-24.04-arm, arch: arm64, rid: linux-musl-arm64 }
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ needs.prepare.outputs.checkout_ref }}
           fetch-depth: 0
 
-      - uses: kreuzberg-dev/actions/setup-rust@v1
-        with:
-          target: ${{ matrix.target }}
+      - name: Build kreuzberg-ffi via Alpine Docker
+        run: |
+          docker build -f docker/Dockerfile.musl-ffi \
+            --output type=local,dest=./build-output .
 
-      - uses: kreuzberg-dev/actions/build-csharp-natives@v1
-        with:
-          target: ${{ matrix.target }}
-          crate-name: kreuzberg-ffi
-          lib-name: kreuzberg_ffi
-          rid: ${{ matrix.rid }}
+      - name: Stage native lib for NuGet RID layout
+        env:
+          RID: ${{ matrix.rid }}
+        run: |
+          mkdir -p "dist/csharp-natives/runtimes/${RID}/native"
+          cp build-output/libkreuzberg_ffi.so "dist/csharp-natives/runtimes/${RID}/native/libkreuzberg_ffi.so"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -1016,6 +1064,9 @@ jobs:
           retention-days: 14
 
   elixir-natives-musl:
+    # Alpine container build via Dockerfile.musl-rustler (system onnxruntime-dev).
+    # Replicates RustlerPrecompiled tarball naming the build-elixir-natives action
+    # uses for non-musl variants: lib{nif}-v{ver}-nif-{api}-{target}.so.tar.gz + sha256.
     name: Build Elixir NIF (linux-musl-${{ matrix.arch }} nif-${{ matrix.nif }})
     needs: [prepare, check-elixir-release]
     if: ${{ needs.prepare.outputs.release_elixir == 'true' && (needs.check-elixir-release.outputs.exists != 'true' || needs.prepare.outputs.force_republish == 'true') }}
@@ -1034,23 +1085,24 @@ jobs:
           ref: ${{ needs.prepare.outputs.checkout_ref }}
           fetch-depth: 0
 
-      - uses: erlef/setup-beam@v1
-        with:
-          elixir-version: "1.17"
-          otp-version: "27"
+      - name: Build kreuzberg_nif via Alpine Docker
+        run: |
+          docker build -f docker/Dockerfile.musl-rustler \
+            --output type=local,dest=./build-output .
 
-      - uses: kreuzberg-dev/actions/setup-rust@v1
-        with:
-          target: ${{ matrix.target }}
-
-      - uses: kreuzberg-dev/actions/build-elixir-natives@v1
-        with:
-          target: ${{ matrix.target }}
-          nif-crate-name: kreuzberg_nif
-          nif-crate-path: packages/elixir/native/kreuzberg_nif
-          package-dir: packages/elixir
-          nif-version: ${{ needs.prepare.outputs.version }}
-          nif-api-version: ${{ matrix.nif }}
+      - name: Package NIF as RustlerPrecompiled tarball
+        env:
+          TARGET: ${{ matrix.target }}
+          NIF_API: ${{ matrix.nif }}
+          NIF_VERSION: ${{ needs.prepare.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/elixir-natives staging
+          cp build-output/libkreuzberg_nif.so staging/libkreuzberg_nif.so
+          TARBALL="libkreuzberg_nif-v${NIF_VERSION}-nif-${NIF_API}-${TARGET}.so.tar.gz"
+          tar -czf "dist/elixir-natives/${TARBALL}" -C staging libkreuzberg_nif.so
+          ( cd dist/elixir-natives && sha256sum "${TARBALL}" >"${TARBALL}.sha256" )
 
       - uses: actions/upload-artifact@v7
         with:
