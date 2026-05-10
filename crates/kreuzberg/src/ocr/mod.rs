@@ -51,7 +51,7 @@ pub mod table;
 pub mod tessdata_manager;
 #[cfg(feature = "ocr")]
 pub mod tesseract_backend;
-#[cfg(feature = "ocr-wasm")]
+#[cfg(all(feature = "ocr-wasm", not(feature = "ocr")))]
 pub mod tesseract_wasm_backend;
 pub mod types;
 pub mod utils;
@@ -65,7 +65,7 @@ pub use processor::OcrProcessor;
 pub use tessdata_manager::TessdataManager;
 #[cfg(feature = "ocr")]
 pub use tesseract_backend::TesseractBackend;
-#[cfg(feature = "ocr-wasm")]
+#[cfg(all(feature = "ocr-wasm", not(feature = "ocr")))]
 pub use tesseract_wasm_backend::TesseractWasmBackend;
 pub use types::{BatchItemResult, ExtractionResult, PSMMode, Table, TesseractConfig};
 pub use utils::compute_hash;

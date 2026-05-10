@@ -460,11 +460,12 @@ jobs:
           # cargo finds the host gcc instead of looking for an aarch64-linux-gnu-gcc prefix.
           cibw-before-build-linux: "yum install -y openssl-devel pkgconfig && pip install maturin uv && source ~/.cargo/env"
           cibw-environment: 'MATURIN_BUILD_ARGS="--compatibility linux" CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=gcc CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=gcc CC_x86_64_unknown_linux_gnu=gcc CC_aarch64_unknown_linux_gnu=gcc CXX_x86_64_unknown_linux_gnu=g++ CXX_aarch64_unknown_linux_gnu=g++'
-          # cibw's bundled rustup-init on Windows defaults host triple to gnu and
-          # rust-toolchain.toml resolves channel="1.95" against that gnu host. Install the
-          # msvc 1.95 toolchain explicitly so it wins regardless of rustup's host default.
-          cibw-before-build-windows: "rustup install 1.95-x86_64-pc-windows-msvc && rustup default 1.95-x86_64-pc-windows-msvc && rustup target add x86_64-pc-windows-msvc && pip install maturin uv && set PATH=%USERPROFILE%\\.cargo\\bin;%PATH%"
-          cibw-environment-windows: 'MATURIN_BUILD_ARGS="--target x86_64-pc-windows-msvc"'
+          # cibw's bundled rustup-init on Windows defaults host triple to gnu, and
+          # rust-toolchain.toml channel="1.95" resolves against that gnu host. Install
+          # 1.95-x86_64-pc-windows-msvc explicitly AND set RUSTUP_TOOLCHAIN env var so
+          # cargo bypasses the toolchain.toml override (env var > toml in rustup precedence).
+          cibw-before-build-windows: "rustup install 1.95-x86_64-pc-windows-msvc --profile minimal --component rust-src --component rustfmt --component clippy && rustup target add x86_64-pc-windows-msvc --toolchain 1.95-x86_64-pc-windows-msvc && pip install maturin uv && set PATH=%USERPROFILE%\\.cargo\\bin;%PATH%"
+          cibw-environment-windows: 'MATURIN_BUILD_ARGS="--target x86_64-pc-windows-msvc" RUSTUP_TOOLCHAIN="1.95-x86_64-pc-windows-msvc"'
 
       - name: Upload wheels
         uses: actions/upload-artifact@v7
@@ -590,7 +591,9 @@ jobs:
           - { os: ubuntu-latest, label: linux-x86_64 }
           - { os: ubuntu-24.04-arm, label: linux-aarch64 }
           - { os: macos-latest, label: macos-arm64 }
-          - { os: windows-latest, label: windows-x64 }
+          # Ruby on Windows is MinGW (rb-sys → x86_64-pc-windows-gnu) but ort-sys
+          # only ships msvc prebuilts; the ABIs are incompatible. Skip until ORT
+          # publishes mingw binaries or kreuzberg moves to ort-tract on Ruby/Win.
     steps:
       - uses: actions/checkout@v6
         with:
