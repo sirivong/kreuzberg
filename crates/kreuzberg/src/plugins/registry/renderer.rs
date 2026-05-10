@@ -1,6 +1,6 @@
 //! Renderer registry.
 
-use crate::plugins::Renderer;
+use crate::plugins::{Plugin, Renderer};
 use crate::types::internal::InternalDocument;
 use crate::{KreuzbergError, Result};
 use ahash::AHashMap;
@@ -9,11 +9,13 @@ use std::sync::Arc;
 /// Built-in Markdown renderer.
 struct MarkdownRenderer;
 
-impl Renderer for MarkdownRenderer {
+impl Plugin for MarkdownRenderer {
     fn name(&self) -> &str {
         "markdown"
     }
+}
 
+impl Renderer for MarkdownRenderer {
     fn render(&self, doc: &InternalDocument) -> Result<String> {
         Ok(crate::rendering::render_markdown(doc))
     }
@@ -22,11 +24,13 @@ impl Renderer for MarkdownRenderer {
 /// Built-in HTML renderer.
 struct HtmlRenderer;
 
-impl Renderer for HtmlRenderer {
+impl Plugin for HtmlRenderer {
     fn name(&self) -> &str {
         "html"
     }
+}
 
+impl Renderer for HtmlRenderer {
     fn render(&self, doc: &InternalDocument) -> Result<String> {
         Ok(crate::rendering::render_html(doc))
     }
@@ -35,11 +39,13 @@ impl Renderer for HtmlRenderer {
 /// Built-in Djot renderer.
 struct DjotRenderer;
 
-impl Renderer for DjotRenderer {
+impl Plugin for DjotRenderer {
     fn name(&self) -> &str {
         "djot"
     }
+}
 
+impl Renderer for DjotRenderer {
     fn render(&self, doc: &InternalDocument) -> Result<String> {
         Ok(crate::rendering::render_djot(doc))
     }
@@ -48,11 +54,13 @@ impl Renderer for DjotRenderer {
 /// Built-in plain text renderer.
 struct PlainRenderer;
 
-impl Renderer for PlainRenderer {
+impl Plugin for PlainRenderer {
     fn name(&self) -> &str {
         "plain"
     }
+}
 
+impl Renderer for PlainRenderer {
     fn render(&self, doc: &InternalDocument) -> Result<String> {
         Ok(crate::rendering::render_plain(doc))
     }
@@ -213,11 +221,13 @@ mod tests {
         format_name: String,
     }
 
-    impl Renderer for MockRenderer {
+    impl Plugin for MockRenderer {
         fn name(&self) -> &str {
             &self.format_name
         }
+    }
 
+    impl Renderer for MockRenderer {
         fn render(&self, doc: &InternalDocument) -> Result<String> {
             Ok(format!("mock-rendered-{}-elements", doc.elements.len()))
         }

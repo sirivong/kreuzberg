@@ -977,8 +977,23 @@ public enum HtmlTheme {
 /// Which table structure recognition model to use.
 ///
 /// Controls the model used for table cell detection within layout-detected
-/// table regions.
-public typealias TableModel = RustBridge.TableModel
+/// table regions. Wire format is snake_case in all serializers (JSON, TOML,
+/// YAML).
+public enum TableModel {
+    /// TATR (Table Transformer) -- default, 30MB, DETR-based row/column detection.
+    case tatr
+    /// SLANeXT wired variant -- 365MB, optimized for bordered tables.
+    case slanetWired
+    /// SLANeXT wireless variant -- 365MB, optimized for borderless tables.
+    case slanetWireless
+    /// SLANet-plus -- 7.78MB, lightweight general-purpose.
+    case slanetPlus
+    /// Classifier-routed SLANeXT: auto-select wired/wireless per table.
+    /// Uses PP-LCNet classifier (6.78MB) + both SLANeXT variants (730MB total).
+    case slanetAuto
+    /// Disable table structure model inference entirely; use heuristic path only.
+    case disabled
+}
 
 /// Type of text chunker to use.
 ///
@@ -1589,6 +1604,8 @@ public enum PaddleLanguage {
 /// All model backends (RT-DETR, YOLO, etc.) map their native class IDs
 /// to this shared set. Models with fewer classes (DocLayNet: 11, PubLayNet: 5)
 /// map to the closest equivalent.
+///
+/// Wire format is snake_case in all serializers (JSON, TOML, YAML).
 public enum LayoutClass {
     case caption
     case footnote

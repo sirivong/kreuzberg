@@ -890,6 +890,25 @@ pub type PostProcessor {
   PostProcessor
 }
 
+/// Trait for document renderers that convert `InternalDocument` to output strings.
+///
+/// Renderers are typically stateless converters that transform the internal
+/// document representation into a specific output format (Markdown, HTML,
+/// Djot, plain text, etc.). They participate in the standard `Plugin`
+/// lifecycle so custom renderers can be registered from any supported binding
+/// language.
+///
+/// The format name is exposed via `Plugin.name`. For stateless renderers
+/// the `Plugin` lifecycle methods (`version`, `initialize`, `shutdown`) all
+/// take no-op defaults and need not be overridden.
+///
+/// # Thread Safety
+///
+/// Renderers must be `Send + Sync` (inherited from `Plugin`).
+pub type Renderer {
+  Renderer
+}
+
 /// Base trait that all plugins must implement.
 ///
 /// This trait provides common functionality for plugin lifecycle management,
@@ -1525,6 +1544,7 @@ pub type Metadata {
     document_version: Option(String),
     abstract_text: Option(String),
     output_format: Option(String),
+    ocr_used: Bool,
     additional: Dict(String, String)
   )
 }
@@ -2460,7 +2480,8 @@ pub type HtmlTheme {
 /// Which table structure recognition model to use.
 ///
 /// Controls the model used for table cell detection within layout-detected
-/// table regions.
+/// table regions. Wire format is snake_case in all serializers (JSON, TOML,
+/// YAML).
 pub type TableModel {
   Tatr
   SlanetWired
@@ -3006,6 +3027,8 @@ pub type PaddleLanguage {
 /// All model backends (RT-DETR, YOLO, etc.) map their native class IDs
 /// to this shared set. Models with fewer classes (DocLayNet: 11, PubLayNet: 5)
 /// map to the closest equivalent.
+///
+/// Wire format is snake_case in all serializers (JSON, TOML, YAML).
 pub type LayoutClass {
   LayoutClassCaption
   LayoutClassFootnote
@@ -3308,6 +3331,10 @@ pub fn list_post_processors() -> Result(List(String), KreuzbergError)
 /// Remove all registered post-processors.
 @external(erlang, "kreuzberg_gleam_ffi", "clear_post_processors")
 pub fn clear_post_processors() -> Result(Nil, KreuzbergError)
+
+/// List names of all registered renderers.
+@external(erlang, "kreuzberg_gleam_ffi", "list_renderers")
+pub fn list_renderers() -> List(String)
 
 /// List names of all registered validators.
 @external(erlang, "kreuzberg_gleam_ffi", "list_validators")

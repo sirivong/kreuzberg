@@ -968,6 +968,7 @@ pub struct Metadata {
     pub document_version: Option<String>,
     pub abstract_text: Option<String>,
     pub output_format: Option<String>,
+    pub ocr_used: bool,
     pub additional: std::collections::HashMap<String, String>,
 }
 
@@ -3311,6 +3312,7 @@ impl From<kreuzberg::Metadata> for Metadata {
             document_version: v.document_version.map(|s| s.into()),
             abstract_text: v.abstract_text.map(|s| s.into()),
             output_format: v.output_format.map(|s| s.into()),
+            ocr_used: v.ocr_used as _,
             additional: v
                 .additional
                 .into_iter()
@@ -5749,6 +5751,14 @@ pub fn list_post_processors() -> Result<Vec<String>, String> {
 /// Remove all registered post-processors.
 pub fn clear_post_processors() -> Result<(), String> {
     kreuzberg::clear_post_processors().map(|v| v).map_err(|e| e.to_string())
+}
+
+/// List names of all registered renderers.
+pub fn list_renderers() -> Vec<String> {
+    kreuzberg::plugins::list_renderers()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>()
 }
 
 /// List names of all registered validators.

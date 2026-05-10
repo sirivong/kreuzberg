@@ -855,6 +855,24 @@ pub const OcrBackend = struct {
 pub const PostProcessor = struct {
 };
 
+/// Trait for document renderers that convert `InternalDocument` to output strings.
+///
+/// Renderers are typically stateless converters that transform the internal
+/// document representation into a specific output format (Markdown, HTML,
+/// Djot, plain text, etc.). They participate in the standard `Plugin`
+/// lifecycle so custom renderers can be registered from any supported binding
+/// language.
+///
+/// The format name is exposed via `Plugin.name`. For stateless renderers
+/// the `Plugin` lifecycle methods (`version`, `initialize`, `shutdown`) all
+/// take no-op defaults and need not be overridden.
+///
+/// # Thread Safety
+///
+/// Renderers must be `Send + Sync` (inherited from `Plugin`).
+pub const Renderer = struct {
+};
+
 /// Base trait that all plugins must implement.
 ///
 /// This trait provides common functionality for plugin lifecycle management,
@@ -1411,6 +1429,7 @@ pub const Metadata = struct {
     document_version: ?[:0]const u8,
     abstract_text: ?[:0]const u8,
     output_format: ?[:0]const u8,
+    ocr_used: bool,
     additional: std.StringHashMap([:0]const u8),
 };
 
@@ -2186,7 +2205,8 @@ pub const HtmlTheme = enum {
 /// Which table structure recognition model to use.
 ///
 /// Controls the model used for table cell detection within layout-detected
-/// table regions.
+/// table regions. Wire format is snake_case in all serializers (JSON, TOML,
+/// YAML).
 pub const TableModel = enum {
     tatr,
     slanet_wired,
@@ -2664,6 +2684,8 @@ pub const PaddleLanguage = enum {
 /// All model backends (RT-DETR, YOLO, etc.) map their native class IDs
 /// to this shared set. Models with fewer classes (DocLayNet: 11, PubLayNet: 5)
 /// map to the closest equivalent.
+///
+/// Wire format is snake_case in all serializers (JSON, TOML, YAML).
 pub const LayoutClass = enum {
     caption,
     footnote,
@@ -2934,6 +2956,17 @@ pub fn clear_post_processors() (KreuzbergError||error{OutOfMemory})!void {
         return _first_error(KreuzbergError);
     }
     return;
+}
+
+/// List names of all registered renderers.
+pub fn list_renderers() []u8 {
+    const _result = c.kreuzberg_list_renderers();
+    return blk: {
+        const slice = std.mem.sliceTo(_result, 0);
+        const owned = try std.heap.c_allocator.dupe(u8, slice);
+        _free_string(_result);
+        break :blk owned;
+    };
 }
 
 /// List names of all registered validators.

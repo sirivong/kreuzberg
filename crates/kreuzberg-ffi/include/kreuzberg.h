@@ -185,6 +185,7 @@ typedef struct KREUZBERGRecognizedTable KREUZBERGRecognizedTable;
 typedef struct KREUZBERGRecyclable KREUZBERGRecyclable;
 typedef struct KREUZBERGReductionLevel KREUZBERGReductionLevel;
 typedef struct KREUZBERGRelationshipKind KREUZBERGRelationshipKind;
+typedef struct KREUZBERGRenderer KREUZBERGRenderer;
 typedef struct KREUZBERGResolvedStyle KREUZBERGResolvedStyle;
 typedef struct KREUZBERGResultFormat KREUZBERGResultFormat;
 typedef struct KREUZBERGSecurityLimits KREUZBERGSecurityLimits;
@@ -6946,6 +6947,13 @@ char *kreuzberg_metadata_abstract_text(const KREUZBERGMetadata *ptr);
 char *kreuzberg_metadata_output_format(const KREUZBERGMetadata *ptr);
 
 /**
+ * Get the `ocr_used` field from a `Metadata`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_metadata_ocr_used(const KREUZBERGMetadata *ptr);
+
+/**
  * Get the `additional` field from a `Metadata`.
  * # Safety
  * Pointer must be a valid handle returned by this library.
@@ -11990,6 +11998,14 @@ char *kreuzberg_list_post_processors(void);
  * Returned pointers must be freed with the appropriate free function.
  */
 int32_t kreuzberg_clear_post_processors(void);
+
+/**
+ * List names of all registered renderers.
+ * # Safety
+ * Caller must ensure all pointer arguments are valid or null.
+ * Returned pointers must be freed with the appropriate free function.
+ */
+char *kreuzberg_list_renderers(void);
 
 /**
  * List names of all registered validators.

@@ -39,6 +39,8 @@ list_post_processors <- function() .Call("wrap__list_post_processors", PACKAGE =
 #' @export
 clear_post_processors <- function() .Call("wrap__clear_post_processors", PACKAGE = "kreuzberg")
 #' @export
+list_renderers <- function() .Call("wrap__list_renderers", PACKAGE = "kreuzberg")
+#' @export
 list_validators <- function() .Call("wrap__list_validators", PACKAGE = "kreuzberg")
 #' @export
 clear_validators <- function() .Call("wrap__clear_validators", PACKAGE = "kreuzberg")

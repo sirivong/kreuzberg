@@ -194,7 +194,7 @@ pub use processor::{
     PostProcessor, ProcessingStage, clear_post_processors, list_post_processors, register_post_processor,
     unregister_post_processor,
 };
-pub use renderer::Renderer;
+pub use renderer::{Renderer, list_renderers, register_renderer, unregister_renderer};
 pub use traits::Plugin;
 pub use validator::{Validator, clear_validators, list_validators, register_validator, unregister_validator};
 

@@ -1436,6 +1436,7 @@ mod ffi {
             document_version: Option<String>,
             abstract_text: Option<String>,
             output_format: Option<String>,
+            ocr_used: bool,
             additional: String,
         ) -> Metadata;
         fn title(&self) -> Option<String>;
@@ -1458,6 +1459,7 @@ mod ffi {
         fn document_version(&self) -> Option<String>;
         fn abstract_text(&self) -> Option<String>;
         fn output_format(&self) -> Option<String>;
+        fn ocr_used(&self) -> bool;
         fn additional(&self) -> String;
     }
 
@@ -2487,6 +2489,8 @@ mod ffi {
         fn list_post_processors() -> Result<Vec<String>, String>;
         #[swift_bridge(swift_name = "clearPostProcessors")]
         fn clear_post_processors() -> Result<(), String>;
+        #[swift_bridge(swift_name = "listRenderers")]
+        fn list_renderers() -> Vec<String>;
         #[swift_bridge(swift_name = "listValidators")]
         fn list_validators() -> Result<Vec<String>, String>;
         #[swift_bridge(swift_name = "clearValidators")]
@@ -4438,7 +4442,7 @@ impl HwpImage {
     pub fn new(name: String, data: Vec<u8>) -> HwpImage {
         let mut __target: kreuzberg::extraction::hwp::model::HwpImage = ::std::default::Default::default();
         // alef: name — String fallback in non-serde struct, left at default
-        __target.data = data;
+        __target.data = data.into();
         HwpImage(__target)
     }
     pub fn name(&self) -> String {
@@ -7244,6 +7248,7 @@ impl Metadata {
         document_version: Option<String>,
         abstract_text: Option<String>,
         output_format: Option<String>,
+        ocr_used: bool,
         additional: String,
     ) -> Metadata {
         let mut __target: kreuzberg::Metadata = ::std::default::Default::default();
@@ -7357,6 +7362,7 @@ impl Metadata {
                 }
             }
         }
+        __target.ocr_used = ocr_used;
         if let Ok(v) = ::serde_json::from_str::<::serde_json::Value>(&additional) {
             if let Ok(t) = ::serde_json::from_value(v) {
                 __target.additional = t;
@@ -7439,6 +7445,12 @@ impl Metadata {
     }
     pub fn output_format(&self) -> Option<String> {
         self.0.output_format.clone()
+    }
+    pub fn ocr_used(&self) -> bool {
+        ::serde_json::to_value(&self.0.ocr_used)
+            .ok()
+            .and_then(|j| ::serde_json::from_value(j).ok())
+            .unwrap_or_default()
     }
     pub fn additional(&self) -> String {
         serde_json::to_string(&self.0.additional).expect("serializable additional")
@@ -10874,6 +10886,13 @@ pub fn list_post_processors() -> Result<Vec<String>, String> {
 
 pub fn clear_post_processors() -> Result<(), String> {
     kreuzberg::clear_post_processors().map_err(|e| e.to_string())
+}
+
+pub fn list_renderers() -> Vec<String> {
+    kreuzberg::plugins::list_renderers()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect::<Vec<_>>()
 }
 
 pub fn list_validators() -> Result<Vec<String>, String> {

@@ -453,6 +453,11 @@ class KreuzbergBridge {
     return await rust_bridge.clearPostProcessors();
   }
 
+  /// List names of all registered renderers.
+  static Future<List<String>> listRenderers() async {
+    return await rust_bridge.listRenderers();
+  }
+
   /// List names of all registered validators.
   /// throws anyhow::Error on failure
   static Future<List<String>> listValidators() async {

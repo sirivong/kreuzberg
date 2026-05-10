@@ -232,7 +232,7 @@ impl fmt::Display for LayoutDetection {
         write!(
             f,
             "{:20} conf={:.3}  bbox={}",
-            self.class_name.name(),
+            self.class_name.as_str(),
             self.confidence,
             self.bbox
         )

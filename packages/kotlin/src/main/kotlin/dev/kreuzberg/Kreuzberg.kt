@@ -514,6 +514,15 @@ object Kreuzberg {
     }
 
     /**
+     * List names of all registered renderers.
+     */
+    fun listRenderers(): List<String> {
+
+        return Bridge.listRenderers()
+
+    }
+
+    /**
      * List names of all registered validators.
      */
     fun listValidators(): List<String> {

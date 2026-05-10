@@ -3651,6 +3651,7 @@ dependencies = [
  "clap",
  "clap_complete",
  "kreuzberg",
+ "serde",
  "serde_json",
  "serde_toon_format",
  "tempfile",
@@ -3767,7 +3768,7 @@ version = "5.0.0-rc.1"
 dependencies = [
  "async-trait",
  "futures-util",
- "getrandom 0.4.2",
+ "getrandom 0.3.4",
  "js-sys",
  "kreuzberg",
  "serde-wasm-bindgen",

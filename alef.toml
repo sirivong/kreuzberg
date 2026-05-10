@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.15.23"
+alef_version = "0.15.25"
 languages = [
   "python",
   "node",
@@ -2286,9 +2286,14 @@ registry_getter = "kreuzberg::plugins::registry::get_embedding_backend_registry"
 register_fn = "register_embedding_backend"
 exclude_languages = ["r"]
 
-[[crates.trait_bridges]]
-trait_name = "Renderer"
-super_trait = "kreuzberg::plugins::Plugin"
-registry_getter = "kreuzberg::plugins::registry::get_renderer_registry"
-register_fn = "register_renderer"
-exclude_languages = ["r"]
+# Renderer is intentionally NOT bridged cross-language yet:
+# its `render(&InternalDocument)` method takes a private internal type that
+# alef cannot serialize across the FFI boundary without per-backend
+# excluded-type-paths integration (alef >= 0.16). Until that lands, custom
+# renderers remain a Rust-only extension point.
+# [[crates.trait_bridges]]
+# trait_name = "Renderer"
+# super_trait = "kreuzberg::plugins::Plugin"
+# registry_getter = "kreuzberg::plugins::registry::get_renderer_registry"
+# register_fn = "register_renderer"
+# exclude_languages = ["r"]
