@@ -109,7 +109,11 @@ impl OcrBackend for TesseractWasmBackend {
             });
         }
 
-        let language = if config.language.is_empty() { "eng".to_string() } else { config.language.clone() };
+        let language = if config.language.is_empty() {
+            "eng".to_string()
+        } else {
+            config.language.clone()
+        };
         let tessdata = self.resolve_tessdata(&language, config)?;
 
         let img = image::load_from_memory(image_bytes).map_err(|e| crate::KreuzbergError::Ocr {
