@@ -456,10 +456,15 @@ jobs:
           # PyO3 abi3-py310 → one wheel per platform covers Python 3.10+.
           cibw-build: "cp310-*"
           upload-artifact: "false"
-          # manylinux2014: openssl-devel for ort native-tls; CARGO_TARGET_*_LINKER=gcc so
-          # cargo finds the host gcc instead of looking for an aarch64-linux-gnu-gcc prefix.
-          cibw-before-build-linux: "yum install -y openssl-devel pkgconfig && pip install maturin uv && source ~/.cargo/env"
-          cibw-environment: 'MATURIN_BUILD_ARGS="--compatibility linux" CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=gcc CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=gcc CC_x86_64_unknown_linux_gnu=gcc CC_aarch64_unknown_linux_gnu=gcc CXX_x86_64_unknown_linux_gnu=g++ CXX_aarch64_unknown_linux_gnu=g++'
+          # AlmaLinux 8 base ships OpenSSL 1.1.1 (CentOS 7 base of manylinux2014
+          # ships 1.0.2k which openssl-sys 0.9.115+ rejects).
+          manylinux-x86_64-image: "manylinux_2_28"
+          manylinux-aarch64-image: "manylinux_2_28"
+          # manylinux_2_28 (AlmaLinux 8) ships OpenSSL 1.1.1 — manylinux2014 ships 1.0.2k
+          # which openssl-sys 0.9.115+ rejects. CARGO_TARGET_*_LINKER points cargo at the
+          # in-image gcc instead of looking for triple-prefixed binaries that aren't there.
+          cibw-before-build-linux: "dnf install -y openssl-devel pkgconfig && pip install maturin uv && source ~/.cargo/env"
+          cibw-environment: 'MATURIN_BUILD_ARGS="--compatibility manylinux_2_28" CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=gcc CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=gcc CC_x86_64_unknown_linux_gnu=gcc CC_aarch64_unknown_linux_gnu=gcc CXX_x86_64_unknown_linux_gnu=g++ CXX_aarch64_unknown_linux_gnu=g++'
           # cibw's bundled rustup-init on Windows defaults host triple to gnu, and
           # rust-toolchain.toml channel="1.95" resolves against that gnu host. Install
           # 1.95-x86_64-pc-windows-msvc explicitly AND set RUSTUP_TOOLCHAIN env var so
