@@ -316,8 +316,37 @@ mod tests {
         });
         registry.register(renderer).unwrap();
 
-        let _ = registry.remove("to-remove");
+        registry.remove("to-remove").unwrap();
         assert_eq!(registry.list().len(), 0);
+    }
+
+    #[test]
+    fn test_renderer_registry_remove_nonexistent_returns_ok() {
+        let mut registry = RendererRegistry::new_empty();
+        let result = registry.remove("nonexistent-renderer");
+        assert!(result.is_ok());
+        assert_eq!(registry.list().len(), 0);
+    }
+
+    #[test]
+    fn test_renderer_registry_clear_all_drops_builtins() {
+        let mut registry = RendererRegistry::new();
+        assert!(!registry.list().is_empty());
+
+        registry.clear_all().unwrap();
+        assert!(registry.list().is_empty());
+    }
+
+    #[test]
+    fn test_renderer_registry_clear_alias_matches_clear_all() {
+        let mut registry = RendererRegistry::new();
+        let custom = Arc::new(MockRenderer {
+            format_name: "custom".to_string(),
+        });
+        registry.register(custom).unwrap();
+
+        registry.clear().unwrap();
+        assert!(registry.list().is_empty());
     }
 
     #[test]
