@@ -66,6 +66,13 @@ pub trait Renderer: Plugin {
 /// The renderer's format name is taken from [`Plugin::name`]. Registering a
 /// renderer with a name that already exists replaces the previous renderer
 /// for that format.
+///
+/// # Note on `Result` return type
+///
+/// Returns `Result<()>` for cross-language API symmetry required by the alef
+/// trait-bridge codegen. The underlying `parking_lot::RwLock` cannot be
+/// poisoned (parking_lot provides no poisoning semantics), so this function
+/// never returns `Err` in practice.
 pub fn register_renderer(renderer: Arc<dyn Renderer>) -> Result<()> {
     use crate::plugins::registry::get_renderer_registry;
 
