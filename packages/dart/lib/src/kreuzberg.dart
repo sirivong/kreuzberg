@@ -6,6 +6,8 @@ export 'kreuzberg_bridge_generated/lib.dart';
 import 'kreuzberg_bridge_generated/lib.dart' as rust_bridge;
 // ignore: duplicate_import
 import 'kreuzberg_bridge_generated/lib.dart';
+// ignore: unused_import
+import 'traits.dart';
 
 class KreuzbergBridge {
   /// Extract content from a byte array.
