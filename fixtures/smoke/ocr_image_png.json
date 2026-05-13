@@ -3,10 +3,6 @@
   "category": "smoke",
   "description": "OCR: PNG image extraction with OCR enabled. In WASM this exercises the Uint8Array bridge parameter and Promise await in the generated OcrBackend bridge.",
   "tags": ["smoke", "ocr", "image", "png"],
-  "skip": {
-    "skip_languages": ["wasm"],
-    "reason": "WASM bundle imports env.system/mkstemp + full WASI from the tesseract-wasm C runtime; instantiation succeeds with shimmed imports but actual OCR requires the host-side tesseract-wasm package wired through the JS glue."
-  },
   "call": "extract_bytes",
   "input": {
     "data": "images/test_hello_world.png",
