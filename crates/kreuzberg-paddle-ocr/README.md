@@ -53,3 +53,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 This project is based on the original [paddle-ocr-rs](https://github.com/mg-chao/paddle-ocr-rs) by [mg-chao](https://github.com/mg-chao), originally licensed under Apache-2.0. We are grateful for the foundational work that made this integration possible.
 
 The original paddle-ocr-rs provides Rust bindings for PaddlePaddle's OCR models via ONNX Runtime, enabling efficient text detection and recognition without Python dependencies.
+
+## Part of Kreuzberg, Inc
+
+- [Kreuzberg Cloud](https://docs.kreuzberg.cloud) — managed extraction API with SDKs, dashboards, and observability.
+- [kreuzcrawl](https://docs.kreuzcrawl.kreuzberg.dev) — web crawling and scraping with HTML→Markdown and headless-Chrome fallback.
+- [html-to-markdown](https://docs.html-to-markdown.kreuzberg.dev) — fast, lossless HTML→Markdown engine.
+- [liter-llm](https://docs.liter-llm.kreuzberg.dev) — universal LLM API client with native bindings for 14 languages and 143 providers.
+- [tree-sitter-language-pack](https://docs.tree-sitter-language-pack.kreuzberg.dev) — tree-sitter grammars and code-intelligence primitives.
+- [Discord](https://discord.gg/xt9WY3GnKR) — community, roadmap, announcements.
