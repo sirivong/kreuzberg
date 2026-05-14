@@ -52,10 +52,14 @@ pub fn create_kreuzberg_adapter(
             // No additional flags for baseline
         }
         KreuzbergPipeline::Layout => {
+            // `--layout` is Option<bool> with `num_args = 0..=1`, so `--layout true` parses.
+            // `--use-layout-for-markdown` is a plain `bool` presence flag — appending "true"
+            // as a second token leaves the literal "true" as an orphan positional argument
+            // and clap rejects the whole invocation, producing the 100% harness-error
+            // pattern observed on the Kreuzberg Layout variant in the dashboard.
             args.push("--layout".to_string());
             args.push("true".to_string());
             args.push("--use-layout-for-markdown".to_string());
-            args.push("true".to_string());
         }
         KreuzbergPipeline::PaddleOcr => {
             args.push("--ocr".to_string());

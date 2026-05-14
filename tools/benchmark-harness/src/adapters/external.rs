@@ -173,7 +173,7 @@ pub fn create_docling_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
     args.push(script_path.to_string_lossy().to_string());
     args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
     args.push(ocr_flag(ocr_enabled));
-    args.push("server".to_string());
+    args.push("sync".to_string());
 
     let supported_formats = get_supported_formats("docling");
     Ok(
@@ -191,7 +191,7 @@ pub fn create_unstructured_adapter(ocr_enabled: bool) -> Result<SubprocessAdapte
     args.push(script_path.to_string_lossy().to_string());
     args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
     args.push(ocr_flag(ocr_enabled));
-    args.push("server".to_string());
+    args.push("sync".to_string());
 
     let supported_formats = get_supported_formats("unstructured");
     Ok(
@@ -207,7 +207,7 @@ pub fn create_markitdown_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter>
     args.push(script_path.to_string_lossy().to_string());
     args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
     args.push(ocr_flag(ocr_enabled));
-    args.push("server".to_string());
+    args.push("sync".to_string());
 
     let supported_formats = get_supported_formats("markitdown");
     Ok(
@@ -354,7 +354,7 @@ pub fn create_tika_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
         jar_path.to_string_lossy().to_string(),
         script_path.to_string_lossy().to_string(),
         ocr_flag(ocr_enabled),
-        "server".to_string(),
+        "sync".to_string(),
     ];
 
     let supported_formats = get_supported_formats("tika");
@@ -369,7 +369,7 @@ pub fn create_pymupdf4llm_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter
     args.push(script_path.to_string_lossy().to_string());
     args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
     args.push(ocr_flag(ocr_enabled));
-    args.push("server".to_string());
+    args.push("sync".to_string());
 
     let supported_formats = get_supported_formats("pymupdf4llm");
     Ok(
@@ -385,7 +385,7 @@ pub fn create_pdfplumber_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter>
     args.push(script_path.to_string_lossy().to_string());
     args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
     args.push(ocr_flag(ocr_enabled));
-    args.push("server".to_string());
+    args.push("sync".to_string());
 
     let supported_formats = get_supported_formats("pdfplumber");
     Ok(
@@ -401,7 +401,7 @@ pub fn create_pypdf_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
     args.push(script_path.to_string_lossy().to_string());
     args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
     args.push(ocr_flag(ocr_enabled));
-    args.push("server".to_string());
+    args.push("sync".to_string());
 
     let supported_formats = get_supported_formats("pypdf");
     Ok(
@@ -417,7 +417,7 @@ pub fn create_playa_pdf_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> 
     args.push(script_path.to_string_lossy().to_string());
     args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
     args.push(ocr_flag(ocr_enabled));
-    args.push("server".to_string());
+    args.push("sync".to_string());
 
     let supported_formats = get_supported_formats("playa-pdf");
     Ok(
@@ -433,7 +433,7 @@ pub fn create_pdfminer_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
     args.push(script_path.to_string_lossy().to_string());
     args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
     args.push(ocr_flag(ocr_enabled));
-    args.push("server".to_string());
+    args.push("sync".to_string());
 
     let supported_formats = get_supported_formats("pdfminer");
     Ok(
@@ -451,7 +451,7 @@ pub fn create_pdftotext_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> 
     args.push(script_path.to_string_lossy().to_string());
     args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
     args.push(ocr_flag(ocr_enabled));
-    args.push("server".to_string());
+    args.push("sync".to_string());
 
     let supported_formats = get_supported_formats("pdftotext");
     Ok(
@@ -469,7 +469,7 @@ pub fn create_mineru_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
     args.push(script_path.to_string_lossy().to_string());
     args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
     args.push(ocr_flag(ocr_enabled));
-    args.push("server".to_string());
+    args.push("sync".to_string());
 
     let supported_formats = get_supported_formats("mineru");
     Ok(
