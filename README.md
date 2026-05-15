@@ -204,7 +204,7 @@ pipeline = DocumentPipeline(db=db, embedding_model="balanced")
 from kreuzberg import EmbeddingModelType
 
 # Use any supported fastembed model
-model = EmbeddingModelType.fastembed("NomicEmbedTextV15", 768)
+model = EmbeddingModelType.preset("NomicEmbedTextV15")
 pipeline = DocumentPipeline(db=db, embedding_model=model, embedding_dimensions=768)
 
 # Use a custom ONNX model

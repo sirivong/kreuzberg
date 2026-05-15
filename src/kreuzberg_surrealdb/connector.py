@@ -54,6 +54,6 @@ class DocumentConnector(BaseIngester):
         doc = _map_result_to_doc(result, source, self._table)
         res = await self._client.query(
             f"INSERT IGNORE INTO {self._table} $records",
-            {"records": cast("Any", [doc])},
+            {"records": cast(Any, [doc])},
         )
         _check_insert_result(res, context="document insertion")

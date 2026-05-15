@@ -179,7 +179,7 @@ class DocumentPipeline(BaseIngester):
 
         res = await self._client.query(
             f"INSERT IGNORE INTO {table} $records",
-            {"records": cast("Any", [doc])},
+            {"records": cast(Any,[doc])},
         )
         _check_insert_result(res, context="document insertion")
 
@@ -209,7 +209,7 @@ class DocumentPipeline(BaseIngester):
                 batch = chunk_records[i : i + self._insert_batch_size]
                 res = await self._client.query(
                     f"INSERT IGNORE INTO {ct} $records",
-                    {"records": cast("Any", batch)},
+                    {"records": cast(Any,batch)},
                 )
                 _check_insert_result(res, context="chunk insertion")
 

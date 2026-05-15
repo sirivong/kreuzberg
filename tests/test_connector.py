@@ -135,10 +135,10 @@ async def test_metadata_fields_mapped(
     records = mock_client.query.call_args[0][1]["records"]
     doc = records[0]
     assert doc["title"] == "Test Document"
-    assert doc["authors"] == ["Alice", "Bob"]
+    assert doc["authors"] == "Alice, Bob"
     assert doc["quality_score"] == 0.95
     assert doc["detected_languages"] == [{"language": "en", "confidence": 0.99}]
-    assert doc["keywords"] == [{"keyword": "test", "score": 0.8}]
+    assert doc["keywords"] == ["test"]
 
 
 @patch("kreuzberg_surrealdb._base.extract_file")

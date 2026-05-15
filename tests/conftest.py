@@ -30,7 +30,9 @@ def sample_extraction_result() -> MagicMock:
     result.metadata = {"title": "Test Document", "authors": ["Alice", "Bob"]}
     result.quality_score = 0.95
     result.detected_languages = [{"language": "en", "confidence": 0.99}]
-    result.extracted_keywords = [{"keyword": "test", "score": 0.8}]
+    kw = MagicMock()
+    kw.text = "test"
+    result.extracted_keywords = [kw]
     result.chunks = []
     return result
 

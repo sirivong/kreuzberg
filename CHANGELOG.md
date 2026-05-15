@@ -13,6 +13,13 @@ All notable changes to kreuzberg-surrealdb will be documented in this file.
 - **`keywords` field** — now a `list[str]` of keyword text values instead of raw `ExtractedKeyword` objects. Application code that accessed `.text` on keyword items should use the string directly.
 - **Chunk `char_start` / `char_end`** — these fields are always `None` (kreuzberg does not expose character offsets). `page_number` on a chunk now maps to the chunk's `first_page` value.
 
+### Schema changes
+
+The SurrealDB field type definitions have changed to match the values actually stored. If you have an existing schema from `0.1.x`, run `REMOVE TABLE documents; REMOVE TABLE chunks;` and call `setup_schema()` again before re-ingesting.
+
+- **`documents.authors`** — schema type changed from `option<array<string>>` to `option<string>`. The field now holds a comma-separated string, not an array.
+- **`documents.keywords`** — schema type changed from `option<array<object>>` to `option<array<string>>`. The field now holds an array of plain keyword strings.
+
 ## [0.1.1] — 2026-03-13
 
 ### Changed
