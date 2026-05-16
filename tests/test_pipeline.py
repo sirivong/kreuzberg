@@ -30,7 +30,7 @@ def test_pipeline_invalid_embedding_preset(mock_client: AsyncMock) -> None:
 def test_pipeline_embedding_model_type_direct(mock_client: AsyncMock) -> None:
     from kreuzberg import EmbeddingModelType
 
-    model = EmbeddingModelType.fastembed("BGEBaseENV15", 768)
+    model = EmbeddingModelType.preset("BGEBaseENV15")
     pipeline = DocumentPipeline(db=mock_client, embedding_model=model, embedding_dimensions=768)
     assert pipeline.embedding_dimensions == 768
 
@@ -38,7 +38,7 @@ def test_pipeline_embedding_model_type_direct(mock_client: AsyncMock) -> None:
 def test_pipeline_embedding_model_type_requires_dimensions(mock_client: AsyncMock) -> None:
     from kreuzberg import EmbeddingModelType
 
-    model = EmbeddingModelType.fastembed("BGEBaseENV15", 768)
+    model = EmbeddingModelType.preset("BGEBaseENV15")
     with pytest.raises(ValueError, match="embedding_dimensions is required"):
         DocumentPipeline(db=mock_client, embedding_model=model)
 
@@ -150,11 +150,11 @@ async def test_pipeline_chunk_without_metadata(
     mock_client: AsyncMock,
     sample_extraction_result: MagicMock,
 ) -> None:
-    """Chunks with None metadata should set page_number/char_start/etc to None."""
+    """Chunks with empty metadata should set page_number/first_page/last_page to None."""
     chunk = MagicMock(spec=Chunk)
     chunk.content = "Chunk without metadata."
     chunk.embedding = [0.1] * 768
-    chunk.metadata = None
+    chunk.metadata = {}
 
     sample_extraction_result.chunks = [chunk]
     mock_extract.return_value = sample_extraction_result

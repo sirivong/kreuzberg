@@ -42,11 +42,12 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/kreuzberg-dev/pre-commit-hooks
-    rev: v1.0.0
+    rev: v1.0.10
     hooks:
       - id: mypy
         args: ["--strict", "src"]
         exclude: "^(examples|tests|benchmarks|e2e)/"
+        pass_filenames: false
 
       - id: oxfmt
   - repo: https://github.com/rhysd/actionlint
