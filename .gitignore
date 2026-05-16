@@ -59,6 +59,7 @@ yarn-debug.log*
 yarn-error.log*
 # NAPI-RS generated files (index.d.ts is committed for TypeScript type resolution)
 crates/kreuzberg-node/index.js
+crates/kreuzberg-node/*.tgz
 .wrangler/
 .pnpm-store/
 
@@ -95,6 +96,9 @@ packages/r/src/.cargo/
 
 # Elixir
 .nox/
+
+# Go
+packages/go/v*/install
 
 # C FFI
 crates/kreuzberg-ffi/tests/c/test_*
