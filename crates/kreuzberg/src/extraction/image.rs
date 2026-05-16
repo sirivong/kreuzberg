@@ -447,6 +447,7 @@ fn extract_exif_data(_bytes: &[u8]) -> HashMap<String, String> {
 }
 
 /// Result of OCR extraction from an image with optional page tracking.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct ImageOcrResult {
     /// Extracted text content

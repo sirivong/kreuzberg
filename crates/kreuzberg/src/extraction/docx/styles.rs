@@ -125,6 +125,7 @@ pub struct ParagraphProperties {
 }
 
 /// A single style definition parsed from `<w:style>` in `word/styles.xml`.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct StyleDefinition {
     /// The style ID (`w:styleId` attribute).
@@ -146,6 +147,7 @@ pub struct StyleDefinition {
 }
 
 /// Fully resolved (flattened) style after walking the inheritance chain.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ResolvedStyle {
     pub paragraph_properties: ParagraphProperties,
@@ -153,6 +155,7 @@ pub struct ResolvedStyle {
 }
 
 /// Catalog of all styles parsed from `word/styles.xml`, plus document defaults.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default)]
 pub struct StyleCatalog {
     pub styles: AHashMap<String, StyleDefinition>,

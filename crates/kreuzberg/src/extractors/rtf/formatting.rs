@@ -199,6 +199,7 @@ pub(crate) fn map_offset(mapping: &[(usize, usize)], offset: usize) -> usize {
 /// - Collapses multiple consecutive newlines into a double newline
 /// - Trims leading/trailing whitespace from each line
 /// - Trims leading/trailing blank lines
+#[cfg_attr(alef, alef(skip))]
 pub fn normalize_whitespace(s: &str) -> String {
     // Split into lines, trim each, collapse blank runs
     let mut lines: Vec<&str> = Vec::new();

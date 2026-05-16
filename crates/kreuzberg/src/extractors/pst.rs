@@ -14,6 +14,7 @@ use std::path::Path;
 /// PST file extractor.
 ///
 /// Supports: .pst (Microsoft Outlook Personal Folders)
+#[cfg_attr(alef, alef(skip))]
 pub struct PstExtractor;
 
 impl Default for PstExtractor {

@@ -50,6 +50,7 @@ static COLUMNS_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"columns:\s*(\
 static LINK_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"^#link\("([^"]*)"\)\[([^\]]*)\]"#).unwrap());
 
 /// Typst document extractor
+#[cfg_attr(alef, alef(skip))]
 #[cfg(feature = "office")]
 pub struct TypstExtractor;
 

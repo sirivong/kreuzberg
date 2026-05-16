@@ -105,6 +105,7 @@ pub(crate) fn text_block_to_element(block: &TextBlock, page_number: u32) -> Resu
 /// This struct represents a single row from Tesseract's TSV output format.
 /// TSV format includes hierarchical information (block, paragraph, line, word)
 /// along with bounding boxes and confidence scores.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct TsvRow {
     /// Hierarchical level (1=block, 2=para, 3=line, 4=word, 5=symbol)

@@ -13,6 +13,7 @@ use crate::model_download;
 use crate::paddle_ocr::ModelManifestEntry;
 
 #[cfg(not(feature = "paddle-ocr"))]
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ModelManifestEntry {
     pub relative_path: String,
@@ -84,6 +85,7 @@ const MODELS: &[ModelDefinition] = &[
 ];
 
 /// Manages layout model downloading, caching, and path resolution.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct LayoutModelManager {
     cache_dir: PathBuf,

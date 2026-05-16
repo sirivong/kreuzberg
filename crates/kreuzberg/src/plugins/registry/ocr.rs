@@ -25,6 +25,7 @@ use std::sync::Arc;
 /// // Register OCR backends
 /// // registry.register(Arc::new(TesseractBackend::new()));
 /// ```
+#[cfg_attr(alef, alef(skip))]
 pub struct OcrBackendRegistry {
     pub(super) backends: AHashMap<String, Arc<dyn OcrBackend>>,
 }

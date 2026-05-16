@@ -19,6 +19,7 @@ pub enum FracType {
     Skewed,
 }
 
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub enum MathNode {
     /// Plain text from m:r/m:t

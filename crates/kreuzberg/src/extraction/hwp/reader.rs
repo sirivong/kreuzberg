@@ -10,6 +10,7 @@ use std::io::{Cursor, Read, Seek};
 // CfbReader — opens a CFB compound file and reads named streams
 // ---------------------------------------------------------------------------
 
+#[cfg_attr(alef, alef(skip))]
 pub struct CfbReader<F> {
     cfb: CompoundFile<F>,
 }
@@ -59,6 +60,7 @@ impl<F: Read + Seek> CfbReader<F> {
 // StreamReader — cursor-backed little-endian binary reader
 // ---------------------------------------------------------------------------
 
+#[cfg_attr(alef, alef(skip))]
 pub struct StreamReader {
     cursor: Cursor<Vec<u8>>,
 }

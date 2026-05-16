@@ -92,6 +92,7 @@ where
 }
 
 /// API-specific error wrapper.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug)]
 pub struct ApiError {
     /// HTTP status code

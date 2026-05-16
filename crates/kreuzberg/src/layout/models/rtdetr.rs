@@ -27,6 +27,7 @@ const INPUT_SIZE: u32 = 640;
 ///   - `labels`: i64 [batch, num_queries]   (class IDs, 0-16)
 ///   - `boxes`:  f32 [batch, num_queries, 4] (bounding boxes in original image coordinates)
 ///   - `scores`: f32 [batch, num_queries]   (confidence scores)
+#[cfg_attr(alef, alef(skip))]
 pub struct RtDetrModel {
     session: Session,
     input_names: Vec<String>,

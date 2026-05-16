@@ -9,6 +9,7 @@ use crate::error::{KreuzbergError, Result};
 use std::io::Cursor;
 
 /// Result of PPT text extraction.
+#[cfg_attr(alef, alef(skip))]
 pub struct PptExtractionResult {
     /// Extracted text content, with slides separated by double newlines.
     pub text: String,
@@ -21,6 +22,7 @@ pub struct PptExtractionResult {
 }
 
 /// Metadata extracted from PPT files.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Default)]
 pub struct PptMetadata {
     pub title: Option<String>,

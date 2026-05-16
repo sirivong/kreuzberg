@@ -145,6 +145,7 @@ fn build_json_internal_structure(
 }
 
 /// Structured data extractor supporting JSON, JSONL/NDJSON, YAML, and TOML.
+#[cfg_attr(alef, alef(skip))]
 pub struct StructuredExtractor;
 
 impl Default for StructuredExtractor {

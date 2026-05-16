@@ -34,6 +34,7 @@ const IMAGENET_STD_BGR: [f32; 3] = [0.229, 0.224, 0.225];
 // ---------------------------------------------------------------------------
 
 /// Table type classification result.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TableType {
     /// Bordered table with visible gridlines.
@@ -56,6 +57,7 @@ impl TableType {
 // ---------------------------------------------------------------------------
 
 /// PP-LCNet table classifier model.
+#[cfg_attr(alef, alef(skip))]
 pub struct TableClassifier {
     session: Session,
     input_name: String,

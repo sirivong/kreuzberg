@@ -46,6 +46,7 @@ pub struct Paragraph {
 // CharShape — character formatting attributes
 // ---------------------------------------------------------------------------
 
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct CharShape {
     pub bold: bool,
@@ -57,6 +58,7 @@ pub struct CharShape {
 // Images
 // ---------------------------------------------------------------------------
 
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default)]
 pub struct HwpImage {
     pub name: String,

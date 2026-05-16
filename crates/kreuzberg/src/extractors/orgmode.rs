@@ -49,6 +49,7 @@ use std::borrow::Cow;
 ///
 /// Provides native Rust-based Org Mode extraction using the `org` library,
 /// extracting structured content and metadata.
+#[cfg_attr(alef, alef(skip))]
 #[cfg(feature = "office")]
 pub struct OrgModeExtractor;
 

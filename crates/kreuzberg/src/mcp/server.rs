@@ -22,6 +22,7 @@ use rmcp::transport::streamable_http_server::{StreamableHttpService, session::lo
 ///
 /// The server loads a default extraction configuration from kreuzberg.toml/yaml/json
 /// via discovery. Per-request OCR settings override the defaults.
+#[cfg_attr(alef, alef(skip))]
 pub struct KreuzbergMcp {
     tool_router: ToolRouter<KreuzbergMcp>,
     /// Default extraction configuration loaded from config file via discovery

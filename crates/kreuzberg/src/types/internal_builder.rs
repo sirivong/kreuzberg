@@ -37,6 +37,7 @@ use crate::types::extraction::ProcessingWarning;
 ///
 /// Tracks nesting depth automatically for list and quote containers,
 /// and generates deterministic element IDs via blake3 hashing.
+#[cfg_attr(alef, alef(skip))]
 pub struct InternalDocumentBuilder {
     doc: InternalDocument,
     depth: u16,

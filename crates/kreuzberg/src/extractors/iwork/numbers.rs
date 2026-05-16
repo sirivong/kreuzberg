@@ -15,6 +15,7 @@ use async_trait::async_trait;
 /// Extracts cell string values and sheet names from the IWA container:
 /// ZIP → Snappy → protobuf text fields. Output is formatted as plain text
 /// with one text token per line (representing cell values and labels).
+#[cfg_attr(alef, alef(skip))]
 pub struct NumbersExtractor;
 
 impl NumbersExtractor {

@@ -27,6 +27,7 @@ use std::sync::Mutex;
 /// uses it without holding any lock, then returns it when done. This
 /// avoids contention during inference while still amortizing session
 /// creation cost across documents.
+#[cfg_attr(alef, alef(skip))]
 pub struct ModelCache<T: Send> {
     slot: Mutex<Option<T>>,
 }

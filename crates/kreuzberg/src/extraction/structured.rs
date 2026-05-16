@@ -45,6 +45,7 @@ pub struct StructuredDataResult {
     pub text_fields: Vec<String>,
 }
 
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JsonExtractionConfig {
     pub extract_schema: bool,

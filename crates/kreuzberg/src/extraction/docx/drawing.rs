@@ -9,6 +9,7 @@ use quick_xml::events::{BytesStart, Event};
 use serde::{Deserialize, Serialize};
 
 /// A drawing object extracted from `<w:drawing>`.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Drawing {
     pub drawing_type: DrawingType,
@@ -16,7 +17,6 @@ pub struct Drawing {
     pub doc_properties: Option<DocProperties>,
     pub image_ref: Option<String>, // r:embed rId value
 }
-#[cfg_attr(alef, alef(skip))]
 
 /// Whether the drawing is inline or anchored.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -27,6 +27,7 @@ pub enum DrawingType {
 }
 
 /// Size in EMUs (English Metric Units, 1 inch = 914400 EMU).
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Extent {
     pub cx: i64, // width in EMU
@@ -46,9 +47,9 @@ impl Extent {
         self.cy as f64 / super::EMUS_PER_INCH as f64
     }
 }
-#[cfg_attr(alef, alef(skip))]
 
 /// Document properties from `<wp:docPr>`.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct DocProperties {
     pub id: Option<String>,
@@ -57,6 +58,7 @@ pub struct DocProperties {
 }
 
 /// Properties for anchored drawings.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct AnchorProperties {
     pub behind_doc: bool,
@@ -68,6 +70,7 @@ pub struct AnchorProperties {
 }
 
 /// Horizontal or vertical position.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Position {
     pub relative_from: String, // "page", "margin", "column", "paragraph", "character"
@@ -75,6 +78,7 @@ pub struct Position {
 }
 
 /// Text wrapping type.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub enum WrapType {
     #[default]

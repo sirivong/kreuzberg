@@ -22,9 +22,9 @@ use crate::{KreuzbergError, Result};
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-#[cfg_attr(alef, alef(skip))]
 
 /// Configuration for batch processing with pooling optimizations.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct BatchProcessorConfig {
     /// Maximum number of string buffers to maintain in the pool
@@ -54,7 +54,6 @@ impl Default for BatchProcessorConfig {
         }
     }
 }
-#[cfg_attr(alef, alef(skip))]
 
 /// Batch processor that manages object pools for optimized extraction.
 ///
@@ -66,6 +65,7 @@ impl Default for BatchProcessorConfig {
 ///
 /// Pools are initialized on demand to reduce memory usage for applications
 /// that may not use batch processing immediately or at all.
+#[cfg_attr(alef, alef(skip))]
 pub struct BatchProcessor {
     string_pool: Mutex<Option<Arc<StringBufferPool>>>,
     byte_pool: Mutex<Option<Arc<ByteBufferPool>>>,

@@ -16,6 +16,7 @@ const HWP_SIGNATURE: &[u8] = b"HWP Document File";
 // FileHeader — 256-byte header at the start of every HWP 5.0 file
 // ---------------------------------------------------------------------------
 
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct FileHeader {
     pub flags: u32,
@@ -56,6 +57,7 @@ impl FileHeader {
 // Record header / Record — the fundamental binary units in HWP streams
 // ---------------------------------------------------------------------------
 
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug)]
 pub struct Record {
     pub tag_id: u16,

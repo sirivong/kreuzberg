@@ -34,6 +34,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// [`KreuzbergError::Cancelled`] if set.
 ///
 /// Cloning is cheap (increments the `Arc` reference count only).
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default)]
 pub struct CancellationToken {
     cancelled: Arc<AtomicBool>,

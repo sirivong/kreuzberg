@@ -154,6 +154,7 @@ pub enum InlineType {
 /// Element attributes in Djot.
 ///
 /// Represents the attributes attached to elements using {.class #id key="value"} syntax.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct Attributes {

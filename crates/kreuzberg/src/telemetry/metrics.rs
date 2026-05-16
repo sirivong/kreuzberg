@@ -9,6 +9,7 @@ use opentelemetry::metrics::{Counter, Histogram, Meter, UpDownCounter};
 use std::sync::OnceLock;
 
 /// Collection of all kreuzberg metric instruments.
+#[cfg_attr(alef, alef(skip))]
 pub struct ExtractionMetrics {
     // -- Counters --
     /// Total extractions (attributes: mime_type, extractor, status).

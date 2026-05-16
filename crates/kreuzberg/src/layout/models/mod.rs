@@ -10,6 +10,7 @@ use crate::layout::error::LayoutError;
 use crate::layout::types::LayoutDetection;
 
 /// Common interface for all layout detection model backends.
+#[cfg_attr(alef, alef(skip))]
 pub trait LayoutModel: Send {
     /// Run layout detection on an image using the default confidence threshold.
     fn detect(&mut self, img: &RgbImage) -> Result<Vec<LayoutDetection>, LayoutError>;

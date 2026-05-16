@@ -38,6 +38,7 @@
 /// This struct contains the estimated sizes for string and byte buffers
 /// that should be allocated in the pool to handle extraction without
 /// excessive reallocation.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Copy)]
 pub struct PoolSizeHint {
     /// Estimated total string buffer pool size in bytes

@@ -47,6 +47,7 @@ use std::borrow::Cow;
 /// - Text content and inline formatting
 /// - Code blocks and directives
 /// - Tables and lists
+#[cfg_attr(alef, alef(skip))]
 #[cfg(feature = "office")]
 pub struct RstExtractor;
 

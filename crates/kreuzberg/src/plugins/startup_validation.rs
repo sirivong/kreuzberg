@@ -14,6 +14,7 @@ use crate::plugins::registry::{
 /// Plugin health status information.
 ///
 /// Contains diagnostic information about registered plugins for each type.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct PluginHealthStatus {
     /// Number of registered OCR backends

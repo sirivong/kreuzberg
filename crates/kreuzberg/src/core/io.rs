@@ -23,6 +23,7 @@ const MMAP_THRESHOLD_BYTES: u64 = 1_048_576; // 1 MiB
 ///
 /// Implements `Deref<Target = [u8]>` so callers can pass `&FileBytes` as `&[u8]`
 /// without any additional copy.
+#[cfg_attr(alef, alef(skip))]
 pub struct FileBytes {
     inner: FileBytesInner,
 }

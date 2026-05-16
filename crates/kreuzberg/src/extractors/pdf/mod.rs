@@ -77,6 +77,7 @@ async fn run_ocr_with_layout(
 }
 
 /// PDF document extractor using pdf_oxide.
+#[cfg_attr(alef, alef(skip))]
 pub struct PdfExtractor;
 
 impl Default for PdfExtractor {

@@ -10,6 +10,7 @@ use zip::ZipArchive;
 ///
 /// Contains metadata fields defined by the OASIS OpenDocument Format standard.
 /// Uses Dublin Core elements (dc:) and OpenDocument meta elements (meta:).
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct OdtProperties {
     /// Document title (dc:title)

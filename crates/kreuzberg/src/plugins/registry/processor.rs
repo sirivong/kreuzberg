@@ -8,6 +8,7 @@ use std::sync::Arc;
 /// Registry for post-processor plugins.
 ///
 /// Manages post-processors organized by processing stage.
+#[cfg_attr(alef, alef(skip))]
 pub struct PostProcessorRegistry {
     processors: HashMap<ProcessingStage, BTreeMap<i32, Vec<Arc<dyn PostProcessor>>>>,
     name_index: HashMap<String, (ProcessingStage, i32)>,

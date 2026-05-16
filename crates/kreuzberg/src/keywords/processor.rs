@@ -24,6 +24,7 @@ use async_trait::async_trait;
 /// let processor = KeywordExtractor;
 /// assert_eq!(processor.name(), "keyword-extraction");
 /// ```
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Copy)]
 pub struct KeywordExtractor;
 

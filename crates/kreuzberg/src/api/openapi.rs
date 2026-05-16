@@ -103,6 +103,7 @@ use utoipa::OpenApi;
         (name = "openweb", description = "OpenWebUI compatibility endpoints")
     )
 )]
+#[cfg_attr(alef, alef(skip))]
 pub struct ApiDoc;
 
 /// Generate OpenAPI JSON schema.

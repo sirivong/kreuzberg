@@ -1,5 +1,6 @@
 use thiserror::Error;
 
+#[cfg_attr(alef, alef(skip))]
 #[derive(Error, Debug)]
 pub enum LayoutError {
     #[error("ORT error: {0}")]

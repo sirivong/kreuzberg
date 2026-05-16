@@ -36,6 +36,7 @@ pub struct NodeIndex(pub u32);
 /// Generated from a hash of `node_type + text + page`. The same document
 /// always produces the same IDs, making them useful for diffing, caching,
 /// and external references.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 #[cfg_attr(feature = "api", schema(value_type = String))]

@@ -13,6 +13,7 @@ pub struct Segment<'a> {
 }
 
 /// A merged chunk produced by [`merge_segments`].
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MergedChunk {
     pub text: String,

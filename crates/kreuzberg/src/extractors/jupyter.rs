@@ -48,6 +48,7 @@ type NotebookContent = (String, AHashMap<Cow<'static, str>, Value>, Vec<Extracte
 /// - Cell content (code and markdown)
 /// - Cell outputs (text, HTML, etc.)
 /// - Cell-level metadata (tags, execution counts)
+#[cfg_attr(alef, alef(skip))]
 #[cfg(feature = "office")]
 pub struct JupyterExtractor;
 

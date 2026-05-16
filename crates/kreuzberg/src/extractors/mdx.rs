@@ -42,6 +42,7 @@ static JSX_INLINE_COMMENT_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\s
 /// Strips MDX-specific syntax (imports, exports, JSX component tags,
 /// inline expressions) and processes the remaining content as Markdown,
 /// extracting metadata from YAML frontmatter and tables.
+#[cfg_attr(alef, alef(skip))]
 pub struct MdxExtractor;
 
 impl MdxExtractor {

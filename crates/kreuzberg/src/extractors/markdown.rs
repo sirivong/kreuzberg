@@ -37,6 +37,7 @@ type AnnotationEntry = (u8, u32, Option<(String, Option<String>)>);
 /// - Tables as structured data
 /// - Document structure (headings, links, code blocks)
 /// - Images from data URIs
+#[cfg_attr(alef, alef(skip))]
 pub struct MarkdownExtractor;
 
 impl MarkdownExtractor {

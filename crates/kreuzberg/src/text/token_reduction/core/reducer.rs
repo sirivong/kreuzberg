@@ -14,6 +14,7 @@ use super::punctuation::PunctuationCleaner;
 use super::sentence_selection::SentenceSelector;
 use super::word_filtering::WordFilter;
 
+#[cfg_attr(alef, alef(skip))]
 pub struct TokenReducer {
     config: Arc<TokenReductionConfig>,
     text_processor: SimdTextProcessor,

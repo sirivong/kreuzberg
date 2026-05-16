@@ -70,6 +70,7 @@ impl Default for LayoutEngineConfig {
 }
 
 /// Granular timing breakdown for a single `detect()` call.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default)]
 pub struct DetectTimings {
     /// Time spent in image preprocessing (resize, letterbox, normalize, tensor allocation).
@@ -81,12 +82,12 @@ pub struct DetectTimings {
     /// Time spent in postprocessing heuristics (confidence filtering, overlap resolution).
     pub postprocess_ms: f64,
 }
-#[cfg_attr(alef, alef(skip))]
 
 /// High-level layout detection engine.
 ///
 /// Wraps model loading, inference, and postprocessing into a single
 /// reusable object. Models are downloaded and cached on first use.
+#[cfg_attr(alef, alef(skip))]
 pub struct LayoutEngine {
     model: Box<dyn LayoutModel>,
     config: LayoutEngineConfig,

@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **API surface lockdown via `#[cfg_attr(alef, alef(skip))]`**: 41 internal types
+  that were leaking into the public polyglot binding surface are now hidden from
+  every binding. Skipped types: REST/MCP wire-envelope DTOs (`ApiDoc`,
+  `InfoResponse`, `ExtractResponse`, `EmbedRequest`/`EmbedResponse`,
+  `ChunkRequest`/`ChunkResponse`, `DetectMimeTypeParams`, `CacheWarmParams`,
+  `EmbedTextParams`, `ExtractStructuredParams`, `ChunkTextParams`,
+  `ManifestEntryResponse`/`ManifestResponse`, `WarmResponse`,
+  `OpenWebDocumentResponse`, `DoclingCompatResponse`,
+  `StructuredExtractionResponse`); HWP/DOCX format parser helpers
+  (`StreamReader`, `CharShape`, `HwpImage`, `Drawing`, `AnchorProperties`,
+  `PageMarginsPoints`, `StyleDefinition`, `ResolvedStyle`); office_metadata
+  internals (`CoreProperties`, `CustomProperties`, `OdtProperties`,
+  `DocxAppProperties`, `XlsxAppProperties`, `PptxAppProperties`); pool/service
+  infrastructure (`TracingLayer`, `SyncExtractor`, `Recyclable`); OCR/chunking
+  intermediates (`ImageOcrResult`, `HtmlExtractionResult`,
+  `ExtractedInlineImage`, `DetectedBoundary`, `ChunkingResult`, `MergedChunk`).
+  These types were never part of the polyglot SDK contract — `extract_file` /
+  `extract_bytes` / `Metadata` / `OcrConfig` remain unchanged.
+
+- **Migrated `alef.toml [crates.exclude]` to source-level annotations**: 100+
+  type/function/method entries previously listed in `alef.toml`'s global
+  exclude block now carry `#[cfg_attr(alef, alef(skip))]` at their definition
+  sites in `crates/kreuzberg/src/**`. Behaviour-neutral migration — the same
+  items remain excluded, but the exclusion declaration lives next to the
+  defined item and stays in sync across refactors instead of drifting away from
+  the source. `alef.toml [crates.exclude]` now retains only the ~20 entries
+  that cannot be source-annotated (fully-qualified path exclusions where the
+  short name collides with a kept public type, generic structs whose bounds
+  prevent `cfg_attr` propagation, trait-bridge `register_*` / `clear_*`
+  functions that need deduplication against the bridge emitter, and trait
+  impl methods like `From::from` / `Display::fmt` / `Deref::deref` auto-emitted
+  by derive).
+
 ## [5.0.0-rc.1] - 2026-05-16
 
 ### Changed

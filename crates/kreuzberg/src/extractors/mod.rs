@@ -44,6 +44,7 @@ use std::sync::Arc;
 ///     }
 /// }
 /// ```
+#[cfg_attr(alef, alef(skip))]
 pub trait SyncExtractor {
     /// Extract content from a byte array synchronously.
     ///

@@ -10,6 +10,7 @@ use crate::core::config::ExtractionConfig;
 #[cfg(feature = "ocr")]
 use crate::core::config::OcrQualityThresholds;
 
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Default)]
 #[cfg(feature = "ocr")]
 pub struct NativeTextStats {

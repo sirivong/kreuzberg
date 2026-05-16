@@ -11,6 +11,7 @@ use async_trait::async_trait;
 /// Plain text extractor.
 ///
 /// Extracts content from plain text files (.txt).
+#[cfg_attr(alef, alef(skip))]
 pub struct PlainTextExtractor;
 
 impl PlainTextExtractor {

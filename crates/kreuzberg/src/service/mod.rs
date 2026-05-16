@@ -46,6 +46,7 @@ use tower::{Service, ServiceBuilder, ServiceExt};
 /// Builder for composing an extraction service with Tower middleware layers.
 ///
 /// Layers are applied in the order: Tracing → Metrics → Timeout → ConcurrencyLimit → Service.
+#[cfg_attr(alef, alef(skip))]
 pub struct ExtractionServiceBuilder {
     timeout: Option<Duration>,
     concurrency_limit: Option<usize>,

@@ -14,6 +14,7 @@ use async_trait::async_trait;
 ///
 /// Extracts slide text and speaker notes from the IWA container:
 /// ZIP → Snappy → protobuf text fields.
+#[cfg_attr(alef, alef(skip))]
 pub struct KeynoteExtractor;
 
 impl KeynoteExtractor {

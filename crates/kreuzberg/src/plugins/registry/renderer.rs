@@ -84,6 +84,7 @@ impl Renderer for PlainRenderer {
 /// let available = registry.list();
 /// // Built-in renderers: "markdown", "html", "djot", "plain"
 /// ```
+#[cfg_attr(alef, alef(skip))]
 pub struct RendererRegistry {
     renderers: AHashMap<String, Arc<dyn Renderer>>,
 }

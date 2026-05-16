@@ -6,10 +6,11 @@
 
 use crate::error::{KreuzbergError, Result};
 use crate::extraction::ooxml_constants::DRAWINGML_NAMESPACE;
-#[cfg_attr(alef, alef(skip))]
+
 // --- Types ---
 
 /// A theme color definition, either direct RGB or a system color with fallback.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, PartialEq)]
 pub enum ThemeColor {
     /// Direct hex RGB color (e.g., "156082").
@@ -19,6 +20,7 @@ pub enum ThemeColor {
 }
 
 /// Color scheme containing all 12 standard Office theme colors.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default)]
 pub struct ColorScheme {
     /// Color scheme name.
@@ -50,6 +52,7 @@ pub struct ColorScheme {
 }
 
 /// Font scheme containing major (heading) and minor (body) fonts.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default)]
 pub struct FontScheme {
     /// Font scheme name.
@@ -67,9 +70,9 @@ pub struct FontScheme {
     /// Minor (body) font - Complex script.
     pub minor_complex_script: Option<String>,
 }
-#[cfg_attr(alef, alef(skip))]
 
 /// Complete theme with color scheme and font scheme.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default)]
 pub struct Theme {
     /// Theme name (e.g., "Office Theme").

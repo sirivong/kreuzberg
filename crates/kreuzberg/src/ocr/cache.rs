@@ -4,6 +4,7 @@ use crate::types::OcrExtractionResult;
 use std::fs;
 use std::path::PathBuf;
 
+#[cfg_attr(alef, alef(skip))]
 pub struct OcrCache {
     cache_dir: PathBuf,
 }

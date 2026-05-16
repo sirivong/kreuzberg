@@ -1,6 +1,7 @@
 use std::fmt;
 
 /// Error type for HWP parsing.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug)]
 pub enum HwpError {
     /// The file does not match the HWP 5.0 format.

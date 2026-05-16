@@ -235,6 +235,7 @@ pub struct ResolvedRecModel {
 }
 
 /// Paths to shared models (detection + classification).
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct SharedModelPaths {
     /// Path to the detection model directory.
@@ -242,9 +243,9 @@ pub struct SharedModelPaths {
     /// Path to the classification model directory.
     pub cls_model: PathBuf,
 }
-#[cfg_attr(alef, alef(skip))]
 
 /// Paths to a recognition model and its character dictionary.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct RecModelPaths {
     /// Path to the recognition model directory.
@@ -298,6 +299,7 @@ pub struct CacheStats {
 /// organized by model type. Shared models (det, cls) are downloaded once,
 /// while recognition models are downloaded per-script-family on demand.
 #[cfg(feature = "paddle-ocr")]
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct ModelManager {
     cache_dir: PathBuf,

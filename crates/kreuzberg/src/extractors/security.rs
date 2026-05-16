@@ -74,6 +74,7 @@ impl Default for SecurityLimits {
 }
 
 /// Security validation errors.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub enum SecurityError {
     /// Potential ZIP bomb detected

@@ -14,6 +14,7 @@ use async_trait::async_trait;
 ///
 /// Extracts all text content from the document by parsing the IWA
 /// (iWork Archive) container: ZIP → Snappy → protobuf text fields.
+#[cfg_attr(alef, alef(skip))]
 pub struct PagesExtractor;
 
 impl PagesExtractor {

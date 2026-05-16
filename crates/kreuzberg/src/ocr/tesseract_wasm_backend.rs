@@ -30,6 +30,7 @@ use std::sync::Mutex;
 const OEM_LSTM_ONLY: i32 = 1;
 
 /// WASM-compatible Tesseract OCR backend.
+#[cfg_attr(alef, alef(skip))]
 pub struct TesseractWasmBackend {
     /// Process-local tessdata cache, keyed by language code.
     tessdata_cache: Mutex<HashMap<String, Vec<u8>>>,

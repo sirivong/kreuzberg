@@ -27,6 +27,7 @@ use std::io::Cursor;
 /// - Table extraction with row and cell support
 /// - Formatting preservation (bold, italic, strikeout)
 /// - Support for headings, paragraphs, and special elements
+#[cfg_attr(alef, alef(skip))]
 pub struct OdtExtractor;
 
 impl OdtExtractor {

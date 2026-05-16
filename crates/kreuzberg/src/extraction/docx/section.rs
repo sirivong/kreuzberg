@@ -7,10 +7,11 @@
 use crate::extraction::ooxml_constants::WORDPROCESSINGML_NAMESPACE;
 use quick_xml::Reader;
 use quick_xml::events::{BytesStart, Event};
-#[cfg_attr(alef, alef(skip))]
+
 // --- Types ---
 
 /// Page orientation.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Orientation {
     Portrait,
@@ -18,6 +19,7 @@ pub enum Orientation {
 }
 
 /// Page margins in twips (twentieths of a point).
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default)]
 pub struct PageMargins {
     /// Top margin in twips.
@@ -37,6 +39,7 @@ pub struct PageMargins {
 }
 
 /// Page margins converted to points (1/72 inch).
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default)]
 pub struct PageMarginsPoints {
     pub top: Option<f64>,
@@ -47,9 +50,9 @@ pub struct PageMarginsPoints {
     pub footer: Option<f64>,
     pub gutter: Option<f64>,
 }
-#[cfg_attr(alef, alef(skip))]
 
 /// Column layout configuration.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default)]
 pub struct ColumnLayout {
     /// Number of columns.
@@ -59,9 +62,9 @@ pub struct ColumnLayout {
     /// Whether columns have equal width.
     pub equal_width: Option<bool>,
 }
-#[cfg_attr(alef, alef(skip))]
 
 /// DOCX section properties parsed from `w:sectPr` element.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default)]
 pub struct SectionProperties {
     /// Page width in twips (from `w:pgSz w:w`).

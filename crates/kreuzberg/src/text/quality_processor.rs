@@ -35,6 +35,7 @@ use std::borrow::Cow;
 /// let processor = QualityProcessor;
 /// assert_eq!(processor.name(), "quality-processing");
 /// ```
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Copy)]
 pub struct QualityProcessor;
 

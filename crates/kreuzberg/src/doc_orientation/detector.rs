@@ -41,6 +41,7 @@ pub const MIN_CONFIDENCE: f32 = 0.35;
 ///
 /// Thread-safe: uses unsafe pointer cast for ONNX session (same pattern as embedding engine).
 /// The model is downloaded from HuggingFace on first use and cached locally.
+#[cfg_attr(alef, alef(skip))]
 pub struct DocOrientationDetector {
     session: once_cell::sync::OnceCell<Session>,
     cache_dir: PathBuf,

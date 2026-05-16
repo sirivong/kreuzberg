@@ -10,6 +10,7 @@ use zip::ZipArchive;
 ///
 /// Contains standard metadata fields defined by the Dublin Core standard
 /// and Office-specific extensions.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CoreProperties {
     /// Document title

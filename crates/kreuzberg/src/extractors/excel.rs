@@ -32,7 +32,6 @@ fn validate_workbook_budget(workbook: &crate::types::ExcelWorkbook, budget: &mut
     }
     Ok(())
 }
-#[cfg_attr(alef, alef(skip))]
 
 /// Excel spreadsheet extractor using calamine.
 ///
@@ -44,6 +43,7 @@ fn validate_workbook_budget(workbook: &crate::types::ExcelWorkbook, budget: &mut
 ///   public API. Excel files may contain hyperlinks via the `HYPERLINK()` formula
 ///   or via the relationships XML, but neither is accessible through the crate.
 ///   This would require either a calamine upstream change or manual OOXML parsing.
+#[cfg_attr(alef, alef(skip))]
 pub struct ExcelExtractor;
 
 impl Default for ExcelExtractor {

@@ -425,6 +425,7 @@ fn build_jats_internal_document(content: &str, budget: &mut SecurityBudget) -> c
 ///
 /// Supports JATS (Journal Article Tag Suite) XML documents in various versions,
 /// handling both the full article structure and minimal JATS subsets.
+#[cfg_attr(alef, alef(skip))]
 pub struct JatsExtractor;
 
 impl Default for JatsExtractor {

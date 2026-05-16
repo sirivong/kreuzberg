@@ -53,6 +53,7 @@ use kreuzberg_paddle_ocr::OcrLite;
 /// The backend is `Send + Sync` and can be used across threads safely via `Arc`.
 /// Each engine in the pool has its own mutex, so concurrent OCR on different
 /// script families does not block.
+#[cfg_attr(alef, alef(skip))]
 pub struct PaddleOcrBackend {
     config: Arc<PaddleOcrConfig>,
     model_manager: ModelManager,

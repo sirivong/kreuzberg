@@ -460,6 +460,7 @@ impl Default for ImageDpiConfig {
 ///
 /// Provides information about the extraction result cache,
 /// including size, file count, and age distribution.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CacheStats {
     /// Total number of cached files

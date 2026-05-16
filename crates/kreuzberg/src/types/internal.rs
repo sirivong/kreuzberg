@@ -36,6 +36,7 @@ use crate::types::ExtractedImage;
 /// Same input always produces the same ID, enabling diffing and caching.
 ///
 /// Serializes as a plain string (`"ie-aabbccddeeff"`).
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct InternalElementId([u8; 15]);
 
@@ -128,6 +129,7 @@ impl AsRef<str> for InternalElementId {
 /// Implements `Serialize`/`Deserialize` so that foreign-language plugin implementations
 /// (Python, TypeScript, Ruby, etc.) can construct and return this type via JSON at the
 /// FFI/trait-bridge boundary.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct InternalDocument {
     /// All elements in reading order. Append-only during extraction.
@@ -284,6 +286,7 @@ impl InternalDocument {
 ///
 /// Elements are appended in reading order during extraction. The `depth` field
 /// and optional container markers enable tree reconstruction in the derivation step.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct InternalElement {
     /// Deterministic identifier.
@@ -416,6 +419,7 @@ impl InternalElement {
 ///
 /// Superset of [`NodeContent`](super::document_structure::NodeContent) variants
 /// plus OCR and container markers.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ElementKind {
     // --- Text-carrying ---
@@ -539,6 +543,7 @@ impl ElementKind {
 ///
 /// During extraction, targets may be unresolved keys (`RelationshipTarget::Key`).
 /// The derivation step resolves these to indices using the element anchor index.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Relationship {
     /// Index of the source element in `InternalDocument::elements`.
@@ -552,6 +557,7 @@ pub struct Relationship {
 }
 
 /// Target of a relationship — either a resolved element index or an unresolved key.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RelationshipTarget {
     /// Resolved: index into `InternalDocument::elements`.

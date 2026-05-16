@@ -18,6 +18,7 @@ use crate::service::request::{ExtractionRequest, ExtractionSource};
 // ---------------------------------------------------------------------------
 
 /// A [`tower::Layer`] that wraps each extraction in a semantic tracing span.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default)]
 pub struct TracingLayer;
 

@@ -10,7 +10,6 @@ use std::task::{Context, Poll};
 use tower::Service;
 
 use super::request::{ExtractionRequest, ExtractionSource};
-#[cfg_attr(alef, alef(skip))]
 
 /// A [`tower::Service`] that dispatches extraction requests to the kreuzberg
 /// core library.
@@ -30,6 +29,7 @@ use super::request::{ExtractionRequest, ExtractionSource};
 /// let req = ExtractionRequest::file("doc.pdf", ExtractionConfig::default());
 /// let result = svc.call(req).await?;
 /// ```
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct ExtractionService {
     _private: (),

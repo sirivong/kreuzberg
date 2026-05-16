@@ -158,6 +158,7 @@ pub struct CellBBox {
 ///
 /// Wraps an ORT session for the TATR ONNX model and provides preprocessing,
 /// inference, and post-processing in a single `recognize` call.
+#[cfg_attr(alef, alef(skip))]
 pub struct TatrModel {
     session: Session,
     input_name: String,

@@ -39,6 +39,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 /// These metrics help identify pool efficiency and allocation patterns.
 /// Only available when the `pool-metrics` feature is enabled.
 #[cfg(feature = "pool-metrics")]
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug)]
 pub struct PoolMetrics {
     /// Total number of acquire calls on this pool
@@ -85,6 +86,7 @@ impl Default for PoolMetrics {
 ///
 /// Generic over any type that implements `Recyclable`, allowing pooling of
 /// different object types with custom reset logic.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Clone)]
 pub struct Pool<T: Recyclable> {
     factory: Arc<dyn Fn() -> T + Send + Sync>,
@@ -98,6 +100,7 @@ pub struct Pool<T: Recyclable> {
 ///
 /// Implementing this trait allows a type to be used with `Pool<T>`.
 /// The `reset()` method should clear the object's state for reuse.
+#[cfg_attr(alef, alef(skip))]
 pub trait Recyclable: Send + 'static {
     /// Reset the object to a reusable state.
     ///

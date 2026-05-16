@@ -27,6 +27,7 @@ use ahash::AHashMap;
 ///
 /// Maintains a mapping of OCR backend names to their supported language codes.
 /// This is the single source of truth for language support across all bindings.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct LanguageRegistry {
     #[cfg(test)]

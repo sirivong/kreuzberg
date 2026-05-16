@@ -15,6 +15,7 @@ use super::common::{NestingKind, RenderState, get_language, handle_container_end
 // ============================================================================
 
 /// Top-level JSON document.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Serialize)]
 pub struct JsonDocument {
     /// Document title, if found.
@@ -25,6 +26,7 @@ pub struct JsonDocument {
 }
 
 /// A node in the JSON document tree.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Serialize)]
 #[serde(tag = "type")]
 pub enum JsonNode {

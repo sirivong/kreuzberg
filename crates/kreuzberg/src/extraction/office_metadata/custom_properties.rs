@@ -12,6 +12,7 @@ use zip::ZipArchive;
 ///
 /// Maps property names to their values. Values are converted to JSON types
 /// based on the VT (Variant Type) specified in the XML.
+#[cfg_attr(alef, alef(skip))]
 pub type CustomProperties = HashMap<String, Value>;
 
 /// Extract custom properties from an Office Open XML document

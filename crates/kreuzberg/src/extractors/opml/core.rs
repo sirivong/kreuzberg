@@ -17,6 +17,7 @@ use super::parser;
 /// OPML format extractor.
 ///
 /// Extracts outline structure and metadata from OPML documents using native Rust parsing.
+#[cfg_attr(alef, alef(skip))]
 pub struct OpmlExtractor;
 
 impl OpmlExtractor {

@@ -7,6 +7,7 @@
 //! Originally adapted from the `hocr` module of `html-to-markdown-rs` (removed in v3).
 
 /// Represents a word extracted from hOCR (or any source) with position and confidence information.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct HocrWord {
     pub text: String,

@@ -23,6 +23,7 @@ pub struct TableProperties {
 }
 
 /// Width specification used for tables and cells.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TableWidth {
     pub value: i32,
@@ -99,6 +100,7 @@ pub struct CellProperties {
 }
 
 /// Vertical merge state.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum VerticalMerge {
     Restart,  // Start of a new merged range

@@ -14,6 +14,7 @@ const DEFAULT_THRESHOLD: f32 = 0.35;
 const NMS_IOU_THRESHOLD: f32 = 0.45;
 
 /// Which YOLO variant this model represents.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Copy)]
 pub enum YoloVariant {
     /// YOLOv10/v8 trained on DocLayNet (11 classes).
@@ -29,6 +30,7 @@ pub enum YoloVariant {
 }
 
 /// YOLO-family layout detection model (YOLOv10, DocLayout-YOLO, YOLOX).
+#[cfg_attr(alef, alef(skip))]
 pub struct YoloModel {
     session: Session,
     input_name: String,

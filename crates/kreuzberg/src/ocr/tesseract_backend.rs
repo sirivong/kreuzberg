@@ -24,6 +24,7 @@ use crate::ocr::types::TesseractConfig as InternalTesseractConfig;
 /// # Thread Safety
 ///
 /// Uses Arc for shared ownership and is thread-safe (Send + Sync).
+#[cfg_attr(alef, alef(skip))]
 pub struct TesseractBackend {
     processor: Arc<OcrProcessor>,
     available_languages: OnceLock<Vec<String>>,

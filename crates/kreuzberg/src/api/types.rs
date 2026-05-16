@@ -141,6 +141,7 @@ pub struct HealthResponse {
 }
 
 /// Server information response.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct InfoResponse {
@@ -152,6 +153,7 @@ pub struct InfoResponse {
 }
 
 /// Extraction response (list of results).
+#[cfg_attr(alef, alef(skip))]
 pub type ExtractResponse = Vec<ExtractionResult>;
 
 /// Error response.
@@ -274,6 +276,7 @@ pub struct CacheClearResponse {
 }
 
 /// Embedding request for generating embeddings from text.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct EmbedRequest {
@@ -287,6 +290,7 @@ pub struct EmbedRequest {
 }
 
 /// Embedding response containing generated embeddings.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct EmbedResponse {
@@ -307,6 +311,7 @@ fn default_chunker_type() -> String {
 }
 
 /// Chunk request with text and configuration.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct ChunkRequest {
@@ -343,6 +348,7 @@ pub struct ChunkingConfigRequest {
 }
 
 /// Chunk response with chunks and metadata.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct ChunkResponse {
@@ -404,6 +410,7 @@ pub struct DetectResponse {
 }
 
 /// Model manifest entry for cache management.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct ManifestEntryResponse {
@@ -419,6 +426,7 @@ pub struct ManifestEntryResponse {
 }
 
 /// Model manifest response.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct ManifestResponse {
@@ -434,6 +442,7 @@ pub struct ManifestResponse {
 }
 
 /// Cache warm request.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct WarmRequest {
@@ -446,6 +455,7 @@ pub struct WarmRequest {
 }
 
 /// Cache warm response.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct WarmResponse {
@@ -458,6 +468,7 @@ pub struct WarmResponse {
 }
 
 /// Response from structured extraction endpoint.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct StructuredExtractionResponse {
@@ -477,6 +488,7 @@ pub struct StructuredExtractionResponse {
 /// OpenWebUI "External" engine response format.
 ///
 /// Returned by `PUT /process` for the OpenWebUI external document loader.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct OpenWebDocumentResponse {
@@ -487,6 +499,7 @@ pub struct OpenWebDocumentResponse {
 }
 
 /// Metadata for the OpenWebUI external document loader response.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct OpenWebDocumentMetadata {
@@ -498,6 +511,7 @@ pub struct OpenWebDocumentMetadata {
 /// OpenWebUI "Docling" engine response format.
 ///
 /// Returned by `POST /v1/convert/file` for docling-serve compatibility.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct DoclingCompatResponse {

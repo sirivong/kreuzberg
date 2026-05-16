@@ -18,6 +18,7 @@ use crate::telemetry::conventions;
 // ---------------------------------------------------------------------------
 
 /// A [`tower::Layer`] that records service-level extraction metrics.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Default)]
 pub struct MetricsLayer;
 

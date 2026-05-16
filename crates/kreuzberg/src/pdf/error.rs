@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub enum PdfError {
     InvalidPdf(String),

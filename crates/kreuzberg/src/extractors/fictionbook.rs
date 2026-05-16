@@ -64,6 +64,7 @@ fn resolve_general_ref(ref_bytes: &[u8]) -> String {
 /// FictionBook document extractor.
 ///
 /// Supports FictionBook 2.0 format with proper section hierarchy and inline formatting.
+#[cfg_attr(alef, alef(skip))]
 pub struct FictionBookExtractor;
 
 impl Default for FictionBookExtractor {

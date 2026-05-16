@@ -8,6 +8,7 @@ use super::resize::resize_image;
 const PDF_POINTS_PER_INCH: f64 = 72.0;
 
 /// Result of image normalization
+#[cfg_attr(alef, alef(skip))]
 pub struct NormalizeResult {
     /// Processed RGB image data (height * width * 3 bytes)
     pub rgb_data: Vec<u8>,

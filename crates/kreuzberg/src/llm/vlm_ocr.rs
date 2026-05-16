@@ -19,6 +19,7 @@ use crate::plugins::{OcrBackend, OcrBackendType, Plugin};
 ///
 /// This backend sends images to a vision language model (e.g., GPT-4o, Claude)
 /// for text extraction, as an alternative to traditional OCR backends.
+#[cfg_attr(alef, alef(skip))]
 pub struct VlmOcrBackend;
 
 impl Plugin for VlmOcrBackend {

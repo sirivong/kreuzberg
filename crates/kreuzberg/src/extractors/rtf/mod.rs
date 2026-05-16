@@ -37,6 +37,7 @@ use std::borrow::Cow;
 /// Native Rust RTF extractor.
 ///
 /// Extracts text content, metadata, and structure from RTF documents
+#[cfg_attr(alef, alef(skip))]
 pub struct RtfExtractor;
 
 impl RtfExtractor {

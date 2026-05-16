@@ -67,6 +67,7 @@ pub struct BatchExtractFilesParams {
 }
 
 /// Request parameters for MIME type detection.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct DetectMimeTypeParams {
     /// Path to the file
@@ -88,6 +89,7 @@ fn default_use_content() -> bool {
 pub struct EmptyParams {}
 
 /// Request parameters for cache warm (model download).
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct CacheWarmParams {
     /// Download all embedding model presets
@@ -99,6 +101,7 @@ pub struct CacheWarmParams {
 }
 
 /// Request parameters for embedding generation.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct EmbedTextParams {
     /// List of text strings to generate embeddings for
@@ -126,6 +129,7 @@ fn default_schema_name() -> String {
 }
 
 /// Request parameters for LLM-based structured extraction.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct ExtractStructuredParams {
     /// File path to extract from
@@ -152,6 +156,7 @@ pub struct ExtractStructuredParams {
 }
 
 /// Request parameters for text chunking.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct ChunkTextParams {
     /// Text content to split into chunks
