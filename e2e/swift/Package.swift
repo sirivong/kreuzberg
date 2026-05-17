@@ -5,15 +5,15 @@ let package = Package(
     name: "E2eSwift",
     platforms: [
         .macOS(.v13),
-        .iOS(.v14),
+        .iOS(.v16),
     ],
     dependencies: [
-        .package(path: "../../packages/swift"),
+        .package(name: "Kreuzberg", path: "../../packages/swift"),
     ],
     targets: [
         .testTarget(
             name: "KreuzbergE2ETests",
-            dependencies: [.product(name: "Kreuzberg", package: "swift")]
+            dependencies: [.product(name: "Kreuzberg", package: "Kreuzberg")]
         ),
     ]
 )
