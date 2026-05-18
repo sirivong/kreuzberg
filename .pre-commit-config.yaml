@@ -28,3 +28,8 @@ repos:
     rev: v1.0.0
     hooks:
       - id: checkstyle
+
+  - repo: https://github.com/Goldziher/gh-actions-updater
+    rev: v0.1.1
+    hooks:
+      - id: gh-actions-updater
