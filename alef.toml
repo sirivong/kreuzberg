@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.16.32"
+alef_version = "0.16.40"
 languages = [
   "python",
   "node",
@@ -716,7 +716,7 @@ e2e = "cd e2e/kotlin_android && gradle test --no-daemon"
 precondition = "command -v swift >/dev/null 2>&1"
 before = ["cargo build --release -p kreuzberg-swift", "bash scripts/setup-swift-bridge.sh"]
 command = "cd packages/swift && swift test"
-e2e = "cd e2e/swift && swift test"
+e2e = "cd e2e/swift_e2e && swift test"
 
 [crates.test.dart]
 # packages/dart is a Flutter plugin (pubspec declares `flutter:` SDK constraint
