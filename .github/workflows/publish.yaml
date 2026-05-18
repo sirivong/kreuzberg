@@ -1596,7 +1596,11 @@ jobs:
 
       - uses: rubygems/configure-rubygems-credentials@v2.0.0
 
-      - uses: kreuzberg-dev/actions/publish-rubygems@v1
+      # Pinned to a fixed SHA on kreuzberg-dev/actions main until v1 is
+      # retagged. Carries the gem-spec diagnostic surfacing fix that prints
+      # the underlying `gem spec` exit code + stderr/stdout, replacing the
+      # bare "invalid gem structure" message.
+      - uses: kreuzberg-dev/actions/publish-rubygems@a2da7ee # v1
         with:
           gems-dir: dist
           dry-run: ${{ needs.prepare.outputs.dry_run }}
