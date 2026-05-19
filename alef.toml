@@ -1333,6 +1333,66 @@ async = false
 returns_result = false
 args = []
 
+[crates.e2e.calls.clear_ocr_backends.overrides.python]
+function = "clear_ocr_backends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_ocr_backends.overrides.rust]
+function = "clear_ocr_backends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_ocr_backends.overrides.node]
+function = "clearOcrBackends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_ocr_backends.overrides.go]
+function = "ClearOCRBackends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_ocr_backends.overrides.ruby]
+function = "clear_ocr_backends"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_ocr_backends.overrides.php]
+function = "clear_ocr_backends"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_ocr_backends.overrides.java]
+function = "clearOcrBackends"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.clear_ocr_backends.overrides.csharp]
+function = "ClearOcrBackends"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_ocr_backends.overrides.kotlin]
+function = "clearOcrBackends"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.clear_ocr_backends.overrides.swift]
+function = "clearOcrBackends"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_ocr_backends.overrides.dart]
+function = "clearOcrBackends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_ocr_backends.overrides.wasm]
+function = "clearOcrBackends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_ocr_backends.overrides.r]
+function = "clear_ocr_backends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_ocr_backends.overrides.elixir]
+function = "clear_ocr_backends"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_ocr_backends.overrides.zig]
+function = "clear_ocr_backends"
+module = "kreuzberg"
+
 [crates.e2e.calls.clear_post_processors]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
@@ -1341,6 +1401,66 @@ module = ""
 async = false
 returns_result = false
 args = []
+
+[crates.e2e.calls.clear_post_processors.overrides.python]
+function = "clear_post_processors"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_post_processors.overrides.rust]
+function = "clear_post_processors"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_post_processors.overrides.node]
+function = "clearPostProcessors"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_post_processors.overrides.go]
+function = "ClearPostProcessors"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_post_processors.overrides.ruby]
+function = "clear_post_processors"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_post_processors.overrides.php]
+function = "clear_post_processors"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_post_processors.overrides.java]
+function = "clearPostProcessors"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.clear_post_processors.overrides.csharp]
+function = "ClearPostProcessors"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_post_processors.overrides.kotlin]
+function = "clearPostProcessors"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.clear_post_processors.overrides.swift]
+function = "clearPostProcessors"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_post_processors.overrides.dart]
+function = "clearPostProcessors"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_post_processors.overrides.wasm]
+function = "clearPostProcessors"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_post_processors.overrides.r]
+function = "clear_post_processors"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_post_processors.overrides.elixir]
+function = "clear_post_processors"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_post_processors.overrides.zig]
+function = "clear_post_processors"
+module = "kreuzberg"
 
 [crates.e2e.calls.clear_validators]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
@@ -1351,8 +1471,68 @@ async = false
 returns_result = false
 args = []
 
+[crates.e2e.calls.clear_validators.overrides.python]
+function = "clear_validators"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.rust]
+function = "clear_validators"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.node]
+function = "clearValidators"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.go]
+function = "ClearValidators"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.ruby]
+function = "clear_validators"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.php]
+function = "clear_validators"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.java]
+function = "clearValidators"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.csharp]
+function = "ClearValidators"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.kotlin]
+function = "clearValidators"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.swift]
+function = "clearValidators"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.dart]
+function = "clearValidators"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.wasm]
+function = "clearValidators"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.r]
+function = "clear_validators"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.elixir]
+function = "clear_validators"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.zig]
+function = "clear_validators"
+module = "kreuzberg"
+
 [crates.e2e.calls.unregister_ocr_backend]
-# Trait-bridge function — excluded from gen_function surface; fixtures skip all languages.
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 # function/module left empty so alef skips API surface validation.
 result_is_simple = true
 function = ""
@@ -1361,17 +1541,137 @@ async = false
 returns_result = false
 args = [{ name = "name", field = "input.name", type = "string" }]
 
+[crates.e2e.calls.unregister_ocr_backend.overrides.python]
+function = "unregister_ocr_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_ocr_backend.overrides.rust]
+function = "unregister_ocr_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_ocr_backend.overrides.node]
+function = "unregisterOcrBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_ocr_backend.overrides.go]
+function = "UnregisterOCRBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_ocr_backend.overrides.ruby]
+function = "unregister_ocr_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_ocr_backend.overrides.php]
+function = "unregister_ocr_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_ocr_backend.overrides.java]
+function = "unregisterOcrBackend"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.unregister_ocr_backend.overrides.csharp]
+function = "UnregisterOcrBackend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_ocr_backend.overrides.kotlin]
+function = "unregisterOcrBackend"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.unregister_ocr_backend.overrides.swift]
+function = "unregisterOcrBackend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_ocr_backend.overrides.dart]
+function = "unregisterOcrBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_ocr_backend.overrides.wasm]
+function = "unregisterOcrBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_ocr_backend.overrides.r]
+function = "unregister_ocr_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_ocr_backend.overrides.elixir]
+function = "unregister_ocr_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_ocr_backend.overrides.zig]
+function = "unregister_ocr_backend"
+module = "kreuzberg"
+
 [crates.e2e.calls.unregister_post_processor]
-# Trait-bridge function — excluded from gen_function surface; fixtures skip all languages.
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
 function = ""
 module = ""
 async = false
 returns_result = false
 args = [{ name = "name", field = "input.name", type = "string" }]
+
+[crates.e2e.calls.unregister_post_processor.overrides.python]
+function = "unregister_post_processor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_post_processor.overrides.rust]
+function = "unregister_post_processor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_post_processor.overrides.node]
+function = "unregisterPostProcessor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_post_processor.overrides.go]
+function = "UnregisterPostProcessor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_post_processor.overrides.ruby]
+function = "unregister_post_processor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_post_processor.overrides.php]
+function = "unregister_post_processor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_post_processor.overrides.java]
+function = "unregisterPostProcessor"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.unregister_post_processor.overrides.csharp]
+function = "UnregisterPostProcessor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_post_processor.overrides.kotlin]
+function = "unregisterPostProcessor"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.unregister_post_processor.overrides.swift]
+function = "unregisterPostProcessor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_post_processor.overrides.dart]
+function = "unregisterPostProcessor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_post_processor.overrides.wasm]
+function = "unregisterPostProcessor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_post_processor.overrides.r]
+function = "unregister_post_processor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_post_processor.overrides.elixir]
+function = "unregister_post_processor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_post_processor.overrides.zig]
+function = "unregister_post_processor"
+module = "kreuzberg"
 
 [crates.e2e.calls.unregister_validator]
-# Trait-bridge function — excluded from gen_function surface; fixtures skip all languages.
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
 function = ""
 module = ""
@@ -1379,17 +1679,137 @@ async = false
 returns_result = false
 args = [{ name = "name", field = "input.name", type = "string" }]
 
+[crates.e2e.calls.unregister_validator.overrides.python]
+function = "unregister_validator"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.rust]
+function = "unregister_validator"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.node]
+function = "unregisterValidator"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.go]
+function = "UnregisterValidator"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.ruby]
+function = "unregister_validator"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.php]
+function = "unregister_validator"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.java]
+function = "unregisterValidator"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.csharp]
+function = "UnregisterValidator"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.kotlin]
+function = "unregisterValidator"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.swift]
+function = "unregisterValidator"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.dart]
+function = "unregisterValidator"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.wasm]
+function = "unregisterValidator"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.r]
+function = "unregister_validator"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.elixir]
+function = "unregister_validator"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.zig]
+function = "unregister_validator"
+module = "kreuzberg"
+
 [crates.e2e.calls.register_ocr_backend]
-# Trait-bridge function — excluded from gen_function surface; fixtures skip all languages.
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
 function = ""
 module = ""
 async = false
 returns_result = false
 args = []
+
+[crates.e2e.calls.register_ocr_backend.overrides.python]
+function = "register_ocr_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_ocr_backend.overrides.rust]
+function = "register_ocr_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_ocr_backend.overrides.node]
+function = "registerOcrBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_ocr_backend.overrides.go]
+function = "RegisterOCRBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_ocr_backend.overrides.ruby]
+function = "register_ocr_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_ocr_backend.overrides.php]
+function = "register_ocr_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_ocr_backend.overrides.java]
+function = "registerOcrBackend"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.register_ocr_backend.overrides.csharp]
+function = "RegisterOcrBackend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_ocr_backend.overrides.kotlin]
+function = "registerOcrBackend"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.register_ocr_backend.overrides.swift]
+function = "registerOcrBackend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_ocr_backend.overrides.dart]
+function = "registerOcrBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_ocr_backend.overrides.wasm]
+function = "registerOcrBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_ocr_backend.overrides.r]
+function = "register_ocr_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_ocr_backend.overrides.elixir]
+function = "register_ocr_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_ocr_backend.overrides.zig]
+function = "register_ocr_backend"
+module = "kreuzberg"
 
 [crates.e2e.calls.register_post_processor]
-# Trait-bridge function — excluded from gen_function surface; fixtures skip all languages.
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
 function = ""
 module = ""
@@ -1397,14 +1817,755 @@ async = false
 returns_result = false
 args = []
 
+[crates.e2e.calls.register_post_processor.overrides.python]
+function = "register_post_processor"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_post_processor.overrides.rust]
+function = "register_post_processor"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_post_processor.overrides.node]
+function = "registerPostProcessor"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_post_processor.overrides.go]
+function = "RegisterPostProcessor"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_post_processor.overrides.ruby]
+function = "register_post_processor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_post_processor.overrides.php]
+function = "register_post_processor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_post_processor.overrides.java]
+function = "registerPostProcessor"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.register_post_processor.overrides.csharp]
+function = "RegisterPostProcessor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_post_processor.overrides.kotlin]
+function = "registerPostProcessor"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.register_post_processor.overrides.swift]
+function = "registerPostProcessor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_post_processor.overrides.dart]
+function = "registerPostProcessor"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_post_processor.overrides.wasm]
+function = "registerPostProcessor"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_post_processor.overrides.r]
+function = "register_post_processor"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_post_processor.overrides.elixir]
+function = "register_post_processor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_post_processor.overrides.zig]
+function = "register_post_processor"
+module = "kreuzberg"
+
 [crates.e2e.calls.register_validator]
-# Trait-bridge function — excluded from gen_function surface; fixtures skip all languages.
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
 function = ""
 module = ""
 async = false
 returns_result = false
 args = []
+
+[crates.e2e.calls.register_validator.overrides.python]
+function = "register_validator"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_validator.overrides.rust]
+function = "register_validator"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_validator.overrides.node]
+function = "registerValidator"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_validator.overrides.go]
+function = "RegisterValidator"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_validator.overrides.ruby]
+function = "register_validator"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_validator.overrides.php]
+function = "register_validator"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_validator.overrides.java]
+function = "registerValidator"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.register_validator.overrides.csharp]
+function = "RegisterValidator"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_validator.overrides.kotlin]
+function = "registerValidator"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.register_validator.overrides.swift]
+function = "registerValidator"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_validator.overrides.dart]
+function = "registerValidator"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_validator.overrides.wasm]
+function = "registerValidator"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_validator.overrides.r]
+function = "register_validator"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_validator.overrides.elixir]
+function = "register_validator"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_validator.overrides.zig]
+function = "register_validator"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend]
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
+result_is_simple = true
+function = ""
+module = ""
+async = false
+returns_result = false
+args = []
+
+[crates.e2e.calls.register_embedding_backend.overrides.python]
+function = "register_embedding_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend.overrides.rust]
+function = "register_embedding_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend.overrides.node]
+function = "registerEmbeddingBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend.overrides.go]
+function = "RegisterEmbeddingBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend.overrides.ruby]
+function = "register_embedding_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend.overrides.php]
+function = "register_embedding_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend.overrides.java]
+function = "registerEmbeddingBackend"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend.overrides.csharp]
+function = "RegisterEmbeddingBackend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend.overrides.kotlin]
+function = "registerEmbeddingBackend"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend.overrides.swift]
+function = "registerEmbeddingBackend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend.overrides.dart]
+function = "registerEmbeddingBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend.overrides.wasm]
+function = "registerEmbeddingBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend.overrides.r]
+function = "register_embedding_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend.overrides.elixir]
+function = "register_embedding_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_embedding_backend.overrides.zig]
+function = "register_embedding_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend]
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
+result_is_simple = true
+function = ""
+module = ""
+async = false
+returns_result = false
+args = [{ name = "name", field = "input.name", type = "string" }]
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.python]
+function = "unregister_embedding_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.rust]
+function = "unregister_embedding_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.node]
+function = "unregisterEmbeddingBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.go]
+function = "UnregisterEmbeddingBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.ruby]
+function = "unregister_embedding_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.php]
+function = "unregister_embedding_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.java]
+function = "unregisterEmbeddingBackend"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.csharp]
+function = "UnregisterEmbeddingBackend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.kotlin]
+function = "unregisterEmbeddingBackend"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.swift]
+function = "unregisterEmbeddingBackend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.dart]
+function = "unregisterEmbeddingBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.wasm]
+function = "unregisterEmbeddingBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.r]
+function = "unregister_embedding_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.elixir]
+function = "unregister_embedding_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_embedding_backend.overrides.zig]
+function = "unregister_embedding_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends]
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
+result_is_simple = true
+function = ""
+module = ""
+async = false
+returns_result = false
+args = []
+
+[crates.e2e.calls.clear_embedding_backends.overrides.python]
+function = "clear_embedding_backends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.rust]
+function = "clear_embedding_backends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.node]
+function = "clearEmbeddingBackends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.go]
+function = "ClearEmbeddingBackends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.ruby]
+function = "clear_embedding_backends"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.php]
+function = "clear_embedding_backends"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.java]
+function = "clearEmbeddingBackends"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.csharp]
+function = "ClearEmbeddingBackends"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.kotlin]
+function = "clearEmbeddingBackends"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.swift]
+function = "clearEmbeddingBackends"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.dart]
+function = "clearEmbeddingBackends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.wasm]
+function = "clearEmbeddingBackends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.r]
+function = "clear_embedding_backends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.elixir]
+function = "clear_embedding_backends"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.zig]
+function = "clear_embedding_backends"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_document_extractor]
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
+result_is_simple = true
+function = ""
+module = ""
+async = false
+returns_result = false
+args = []
+
+[crates.e2e.calls.register_document_extractor.overrides.python]
+function = "register_document_extractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_document_extractor.overrides.rust]
+function = "register_document_extractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_document_extractor.overrides.node]
+function = "registerDocumentExtractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_document_extractor.overrides.go]
+function = "RegisterDocumentExtractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_document_extractor.overrides.ruby]
+function = "register_document_extractor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_document_extractor.overrides.php]
+function = "register_document_extractor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_document_extractor.overrides.java]
+function = "registerDocumentExtractor"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.register_document_extractor.overrides.csharp]
+function = "RegisterDocumentExtractor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_document_extractor.overrides.kotlin]
+function = "registerDocumentExtractor"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.register_document_extractor.overrides.swift]
+function = "registerDocumentExtractor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_document_extractor.overrides.dart]
+function = "registerDocumentExtractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_document_extractor.overrides.wasm]
+function = "registerDocumentExtractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_document_extractor.overrides.r]
+function = "register_document_extractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_document_extractor.overrides.elixir]
+function = "register_document_extractor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_document_extractor.overrides.zig]
+function = "register_document_extractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor]
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
+result_is_simple = true
+function = ""
+module = ""
+async = false
+returns_result = false
+args = [{ name = "name", field = "input.name", type = "string" }]
+
+[crates.e2e.calls.unregister_document_extractor.overrides.python]
+function = "unregister_document_extractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor.overrides.rust]
+function = "unregister_document_extractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor.overrides.node]
+function = "unregisterDocumentExtractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor.overrides.go]
+function = "UnregisterDocumentExtractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor.overrides.ruby]
+function = "unregister_document_extractor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor.overrides.php]
+function = "unregister_document_extractor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor.overrides.java]
+function = "unregisterDocumentExtractor"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor.overrides.csharp]
+function = "UnregisterDocumentExtractor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor.overrides.kotlin]
+function = "unregisterDocumentExtractor"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor.overrides.swift]
+function = "unregisterDocumentExtractor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor.overrides.dart]
+function = "unregisterDocumentExtractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor.overrides.wasm]
+function = "unregisterDocumentExtractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor.overrides.r]
+function = "unregister_document_extractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor.overrides.elixir]
+function = "unregister_document_extractor"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_document_extractor.overrides.zig]
+function = "unregister_document_extractor"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors]
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
+result_is_simple = true
+function = ""
+module = ""
+async = false
+returns_result = false
+args = []
+
+[crates.e2e.calls.clear_document_extractors.overrides.python]
+function = "clear_document_extractors"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.rust]
+function = "clear_document_extractors"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.node]
+function = "clearDocumentExtractors"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.go]
+function = "ClearDocumentExtractors"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.ruby]
+function = "clear_document_extractors"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.php]
+function = "clear_document_extractors"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.java]
+function = "clearDocumentExtractors"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.csharp]
+function = "ClearDocumentExtractors"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.kotlin]
+function = "clearDocumentExtractors"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.swift]
+function = "clearDocumentExtractors"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.dart]
+function = "clearDocumentExtractors"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.wasm]
+function = "clearDocumentExtractors"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.r]
+function = "clear_document_extractors"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.elixir]
+function = "clear_document_extractors"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.zig]
+function = "clear_document_extractors"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_renderer]
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
+result_is_simple = true
+function = ""
+module = ""
+async = false
+returns_result = false
+args = []
+
+[crates.e2e.calls.register_renderer.overrides.python]
+function = "register_renderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_renderer.overrides.rust]
+function = "register_renderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_renderer.overrides.node]
+function = "registerRenderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_renderer.overrides.go]
+function = "RegisterRenderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_renderer.overrides.ruby]
+function = "register_renderer"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_renderer.overrides.php]
+function = "register_renderer"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_renderer.overrides.java]
+function = "registerRenderer"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.register_renderer.overrides.csharp]
+function = "RegisterRenderer"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_renderer.overrides.kotlin]
+function = "registerRenderer"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.register_renderer.overrides.swift]
+function = "registerRenderer"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_renderer.overrides.dart]
+function = "registerRenderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_renderer.overrides.wasm]
+function = "registerRenderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_renderer.overrides.r]
+function = "register_renderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_renderer.overrides.elixir]
+function = "register_renderer"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_renderer.overrides.zig]
+function = "register_renderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_renderer]
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
+result_is_simple = true
+function = ""
+module = ""
+async = false
+returns_result = false
+args = [{ name = "name", field = "input.name", type = "string" }]
+
+[crates.e2e.calls.unregister_renderer.overrides.python]
+function = "unregister_renderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_renderer.overrides.rust]
+function = "unregister_renderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_renderer.overrides.node]
+function = "unregisterRenderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_renderer.overrides.go]
+function = "UnregisterRenderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_renderer.overrides.ruby]
+function = "unregister_renderer"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_renderer.overrides.php]
+function = "unregister_renderer"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_renderer.overrides.java]
+function = "unregisterRenderer"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.unregister_renderer.overrides.csharp]
+function = "UnregisterRenderer"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_renderer.overrides.kotlin]
+function = "unregisterRenderer"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.unregister_renderer.overrides.swift]
+function = "unregisterRenderer"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_renderer.overrides.dart]
+function = "unregisterRenderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_renderer.overrides.wasm]
+function = "unregisterRenderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_renderer.overrides.r]
+function = "unregister_renderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_renderer.overrides.elixir]
+function = "unregister_renderer"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_renderer.overrides.zig]
+function = "unregister_renderer"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_renderers]
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
+result_is_simple = true
+function = ""
+module = ""
+async = false
+returns_result = false
+args = []
+
+[crates.e2e.calls.clear_renderers.overrides.python]
+function = "clear_renderers"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.rust]
+function = "clear_renderers"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.node]
+function = "clearRenderers"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.go]
+function = "ClearRenderers"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.ruby]
+function = "clear_renderers"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.php]
+function = "clear_renderers"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.java]
+function = "clearRenderers"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.csharp]
+function = "ClearRenderers"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.kotlin]
+function = "clearRenderers"
+module = "dev.kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.swift]
+function = "clearRenderers"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.dart]
+function = "clearRenderers"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.wasm]
+function = "clearRenderers"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.r]
+function = "clear_renderers"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.elixir]
+function = "clear_renderers"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.zig]
+function = "clear_renderers"
+module = "kreuzberg"
 
 [crates.e2e.calls.embed_texts_async]
 result_is_simple = true

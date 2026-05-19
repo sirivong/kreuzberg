@@ -2,30 +2,10 @@
   "id": "register_ocr_backend_trait_bridge",
   "category": "plugin_api",
   "description": "register_ocr_backend: trait bridge",
-  "tags": ["trait-bridge"],
+  "tags": [
+    "trait-bridge"
+  ],
   "call": "register_ocr_backend",
-  "skip": {
-    "languages": [
-      "rust",
-      "python",
-      "node",
-      "go",
-      "ruby",
-      "php",
-      "java",
-      "csharp",
-      "kotlin",
-      "kotlin_android",
-      "swift",
-      "dart",
-      "wasm",
-      "r",
-      "elixir",
-      "zig",
-      "ffi"
-    ],
-    "reason": "Trait-bridge fixture support deferred to v0.14.4+"
-  },
   "input": {
     "backend": {
       "type": "test",
