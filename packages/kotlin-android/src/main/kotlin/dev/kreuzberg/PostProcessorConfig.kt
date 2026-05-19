@@ -40,9 +40,9 @@ data class PostProcessorConfig(
     /**
      * Pre-computed AHashSet for O(1) enabled processor lookup
      */
-    val enabledSet: String?,
+    val enabledSet: List<String>?,
     /**
      * Pre-computed AHashSet for O(1) disabled processor lookup
      */
-    val disabledSet: String?
+    val disabledSet: List<String>?
 )

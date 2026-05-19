@@ -3866,6 +3866,7 @@ name = "kreuzberg-wasm"
 version = "5.0.0-rc.1"
 dependencies = [
  "async-trait",
+ "futures",
  "futures-util",
  "getrandom 0.3.4",
  "getrandom 0.4.2",

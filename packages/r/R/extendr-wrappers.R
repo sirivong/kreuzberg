@@ -240,7 +240,7 @@ embed_texts <- function(texts, config) .Call("wrap__embed_texts", texts, config,
 #' Returns `None` if no preset with the given name exists. Returns an owned
 #' clone so the value is safe to pass across FFI boundaries.
 #' @param name Character string.
-#' @return Optional EmbeddingPreset object (list with class attribute). Defaults to NULL.
+#' @return Optional character string. Defaults to NULL.
 #' @export
 get_embedding_preset <- function(name) .Call("wrap__get_embedding_preset", name, PACKAGE = "kreuzberg")
 #' List the names of all available embedding presets
@@ -249,6 +249,162 @@ get_embedding_preset <- function(name) .Call("wrap__get_embedding_preset", name,
 #' @return List of character string.
 #' @export
 list_embedding_presets <- function() .Call("wrap__list_embedding_presets", PACKAGE = "kreuzberg")
+#' register_ocr_backend
+#'
+#' Register an R-side plugin implementation. Pass a named list whose entries
+#' implement the trait's required methods (e.g. `list(name = function() "my", ...)`).
+#'
+#' @param r_backend Named list of R closures implementing the trait surface.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+register_ocr_backend <- function(r_backend) .Call("wrap__register_ocr_backend", r_backend, PACKAGE = "kreuzberg")
+#' unregister_ocr_backend
+#'
+#' Unregister a previously registered plugin by name.
+#'
+#' @param name Plugin name string as returned by the backend's `name()` method.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+unregister_ocr_backend <- function(name) .Call("wrap__unregister_ocr_backend", name, PACKAGE = "kreuzberg")
+#' clear_ocr_backends
+#'
+#' Remove every registered plugin of this type. Typically used in test teardown.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+clear_ocr_backends <- function() .Call("wrap__clear_ocr_backends", PACKAGE = "kreuzberg")
+#' register_post_processor
+#'
+#' Register an R-side plugin implementation. Pass a named list whose entries
+#' implement the trait's required methods (e.g. `list(name = function() "my", ...)`).
+#'
+#' @param r_backend Named list of R closures implementing the trait surface.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+register_post_processor <- function(r_backend) .Call("wrap__register_post_processor", r_backend, PACKAGE = "kreuzberg")
+#' unregister_post_processor
+#'
+#' Unregister a previously registered plugin by name.
+#'
+#' @param name Plugin name string as returned by the backend's `name()` method.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+unregister_post_processor <- function(name) .Call("wrap__unregister_post_processor", name, PACKAGE = "kreuzberg")
+#' clear_post_processors
+#'
+#' Remove every registered plugin of this type. Typically used in test teardown.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+clear_post_processors <- function() .Call("wrap__clear_post_processors", PACKAGE = "kreuzberg")
+#' register_validator
+#'
+#' Register an R-side plugin implementation. Pass a named list whose entries
+#' implement the trait's required methods (e.g. `list(name = function() "my", ...)`).
+#'
+#' @param r_backend Named list of R closures implementing the trait surface.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+register_validator <- function(r_backend) .Call("wrap__register_validator", r_backend, PACKAGE = "kreuzberg")
+#' unregister_validator
+#'
+#' Unregister a previously registered plugin by name.
+#'
+#' @param name Plugin name string as returned by the backend's `name()` method.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+unregister_validator <- function(name) .Call("wrap__unregister_validator", name, PACKAGE = "kreuzberg")
+#' clear_validators
+#'
+#' Remove every registered plugin of this type. Typically used in test teardown.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+clear_validators <- function() .Call("wrap__clear_validators", PACKAGE = "kreuzberg")
+#' register_embedding_backend
+#'
+#' Register an R-side plugin implementation. Pass a named list whose entries
+#' implement the trait's required methods (e.g. `list(name = function() "my", ...)`).
+#'
+#' @param r_backend Named list of R closures implementing the trait surface.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+register_embedding_backend <- function(r_backend) .Call("wrap__register_embedding_backend", r_backend, PACKAGE = "kreuzberg")
+#' unregister_embedding_backend
+#'
+#' Unregister a previously registered plugin by name.
+#'
+#' @param name Plugin name string as returned by the backend's `name()` method.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+unregister_embedding_backend <- function(name) .Call("wrap__unregister_embedding_backend", name, PACKAGE = "kreuzberg")
+#' clear_embedding_backends
+#'
+#' Remove every registered plugin of this type. Typically used in test teardown.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+clear_embedding_backends <- function() .Call("wrap__clear_embedding_backends", PACKAGE = "kreuzberg")
+#' register_document_extractor
+#'
+#' Register an R-side plugin implementation. Pass a named list whose entries
+#' implement the trait's required methods (e.g. `list(name = function() "my", ...)`).
+#'
+#' @param r_backend Named list of R closures implementing the trait surface.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+register_document_extractor <- function(r_backend) .Call("wrap__register_document_extractor", r_backend, PACKAGE = "kreuzberg")
+#' unregister_document_extractor
+#'
+#' Unregister a previously registered plugin by name.
+#'
+#' @param name Plugin name string as returned by the backend's `name()` method.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+unregister_document_extractor <- function(name) .Call("wrap__unregister_document_extractor", name, PACKAGE = "kreuzberg")
+#' clear_document_extractors
+#'
+#' Remove every registered plugin of this type. Typically used in test teardown.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+clear_document_extractors <- function() .Call("wrap__clear_document_extractors", PACKAGE = "kreuzberg")
+#' register_renderer
+#'
+#' Register an R-side plugin implementation. Pass a named list whose entries
+#' implement the trait's required methods (e.g. `list(name = function() "my", ...)`).
+#'
+#' @param r_backend Named list of R closures implementing the trait surface.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+register_renderer <- function(r_backend) .Call("wrap__register_renderer", r_backend, PACKAGE = "kreuzberg")
+#' unregister_renderer
+#'
+#' Unregister a previously registered plugin by name.
+#'
+#' @param name Plugin name string as returned by the backend's `name()` method.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+unregister_renderer <- function(name) .Call("wrap__unregister_renderer", name, PACKAGE = "kreuzberg")
+#' clear_renderers
+#'
+#' Remove every registered plugin of this type. Typically used in test teardown.
+#'
+#' @return Invisible NULL on success; raises an R error on failure.
+#' @export
+clear_renderers <- function() .Call("wrap__clear_renderers", PACKAGE = "kreuzberg")
 #' Hardware acceleration configuration for ONNX Runtime models
 #'
 #' Controls which execution provider (CPU, CoreML, CUDA, TensorRT) is used
@@ -950,7 +1106,6 @@ ExtractedImageMetadata <- new.env(parent = emptyenv())
 #' @field hyperlinks_changed Hyperlinks changed flag
 #' @export
 DocxAppProperties <- new.env(parent = emptyenv())
-DocxAppProperties$from_json <- function(json) .Call("wrap__DocxAppProperties__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.DocxAppProperties` <- function(self, name) {
   func <- DocxAppProperties[[name]]
@@ -1030,7 +1185,6 @@ PptxAppProperties <- new.env(parent = emptyenv())
 #' @field last_printed Last print timestamp (ISO 8601)
 #' @export
 CoreProperties <- new.env(parent = emptyenv())
-CoreProperties$from_json <- function(json) .Call("wrap__CoreProperties__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.CoreProperties` <- function(self, name) {
   func <- CoreProperties[[name]]
@@ -1578,7 +1732,6 @@ Metadata$from_json <- function(json) .Call("wrap__Metadata__from_json", json, PA
 #' @field sheet_names Names of all sheets in the workbook.
 #' @export
 ExcelMetadata <- new.env(parent = emptyenv())
-ExcelMetadata$from_json <- function(json) .Call("wrap__ExcelMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.ExcelMetadata` <- function(self, name) {
   func <- ExcelMetadata[[name]]
@@ -1599,7 +1752,6 @@ ExcelMetadata$from_json <- function(json) .Call("wrap__ExcelMetadata__from_json"
 #' @field attachments List of attachment filenames
 #' @export
 EmailMetadata <- new.env(parent = emptyenv())
-EmailMetadata$from_json <- function(json) .Call("wrap__EmailMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.EmailMetadata` <- function(self, name) {
   func <- EmailMetadata[[name]]
@@ -1618,7 +1770,6 @@ EmailMetadata$from_json <- function(json) .Call("wrap__EmailMetadata__from_json"
 #' @field compressed_size Compressed size in bytes (if available)
 #' @export
 ArchiveMetadata <- new.env(parent = emptyenv())
-ArchiveMetadata$from_json <- function(json) .Call("wrap__ArchiveMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.ArchiveMetadata` <- function(self, name) {
   func <- ArchiveMetadata[[name]]
@@ -1636,7 +1787,6 @@ ArchiveMetadata$from_json <- function(json) .Call("wrap__ArchiveMetadata__from_j
 #' @field exif EXIF metadata tags
 #' @export
 ImageMetadata <- new.env(parent = emptyenv())
-ImageMetadata$from_json <- function(json) .Call("wrap__ImageMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.ImageMetadata` <- function(self, name) {
   func <- ImageMetadata[[name]]
@@ -1652,7 +1802,6 @@ ImageMetadata$from_json <- function(json) .Call("wrap__ImageMetadata__from_json"
 #' @field unique_elements List of unique element tag names (sorted)
 #' @export
 XmlMetadata <- new.env(parent = emptyenv())
-XmlMetadata$from_json <- function(json) .Call("wrap__XmlMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.XmlMetadata` <- function(self, name) {
   func <- XmlMetadata[[name]]
@@ -1673,7 +1822,6 @@ XmlMetadata$from_json <- function(json) .Call("wrap__XmlMetadata__from_json", js
 #' @field code_blocks Code blocks as (language, code) tuples (for Markdown files)
 #' @export
 TextMetadata <- new.env(parent = emptyenv())
-TextMetadata$from_json <- function(json) .Call("wrap__TextMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.TextMetadata` <- function(self, name) {
   func <- TextMetadata[[name]]
@@ -1757,7 +1905,6 @@ StructuredData <- new.env(parent = emptyenv())
 #' @field table_cols table_cols
 #' @export
 OcrMetadata <- new.env(parent = emptyenv())
-OcrMetadata$from_json <- function(json) .Call("wrap__OcrMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.OcrMetadata` <- function(self, name) {
   func <- OcrMetadata[[name]]
@@ -1788,7 +1935,6 @@ ErrorMetadata <- new.env(parent = emptyenv())
 #' @field table_count Number of tables
 #' @export
 PptxMetadata <- new.env(parent = emptyenv())
-PptxMetadata$from_json <- function(json) .Call("wrap__PptxMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.PptxMetadata` <- function(self, name) {
   func <- PptxMetadata[[name]]
@@ -1806,7 +1952,6 @@ PptxMetadata$from_json <- function(json) .Call("wrap__PptxMetadata__from_json", 
 #' @field custom_properties Custom properties from docProps/custom.xml (user-defined properties)
 #' @export
 DocxMetadata <- new.env(parent = emptyenv())
-DocxMetadata$from_json <- function(json) .Call("wrap__DocxMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.DocxMetadata` <- function(self, name) {
   func <- DocxMetadata[[name]]
@@ -1823,7 +1968,6 @@ DocxMetadata$from_json <- function(json) .Call("wrap__DocxMetadata__from_json", 
 #' @field column_types column_types
 #' @export
 CsvMetadata <- new.env(parent = emptyenv())
-CsvMetadata$from_json <- function(json) .Call("wrap__CsvMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.CsvMetadata` <- function(self, name) {
   func <- CsvMetadata[[name]]
@@ -1840,7 +1984,6 @@ CsvMetadata$from_json <- function(json) .Call("wrap__CsvMetadata__from_json", js
 #' @field entry_types entry_types
 #' @export
 BibtexMetadata <- new.env(parent = emptyenv())
-BibtexMetadata$from_json <- function(json) .Call("wrap__BibtexMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.BibtexMetadata` <- function(self, name) {
   func <- BibtexMetadata[[name]]
@@ -1858,7 +2001,6 @@ BibtexMetadata$from_json <- function(json) .Call("wrap__BibtexMetadata__from_jso
 #' @field keywords keywords
 #' @export
 CitationMetadata <- new.env(parent = emptyenv())
-CitationMetadata$from_json <- function(json) .Call("wrap__CitationMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.CitationMetadata` <- function(self, name) {
   func <- CitationMetadata[[name]]
@@ -1887,7 +2029,6 @@ YearRange <- new.env(parent = emptyenv())
 #' @field annotation annotation
 #' @export
 FictionBookMetadata <- new.env(parent = emptyenv())
-FictionBookMetadata$from_json <- function(json) .Call("wrap__FictionBookMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.FictionBookMetadata` <- function(self, name) {
   func <- FictionBookMetadata[[name]]
@@ -1931,7 +2072,6 @@ ContributorRole <- new.env(parent = emptyenv())
 #' @field cover_image cover_image
 #' @export
 EpubMetadata <- new.env(parent = emptyenv())
-EpubMetadata$from_json <- function(json) .Call("wrap__EpubMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.EpubMetadata` <- function(self, name) {
   func <- EpubMetadata[[name]]
@@ -1944,7 +2084,6 @@ EpubMetadata$from_json <- function(json) .Call("wrap__EpubMetadata__from_json", 
 #' @field message_count message_count
 #' @export
 PstMetadata <- new.env(parent = emptyenv())
-PstMetadata$from_json <- function(json) .Call("wrap__PstMetadata__from_json", json, PACKAGE = "kreuzberg")
 #' @export
 `$.PstMetadata` <- function(self, name) {
   func <- PstMetadata[[name]]
@@ -2167,15 +2306,15 @@ DetectResponse <- new.env(parent = emptyenv())
 #' @field dimensions dimensions
 #' @field description description
 #' @export
-EmbeddingPreset <- new.env(parent = emptyenv())
+EmbeddingPreset2 <- new.env(parent = emptyenv())
 #' @export
-`$.EmbeddingPreset` <- function(self, name) {
-  func <- EmbeddingPreset[[name]]
+`$.EmbeddingPreset2` <- function(self, name) {
+  func <- EmbeddingPreset2[[name]]
   environment(func) <- environment()
   func
 }
 #' @export
-`[[.EmbeddingPreset` <- `$.EmbeddingPreset`
+`[[.EmbeddingPreset2` <- `$.EmbeddingPreset2`
 #' YAKE-specific parameters
 #' @field window_size Window size for co-occurrence analysis (default: 2).
 #' @export
@@ -2363,28 +2502,6 @@ EmbeddedFile <- new.env(parent = emptyenv())
 }
 #' @export
 `[[.EmbeddedFile` <- `$.EmbeddedFile`
-#' PDF-specific metadata
-#'
-#' Contains metadata fields specific to PDF documents that are not in the common
-#' `Metadata` structure. Common fields like title, authors, keywords, and dates
-#' are at the `Metadata` level.
-#' @field pdf_version PDF version (e.g., "1.7", "2.0")
-#' @field producer PDF producer (application that created the PDF)
-#' @field is_encrypted Whether the PDF is encrypted/password-protected
-#' @field width First page width in points (1/72 inch)
-#' @field height First page height in points (1/72 inch)
-#' @field page_count Total number of pages in the PDF document
-#' @export
-PdfMetadata <- new.env(parent = emptyenv())
-PdfMetadata$from_json <- function(json) .Call("wrap__PdfMetadata__from_json", json, PACKAGE = "kreuzberg")
-#' @export
-`$.PdfMetadata` <- function(self, name) {
-  func <- PdfMetadata[[name]]
-  environment(func) <- environment()
-  func
-}
-#' @export
-`[[.PdfMetadata` <- `$.PdfMetadata`
 #' Output format for extraction results
 #'
 #' Controls the format of the `content` field in `ExtractionResult`.
@@ -2447,15 +2564,15 @@ DrawingType <- new.env(parent = emptyenv())
 #' @field Pst Pst
 #' @field Code Code
 #' @export
-FormatMetadata <- new.env(parent = emptyenv())
+FormatMetadata2 <- new.env(parent = emptyenv())
 #' @export
-`$.FormatMetadata` <- function(self, name) {
-  func <- FormatMetadata[[name]]
+`$.FormatMetadata2` <- function(self, name) {
+  func <- FormatMetadata2[[name]]
   environment(func) <- environment()
   func
 }
 #' @export
-`[[.FormatMetadata` <- `$.FormatMetadata`
+`[[.FormatMetadata2` <- `$.FormatMetadata2`
 #' How chunk size is measured
 #'
 #' Defaults to `Characters` (Unicode character count). When using token-based sizing,
@@ -2494,17 +2611,17 @@ EmbeddingModelType$from_json <- function(json) .Call("wrap__EmbeddingModelType__
 #' Uses `#[serde(tag = "node_type")]` to avoid "type" keyword collision in
 #' Go/Java/TypeScript bindings.
 #' @export
-NodeContent <- new.env(parent = emptyenv())
-NodeContent$default <- function() .Call("wrap__NodeContent__default", PACKAGE = "kreuzberg")
-NodeContent$from_json <- function(json) .Call("wrap__NodeContent__from_json", json, PACKAGE = "kreuzberg")
+NodeContent2 <- new.env(parent = emptyenv())
+NodeContent2$default <- function() .Call("wrap__NodeContent2__default", PACKAGE = "kreuzberg")
+NodeContent2$from_json <- function(json) .Call("wrap__NodeContent2__from_json", json, PACKAGE = "kreuzberg")
 #' @export
-`$.NodeContent` <- function(self, name) {
-  func <- NodeContent[[name]]
+`$.NodeContent2` <- function(self, name) {
+  func <- NodeContent2[[name]]
   environment(func) <- environment()
   func
 }
 #' @export
-`[[.NodeContent` <- `$.NodeContent`
+`[[.NodeContent2` <- `$.NodeContent2`
 #' Types of inline text annotations
 #' @export
 AnnotationKind <- new.env(parent = emptyenv())

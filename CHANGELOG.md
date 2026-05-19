@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **alef-backend-php**: emit reverse `From<binding> for kreuzberg::Core` impls for metadata DTOs
+  (ArchiveMetadata, BibtexMetadata, DocxMetadata, EmailMetadata, EpubMetadata, ExcelMetadata,
+  FictionBookMetadata, HtmlMetadata, ImageMetadata, JatsMetadata, OcrMetadata, PptxMetadata,
+  PstMetadata, TextMetadata, XmlMetadata, CitationMetadata, CsvMetadata, DbfMetadata, TableGrid).
+  Reverse From impls are required for flat enum binding→core conversion which calls `.into()` on
+  optional variant fields. Previously only forward impls were generated.
+
 - **Java `UnsatisfiedLinkError` on `kreuzberg_list_embedding_presets` / `kreuzberg_get_embedding_preset` (#998)**:
   the alef-generated FFI surface references `kreuzberg::EmbeddingPreset` unconditionally
   in function return-type positions, so any build of `kreuzberg-ffi` that omitted the

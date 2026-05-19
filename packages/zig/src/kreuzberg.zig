@@ -49,7 +49,7 @@ inline fn _first_error(comptime E: type) E {
 /// - `LockPoisoned` - Mutex/RwLock poisoning (should not happen in normal operation)
 /// - `UnsupportedFormat` - Unsupported MIME type or file format
 /// - `Other` - Catch-all for uncommon errors
-pub const KreuzbergError = error {
+pub const KreuzbergError = error{
     Io,
     Parsing,
     Ocr,
@@ -849,9 +849,9 @@ pub const PostProcessorConfig = struct {
     /// Blacklist of processor names to skip (None = none disabled)
     disabled_processors: ?[]const []const u8,
     /// Pre-computed AHashSet for O(1) enabled processor lookup
-    enabled_set: ?[]const u8,
+    enabled_set: ?[]const []const u8,
     /// Pre-computed AHashSet for O(1) disabled processor lookup
-    disabled_set: ?[]const u8,
+    disabled_set: ?[]const []const u8,
 };
 
 /// Chunking configuration.
@@ -1386,7 +1386,7 @@ pub const DocumentNode = struct {
     /// Deterministic identifier (hash of content + position).
     id: []const u8,
     /// Node content — tagged enum, type-specific data only.
-    content: NodeContent,
+    content: []const u8,
     /// Parent node index (`null` = root-level node).
     parent: ?u32,
     /// Child node indices in reading order.
@@ -1464,7 +1464,7 @@ pub const ExtractionResult = struct {
     ///
     /// Populated when the extractor can reliably distinguish native text extraction,
     /// OCR-only extraction, or mixed native/OCR output.
-    extraction_method: ?ExtractionMethod,
+    extraction_method: ?[]const u8,
     tables: []const Table,
     detected_languages: ?[]const []const u8,
     /// Text chunks when chunking is enabled.
@@ -2142,7 +2142,7 @@ pub const Metadata = struct {
     ///
     /// Contains detailed metadata specific to the document format.
     /// Serialized as a nested `"format"` object with a `format_type` discriminator field.
-    format: ?FormatMetadata,
+    format: ?[]const u8,
     /// Image preprocessing metadata (when OCR preprocessing was applied)
     image_preprocessing: ?ImagePreprocessingMetadata,
     /// JSON schema (for structured data extraction)
@@ -2809,7 +2809,7 @@ pub const DetectResponse = struct {
 ///
 /// All string fields are owned `String` for FFI compatibility — instances
 /// are safe to clone and pass across language boundaries.
-pub const EmbeddingPreset = struct {
+pub const EmbeddingPreset2 = struct {
     name: []const u8,
     chunk_size: u64,
     overlap: u64,
@@ -2951,7 +2951,7 @@ pub const BBox = struct {
 
 /// A single layout detection result.
 pub const LayoutDetection = struct {
-    class_name: LayoutClass,
+    class_name: []const u8,
     confidence: f32,
     bbox: BBox,
 };
@@ -2986,26 +2986,6 @@ pub const EmbeddedFile = struct {
     data: []const u8,
     /// MIME type if specified in the filespec, otherwise `null`.
     mime_type: ?[]const u8,
-};
-
-/// PDF-specific metadata.
-///
-/// Contains metadata fields specific to PDF documents that are not in the common
-/// `Metadata` structure. Common fields like title, authors, keywords, and dates
-/// are at the `Metadata` level.
-pub const PdfMetadata = struct {
-    /// PDF version (e.g., "1.7", "2.0")
-    pdf_version: ?[]const u8,
-    /// PDF producer (application that created the PDF)
-    producer: ?[]const u8,
-    /// Whether the PDF is encrypted/password-protected
-    is_encrypted: ?bool,
-    /// First page width in points (1/72 inch)
-    width: ?i64,
-    /// First page height in points (1/72 inch)
-    height: ?i64,
-    /// Total number of pages in the PDF document
-    page_count: ?u32,
 };
 
 /// ONNX Runtime execution provider type.
@@ -3177,7 +3157,7 @@ pub const CodeContentMode = enum {
 };
 
 /// Type of list detection.
-pub const ListType = enum {
+pub const TransformListType = enum {
     /// Bullet points (-, *, •, etc.)
     bullet,
     /// Numbered lists (1., 2., etc.)
@@ -3346,7 +3326,7 @@ pub const ContentLayer = enum {
 ///
 /// Uses `#[serde(tag = "node_type")]` to avoid "type" keyword collision in
 /// Go/Java/TypeScript bindings.
-pub const NodeContent = union(enum) {
+pub const NodeContent2 = union(enum) {
     /// Document title.
     title: []const u8,
     /// Section heading with level (1-6).
@@ -3453,7 +3433,7 @@ pub const AnnotationKind = union(enum) {
 };
 
 /// How the extracted text was produced.
-pub const ExtractionMethod = enum {
+pub const ExtractionMethod2 = enum {
     native,
     ocr,
     mixed,
@@ -3564,8 +3544,8 @@ pub const ElementType = enum {
 ///
 /// Only one format type can exist per extraction result. This provides
 /// type-safe, clean metadata without nested optionals.
-pub const FormatMetadata = union(enum) {
-    pdf: PdfMetadata,
+pub const FormatMetadata2 = union(enum) {
+    pdf: []const u8,
     docx: DocxMetadata,
     excel: ExcelMetadata,
     email: EmailMetadata,
@@ -3723,7 +3703,7 @@ pub const PSMMode = enum {
 /// Supported languages in PaddleOCR.
 ///
 /// Maps user-friendly language codes to paddle-ocr-rs language identifiers.
-pub const PaddleLanguage = enum {
+pub const PaddleLanguage2 = enum {
     /// English
     english,
     /// Simplified Chinese
@@ -3765,7 +3745,7 @@ pub const PaddleLanguage = enum {
 /// map to the closest equivalent.
 ///
 /// Wire format is snake_case in all serializers (JSON, TOML, YAML).
-pub const LayoutClass = enum {
+pub const LayoutClass2 = enum {
     caption,
     footnote,
     formula,
@@ -3803,11 +3783,9 @@ pub const LayoutClass = enum {
 /// Returns `KreuzbergError.Validation` if MIME type is invalid.
 /// Returns `KreuzbergError.UnsupportedFormat` if MIME type is not supported.
 pub fn extract_bytes(content: []const u8, mime_type: []const u8, config: []const u8) KreuzbergError![]u8 {
-    const mime_type_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{mime_type}, 0);
+    const mime_type_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{mime_type}, 0);
     defer std.heap.c_allocator.free(mime_type_z);
-    const config_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{config}, 0);
+    const config_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{config}, 0);
     defer std.heap.c_allocator.free(config_z);
     const config_handle = c.kreuzberg_extraction_config_from_json(config_z);
     const _result = c.kreuzberg_extract_bytes(content.ptr, content.len, mime_type_z, config_handle);
@@ -3822,8 +3800,7 @@ pub fn extract_bytes(content: []const u8, mime_type: []const u8, config: []const
         const slice = std.mem.sliceTo(_json_ptr, 0);
         const owned = try std.heap.c_allocator.dupe(u8, slice);
         break :blk owned;
-    }
-;
+    };
 }
 
 /// Extract content from a file.
@@ -3845,14 +3822,11 @@ pub fn extract_bytes(content: []const u8, mime_type: []const u8, config: []const
 /// Returns `KreuzbergError.Io` if the file doesn't exist (NotFound) or for other file I/O errors.
 /// Returns `KreuzbergError.UnsupportedFormat` if MIME type is not supported.
 pub fn extract_file(path: []const u8, mime_type: ?[]const u8, config: []const u8) KreuzbergError![]u8 {
-    const path_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{path}, 0);
+    const path_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{path}, 0);
     defer std.heap.c_allocator.free(path_z);
-    const mime_type_z: ?[:0]u8 = if (mime_type) |v| try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{v}, 0) else null;
+    const mime_type_z: ?[:0]u8 = if (mime_type) |v| try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{v}, 0) else null;
     defer if (mime_type_z) |z| std.heap.c_allocator.free(z);
-    const config_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{config}, 0);
+    const config_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{config}, 0);
     defer std.heap.c_allocator.free(config_z);
     const config_handle = c.kreuzberg_extraction_config_from_json(config_z);
     const _result = c.kreuzberg_extract_file(path_z, if (mime_type_z) |z| z.ptr else null, config_handle);
@@ -3867,8 +3841,7 @@ pub fn extract_file(path: []const u8, mime_type: ?[]const u8, config: []const u8
         const slice = std.mem.sliceTo(_json_ptr, 0);
         const owned = try std.heap.c_allocator.dupe(u8, slice);
         break :blk owned;
-    }
-;
+    };
 }
 
 /// Synchronous wrapper for `extract_file`.
@@ -3882,14 +3855,11 @@ pub fn extract_file(path: []const u8, mime_type: ?[]const u8, config: []const u8
 /// This function is only available with the `tokio-runtime` feature. For WASM targets,
 /// use a truly synchronous extraction approach instead.
 pub fn extract_file_sync(path: []const u8, mime_type: ?[]const u8, config: []const u8) KreuzbergError![]u8 {
-    const path_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{path}, 0);
+    const path_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{path}, 0);
     defer std.heap.c_allocator.free(path_z);
-    const mime_type_z: ?[:0]u8 = if (mime_type) |v| try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{v}, 0) else null;
+    const mime_type_z: ?[:0]u8 = if (mime_type) |v| try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{v}, 0) else null;
     defer if (mime_type_z) |z| std.heap.c_allocator.free(z);
-    const config_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{config}, 0);
+    const config_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{config}, 0);
     defer std.heap.c_allocator.free(config_z);
     const config_handle = c.kreuzberg_extraction_config_from_json(config_z);
     const _result = c.kreuzberg_extract_file_sync(path_z, if (mime_type_z) |z| z.ptr else null, config_handle);
@@ -3904,8 +3874,7 @@ pub fn extract_file_sync(path: []const u8, mime_type: ?[]const u8, config: []con
         const slice = std.mem.sliceTo(_json_ptr, 0);
         const owned = try std.heap.c_allocator.dupe(u8, slice);
         break :blk owned;
-    }
-;
+    };
 }
 
 /// Synchronous wrapper for `extract_bytes`.
@@ -3916,11 +3885,9 @@ pub fn extract_file_sync(path: []const u8, mime_type: ?[]const u8, config: []con
 /// With the `tokio-runtime` feature, this blocks the current thread using the global
 /// Tokio runtime. Without it (WASM), this calls a truly synchronous implementation.
 pub fn extract_bytes_sync(content: []const u8, mime_type: []const u8, config: []const u8) KreuzbergError![]u8 {
-    const mime_type_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{mime_type}, 0);
+    const mime_type_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{mime_type}, 0);
     defer std.heap.c_allocator.free(mime_type_z);
-    const config_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{config}, 0);
+    const config_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{config}, 0);
     defer std.heap.c_allocator.free(config_z);
     const config_handle = c.kreuzberg_extraction_config_from_json(config_z);
     const _result = c.kreuzberg_extract_bytes_sync(content.ptr, content.len, mime_type_z, config_handle);
@@ -3935,8 +3902,7 @@ pub fn extract_bytes_sync(content: []const u8, mime_type: []const u8, config: []
         const slice = std.mem.sliceTo(_json_ptr, 0);
         const owned = try std.heap.c_allocator.dupe(u8, slice);
         break :blk owned;
-    }
-;
+    };
 }
 
 /// Synchronous wrapper for `batch_extract_files`.
@@ -3945,11 +3911,9 @@ pub fn extract_bytes_sync(content: []const u8, mime_type: []const u8, config: []
 /// Only available with `tokio-runtime` (WASM has no filesystem).
 pub fn batch_extract_files_sync(items: []const u8, config: []const u8) KreuzbergError![]u8 {
     // Vec/Map parameters are passed as JSON strings across the FFI boundary.
-    const items_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{items}, 0);
+    const items_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{items}, 0);
     defer std.heap.c_allocator.free(items_z);
-    const config_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{config}, 0);
+    const config_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{config}, 0);
     defer std.heap.c_allocator.free(config_z);
     const config_handle = c.kreuzberg_extraction_config_from_json(config_z);
     const _result = c.kreuzberg_batch_extract_files_sync(items_z, config_handle);
@@ -3975,11 +3939,9 @@ pub fn batch_extract_files_sync(items: []const u8, config: []const u8) Kreuzberg
 /// that iterates through items and calls `extract_bytes_sync()`.
 pub fn batch_extract_bytes_sync(items: []const u8, config: []const u8) KreuzbergError![]u8 {
     // Vec/Map parameters are passed as JSON strings across the FFI boundary.
-    const items_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{items}, 0);
+    const items_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{items}, 0);
     defer std.heap.c_allocator.free(items_z);
-    const config_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{config}, 0);
+    const config_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{config}, 0);
     defer std.heap.c_allocator.free(config_z);
     const config_handle = c.kreuzberg_extraction_config_from_json(config_z);
     const _result = c.kreuzberg_batch_extract_bytes_sync(items_z, config_handle);
@@ -4027,11 +3989,9 @@ pub fn batch_extract_bytes_sync(items: []const u8, config: []const u8) Kreuzberg
 /// Per-file configuration overrides:
 pub fn batch_extract_files(items: []const u8, config: []const u8) KreuzbergError![]u8 {
     // Vec/Map parameters are passed as JSON strings across the FFI boundary.
-    const items_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{items}, 0);
+    const items_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{items}, 0);
     defer std.heap.c_allocator.free(items_z);
-    const config_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{config}, 0);
+    const config_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{config}, 0);
     defer std.heap.c_allocator.free(config_z);
     const config_handle = c.kreuzberg_extraction_config_from_json(config_z);
     const _result = c.kreuzberg_batch_extract_files(items_z, config_handle);
@@ -4073,11 +4033,9 @@ pub fn batch_extract_files(items: []const u8, config: []const u8) KreuzbergError
 /// Per-item configuration overrides:
 pub fn batch_extract_bytes(items: []const u8, config: []const u8) KreuzbergError![]u8 {
     // Vec/Map parameters are passed as JSON strings across the FFI boundary.
-    const items_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{items}, 0);
+    const items_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{items}, 0);
     defer std.heap.c_allocator.free(items_z);
-    const config_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{config}, 0);
+    const config_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{config}, 0);
     defer std.heap.c_allocator.free(config_z);
     const config_handle = c.kreuzberg_extraction_config_from_json(config_z);
     const _result = c.kreuzberg_batch_extract_bytes(items_z, config_handle);
@@ -4133,8 +4091,7 @@ pub fn detect_mime_type_from_bytes(content: []const u8) KreuzbergError![]u8 {
 ///
 /// A vector of file extensions (without leading dot) for the MIME type.
 pub fn get_extensions_for_mime(mime_type: []const u8) KreuzbergError![]u8 {
-    const mime_type_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{mime_type}, 0);
+    const mime_type_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{mime_type}, 0);
     defer std.heap.c_allocator.free(mime_type_z);
     const _result = c.kreuzberg_get_extensions_for_mime(mime_type_z);
     const _result_len = c.kreuzberg_get_extensions_for_mime_len(mime_type_z);
@@ -4282,11 +4239,9 @@ pub fn list_validators() KreuzbergError![]u8 {
 ///   or the blocking inference task panics
 pub fn embed_texts_async(texts: []const u8, config: []const u8) KreuzbergError![]u8 {
     // Vec/Map parameters are passed as JSON strings across the FFI boundary.
-    const texts_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{texts}, 0);
+    const texts_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{texts}, 0);
     defer std.heap.c_allocator.free(texts_z);
-    const config_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{config}, 0);
+    const config_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{config}, 0);
     defer std.heap.c_allocator.free(config_z);
     const config_handle = c.kreuzberg_embedding_config_from_json(config_z);
     const _result = c.kreuzberg_embed_texts_async(texts_z, config_handle);
@@ -4314,8 +4269,7 @@ pub fn embed_texts_async(texts: []const u8, config: []const u8) KreuzbergError![
 /// Returns `KreuzbergError.Parsing` if the PDF cannot be opened, authenticated,
 /// or rendered, or if `page_index` is out of range.
 pub fn render_pdf_page_to_png(pdf_bytes: []const u8, page_index: u64, dpi: ?i32, password: ?[]const u8) KreuzbergError![]u8 {
-    const password_z: ?[:0]u8 = if (password) |v| try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{v}, 0) else null;
+    const password_z: ?[:0]u8 = if (password) |v| try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{v}, 0) else null;
     defer if (password_z) |z| std.heap.c_allocator.free(z);
     var _out_ptr: [*c]u8 = undefined;
     var _out_len: usize = 0;
@@ -4334,8 +4288,7 @@ pub fn render_pdf_page_to_png(pdf_bytes: []const u8, page_index: u64, dpi: ?i32,
 /// Uses the file extension and optionally the file content to determine the MIME type.
 /// Set `check_exists` to `true` to verify the file exists before detection.
 pub fn detect_mime_type(path: []const u8, check_exists: bool) KreuzbergError![]u8 {
-    const path_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{path}, 0);
+    const path_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{path}, 0);
     defer std.heap.c_allocator.free(path_z);
     const _result = c.kreuzberg_detect_mime_type(path_z, check_exists);
     const _result_len = c.kreuzberg_detect_mime_type_len(path_z, check_exists);
@@ -4356,11 +4309,9 @@ pub fn detect_mime_type(path: []const u8, check_exists: bool) KreuzbergError![]u
 /// Returns a 2D vector where each inner vector is the embedding for the corresponding text.
 pub fn embed_texts(texts: []const u8, config: []const u8) KreuzbergError![]u8 {
     // Vec/Map parameters are passed as JSON strings across the FFI boundary.
-    const texts_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{texts}, 0);
+    const texts_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{texts}, 0);
     defer std.heap.c_allocator.free(texts_z);
-    const config_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{config}, 0);
+    const config_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{config}, 0);
     defer std.heap.c_allocator.free(config_z);
     const config_handle = c.kreuzberg_embedding_config_from_json(config_z);
     const _result = c.kreuzberg_embed_texts(texts_z, config_handle);
@@ -4383,19 +4334,17 @@ pub fn embed_texts(texts: []const u8, config: []const u8) KreuzbergError![]u8 {
 /// Returns `null` if no preset with the given name exists. Returns an owned
 /// clone so the value is safe to pass across FFI boundaries.
 pub fn get_embedding_preset(name: []const u8) error{OutOfMemory}!?[]u8 {
-    const name_z = try std.fmt.allocPrintSentinel(
-        std.heap.c_allocator, "{s}", .{name}, 0);
+    const name_z = try std.fmt.allocPrintSentinel(std.heap.c_allocator, "{s}", .{name}, 0);
     defer std.heap.c_allocator.free(name_z);
     const _result = c.kreuzberg_get_embedding_preset(name_z);
-    return if (_result == null) null else blk: {
-        const _json_ptr = c.kreuzberg_embedding_preset_to_json(_result.?);
-        defer _free_string(_json_ptr);
-        c.kreuzberg_embedding_preset_free(_result.?);
-        const slice = std.mem.sliceTo(_json_ptr, 0);
+    const _result_len = c.kreuzberg_get_embedding_preset_len(name_z);
+    return blk: {
+        if (_result == null) break :blk null;
+        const slice = _result[0.._result_len];
         const owned = try std.heap.c_allocator.dupe(u8, slice);
+        _free_string(_result);
         break :blk owned;
-    }
-;
+    };
 }
 
 /// List the names of all available embedding presets.
@@ -4572,6 +4521,13 @@ pub fn unregister_ocr_backend(name: [*c]const u8, out_error: ?*?[*c]u8) i32 {
     return c.kreuzberg_unregister_ocr_backend(name, out_error);
 }
 
+/// Remove ALL registered `OcrBackend` plugins from the registry.
+///
+/// Returns 0 on success; non-zero on failure.
+pub fn clear_ocr_backends(out_error: ?*?[*c]u8) i32 {
+    return c.kreuzberg_clear_ocr_backend(out_error);
+}
+
 /// Build an `IOcrBackend` vtable for a concrete Zig type `T`.
 ///
 /// `T` must implement every method of `OcrBackend` as a plain Zig function.
@@ -4619,7 +4575,9 @@ pub fn make_ocr_backend_vtable(comptime T: type, instance: *T) IOcrBackend {
                 const self: *T = @ptrCast(@alignCast(ud));
                 const image_bytes_slice = image_bytes_ptr[0..image_bytes_len];
                 if (self.process_image(image_bytes_slice, config)) |value| {
-                    _ = value; _ = out_result; unreachable; // complex return: implement manually
+                    _ = value;
+                    _ = out_result;
+                    unreachable; // complex return: implement manually
                 } else |err| {
                     _ = err;
                     if (out_error) |ptr| ptr.* = null; // caller checks error code
@@ -4632,7 +4590,9 @@ pub fn make_ocr_backend_vtable(comptime T: type, instance: *T) IOcrBackend {
             fn thunk(ud: ?*anyopaque, path: [*c]const u8, config: [*c]const u8, out_result: ?*?[*c]u8, out_error: ?*?[*c]u8) callconv(.C) i32 {
                 const self: *T = @ptrCast(@alignCast(ud));
                 if (self.process_image_file(path, config)) |value| {
-                    _ = value; _ = out_result; unreachable; // complex return: implement manually
+                    _ = value;
+                    _ = out_result;
+                    unreachable; // complex return: implement manually
                 } else |err| {
                     _ = err;
                     if (out_error) |ptr| ptr.* = null; // caller checks error code
@@ -4685,7 +4645,9 @@ pub fn make_ocr_backend_vtable(comptime T: type, instance: *T) IOcrBackend {
             fn thunk(ud: ?*anyopaque, _path: [*c]const u8, _config: [*c]const u8, out_result: ?*?[*c]u8, out_error: ?*?[*c]u8) callconv(.C) i32 {
                 const self: *T = @ptrCast(@alignCast(ud));
                 if (self.process_document(_path, _config)) |value| {
-                    _ = value; _ = out_result; unreachable; // complex return: implement manually
+                    _ = value;
+                    _ = out_result;
+                    unreachable; // complex return: implement manually
                 } else |err| {
                     _ = err;
                     if (out_error) |ptr| ptr.* = null; // caller checks error code
@@ -4854,6 +4816,13 @@ pub fn register_post_processor(name: [*c]const u8, vtable: IPostProcessor, user_
 /// Returns 0 on success; non-zero on failure.
 pub fn unregister_post_processor(name: [*c]const u8, out_error: ?*?[*c]u8) i32 {
     return c.kreuzberg_unregister_post_processor(name, out_error);
+}
+
+/// Remove ALL registered `PostProcessor` plugins from the registry.
+///
+/// Returns 0 on success; non-zero on failure.
+pub fn clear_post_processors(out_error: ?*?[*c]u8) i32 {
+    return c.kreuzberg_clear_post_processor(out_error);
 }
 
 /// Build an `IPostProcessor` vtable for a concrete Zig type `T`.
@@ -5121,6 +5090,13 @@ pub fn unregister_validator(name: [*c]const u8, out_error: ?*?[*c]u8) i32 {
     return c.kreuzberg_unregister_validator(name, out_error);
 }
 
+/// Remove ALL registered `Validator` plugins from the registry.
+///
+/// Returns 0 on success; non-zero on failure.
+pub fn clear_validators(out_error: ?*?[*c]u8) i32 {
+    return c.kreuzberg_clear_validator(out_error);
+}
+
 /// Build an `IValidator` vtable for a concrete Zig type `T`.
 ///
 /// `T` must implement every method of `Validator` as a plain Zig function.
@@ -5251,6 +5227,13 @@ pub fn unregister_embedding_backend(name: [*c]const u8, out_error: ?*?[*c]u8) i3
     return c.kreuzberg_unregister_embedding_backend(name, out_error);
 }
 
+/// Remove ALL registered `EmbeddingBackend` plugins from the registry.
+///
+/// Returns 0 on success; non-zero on failure.
+pub fn clear_embedding_backends(out_error: ?*?[*c]u8) i32 {
+    return c.kreuzberg_clear_embedding_backend(out_error);
+}
+
 /// Build an `IEmbeddingBackend` vtable for a concrete Zig type `T`.
 ///
 /// `T` must implement every method of `EmbeddingBackend` as a plain Zig function.
@@ -5305,7 +5288,9 @@ pub fn make_embedding_backend_vtable(comptime T: type, instance: *T) IEmbeddingB
             fn thunk(ud: ?*anyopaque, texts: [*c]const u8, out_result: ?*?[*c]u8, out_error: ?*?[*c]u8) callconv(.C) i32 {
                 const self: *T = @ptrCast(@alignCast(ud));
                 if (self.embed(texts)) |value| {
-                    _ = value; _ = out_result; unreachable; // complex return: implement manually
+                    _ = value;
+                    _ = out_result;
+                    unreachable; // complex return: implement manually
                 } else |err| {
                     _ = err;
                     if (out_error) |ptr| ptr.* = null; // caller checks error code
@@ -5448,6 +5433,13 @@ pub fn unregister_document_extractor(name: [*c]const u8, out_error: ?*?[*c]u8) i
     return c.kreuzberg_unregister_document_extractor(name, out_error);
 }
 
+/// Remove ALL registered `DocumentExtractor` plugins from the registry.
+///
+/// Returns 0 on success; non-zero on failure.
+pub fn clear_document_extractors(out_error: ?*?[*c]u8) i32 {
+    return c.kreuzberg_clear_document_extractor(out_error);
+}
+
 /// Build an `IDocumentExtractor` vtable for a concrete Zig type `T`.
 ///
 /// `T` must implement every method of `DocumentExtractor` as a plain Zig function.
@@ -5495,7 +5487,9 @@ pub fn make_document_extractor_vtable(comptime T: type, instance: *T) IDocumentE
                 const self: *T = @ptrCast(@alignCast(ud));
                 const content_slice = content_ptr[0..content_len];
                 if (self.extract_bytes(content_slice, mime_type, config)) |value| {
-                    _ = value; _ = out_result; unreachable; // complex return: implement manually
+                    _ = value;
+                    _ = out_result;
+                    unreachable; // complex return: implement manually
                 } else |err| {
                     _ = err;
                     if (out_error) |ptr| ptr.* = null; // caller checks error code
@@ -5508,7 +5502,9 @@ pub fn make_document_extractor_vtable(comptime T: type, instance: *T) IDocumentE
             fn thunk(ud: ?*anyopaque, path: [*c]const u8, mime_type: [*c]const u8, config: [*c]const u8, out_result: ?*?[*c]u8, out_error: ?*?[*c]u8) callconv(.C) i32 {
                 const self: *T = @ptrCast(@alignCast(ud));
                 if (self.extract_file(path, mime_type, config)) |value| {
-                    _ = value; _ = out_result; unreachable; // complex return: implement manually
+                    _ = value;
+                    _ = out_result;
+                    unreachable; // complex return: implement manually
                 } else |err| {
                     _ = err;
                     if (out_error) |ptr| ptr.* = null; // caller checks error code
@@ -5610,6 +5606,13 @@ pub fn unregister_renderer(name: [*c]const u8, out_error: ?*?[*c]u8) i32 {
     return c.kreuzberg_unregister_renderer(name, out_error);
 }
 
+/// Remove ALL registered `Renderer` plugins from the registry.
+///
+/// Returns 0 on success; non-zero on failure.
+pub fn clear_renderers(out_error: ?*?[*c]u8) i32 {
+    return c.kreuzberg_clear_renderer(out_error);
+}
+
 /// Build an `IRenderer` vtable for a concrete Zig type `T`.
 ///
 /// `T` must implement every method of `Renderer` as a plain Zig function.
@@ -5656,7 +5659,9 @@ pub fn make_renderer_vtable(comptime T: type, instance: *T) IRenderer {
             fn thunk(ud: ?*anyopaque, doc: [*c]const u8, out_result: ?*?[*c]u8, out_error: ?*?[*c]u8) callconv(.C) i32 {
                 const self: *T = @ptrCast(@alignCast(ud));
                 if (self.render(doc)) |value| {
-                    _ = value; _ = out_result; unreachable; // complex return: implement manually
+                    _ = value;
+                    _ = out_result;
+                    unreachable; // complex return: implement manually
                 } else |err| {
                     _ = err;
                     if (out_error) |ptr| ptr.* = null; // caller checks error code

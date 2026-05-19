@@ -568,7 +568,17 @@ object Kreuzberg {
      * Returns `KreuzbergError.Parsing` if the PDF cannot be opened, authenticated,
      * or rendered, or if `page_index` is out of range.
      */
-    fun renderPdfPageToPng(pdfBytes: String, pageIndex: Long, dpi: Int? = null, password: String? = null): Long = KreuzbergBridge.nativeRenderPdfPageToPng(pdfBytes, pageIndex, dpi ?: 0, password ?: "")
+    fun renderPdfPageToPng(
+        pdfBytes: String,
+        pageIndex: Long,
+        dpi: Int? = null,
+        password: String? = null
+    ): Long = KreuzbergBridge.nativeRenderPdfPageToPng(
+        pdfBytes,
+        pageIndex,
+        dpi ?: 0,
+        password ?: ""
+    )
     /**
      * Detect the MIME type of a file at the given path.
      *
@@ -618,5 +628,4 @@ object Kreuzberg {
      */
     suspend fun listEmbeddingPresetsAsync(): List<String> =
         withContext(Dispatchers.IO) { listEmbeddingPresets() }
-
 }
