@@ -44,7 +44,7 @@ defaults:
 jobs:
   setup:
     name: Build harness + native libs
-    runs-on: ubuntu-24.04-arm
+    runs-on: runner-medium-arm64
     timeout-minutes: 360
     permissions:
       contents: read
@@ -124,7 +124,7 @@ jobs:
   bench-rust:
     name: bench-rust (${{ matrix.pipeline }}, ${{ matrix.output_format }}, ${{ matrix.mode }})
     needs: setup
-    runs-on: ubuntu-24.04-arm
+    runs-on: runner-medium-arm64
     timeout-minutes: 360
     permissions:
       contents: read
@@ -199,7 +199,7 @@ jobs:
     name: docling (${{ matrix.output_format }}, ${{ matrix.mode }}, shard ${{ matrix.shard }}/3)
     needs: bench-rust
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: runner-medium-arm64
     timeout-minutes: 360
     permissions:
       contents: read
@@ -267,7 +267,7 @@ jobs:
     name: markitdown (${{ matrix.output_format }}, ${{ matrix.mode }}, shard ${{ matrix.shard }}/3)
     needs: bench-rust
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: runner-medium-arm64
     timeout-minutes: 360
     permissions:
       contents: read
@@ -333,7 +333,7 @@ jobs:
     name: pandoc (${{ matrix.output_format }}, ${{ matrix.mode }})
     needs: bench-rust
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: runner-medium-arm64
     timeout-minutes: 360
     permissions:
       contents: read
@@ -401,7 +401,7 @@ jobs:
     name: unstructured (${{ matrix.output_format }}, ${{ matrix.mode }}, shard ${{ matrix.shard }}/4)
     needs: bench-rust
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: runner-medium-arm64
     timeout-minutes: 360
     permissions:
       contents: read
@@ -469,7 +469,7 @@ jobs:
     name: tika (${{ matrix.output_format }}, ${{ matrix.mode }}, shard ${{ matrix.shard }}/3)
     needs: bench-rust
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: runner-medium-arm64
     timeout-minutes: 360
     permissions:
       contents: read
@@ -539,7 +539,7 @@ jobs:
     name: pymupdf4llm (${{ matrix.output_format }}, ${{ matrix.mode }}, shard ${{ matrix.shard }}/3)
     needs: bench-rust
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: runner-medium-arm64
     timeout-minutes: 360
     permissions:
       contents: read
@@ -610,7 +610,7 @@ jobs:
     name: pdfplumber (${{ matrix.output_format }}, ${{ matrix.mode }})
     needs: bench-rust
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: runner-medium-arm64
     timeout-minutes: 360
     permissions:
       contents: read
@@ -674,7 +674,7 @@ jobs:
     name: mineru (${{ matrix.output_format }}, ${{ matrix.mode }}, shard ${{ matrix.shard }}/3)
     needs: bench-rust
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: runner-medium-arm64
     timeout-minutes: 360
     permissions:
       contents: read
@@ -742,7 +742,7 @@ jobs:
     name: pypdf (${{ matrix.output_format }}, ${{ matrix.mode }})
     needs: bench-rust
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: runner-medium-arm64
     timeout-minutes: 360
     permissions:
       contents: read
@@ -806,7 +806,7 @@ jobs:
     name: pdfminer (${{ matrix.output_format }}, ${{ matrix.mode }})
     needs: bench-rust
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: runner-medium-arm64
     timeout-minutes: 360
     permissions:
       contents: read
@@ -870,7 +870,7 @@ jobs:
     name: pdftotext (${{ matrix.output_format }}, ${{ matrix.mode }})
     needs: bench-rust
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: runner-medium-arm64
     timeout-minutes: 360
     permissions:
       contents: read
@@ -939,7 +939,7 @@ jobs:
     name: playa-pdf (${{ matrix.output_format }}, ${{ matrix.mode }})
     needs: bench-rust
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: runner-medium-arm64
     timeout-minutes: 360
     permissions:
       contents: read
