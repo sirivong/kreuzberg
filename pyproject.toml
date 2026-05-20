@@ -14,7 +14,7 @@ classifiers = [
 [dependency-groups]
 dev = [
   "kreuzberg>=4.9.7",
-  "llama-index-core>=0.13,<0.15",
+  "llama-index-core>=0.14.22,<0.15",
   "mypy>=2.1.0",
   "pre-commit>=4.6",
   "pydantic>=2",
