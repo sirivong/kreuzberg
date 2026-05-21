@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.17.14"
+alef_version = "0.17.16"
 languages = [
   "python",
   "node",
@@ -807,6 +807,7 @@ module = "kreuzberg"
 function = "extractFile"
 options_type = "JsExtractionConfig"
 arg_order = ["path", "config", "mime_type"]
+result_enum_fields = { outputFormat = "OutputFormat", "metadata.format" = "FormatMetadata" }
 
 [crates.e2e.call.overrides.go]
 module = "github.com/kreuzberg-dev/kreuzberg/v5"
@@ -818,7 +819,7 @@ options_type = "ExtractionConfig"
 class = "dev.kreuzberg.Kreuzberg"
 function = "extractFile"
 options_type = "ExtractionConfig"
-enum_fields = { outputFormat = "OutputFormat", "metadata.format" = "FormatMetadata" }
+enum_fields = { outputFormat = "OutputFormat" }
 
 [crates.e2e.call.overrides.csharp]
 class = "KreuzbergLib"
