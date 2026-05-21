@@ -785,6 +785,24 @@ fields_array = [
   "document.node_types",
 ]
 fields_method_calls = ["metadata.format.excel"]
+result_fields = [
+  "content",
+  "mime_type",
+  "metadata",
+  "extraction_method",
+  "tables",
+  "detected_languages",
+  "chunks",
+  "images",
+  "pages",
+  "elements",
+  "djot_content",
+  "ocr_elements",
+  "annotations",
+  "processing_warnings",
+  "quality_score",
+  "document",
+]
 
 [crates.e2e.call]
 function = "extract_file"
