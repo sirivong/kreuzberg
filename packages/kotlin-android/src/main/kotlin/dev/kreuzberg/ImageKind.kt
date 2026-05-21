@@ -24,25 +24,36 @@ package dev.kreuzberg
 /** Heuristic classification of what an image likely depicts. */
 enum class ImageKind {
     /** Photographic image (natural scene, photograph) */
+    @com.fasterxml.jackson.annotation.JsonProperty("photograph")
     PHOTOGRAPH,
     /** Technical or schematic diagram */
+    @com.fasterxml.jackson.annotation.JsonProperty("diagram")
     DIAGRAM,
     /** Chart, graph, or plot */
+    @com.fasterxml.jackson.annotation.JsonProperty("chart")
     CHART,
     /** Freehand or technical drawing */
+    @com.fasterxml.jackson.annotation.JsonProperty("drawing")
     DRAWING,
     /** Text-heavy image (scanned text, document) */
+    @com.fasterxml.jackson.annotation.JsonProperty("text_block")
     TEXT_BLOCK,
     /** Decorative element or border */
+    @com.fasterxml.jackson.annotation.JsonProperty("decoration")
     DECORATION,
     /** Logo or brand mark */
+    @com.fasterxml.jackson.annotation.JsonProperty("logo")
     LOGO,
     /** Small icon */
+    @com.fasterxml.jackson.annotation.JsonProperty("icon")
     ICON,
     /** Fragment of a larger tiled image (tile of a technical drawing) */
+    @com.fasterxml.jackson.annotation.JsonProperty("tile_fragment")
     TILE_FRAGMENT,
     /** Mask or transparency map */
+    @com.fasterxml.jackson.annotation.JsonProperty("mask")
     MASK,
     /** Could not classify with reasonable confidence */
+    @com.fasterxml.jackson.annotation.JsonProperty("unknown")
     UNKNOWN;
 }

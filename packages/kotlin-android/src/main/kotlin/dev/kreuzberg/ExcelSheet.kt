@@ -43,5 +43,5 @@ data class ExcelSheet(
      * Populated during markdown generation to avoid re-parsing markdown.
      * None for empty sheets.
      */
-    val tableCells: List<List<String>>?
+    val tableCells: List<List<String>>? = null
 )

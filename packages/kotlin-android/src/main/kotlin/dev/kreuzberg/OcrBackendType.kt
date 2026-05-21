@@ -24,11 +24,15 @@ package dev.kreuzberg
 /** OCR backend types. */
 enum class OcrBackendType {
     /** Tesseract OCR (native Rust binding) */
+    @com.fasterxml.jackson.annotation.JsonProperty("Tesseract")
     TESSERACT,
     /** EasyOCR (Python-based, via FFI) */
+    @com.fasterxml.jackson.annotation.JsonProperty("EasyOCR")
     EASY_O_C_R,
     /** PaddleOCR (Python-based, via FFI) */
+    @com.fasterxml.jackson.annotation.JsonProperty("PaddleOCR")
     PADDLE_O_C_R,
     /** Custom/third-party OCR backend */
+    @com.fasterxml.jackson.annotation.JsonProperty("Custom")
     CUSTOM;
 }

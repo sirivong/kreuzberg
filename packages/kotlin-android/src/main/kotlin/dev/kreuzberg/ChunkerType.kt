@@ -38,8 +38,12 @@ package dev.kreuzberg
  *   fallback path. For best results, pair with an embedding model.
  */
 enum class ChunkerType {
+    @com.fasterxml.jackson.annotation.JsonProperty("text")
     TEXT,
+    @com.fasterxml.jackson.annotation.JsonProperty("markdown")
     MARKDOWN,
+    @com.fasterxml.jackson.annotation.JsonProperty("yaml")
     YAML,
+    @com.fasterxml.jackson.annotation.JsonProperty("semantic")
     SEMANTIC;
 }

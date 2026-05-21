@@ -37,9 +37,9 @@ data class TextExtractionResult(
     /** Number of characters */
     val characterCount: Long,
     /** Markdown headers (text only, Markdown files only) */
-    val headers: List<String>?,
+    val headers: List<String>? = null,
     /** Markdown links as (text, URL) tuples (Markdown files only) */
-    val links: List<String>?,
+    val links: List<String>? = null,
     /** Code blocks as (language, code) tuples (Markdown files only) */
-    val codeBlocks: List<String>?
+    val codeBlocks: List<String>? = null
 )

@@ -30,15 +30,15 @@ data class FormattedBlock(
     /** Type of block element */
     val blockType: BlockType,
     /** Heading level (1-6) for headings, or nesting level for lists */
-    val level: Long?,
+    val level: Long? = null,
     /** Inline content within the block */
-    val inlineContent: List<InlineElement>,
+    val inlineContent: List<InlineElement> = emptyList(),
     /** Element attributes (classes, IDs, key-value pairs) */
-    val attributes: String?,
+    val attributes: String? = null,
     /** Language identifier for code blocks */
-    val language: String?,
+    val language: String? = null,
     /** Raw code content for code blocks */
-    val code: String?,
+    val code: String? = null,
     /** Nested blocks for containers (blockquotes, list items, divs) */
-    val children: List<FormattedBlock>
+    val children: List<FormattedBlock> = emptyList()
 )

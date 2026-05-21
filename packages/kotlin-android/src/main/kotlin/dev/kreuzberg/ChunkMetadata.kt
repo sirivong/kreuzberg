@@ -32,7 +32,7 @@ data class ChunkMetadata(
      *
      * This is calculated by the embedding model's tokenizer if embeddings are enabled.
      */
-    val tokenCount: Long?,
+    val tokenCount: Long? = null,
     /** Zero-based index of this chunk in the document. */
     val chunkIndex: Long,
     /** Total number of chunks in the document. */
@@ -42,20 +42,20 @@ data class ChunkMetadata(
      *
      * Only populated when page tracking is enabled in extraction configuration.
      */
-    val firstPage: Int?,
+    val firstPage: Int? = null,
     /**
      * Last page number this chunk spans (1-indexed, equal to first_page for single-page chunks).
      *
      * Only populated when page tracking is enabled in extraction configuration.
      */
-    val lastPage: Int?,
+    val lastPage: Int? = null,
     /**
      * Heading context when using Markdown chunker.
      *
      * Contains the heading hierarchy this chunk falls under.
      * Only populated when `ChunkerType.Markdown` is used.
      */
-    val headingContext: HeadingContext?,
+    val headingContext: HeadingContext? = null,
     /**
      * Indices into `ExtractionResult.images` for images on pages covered by this chunk.
      *
@@ -63,5 +63,5 @@ data class ChunkMetadata(
      * image whose `page_number` falls within `[first_page, last_page]`.
      * Empty when image extraction is disabled or the chunk spans no pages with images.
      */
-    val imageIndices: List<Int>
+    val imageIndices: List<Int> = emptyList()
 )

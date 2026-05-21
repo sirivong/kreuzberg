@@ -30,7 +30,9 @@ package dev.kreuzberg
  */
 enum class ResultFormat {
     /** Unified format with all content in `content` field */
+    @com.fasterxml.jackson.annotation.JsonProperty("unified")
     UNIFIED,
     /** Element-based format with semantic element extraction */
+    @com.fasterxml.jackson.annotation.JsonProperty("element_based")
     ELEMENT_BASED;
 }

@@ -39,15 +39,15 @@ data class LlmConfig(
      * API key for the provider. When `null`, liter-llm falls back to
      * the provider's standard environment variable (e.g., `OPENAI_API_KEY`).
      */
-    val apiKey: String?,
+    val apiKey: String? = null,
     /** Custom base URL override for the provider endpoint. */
-    val baseUrl: String?,
+    val baseUrl: String? = null,
     /** Request timeout in seconds (default: 60). */
-    val timeoutSecs: Long?,
+    val timeoutSecs: Long? = null,
     /** Maximum retry attempts (default: 3). */
-    val maxRetries: Int?,
+    val maxRetries: Int? = null,
     /** Sampling temperature for generation tasks. */
-    val temperature: Double?,
+    val temperature: Double? = null,
     /** Maximum tokens to generate. */
-    val maxTokens: Long?
+    val maxTokens: Long? = null
 )

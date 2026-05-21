@@ -24,15 +24,21 @@ package dev.kreuzberg
 /** Link type classification. */
 enum class LinkType {
     /** Anchor link (#section) */
+    @com.fasterxml.jackson.annotation.JsonProperty("anchor")
     ANCHOR,
     /** Internal link (same domain) */
+    @com.fasterxml.jackson.annotation.JsonProperty("internal")
     INTERNAL,
     /** External link (different domain) */
+    @com.fasterxml.jackson.annotation.JsonProperty("external")
     EXTERNAL,
     /** Email link (mailto:) */
+    @com.fasterxml.jackson.annotation.JsonProperty("email")
     EMAIL,
     /** Phone link (tel:) */
+    @com.fasterxml.jackson.annotation.JsonProperty("phone")
     PHONE,
     /** Other link type */
+    @com.fasterxml.jackson.annotation.JsonProperty("other")
     OTHER;
 }

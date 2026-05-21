@@ -37,13 +37,13 @@ data class LlmUsage(
      */
     val source: String,
     /** Number of input/prompt tokens consumed. */
-    val inputTokens: Long?,
+    val inputTokens: Long? = null,
     /** Number of output/completion tokens generated. */
-    val outputTokens: Long?,
+    val outputTokens: Long? = null,
     /** Total tokens (input + output). */
-    val totalTokens: Long?,
+    val totalTokens: Long? = null,
     /** Estimated cost in USD based on the provider's published pricing. */
-    val estimatedCost: Double?,
+    val estimatedCost: Double? = null,
     /** Why the model stopped generating (e.g. "stop", "length", "content_filter"). */
-    val finishReason: String?
+    val finishReason: String? = null
 )

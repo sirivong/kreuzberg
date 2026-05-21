@@ -38,36 +38,36 @@ data class ChunkingConfig(
      *
      * Default: 1000
      */
-    val maxCharacters: Long,
+    val maxCharacters: Long = 1000L,
     /**
      * Overlap between chunks (in units determined by `sizing`).
      *
      * Default: 200
      */
-    val overlap: Long,
+    val overlap: Long = 200L,
     /**
      * Whether to trim whitespace from chunk boundaries.
      *
      * Default: true
      */
-    val trim: Boolean,
+    val trim: Boolean = true,
     /**
      * Type of chunker to use (Text or Markdown).
      *
      * Default: Text
      */
-    val chunkerType: ChunkerType,
+    val chunkerType: ChunkerType = ChunkerType.TEXT,
     /** Optional embedding configuration for chunk embeddings. */
-    val embedding: EmbeddingConfig?,
+    val embedding: EmbeddingConfig? = null,
     /** Use a preset configuration (overrides individual settings if provided). */
-    val preset: String?,
+    val preset: String? = null,
     /**
      * How to measure chunk size.
      *
      * Default: `Characters` (Unicode character count).
      * Enable `chunking-tiktoken` or `chunking-tokenizers` features for token-based sizing.
      */
-    val sizing: ChunkSizing,
+    val sizing: ChunkSizing = ChunkSizing.CHARACTERS,
     /**
      * When `true` and `chunker_type` is `Markdown`, prepend the heading hierarchy
      * path (e.g. `"# Title > ## Section\n\n"`) to each chunk's content string.
@@ -77,7 +77,7 @@ data class ChunkingConfig(
      *
      * Default: `false`
      */
-    val prependHeadingContext: Boolean,
+    val prependHeadingContext: Boolean = false,
     /**
      * Optional cosine similarity threshold for semantic topic boundary detection.
      *
@@ -87,5 +87,5 @@ data class ChunkingConfig(
      * topic boundaries (more, smaller chunks); higher values detect fewer.
      * Range: `0.0..=1.0`.
      */
-    val topicThreshold: Float?
+    val topicThreshold: Float? = null
 )

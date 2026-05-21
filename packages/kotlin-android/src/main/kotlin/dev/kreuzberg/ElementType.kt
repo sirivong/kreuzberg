@@ -29,25 +29,36 @@ package dev.kreuzberg
  */
 enum class ElementType {
     /** Document title */
+    @com.fasterxml.jackson.annotation.JsonProperty("title")
     TITLE,
     /** Main narrative text body */
+    @com.fasterxml.jackson.annotation.JsonProperty("narrative_text")
     NARRATIVE_TEXT,
     /** Section heading */
+    @com.fasterxml.jackson.annotation.JsonProperty("heading")
     HEADING,
     /** List item (bullet, numbered, etc.) */
+    @com.fasterxml.jackson.annotation.JsonProperty("list_item")
     LIST_ITEM,
     /** Table element */
+    @com.fasterxml.jackson.annotation.JsonProperty("table")
     TABLE,
     /** Image element */
+    @com.fasterxml.jackson.annotation.JsonProperty("image")
     IMAGE,
     /** Page break marker */
+    @com.fasterxml.jackson.annotation.JsonProperty("page_break")
     PAGE_BREAK,
     /** Code block */
+    @com.fasterxml.jackson.annotation.JsonProperty("code_block")
     CODE_BLOCK,
     /** Block quote */
+    @com.fasterxml.jackson.annotation.JsonProperty("block_quote")
     BLOCK_QUOTE,
     /** Footer text */
+    @com.fasterxml.jackson.annotation.JsonProperty("footer")
     FOOTER,
     /** Header text */
+    @com.fasterxml.jackson.annotation.JsonProperty("header")
     HEADER;
 }

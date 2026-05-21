@@ -38,20 +38,20 @@ data class PptxExtractionResult(
     /** Total number of tables */
     val tableCount: Long,
     /** Extracted images from the presentation */
-    val images: List<ExtractedImage>,
+    val images: List<ExtractedImage> = emptyList(),
     /** Slide structure with boundaries (when page tracking is enabled) */
-    val pageStructure: PageStructure?,
+    val pageStructure: PageStructure? = null,
     /** Per-slide content (when page tracking is enabled) */
-    val pageContents: List<PageContent>?,
+    val pageContents: List<PageContent>? = null,
     /** Structured document representation */
-    val document: DocumentStructure?,
+    val document: DocumentStructure? = null,
     /** Hyperlinks discovered in slides as (url, optional_label) pairs. */
-    val hyperlinks: List<String>,
+    val hyperlinks: List<String> = emptyList(),
     /**
      * Office metadata extracted from docProps/core.xml and docProps/app.xml.
      *
      * Contains keys like "title", "author", "created_by", "subject", "keywords",
      * "modified_by", "created_at", "modified_at", etc.
      */
-    val officeMetadata: Map<String, String>
+    val officeMetadata: Map<String, String> = emptyMap()
 )

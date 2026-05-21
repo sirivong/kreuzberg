@@ -33,7 +33,7 @@ data class PaddleOcrConfig(
     /** Language code (e.g., "en", "ch", "jpn", "kor", "deu", "fra") */
     val language: String,
     /** Optional custom cache directory for model files */
-    val cacheDir: Path?,
+    val cacheDir: Path? = null,
     /**
      * Enable angle classification for rotated text (default: false).
      * Can misfire on short text regions, rotating crops incorrectly before recognition.

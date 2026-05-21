@@ -31,5 +31,5 @@ data class HeadingContext(
      * The heading hierarchy from document root to this chunk's section.
      * Index 0 is the outermost (h1), last element is the most specific.
      */
-    val headings: List<HeadingLevel>
+    val headings: List<HeadingLevel> = emptyList()
 )

@@ -33,18 +33,18 @@ data class OcrExtractionResult(
     /** Original MIME type of the processed image */
     val mimeType: String,
     /** OCR processing metadata (confidence scores, language, etc.) */
-    val metadata: Map<String, String>,
+    val metadata: Map<String, String> = emptyMap(),
     /** Tables detected and extracted via OCR */
-    val tables: List<OcrTable>,
+    val tables: List<OcrTable> = emptyList(),
     /**
      * Structured OCR elements with bounding boxes and confidence scores.
      * Available when TSV output is requested or table detection is enabled.
      */
-    val ocrElements: List<OcrElement>?,
+    val ocrElements: List<OcrElement>? = null,
     /**
      * Structured document produced from hOCR parsing.
      * Carries paragraph structure, bounding boxes, and confidence scores
      * that the flattened `content` string discards.
      */
-    val internalDocument: String?
+    val internalDocument: String? = null
 )

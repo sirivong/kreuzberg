@@ -36,14 +36,14 @@ data class HtmlOutputConfig(
      * Inline CSS string injected into the output after the theme stylesheet.
      * Concatenated after `css_file` content when both are set.
      */
-    val css: String?,
+    val css: String? = null,
     /**
      * Path to a CSS file loaded once at renderer construction time.
      * Concatenated before `css` when both are set.
      */
-    val cssFile: Path?,
+    val cssFile: Path? = null,
     /** Built-in colour/typography theme. Default: `HtmlTheme.Unstyled`. */
-    val theme: HtmlTheme,
+    val theme: HtmlTheme = HtmlTheme.UNSTYLED,
     /**
      * CSS class prefix applied to every emitted class name.
      *
@@ -58,5 +58,5 @@ data class HtmlOutputConfig(
      * Set to `false` to emit only the structural markup and wire up your
      * own stylesheet targeting the `kb-*` class names.
      */
-    val embedCss: Boolean
+    val embedCss: Boolean = true
 )

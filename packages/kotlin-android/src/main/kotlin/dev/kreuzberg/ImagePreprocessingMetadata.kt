@@ -29,9 +29,9 @@ package dev.kreuzberg
  */
 data class ImagePreprocessingMetadata(
     /** Original image dimensions (width, height) in pixels */
-    val originalDimensions: List<Long>,
+    val originalDimensions: List<Long> = emptyList(),
     /** Original image DPI (horizontal, vertical) */
-    val originalDpi: List<Double>,
+    val originalDpi: List<Double> = emptyList(),
     /** Target DPI from configuration */
     val targetDpi: Int,
     /** Scaling factor applied to the image */
@@ -41,15 +41,15 @@ data class ImagePreprocessingMetadata(
     /** Final DPI after processing */
     val finalDpi: Int,
     /** New dimensions after resizing (if resized) */
-    val newDimensions: List<Long>?,
+    val newDimensions: List<Long>? = null,
     /** Resampling algorithm used ("LANCZOS3", "CATMULLROM", etc.) */
     val resampleMethod: String,
     /** Whether dimensions were clamped to max_image_dimension */
     val dimensionClamped: Boolean,
     /** Calculated optimal DPI (if auto_adjust_dpi enabled) */
-    val calculatedDpi: Int?,
+    val calculatedDpi: Int? = null,
     /** Whether resize was skipped (dimensions already optimal) */
     val skippedResize: Boolean,
     /** Error message if resize failed */
-    val resizeError: String?
+    val resizeError: String? = null
 )

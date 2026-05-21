@@ -34,5 +34,5 @@ data class ImageMetadata(
     /** Image format (e.g., "PNG", "JPEG", "TIFF") */
     val format: String,
     /** EXIF metadata tags */
-    val exif: Map<String, String>
+    val exif: Map<String, String> = emptyMap()
 )

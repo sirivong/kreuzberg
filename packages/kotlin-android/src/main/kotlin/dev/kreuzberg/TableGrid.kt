@@ -32,5 +32,5 @@ data class TableGrid(
     /** Number of columns in the table. */
     val cols: Int,
     /** All cells in row-major order. */
-    val cells: List<GridCell>
+    val cells: List<GridCell> = emptyList()
 )

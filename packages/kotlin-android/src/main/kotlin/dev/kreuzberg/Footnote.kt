@@ -26,5 +26,5 @@ data class Footnote(
     /** Footnote label */
     val label: String,
     /** Footnote content blocks */
-    val content: List<FormattedBlock>
+    val content: List<FormattedBlock> = emptyList()
 )

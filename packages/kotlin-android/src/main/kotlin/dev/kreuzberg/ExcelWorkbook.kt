@@ -29,7 +29,7 @@ package dev.kreuzberg
  */
 data class ExcelWorkbook(
     /** All sheets in the workbook */
-    val sheets: List<ExcelSheet>,
+    val sheets: List<ExcelSheet> = emptyList(),
     /** Workbook-level metadata (author, creation date, etc.) */
-    val metadata: Map<String, String>
+    val metadata: Map<String, String> = emptyMap()
 )

@@ -31,15 +31,15 @@ data class PageInfo(
     /** Page number (1-indexed) */
     val number: Int,
     /** Page title (usually for presentations) */
-    val title: String?,
+    val title: String? = null,
     /** Dimensions in points (PDF) or pixels (images): (width, height) */
-    val dimensions: List<Double>?,
+    val dimensions: List<Double>? = null,
     /** Number of images on this page */
-    val imageCount: Int?,
+    val imageCount: Int? = null,
     /** Number of tables on this page */
-    val tableCount: Int?,
+    val tableCount: Int? = null,
     /** Whether this page is hidden (e.g., in presentations) */
-    val hidden: Boolean?,
+    val hidden: Boolean? = null,
     /**
      * Whether this page is blank (no meaningful text, no images, no tables)
      *
@@ -47,7 +47,7 @@ data class PageInfo(
      * and contains no tables or images. This is useful for filtering out empty pages
      * in scanned documents or PDFs with blank separator pages.
      */
-    val isBlank: Boolean?,
+    val isBlank: Boolean? = null,
     /**
      * Whether this page contains non-trivial vector graphics (paths, shapes, curves)
      *

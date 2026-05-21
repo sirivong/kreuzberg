@@ -29,11 +29,15 @@ package dev.kreuzberg
  */
 enum class OcrElementLevel {
     /** Individual word */
+    @com.fasterxml.jackson.annotation.JsonProperty("word")
     WORD,
     /** Line of text (default for PaddleOCR) */
+    @com.fasterxml.jackson.annotation.JsonProperty("line")
     LINE,
     /** Paragraph or text block */
+    @com.fasterxml.jackson.annotation.JsonProperty("block")
     BLOCK,
     /** Page-level element */
+    @com.fasterxml.jackson.annotation.JsonProperty("page")
     PAGE;
 }

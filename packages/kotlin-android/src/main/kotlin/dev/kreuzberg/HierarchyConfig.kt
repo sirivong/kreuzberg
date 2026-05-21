@@ -30,16 +30,16 @@ package dev.kreuzberg
  */
 data class HierarchyConfig(
     /** Enable hierarchy extraction */
-    val enabled: Boolean,
+    val enabled: Boolean = true,
     /**
      * Number of font size clusters to use for hierarchy levels (1-7)
      *
      * Default: 6, which provides H1-H6 heading levels with body text.
      * Larger values create more fine-grained hierarchy levels.
      */
-    val kClusters: Long,
+    val kClusters: Long = 3L,
     /** Include bounding box information in hierarchy blocks */
-    val includeBbox: Boolean,
+    val includeBbox: Boolean = true,
     /**
      * OCR coverage threshold for smart OCR triggering (0.0-1.0)
      *
@@ -47,5 +47,5 @@ data class HierarchyConfig(
      * OCR is triggered when text blocks cover less than this fraction of the page.
      * Default: 0.5 (trigger OCR if less than 50% of page has text)
      */
-    val ocrCoverageThreshold: Float?
+    val ocrCoverageThreshold: Float? = null
 )

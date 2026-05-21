@@ -40,43 +40,43 @@ package dev.kreuzberg
  */
 data class FileExtractionConfig(
     /** Override quality post-processing for this file. */
-    val enableQualityProcessing: Boolean?,
+    val enableQualityProcessing: Boolean? = null,
     /** Override OCR configuration for this file (None in the Option = use batch default). */
-    val ocr: OcrConfig?,
+    val ocr: OcrConfig? = OcrConfig(),
     /** Override force OCR for this file. */
-    val forceOcr: Boolean?,
+    val forceOcr: Boolean? = null,
     /** Override force OCR pages for this file (1-indexed page numbers). */
-    val forceOcrPages: List<Int>?,
+    val forceOcrPages: List<Int>? = emptyList(),
     /** Override disable OCR for this file. */
-    val disableOcr: Boolean?,
+    val disableOcr: Boolean? = null,
     /** Override chunking configuration for this file. */
-    val chunking: ChunkingConfig?,
+    val chunking: ChunkingConfig? = ChunkingConfig(),
     /** Override content filtering configuration for this file. */
-    val contentFilter: ContentFilterConfig?,
+    val contentFilter: ContentFilterConfig? = ContentFilterConfig(),
     /** Override image extraction configuration for this file. */
-    val images: ImageExtractionConfig?,
+    val images: ImageExtractionConfig? = ImageExtractionConfig(),
     /** Override PDF options for this file. */
-    val pdfOptions: PdfConfig?,
+    val pdfOptions: PdfConfig? = PdfConfig(),
     /** Override token reduction for this file. */
-    val tokenReduction: TokenReductionOptions?,
+    val tokenReduction: TokenReductionOptions? = TokenReductionOptions(),
     /** Override language detection for this file. */
-    val languageDetection: LanguageDetectionConfig?,
+    val languageDetection: LanguageDetectionConfig? = LanguageDetectionConfig(),
     /** Override page extraction for this file. */
-    val pages: PageConfig?,
+    val pages: PageConfig? = PageConfig(),
     /** Override keyword extraction for this file. */
-    val keywords: KeywordConfig?,
+    val keywords: KeywordConfig? = KeywordConfig(),
     /** Override post-processor for this file. */
-    val postprocessor: PostProcessorConfig?,
+    val postprocessor: PostProcessorConfig? = PostProcessorConfig(),
     /** Override HTML conversion options for this file. */
-    val htmlOptions: String?,
+    val htmlOptions: String? = null,
     /** Override result format for this file. */
-    val resultFormat: ResultFormat?,
+    val resultFormat: ResultFormat? = ResultFormat.UNIFIED,
     /** Override output content format for this file. */
-    val outputFormat: OutputFormat?,
+    val outputFormat: OutputFormat? = OutputFormat.PLAIN,
     /** Override document structure output for this file. */
-    val includeDocumentStructure: Boolean?,
+    val includeDocumentStructure: Boolean? = null,
     /** Override layout detection for this file. */
-    val layout: LayoutDetectionConfig?,
+    val layout: LayoutDetectionConfig? = LayoutDetectionConfig(),
     /**
      * Override per-file extraction timeout in seconds.
      *
@@ -84,9 +84,9 @@ data class FileExtractionConfig(
      * specified duration. A timed-out file produces an error result without
      * affecting other files in the batch.
      */
-    val timeoutSecs: Long?,
+    val timeoutSecs: Long? = null,
     /** Override tree-sitter configuration for this file. */
-    val treeSitter: TreeSitterConfig?,
+    val treeSitter: TreeSitterConfig? = TreeSitterConfig(),
     /**
      * Override structured extraction configuration for this file.
      *
@@ -94,5 +94,5 @@ data class FileExtractionConfig(
      * for this specific file. The extracted content is sent to a VLM/LLM
      * and the response is parsed according to the provided schema.
      */
-    val structuredExtraction: StructuredExtractionConfig?
+    val structuredExtraction: StructuredExtractionConfig? = StructuredExtractionConfig()
 )

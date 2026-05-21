@@ -29,13 +29,13 @@ package dev.kreuzberg
  */
 data class ExtractionConfig(
     /** Enable caching of extraction results */
-    val useCache: Boolean,
+    val useCache: Boolean = true,
     /** Enable quality post-processing */
-    val enableQualityProcessing: Boolean,
+    val enableQualityProcessing: Boolean = true,
     /** OCR configuration (None = OCR disabled) */
-    val ocr: OcrConfig?,
+    val ocr: OcrConfig? = null,
     /** Force OCR even for searchable PDFs */
-    val forceOcr: Boolean,
+    val forceOcr: Boolean = false,
     /**
      * Force OCR on specific pages only (1-indexed page numbers, must be >= 1).
      *
@@ -44,7 +44,7 @@ data class ExtractionConfig(
      * Only applies to PDF documents. Duplicates are automatically deduplicated.
      * An `ocr` config is recommended for backend/language selection; defaults are used if absent.
      */
-    val forceOcrPages: List<Int>?,
+    val forceOcrPages: List<Int>? = null,
     /**
      * Disable OCR entirely, even for images.
      *
@@ -56,9 +56,9 @@ data class ExtractionConfig(
      *
      * *Added in v4.7.0.*
      */
-    val disableOcr: Boolean,
+    val disableOcr: Boolean = false,
     /** Text chunking configuration (None = chunking disabled) */
-    val chunking: ChunkingConfig?,
+    val chunking: ChunkingConfig? = null,
     /**
      * Content filtering configuration (None = use extractor defaults).
      *
@@ -66,28 +66,28 @@ data class ExtractionConfig(
      * repeating text) is included in or stripped from extraction results.
      * See `ContentFilterConfig` for per-field documentation.
      */
-    val contentFilter: ContentFilterConfig?,
+    val contentFilter: ContentFilterConfig? = null,
     /** Image extraction configuration (None = no image extraction) */
-    val images: ImageExtractionConfig?,
+    val images: ImageExtractionConfig? = null,
     /** PDF-specific options (None = use defaults) */
-    val pdfOptions: PdfConfig?,
+    val pdfOptions: PdfConfig? = null,
     /** Token reduction configuration (None = no token reduction) */
-    val tokenReduction: TokenReductionOptions?,
+    val tokenReduction: TokenReductionOptions? = null,
     /** Language detection configuration (None = no language detection) */
-    val languageDetection: LanguageDetectionConfig?,
+    val languageDetection: LanguageDetectionConfig? = null,
     /** Page extraction configuration (None = no page tracking) */
-    val pages: PageConfig?,
+    val pages: PageConfig? = null,
     /** Keyword extraction configuration (None = no keyword extraction) */
-    val keywords: KeywordConfig?,
+    val keywords: KeywordConfig? = null,
     /** Post-processor configuration (None = use defaults) */
-    val postprocessor: PostProcessorConfig?,
+    val postprocessor: PostProcessorConfig? = null,
     /**
      * HTML to Markdown conversion options (None = use defaults)
      *
      * Configure how HTML documents are converted to Markdown, including heading styles,
      * list formatting, code block styles, and preprocessing options.
      */
-    val htmlOptions: String?,
+    val htmlOptions: String? = null,
     /**
      * Styled HTML output configuration.
      *
@@ -98,7 +98,7 @@ data class ExtractionConfig(
      *
      * When `null`, the existing plain comrak-based HTML renderer is used.
      */
-    val htmlOutput: HtmlOutputConfig?,
+    val htmlOutput: HtmlOutputConfig? = null,
     /**
      * Default per-file timeout in seconds for batch extraction.
      *
@@ -106,14 +106,14 @@ data class ExtractionConfig(
      * unless overridden by `FileExtractionConfig.timeout_secs`.
      * `null` means no timeout (unbounded extraction time).
      */
-    val extractionTimeoutSecs: Long?,
+    val extractionTimeoutSecs: Long? = null,
     /**
      * Maximum concurrent extractions in batch operations (None = (num_cpus × 1.5).ceil()).
      *
      * Limits parallelism to prevent resource exhaustion when processing
      * large batches. Defaults to (num_cpus × 1.5).ceil() when not set.
      */
-    val maxConcurrentExtractions: Long?,
+    val maxConcurrentExtractions: Long? = null,
     /**
      * Result structure format
      *
@@ -121,7 +121,7 @@ data class ExtractionConfig(
      * content in the `content` field, or element-based format with semantic
      * elements (for Unstructured-compatible output).
      */
-    val resultFormat: ResultFormat,
+    val resultFormat: ResultFormat = ResultFormat.UNIFIED,
     /**
      * Security limits for archive extraction.
      *
@@ -132,7 +132,7 @@ data class ExtractionConfig(
      * ingests user-controlled bytes.
      * When `null`, default limits are used.
      */
-    val securityLimits: SecurityLimits?,
+    val securityLimits: SecurityLimits? = null,
     /**
      * Content text format (default: Plain).
      *
@@ -146,7 +146,7 @@ data class ExtractionConfig(
      * formatted output. The `formatted_content` field may be populated
      * when format conversion is applied.
      */
-    val outputFormat: OutputFormat,
+    val outputFormat: OutputFormat = OutputFormat.PLAIN,
     /**
      * Layout detection configuration (None = layout detection disabled).
      *
@@ -159,7 +159,7 @@ data class ExtractionConfig(
      * present whenever the `layout-types` feature is active (which includes
      * `layout-detection` as well as the no-ORT target groups).
      */
-    val layout: LayoutDetectionConfig?,
+    val layout: LayoutDetectionConfig? = null,
     /**
      * Run layout detection on the non-OCR PDF markdown path.
      *
@@ -170,7 +170,7 @@ data class ExtractionConfig(
      * (~150-300ms/page CPU, ~20-50ms/page GPU). Default: `false`.
      * Requires the `layout-detection` feature.
      */
-    val useLayoutForMarkdown: Boolean,
+    val useLayoutForMarkdown: Boolean = false,
     /**
      * Enable structured document tree output.
      *
@@ -180,7 +180,7 @@ data class ExtractionConfig(
      *
      * Independent of `result_format` — can be combined with Unified or ElementBased.
      */
-    val includeDocumentStructure: Boolean,
+    val includeDocumentStructure: Boolean = false,
     /**
      * Hardware acceleration configuration for ONNX Runtime models.
      *
@@ -188,7 +188,7 @@ data class ExtractionConfig(
      * models. When `null`, uses platform defaults (CoreML on macOS, CUDA on
      * Linux, CPU on Windows).
      */
-    val acceleration: AccelerationConfig?,
+    val acceleration: AccelerationConfig? = null,
     /**
      * Cache namespace for tenant isolation.
      *
@@ -196,7 +196,7 @@ data class ExtractionConfig(
      * Must be alphanumeric, hyphens, or underscores only (max 64 chars).
      * Different namespaces have isolated cache spaces on the same filesystem.
      */
-    val cacheNamespace: String?,
+    val cacheNamespace: String? = null,
     /**
      * Per-request cache TTL in seconds.
      *
@@ -204,14 +204,14 @@ data class ExtractionConfig(
      * When `0`, caching is completely skipped (no read or write).
      * When `null`, the global TTL applies.
      */
-    val cacheTtlSecs: Long?,
+    val cacheTtlSecs: Long? = null,
     /**
      * Email extraction configuration (None = use defaults).
      *
      * Currently supports configuring the fallback codepage for MSG files
      * that do not specify one. See `EmailConfig` for details.
      */
-    val email: EmailConfig?,
+    val email: EmailConfig? = null,
     /**
      * Concurrency limits for constrained environments (None = use defaults).
      *
@@ -219,7 +219,7 @@ data class ExtractionConfig(
      * (when `max_concurrent_extractions` is unset) the batch concurrency
      * semaphore. See `ConcurrencyConfig` for details.
      */
-    val concurrency: String?,
+    val concurrency: String? = null,
     /**
      * Maximum recursion depth for archive extraction (default: 3).
      * Set to 0 to disable recursive extraction (legacy behavior).
@@ -231,7 +231,7 @@ data class ExtractionConfig(
      * When set, enables code file extraction using tree-sitter parsers.
      * Controls grammar download behavior and code analysis options.
      */
-    val treeSitter: TreeSitterConfig?,
+    val treeSitter: TreeSitterConfig? = null,
     /**
      * Structured extraction via LLM (None = disabled).
      *
@@ -239,7 +239,7 @@ data class ExtractionConfig(
      * provided JSON schema. The structured response is stored in
      * `ExtractionResult.structured_output`.
      */
-    val structuredExtraction: StructuredExtractionConfig?,
+    val structuredExtraction: StructuredExtractionConfig? = null,
     /**
      * Cancellation token for this extraction (None = no external cancellation).
      *
@@ -251,5 +251,5 @@ data class ExtractionConfig(
      * The field is excluded from serialization because `CancellationToken` is a
      * runtime handle, not a configuration value.
      */
-    val cancelToken: String?
+    val cancelToken: String? = null
 )

@@ -33,5 +33,5 @@ data class XmlExtractionResult(
     /** Total number of XML elements processed */
     val elementCount: Long,
     /** List of unique element names found (sorted) */
-    val uniqueElements: List<String>
+    val uniqueElements: List<String> = emptyList()
 )

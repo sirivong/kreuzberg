@@ -26,9 +26,9 @@ data class PdfAnnotation(
     /** The type of annotation. */
     val annotationType: PdfAnnotationType,
     /** Text content of the annotation (e.g., comment text, link URL). */
-    val content: String?,
+    val content: String? = null,
     /** Page number where the annotation appears (1-indexed). */
     val pageNumber: Int,
     /** Bounding box of the annotation on the page. */
-    val boundingBox: String?
+    val boundingBox: String? = null
 )

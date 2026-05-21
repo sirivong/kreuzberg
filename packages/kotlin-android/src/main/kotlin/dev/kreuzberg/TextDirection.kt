@@ -24,9 +24,12 @@ package dev.kreuzberg
 /** Text direction enumeration for HTML documents. */
 enum class TextDirection {
     /** Left-to-right text direction */
+    @com.fasterxml.jackson.annotation.JsonProperty("ltr")
     LEFT_TO_RIGHT,
     /** Right-to-left text direction */
+    @com.fasterxml.jackson.annotation.JsonProperty("rtl")
     RIGHT_TO_LEFT,
     /** Automatic text direction detection */
+    @com.fasterxml.jackson.annotation.JsonProperty("auto")
     AUTO;
 }

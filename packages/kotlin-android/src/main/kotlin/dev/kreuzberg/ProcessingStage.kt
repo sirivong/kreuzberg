@@ -37,6 +37,7 @@ enum class ProcessingStage {
      * - Entity extraction (NER)
      * - Text quality scoring
      */
+    @com.fasterxml.jackson.annotation.JsonProperty("Early")
     EARLY,
     /**
      * Middle stage - content transformation.
@@ -47,6 +48,7 @@ enum class ProcessingStage {
      * - Text summarization
      * - Semantic analysis
      */
+    @com.fasterxml.jackson.annotation.JsonProperty("Middle")
     MIDDLE,
     /**
      * Late stage - final enrichment.
@@ -57,5 +59,6 @@ enum class ProcessingStage {
      * - Final validation
      * - Output formatting
      */
+    @com.fasterxml.jackson.annotation.JsonProperty("Late")
     LATE;
 }

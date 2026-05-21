@@ -29,41 +29,41 @@ package dev.kreuzberg
  */
 data class OcrQualityThresholds(
     /** Minimum total non-whitespace characters to consider text substantive. */
-    val minTotalNonWhitespace: Long,
+    val minTotalNonWhitespace: Long = 64L,
     /** Minimum non-whitespace characters per page on average. */
-    val minNonWhitespacePerPage: Double,
+    val minNonWhitespacePerPage: Double = 32,
     /** Minimum character count for a word to be "meaningful". */
-    val minMeaningfulWordLen: Long,
+    val minMeaningfulWordLen: Long = 4L,
     /** Minimum count of meaningful words before text is accepted. */
-    val minMeaningfulWords: Long,
+    val minMeaningfulWords: Long = 3L,
     /** Minimum alphanumeric ratio (non-whitespace chars that are alphanumeric). */
-    val minAlnumRatio: Double,
+    val minAlnumRatio: Double = 0.3,
     /** Minimum Unicode replacement characters (U+FFFD) to trigger OCR fallback. */
-    val minGarbageChars: Long,
+    val minGarbageChars: Long = 5L,
     /** Maximum fraction of short (1-2 char) words before text is considered fragmented. */
-    val maxFragmentedWordRatio: Double,
+    val maxFragmentedWordRatio: Double = 0.6,
     /**
      * Critical fragmentation threshold — triggers OCR regardless of meaningful words.
      * Normal English text has ~20-30% short words. 80%+ is definitive garbage.
      */
-    val criticalFragmentedWordRatio: Double,
+    val criticalFragmentedWordRatio: Double = 0.8,
     /** Minimum average word length. Below this with enough words indicates garbled extraction. */
-    val minAvgWordLength: Double,
+    val minAvgWordLength: Double = 2,
     /** Minimum word count before average word length check applies. */
-    val minWordsForAvgLengthCheck: Long,
+    val minWordsForAvgLengthCheck: Long = 50L,
     /** Minimum consecutive word repetition ratio to detect column scrambling. */
-    val minConsecutiveRepeatRatio: Double,
+    val minConsecutiveRepeatRatio: Double = 0.08,
     /** Minimum word count before consecutive repetition check is applied. */
-    val minWordsForRepeatCheck: Long,
+    val minWordsForRepeatCheck: Long = 50L,
     /** Minimum character count for "substantive markdown" OCR skip gate. */
-    val substantiveMinChars: Long,
+    val substantiveMinChars: Long = 100L,
     /** Minimum character count for "non-text content" OCR skip gate. */
-    val nonTextMinChars: Long,
+    val nonTextMinChars: Long = 20L,
     /** Alphanumeric+whitespace ratio threshold for skip decisions. */
-    val alnumWsRatioThreshold: Double,
+    val alnumWsRatioThreshold: Double = 0.4,
     /**
      * Minimum quality score (0.0-1.0) for a pipeline stage result to be accepted.
      * If the result from a backend scores below this, try the next backend.
      */
-    val pipelineMinQuality: Double
+    val pipelineMinQuality: Double = 0.5
 )

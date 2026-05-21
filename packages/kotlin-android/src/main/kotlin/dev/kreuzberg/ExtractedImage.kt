@@ -42,46 +42,46 @@ data class ExtractedImage(
     /** Zero-indexed position of this image in the document/page */
     val imageIndex: Int,
     /** Page/slide number where image was found (1-indexed) */
-    val pageNumber: Int?,
+    val pageNumber: Int? = null,
     /** Image width in pixels */
-    val width: Int?,
+    val width: Int? = null,
     /** Image height in pixels */
-    val height: Int?,
+    val height: Int? = null,
     /** Colorspace information (e.g., "RGB", "CMYK", "Gray") */
-    val colorspace: String?,
+    val colorspace: String? = null,
     /** Bits per color component (e.g., 8, 16) */
-    val bitsPerComponent: Int?,
+    val bitsPerComponent: Int? = null,
     /** Whether this image is a mask image */
     val isMask: Boolean,
     /** Optional description of the image */
-    val description: String?,
+    val description: String? = null,
     /**
      * Nested OCR extraction result (if image was OCRed)
      *
      * When OCR is performed on this image, the result is embedded here
      * rather than in a separate collection, making the relationship explicit.
      */
-    val ocrResult: ExtractionResult?,
+    val ocrResult: ExtractionResult? = null,
     /**
      * Bounding box of the image on the page (PDF coordinates: x0=left, y0=bottom, x1=right, y1=top).
      * Only populated for PDF-extracted images when position data is available from the PDF extractor.
      */
-    val boundingBox: String?,
+    val boundingBox: String? = null,
     /**
      * Original source path of the image within the document archive (e.g., "media/image1.png" in DOCX).
      * Used for rendering image references when the binary data is not extracted.
      */
-    val sourcePath: String?,
+    val sourcePath: String? = null,
     /**
      * Heuristic classification of what this image likely depicts.
      * `null` if classification was disabled or inconclusive.
      */
-    val imageKind: ImageKind?,
+    val imageKind: ImageKind? = null,
     /** Confidence score for `image_kind`, in the range 0.0 to 1.0. */
-    val kindConfidence: Float?,
+    val kindConfidence: Float? = null,
     /**
      * Identifier shared across images that form a single logical figure
      * (e.g. all raster tiles of one technical drawing). `null` for singletons.
      */
-    val clusterId: Int?
+    val clusterId: Int? = null
 )

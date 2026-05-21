@@ -25,7 +25,7 @@ package dev.kreuzberg
 data class CsvMetadata(
     val rowCount: Int,
     val columnCount: Int,
-    val delimiter: String?,
+    val delimiter: String? = null,
     val hasHeader: Boolean,
-    val columnTypes: List<String>?
+    val columnTypes: List<String>? = emptyList()
 )

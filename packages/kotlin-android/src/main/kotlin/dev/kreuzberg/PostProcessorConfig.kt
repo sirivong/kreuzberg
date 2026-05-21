@@ -24,13 +24,13 @@ package dev.kreuzberg
 /** Post-processor configuration. */
 data class PostProcessorConfig(
     /** Enable post-processors */
-    val enabled: Boolean,
+    val enabled: Boolean = true,
     /** Whitelist of processor names to run (None = all enabled) */
-    val enabledProcessors: List<String>?,
+    val enabledProcessors: List<String>? = null,
     /** Blacklist of processor names to skip (None = none disabled) */
-    val disabledProcessors: List<String>?,
+    val disabledProcessors: List<String>? = null,
     /** Pre-computed AHashSet for O(1) enabled processor lookup */
-    val enabledSet: List<String>?,
+    val enabledSet: List<String>? = null,
     /** Pre-computed AHashSet for O(1) disabled processor lookup */
-    val disabledSet: List<String>?
+    val disabledSet: List<String>? = null
 )

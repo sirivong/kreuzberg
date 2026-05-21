@@ -29,27 +29,27 @@ package dev.kreuzberg
  */
 data class EmailExtractionResult(
     /** Email subject line */
-    val subject: String?,
+    val subject: String? = null,
     /** Sender email address */
-    val fromEmail: String?,
+    val fromEmail: String? = null,
     /** Primary recipient email addresses */
-    val toEmails: List<String>,
+    val toEmails: List<String> = emptyList(),
     /** CC recipient email addresses */
-    val ccEmails: List<String>,
+    val ccEmails: List<String> = emptyList(),
     /** BCC recipient email addresses */
-    val bccEmails: List<String>,
+    val bccEmails: List<String> = emptyList(),
     /** Email date/timestamp */
-    val date: String?,
+    val date: String? = null,
     /** Message-ID header value */
-    val messageId: String?,
+    val messageId: String? = null,
     /** Plain text version of the email body */
-    val plainText: String?,
+    val plainText: String? = null,
     /** HTML version of the email body */
-    val htmlContent: String?,
+    val htmlContent: String? = null,
     /** Cleaned/processed text content. Aliased as `cleaned_text` for back-compat. */
     val content: String,
     /** List of email attachments */
-    val attachments: List<EmailAttachment>,
+    val attachments: List<EmailAttachment> = emptyList(),
     /** Additional email headers and metadata */
-    val metadata: Map<String, String>
+    val metadata: Map<String, String> = emptyMap()
 )

@@ -30,7 +30,7 @@ package dev.kreuzberg
  */
 data class OcrPipelineConfig(
     /** Ordered list of backends to try. Sorted by priority (descending) at runtime. */
-    val stages: List<OcrPipelineStage>,
+    val stages: List<OcrPipelineStage> = emptyList(),
     /** Quality thresholds for deciding whether to accept a result or try the next backend. */
     val qualityThresholds: OcrQualityThresholds
 )

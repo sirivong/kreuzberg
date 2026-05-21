@@ -23,15 +23,26 @@ package dev.kreuzberg
 
 /** Page Segmentation Mode for Tesseract OCR */
 enum class PSMMode {
+    @com.fasterxml.jackson.annotation.JsonProperty("OsdOnly")
     OSD_ONLY,
+    @com.fasterxml.jackson.annotation.JsonProperty("AutoOsd")
     AUTO_OSD,
+    @com.fasterxml.jackson.annotation.JsonProperty("AutoOnly")
     AUTO_ONLY,
+    @com.fasterxml.jackson.annotation.JsonProperty("Auto")
     AUTO,
+    @com.fasterxml.jackson.annotation.JsonProperty("SingleColumn")
     SINGLE_COLUMN,
+    @com.fasterxml.jackson.annotation.JsonProperty("SingleBlockVertical")
     SINGLE_BLOCK_VERTICAL,
+    @com.fasterxml.jackson.annotation.JsonProperty("SingleBlock")
     SINGLE_BLOCK,
+    @com.fasterxml.jackson.annotation.JsonProperty("SingleLine")
     SINGLE_LINE,
+    @com.fasterxml.jackson.annotation.JsonProperty("SingleWord")
     SINGLE_WORD,
+    @com.fasterxml.jackson.annotation.JsonProperty("CircleWord")
     CIRCLE_WORD,
+    @com.fasterxml.jackson.annotation.JsonProperty("SingleChar")
     SINGLE_CHAR;
 }

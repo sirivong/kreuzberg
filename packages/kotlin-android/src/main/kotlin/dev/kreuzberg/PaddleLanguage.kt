@@ -28,35 +28,51 @@ package dev.kreuzberg
  */
 enum class PaddleLanguage {
     /** English */
+    @com.fasterxml.jackson.annotation.JsonProperty("English")
     ENGLISH,
     /** Simplified Chinese */
+    @com.fasterxml.jackson.annotation.JsonProperty("Chinese")
     CHINESE,
     /** Japanese */
+    @com.fasterxml.jackson.annotation.JsonProperty("Japanese")
     JAPANESE,
     /** Korean */
+    @com.fasterxml.jackson.annotation.JsonProperty("Korean")
     KOREAN,
     /** German */
+    @com.fasterxml.jackson.annotation.JsonProperty("German")
     GERMAN,
     /** French */
+    @com.fasterxml.jackson.annotation.JsonProperty("French")
     FRENCH,
     /** Latin script (covers most European languages) */
+    @com.fasterxml.jackson.annotation.JsonProperty("Latin")
     LATIN,
     /** Cyrillic (Russian and related) */
+    @com.fasterxml.jackson.annotation.JsonProperty("Cyrillic")
     CYRILLIC,
     /** Traditional Chinese */
+    @com.fasterxml.jackson.annotation.JsonProperty("TraditionalChinese")
     TRADITIONAL_CHINESE,
     /** Thai */
+    @com.fasterxml.jackson.annotation.JsonProperty("Thai")
     THAI,
     /** Greek */
+    @com.fasterxml.jackson.annotation.JsonProperty("Greek")
     GREEK,
     /** East Slavic (Russian, Ukrainian, Belarusian) */
+    @com.fasterxml.jackson.annotation.JsonProperty("EastSlavic")
     EAST_SLAVIC,
     /** Arabic (Arabic, Persian, Urdu) */
+    @com.fasterxml.jackson.annotation.JsonProperty("Arabic")
     ARABIC,
     /** Devanagari (Hindi, Marathi, Sanskrit, Nepali) */
+    @com.fasterxml.jackson.annotation.JsonProperty("Devanagari")
     DEVANAGARI,
     /** Tamil */
+    @com.fasterxml.jackson.annotation.JsonProperty("Tamil")
     TAMIL,
     /** Telugu */
+    @com.fasterxml.jackson.annotation.JsonProperty("Telugu")
     TELUGU;
 }

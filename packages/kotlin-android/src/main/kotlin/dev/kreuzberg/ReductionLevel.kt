@@ -22,9 +22,14 @@
 package dev.kreuzberg
 
 enum class ReductionLevel {
+    @com.fasterxml.jackson.annotation.JsonProperty("Off")
     OFF,
+    @com.fasterxml.jackson.annotation.JsonProperty("Light")
     LIGHT,
+    @com.fasterxml.jackson.annotation.JsonProperty("Moderate")
     MODERATE,
+    @com.fasterxml.jackson.annotation.JsonProperty("Aggressive")
     AGGRESSIVE,
+    @com.fasterxml.jackson.annotation.JsonProperty("Maximum")
     MAXIMUM;
 }

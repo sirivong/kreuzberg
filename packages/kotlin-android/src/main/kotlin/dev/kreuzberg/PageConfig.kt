@@ -32,12 +32,12 @@ package dev.kreuzberg
  */
 data class PageConfig(
     /** Extract pages as separate array (ExtractionResult.pages) */
-    val extractPages: Boolean,
+    val extractPages: Boolean = false,
     /** Insert page markers in main content string */
-    val insertPageMarkers: Boolean,
+    val insertPageMarkers: Boolean = false,
     /**
      * Page marker format (use {page_num} placeholder)
      * Default: "\n\n<!-- PAGE {page_num} -->\n\n"
      */
-    val markerFormat: String
+    val markerFormat: String = "\n\n<!-- PAGE {page_num} -->\n\n"
 )

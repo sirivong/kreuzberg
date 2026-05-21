@@ -29,60 +29,60 @@ package dev.kreuzberg
  */
 data class Metadata(
     /** Document title */
-    val title: String?,
+    val title: String? = null,
     /** Document subject or description */
-    val subject: String?,
+    val subject: String? = null,
     /** Primary author(s) - always Vec for consistency */
-    val authors: List<String>?,
+    val authors: List<String>? = emptyList(),
     /** Keywords/tags - always Vec for consistency */
-    val keywords: List<String>?,
+    val keywords: List<String>? = emptyList(),
     /** Primary language (ISO 639 code) */
-    val language: String?,
+    val language: String? = null,
     /** Creation timestamp (ISO 8601 format) */
-    val createdAt: String?,
+    val createdAt: String? = null,
     /** Last modification timestamp (ISO 8601 format) */
-    val modifiedAt: String?,
+    val modifiedAt: String? = null,
     /** User who created the document */
-    val createdBy: String?,
+    val createdBy: String? = null,
     /** User who last modified the document */
-    val modifiedBy: String?,
+    val modifiedBy: String? = null,
     /** Page/slide/sheet structure with boundaries */
-    val pages: PageStructure?,
+    val pages: PageStructure? = PageStructure(),
     /**
      * Format-specific metadata (discriminated union)
      *
      * Contains detailed metadata specific to the document format.
      * Serialized as a nested `"format"` object with a `format_type` discriminator field.
      */
-    val format: FormatMetadata?,
+    val format: FormatMetadata? = null,
     /** Image preprocessing metadata (when OCR preprocessing was applied) */
-    val imagePreprocessing: ImagePreprocessingMetadata?,
+    val imagePreprocessing: ImagePreprocessingMetadata? = ImagePreprocessingMetadata(),
     /** JSON schema (for structured data extraction) */
-    val jsonSchema: String?,
+    val jsonSchema: String? = null,
     /** Error metadata (for batch operations) */
-    val error: ErrorMetadata?,
+    val error: ErrorMetadata? = ErrorMetadata(),
     /**
      * Extraction duration in milliseconds (for benchmarking).
      *
      * This field is populated by batch extraction to provide per-file timing
      * information. It's `null` for single-file extraction (which uses external timing).
      */
-    val extractionDurationMs: Long?,
+    val extractionDurationMs: Long? = null,
     /** Document category (from frontmatter or classification). */
-    val category: String?,
+    val category: String? = null,
     /** Document tags (from frontmatter). */
-    val tags: List<String>?,
+    val tags: List<String>? = emptyList(),
     /** Document version string (from frontmatter). */
-    val documentVersion: String?,
+    val documentVersion: String? = null,
     /** Abstract or summary text (from frontmatter). */
-    val abstractText: String?,
+    val abstractText: String? = null,
     /**
      * Output format identifier (e.g., "markdown", "html", "text").
      *
      * Set by the output format pipeline stage when format conversion is applied.
      * Previously stored in `metadata.additional["output_format"]`.
      */
-    val outputFormat: String?,
+    val outputFormat: String? = null,
     /**
      * Whether OCR was used during extraction.
      *
@@ -97,5 +97,5 @@ data class Metadata(
      * Serialized as a nested `"additional"` object (not flattened at root level).
      * Uses `Cow<'static, str>` keys so static string keys avoid allocation.
      */
-    val additional: Map<String, String>
+    val additional: Map<String, String> = emptyMap()
 )

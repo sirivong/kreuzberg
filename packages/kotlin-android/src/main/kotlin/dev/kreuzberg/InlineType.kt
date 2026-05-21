@@ -23,20 +23,36 @@ package dev.kreuzberg
 
 /** Types of inline elements in Djot. */
 enum class InlineType {
+    @com.fasterxml.jackson.annotation.JsonProperty("text")
     TEXT,
+    @com.fasterxml.jackson.annotation.JsonProperty("strong")
     STRONG,
+    @com.fasterxml.jackson.annotation.JsonProperty("emphasis")
     EMPHASIS,
+    @com.fasterxml.jackson.annotation.JsonProperty("highlight")
     HIGHLIGHT,
+    @com.fasterxml.jackson.annotation.JsonProperty("subscript")
     SUBSCRIPT,
+    @com.fasterxml.jackson.annotation.JsonProperty("superscript")
     SUPERSCRIPT,
+    @com.fasterxml.jackson.annotation.JsonProperty("insert")
     INSERT,
+    @com.fasterxml.jackson.annotation.JsonProperty("delete")
     DELETE,
+    @com.fasterxml.jackson.annotation.JsonProperty("code")
     CODE,
+    @com.fasterxml.jackson.annotation.JsonProperty("link")
     LINK,
+    @com.fasterxml.jackson.annotation.JsonProperty("image")
     IMAGE,
+    @com.fasterxml.jackson.annotation.JsonProperty("span")
     SPAN,
+    @com.fasterxml.jackson.annotation.JsonProperty("math")
     MATH,
+    @com.fasterxml.jackson.annotation.JsonProperty("raw_inline")
     RAW_INLINE,
+    @com.fasterxml.jackson.annotation.JsonProperty("footnote_ref")
     FOOTNOTE_REF,
+    @com.fasterxml.jackson.annotation.JsonProperty("symbol")
     SYMBOL;
 }

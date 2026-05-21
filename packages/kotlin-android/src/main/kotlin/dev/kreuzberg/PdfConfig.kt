@@ -24,7 +24,7 @@ package dev.kreuzberg
 /** PDF-specific configuration. */
 data class PdfConfig(
     /** Extract images from PDF */
-    val extractImages: Boolean,
+    val extractImages: Boolean = false,
     /**
      * Extract tables from PDF.
      *
@@ -33,28 +33,28 @@ data class PdfConfig(
      * `pdf.oxide.table.extract_tables_heuristic`. Set to `false` to skip
      * both passes — `tables` will then be empty in the result.
      */
-    val extractTables: Boolean,
+    val extractTables: Boolean = true,
     /** List of passwords to try when opening encrypted PDFs */
-    val passwords: List<String>?,
+    val passwords: List<String>? = null,
     /** Extract PDF metadata */
-    val extractMetadata: Boolean,
+    val extractMetadata: Boolean = true,
     /** Hierarchy extraction configuration (None = hierarchy extraction disabled) */
-    val hierarchy: HierarchyConfig?,
+    val hierarchy: HierarchyConfig? = null,
     /**
      * Extract PDF annotations (text notes, highlights, links, stamps).
      * Default: false
      */
-    val extractAnnotations: Boolean,
+    val extractAnnotations: Boolean = false,
     /**
      * Top margin fraction (0.0–1.0) of page height to exclude headers/running heads.
      * Default: 0.06 (6%)
      */
-    val topMarginFraction: Float?,
+    val topMarginFraction: Float? = null,
     /**
      * Bottom margin fraction (0.0–1.0) of page height to exclude footers/page numbers.
      * Default: 0.05 (5%)
      */
-    val bottomMarginFraction: Float?,
+    val bottomMarginFraction: Float? = null,
     /**
      * Allow single-column pseudo tables in extraction results.
      *
@@ -64,7 +64,7 @@ data class PdfConfig(
      * to be emitted as tables. Other quality filters (density, sparsity, prose
      * detection) still apply.
      */
-    val allowSingleColumnTables: Boolean,
+    val allowSingleColumnTables: Boolean = false,
     /**
      * Perform OCR on inline images extracted from PDF pages and attach the
      * recognized text to each `ExtractedImage.ocr_result`. Requires Tesseract
@@ -73,5 +73,5 @@ data class PdfConfig(
      * gracefully (the image is returned without OCR text rather than failing
      * the whole extraction). Default: `false`.
      */
-    val ocrInlineImages: Boolean
+    val ocrInlineImages: Boolean = false
 )

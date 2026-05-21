@@ -23,20 +23,36 @@ package dev.kreuzberg
 
 /** Types of block-level elements in Djot. */
 enum class BlockType {
+    @com.fasterxml.jackson.annotation.JsonProperty("paragraph")
     PARAGRAPH,
+    @com.fasterxml.jackson.annotation.JsonProperty("heading")
     HEADING,
+    @com.fasterxml.jackson.annotation.JsonProperty("blockquote")
     BLOCKQUOTE,
+    @com.fasterxml.jackson.annotation.JsonProperty("code_block")
     CODE_BLOCK,
+    @com.fasterxml.jackson.annotation.JsonProperty("list_item")
     LIST_ITEM,
+    @com.fasterxml.jackson.annotation.JsonProperty("ordered_list")
     ORDERED_LIST,
+    @com.fasterxml.jackson.annotation.JsonProperty("bullet_list")
     BULLET_LIST,
+    @com.fasterxml.jackson.annotation.JsonProperty("task_list")
     TASK_LIST,
+    @com.fasterxml.jackson.annotation.JsonProperty("definition_list")
     DEFINITION_LIST,
+    @com.fasterxml.jackson.annotation.JsonProperty("definition_term")
     DEFINITION_TERM,
+    @com.fasterxml.jackson.annotation.JsonProperty("definition_description")
     DEFINITION_DESCRIPTION,
+    @com.fasterxml.jackson.annotation.JsonProperty("div")
     DIV,
+    @com.fasterxml.jackson.annotation.JsonProperty("section")
     SECTION,
+    @com.fasterxml.jackson.annotation.JsonProperty("thematic_break")
     THEMATIC_BREAK,
+    @com.fasterxml.jackson.annotation.JsonProperty("raw_block")
     RAW_BLOCK,
+    @com.fasterxml.jackson.annotation.JsonProperty("math_display")
     MATH_DISPLAY;
 }

@@ -24,17 +24,24 @@ package dev.kreuzberg
 /** Type of PDF annotation. */
 enum class PdfAnnotationType {
     /** Sticky note / text annotation */
+    @com.fasterxml.jackson.annotation.JsonProperty("text")
     TEXT,
     /** Highlighted text region */
+    @com.fasterxml.jackson.annotation.JsonProperty("highlight")
     HIGHLIGHT,
     /** Hyperlink annotation */
+    @com.fasterxml.jackson.annotation.JsonProperty("link")
     LINK,
     /** Rubber stamp annotation */
+    @com.fasterxml.jackson.annotation.JsonProperty("stamp")
     STAMP,
     /** Underline text markup */
+    @com.fasterxml.jackson.annotation.JsonProperty("underline")
     UNDERLINE,
     /** Strikeout text markup */
+    @com.fasterxml.jackson.annotation.JsonProperty("strike_out")
     STRIKE_OUT,
     /** Any other annotation type */
+    @com.fasterxml.jackson.annotation.JsonProperty("other")
     OTHER;
 }

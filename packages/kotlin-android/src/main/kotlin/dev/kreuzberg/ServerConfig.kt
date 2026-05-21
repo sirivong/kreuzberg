@@ -47,7 +47,7 @@ data class ServerConfig(
      * If populated with specific origins (e.g., `"https://example.com"`), only
      * those origins will be allowed.
      */
-    val corsOrigins: List<String>,
+    val corsOrigins: List<String> = emptyList(),
     /** Maximum size of request body in bytes (default: 100 MB) */
     val maxRequestBodyBytes: Long,
     /** Maximum size of multipart fields in bytes (default: 100 MB) */

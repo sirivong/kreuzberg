@@ -24,17 +24,24 @@ package dev.kreuzberg
 /** Semantic kind of a relationship between document elements. */
 enum class RelationshipKind {
     /** Footnote marker -> footnote definition. */
+    @com.fasterxml.jackson.annotation.JsonProperty("footnote_reference")
     FOOTNOTE_REFERENCE,
     /** Citation marker -> bibliography entry. */
+    @com.fasterxml.jackson.annotation.JsonProperty("citation_reference")
     CITATION_REFERENCE,
     /** Internal anchor link (`#id`) -> target heading/element. */
+    @com.fasterxml.jackson.annotation.JsonProperty("internal_link")
     INTERNAL_LINK,
     /** Caption paragraph -> figure/table it describes. */
+    @com.fasterxml.jackson.annotation.JsonProperty("caption")
     CAPTION,
     /** Label -> labeled element (HTML `<label for>`, LaTeX `\label{}`). */
+    @com.fasterxml.jackson.annotation.JsonProperty("label")
     LABEL,
     /** TOC entry -> target section. */
+    @com.fasterxml.jackson.annotation.JsonProperty("toc_entry")
     TOC_ENTRY,
     /** Cross-reference (LaTeX `\ref{}`, DOCX cross-reference field). */
+    @com.fasterxml.jackson.annotation.JsonProperty("cross_reference")
     CROSS_REFERENCE;
 }

@@ -38,7 +38,7 @@ data class PageStructure(
      * Maps character ranges in the extracted content to page numbers.
      * Used for chunk page range calculation.
      */
-    val boundaries: List<PageBoundary>?,
+    val boundaries: List<PageBoundary>? = null,
     /** Detailed per-page metadata (optional, only when needed) */
-    val pages: List<PageInfo>?
+    val pages: List<PageInfo>? = null
 )

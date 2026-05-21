@@ -30,9 +30,9 @@ data class PptxMetadata(
     /** Total number of slides in the presentation */
     val slideCount: Int,
     /** Names of slides (if available) */
-    val slideNames: List<String>,
+    val slideNames: List<String> = emptyList(),
     /** Number of embedded images */
-    val imageCount: Int?,
+    val imageCount: Int? = null,
     /** Number of tables */
-    val tableCount: Int?
+    val tableCount: Int? = null
 )

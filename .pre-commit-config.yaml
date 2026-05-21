@@ -50,7 +50,7 @@ repos:
           - --fix
       - id: ruff-format
   - repo: https://github.com/kreuzberg-dev/pre-commit-hooks
-    rev: v1.1.13
+    rev: v1.1.17
     hooks:
       - id: cargo-sort
         exclude: ^(crates/kreuzberg-(wasm|node|py|php|ffi)|packages/(dart|swift)/rust)/Cargo\.toml$
@@ -213,7 +213,7 @@ repos:
         exclude: ^templates/
       - id: cpd
   - repo: https://github.com/kreuzberg-dev/alef
-    rev: v0.17.15
+    rev: v0.17.17
     hooks:
       - id: alef-verify
       - id: alef-sync-versions

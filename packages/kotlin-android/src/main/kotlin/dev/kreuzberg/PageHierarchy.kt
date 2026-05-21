@@ -31,5 +31,5 @@ data class PageHierarchy(
     /** Number of hierarchy blocks on this page */
     val blockCount: Int,
     /** Hierarchical blocks with heading levels */
-    val blocks: List<HierarchicalBlock>
+    val blocks: List<HierarchicalBlock> = emptyList()
 )

@@ -22,8 +22,12 @@
 package dev.kreuzberg
 
 enum class FracType {
+    @com.fasterxml.jackson.annotation.JsonProperty("Bar")
     BAR,
+    @com.fasterxml.jackson.annotation.JsonProperty("NoBar")
     NO_BAR,
+    @com.fasterxml.jackson.annotation.JsonProperty("Linear")
     LINEAR,
+    @com.fasterxml.jackson.annotation.JsonProperty("Skewed")
     SKEWED;
 }

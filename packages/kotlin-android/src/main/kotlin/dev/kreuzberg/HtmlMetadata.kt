@@ -29,42 +29,42 @@ package dev.kreuzberg
  */
 data class HtmlMetadata(
     /** Document title from `<title>` tag */
-    val title: String?,
+    val title: String? = null,
     /** Document description from `<meta name="description">` tag */
-    val description: String?,
+    val description: String? = null,
     /** Document keywords from `<meta name="keywords">` tag, split on commas */
-    val keywords: List<String>,
+    val keywords: List<String> = emptyList(),
     /** Document author from `<meta name="author">` tag */
-    val author: String?,
+    val author: String? = null,
     /** Canonical URL from `<link rel="canonical">` tag */
-    val canonicalUrl: String?,
+    val canonicalUrl: String? = null,
     /** Base URL from `<base href="">` tag for resolving relative URLs */
-    val baseHref: String?,
+    val baseHref: String? = null,
     /** Document language from `lang` attribute */
-    val language: String?,
+    val language: String? = null,
     /** Document text direction from `dir` attribute */
-    val textDirection: TextDirection?,
+    val textDirection: TextDirection? = null,
     /**
      * Open Graph metadata (og:* properties) for social media
      * Keys like "title", "description", "image", "url", etc.
      */
-    val openGraph: Map<String, String>,
+    val openGraph: Map<String, String> = emptyMap(),
     /**
      * Twitter Card metadata (twitter:* properties)
      * Keys like "card", "site", "creator", "title", "description", "image", etc.
      */
-    val twitterCard: Map<String, String>,
+    val twitterCard: Map<String, String> = emptyMap(),
     /**
      * Additional meta tags not covered by specific fields
      * Keys are meta name/property attributes, values are content
      */
-    val metaTags: Map<String, String>,
+    val metaTags: Map<String, String> = emptyMap(),
     /** Extracted header elements with hierarchy */
-    val headers: List<HeaderMetadata>,
+    val headers: List<HeaderMetadata> = emptyList(),
     /** Extracted hyperlinks with type classification */
-    val links: List<LinkMetadata>,
+    val links: List<LinkMetadata> = emptyList(),
     /** Extracted images with source and dimensions */
-    val images: List<ImageMetadataType>,
+    val images: List<ImageMetadataType> = emptyList(),
     /** Extracted structured data blocks */
-    val structuredData: List<StructuredData>
+    val structuredData: List<StructuredData> = emptyList()
 )

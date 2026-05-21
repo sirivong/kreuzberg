@@ -24,7 +24,9 @@ package dev.kreuzberg
 /** Keyword algorithm selection. */
 enum class KeywordAlgorithm {
     /** YAKE (Yet Another Keyword Extractor) - statistical approach */
+    @com.fasterxml.jackson.annotation.JsonProperty("yake")
     YAKE,
     /** RAKE (Rapid Automatic Keyword Extraction) - co-occurrence based */
+    @com.fasterxml.jackson.annotation.JsonProperty("rake")
     RAKE;
 }

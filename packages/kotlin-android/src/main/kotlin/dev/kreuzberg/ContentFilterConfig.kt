@@ -44,7 +44,7 @@ data class ContentFilterConfig(
      *
      * Default: `false` (headers are stripped or excluded).
      */
-    val includeHeaders: Boolean,
+    val includeHeaders: Boolean = false,
     /**
      * Include running footers in extraction output.
      *
@@ -56,7 +56,7 @@ data class ContentFilterConfig(
      *
      * Default: `false` (footers are stripped or excluded).
      */
-    val includeFooters: Boolean,
+    val includeFooters: Boolean = false,
     /**
      * Enable the heuristic cross-page repeating text detector.
      *
@@ -73,7 +73,7 @@ data class ContentFilterConfig(
      *
      * Default: `true`.
      */
-    val stripRepeatingText: Boolean,
+    val stripRepeatingText: Boolean = true,
     /**
      * Include watermark text in extraction output.
      *
@@ -82,5 +82,5 @@ data class ContentFilterConfig(
      *
      * Default: `false` (watermarks are stripped).
      */
-    val includeWatermarks: Boolean
+    val includeWatermarks: Boolean = false
 )

@@ -12,7 +12,8 @@ namespace Kreuzberg;
 /// <summary>
 /// Bridge interface for OcrBackend trait implementation via native FFI
 /// </summary>
-public interface IOcrBackend {
+public interface IOcrBackend
+{
 
     /// <summary>Get the plugin name.</summary>
     string Name { get; }
@@ -54,7 +55,8 @@ public interface IOcrBackend {
 /// <summary>
 /// Manages the FFI vtable and delegates for a OcrBackend implementation
 /// </summary>
-public sealed class OcrBackendBridge : IDisposable {
+public sealed class OcrBackendBridge : IDisposable
+{
 
     private readonly IOcrBackend _impl;
     private readonly GCHandle _implHandle;
@@ -103,7 +105,8 @@ public sealed class OcrBackendBridge : IDisposable {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void FreeUserDataFn(IntPtr userData);
 
-    public OcrBackendBridge(IOcrBackend impl) {
+    public OcrBackendBridge(IOcrBackend impl)
+    {
         _impl = impl ?? throw new ArgumentNullException(nameof(impl));
         _implHandle = GCHandle.Alloc(impl, GCHandleType.Normal);
         _vtable = IntPtr.Zero;
@@ -112,7 +115,8 @@ public sealed class OcrBackendBridge : IDisposable {
         BuildVtable();
     }
 
-    private void BuildVtable() {
+    private void BuildVtable()
+    {
         // Allocate unmanaged vtable struct (array of function pointers)
         _vtable = global::System.Runtime.InteropServices.Marshal.AllocHGlobal(IntPtr.Size * 13);
 
@@ -183,62 +187,82 @@ public sealed class OcrBackendBridge : IDisposable {
 
     }
 
-    private static string ToJsonString<T>(T value) {
+    private static string ToJsonString<T>(T value)
+    {
         return JsonSerializer.Serialize(value);
     }
 
-    private static byte[] MarshalBytesFromIntPtr(IntPtr ptr) {
+    private static byte[] MarshalBytesFromIntPtr(IntPtr ptr)
+    {
         if (ptr == IntPtr.Zero) return Array.Empty<byte>();
         var json = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(ptr) ?? "[]";
         return JsonSerializer.Deserialize<byte[]>(json) ?? Array.Empty<byte>();
     }
 
-    private int NameFnCallback(IntPtr userData, out IntPtr outName) {
-        try {
+    private int NameFnCallback(IntPtr userData, out IntPtr outName)
+    {
+        try
+        {
             var name = _impl.Name;
             outName = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(name);
             return 0;
-        } catch {
+        }
+        catch
+        {
             outName = IntPtr.Zero;
             return 1;
         }
     }
 
-    private int VersionFnCallback(IntPtr userData, out IntPtr outVersion) {
-        try {
+    private int VersionFnCallback(IntPtr userData, out IntPtr outVersion)
+    {
+        try
+        {
             var version = _impl.Version;
             outVersion = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(version);
             return 0;
-        } catch {
+        }
+        catch
+        {
             outVersion = IntPtr.Zero;
             return 1;
         }
     }
 
-    private int InitializeFnCallback(IntPtr userData, out IntPtr outError) {
-        try {
+    private int InitializeFnCallback(IntPtr userData, out IntPtr outError)
+    {
+        try
+        {
             _impl.Initialize();
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ShutdownFnCallback(IntPtr userData, out IntPtr outError) {
-        try {
+    private int ShutdownFnCallback(IntPtr userData, out IntPtr outError)
+    {
+        try
+        {
             _impl.Shutdown();
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ProcessImageFnCallback(IntPtr userData, IntPtr ImageBytes, IntPtr Config, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int ProcessImageFnCallback(IntPtr userData, IntPtr ImageBytes, IntPtr Config, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var managed_ImageBytes = MarshalBytesFromIntPtr(ImageBytes);
             var json_Config = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Config) ?? "{}";
             var managed_Config = JsonSerializer.Deserialize<OcrConfig>(json_Config)!;
@@ -246,15 +270,19 @@ public sealed class OcrBackendBridge : IDisposable {
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(result.ToFfiJson());
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ProcessImageFileFnCallback(IntPtr userData, IntPtr Path, IntPtr Config, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int ProcessImageFileFnCallback(IntPtr userData, IntPtr Path, IntPtr Config, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var json_Path = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Path) ?? "{}";
             var managed_Path = JsonSerializer.Deserialize<string>(json_Path)!;
             var json_Config = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Config) ?? "{}";
@@ -263,81 +291,105 @@ public sealed class OcrBackendBridge : IDisposable {
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(result.ToFfiJson());
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int SupportsLanguageFnCallback(IntPtr userData, IntPtr Lang, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int SupportsLanguageFnCallback(IntPtr userData, IntPtr Lang, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var managed_Lang = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Lang) ?? string.Empty;
             var result = _impl.SupportsLanguage(managed_Lang);
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int BackendTypeFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int BackendTypeFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var result = _impl.BackendType();
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(result.ToFfiJson());
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int SupportedLanguagesFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int SupportedLanguagesFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var result = _impl.SupportedLanguages();
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int SupportsTableDetectionFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int SupportsTableDetectionFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var result = _impl.SupportsTableDetection();
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int SupportsDocumentProcessingFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int SupportsDocumentProcessingFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var result = _impl.SupportsDocumentProcessing();
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ProcessDocumentFnCallback(IntPtr userData, IntPtr Path, IntPtr Config, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int ProcessDocumentFnCallback(IntPtr userData, IntPtr Path, IntPtr Config, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var json_Path = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Path) ?? "{}";
             var managed_Path = JsonSerializer.Deserialize<string>(json_Path)!;
             var json_Config = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Config) ?? "{}";
@@ -346,49 +398,61 @@ public sealed class OcrBackendBridge : IDisposable {
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(result.ToFfiJson());
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private void FreeUserDataCallback(IntPtr userData) {
-        if (userData != IntPtr.Zero) {
-            try {
+    private void FreeUserDataCallback(IntPtr userData)
+    {
+        if (userData != IntPtr.Zero)
+        {
+            try
+            {
                 var handle = GCHandle.FromIntPtr(userData);
                 handle.Free();
-            } catch (ObjectDisposedException) {
+            }
+            catch (ObjectDisposedException)
+            {
                 // Handle already freed; safe to ignore during finalization
             }
         }
     }
 
 
-    public void Dispose() {
+    public void Dispose()
+    {
         if (_disposed) return;
         _disposed = true;
 
-        if (_vtable != IntPtr.Zero) {
+        if (_vtable != IntPtr.Zero)
+        {
             global::System.Runtime.InteropServices.Marshal.FreeHGlobal(_vtable);
             _vtable = IntPtr.Zero;
         }
 
-        if (_implHandle.IsAllocated) {
+        if (_implHandle.IsAllocated)
+        {
             _implHandle.Free();
         }
     }
 }
 
 /// <summary>Static helpers for registering trait implementations</summary>
-public static class OcrBackendRegistry {
+public static class OcrBackendRegistry
+{
 
     private static readonly ConcurrentDictionary<string, OcrBackendBridge> _bridges =
         new ConcurrentDictionary<string, OcrBackendBridge>();
 
     /// <summary>Register a OcrBackend implementation</summary>
 
-    public static void Register(IOcrBackend impl) {
+    public static void Register(IOcrBackend impl)
+    {
         if (impl == null)
             throw new ArgumentNullException(nameof(impl));
 
@@ -397,13 +461,15 @@ public static class OcrBackendRegistry {
 
         var bridge = new OcrBackendBridge(impl);
 
-        try {
+        try
+        {
             var userDataHandle = GCHandle.Alloc(bridge, GCHandleType.Normal);
             var userData = GCHandle.ToIntPtr(userDataHandle);
             var vtablePtr = bridge._vtable;
 
             var result = NativeMethods.RegisterOcrBackend(name, vtablePtr, userData, out var outError);
-            if (result != 0) {
+            if (result != 0)
+            {
                 userDataHandle.Free();
                 bridge.Dispose();
                 var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
@@ -412,33 +478,40 @@ public static class OcrBackendRegistry {
             }
 
             _bridges.TryAdd(name, bridge);
-        } catch {
+        }
+        catch
+        {
             bridge.Dispose();
             throw;
         }
     }
 
     /// <summary>Unregister a OcrBackend implementation</summary>
-    public static void Unregister(string name) {
+    public static void Unregister(string name)
+    {
         if (string.IsNullOrEmpty(name))
             throw new ArgumentException("Name cannot be empty", nameof(name));
 
         var result = NativeMethods.UnregisterOcrBackend(name, out var outError);
-        if (result != 0) {
+        if (result != 0)
+        {
             var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
             global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
             throw new InvalidOperationException($"Failed to unregister {name}: {errorMsg}");
         }
 
-        if (_bridges.TryRemove(name, out var bridge)) {
+        if (_bridges.TryRemove(name, out var bridge))
+        {
             bridge.Dispose();
         }
     }
 
     /// <summary>Clear all registered OcrBackend implementations</summary>
-    public static void Clear() {
+    public static void Clear()
+    {
         var result = NativeMethods.ClearOcrBackend(out var outError);
-        if (result != 0) {
+        if (result != 0)
+        {
             var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
             global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
             throw new InvalidOperationException($"Failed to clear OcrBackend registry: {errorMsg}");
@@ -451,7 +524,8 @@ public static class OcrBackendRegistry {
 /// <summary>
 /// Bridge interface for PostProcessor trait implementation via native FFI
 /// </summary>
-public interface IPostProcessor {
+public interface IPostProcessor
+{
 
     /// <summary>Get the plugin name.</summary>
     string Name { get; }
@@ -484,7 +558,8 @@ public interface IPostProcessor {
 /// <summary>
 /// Manages the FFI vtable and delegates for a PostProcessor implementation
 /// </summary>
-public sealed class PostProcessorBridge : IDisposable {
+public sealed class PostProcessorBridge : IDisposable
+{
 
     private readonly IPostProcessor _impl;
     private readonly GCHandle _implHandle;
@@ -524,7 +599,8 @@ public sealed class PostProcessorBridge : IDisposable {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void FreeUserDataFn(IntPtr userData);
 
-    public PostProcessorBridge(IPostProcessor impl) {
+    public PostProcessorBridge(IPostProcessor impl)
+    {
         _impl = impl ?? throw new ArgumentNullException(nameof(impl));
         _implHandle = GCHandle.Alloc(impl, GCHandleType.Normal);
         _vtable = IntPtr.Zero;
@@ -533,7 +609,8 @@ public sealed class PostProcessorBridge : IDisposable {
         BuildVtable();
     }
 
-    private void BuildVtable() {
+    private void BuildVtable()
+    {
         // Allocate unmanaged vtable struct (array of function pointers)
         _vtable = global::System.Runtime.InteropServices.Marshal.AllocHGlobal(IntPtr.Size * 10);
 
@@ -589,56 +666,75 @@ public sealed class PostProcessorBridge : IDisposable {
 
     }
 
-    private static string ToJsonString<T>(T value) {
+    private static string ToJsonString<T>(T value)
+    {
         return JsonSerializer.Serialize(value);
     }
 
-    private int NameFnCallback(IntPtr userData, out IntPtr outName) {
-        try {
+    private int NameFnCallback(IntPtr userData, out IntPtr outName)
+    {
+        try
+        {
             var name = _impl.Name;
             outName = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(name);
             return 0;
-        } catch {
+        }
+        catch
+        {
             outName = IntPtr.Zero;
             return 1;
         }
     }
 
-    private int VersionFnCallback(IntPtr userData, out IntPtr outVersion) {
-        try {
+    private int VersionFnCallback(IntPtr userData, out IntPtr outVersion)
+    {
+        try
+        {
             var version = _impl.Version;
             outVersion = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(version);
             return 0;
-        } catch {
+        }
+        catch
+        {
             outVersion = IntPtr.Zero;
             return 1;
         }
     }
 
-    private int InitializeFnCallback(IntPtr userData, out IntPtr outError) {
-        try {
+    private int InitializeFnCallback(IntPtr userData, out IntPtr outError)
+    {
+        try
+        {
             _impl.Initialize();
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ShutdownFnCallback(IntPtr userData, out IntPtr outError) {
-        try {
+    private int ShutdownFnCallback(IntPtr userData, out IntPtr outError)
+    {
+        try
+        {
             _impl.Shutdown();
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ProcessFnCallback(IntPtr userData, IntPtr Result, IntPtr Config, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int ProcessFnCallback(IntPtr userData, IntPtr Result, IntPtr Config, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var json_Result = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Result) ?? "{}";
             var managed_Result = JsonSerializer.Deserialize<ExtractionResult>(json_Result)!;
             var json_Config = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Config) ?? "{}";
@@ -647,28 +743,36 @@ public sealed class PostProcessorBridge : IDisposable {
             outResult = IntPtr.Zero;
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ProcessingStageFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int ProcessingStageFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var result = _impl.ProcessingStage();
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(result.ToFfiJson());
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ShouldProcessFnCallback(IntPtr userData, IntPtr Result, IntPtr Config, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int ShouldProcessFnCallback(IntPtr userData, IntPtr Result, IntPtr Config, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var json_Result = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Result) ?? "{}";
             var managed_Result = JsonSerializer.Deserialize<ExtractionResult>(json_Result)!;
             var json_Config = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Config) ?? "{}";
@@ -677,77 +781,97 @@ public sealed class PostProcessorBridge : IDisposable {
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int EstimatedDurationMsFnCallback(IntPtr userData, IntPtr Result, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int EstimatedDurationMsFnCallback(IntPtr userData, IntPtr Result, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var json_Result = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Result) ?? "{}";
             var managed_Result = JsonSerializer.Deserialize<ExtractionResult>(json_Result)!;
             var result = _impl.EstimatedDurationMs(managed_Result);
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int PriorityFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int PriorityFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var result = _impl.Priority();
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private void FreeUserDataCallback(IntPtr userData) {
-        if (userData != IntPtr.Zero) {
-            try {
+    private void FreeUserDataCallback(IntPtr userData)
+    {
+        if (userData != IntPtr.Zero)
+        {
+            try
+            {
                 var handle = GCHandle.FromIntPtr(userData);
                 handle.Free();
-            } catch (ObjectDisposedException) {
+            }
+            catch (ObjectDisposedException)
+            {
                 // Handle already freed; safe to ignore during finalization
             }
         }
     }
 
 
-    public void Dispose() {
+    public void Dispose()
+    {
         if (_disposed) return;
         _disposed = true;
 
-        if (_vtable != IntPtr.Zero) {
+        if (_vtable != IntPtr.Zero)
+        {
             global::System.Runtime.InteropServices.Marshal.FreeHGlobal(_vtable);
             _vtable = IntPtr.Zero;
         }
 
-        if (_implHandle.IsAllocated) {
+        if (_implHandle.IsAllocated)
+        {
             _implHandle.Free();
         }
     }
 }
 
 /// <summary>Static helpers for registering trait implementations</summary>
-public static class PostProcessorRegistry {
+public static class PostProcessorRegistry
+{
 
     private static readonly ConcurrentDictionary<string, PostProcessorBridge> _bridges =
         new ConcurrentDictionary<string, PostProcessorBridge>();
 
     /// <summary>Register a PostProcessor implementation</summary>
 
-    public static void Register(IPostProcessor impl) {
+    public static void Register(IPostProcessor impl)
+    {
         if (impl == null)
             throw new ArgumentNullException(nameof(impl));
 
@@ -756,13 +880,15 @@ public static class PostProcessorRegistry {
 
         var bridge = new PostProcessorBridge(impl);
 
-        try {
+        try
+        {
             var userDataHandle = GCHandle.Alloc(bridge, GCHandleType.Normal);
             var userData = GCHandle.ToIntPtr(userDataHandle);
             var vtablePtr = bridge._vtable;
 
             var result = NativeMethods.RegisterPostProcessor(name, vtablePtr, userData, out var outError);
-            if (result != 0) {
+            if (result != 0)
+            {
                 userDataHandle.Free();
                 bridge.Dispose();
                 var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
@@ -771,33 +897,40 @@ public static class PostProcessorRegistry {
             }
 
             _bridges.TryAdd(name, bridge);
-        } catch {
+        }
+        catch
+        {
             bridge.Dispose();
             throw;
         }
     }
 
     /// <summary>Unregister a PostProcessor implementation</summary>
-    public static void Unregister(string name) {
+    public static void Unregister(string name)
+    {
         if (string.IsNullOrEmpty(name))
             throw new ArgumentException("Name cannot be empty", nameof(name));
 
         var result = NativeMethods.UnregisterPostProcessor(name, out var outError);
-        if (result != 0) {
+        if (result != 0)
+        {
             var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
             global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
             throw new InvalidOperationException($"Failed to unregister {name}: {errorMsg}");
         }
 
-        if (_bridges.TryRemove(name, out var bridge)) {
+        if (_bridges.TryRemove(name, out var bridge))
+        {
             bridge.Dispose();
         }
     }
 
     /// <summary>Clear all registered PostProcessor implementations</summary>
-    public static void Clear() {
+    public static void Clear()
+    {
         var result = NativeMethods.ClearPostProcessor(out var outError);
-        if (result != 0) {
+        if (result != 0)
+        {
             var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
             global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
             throw new InvalidOperationException($"Failed to clear PostProcessor registry: {errorMsg}");
@@ -810,7 +943,8 @@ public static class PostProcessorRegistry {
 /// <summary>
 /// Bridge interface for Validator trait implementation via native FFI
 /// </summary>
-public interface IValidator {
+public interface IValidator
+{
 
     /// <summary>Get the plugin name.</summary>
     string Name { get; }
@@ -837,7 +971,8 @@ public interface IValidator {
 /// <summary>
 /// Manages the FFI vtable and delegates for a Validator implementation
 /// </summary>
-public sealed class ValidatorBridge : IDisposable {
+public sealed class ValidatorBridge : IDisposable
+{
 
     private readonly IValidator _impl;
     private readonly GCHandle _implHandle;
@@ -871,7 +1006,8 @@ public sealed class ValidatorBridge : IDisposable {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void FreeUserDataFn(IntPtr userData);
 
-    public ValidatorBridge(IValidator impl) {
+    public ValidatorBridge(IValidator impl)
+    {
         _impl = impl ?? throw new ArgumentNullException(nameof(impl));
         _implHandle = GCHandle.Alloc(impl, GCHandleType.Normal);
         _vtable = IntPtr.Zero;
@@ -880,7 +1016,8 @@ public sealed class ValidatorBridge : IDisposable {
         BuildVtable();
     }
 
-    private void BuildVtable() {
+    private void BuildVtable()
+    {
         // Allocate unmanaged vtable struct (array of function pointers)
         _vtable = global::System.Runtime.InteropServices.Marshal.AllocHGlobal(IntPtr.Size * 8);
 
@@ -926,56 +1063,75 @@ public sealed class ValidatorBridge : IDisposable {
 
     }
 
-    private static string ToJsonString<T>(T value) {
+    private static string ToJsonString<T>(T value)
+    {
         return JsonSerializer.Serialize(value);
     }
 
-    private int NameFnCallback(IntPtr userData, out IntPtr outName) {
-        try {
+    private int NameFnCallback(IntPtr userData, out IntPtr outName)
+    {
+        try
+        {
             var name = _impl.Name;
             outName = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(name);
             return 0;
-        } catch {
+        }
+        catch
+        {
             outName = IntPtr.Zero;
             return 1;
         }
     }
 
-    private int VersionFnCallback(IntPtr userData, out IntPtr outVersion) {
-        try {
+    private int VersionFnCallback(IntPtr userData, out IntPtr outVersion)
+    {
+        try
+        {
             var version = _impl.Version;
             outVersion = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(version);
             return 0;
-        } catch {
+        }
+        catch
+        {
             outVersion = IntPtr.Zero;
             return 1;
         }
     }
 
-    private int InitializeFnCallback(IntPtr userData, out IntPtr outError) {
-        try {
+    private int InitializeFnCallback(IntPtr userData, out IntPtr outError)
+    {
+        try
+        {
             _impl.Initialize();
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ShutdownFnCallback(IntPtr userData, out IntPtr outError) {
-        try {
+    private int ShutdownFnCallback(IntPtr userData, out IntPtr outError)
+    {
+        try
+        {
             _impl.Shutdown();
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ValidateFnCallback(IntPtr userData, IntPtr Result, IntPtr Config, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int ValidateFnCallback(IntPtr userData, IntPtr Result, IntPtr Config, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var json_Result = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Result) ?? "{}";
             var managed_Result = JsonSerializer.Deserialize<ExtractionResult>(json_Result)!;
             var json_Config = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Config) ?? "{}";
@@ -984,15 +1140,19 @@ public sealed class ValidatorBridge : IDisposable {
             outResult = IntPtr.Zero;
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ShouldValidateFnCallback(IntPtr userData, IntPtr Result, IntPtr Config, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int ShouldValidateFnCallback(IntPtr userData, IntPtr Result, IntPtr Config, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var json_Result = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Result) ?? "{}";
             var managed_Result = JsonSerializer.Deserialize<ExtractionResult>(json_Result)!;
             var json_Config = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Config) ?? "{}";
@@ -1001,62 +1161,78 @@ public sealed class ValidatorBridge : IDisposable {
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int PriorityFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int PriorityFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var result = _impl.Priority();
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private void FreeUserDataCallback(IntPtr userData) {
-        if (userData != IntPtr.Zero) {
-            try {
+    private void FreeUserDataCallback(IntPtr userData)
+    {
+        if (userData != IntPtr.Zero)
+        {
+            try
+            {
                 var handle = GCHandle.FromIntPtr(userData);
                 handle.Free();
-            } catch (ObjectDisposedException) {
+            }
+            catch (ObjectDisposedException)
+            {
                 // Handle already freed; safe to ignore during finalization
             }
         }
     }
 
 
-    public void Dispose() {
+    public void Dispose()
+    {
         if (_disposed) return;
         _disposed = true;
 
-        if (_vtable != IntPtr.Zero) {
+        if (_vtable != IntPtr.Zero)
+        {
             global::System.Runtime.InteropServices.Marshal.FreeHGlobal(_vtable);
             _vtable = IntPtr.Zero;
         }
 
-        if (_implHandle.IsAllocated) {
+        if (_implHandle.IsAllocated)
+        {
             _implHandle.Free();
         }
     }
 }
 
 /// <summary>Static helpers for registering trait implementations</summary>
-public static class ValidatorRegistry {
+public static class ValidatorRegistry
+{
 
     private static readonly ConcurrentDictionary<string, ValidatorBridge> _bridges =
         new ConcurrentDictionary<string, ValidatorBridge>();
 
     /// <summary>Register a Validator implementation</summary>
 
-    public static void Register(IValidator impl) {
+    public static void Register(IValidator impl)
+    {
         if (impl == null)
             throw new ArgumentNullException(nameof(impl));
 
@@ -1065,13 +1241,15 @@ public static class ValidatorRegistry {
 
         var bridge = new ValidatorBridge(impl);
 
-        try {
+        try
+        {
             var userDataHandle = GCHandle.Alloc(bridge, GCHandleType.Normal);
             var userData = GCHandle.ToIntPtr(userDataHandle);
             var vtablePtr = bridge._vtable;
 
             var result = NativeMethods.RegisterValidator(name, vtablePtr, userData, out var outError);
-            if (result != 0) {
+            if (result != 0)
+            {
                 userDataHandle.Free();
                 bridge.Dispose();
                 var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
@@ -1080,33 +1258,40 @@ public static class ValidatorRegistry {
             }
 
             _bridges.TryAdd(name, bridge);
-        } catch {
+        }
+        catch
+        {
             bridge.Dispose();
             throw;
         }
     }
 
     /// <summary>Unregister a Validator implementation</summary>
-    public static void Unregister(string name) {
+    public static void Unregister(string name)
+    {
         if (string.IsNullOrEmpty(name))
             throw new ArgumentException("Name cannot be empty", nameof(name));
 
         var result = NativeMethods.UnregisterValidator(name, out var outError);
-        if (result != 0) {
+        if (result != 0)
+        {
             var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
             global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
             throw new InvalidOperationException($"Failed to unregister {name}: {errorMsg}");
         }
 
-        if (_bridges.TryRemove(name, out var bridge)) {
+        if (_bridges.TryRemove(name, out var bridge))
+        {
             bridge.Dispose();
         }
     }
 
     /// <summary>Clear all registered Validator implementations</summary>
-    public static void Clear() {
+    public static void Clear()
+    {
         var result = NativeMethods.ClearValidator(out var outError);
-        if (result != 0) {
+        if (result != 0)
+        {
             var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
             global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
             throw new InvalidOperationException($"Failed to clear Validator registry: {errorMsg}");
@@ -1119,7 +1304,8 @@ public static class ValidatorRegistry {
 /// <summary>
 /// Bridge interface for EmbeddingBackend trait implementation via native FFI
 /// </summary>
-public interface IEmbeddingBackend {
+public interface IEmbeddingBackend
+{
 
     /// <summary>Get the plugin name.</summary>
     string Name { get; }
@@ -1143,7 +1329,8 @@ public interface IEmbeddingBackend {
 /// <summary>
 /// Manages the FFI vtable and delegates for a EmbeddingBackend implementation
 /// </summary>
-public sealed class EmbeddingBackendBridge : IDisposable {
+public sealed class EmbeddingBackendBridge : IDisposable
+{
 
     private readonly IEmbeddingBackend _impl;
     private readonly GCHandle _implHandle;
@@ -1174,7 +1361,8 @@ public sealed class EmbeddingBackendBridge : IDisposable {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void FreeUserDataFn(IntPtr userData);
 
-    public EmbeddingBackendBridge(IEmbeddingBackend impl) {
+    public EmbeddingBackendBridge(IEmbeddingBackend impl)
+    {
         _impl = impl ?? throw new ArgumentNullException(nameof(impl));
         _implHandle = GCHandle.Alloc(impl, GCHandleType.Normal);
         _vtable = IntPtr.Zero;
@@ -1183,7 +1371,8 @@ public sealed class EmbeddingBackendBridge : IDisposable {
         BuildVtable();
     }
 
-    private void BuildVtable() {
+    private void BuildVtable()
+    {
         // Allocate unmanaged vtable struct (array of function pointers)
         _vtable = global::System.Runtime.InteropServices.Marshal.AllocHGlobal(IntPtr.Size * 7);
 
@@ -1224,118 +1413,153 @@ public sealed class EmbeddingBackendBridge : IDisposable {
 
     }
 
-    private static string ToJsonString<T>(T value) {
+    private static string ToJsonString<T>(T value)
+    {
         return JsonSerializer.Serialize(value);
     }
 
-    private int NameFnCallback(IntPtr userData, out IntPtr outName) {
-        try {
+    private int NameFnCallback(IntPtr userData, out IntPtr outName)
+    {
+        try
+        {
             var name = _impl.Name;
             outName = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(name);
             return 0;
-        } catch {
+        }
+        catch
+        {
             outName = IntPtr.Zero;
             return 1;
         }
     }
 
-    private int VersionFnCallback(IntPtr userData, out IntPtr outVersion) {
-        try {
+    private int VersionFnCallback(IntPtr userData, out IntPtr outVersion)
+    {
+        try
+        {
             var version = _impl.Version;
             outVersion = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(version);
             return 0;
-        } catch {
+        }
+        catch
+        {
             outVersion = IntPtr.Zero;
             return 1;
         }
     }
 
-    private int InitializeFnCallback(IntPtr userData, out IntPtr outError) {
-        try {
+    private int InitializeFnCallback(IntPtr userData, out IntPtr outError)
+    {
+        try
+        {
             _impl.Initialize();
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ShutdownFnCallback(IntPtr userData, out IntPtr outError) {
-        try {
+    private int ShutdownFnCallback(IntPtr userData, out IntPtr outError)
+    {
+        try
+        {
             _impl.Shutdown();
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int DimensionsFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int DimensionsFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var result = _impl.Dimensions();
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int EmbedFnCallback(IntPtr userData, IntPtr Texts, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int EmbedFnCallback(IntPtr userData, IntPtr Texts, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var json_Texts = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Texts) ?? "{}";
             var managed_Texts = JsonSerializer.Deserialize<List<string>>(json_Texts)!;
             var result = _impl.Embed(managed_Texts);
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private void FreeUserDataCallback(IntPtr userData) {
-        if (userData != IntPtr.Zero) {
-            try {
+    private void FreeUserDataCallback(IntPtr userData)
+    {
+        if (userData != IntPtr.Zero)
+        {
+            try
+            {
                 var handle = GCHandle.FromIntPtr(userData);
                 handle.Free();
-            } catch (ObjectDisposedException) {
+            }
+            catch (ObjectDisposedException)
+            {
                 // Handle already freed; safe to ignore during finalization
             }
         }
     }
 
 
-    public void Dispose() {
+    public void Dispose()
+    {
         if (_disposed) return;
         _disposed = true;
 
-        if (_vtable != IntPtr.Zero) {
+        if (_vtable != IntPtr.Zero)
+        {
             global::System.Runtime.InteropServices.Marshal.FreeHGlobal(_vtable);
             _vtable = IntPtr.Zero;
         }
 
-        if (_implHandle.IsAllocated) {
+        if (_implHandle.IsAllocated)
+        {
             _implHandle.Free();
         }
     }
 }
 
 /// <summary>Static helpers for registering trait implementations</summary>
-public static class EmbeddingBackendRegistry {
+public static class EmbeddingBackendRegistry
+{
 
     private static readonly ConcurrentDictionary<string, EmbeddingBackendBridge> _bridges =
         new ConcurrentDictionary<string, EmbeddingBackendBridge>();
 
     /// <summary>Register a EmbeddingBackend implementation</summary>
 
-    public static void Register(IEmbeddingBackend impl) {
+    public static void Register(IEmbeddingBackend impl)
+    {
         if (impl == null)
             throw new ArgumentNullException(nameof(impl));
 
@@ -1344,13 +1568,15 @@ public static class EmbeddingBackendRegistry {
 
         var bridge = new EmbeddingBackendBridge(impl);
 
-        try {
+        try
+        {
             var userDataHandle = GCHandle.Alloc(bridge, GCHandleType.Normal);
             var userData = GCHandle.ToIntPtr(userDataHandle);
             var vtablePtr = bridge._vtable;
 
             var result = NativeMethods.RegisterEmbeddingBackend(name, vtablePtr, userData, out var outError);
-            if (result != 0) {
+            if (result != 0)
+            {
                 userDataHandle.Free();
                 bridge.Dispose();
                 var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
@@ -1359,33 +1585,40 @@ public static class EmbeddingBackendRegistry {
             }
 
             _bridges.TryAdd(name, bridge);
-        } catch {
+        }
+        catch
+        {
             bridge.Dispose();
             throw;
         }
     }
 
     /// <summary>Unregister a EmbeddingBackend implementation</summary>
-    public static void Unregister(string name) {
+    public static void Unregister(string name)
+    {
         if (string.IsNullOrEmpty(name))
             throw new ArgumentException("Name cannot be empty", nameof(name));
 
         var result = NativeMethods.UnregisterEmbeddingBackend(name, out var outError);
-        if (result != 0) {
+        if (result != 0)
+        {
             var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
             global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
             throw new InvalidOperationException($"Failed to unregister {name}: {errorMsg}");
         }
 
-        if (_bridges.TryRemove(name, out var bridge)) {
+        if (_bridges.TryRemove(name, out var bridge))
+        {
             bridge.Dispose();
         }
     }
 
     /// <summary>Clear all registered EmbeddingBackend implementations</summary>
-    public static void Clear() {
+    public static void Clear()
+    {
         var result = NativeMethods.ClearEmbeddingBackend(out var outError);
-        if (result != 0) {
+        if (result != 0)
+        {
             var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
             global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
             throw new InvalidOperationException($"Failed to clear EmbeddingBackend registry: {errorMsg}");
@@ -1398,7 +1631,8 @@ public static class EmbeddingBackendRegistry {
 /// <summary>
 /// Bridge interface for DocumentExtractor trait implementation via native FFI
 /// </summary>
-public interface IDocumentExtractor {
+public interface IDocumentExtractor
+{
 
     /// <summary>Get the plugin name.</summary>
     string Name { get; }
@@ -1434,7 +1668,8 @@ public interface IDocumentExtractor {
 /// <summary>
 /// Manages the FFI vtable and delegates for a DocumentExtractor implementation
 /// </summary>
-public sealed class DocumentExtractorBridge : IDisposable {
+public sealed class DocumentExtractorBridge : IDisposable
+{
 
     private readonly IDocumentExtractor _impl;
     private readonly GCHandle _implHandle;
@@ -1477,7 +1712,8 @@ public sealed class DocumentExtractorBridge : IDisposable {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void FreeUserDataFn(IntPtr userData);
 
-    public DocumentExtractorBridge(IDocumentExtractor impl) {
+    public DocumentExtractorBridge(IDocumentExtractor impl)
+    {
         _impl = impl ?? throw new ArgumentNullException(nameof(impl));
         _implHandle = GCHandle.Alloc(impl, GCHandleType.Normal);
         _vtable = IntPtr.Zero;
@@ -1486,7 +1722,8 @@ public sealed class DocumentExtractorBridge : IDisposable {
         BuildVtable();
     }
 
-    private void BuildVtable() {
+    private void BuildVtable()
+    {
         // Allocate unmanaged vtable struct (array of function pointers)
         _vtable = global::System.Runtime.InteropServices.Marshal.AllocHGlobal(IntPtr.Size * 11);
 
@@ -1547,62 +1784,82 @@ public sealed class DocumentExtractorBridge : IDisposable {
 
     }
 
-    private static string ToJsonString<T>(T value) {
+    private static string ToJsonString<T>(T value)
+    {
         return JsonSerializer.Serialize(value);
     }
 
-    private static byte[] MarshalBytesFromIntPtr(IntPtr ptr) {
+    private static byte[] MarshalBytesFromIntPtr(IntPtr ptr)
+    {
         if (ptr == IntPtr.Zero) return Array.Empty<byte>();
         var json = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(ptr) ?? "[]";
         return JsonSerializer.Deserialize<byte[]>(json) ?? Array.Empty<byte>();
     }
 
-    private int NameFnCallback(IntPtr userData, out IntPtr outName) {
-        try {
+    private int NameFnCallback(IntPtr userData, out IntPtr outName)
+    {
+        try
+        {
             var name = _impl.Name;
             outName = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(name);
             return 0;
-        } catch {
+        }
+        catch
+        {
             outName = IntPtr.Zero;
             return 1;
         }
     }
 
-    private int VersionFnCallback(IntPtr userData, out IntPtr outVersion) {
-        try {
+    private int VersionFnCallback(IntPtr userData, out IntPtr outVersion)
+    {
+        try
+        {
             var version = _impl.Version;
             outVersion = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(version);
             return 0;
-        } catch {
+        }
+        catch
+        {
             outVersion = IntPtr.Zero;
             return 1;
         }
     }
 
-    private int InitializeFnCallback(IntPtr userData, out IntPtr outError) {
-        try {
+    private int InitializeFnCallback(IntPtr userData, out IntPtr outError)
+    {
+        try
+        {
             _impl.Initialize();
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ShutdownFnCallback(IntPtr userData, out IntPtr outError) {
-        try {
+    private int ShutdownFnCallback(IntPtr userData, out IntPtr outError)
+    {
+        try
+        {
             _impl.Shutdown();
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ExtractBytesFnCallback(IntPtr userData, IntPtr Content, IntPtr MimeType, IntPtr Config, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int ExtractBytesFnCallback(IntPtr userData, IntPtr Content, IntPtr MimeType, IntPtr Config, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var managed_Content = MarshalBytesFromIntPtr(Content);
             var managed_MimeType = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(MimeType) ?? string.Empty;
             var json_Config = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Config) ?? "{}";
@@ -1611,15 +1868,19 @@ public sealed class DocumentExtractorBridge : IDisposable {
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ExtractFileFnCallback(IntPtr userData, IntPtr Path, IntPtr MimeType, IntPtr Config, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int ExtractFileFnCallback(IntPtr userData, IntPtr Path, IntPtr MimeType, IntPtr Config, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var json_Path = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Path) ?? "{}";
             var managed_Path = JsonSerializer.Deserialize<string>(json_Path)!;
             var managed_MimeType = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(MimeType) ?? string.Empty;
@@ -1629,41 +1890,53 @@ public sealed class DocumentExtractorBridge : IDisposable {
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int SupportedMimeTypesFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int SupportedMimeTypesFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var result = _impl.SupportedMimeTypes();
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int PriorityFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int PriorityFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var result = _impl.Priority();
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int CanHandleFnCallback(IntPtr userData, IntPtr Path, IntPtr MimeType, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int CanHandleFnCallback(IntPtr userData, IntPtr Path, IntPtr MimeType, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var json_Path = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Path) ?? "{}";
             var managed_Path = JsonSerializer.Deserialize<string>(json_Path)!;
             var managed_MimeType = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(MimeType) ?? string.Empty;
@@ -1671,62 +1944,78 @@ public sealed class DocumentExtractorBridge : IDisposable {
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int AsSyncExtractorFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int AsSyncExtractorFnCallback(IntPtr userData, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var result = _impl.AsSyncExtractor();
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private void FreeUserDataCallback(IntPtr userData) {
-        if (userData != IntPtr.Zero) {
-            try {
+    private void FreeUserDataCallback(IntPtr userData)
+    {
+        if (userData != IntPtr.Zero)
+        {
+            try
+            {
                 var handle = GCHandle.FromIntPtr(userData);
                 handle.Free();
-            } catch (ObjectDisposedException) {
+            }
+            catch (ObjectDisposedException)
+            {
                 // Handle already freed; safe to ignore during finalization
             }
         }
     }
 
 
-    public void Dispose() {
+    public void Dispose()
+    {
         if (_disposed) return;
         _disposed = true;
 
-        if (_vtable != IntPtr.Zero) {
+        if (_vtable != IntPtr.Zero)
+        {
             global::System.Runtime.InteropServices.Marshal.FreeHGlobal(_vtable);
             _vtable = IntPtr.Zero;
         }
 
-        if (_implHandle.IsAllocated) {
+        if (_implHandle.IsAllocated)
+        {
             _implHandle.Free();
         }
     }
 }
 
 /// <summary>Static helpers for registering trait implementations</summary>
-public static class DocumentExtractorRegistry {
+public static class DocumentExtractorRegistry
+{
 
     private static readonly ConcurrentDictionary<string, DocumentExtractorBridge> _bridges =
         new ConcurrentDictionary<string, DocumentExtractorBridge>();
 
     /// <summary>Register a DocumentExtractor implementation</summary>
 
-    public static void Register(IDocumentExtractor impl) {
+    public static void Register(IDocumentExtractor impl)
+    {
         if (impl == null)
             throw new ArgumentNullException(nameof(impl));
 
@@ -1735,13 +2024,15 @@ public static class DocumentExtractorRegistry {
 
         var bridge = new DocumentExtractorBridge(impl);
 
-        try {
+        try
+        {
             var userDataHandle = GCHandle.Alloc(bridge, GCHandleType.Normal);
             var userData = GCHandle.ToIntPtr(userDataHandle);
             var vtablePtr = bridge._vtable;
 
             var result = NativeMethods.RegisterDocumentExtractor(name, vtablePtr, userData, out var outError);
-            if (result != 0) {
+            if (result != 0)
+            {
                 userDataHandle.Free();
                 bridge.Dispose();
                 var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
@@ -1750,33 +2041,40 @@ public static class DocumentExtractorRegistry {
             }
 
             _bridges.TryAdd(name, bridge);
-        } catch {
+        }
+        catch
+        {
             bridge.Dispose();
             throw;
         }
     }
 
     /// <summary>Unregister a DocumentExtractor implementation</summary>
-    public static void Unregister(string name) {
+    public static void Unregister(string name)
+    {
         if (string.IsNullOrEmpty(name))
             throw new ArgumentException("Name cannot be empty", nameof(name));
 
         var result = NativeMethods.UnregisterDocumentExtractor(name, out var outError);
-        if (result != 0) {
+        if (result != 0)
+        {
             var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
             global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
             throw new InvalidOperationException($"Failed to unregister {name}: {errorMsg}");
         }
 
-        if (_bridges.TryRemove(name, out var bridge)) {
+        if (_bridges.TryRemove(name, out var bridge))
+        {
             bridge.Dispose();
         }
     }
 
     /// <summary>Clear all registered DocumentExtractor implementations</summary>
-    public static void Clear() {
+    public static void Clear()
+    {
         var result = NativeMethods.ClearDocumentExtractor(out var outError);
-        if (result != 0) {
+        if (result != 0)
+        {
             var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
             global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
             throw new InvalidOperationException($"Failed to clear DocumentExtractor registry: {errorMsg}");
@@ -1789,7 +2087,8 @@ public static class DocumentExtractorRegistry {
 /// <summary>
 /// Bridge interface for Renderer trait implementation via native FFI
 /// </summary>
-public interface IRenderer {
+public interface IRenderer
+{
 
     /// <summary>Get the plugin name.</summary>
     string Name { get; }
@@ -1810,7 +2109,8 @@ public interface IRenderer {
 /// <summary>
 /// Manages the FFI vtable and delegates for a Renderer implementation
 /// </summary>
-public sealed class RendererBridge : IDisposable {
+public sealed class RendererBridge : IDisposable
+{
 
     private readonly IRenderer _impl;
     private readonly GCHandle _implHandle;
@@ -1838,7 +2138,8 @@ public sealed class RendererBridge : IDisposable {
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate void FreeUserDataFn(IntPtr userData);
 
-    public RendererBridge(IRenderer impl) {
+    public RendererBridge(IRenderer impl)
+    {
         _impl = impl ?? throw new ArgumentNullException(nameof(impl));
         _implHandle = GCHandle.Alloc(impl, GCHandleType.Normal);
         _vtable = IntPtr.Zero;
@@ -1847,7 +2148,8 @@ public sealed class RendererBridge : IDisposable {
         BuildVtable();
     }
 
-    private void BuildVtable() {
+    private void BuildVtable()
+    {
         // Allocate unmanaged vtable struct (array of function pointers)
         _vtable = global::System.Runtime.InteropServices.Marshal.AllocHGlobal(IntPtr.Size * 6);
 
@@ -1883,104 +2185,135 @@ public sealed class RendererBridge : IDisposable {
 
     }
 
-    private static string ToJsonString<T>(T value) {
+    private static string ToJsonString<T>(T value)
+    {
         return JsonSerializer.Serialize(value);
     }
 
-    private int NameFnCallback(IntPtr userData, out IntPtr outName) {
-        try {
+    private int NameFnCallback(IntPtr userData, out IntPtr outName)
+    {
+        try
+        {
             var name = _impl.Name;
             outName = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(name);
             return 0;
-        } catch {
+        }
+        catch
+        {
             outName = IntPtr.Zero;
             return 1;
         }
     }
 
-    private int VersionFnCallback(IntPtr userData, out IntPtr outVersion) {
-        try {
+    private int VersionFnCallback(IntPtr userData, out IntPtr outVersion)
+    {
+        try
+        {
             var version = _impl.Version;
             outVersion = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(version);
             return 0;
-        } catch {
+        }
+        catch
+        {
             outVersion = IntPtr.Zero;
             return 1;
         }
     }
 
-    private int InitializeFnCallback(IntPtr userData, out IntPtr outError) {
-        try {
+    private int InitializeFnCallback(IntPtr userData, out IntPtr outError)
+    {
+        try
+        {
             _impl.Initialize();
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int ShutdownFnCallback(IntPtr userData, out IntPtr outError) {
-        try {
+    private int ShutdownFnCallback(IntPtr userData, out IntPtr outError)
+    {
+        try
+        {
             _impl.Shutdown();
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private int RenderFnCallback(IntPtr userData, IntPtr Doc, out IntPtr outResult, out IntPtr outError) {
-        try {
+    private int RenderFnCallback(IntPtr userData, IntPtr Doc, out IntPtr outResult, out IntPtr outError)
+    {
+        try
+        {
             var json_Doc = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(Doc) ?? "{}";
             var result = _impl.Render(json_Doc);
             outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ToJsonString(result));
             outError = IntPtr.Zero;
             return 0;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex)
+        {
             outResult = IntPtr.Zero;
             outError = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(ex.Message);
             return 1;
         }
     }
 
-    private void FreeUserDataCallback(IntPtr userData) {
-        if (userData != IntPtr.Zero) {
-            try {
+    private void FreeUserDataCallback(IntPtr userData)
+    {
+        if (userData != IntPtr.Zero)
+        {
+            try
+            {
                 var handle = GCHandle.FromIntPtr(userData);
                 handle.Free();
-            } catch (ObjectDisposedException) {
+            }
+            catch (ObjectDisposedException)
+            {
                 // Handle already freed; safe to ignore during finalization
             }
         }
     }
 
 
-    public void Dispose() {
+    public void Dispose()
+    {
         if (_disposed) return;
         _disposed = true;
 
-        if (_vtable != IntPtr.Zero) {
+        if (_vtable != IntPtr.Zero)
+        {
             global::System.Runtime.InteropServices.Marshal.FreeHGlobal(_vtable);
             _vtable = IntPtr.Zero;
         }
 
-        if (_implHandle.IsAllocated) {
+        if (_implHandle.IsAllocated)
+        {
             _implHandle.Free();
         }
     }
 }
 
 /// <summary>Static helpers for registering trait implementations</summary>
-public static class RendererRegistry {
+public static class RendererRegistry
+{
 
     private static readonly ConcurrentDictionary<string, RendererBridge> _bridges =
         new ConcurrentDictionary<string, RendererBridge>();
 
     /// <summary>Register a Renderer implementation</summary>
 
-    public static void Register(IRenderer impl) {
+    public static void Register(IRenderer impl)
+    {
         if (impl == null)
             throw new ArgumentNullException(nameof(impl));
 
@@ -1989,13 +2322,15 @@ public static class RendererRegistry {
 
         var bridge = new RendererBridge(impl);
 
-        try {
+        try
+        {
             var userDataHandle = GCHandle.Alloc(bridge, GCHandleType.Normal);
             var userData = GCHandle.ToIntPtr(userDataHandle);
             var vtablePtr = bridge._vtable;
 
             var result = NativeMethods.RegisterRenderer(name, vtablePtr, userData, out var outError);
-            if (result != 0) {
+            if (result != 0)
+            {
                 userDataHandle.Free();
                 bridge.Dispose();
                 var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
@@ -2004,33 +2339,40 @@ public static class RendererRegistry {
             }
 
             _bridges.TryAdd(name, bridge);
-        } catch {
+        }
+        catch
+        {
             bridge.Dispose();
             throw;
         }
     }
 
     /// <summary>Unregister a Renderer implementation</summary>
-    public static void Unregister(string name) {
+    public static void Unregister(string name)
+    {
         if (string.IsNullOrEmpty(name))
             throw new ArgumentException("Name cannot be empty", nameof(name));
 
         var result = NativeMethods.UnregisterRenderer(name, out var outError);
-        if (result != 0) {
+        if (result != 0)
+        {
             var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
             global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
             throw new InvalidOperationException($"Failed to unregister {name}: {errorMsg}");
         }
 
-        if (_bridges.TryRemove(name, out var bridge)) {
+        if (_bridges.TryRemove(name, out var bridge))
+        {
             bridge.Dispose();
         }
     }
 
     /// <summary>Clear all registered Renderer implementations</summary>
-    public static void Clear() {
+    public static void Clear()
+    {
         var result = NativeMethods.ClearRenderer(out var outError);
-        if (result != 0) {
+        if (result != 0)
+        {
             var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
             global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
             throw new InvalidOperationException($"Failed to clear Renderer registry: {errorMsg}");
@@ -2041,10 +2383,12 @@ public static class RendererRegistry {
 }
 
 /// <summary>FFI JSON serialization extension methods</summary>
-internal static class FfiJsonExtensions {
+internal static class FfiJsonExtensions
+{
 
     /// <summary>Serialize any object to JSON for FFI marshalling</summary>
-    internal static string ToFfiJson<T>(this T value) {
+    internal static string ToFfiJson<T>(this T value)
+    {
         return JsonSerializer.Serialize(value);
     }
 

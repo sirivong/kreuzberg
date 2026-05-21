@@ -30,15 +30,15 @@ package dev.kreuzberg
  */
 data class PdfMetadata(
     /** PDF version (e.g., "1.7", "2.0") */
-    val pdfVersion: String?,
+    val pdfVersion: String? = null,
     /** PDF producer (application that created the PDF) */
-    val producer: String?,
+    val producer: String? = null,
     /** Whether the PDF is encrypted/password-protected */
-    val isEncrypted: Boolean?,
+    val isEncrypted: Boolean? = null,
     /** First page width in points (1/72 inch) */
-    val width: Long?,
+    val width: Long? = null,
     /** First page height in points (1/72 inch) */
-    val height: Long?,
+    val height: Long? = null,
     /** Total number of pages in the PDF document */
-    val pageCount: Int?
+    val pageCount: Int? = null
 )

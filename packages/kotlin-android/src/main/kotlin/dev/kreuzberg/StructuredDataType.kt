@@ -24,9 +24,12 @@ package dev.kreuzberg
 /** Structured data type classification. */
 enum class StructuredDataType {
     /** JSON-LD structured data */
+    @com.fasterxml.jackson.annotation.JsonProperty("json-ld")
     JSON_LD,
     /** Microdata */
+    @com.fasterxml.jackson.annotation.JsonProperty("microdata")
     MICRODATA,
     /** RDFa */
+    @com.fasterxml.jackson.annotation.JsonProperty("rdfa")
     R_D_FA;
 }

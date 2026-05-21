@@ -33,7 +33,7 @@ data class StructuredExtractionConfig(
     /** Schema name passed to the LLM's structured output mode. */
     val schemaName: String,
     /** Optional schema description for the LLM. */
-    val schemaDescription: String?,
+    val schemaDescription: String? = null,
     /** Enable strict mode — output must exactly match the schema. */
     val strict: Boolean,
     /**
@@ -45,7 +45,7 @@ data class StructuredExtractionConfig(
      * - `{{ schema_name }}` — The schema name.
      * - `{{ schema_description }}` — The schema description (may be empty).
      */
-    val prompt: String?,
+    val prompt: String? = null,
     /** LLM configuration for the extraction. */
     val llm: LlmConfig
 )

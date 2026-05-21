@@ -24,6 +24,6 @@ package dev.kreuzberg
 data class StructuredDataResult(
     val content: String,
     val format: String,
-    val metadata: Map<String, String>,
-    val textFields: List<String>
+    val metadata: Map<String, String> = emptyMap(),
+    val textFields: List<String> = emptyList()
 )

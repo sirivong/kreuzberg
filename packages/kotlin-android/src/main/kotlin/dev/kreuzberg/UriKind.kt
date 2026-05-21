@@ -24,15 +24,21 @@ package dev.kreuzberg
 /** Semantic classification of an extracted URI. */
 enum class UriKind {
     /** A clickable hyperlink (web URL, file link). */
+    @com.fasterxml.jackson.annotation.JsonProperty("hyperlink")
     HYPERLINK,
     /** An image or media resource reference. */
+    @com.fasterxml.jackson.annotation.JsonProperty("image")
     IMAGE,
     /** An internal anchor or cross-reference target. */
+    @com.fasterxml.jackson.annotation.JsonProperty("anchor")
     ANCHOR,
     /** A citation or bibliographic reference (DOI, academic ref). */
+    @com.fasterxml.jackson.annotation.JsonProperty("citation")
     CITATION,
     /** A general reference (e.g. `\ref{}` in LaTeX, `:ref:` in RST). */
+    @com.fasterxml.jackson.annotation.JsonProperty("reference")
     REFERENCE,
     /** An email address (`mailto:` link or bare email). */
+    @com.fasterxml.jackson.annotation.JsonProperty("email")
     EMAIL;
 }

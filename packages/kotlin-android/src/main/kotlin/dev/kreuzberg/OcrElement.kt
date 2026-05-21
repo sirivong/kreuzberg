@@ -33,11 +33,11 @@ data class OcrElement(
     /** Bounding geometry (rectangle or quadrilateral). */
     val geometry: OcrBoundingGeometry,
     /** Confidence scores for detection and recognition. */
-    val confidence: OcrConfidence,
+    val confidence: OcrConfidence = OcrConfidence(),
     /** Hierarchical level (word, line, block, page). */
-    val level: OcrElementLevel,
+    val level: OcrElementLevel = OcrElementLevel.LINE,
     /** Rotation information (if detected). */
-    val rotation: OcrRotation?,
+    val rotation: OcrRotation? = OcrRotation(),
     /** Page number (1-indexed). */
     val pageNumber: Int,
     /**
@@ -45,7 +45,7 @@ data class OcrElement(
      *
      * Only used for Tesseract output which has word -> line -> block hierarchy.
      */
-    val parentId: String?,
+    val parentId: String? = null,
     /** Backend-specific metadata that doesn't fit the unified schema. */
-    val backendMetadata: Map<String, String>
+    val backendMetadata: Map<String, String> = emptyMap()
 )

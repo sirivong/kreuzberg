@@ -23,7 +23,10 @@ package dev.kreuzberg
 
 /** How the extracted text was produced. */
 enum class ExtractionMethod {
+    @com.fasterxml.jackson.annotation.JsonProperty("native")
     NATIVE,
+    @com.fasterxml.jackson.annotation.JsonProperty("ocr")
     OCR,
+    @com.fasterxml.jackson.annotation.JsonProperty("mixed")
     MIXED;
 }

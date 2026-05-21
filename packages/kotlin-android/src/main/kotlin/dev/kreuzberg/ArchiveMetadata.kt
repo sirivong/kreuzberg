@@ -32,9 +32,9 @@ data class ArchiveMetadata(
     /** Total number of files in the archive */
     val fileCount: Int,
     /** List of file paths within the archive */
-    val fileList: List<String>,
+    val fileList: List<String> = emptyList(),
     /** Total uncompressed size in bytes */
     val totalSize: Long,
     /** Compressed size in bytes (if available) */
-    val compressedSize: Long?
+    val compressedSize: Long? = null
 )

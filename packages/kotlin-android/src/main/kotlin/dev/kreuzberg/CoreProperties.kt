@@ -29,33 +29,33 @@ package dev.kreuzberg
  */
 data class CoreProperties(
     /** Document title */
-    val title: String?,
+    val title: String? = null,
     /** Document subject/topic */
-    val subject: String?,
+    val subject: String? = null,
     /** Document creator/author */
-    val creator: String?,
+    val creator: String? = null,
     /** Keywords or tags */
-    val keywords: String?,
+    val keywords: String? = null,
     /** Document description/abstract */
-    val description: String?,
+    val description: String? = null,
     /** User who last modified the document */
-    val lastModifiedBy: String?,
+    val lastModifiedBy: String? = null,
     /** Revision number */
-    val revision: String?,
+    val revision: String? = null,
     /** Creation timestamp (ISO 8601) */
-    val created: String?,
+    val created: String? = null,
     /** Last modification timestamp (ISO 8601) */
-    val modified: String?,
+    val modified: String? = null,
     /** Document category */
-    val category: String?,
+    val category: String? = null,
     /** Content status (Draft, Final, etc.) */
-    val contentStatus: String?,
+    val contentStatus: String? = null,
     /** Document language */
-    val language: String?,
+    val language: String? = null,
     /** Unique identifier */
-    val identifier: String?,
+    val identifier: String? = null,
     /** Document version */
-    val version: String?,
+    val version: String? = null,
     /** Last print timestamp (ISO 8601) */
-    val lastPrinted: String?
+    val lastPrinted: String? = null
 )

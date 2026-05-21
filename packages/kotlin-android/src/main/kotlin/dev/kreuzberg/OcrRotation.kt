@@ -26,5 +26,5 @@ data class OcrRotation(
     /** Rotation angle in degrees (0, 90, 180, 270 for PaddleOCR). */
     val angleDegrees: Double,
     /** Confidence score for the rotation detection. */
-    val confidence: Double?
+    val confidence: Double? = null
 )

@@ -33,25 +33,25 @@ data class EmbeddingConfig(
     /** The embedding model to use (defaults to "balanced" preset if not specified) */
     val model: EmbeddingModelType,
     /** Whether to normalize embedding vectors (recommended for cosine similarity) */
-    val normalize: Boolean,
+    val normalize: Boolean = true,
     /** Batch size for embedding generation */
-    val batchSize: Long,
+    val batchSize: Long = 32L,
     /** Show model download progress */
-    val showDownloadProgress: Boolean,
+    val showDownloadProgress: Boolean = false,
     /**
      * Custom cache directory for model files
      *
      * Defaults to `~/.cache/kreuzberg/embeddings/` if not specified.
      * Allows full customization of model download location.
      */
-    val cacheDir: Path?,
+    val cacheDir: Path? = null,
     /**
      * Hardware acceleration for the embedding ONNX model.
      *
      * When set, controls which execution provider (CPU, CUDA, CoreML, TensorRT)
      * is used for inference. Defaults to `null` (auto-select per platform).
      */
-    val acceleration: AccelerationConfig?,
+    val acceleration: AccelerationConfig? = null,
     /**
      * Maximum wall-clock duration (in seconds) for a single `embed()` call when
      * using `EmbeddingModelType.Plugin`.
@@ -65,5 +65,5 @@ data class EmbeddingConfig(
      * for common in-process inference; increase for large batches on slow
      * hardware.
      */
-    val maxEmbedDurationSecs: Long?
+    val maxEmbedDurationSecs: Long? = null
 )

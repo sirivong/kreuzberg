@@ -25,8 +25,8 @@ package dev.kreuzberg
 data class BibtexMetadata(
     /** Number of entries in the bibliography. */
     val entryCount: Long,
-    val citationKeys: List<String>,
-    val authors: List<String>,
-    val yearRange: YearRange?,
-    val entryTypes: Map<String, Long>?
+    val citationKeys: List<String> = emptyList(),
+    val authors: List<String> = emptyList(),
+    val yearRange: YearRange? = YearRange(),
+    val entryTypes: Map<String, Long>? = emptyMap()
 )

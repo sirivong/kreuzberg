@@ -33,7 +33,7 @@ data class RecognizedTable(
     /** Detection bbox that this table corresponds to (for matching). */
     val detectionBbox: BBox,
     /** Table cells as a 2D vector (rows × columns). */
-    val cells: List<List<String>>,
+    val cells: List<List<String>> = emptyList(),
     /** Rendered markdown table. */
     val markdown: String
 )

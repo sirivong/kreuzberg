@@ -24,7 +24,7 @@ package dev.kreuzberg
 /** RAKE-specific parameters. */
 data class RakeParams(
     /** Minimum word length to consider (default: 1). */
-    val minWordLength: Long,
+    val minWordLength: Long = 1L,
     /** Maximum words in a keyword phrase (default: 3). */
-    val maxWordsPerPhrase: Long
+    val maxWordsPerPhrase: Long = 3L
 )

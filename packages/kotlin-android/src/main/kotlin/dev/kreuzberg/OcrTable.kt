@@ -28,11 +28,11 @@ package dev.kreuzberg
  */
 data class OcrTable(
     /** Table cells as a 2D vector (rows × columns) */
-    val cells: List<List<String>>,
+    val cells: List<List<String>> = emptyList(),
     /** Markdown representation of the table */
     val markdown: String,
     /** Page number where the table was found (1-indexed) */
     val pageNumber: Int,
     /** Bounding box of the table in pixel coordinates (from OCR word positions). */
-    val boundingBox: OcrTableBoundingBox?
+    val boundingBox: OcrTableBoundingBox? = null
 )

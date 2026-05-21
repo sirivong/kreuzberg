@@ -35,9 +35,9 @@ data class TextMetadata(
     /** Number of characters */
     val characterCount: Int,
     /** Markdown headers (headings text only, for Markdown files) */
-    val headers: List<String>?,
+    val headers: List<String>? = emptyList(),
     /** Markdown links as (text, url) tuples (for Markdown files) */
-    val links: List<String>?,
+    val links: List<String>? = emptyList(),
     /** Code blocks as (language, code) tuples (for Markdown files) */
-    val codeBlocks: List<String>?
+    val codeBlocks: List<String>? = emptyList()
 )

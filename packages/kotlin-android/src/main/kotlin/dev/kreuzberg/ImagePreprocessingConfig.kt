@@ -30,17 +30,17 @@ package dev.kreuzberg
  */
 data class ImagePreprocessingConfig(
     /** Target DPI for the image (300 is standard, 600 for small text). */
-    val targetDpi: Int,
+    val targetDpi: Int = 300,
     /** Auto-detect and correct image rotation. */
-    val autoRotate: Boolean,
+    val autoRotate: Boolean = true,
     /** Correct skew (tilted images). */
-    val deskew: Boolean,
+    val deskew: Boolean = true,
     /** Remove noise from the image. */
-    val denoise: Boolean,
+    val denoise: Boolean = false,
     /** Enhance contrast for better text visibility. */
-    val contrastEnhance: Boolean,
+    val contrastEnhance: Boolean = false,
     /** Binarization method: "otsu", "sauvola", "adaptive". */
-    val binarizationMethod: String,
+    val binarizationMethod: String = "otsu",
     /** Invert colors (white text on black → black on white). */
-    val invertColors: Boolean
+    val invertColors: Boolean = false
 )

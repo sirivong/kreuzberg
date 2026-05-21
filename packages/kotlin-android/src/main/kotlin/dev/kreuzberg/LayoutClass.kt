@@ -31,21 +31,38 @@ package dev.kreuzberg
  * Wire format is snake_case in all serializers (JSON, TOML, YAML).
  */
 enum class LayoutClass {
+    @com.fasterxml.jackson.annotation.JsonProperty("caption")
     CAPTION,
+    @com.fasterxml.jackson.annotation.JsonProperty("footnote")
     FOOTNOTE,
+    @com.fasterxml.jackson.annotation.JsonProperty("formula")
     FORMULA,
+    @com.fasterxml.jackson.annotation.JsonProperty("list_item")
     LIST_ITEM,
+    @com.fasterxml.jackson.annotation.JsonProperty("page_footer")
     PAGE_FOOTER,
+    @com.fasterxml.jackson.annotation.JsonProperty("page_header")
     PAGE_HEADER,
+    @com.fasterxml.jackson.annotation.JsonProperty("picture")
     PICTURE,
+    @com.fasterxml.jackson.annotation.JsonProperty("section_header")
     SECTION_HEADER,
+    @com.fasterxml.jackson.annotation.JsonProperty("table")
     TABLE,
+    @com.fasterxml.jackson.annotation.JsonProperty("text")
     TEXT,
+    @com.fasterxml.jackson.annotation.JsonProperty("title")
     TITLE,
+    @com.fasterxml.jackson.annotation.JsonProperty("document_index")
     DOCUMENT_INDEX,
+    @com.fasterxml.jackson.annotation.JsonProperty("code")
     CODE,
+    @com.fasterxml.jackson.annotation.JsonProperty("checkbox_selected")
     CHECKBOX_SELECTED,
+    @com.fasterxml.jackson.annotation.JsonProperty("checkbox_unselected")
     CHECKBOX_UNSELECTED,
+    @com.fasterxml.jackson.annotation.JsonProperty("form")
     FORM,
+    @com.fasterxml.jackson.annotation.JsonProperty("key_value_region")
     KEY_VALUE_REGION;
 }

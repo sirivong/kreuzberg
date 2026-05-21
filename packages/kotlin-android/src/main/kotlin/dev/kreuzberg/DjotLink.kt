@@ -28,7 +28,7 @@ data class DjotLink(
     /** Link text content */
     val text: String,
     /** Optional title */
-    val title: String?,
+    val title: String? = null,
     /** Element attributes */
-    val attributes: String?
+    val attributes: String? = null
 )

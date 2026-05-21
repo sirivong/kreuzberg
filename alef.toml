@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.17.17"
+alef_version = "0.17.18"
 languages = [
   "python",
   "node",
@@ -832,8 +832,9 @@ json_object_types = { chunking = "ChunkingConfig", ocr = "OcrConfig", images = "
 options_type = "Kreuzberg::ExtractionConfig"
 
 [crates.e2e.call.overrides.elixir]
-options_type = "ExtractionConfig"
-handle_struct_type = "ExtractionConfig"
+# Elixir Rustler facades don't consistently use keyword opts (some use positional defaults),
+# so struct-literal generation causes mismatches. Use JSON strings instead for compatibility.
+# handle_struct_type = "ExtractionConfig"
 
 [crates.e2e.call.overrides.wasm]
 options_type = "WasmExtractionConfig"
@@ -913,6 +914,11 @@ options_type = "ExtractionConfig"
 
 [crates.e2e.calls.extract_bytes.overrides.r]
 arg_name_map = { data = "content" }
+
+[crates.e2e.calls.extract_bytes.overrides.elixir]
+# Rustler facade for extract_bytes_async uses positional default style:
+# func(content, mime_type, config \\ nil), not keyword opts.
+# Don't emit keyword form for config arg.
 
 [crates.e2e.calls.extract_bytes.overrides.php]
 # PHP facade exposes the async variant under the bare name (`extractBytes`);

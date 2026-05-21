@@ -30,29 +30,42 @@ package dev.kreuzberg
  */
 enum class ChunkType {
     /** Section heading or document title. */
+    @com.fasterxml.jackson.annotation.JsonProperty("heading")
     HEADING,
     /** Party list: names, addresses, and signatories. */
+    @com.fasterxml.jackson.annotation.JsonProperty("party_list")
     PARTY_LIST,
     /** Definition clause ("X means…", "X shall mean…"). */
+    @com.fasterxml.jackson.annotation.JsonProperty("definitions")
     DEFINITIONS,
     /** Operative clause containing legal/contractual action verbs. */
+    @com.fasterxml.jackson.annotation.JsonProperty("operative_clause")
     OPERATIVE_CLAUSE,
     /** Signature block with signatures, names, and dates. */
+    @com.fasterxml.jackson.annotation.JsonProperty("signature_block")
     SIGNATURE_BLOCK,
     /** Schedule, annex, appendix, or exhibit section. */
+    @com.fasterxml.jackson.annotation.JsonProperty("schedule")
     SCHEDULE,
     /** Table-like content with aligned columns or repeated patterns. */
+    @com.fasterxml.jackson.annotation.JsonProperty("table_like")
     TABLE_LIKE,
     /** Mathematical formula or equation. */
+    @com.fasterxml.jackson.annotation.JsonProperty("formula")
     FORMULA,
     /** Code block or preformatted content. */
+    @com.fasterxml.jackson.annotation.JsonProperty("code_block")
     CODE_BLOCK,
     /** Embedded or referenced image content. */
+    @com.fasterxml.jackson.annotation.JsonProperty("image")
     IMAGE,
     /** Organizational chart or hierarchy diagram. */
+    @com.fasterxml.jackson.annotation.JsonProperty("org_chart")
     ORG_CHART,
     /** Diagram, figure, or visual illustration. */
+    @com.fasterxml.jackson.annotation.JsonProperty("diagram")
     DIAGRAM,
     /** Unclassified or mixed content. */
+    @com.fasterxml.jackson.annotation.JsonProperty("unknown")
     UNKNOWN;
 }

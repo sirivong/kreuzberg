@@ -50,5 +50,5 @@ data class HierarchicalBlock(
      *
      * Contains coordinates as (left, top, right, bottom) in PDF units.
      */
-    val bbox: List<Float>?
+    val bbox: List<Float>? = null
 )

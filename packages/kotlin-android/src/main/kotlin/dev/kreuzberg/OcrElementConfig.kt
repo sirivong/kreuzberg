@@ -38,7 +38,7 @@ data class OcrElementConfig(
      *
      * Elements below this level (e.g., words when min_level is Line) will be excluded.
      */
-    val minLevel: OcrElementLevel,
+    val minLevel: OcrElementLevel = OcrElementLevel.LINE,
     /**
      * Minimum recognition confidence threshold (0.0-1.0).
      *

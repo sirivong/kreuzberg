@@ -28,13 +28,13 @@ data class OcrPipelineStage(
     /** Priority weight (higher = tried first). Stages are sorted by priority descending. */
     val priority: Int,
     /** Language override for this stage (None = use parent OcrConfig.language). */
-    val language: String?,
+    val language: String? = null,
     /** Tesseract-specific config override for this stage. */
-    val tesseractConfig: TesseractConfig?,
+    val tesseractConfig: TesseractConfig? = null,
     /** PaddleOCR-specific config for this stage. */
-    val paddleOcrConfig: String?,
+    val paddleOcrConfig: String? = null,
     /** VLM config override for this pipeline stage. */
-    val vlmConfig: LlmConfig?,
+    val vlmConfig: LlmConfig? = null,
     /**
      * Arbitrary per-call options passed through to the backend unchanged.
      *
@@ -49,5 +49,5 @@ data class OcrPipelineStage(
      * { "mode": "fast", "enable_layout": true }
      * ```
      */
-    val backendOptions: String?
+    val backendOptions: String? = null
 )

@@ -29,9 +29,12 @@ package dev.kreuzberg
  */
 enum class CodeContentMode {
     /** Use TSLP semantic chunks as content (default). */
+    @com.fasterxml.jackson.annotation.JsonProperty("chunks")
     CHUNKS,
     /** Use raw source code as content. */
+    @com.fasterxml.jackson.annotation.JsonProperty("raw")
     RAW,
     /** Emit function/class headings + docstrings (no code bodies). */
+    @com.fasterxml.jackson.annotation.JsonProperty("structure")
     STRUCTURE;
 }

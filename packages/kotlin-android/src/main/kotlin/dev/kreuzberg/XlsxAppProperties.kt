@@ -28,21 +28,21 @@ package dev.kreuzberg
  */
 data class XlsxAppProperties(
     /** Application name (e.g., "Microsoft Excel") */
-    val application: String?,
+    val application: String? = null,
     /** Application version */
-    val appVersion: String?,
+    val appVersion: String? = null,
     /** Document security level */
-    val docSecurity: Int?,
+    val docSecurity: Int? = null,
     /** Scale crop flag */
-    val scaleCrop: Boolean?,
+    val scaleCrop: Boolean? = null,
     /** Links up to date flag */
-    val linksUpToDate: Boolean?,
+    val linksUpToDate: Boolean? = null,
     /** Shared document flag */
-    val sharedDoc: Boolean?,
+    val sharedDoc: Boolean? = null,
     /** Hyperlinks changed flag */
-    val hyperlinksChanged: Boolean?,
+    val hyperlinksChanged: Boolean? = null,
     /** Company name */
-    val company: String?,
+    val company: String? = null,
     /** Worksheet names */
-    val worksheetNames: List<String>
+    val worksheetNames: List<String> = emptyList()
 )

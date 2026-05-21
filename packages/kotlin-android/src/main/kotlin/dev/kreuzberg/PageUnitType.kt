@@ -28,9 +28,12 @@ package dev.kreuzberg
  */
 enum class PageUnitType {
     /** Standard document pages (PDF, DOCX, images) */
+    @com.fasterxml.jackson.annotation.JsonProperty("page")
     PAGE,
     /** Presentation slides (PPTX, ODP) */
+    @com.fasterxml.jackson.annotation.JsonProperty("slide")
     SLIDE,
     /** Spreadsheet sheets (XLSX, ODS) */
+    @com.fasterxml.jackson.annotation.JsonProperty("sheet")
     SHEET;
 }

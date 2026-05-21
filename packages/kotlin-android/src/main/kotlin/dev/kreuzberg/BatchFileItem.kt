@@ -33,5 +33,5 @@ data class BatchFileItem(
     /** Path to the file to extract from */
     val path: Path,
     /** Per-file configuration overrides (None uses batch-level defaults) */
-    val config: FileExtractionConfig?
+    val config: FileExtractionConfig? = null
 )

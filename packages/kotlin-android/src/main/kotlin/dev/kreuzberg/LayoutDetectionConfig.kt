@@ -30,21 +30,21 @@ package dev.kreuzberg
  */
 data class LayoutDetectionConfig(
     /** Confidence threshold override (None = use model default). */
-    val confidenceThreshold: Float?,
+    val confidenceThreshold: Float? = null,
     /** Whether to apply postprocessing heuristics (default: true). */
-    val applyHeuristics: Boolean,
+    val applyHeuristics: Boolean = true,
     /**
      * Table structure recognition model.
      *
      * Controls which model is used for table cell detection within layout-detected
      * table regions. Defaults to `TableModel.Tatr`.
      */
-    val tableModel: TableModel,
+    val tableModel: TableModel = TableModel.TATR,
     /**
      * Hardware acceleration for ONNX models (layout detection + table structure).
      *
      * When set, controls which execution provider (CPU, CUDA, CoreML, TensorRT)
      * is used for inference. Defaults to `null` (auto-select per platform).
      */
-    val acceleration: AccelerationConfig?
+    val acceleration: AccelerationConfig? = null
 )

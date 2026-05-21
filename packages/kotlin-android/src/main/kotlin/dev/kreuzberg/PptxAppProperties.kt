@@ -28,33 +28,33 @@ package dev.kreuzberg
  */
 data class PptxAppProperties(
     /** Application name (e.g., "Microsoft Office PowerPoint") */
-    val application: String?,
+    val application: String? = null,
     /** Application version */
-    val appVersion: String?,
+    val appVersion: String? = null,
     /** Total editing time in minutes */
-    val totalTime: Int?,
+    val totalTime: Int? = null,
     /** Company name */
-    val company: String?,
+    val company: String? = null,
     /** Document security level */
-    val docSecurity: Int?,
+    val docSecurity: Int? = null,
     /** Scale crop flag */
-    val scaleCrop: Boolean?,
+    val scaleCrop: Boolean? = null,
     /** Links up to date flag */
-    val linksUpToDate: Boolean?,
+    val linksUpToDate: Boolean? = null,
     /** Shared document flag */
-    val sharedDoc: Boolean?,
+    val sharedDoc: Boolean? = null,
     /** Hyperlinks changed flag */
-    val hyperlinksChanged: Boolean?,
+    val hyperlinksChanged: Boolean? = null,
     /** Number of slides */
-    val slides: Int?,
+    val slides: Int? = null,
     /** Number of notes */
-    val notes: Int?,
+    val notes: Int? = null,
     /** Number of hidden slides */
-    val hiddenSlides: Int?,
+    val hiddenSlides: Int? = null,
     /** Number of multimedia clips */
-    val multimediaClips: Int?,
+    val multimediaClips: Int? = null,
     /** Presentation format (e.g., "Widescreen", "Standard") */
-    val presentationFormat: String?,
+    val presentationFormat: String? = null,
     /** Slide titles */
-    val slideTitles: List<String>
+    val slideTitles: List<String> = emptyList()
 )

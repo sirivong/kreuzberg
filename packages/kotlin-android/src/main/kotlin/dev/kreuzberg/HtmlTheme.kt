@@ -28,16 +28,21 @@ enum class HtmlTheme {
      * measure. CSS custom properties (`--kb-*`) are all defined so user CSS
      * can override individual values.
      */
+    @com.fasterxml.jackson.annotation.JsonProperty("default")
     DEFAULT,
     /** GitHub Markdown-inspired palette and spacing. */
+    @com.fasterxml.jackson.annotation.JsonProperty("github")
     GIT_HUB,
     /** Dark background, light text. */
+    @com.fasterxml.jackson.annotation.JsonProperty("dark")
     DARK,
     /** Minimal light theme with generous whitespace. */
+    @com.fasterxml.jackson.annotation.JsonProperty("light")
     LIGHT,
     /**
      * No built-in stylesheet emitted. CSS custom properties are still defined
      * on `:root` so user stylesheets can reference `var(--kb-*)` tokens.
      */
+    @com.fasterxml.jackson.annotation.JsonProperty("unstyled")
     UNSTYLED;
 }

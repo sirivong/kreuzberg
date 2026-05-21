@@ -32,17 +32,17 @@ data class OcrConfig(
      *
      * Defaults to `true`. When `false`, all other OCR settings are ignored.
      */
-    val enabled: Boolean,
+    val enabled: Boolean = true,
     /** OCR backend: tesseract, easyocr, paddleocr */
     val backend: String,
     /** Language code (e.g., "eng", "deu") */
     val language: String,
     /** Tesseract-specific configuration (optional) */
-    val tesseractConfig: TesseractConfig?,
+    val tesseractConfig: TesseractConfig? = null,
     /** Output format for OCR results (optional, for format conversion) */
-    val outputFormat: OutputFormat?,
+    val outputFormat: OutputFormat? = null,
     /** PaddleOCR-specific configuration (optional, JSON passthrough) */
-    val paddleOcrConfig: String?,
+    val paddleOcrConfig: String? = null,
     /**
      * Arbitrary per-call options passed through to the backend unchanged.
      *
@@ -65,20 +65,20 @@ data class OcrConfig(
      * { "mode": "fast", "enable_layout": true, "timeout_ms": 5000 }
      * ```
      */
-    val backendOptions: String?,
+    val backendOptions: String? = null,
     /** OCR element extraction configuration */
-    val elementConfig: OcrElementConfig?,
+    val elementConfig: OcrElementConfig? = null,
     /**
      * Quality thresholds for the native-text-to-OCR fallback decision.
      * When None, uses compiled defaults (matching previous hardcoded behavior).
      */
-    val qualityThresholds: OcrQualityThresholds?,
+    val qualityThresholds: OcrQualityThresholds? = null,
     /**
      * Multi-backend OCR pipeline configuration. When set, enables weighted
      * fallback across multiple OCR backends based on output quality.
      * When None, uses the single `backend` field (same as today).
      */
-    val pipeline: OcrPipelineConfig?,
+    val pipeline: OcrPipelineConfig? = null,
     /**
      * Enable automatic page rotation based on orientation detection.
      *
@@ -87,28 +87,28 @@ data class OcrConfig(
      * rotated with high confidence, the image is corrected before recognition.
      * This is critical for handling rotated scanned documents.
      */
-    val autoRotate: Boolean,
+    val autoRotate: Boolean = false,
     /**
      * VLM (Vision Language Model) OCR configuration.
      *
      * Required when `backend` is `"vlm"`. Uses liter-llm to send page
      * images to a vision model for text extraction.
      */
-    val vlmConfig: LlmConfig?,
+    val vlmConfig: LlmConfig? = null,
     /**
      * Custom Jinja2 prompt template for VLM OCR.
      *
      * When `null`, uses the default template. Available variables:
      * - `{{ language }}` — The document language code (e.g., "eng", "deu").
      */
-    val vlmPrompt: String?,
+    val vlmPrompt: String? = null,
     /**
      * Hardware acceleration for ONNX Runtime models (e.g. PaddleOCR, layout detection).
      *
      * Not user-configurable via config files — injected at runtime from
      * `ExtractionConfig.acceleration` before each `process_image` call.
      */
-    val acceleration: AccelerationConfig?,
+    val acceleration: AccelerationConfig? = null,
     /**
      * Caller-supplied Tesseract `traineddata` bytes per language code.
      *
@@ -121,5 +121,5 @@ data class OcrConfig(
      * Skipped by serde to keep config files small — supply via the typed API
      * at runtime.
      */
-    val tessdataBytes: Map<String, ByteArray>?
+    val tessdataBytes: Map<String, ByteArray>? = null
 )

@@ -43,5 +43,5 @@ data class EmailConfig(
      * - 932:  Japanese (Shift-JIS)
      * - 936:  Simplified Chinese (GBK)
      */
-    val msgFallbackCodepage: Int?
+    val msgFallbackCodepage: Int? = null
 )

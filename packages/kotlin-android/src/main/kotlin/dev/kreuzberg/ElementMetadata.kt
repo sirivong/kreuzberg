@@ -24,13 +24,13 @@ package dev.kreuzberg
 /** Metadata for a semantic element. */
 data class ElementMetadata(
     /** Page number (1-indexed) */
-    val pageNumber: Int?,
+    val pageNumber: Int? = null,
     /** Source filename or document name */
-    val filename: String?,
+    val filename: String? = null,
     /** Bounding box coordinates if available */
-    val coordinates: String?,
+    val coordinates: String? = null,
     /** Position index in the element sequence */
-    val elementIndex: Long?,
+    val elementIndex: Long? = null,
     /** Additional custom metadata */
-    val additional: Map<String, String>
+    val additional: Map<String, String> = emptyMap()
 )

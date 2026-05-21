@@ -28,35 +28,35 @@ package dev.kreuzberg
  */
 data class DocxAppProperties(
     /** Application name (e.g., "Microsoft Office Word") */
-    val application: String?,
+    val application: String? = null,
     /** Application version */
-    val appVersion: String?,
+    val appVersion: String? = null,
     /** Template filename */
-    val template: String?,
+    val template: String? = null,
     /** Total editing time in minutes */
-    val totalTime: Int?,
+    val totalTime: Int? = null,
     /** Number of pages */
-    val pages: Int?,
+    val pages: Int? = null,
     /** Number of words */
-    val words: Int?,
+    val words: Int? = null,
     /** Number of characters (excluding spaces) */
-    val characters: Int?,
+    val characters: Int? = null,
     /** Number of characters (including spaces) */
-    val charactersWithSpaces: Int?,
+    val charactersWithSpaces: Int? = null,
     /** Number of lines */
-    val lines: Int?,
+    val lines: Int? = null,
     /** Number of paragraphs */
-    val paragraphs: Int?,
+    val paragraphs: Int? = null,
     /** Company name */
-    val company: String?,
+    val company: String? = null,
     /** Document security level */
-    val docSecurity: Int?,
+    val docSecurity: Int? = null,
     /** Scale crop flag */
-    val scaleCrop: Boolean?,
+    val scaleCrop: Boolean? = null,
     /** Links up to date flag */
-    val linksUpToDate: Boolean?,
+    val linksUpToDate: Boolean? = null,
     /** Shared document flag */
-    val sharedDoc: Boolean?,
+    val sharedDoc: Boolean? = null,
     /** Hyperlinks changed flag */
-    val hyperlinksChanged: Boolean?
+    val hyperlinksChanged: Boolean? = null
 )

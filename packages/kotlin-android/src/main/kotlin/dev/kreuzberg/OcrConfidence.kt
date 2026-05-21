@@ -34,7 +34,7 @@ data class OcrConfidence(
      * PaddleOCR provides this as `box_score`, Tesseract doesn't have a direct equivalent.
      * Range: 0.0 to 1.0 (or None if not available).
      */
-    val detection: Double?,
+    val detection: Double? = null,
     /**
      * Recognition confidence: how confident about the text content.
      *

@@ -22,12 +22,14 @@
 package dev.kreuzberg
 
 import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 object Kreuzberg {
     private val mapper = jacksonObjectMapper()
+        .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
 
     /**
      * Extract content from a byte array.
@@ -609,7 +611,17 @@ object Kreuzberg {
      * Returns `KreuzbergError.Parsing` if the PDF cannot be opened, authenticated,
      * or rendered, or if `page_index` is out of range.
      */
-    fun renderPdfPageToPng(pdfBytes: String, pageIndex: Long, dpi: Int? = null, password: String? = null): Long = KreuzbergBridge.nativeRenderPdfPageToPng(pdfBytes, pageIndex, dpi ?: 0, password ?: "")
+    fun renderPdfPageToPng(
+        pdfBytes: String,
+        pageIndex: Long,
+        dpi: Int? = null,
+        password: String? = null
+    ): Long = KreuzbergBridge.nativeRenderPdfPageToPng(
+        pdfBytes,
+        pageIndex,
+        dpi ?: 0,
+        password ?: ""
+    )
     /**
      * Detect the MIME type of a file at the given path.
      *
@@ -659,5 +671,4 @@ object Kreuzberg {
      */
     suspend fun listEmbeddingPresetsAsync(): List<String> =
         withContext(Dispatchers.IO) { listEmbeddingPresets() }
-
 }

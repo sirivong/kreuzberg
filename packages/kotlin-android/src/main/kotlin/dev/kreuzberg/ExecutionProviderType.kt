@@ -29,13 +29,18 @@ package dev.kreuzberg
  */
 enum class ExecutionProviderType {
     /** Auto-select: CoreML on macOS, CUDA on Linux, CPU elsewhere. */
+    @com.fasterxml.jackson.annotation.JsonProperty("auto")
     AUTO,
     /** CPU execution provider (always available). */
+    @com.fasterxml.jackson.annotation.JsonProperty("cpu")
     CPU,
     /** Apple CoreML (macOS/iOS Neural Engine + GPU). */
+    @com.fasterxml.jackson.annotation.JsonProperty("coreml")
     CORE_ML,
     /** NVIDIA CUDA GPU acceleration. */
+    @com.fasterxml.jackson.annotation.JsonProperty("cuda")
     CUDA,
     /** NVIDIA TensorRT (optimized CUDA inference). */
+    @com.fasterxml.jackson.annotation.JsonProperty("tensorrt")
     TENSOR_RT;
 }

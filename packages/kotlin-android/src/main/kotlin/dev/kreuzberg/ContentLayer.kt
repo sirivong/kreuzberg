@@ -28,11 +28,15 @@ package dev.kreuzberg
  */
 enum class ContentLayer {
     /** Main document body content. */
+    @com.fasterxml.jackson.annotation.JsonProperty("body")
     BODY,
     /** Page/section header (running header). */
+    @com.fasterxml.jackson.annotation.JsonProperty("header")
     HEADER,
     /** Page/section footer (running footer). */
+    @com.fasterxml.jackson.annotation.JsonProperty("footer")
     FOOTER,
     /** Footnote content. */
+    @com.fasterxml.jackson.annotation.JsonProperty("footnote")
     FOOTNOTE;
 }

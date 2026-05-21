@@ -24,11 +24,15 @@ package dev.kreuzberg
 /** Image type classification. */
 enum class ImageType {
     /** Data URI image */
+    @com.fasterxml.jackson.annotation.JsonProperty("data-uri")
     DATA_URI,
     /** Inline SVG */
+    @com.fasterxml.jackson.annotation.JsonProperty("inline-svg")
     INLINE_SVG,
     /** External image URL */
+    @com.fasterxml.jackson.annotation.JsonProperty("external")
     EXTERNAL,
     /** Relative path image */
+    @com.fasterxml.jackson.annotation.JsonProperty("relative")
     RELATIVE;
 }

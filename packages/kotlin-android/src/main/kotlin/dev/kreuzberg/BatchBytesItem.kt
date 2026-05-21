@@ -33,5 +33,5 @@ data class BatchBytesItem(
     /** MIME type of the content (e.g., "application/pdf", "text/html") */
     val mimeType: String,
     /** Per-item configuration overrides (None uses batch-level defaults) */
-    val config: FileExtractionConfig?
+    val config: FileExtractionConfig? = null
 )

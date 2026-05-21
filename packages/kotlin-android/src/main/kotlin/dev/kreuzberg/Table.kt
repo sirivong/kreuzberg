@@ -29,7 +29,7 @@ package dev.kreuzberg
  */
 data class Table(
     /** Table cells as a 2D vector (rows × columns) */
-    val cells: List<List<String>>,
+    val cells: List<List<String>> = emptyList(),
     /** Markdown representation of the table */
     val markdown: String,
     /** Page number where the table was found (1-indexed) */
@@ -38,5 +38,5 @@ data class Table(
      * Bounding box of the table on the page (PDF coordinates: x0=left, y0=bottom, x1=right, y1=top).
      * Only populated for PDF-extracted tables when position data is available.
      */
-    val boundingBox: String?
+    val boundingBox: String? = null
 )

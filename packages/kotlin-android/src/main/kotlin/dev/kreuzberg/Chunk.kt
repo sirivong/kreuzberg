@@ -44,7 +44,7 @@ data class Chunk(
      * Only populated when `EmbeddingConfig` is provided in chunking configuration.
      * The dimensionality depends on the chosen embedding model.
      */
-    val embedding: List<Float>?,
+    val embedding: List<Float>? = null,
     /** Metadata about this chunk's position and properties. */
     val metadata: ChunkMetadata
 )

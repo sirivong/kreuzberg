@@ -29,7 +29,7 @@ package dev.kreuzberg
  */
 data class ExcelMetadata(
     /** Number of sheets in the workbook. */
-    val sheetCount: Int?,
+    val sheetCount: Int? = null,
     /** Names of all sheets in the workbook. */
-    val sheetNames: List<String>?
+    val sheetNames: List<String>? = emptyList()
 )

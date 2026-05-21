@@ -26,13 +26,13 @@ data class ImageMetadataType(
     /** Image source (URL, data URI, or SVG content) */
     val src: String,
     /** Alternative text from alt attribute */
-    val alt: String?,
+    val alt: String? = null,
     /** Title attribute */
-    val title: String?,
+    val title: String? = null,
     /** Image dimensions as (width, height) if available */
-    val dimensions: List<Int>?,
+    val dimensions: List<Int>? = null,
     /** Image type classification */
     val imageType: ImageType,
     /** Additional attributes as key-value pairs */
-    val attributes: List<String>
+    val attributes: List<String> = emptyList()
 )

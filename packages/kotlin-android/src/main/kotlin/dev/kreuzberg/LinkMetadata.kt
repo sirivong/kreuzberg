@@ -28,11 +28,11 @@ data class LinkMetadata(
     /** Link text content (normalized) */
     val text: String,
     /** Optional title attribute */
-    val title: String?,
+    val title: String? = null,
     /** Link type classification */
     val linkType: LinkType,
     /** Rel attribute values */
-    val rel: List<String>,
+    val rel: List<String> = emptyList(),
     /** Additional attributes as key-value pairs */
-    val attributes: List<String>
+    val attributes: List<String> = emptyList()
 )

@@ -28,18 +28,18 @@ package dev.kreuzberg
  */
 data class EmailAttachment(
     /** Attachment name (from Content-Disposition header) */
-    val name: String?,
+    val name: String? = null,
     /** Filename of the attachment */
-    val filename: String?,
+    val filename: String? = null,
     /** MIME type of the attachment */
-    val mimeType: String?,
+    val mimeType: String? = null,
     /** Size in bytes */
-    val size: Long?,
+    val size: Long? = null,
     /** Whether this attachment is an image */
     val isImage: Boolean,
     /**
      * Attachment data (if extracted).
      * Uses `bytes.Bytes` for cheap cloning of large buffers.
      */
-    val data: ByteArray?
+    val data: ByteArray? = null
 )

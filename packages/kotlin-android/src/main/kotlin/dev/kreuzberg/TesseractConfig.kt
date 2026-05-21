@@ -30,7 +30,7 @@ package dev.kreuzberg
  */
 data class TesseractConfig(
     /** Language code (e.g., "eng", "deu", "fra") */
-    val language: String,
+    val language: String = "eng",
     /**
      * Page Segmentation Mode (0-13).
      *
@@ -39,9 +39,9 @@ data class TesseractConfig(
      * - 6: Assume a single uniform block of text (WASM default — avoids layout-analysis hang)
      * - 11: Sparse text with no particular order
      */
-    val psm: Int,
+    val psm: Int = 3,
     /** Output format ("text" or "markdown") */
-    val outputFormat: String,
+    val outputFormat: String = "markdown",
     /**
      * OCR Engine Mode (0-3).
      *
@@ -50,48 +50,48 @@ data class TesseractConfig(
      * - 2: Legacy + LSTM
      * - 3: Default (based on what's available)
      */
-    val oem: Int,
+    val oem: Int = 3,
     /**
      * Minimum confidence threshold (0.0-100.0).
      *
      * Words with confidence below this threshold may be rejected or flagged.
      */
-    val minConfidence: Double,
+    val minConfidence: Double = 0,
     /**
      * Image preprocessing configuration.
      *
      * Controls how images are preprocessed before OCR. Can significantly
      * improve quality for scanned documents or low-quality images.
      */
-    val preprocessing: ImagePreprocessingConfig?,
+    val preprocessing: ImagePreprocessingConfig? = null,
     /** Enable automatic table detection and reconstruction */
-    val enableTableDetection: Boolean,
+    val enableTableDetection: Boolean = true,
     /** Minimum confidence threshold for table detection (0.0-1.0) */
-    val tableMinConfidence: Double,
+    val tableMinConfidence: Double = 0,
     /** Column threshold for table detection (pixels) */
-    val tableColumnThreshold: Int,
+    val tableColumnThreshold: Int = 50,
     /** Row threshold ratio for table detection (0.0-1.0) */
-    val tableRowThresholdRatio: Double,
+    val tableRowThresholdRatio: Double = 0.5,
     /** Enable OCR result caching */
-    val useCache: Boolean,
+    val useCache: Boolean = true,
     /** Use pre-adapted templates for character classification */
-    val classifyUsePreAdaptedTemplates: Boolean,
+    val classifyUsePreAdaptedTemplates: Boolean = true,
     /** Enable N-gram language model */
-    val languageModelNgramOn: Boolean,
+    val languageModelNgramOn: Boolean = false,
     /** Don't reject good words during block-level processing */
-    val tesseditDontBlkrejGoodWds: Boolean,
+    val tesseditDontBlkrejGoodWds: Boolean = true,
     /** Don't reject good words during row-level processing */
-    val tesseditDontRowrejGoodWds: Boolean,
+    val tesseditDontRowrejGoodWds: Boolean = true,
     /** Enable dictionary correction */
-    val tesseditEnableDictCorrection: Boolean,
+    val tesseditEnableDictCorrection: Boolean = true,
     /** Whitelist of allowed characters (empty = all allowed) */
-    val tesseditCharWhitelist: String,
+    val tesseditCharWhitelist: String = "",
     /** Blacklist of forbidden characters (empty = none forbidden) */
-    val tesseditCharBlacklist: String,
+    val tesseditCharBlacklist: String = "",
     /** Use primary language params model */
-    val tesseditUsePrimaryParamsModel: Boolean,
+    val tesseditUsePrimaryParamsModel: Boolean = true,
     /** Variable-width space detection */
-    val textordSpaceSizeIsVariable: Boolean,
+    val textordSpaceSizeIsVariable: Boolean = true,
     /** Use adaptive thresholding method */
-    val thresholdingMethod: Boolean
+    val thresholdingMethod: Boolean = false
 )

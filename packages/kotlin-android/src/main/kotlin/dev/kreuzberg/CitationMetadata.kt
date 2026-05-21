@@ -24,9 +24,9 @@ package dev.kreuzberg
 /** Citation file metadata (RIS, PubMed, EndNote). */
 data class CitationMetadata(
     val citationCount: Long,
-    val format: String?,
-    val authors: List<String>,
-    val yearRange: YearRange?,
-    val dois: List<String>,
-    val keywords: List<String>
+    val format: String? = null,
+    val authors: List<String> = emptyList(),
+    val yearRange: YearRange? = YearRange(),
+    val dois: List<String> = emptyList(),
+    val keywords: List<String> = emptyList()
 )

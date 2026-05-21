@@ -28,5 +28,5 @@ data class YakeParams(
      *
      * Controls the context window for computing co-occurrence statistics.
      */
-    val windowSize: Long
+    val windowSize: Long = 2L
 )

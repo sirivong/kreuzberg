@@ -38,17 +38,17 @@ data class DjotContent(
     /** Plain text representation for backwards compatibility */
     val plainText: String,
     /** Structured block-level content */
-    val blocks: List<FormattedBlock>,
+    val blocks: List<FormattedBlock> = emptyList(),
     /** Metadata from YAML frontmatter */
     val metadata: Metadata,
     /** Extracted tables as structured data */
-    val tables: List<Table>,
+    val tables: List<Table> = emptyList(),
     /** Extracted images with metadata */
-    val images: List<DjotImage>,
+    val images: List<DjotImage> = emptyList(),
     /** Extracted links with URLs */
-    val links: List<DjotLink>,
+    val links: List<DjotLink> = emptyList(),
     /** Footnote definitions */
-    val footnotes: List<Footnote>,
+    val footnotes: List<Footnote> = emptyList(),
     /** Attributes mapped by element identifier (if present) */
-    val attributes: List<String>
+    val attributes: List<String> = emptyList()
 )

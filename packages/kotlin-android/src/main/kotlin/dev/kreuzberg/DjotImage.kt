@@ -28,7 +28,7 @@ data class DjotImage(
     /** Alternative text */
     val alt: String,
     /** Optional title */
-    val title: String?,
+    val title: String? = null,
     /** Element attributes */
-    val attributes: String?
+    val attributes: String? = null
 )

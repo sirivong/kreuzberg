@@ -28,17 +28,17 @@ package dev.kreuzberg
  */
 data class EmailMetadata(
     /** Sender's email address */
-    val fromEmail: String?,
+    val fromEmail: String? = null,
     /** Sender's display name */
-    val fromName: String?,
+    val fromName: String? = null,
     /** Primary recipients */
-    val toEmails: List<String>,
+    val toEmails: List<String> = emptyList(),
     /** CC recipients */
-    val ccEmails: List<String>,
+    val ccEmails: List<String> = emptyList(),
     /** BCC recipients */
-    val bccEmails: List<String>,
+    val bccEmails: List<String> = emptyList(),
     /** Message-ID header value */
-    val messageId: String?,
+    val messageId: String? = null,
     /** List of attachment filenames */
-    val attachments: List<String>
+    val attachments: List<String> = emptyList()
 )

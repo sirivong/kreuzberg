@@ -24,9 +24,9 @@ package dev.kreuzberg
 /** Language detection configuration. */
 data class LanguageDetectionConfig(
     /** Enable language detection */
-    val enabled: Boolean,
+    val enabled: Boolean = true,
     /** Minimum confidence threshold (0.0-1.0) */
-    val minConfidence: Double,
+    val minConfidence: Double = 0.8,
     /** Detect multiple languages in the document */
-    val detectMultiple: Boolean
+    val detectMultiple: Boolean = false
 )
