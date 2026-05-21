@@ -74,6 +74,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   implementations of both functions. The stubs ensure the symbols are always present
   and callers degrade gracefully (empty list / `null` handle) instead of crashing.
 
+- **#962**: PDF text extracted one character per line on glyph-spaced documents
+  (programmatic reproducer in `crates/kreuzberg/tests/pdf_glyph_spacing_issue_962.rs`)
+  — when a Word-exported PDF places each glyph via its own `BT…ET` block with a
+  sinusoidal y-jitter, pdf_oxide's ColumnAware reading order groups spans by y-level
+  rather than reading order, yielding single-character spans out of sequence. Detection:
+  ≥ 3 same-line x-disorder events among short (≤ 3 char) spans, where "same-line" uses
+  a 5 pt absolute ceiling (`MAX_GLYPH_JITTER_PT`) instead of a font-size fraction,
+  preventing false positives on height-zero span lists from normal documents.
+  Reconstruction: sort by y-descending, group by 5 pt y-proximity, re-sort each group
+  by x-ascending, insert spaces at word gaps (x-gap > `font_size × 0.5`). Heuristic
+  constants live in `crate::pdf::structure::constants` with measurement justification;
+  upstream fix shipped in pdf_oxide v0.3.51 (issue #518, closed 2026-05-19);
+  heuristic removable when kreuzberg upgrades to ≥ 0.3.51. Dutch word `relatie` (from
+  "relatie-id" in the Word broken-image placeholder string) added to `.typos.toml`.
+
 ### Changed
 
 - **API surface lockdown via `#[cfg_attr(alef, alef(skip))]`**: 41 internal types
