@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **deps**: Loosened `tar` requirement in `crates/kreuzberg/Cargo.toml` from `^0.4.46` back to `^0.4` so it remains compatible with `tree-sitter-language-pack v1.8.1`, which locks `tar` to `0.4.45`. The pinned floor prevented the e2e/rust crate from resolving a consistent version. (`crates/kreuzberg/Cargo.toml`)
+
 ### Fixed (core: code_intelligence Go type mismatch)
 
 - **core**: Changed `ExtractionResult.code_intelligence` field type from `Option<crate::ProcessResult>` to `Option<serde_json::Value>`. The `ProcessResult` type lives in `tree_sitter_language_pack` — an external crate whose struct layout alef cannot resolve — so the Go backend emitted `*string`, causing `cannot unmarshal object into string` at runtime. Using `serde_json::Value` maps to `json.RawMessage` in Go, preserving full JSON fidelity while being opaque to alef. Updated `extraction/derive.rs` to serialize the `ProcessResult` before assignment; a `tracing::warn!` guards the rare serialization failure. (`crates/kreuzberg/src/types/extraction.rs`, `crates/kreuzberg/src/extraction/derive.rs`, `packages/go/v5/binding.go`)
