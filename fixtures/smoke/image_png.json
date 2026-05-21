@@ -21,5 +21,9 @@
       "field": "metadata.format",
       "value": "PNG"
     }
-  ]
+  ],
+  "skip": {
+    "languages": ["wasm"],
+    "reason": "WASM cannot access filesystem; use extractBytes with file content instead"
+  }
 }
