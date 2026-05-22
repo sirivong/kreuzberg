@@ -1,6 +1,6 @@
 # Kreuzberg
 
-[![Bindings by alef](https://img.shields.io/badge/bindings%20by-alef%20%D7%90-007ec6)](https://github.com/kreuzberg-dev/alef)
+[![Bindings](https://img.shields.io/badge/Bindings-alef%20%D7%90-007ec6)](https://github.com/kreuzberg-dev/alef)
 
 [![Rust](https://img.shields.io/crates/v/kreuzberg?label=Rust&color=007ec6)](https://crates.io/crates/kreuzberg)
 [![Python](https://img.shields.io/pypi/v/kreuzberg?label=Python&color=007ec6)](https://pypi.org/project/kreuzberg/)
@@ -12,9 +12,9 @@
 [![C#](https://img.shields.io/nuget/v/Kreuzberg?label=C%23&color=007ec6)](https://www.nuget.org/packages/Kreuzberg/)
 
 [![License: Elastic-2.0](https://img.shields.io/badge/License-Elastic--2.0-007ec6)](https://www.elastic.co/licensing/elastic-license)
-[![Documentation](https://img.shields.io/badge/docs-kreuzberg.dev-007ec6)](https://kreuzberg.dev/)
+[![Documentation](https://img.shields.io/badge/Docs-kreuzberg-007ec6)](https://kreuzberg.dev/)
 [![Hugging Face](https://img.shields.io/badge/Hugging%20Face-Kreuzberg-007ec6)](https://huggingface.co/Kreuzberg)
-[![Discord](https://img.shields.io/badge/Discord-Join%20our%20community-007ec6)](https://discord.gg/xt9WY3GnKR)
+[![Discord](https://img.shields.io/badge/Discord-Chat-007ec6)](https://discord.gg/xt9WY3GnKR)
 
 High-performance document intelligence library for Rust. Extract text, metadata, and structured information from PDFs, Office documents, images, and 75 formats.
 
