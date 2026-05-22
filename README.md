@@ -78,7 +78,7 @@ Each element in `docs` looks like:
 
 ## Features
 
-- **88+ file formats** — PDF, DOCX, PPTX, XLSX, images, HTML, Markdown, plain text, and more via Kreuzberg
+- **90+ file formats** — PDF, DOCX, PPTX, XLSX, images, HTML, Markdown, plain text, and more via Kreuzberg
 - **Stable dict contract** — every extraction returns `content` + `metadata` with the same four keys, regardless of source format
 - **Rich metadata** — source path, MIME type, title, and page count surface directly
 - **Batch support** — pass a single path or a `list[str]`; output is always `list[dict]` in input order
