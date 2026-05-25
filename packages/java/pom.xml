@@ -70,12 +70,12 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.21.3</version>
+            <version>2.21.2</version>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.datatype</groupId>
             <artifactId>jackson-datatype-jdk8</artifactId>
-            <version>2.21.3</version>
+            <version>2.21.2</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -299,15 +299,15 @@
                         <ruleset>/rulesets/java/quickstart.xml</ruleset>
                     </rulesets>
                     <!--
-                        CPD threshold raised to 320 because alef v0.19.6+ Java trait bridge
-                        emitter generates identical vtable allocation + stub-binding code
-                        across multiple Bridge classes (DocumentExtractorBridge, EmbeddingBackendBridge,
-                        OcrBackendBridge, PostProcessorBridge, RendererBridge, ValidatorBridge).
-                        Each shares ~310 tokens of boilerplate. This is expected alef-generated
-                        output. The threshold allows Panama FFM vtable patterns while still
-                        catching genuine large-scale duplication.
+                        CPD threshold raised above the default 100 tokens because alef-generated
+                        streaming method bodies (`crawlStream`, `batchCrawlStream`, etc.) share
+                        an identical iterator-driving loop by design (per-stream-handle JNI
+                        externs differ, the surrounding plumbing is the same). The shared block
+                        is ~106 tokens — well within the default. 200 is the smallest threshold
+                        that lets two streaming methods coexist in the same handle class without
+                        a false-positive while still catching genuine large-scale duplication.
                     -->
-                    <minimumTokens>320</minimumTokens>
+                    <minimumTokens>200</minimumTokens>
                 </configuration>
                 <executions>
                     <execution>

@@ -2783,6 +2783,10 @@ mod ffi {
         fn clear_renderers() -> Result<(), String>;
     }
 
+    extern "Rust" {
+        fn alef_phantom_vec_ocr_backend() -> Vec<SwiftOcrBackendBoxBox>;
+    }
+
     extern "Swift" {
         type SwiftOcrBackendBox;
         fn alef_name(&self) -> String;
@@ -2799,6 +2803,10 @@ mod ffi {
         fn alef_process_document(&self, path: String, config: String) -> String;
     }
 
+    extern "Rust" {
+        fn alef_phantom_vec_post_processor() -> Vec<SwiftPostProcessorBoxBox>;
+    }
+
     extern "Swift" {
         type SwiftPostProcessorBox;
         fn alef_name(&self) -> String;
@@ -2812,6 +2820,10 @@ mod ffi {
         fn alef_priority(&self) -> i32;
     }
 
+    extern "Rust" {
+        fn alef_phantom_vec_validator() -> Vec<SwiftValidatorBoxBox>;
+    }
+
     extern "Swift" {
         type SwiftValidatorBox;
         fn alef_name(&self) -> String;
@@ -2823,6 +2835,10 @@ mod ffi {
         fn alef_priority(&self) -> i32;
     }
 
+    extern "Rust" {
+        fn alef_phantom_vec_embedding_backend() -> Vec<SwiftEmbeddingBackendBoxBox>;
+    }
+
     extern "Swift" {
         type SwiftEmbeddingBackendBox;
         fn alef_name(&self) -> String;
@@ -2831,6 +2847,10 @@ mod ffi {
         fn alef_shutdown(&self) -> String;
         fn alef_dimensions(&self) -> usize;
         fn alef_embed(&self, texts: Vec<String>) -> String;
+    }
+
+    extern "Rust" {
+        fn alef_phantom_vec_document_extractor() -> Vec<SwiftDocumentExtractorBoxBox>;
     }
 
     extern "Swift" {
@@ -2845,6 +2865,10 @@ mod ffi {
         fn alef_priority(&self) -> i32;
         fn alef_can_handle(&self, path: String, mime_type: String) -> bool;
         fn alef_as_sync_extractor(&self) -> String;
+    }
+
+    extern "Rust" {
+        fn alef_phantom_vec_renderer() -> Vec<SwiftRendererBoxBox>;
     }
 
     extern "Swift" {
@@ -11872,6 +11896,10 @@ where
         ))),
     }
 }
+#[doc(hidden)]
+pub fn alef_phantom_vec_ocr_backend() -> Vec<SwiftOcrBackendBoxBox> {
+    Vec::new()
+}
 /// Rust-side wrapper around a Swift class implementing the `OcrBackend` plugin protocol.
 ///
 /// The Swift instance is held via a `swift-bridge` opaque handle that retains
@@ -11963,6 +11991,10 @@ pub fn clear_ocr_backends() -> Result<(), String> {
     guard.clear().map_err(|e| e.to_string())
 }
 
+#[doc(hidden)]
+pub fn alef_phantom_vec_post_processor() -> Vec<SwiftPostProcessorBoxBox> {
+    Vec::new()
+}
 /// Rust-side wrapper around a Swift class implementing the `PostProcessor` plugin protocol.
 ///
 /// The Swift instance is held via a `swift-bridge` opaque handle that retains
@@ -12049,6 +12081,10 @@ pub fn clear_post_processors() -> Result<(), String> {
     guard.clear().map_err(|e| e.to_string())
 }
 
+#[doc(hidden)]
+pub fn alef_phantom_vec_validator() -> Vec<SwiftValidatorBoxBox> {
+    Vec::new()
+}
 /// Rust-side wrapper around a Swift class implementing the `Validator` plugin protocol.
 ///
 /// The Swift instance is held via a `swift-bridge` opaque handle that retains
@@ -12128,6 +12164,10 @@ pub fn clear_validators() -> Result<(), String> {
     guard.clear().map_err(|e| e.to_string())
 }
 
+#[doc(hidden)]
+pub fn alef_phantom_vec_embedding_backend() -> Vec<SwiftEmbeddingBackendBoxBox> {
+    Vec::new()
+}
 /// Rust-side wrapper around a Swift class implementing the `EmbeddingBackend` plugin protocol.
 ///
 /// The Swift instance is held via a `swift-bridge` opaque handle that retains
@@ -12206,6 +12246,10 @@ pub fn clear_embedding_backends() -> Result<(), String> {
     guard.clear().map_err(|e| e.to_string())
 }
 
+#[doc(hidden)]
+pub fn alef_phantom_vec_document_extractor() -> Vec<SwiftDocumentExtractorBoxBox> {
+    Vec::new()
+}
 /// Rust-side wrapper around a Swift class implementing the `DocumentExtractor` plugin protocol.
 ///
 /// The Swift instance is held via a `swift-bridge` opaque handle that retains
@@ -12297,6 +12341,10 @@ pub fn clear_document_extractors() -> Result<(), String> {
     guard.clear().map_err(|e| e.to_string())
 }
 
+#[doc(hidden)]
+pub fn alef_phantom_vec_renderer() -> Vec<SwiftRendererBoxBox> {
+    Vec::new()
+}
 /// Rust-side wrapper around a Swift class implementing the `Renderer` plugin protocol.
 ///
 /// The Swift instance is held via a `swift-bridge` opaque handle that retains
