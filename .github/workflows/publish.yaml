@@ -1626,12 +1626,6 @@ jobs:
           language: ruby
           artifact-path: dist
           package-name: kreuzberg
-          required-extras: |
-            **/*.rbs
-            **/lib/**/*.rb
-            **/*.so
-            **/*.dylib
-            **/*.dll
 
       - uses: kreuzberg-dev/actions/publish-rubygems@v1
         with:
