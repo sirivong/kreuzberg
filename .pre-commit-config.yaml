@@ -34,8 +34,6 @@ repos:
   - id: check-case-conflict
   - id: pyproject-fmt
   - id: ruff
-    args:
-    - --fix
   - id: ruff-format
   - id: cargo-sort
     exclude: ^(crates/kreuzberg-(wasm|node|py|php|ffi)|packages/(dart|swift)/rust)/Cargo\.toml$
