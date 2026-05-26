@@ -11,12 +11,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **pptx**: `PageContent` gains two optional fields populated during PPTX per-page extraction (requires `page_config` to be set): `speaker_notes` (text from `ppt/notesSlides/notesSlideN.xml`) and `section_name` (from `<p14:sectionLst>` in `ppt/presentation.xml`). Both serialize with `skip_serializing_if = "Option::is_none"` and are `None` for all non-PPTX formats. (`crates/kreuzberg/src/types/page.rs`, `crates/kreuzberg/src/extraction/pptx/`)
+- **pptx**: `PageContent` gains two optional fields populated during PPTX per-page extraction (requires `page_config` to be set): `speaker_notes` (text from `ppt/notesSlides/notesSlideN.xml`) and `section_name` (from `<p14:sectionLst>` in `ppt/presentation.xml`). Both serialize with `skip_serializing_if = "Option::is_none"` and are `None` for all non-PPTX formats. (#960)
+- **pdf**: opt-in capture of full-page renders produced during PDF OCR preprocessing. When `ImageExtractionConfig.include_page_rasters = true`, per-page PNG renders are returned as `ImageKind::PageRaster` entries in `ExtractionResult.images`, enabling citation thumbnails and visual grounding downstream. Capture covers all three OCR entry paths (`force_ocr`, `force_ocr_pages`, `RunFallback`); document-level backend bypass emits a `ProcessingWarning`. (#1018)
 
 ### Changed
 
 - **deps**: bump alef pin v0.19.14 → v0.19.20. v0.19.15-v0.19.20 ship generator fixes addressing the systemic trait-bridge stub regressions surfaced by v5.0.0-rc.3 CI E2E (11 of 14 lang jobs failing on plugin_api stubs missing super-trait methods, wrong return types, internal type leakage, missing PHP interface emission, etc.) — plus the v0.19.20 hotfix that registers the new PHP interface Jinja templates in alef's embedded `TEMPLATES` array. Affects every binding (`crates/kreuzberg-{node,wasm,ffi}`, `packages/*`) and every e2e suite under `e2e/`.
 - **deps**: bump `html-to-markdown-rs` from `3.4.1` to `3.5.2` — adopts the upstream fix for nested mixed-list (`ul > li > ul > li > ol`) content duplication (kreuzberg-dev/html-to-markdown#385).
+
+### Changed (breaking)
+
+- **types**: `ImageKind` gains a new `PageRaster` variant. Any exhaustive `match` on `ImageKind` in downstream code must add a `PageRaster` arm. (#1018)
 
 ### Fixed
 

@@ -477,6 +477,8 @@ pub enum ImageKind {
     TileFragment,
     /// Mask or transparency map
     Mask,
+    /// Full-page render produced during OCR preprocessing; used as a citation thumbnail.
+    PageRaster,
     /// Could not classify with reasonable confidence
     Unknown,
 }
