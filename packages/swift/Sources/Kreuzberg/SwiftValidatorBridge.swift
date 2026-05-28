@@ -13,7 +13,8 @@ public protocol SwiftValidatorBridge: AnyObject {
 }
 
 /// Internal adapter wrapping a `SwiftValidatorBridge` conformer.
-/// Exposes C function pointers that call the bridge implementation.
+/// Marshals Swift types and trait calls to/from the C boundary.
+/// Excluded/internal types are serialised to/from JSON strings.
 final class SwiftValidatorAdapter {
     private let bridge: any SwiftValidatorBridge
 
@@ -22,10 +23,35 @@ final class SwiftValidatorAdapter {
     }
 
     func validateCall(result: ExtractionResult, config: ExtractionConfig) -> Void {
-        // Marshalling code would go here
-        ""
+        do {
+        let result = try self.bridge.validate(result, config)
+            return marshal_ok_result(result)
+    } catch {
+        return marshal_error_result(error)
+    }
     }
 
+}
+
+// MARK: - Marshalling helpers
+
+private func marshal_ok_result<T: Encodable>(_ value: T) -> String {
+    let encoder = JSONEncoder()
+    if let data = try? encoder.encode(value),
+       let jsonString = String(data: data, encoding: .utf8) {
+        return "{\"ok\": \(jsonString)}"
+    }
+    return "{\"ok\": null}"
+}
+
+private func marshal_error_result(_ error: any Error) -> String {
+    let errorString = String(describing: error)
+    let encoder = JSONEncoder()
+    if let data = try? encoder.encode(errorString),
+       let jsonString = String(data: data, encoding: .utf8) {
+        return "{\"err\": \(jsonString)}"
+    }
+    return "{\"err\": \"unknown error\"}"
 }
 
 /// Register an outbound `Validator` plugin.

@@ -43,14 +43,14 @@ wheels = [
 
 [[package]]
 name = "kreuzberg"
-version = "5.0.0rc1"
+version = "5.0.0rc3"
 source = { directory = "../../packages/python" }
 
 [package.metadata]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "mypy", specifier = ">=1.19.0" },
+    { name = "mypy", specifier = ">=1.19" },
     { name = "ruff", specifier = ">=0.14.8" },
 ]
 

@@ -2274,9 +2274,9 @@ dependencies = [
 
 [[package]]
 name = "html-to-markdown-rs"
-version = "3.4.1"
+version = "3.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42f856d5f5daa55ea8b81bd746f1e49170fe589eccd2f5020d9ea888417983ab"
+checksum = "59ec288c724d6dd146d82cfea8cf6dd0b0109722aa7009f14a41b07575664975"
 dependencies = [
  "ahash",
  "astral-tl",
@@ -2931,7 +2931,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg"
-version = "5.0.0-rc.1"
+version = "5.0.0-rc.3"
 dependencies = [
  "ahash",
  "async-trait",
@@ -3028,12 +3028,12 @@ dependencies = [
  "uuid",
  "v_htmlescape",
  "whatlang",
- "zip 8.6.0",
+ "zip 7.2.0",
 ]
 
 [[package]]
 name = "kreuzberg-paddle-ocr"
-version = "5.0.0-rc.1"
+version = "5.0.0-rc.3"
 dependencies = [
  "geo-clipper",
  "geo-types",
@@ -3047,7 +3047,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-rb"
-version = "5.0.0-rc.1"
+version = "5.0.0-rc.3"
 dependencies = [
  "ahash",
  "async-trait",
@@ -3060,13 +3060,13 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-tesseract"
-version = "5.0.0-rc.1"
+version = "5.0.0-rc.3"
 dependencies = [
  "cc",
  "cmake",
  "reqwest",
  "thiserror",
- "zip 8.6.0",
+ "zip 7.2.0",
 ]
 
 [[package]]

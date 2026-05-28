@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.19.21"
+alef_version = "0.20.0"
 languages = [
   "python",
   "node",
@@ -1644,6 +1644,7 @@ function = ""
 module = ""
 async = false
 returns_result = false
+returns_void = true
 args = [{ name = "name", field = "input.name", type = "string" }]
 
 [crates.e2e.calls.unregister_ocr_backend.overrides.python]
@@ -1713,6 +1714,7 @@ function = ""
 module = ""
 async = false
 returns_result = false
+returns_void = true
 args = [{ name = "name", field = "input.name", type = "string" }]
 
 [crates.e2e.calls.unregister_post_processor.overrides.python]
@@ -1782,6 +1784,7 @@ function = ""
 module = ""
 async = false
 returns_result = false
+returns_void = true
 args = [{ name = "name", field = "input.name", type = "string" }]
 
 [crates.e2e.calls.unregister_validator.overrides.python]
@@ -1851,6 +1854,7 @@ function = ""
 module = ""
 async = false
 returns_result = false
+returns_void = true
 args = []
 
 [crates.e2e.calls.register_ocr_backend.overrides.python]
@@ -1904,6 +1908,7 @@ module = "kreuzberg"
 [crates.e2e.calls.register_ocr_backend.overrides.r]
 function = "register_ocr_backend"
 module = "kreuzberg"
+arg_name_map = { backend = "r_backend" }
 
 [crates.e2e.calls.register_ocr_backend.overrides.elixir]
 function = "register_ocr_backend"
@@ -1920,6 +1925,7 @@ function = ""
 module = ""
 async = false
 returns_result = false
+returns_void = true
 args = []
 
 [crates.e2e.calls.register_post_processor.overrides.python]
@@ -1973,6 +1979,7 @@ module = "kreuzberg"
 [crates.e2e.calls.register_post_processor.overrides.r]
 function = "register_post_processor"
 module = "kreuzberg"
+arg_name_map = { processor = "r_backend" }
 
 [crates.e2e.calls.register_post_processor.overrides.elixir]
 function = "register_post_processor"
@@ -1989,6 +1996,7 @@ function = ""
 module = ""
 async = false
 returns_result = false
+returns_void = true
 args = []
 
 [crates.e2e.calls.register_validator.overrides.python]
@@ -2042,6 +2050,7 @@ module = "kreuzberg"
 [crates.e2e.calls.register_validator.overrides.r]
 function = "register_validator"
 module = "kreuzberg"
+arg_name_map = { validator = "r_backend" }
 
 [crates.e2e.calls.register_validator.overrides.elixir]
 function = "register_validator"
@@ -2058,6 +2067,7 @@ function = ""
 module = ""
 async = false
 returns_result = false
+returns_void = true
 args = []
 
 [crates.e2e.calls.register_embedding_backend.overrides.python]
@@ -2111,6 +2121,7 @@ module = "kreuzberg"
 [crates.e2e.calls.register_embedding_backend.overrides.r]
 function = "register_embedding_backend"
 module = "kreuzberg"
+arg_name_map = { backend = "r_backend" }
 
 [crates.e2e.calls.register_embedding_backend.overrides.elixir]
 function = "register_embedding_backend"
@@ -2127,6 +2138,7 @@ function = ""
 module = ""
 async = false
 returns_result = false
+returns_void = true
 args = [{ name = "name", field = "input.name", type = "string" }]
 
 [crates.e2e.calls.unregister_embedding_backend.overrides.python]
@@ -2266,6 +2278,7 @@ function = ""
 module = ""
 async = false
 returns_result = false
+returns_void = true
 args = []
 
 [crates.e2e.calls.register_document_extractor.overrides.python]
@@ -2319,6 +2332,7 @@ module = "kreuzberg"
 [crates.e2e.calls.register_document_extractor.overrides.r]
 function = "register_document_extractor"
 module = "kreuzberg"
+arg_name_map = { extractor = "r_backend" }
 
 [crates.e2e.calls.register_document_extractor.overrides.elixir]
 function = "register_document_extractor"
@@ -2335,6 +2349,7 @@ function = ""
 module = ""
 async = false
 returns_result = false
+returns_void = true
 args = [{ name = "name", field = "input.name", type = "string" }]
 
 [crates.e2e.calls.unregister_document_extractor.overrides.python]
@@ -2474,6 +2489,7 @@ function = ""
 module = ""
 async = false
 returns_result = false
+returns_void = true
 args = []
 
 [crates.e2e.calls.register_renderer.overrides.python]
@@ -2527,6 +2543,7 @@ module = "kreuzberg"
 [crates.e2e.calls.register_renderer.overrides.r]
 function = "register_renderer"
 module = "kreuzberg"
+arg_name_map = { renderer = "r_backend" }
 
 [crates.e2e.calls.register_renderer.overrides.elixir]
 function = "register_renderer"
@@ -2543,6 +2560,7 @@ function = ""
 module = ""
 async = false
 returns_result = false
+returns_void = true
 args = [{ name = "name", field = "input.name", type = "string" }]
 
 [crates.e2e.calls.unregister_renderer.overrides.python]

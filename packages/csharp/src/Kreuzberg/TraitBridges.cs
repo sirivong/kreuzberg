@@ -378,6 +378,37 @@ public sealed class OcrBackendBridge : IDisposable {
             _implHandle.Free();
         }
     }
+
+    /// <summary>Register a OcrBackend implementation and return its native handle</summary>
+    public static IntPtr Register(IOcrBackend impl) {
+        if (impl == null)
+            throw new ArgumentNullException(nameof(impl));
+
+        var name = impl.Name;
+
+
+        var bridge = new OcrBackendBridge(impl);
+
+        try {
+            var userDataHandle = GCHandle.Alloc(bridge, GCHandleType.Normal);
+            var userData = GCHandle.ToIntPtr(userDataHandle);
+            var vtablePtr = bridge._vtable;
+
+            var result = NativeMethods.RegisterOcrBackend(name, vtablePtr, userData, out var outError);
+            if (result != 0) {
+                userDataHandle.Free();
+                bridge.Dispose();
+                var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
+                global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
+                throw new InvalidOperationException($"Failed to register {name}: {errorMsg}");
+            }
+
+            return userData;
+        } catch {
+            bridge.Dispose();
+            throw;
+        }
+    }
 }
 
 /// <summary>Static helpers for registering trait implementations</summary>
@@ -752,6 +783,37 @@ public sealed class PostProcessorBridge : IDisposable {
             _implHandle.Free();
         }
     }
+
+    /// <summary>Register a PostProcessor implementation and return its native handle</summary>
+    public static IntPtr Register(IPostProcessor impl) {
+        if (impl == null)
+            throw new ArgumentNullException(nameof(impl));
+
+        var name = impl.Name;
+
+
+        var bridge = new PostProcessorBridge(impl);
+
+        try {
+            var userDataHandle = GCHandle.Alloc(bridge, GCHandleType.Normal);
+            var userData = GCHandle.ToIntPtr(userDataHandle);
+            var vtablePtr = bridge._vtable;
+
+            var result = NativeMethods.RegisterPostProcessor(name, vtablePtr, userData, out var outError);
+            if (result != 0) {
+                userDataHandle.Free();
+                bridge.Dispose();
+                var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
+                global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
+                throw new InvalidOperationException($"Failed to register {name}: {errorMsg}");
+            }
+
+            return userData;
+        } catch {
+            bridge.Dispose();
+            throw;
+        }
+    }
 }
 
 /// <summary>Static helpers for registering trait implementations</summary>
@@ -1076,6 +1138,37 @@ public sealed class ValidatorBridge : IDisposable {
             _implHandle.Free();
         }
     }
+
+    /// <summary>Register a Validator implementation and return its native handle</summary>
+    public static IntPtr Register(IValidator impl) {
+        if (impl == null)
+            throw new ArgumentNullException(nameof(impl));
+
+        var name = impl.Name;
+
+
+        var bridge = new ValidatorBridge(impl);
+
+        try {
+            var userDataHandle = GCHandle.Alloc(bridge, GCHandleType.Normal);
+            var userData = GCHandle.ToIntPtr(userDataHandle);
+            var vtablePtr = bridge._vtable;
+
+            var result = NativeMethods.RegisterValidator(name, vtablePtr, userData, out var outError);
+            if (result != 0) {
+                userDataHandle.Free();
+                bridge.Dispose();
+                var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
+                global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
+                throw new InvalidOperationException($"Failed to register {name}: {errorMsg}");
+            }
+
+            return userData;
+        } catch {
+            bridge.Dispose();
+            throw;
+        }
+    }
 }
 
 /// <summary>Static helpers for registering trait implementations</summary>
@@ -1368,6 +1461,37 @@ public sealed class EmbeddingBackendBridge : IDisposable {
 
         if (_implHandle.IsAllocated) {
             _implHandle.Free();
+        }
+    }
+
+    /// <summary>Register a EmbeddingBackend implementation and return its native handle</summary>
+    public static IntPtr Register(IEmbeddingBackend impl) {
+        if (impl == null)
+            throw new ArgumentNullException(nameof(impl));
+
+        var name = impl.Name;
+
+
+        var bridge = new EmbeddingBackendBridge(impl);
+
+        try {
+            var userDataHandle = GCHandle.Alloc(bridge, GCHandleType.Normal);
+            var userData = GCHandle.ToIntPtr(userDataHandle);
+            var vtablePtr = bridge._vtable;
+
+            var result = NativeMethods.RegisterEmbeddingBackend(name, vtablePtr, userData, out var outError);
+            if (result != 0) {
+                userDataHandle.Free();
+                bridge.Dispose();
+                var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
+                global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
+                throw new InvalidOperationException($"Failed to register {name}: {errorMsg}");
+            }
+
+            return userData;
+        } catch {
+            bridge.Dispose();
+            throw;
         }
     }
 }
@@ -1776,6 +1900,37 @@ public sealed class DocumentExtractorBridge : IDisposable {
             _implHandle.Free();
         }
     }
+
+    /// <summary>Register a DocumentExtractor implementation and return its native handle</summary>
+    public static IntPtr Register(IDocumentExtractor impl) {
+        if (impl == null)
+            throw new ArgumentNullException(nameof(impl));
+
+        var name = impl.Name;
+
+
+        var bridge = new DocumentExtractorBridge(impl);
+
+        try {
+            var userDataHandle = GCHandle.Alloc(bridge, GCHandleType.Normal);
+            var userData = GCHandle.ToIntPtr(userDataHandle);
+            var vtablePtr = bridge._vtable;
+
+            var result = NativeMethods.RegisterDocumentExtractor(name, vtablePtr, userData, out var outError);
+            if (result != 0) {
+                userDataHandle.Free();
+                bridge.Dispose();
+                var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
+                global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
+                throw new InvalidOperationException($"Failed to register {name}: {errorMsg}");
+            }
+
+            return userData;
+        } catch {
+            bridge.Dispose();
+            throw;
+        }
+    }
 }
 
 /// <summary>Static helpers for registering trait implementations</summary>
@@ -2043,6 +2198,37 @@ public sealed class RendererBridge : IDisposable {
 
         if (_implHandle.IsAllocated) {
             _implHandle.Free();
+        }
+    }
+
+    /// <summary>Register a Renderer implementation and return its native handle</summary>
+    public static IntPtr Register(IRenderer impl) {
+        if (impl == null)
+            throw new ArgumentNullException(nameof(impl));
+
+        var name = impl.Name;
+
+
+        var bridge = new RendererBridge(impl);
+
+        try {
+            var userDataHandle = GCHandle.Alloc(bridge, GCHandleType.Normal);
+            var userData = GCHandle.ToIntPtr(userDataHandle);
+            var vtablePtr = bridge._vtable;
+
+            var result = NativeMethods.RegisterRenderer(name, vtablePtr, userData, out var outError);
+            if (result != 0) {
+                userDataHandle.Free();
+                bridge.Dispose();
+                var errorMsg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Unknown error";
+                global::System.Runtime.InteropServices.Marshal.FreeCoTaskMem(outError);
+                throw new InvalidOperationException($"Failed to register {name}: {errorMsg}");
+            }
+
+            return userData;
+        } catch {
+            bridge.Dispose();
+            throw;
         }
     }
 }
