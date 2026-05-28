@@ -130,6 +130,10 @@ opt-level = 2
 [profile.release.package.zip]
 opt-level = 2
 
+# WASM size optimization: reduce memory spikes during compilation
+[profile.release.package.kreuzberg-wasm]
+opt-level = "z"
+
 [profile.dev]
 opt-level = 0
 debug = true
