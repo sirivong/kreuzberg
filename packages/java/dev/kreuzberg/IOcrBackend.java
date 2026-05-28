@@ -22,6 +22,10 @@ public interface IOcrBackend {
     /** Shut down the plugin. */
     default void shutdown() throws Exception {}
 
+/** process_image. */    ExtractionResult process_image(byte[] image_bytes, OcrConfig config) throws Exception;
+
+/** process_image_file. */    ExtractionResult process_image_file(java.nio.file.Path path, OcrConfig config) throws Exception;
+
 /** supports_language. */    boolean supports_language(String lang) throws Exception;
 
 /** supported_languages. */    List<String> supported_languages() throws Exception;
@@ -29,4 +33,6 @@ public interface IOcrBackend {
 /** supports_table_detection. */    boolean supports_table_detection() throws Exception;
 
 /** supports_document_processing. */    boolean supports_document_processing() throws Exception;
+
+/** process_document. */    ExtractionResult process_document(java.nio.file.Path _path, OcrConfig _config) throws Exception;
 }

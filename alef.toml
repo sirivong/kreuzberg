@@ -438,7 +438,6 @@ ffi_style = "panama"
 exclude_types = [
   # Trait-bridge opaque types serialized as JSON strings at FFI boundary
   "InternalDocument",
-  "ExtractionResult",
   "OcrBackendType",
   "ProcessingStage",
   "SyncExtractor",

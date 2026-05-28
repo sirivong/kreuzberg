@@ -280,6 +280,8 @@ erl_crash.dump
 
 .gradle/
 
+packages/go/v5/.lib/
+
 # BEGIN ai-rulez (DO NOT EDIT - managed by ai-rulez)
 .agents/agents/c-ffi-specialist.md
 .agents/agents/code-reviewer.md
@@ -577,4 +579,3 @@ erl_crash.dump
 .github/skills/plugin-architecture-patterns/SKILL.md
 .github/skills/quick-start/SKILL.md
 # END ai-rulez
-packages/go/v5/.lib/

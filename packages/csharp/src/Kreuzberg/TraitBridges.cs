@@ -265,11 +265,11 @@ public sealed class OcrBackendBridge : IDisposable {
         }
     }
 
-    private int supportsLanguageFnCallback(IntPtr lang) {
+    private int SupportsLanguageFnCallback(IntPtr lang) {
         try {
             var managed_lang = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(lang) ?? string.Empty;
-            var result = _impl.SupportsLanguage(managed_lang);
-            return (int)result;
+            var methodResult = _impl.SupportsLanguage(managed_lang);
+            return methodResult ? 1 : 0;
         } catch (Exception) {
             return 0;
         }
@@ -301,19 +301,19 @@ public sealed class OcrBackendBridge : IDisposable {
         }
     }
 
-    private int supportsTableDetectionFnCallback() {
+    private int SupportsTableDetectionFnCallback() {
         try {
-            var result = _impl.SupportsTableDetection();
-            return (int)result;
+            var methodResult = _impl.SupportsTableDetection();
+            return methodResult ? 1 : 0;
         } catch (Exception) {
             return 0;
         }
     }
 
-    private int supportsDocumentProcessingFnCallback() {
+    private int SupportsDocumentProcessingFnCallback() {
         try {
-            var result = _impl.SupportsDocumentProcessing();
-            return (int)result;
+            var methodResult = _impl.SupportsDocumentProcessing();
+            return methodResult ? 1 : 0;
         } catch (Exception) {
             return 0;
         }
@@ -666,7 +666,7 @@ public sealed class PostProcessorBridge : IDisposable {
         }
     }
 
-    private int processFnCallback(IntPtr result, IntPtr config) {
+    private int ProcessFnCallback(IntPtr result, IntPtr config) {
         try {
             var json_result = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(result) ?? "{}";
             var managed_result = JsonSerializer.Deserialize<ExtractionResult>(json_result)!;
@@ -692,34 +692,34 @@ public sealed class PostProcessorBridge : IDisposable {
         }
     }
 
-    private int shouldProcessFnCallback(IntPtr result, IntPtr config) {
+    private int ShouldProcessFnCallback(IntPtr result, IntPtr config) {
         try {
             var json_result = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(result) ?? "{}";
             var managed_result = JsonSerializer.Deserialize<ExtractionResult>(json_result)!;
             var json_config = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(config) ?? "{}";
             var managed_config = JsonSerializer.Deserialize<ExtractionConfig>(json_config)!;
-            var result = _impl.ShouldProcess(managed_result, managed_config);
-            return (int)result;
+            var methodResult = _impl.ShouldProcess(managed_result, managed_config);
+            return methodResult ? 1 : 0;
         } catch (Exception) {
             return 0;
         }
     }
 
-    private ulong estimatedDurationMsFnCallback(IntPtr result) {
+    private ulong EstimatedDurationMsFnCallback(IntPtr result) {
         try {
             var json_result = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(result) ?? "{}";
             var managed_result = JsonSerializer.Deserialize<ExtractionResult>(json_result)!;
-            var result = _impl.EstimatedDurationMs(managed_result);
-            return (int)result;
+            var methodResult = _impl.EstimatedDurationMs(managed_result);
+            return (int)methodResult;
         } catch (Exception) {
             return 0;
         }
     }
 
-    private int priorityFnCallback() {
+    private int PriorityFnCallback() {
         try {
-            var result = _impl.Priority();
-            return (int)result;
+            var methodResult = _impl.Priority();
+            return (int)methodResult;
         } catch (Exception) {
             return 0;
         }
@@ -1033,7 +1033,7 @@ public sealed class ValidatorBridge : IDisposable {
         }
     }
 
-    private int validateFnCallback(IntPtr result, IntPtr config) {
+    private int ValidateFnCallback(IntPtr result, IntPtr config) {
         try {
             var json_result = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(result) ?? "{}";
             var managed_result = JsonSerializer.Deserialize<ExtractionResult>(json_result)!;
@@ -1046,23 +1046,23 @@ public sealed class ValidatorBridge : IDisposable {
         }
     }
 
-    private int shouldValidateFnCallback(IntPtr result, IntPtr config) {
+    private int ShouldValidateFnCallback(IntPtr result, IntPtr config) {
         try {
             var json_result = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(result) ?? "{}";
             var managed_result = JsonSerializer.Deserialize<ExtractionResult>(json_result)!;
             var json_config = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(config) ?? "{}";
             var managed_config = JsonSerializer.Deserialize<ExtractionConfig>(json_config)!;
-            var result = _impl.ShouldValidate(managed_result, managed_config);
-            return (int)result;
+            var methodResult = _impl.ShouldValidate(managed_result, managed_config);
+            return methodResult ? 1 : 0;
         } catch (Exception) {
             return 0;
         }
     }
 
-    private int priorityFnCallback() {
+    private int PriorityFnCallback() {
         try {
-            var result = _impl.Priority();
-            return (int)result;
+            var methodResult = _impl.Priority();
+            return (int)methodResult;
         } catch (Exception) {
             return 0;
         }
@@ -1365,10 +1365,10 @@ public sealed class EmbeddingBackendBridge : IDisposable {
         }
     }
 
-    private int dimensionsFnCallback() {
+    private int DimensionsFnCallback() {
         try {
-            var result = _impl.Dimensions();
-            return (int)result;
+            var methodResult = _impl.Dimensions();
+            return (int)methodResult;
         } catch (Exception) {
             return 0;
         }
@@ -1779,22 +1779,22 @@ public sealed class DocumentExtractorBridge : IDisposable {
         }
     }
 
-    private int priorityFnCallback() {
+    private int PriorityFnCallback() {
         try {
-            var result = _impl.Priority();
-            return (int)result;
+            var methodResult = _impl.Priority();
+            return (int)methodResult;
         } catch (Exception) {
             return 0;
         }
     }
 
-    private int canHandleFnCallback(IntPtr path, IntPtr mimeType) {
+    private int CanHandleFnCallback(IntPtr path, IntPtr mimeType) {
         try {
             var json_path = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(path) ?? "{}";
             var managed_path = JsonSerializer.Deserialize<string>(json_path)!;
             var managed_mimeType = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(mimeType) ?? string.Empty;
-            var result = _impl.CanHandle(managed_path, managed_mimeType);
-            return (int)result;
+            var methodResult = _impl.CanHandle(managed_path, managed_mimeType);
+            return methodResult ? 1 : 0;
         } catch (Exception) {
             return 0;
         }
