@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.20.1"
+alef_version = "0.20.2"
 languages = [
   "python",
   "node",
@@ -435,6 +435,14 @@ exclude_types = [
 [crates.java]
 package = "dev.kreuzberg"
 ffi_style = "panama"
+exclude_types = [
+  # Trait-bridge opaque types serialized as JSON strings at FFI boundary
+  "InternalDocument",
+  "ExtractionResult",
+  "OcrBackendType",
+  "ProcessingStage",
+  "SyncExtractor",
+]
 exclude_functions = [
   "calculate_quality_score",
 ]
@@ -1720,7 +1728,6 @@ module = "Kreuzberg"
 [crates.e2e.calls.unregister_ocr_backend.overrides.zig]
 function = "unregister_ocr_backend"
 module = "kreuzberg"
-returns_result = false
 
 [crates.e2e.calls.unregister_post_processor]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
@@ -1791,7 +1798,6 @@ module = "Kreuzberg"
 [crates.e2e.calls.unregister_post_processor.overrides.zig]
 function = "unregister_post_processor"
 module = "kreuzberg"
-returns_result = false
 
 [crates.e2e.calls.unregister_validator]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
@@ -2220,7 +2226,6 @@ module = "Kreuzberg"
 [crates.e2e.calls.unregister_embedding_backend.overrides.zig]
 function = "unregister_embedding_backend"
 module = "kreuzberg"
-returns_result = false
 
 [crates.e2e.calls.clear_embedding_backends]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
@@ -2433,7 +2438,6 @@ module = "Kreuzberg"
 [crates.e2e.calls.unregister_document_extractor.overrides.zig]
 function = "unregister_document_extractor"
 module = "kreuzberg"
-returns_result = false
 
 [crates.e2e.calls.clear_document_extractors]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
@@ -2646,7 +2650,6 @@ module = "Kreuzberg"
 [crates.e2e.calls.unregister_renderer.overrides.zig]
 function = "unregister_renderer"
 module = "kreuzberg"
-returns_result = false
 
 [crates.e2e.calls.clear_renderers]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
