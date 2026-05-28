@@ -743,7 +743,20 @@ e2e = "cd e2e/swift_e2e && swift test"
 # plus a `flutter: plugin:` ffiPlugin block), so `dart pub` is rejected by the
 # resolver — use `flutter pub` / `flutter test` throughout.
 precondition = "command -v flutter >/dev/null 2>&1"
-before = "{ command -v flutter_rust_bridge_codegen >/dev/null 2>&1 || cargo install flutter_rust_bridge_codegen --version 2.12.0; } && cd packages/dart && flutter pub get && cd rust && flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml && cd ../../.. && cargo build --release -p kreuzberg-dart"
+before = """
+{ command -v flutter_rust_bridge_codegen >/dev/null 2>&1 || cargo install flutter_rust_bridge_codegen --version 2.12.0; } && \
+cd packages/dart && flutter pub get && cd rust && \
+{ \
+  INPUT_HASH=$(printf '%s' "$(cat src/lib.rs flutter_rust_bridge.yaml)" | shasum | cut -d' ' -f1); \
+  HASH_FILE=.frb_codegen_hash; \
+  if [ -f "$HASH_FILE" ] && [ "$(cat "$HASH_FILE" 2>/dev/null)" = "$INPUT_HASH" ]; then \
+    echo "FRB codegen skipped (inputs unchanged)"; \
+  else \
+    flutter_rust_bridge_codegen generate --config-file flutter_rust_bridge.yaml && \
+    echo "$INPUT_HASH" > "$HASH_FILE"; \
+  fi; \
+} && cd ../../.. && cargo build --release -p kreuzberg-dart
+"""
 command = "cd packages/dart && DYLD_FALLBACK_LIBRARY_PATH=$PWD/../../target/release LD_LIBRARY_PATH=$PWD/../../target/release FRB_DART_LOAD_EXTERNAL_LIBRARY_NATIVE_LIB_DIR=$PWD/../../target/release flutter pub get && DYLD_FALLBACK_LIBRARY_PATH=$PWD/../../target/release LD_LIBRARY_PATH=$PWD/../../target/release FRB_DART_LOAD_EXTERNAL_LIBRARY_NATIVE_LIB_DIR=$PWD/../../target/release flutter test"
 e2e = "cd e2e/dart && DYLD_FALLBACK_LIBRARY_PATH=$PWD/../../target/release LD_LIBRARY_PATH=$PWD/../../target/release FRB_DART_LOAD_EXTERNAL_LIBRARY_NATIVE_LIB_DIR=$PWD/../../target/release flutter pub get && DYLD_FALLBACK_LIBRARY_PATH=$PWD/../../target/release LD_LIBRARY_PATH=$PWD/../../target/release FRB_DART_LOAD_EXTERNAL_LIBRARY_NATIVE_LIB_DIR=$PWD/../../target/release flutter test"
 

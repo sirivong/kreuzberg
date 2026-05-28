@@ -416,7 +416,22 @@ tasks:
   swift:e2e:
     desc: "Run Swift e2e tests"
     cmds:
-      - alef test --e2e --lang swift
+      - task: _swift:e2e:build
+      - task: _swift:e2e:test
+
+  _swift:e2e:build:
+    desc: "Build Swift e2e test suite (separate from test run)"
+    internal: true
+    cmds:
+      - alef e2e generate
+      - cargo build --release -p kreuzberg-swift
+      - bash scripts/setup-swift-bridge.sh
+
+  _swift:e2e:test:
+    desc: "Run Swift e2e tests (after build)"
+    internal: true
+    cmds:
+      - cd e2e/swift_e2e && swift test
 
   zig:e2e:
     desc: "Run Zig e2e tests"
