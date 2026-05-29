@@ -486,6 +486,19 @@ pub const ImageExtractionConfig = struct {
     /// Defaults to `false`. Enable when downstream consumers need page thumbnails
     /// (e.g. citation previews, visual grounding).
     include_page_rasters: bool,
+    /// Run OCR on extracted images and include the recognized text in the document content.
+    ///
+    /// When `true` (default) and `ExtractionConfig.ocr` is configured, extracted images
+    /// are processed with the configured OCR backend. Set to `false` to extract images
+    /// without OCR processing, even when OCR is enabled.
+    run_ocr_on_images: bool,
+    /// When `true`, image OCR results are rendered as plain text without the
+    /// `![...](...)` markdown placeholder. Only takes effect when `run_ocr_on_images`
+    /// is also `true`.
+    ocr_text_only: bool,
+    /// When `true` and `ocr_text_only` is `false`, append the OCR text after
+    /// the image placeholder in the rendered output.
+    append_ocr_text: bool,
 };
 
 /// Token reduction configuration.
@@ -4618,7 +4631,7 @@ pub const IOcrBackend = extern struct {
 ///
 /// Returns 0 on success; non-zero on failure (error text written to `out_error`).
 pub fn register_ocr_backend(name: [*c]const u8, vtable: IOcrBackend, user_data: ?*anyopaque, out_error: ?*?[*c]u8) i32 {
-    return c.kreuzberg_register_ocr_backend(name, @bitCast(vtable), user_data, out_error);
+    return c.kreuzberg_register_ocr_backend(name, vtable, user_data, out_error);
 }
 
 /// Unregister a previously registered `OcrBackend` implementation by name.
@@ -4919,7 +4932,7 @@ pub const IPostProcessor = extern struct {
 ///
 /// Returns 0 on success; non-zero on failure (error text written to `out_error`).
 pub fn register_post_processor(name: [*c]const u8, vtable: IPostProcessor, user_data: ?*anyopaque, out_error: ?*?[*c]u8) i32 {
-    return c.kreuzberg_register_post_processor(name, @bitCast(vtable), user_data, out_error);
+    return c.kreuzberg_register_post_processor(name, vtable, user_data, out_error);
 }
 
 /// Unregister a previously registered `PostProcessor` implementation by name.
@@ -5201,7 +5214,7 @@ pub const IValidator = extern struct {
 ///
 /// Returns 0 on success; non-zero on failure (error text written to `out_error`).
 pub fn register_validator(name: [*c]const u8, vtable: IValidator, user_data: ?*anyopaque, out_error: ?*?[*c]u8) i32 {
-    return c.kreuzberg_register_validator(name, @bitCast(vtable), user_data, out_error);
+    return c.kreuzberg_register_validator(name, vtable, user_data, out_error);
 }
 
 /// Unregister a previously registered `Validator` implementation by name.
@@ -5348,7 +5361,7 @@ pub const IEmbeddingBackend = extern struct {
 ///
 /// Returns 0 on success; non-zero on failure (error text written to `out_error`).
 pub fn register_embedding_backend(name: [*c]const u8, vtable: IEmbeddingBackend, user_data: ?*anyopaque, out_error: ?*?[*c]u8) i32 {
-    return c.kreuzberg_register_embedding_backend(name, @bitCast(vtable), user_data, out_error);
+    return c.kreuzberg_register_embedding_backend(name, vtable, user_data, out_error);
 }
 
 /// Unregister a previously registered `EmbeddingBackend` implementation by name.
@@ -5562,7 +5575,7 @@ pub const IDocumentExtractor = extern struct {
 ///
 /// Returns 0 on success; non-zero on failure (error text written to `out_error`).
 pub fn register_document_extractor(name: [*c]const u8, vtable: IDocumentExtractor, user_data: ?*anyopaque, out_error: ?*?[*c]u8) i32 {
-    return c.kreuzberg_register_document_extractor(name, @bitCast(vtable), user_data, out_error);
+    return c.kreuzberg_register_document_extractor(name, vtable, user_data, out_error);
 }
 
 /// Unregister a previously registered `DocumentExtractor` implementation by name.
@@ -5741,7 +5754,7 @@ pub const IRenderer = extern struct {
 ///
 /// Returns 0 on success; non-zero on failure (error text written to `out_error`).
 pub fn register_renderer(name: [*c]const u8, vtable: IRenderer, user_data: ?*anyopaque, out_error: ?*?[*c]u8) i32 {
-    return c.kreuzberg_register_renderer(name, @bitCast(vtable), user_data, out_error);
+    return c.kreuzberg_register_renderer(name, vtable, user_data, out_error);
 }
 
 /// Unregister a previously registered `Renderer` implementation by name.
