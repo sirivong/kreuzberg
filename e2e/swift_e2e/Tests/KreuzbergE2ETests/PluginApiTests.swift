@@ -23,7 +23,7 @@ final class PluginApiTests: XCTestCase {
     func supportedMimeTypes() -> [String] { [] }
 }
 
-        let result = try Kreuzberg.registerDocumentExtractor(extractor: TestStubRegisterDocumentExtractorTraitBridge())
+        let result = try Kreuzberg.registerDocumentExtractor(TestStubRegisterDocumentExtractorTraitBridge())
     }
 
     func testRegisterEmbeddingBackendTraitBridge() throws {
@@ -34,7 +34,7 @@ final class PluginApiTests: XCTestCase {
     func embed(texts: [String]) async throws -> [[Float]] { [] }
 }
 
-        let result = try Kreuzberg.registerEmbeddingBackend(backend: TestStubRegisterEmbeddingBackendTraitBridge())
+        let result = try Kreuzberg.registerEmbeddingBackend(TestStubRegisterEmbeddingBackendTraitBridge())
     }
 
     func testRegisterOcrBackendTraitBridge() throws {
@@ -46,7 +46,7 @@ final class PluginApiTests: XCTestCase {
     func backendType() -> OcrBackendType { .tesseract }
 }
 
-        let result = try Kreuzberg.registerOcrBackend(backend: TestStubRegisterOcrBackendTraitBridge())
+        let result = try Kreuzberg.registerOcrBackend(TestStubRegisterOcrBackendTraitBridge())
     }
 
     func testRegisterPostProcessorTraitBridge() throws {
@@ -57,7 +57,7 @@ final class PluginApiTests: XCTestCase {
     func processingStage() -> ProcessingStage { .early }
 }
 
-        let result = try Kreuzberg.registerPostProcessor(processor: TestStubRegisterPostProcessorTraitBridge())
+        let result = try Kreuzberg.registerPostProcessor(TestStubRegisterPostProcessorTraitBridge())
     }
 
     func testRegisterRendererTraitBridge() throws {
@@ -67,7 +67,7 @@ final class PluginApiTests: XCTestCase {
     func render(doc: InternalDocument) throws -> String { "" }
 }
 
-        let result = try Kreuzberg.registerRenderer(renderer: TestStubRegisterRendererTraitBridge())
+        let result = try Kreuzberg.registerRenderer(TestStubRegisterRendererTraitBridge())
     }
 
     func testRegisterValidatorTraitBridge() throws {
@@ -77,7 +77,7 @@ final class PluginApiTests: XCTestCase {
     func validate(result: ExtractionResult, config: ExtractionConfig) async throws -> Void { () }
 }
 
-        let result = try Kreuzberg.registerValidator(validator: TestStubRegisterValidatorTraitBridge())
+        let result = try Kreuzberg.registerValidator(TestStubRegisterValidatorTraitBridge())
     }
 
     func testUnregisterDocumentExtractorAfterRegister() throws {

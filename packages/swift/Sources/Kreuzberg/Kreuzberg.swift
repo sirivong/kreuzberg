@@ -7354,12 +7354,14 @@ public func batchExtractBytesSync(items: [BatchBytesItem], config: ExtractionCon
 
 /// Convenience overload: uses default ExtractionConfig when none provided.
 public func batchExtractBytesSync(items: [BatchBytesItem]) throws -> [ExtractionResult] {
-    return try batchExtractBytesSync(items: items, config: ExtractionConfig())
+    let config = try extractionConfigFromJson("{}")
+    return try batchExtractBytesSync(items: items, config: config)
 }
 
 /// Convenience overload: accepts items with default config.
 public func batchExtractFilesSync(paths: [BatchFileItem]) throws -> [ExtractionResult] {
-    return try batchExtractFilesSync(items: paths, config: ExtractionConfig())
+    let config = try extractionConfigFromJson("{}")
+    return try batchExtractFilesSync(items: paths, config: config)
 }
 
 /// Extract content from multiple files concurrently.
@@ -7499,12 +7501,14 @@ public func batchExtractBytes(items: [BatchBytesItem], config: ExtractionConfig)
 
 /// Convenience overload: uses default ExtractionConfig when none provided.
 public func batchExtractBytes(items: [BatchBytesItem]) async throws -> [ExtractionResult] {
-    return try await batchExtractBytes(items: items, config: ExtractionConfig())
+    let config = try extractionConfigFromJson("{}")
+    return try await batchExtractBytes(items: items, config: config)
 }
 
 /// Convenience overload: accepts items with default config.
 public func batchExtractFiles(paths: [BatchFileItem]) async throws -> [ExtractionResult] {
-    return try await batchExtractFiles(items: paths, config: ExtractionConfig())
+    let config = try extractionConfigFromJson("{}")
+    return try await batchExtractFiles(items: paths, config: config)
 }
 
 /// Detect MIME type from raw file bytes.
@@ -7534,7 +7538,7 @@ public func detectMimeTypeFromBytes(content: [UInt8]) throws -> String {
 /// Convenience overload: reads file from path and detects MIME type from bytes.
 public func detectMimeTypeFromBytes(_ path: String) throws -> String {
     let data = try Data(contentsOf: URL(fileURLWithPath: path))
-    return try detectMimeTypeFromBytes([UInt8](data))
+    return try detectMimeTypeFromBytes(content: [UInt8](data))
 }
 
 /// Get file extensions for a given MIME type.
