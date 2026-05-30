@@ -133,7 +133,7 @@ namespace Kreuzberg
             public string Version => "1.0.0";
 
             public ulong Dimensions()
-                => 0;
+                => 384;
             public List<List<float>> Embed(List<string> texts)
                 => [];
             public void Initialize() { }

@@ -1198,19 +1198,12 @@ public static class KreuzbergLib
         return returnValue;
     }
 
-    /// <summary>Complete native registration of a OcrBackend implementation</summary>
+    /// <summary>Validate that an OcrBackend handle is registered (trait bridge registration already completed by OcrBackendBridge.Register)</summary>
     public static void RegisterOcrBackend(IntPtr handle)
     {
+        // The actual registration is done by OcrBackendBridge.Register().
+        // This method just validates the handle is not null.
         if (handle == IntPtr.Zero) throw new ArgumentException("handle is null");
-        var bridge = GCHandle.FromIntPtr(handle).Target as OcrBackendBridge ?? throw new InvalidOperationException("Invalid bridge handle");
-        var impl = bridge.GetType().GetField("_impl", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(bridge) as IOcrBackend;
-        if (impl == null) throw new InvalidOperationException("Cannot extract impl from bridge");
-        var name = impl.Name;
-        var ec = NativeMethods.RegisterOcrBackend(name, bridge._vtable, handle, out var outError);
-        if (ec != 0) {
-            var msg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Register failed";
-            throw new KreuzbergException(ec, msg);
-        }
     }
 
     /// <summary>Unregister a OcrBackend implementation by name</summary>
@@ -1224,19 +1217,12 @@ public static class KreuzbergLib
         }
     }
 
-    /// <summary>Complete native registration of a PostProcessor implementation</summary>
+    /// <summary>Validate that a PostProcessor handle is registered (trait bridge registration already completed by PostProcessorBridge.Register)</summary>
     public static void RegisterPostProcessor(IntPtr handle)
     {
+        // The actual registration is done by PostProcessorBridge.Register().
+        // This method just validates the handle is not null.
         if (handle == IntPtr.Zero) throw new ArgumentException("handle is null");
-        var bridge = GCHandle.FromIntPtr(handle).Target as PostProcessorBridge ?? throw new InvalidOperationException("Invalid bridge handle");
-        var impl = bridge.GetType().GetField("_impl", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(bridge) as IPostProcessor;
-        if (impl == null) throw new InvalidOperationException("Cannot extract impl from bridge");
-        var name = impl.Name;
-        var ec = NativeMethods.RegisterPostProcessor(name, bridge._vtable, handle, out var outError);
-        if (ec != 0) {
-            var msg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Register failed";
-            throw new KreuzbergException(ec, msg);
-        }
     }
 
     /// <summary>Unregister a PostProcessor implementation by name</summary>
@@ -1250,19 +1236,12 @@ public static class KreuzbergLib
         }
     }
 
-    /// <summary>Complete native registration of a Validator implementation</summary>
+    /// <summary>Validate that a Validator handle is registered (trait bridge registration already completed by ValidatorBridge.Register)</summary>
     public static void RegisterValidator(IntPtr handle)
     {
+        // The actual registration is done by ValidatorBridge.Register().
+        // This method just validates the handle is not null.
         if (handle == IntPtr.Zero) throw new ArgumentException("handle is null");
-        var bridge = GCHandle.FromIntPtr(handle).Target as ValidatorBridge ?? throw new InvalidOperationException("Invalid bridge handle");
-        var impl = bridge.GetType().GetField("_impl", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(bridge) as IValidator;
-        if (impl == null) throw new InvalidOperationException("Cannot extract impl from bridge");
-        var name = impl.Name;
-        var ec = NativeMethods.RegisterValidator(name, bridge._vtable, handle, out var outError);
-        if (ec != 0) {
-            var msg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Register failed";
-            throw new KreuzbergException(ec, msg);
-        }
     }
 
     /// <summary>Unregister a Validator implementation by name</summary>
@@ -1276,19 +1255,12 @@ public static class KreuzbergLib
         }
     }
 
-    /// <summary>Complete native registration of a EmbeddingBackend implementation</summary>
+    /// <summary>Validate that an EmbeddingBackend handle is registered (trait bridge registration already completed by EmbeddingBackendBridge.Register)</summary>
     public static void RegisterEmbeddingBackend(IntPtr handle)
     {
+        // The actual registration is done by EmbeddingBackendBridge.Register().
+        // This method just validates the handle is not null.
         if (handle == IntPtr.Zero) throw new ArgumentException("handle is null");
-        var bridge = GCHandle.FromIntPtr(handle).Target as EmbeddingBackendBridge ?? throw new InvalidOperationException("Invalid bridge handle");
-        var impl = bridge.GetType().GetField("_impl", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(bridge) as IEmbeddingBackend;
-        if (impl == null) throw new InvalidOperationException("Cannot extract impl from bridge");
-        var name = impl.Name;
-        var ec = NativeMethods.RegisterEmbeddingBackend(name, bridge._vtable, handle, out var outError);
-        if (ec != 0) {
-            var msg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Register failed";
-            throw new KreuzbergException(ec, msg);
-        }
     }
 
     /// <summary>Unregister a EmbeddingBackend implementation by name</summary>
@@ -1302,19 +1274,12 @@ public static class KreuzbergLib
         }
     }
 
-    /// <summary>Complete native registration of a DocumentExtractor implementation</summary>
+    /// <summary>Validate that a DocumentExtractor handle is registered (trait bridge registration already completed by DocumentExtractorBridge.Register)</summary>
     public static void RegisterDocumentExtractor(IntPtr handle)
     {
+        // The actual registration is done by DocumentExtractorBridge.Register().
+        // This method just validates the handle is not null.
         if (handle == IntPtr.Zero) throw new ArgumentException("handle is null");
-        var bridge = GCHandle.FromIntPtr(handle).Target as DocumentExtractorBridge ?? throw new InvalidOperationException("Invalid bridge handle");
-        var impl = bridge.GetType().GetField("_impl", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(bridge) as IDocumentExtractor;
-        if (impl == null) throw new InvalidOperationException("Cannot extract impl from bridge");
-        var name = impl.Name;
-        var ec = NativeMethods.RegisterDocumentExtractor(name, bridge._vtable, handle, out var outError);
-        if (ec != 0) {
-            var msg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Register failed";
-            throw new KreuzbergException(ec, msg);
-        }
     }
 
     /// <summary>Unregister a DocumentExtractor implementation by name</summary>
@@ -1328,19 +1293,12 @@ public static class KreuzbergLib
         }
     }
 
-    /// <summary>Complete native registration of a Renderer implementation</summary>
+    /// <summary>Validate that a Renderer handle is registered (trait bridge registration already completed by RendererBridge.Register)</summary>
     public static void RegisterRenderer(IntPtr handle)
     {
+        // The actual registration is done by RendererBridge.Register().
+        // This method just validates the handle is not null.
         if (handle == IntPtr.Zero) throw new ArgumentException("handle is null");
-        var bridge = GCHandle.FromIntPtr(handle).Target as RendererBridge ?? throw new InvalidOperationException("Invalid bridge handle");
-        var impl = bridge.GetType().GetField("_impl", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)?.GetValue(bridge) as IRenderer;
-        if (impl == null) throw new InvalidOperationException("Cannot extract impl from bridge");
-        var name = impl.Name;
-        var ec = NativeMethods.RegisterRenderer(name, bridge._vtable, handle, out var outError);
-        if (ec != 0) {
-            var msg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(outError) ?? "Register failed";
-            throw new KreuzbergException(ec, msg);
-        }
     }
 
     /// <summary>Unregister a Renderer implementation by name</summary>
