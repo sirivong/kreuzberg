@@ -2,7 +2,7 @@
 
 Audit of all hand-edits to the Swift binding during the alef-hand-edit cycle (`bd1bef129d..HEAD`).
 
-**Scope**: Commits c8a3dbe70e, 0e57ca4b0e, cbf9e23d2d, 860080e240.
+**Scope**: Commits c8a3be70e, 0e57ca4b0e, cbf9e23d2d, 860080e240.
 
 ---
 
@@ -11,6 +11,7 @@ Audit of all hand-edits to the Swift binding during the alef-hand-edit cycle (`b
 ### Entry 1: JSON-string convenience overloads
 
 **Files & Location**:
+
 - `packages/swift/Sources/Kreuzberg/Kreuzberg.swift`: lines 6390–6450
   - `extractFile(String, String?, String)` positional overload
   - `extractFileSync(String, String?, String)` positional overload
@@ -47,6 +48,7 @@ public func batchExtractBytesSync(items: [BatchBytesItem]) throws -> [Extraction
 ### Entry 2: Path-resolution helper and batch config defaults
 
 **Files & Location**:
+
 - `packages/swift/Sources/Kreuzberg/BridgeRegistrationOverloads.swift`: lines 23–46
 - `packages/swift/Sources/Kreuzberg/Kreuzberg.swift`: lines 6417–6418, 6438
   - Calls to `_loadBytesFromPathOrUtf8(content)` in the String-argument `extractBytes` overloads
@@ -102,6 +104,7 @@ public func extractBytes(_ content: String, _ mimeType: String, _ configJson: St
 ### Entry 3: Bridge→Box adapter and register overloads
 
 **Files & Location**:
+
 - `packages/swift/Sources/Kreuzberg/BridgeRegistrationOverloads.swift`: lines 76–98 (register overloads)
 - `packages/swift/Sources/Kreuzberg/BridgeRegistrationOverloads.swift`: lines 112–216 (adapter implementations)
 
@@ -150,6 +153,7 @@ Emit these overloads for all plugin types: `registerOcrBackend`, `registerPostPr
 ### Entry 4: Unregister name: label overloads
 
 **Files & Location**:
+
 - `packages/swift/Sources/Kreuzberg/BridgeRegistrationOverloads.swift`: lines 50–72
 
 **Description**: The e2e fixtures emit `Kreuzberg.unregisterOcrBackend(name: "...")` calls with a labeled `name:` argument. The generated base functions use positional arguments. Hand-written overloads bridge the gap:
@@ -177,7 +181,8 @@ public func unregisterOcrBackend(name: String) throws {
 ### Entry 5: Plugin bridge protocol signature alignment
 
 **Files & Location**:
-- `e2e/swift_e2e/Tests/KreuzbergE2ETests/PluginApiTests.swift`: lines 22–83 (across commits c8a3dbe70e and 0e57ca4b0e)
+
+- `e2e/swift_e2e/Tests/KreuzbergE2ETests/PluginApiTests.swift`: lines 22–83 (across commits c8a3be70e and 0e57ca4b0e)
 
 **Description**: The e2e fixtures define stub implementations of the plugin bridge protocols (e.g., `TestStubRegisterDocumentExtractorTraitBridge: SwiftDocumentExtractorBridge`). The alef e2e generator emitted stubs with incorrect signatures:
 
@@ -188,7 +193,7 @@ public func unregisterOcrBackend(name: String) throws {
 5. **SwiftRendererBridge**: Emitted non-throwing `render` instead of `throws`
 6. **SwiftValidatorBridge**: Emitted positional-arg `validate` instead of labeled
 
-These were fixed in commit c8a3dbe70e to match the actual generated protocol signatures.
+These were fixed in commit c8a3be70e to match the actual generated protocol signatures.
 
 **Label**: `TEST_FIXTURE`
 
@@ -218,6 +223,7 @@ class TestStubRegisterOcrBackendTraitBridge: SwiftOcrBackendBridge {
 ### Entry 6: Register function call signatures in e2e tests
 
 **Files & Location**:
+
 - `e2e/swift_e2e/Tests/KreuzbergE2ETests/PluginApiTests.swift`: commit 0e57ca4b0e
 
 **Description**: The alef e2e generator initially emitted register calls with labeled arguments (e.g., `registerEmbeddingBackend(backend: ...)`), but the actual generated functions use positional arguments. Commit 0e57ca4b0e corrected these to match:
@@ -241,6 +247,7 @@ let result = try Kreuzberg.registerEmbeddingBackend(TestStubRegisterEmbeddingBac
 ### Entry 7: Unregister cleanup after plugin registration tests
 
 **Files & Location**:
+
 - `e2e/swift_e2e/Tests/KreuzbergE2ETests/PluginApiTests.swift`: commit 860080e240
   - Added `try? Kreuzberg.unregisterOcrBackend("swift-bridge-ocr-stub")` and similar after each register test
 
@@ -273,6 +280,7 @@ Document the stub adapter names (e.g., `"swift-bridge-ocr-stub"`) in the BridgeR
 ### Entry 8: Property-accessor aliases for test ergonomics
 
 **Files & Location**:
+
 - `packages/swift/Sources/Kreuzberg/ExtractionResultExtensions.swift` (new file, added commit cbf9e23d2d)
 
 **Description**: The swift-bridge-generated `ExtractionResultRef` type exposes methods like `mimeType()` and `content()`. The alef e2e generator emits test assertions accessing these as properties: `result.mimeType` and `result.content`. Without the computed-property extensions, these fail to compile.
@@ -320,6 +328,7 @@ Make this file hand-editable (not generated) if the set of accessors varies per 
 ### Entry 9: Qualified type names in test stubs
 
 **Files & Location**:
+
 - `e2e/swift_e2e/Tests/KreuzbergE2ETests/PluginApiTests.swift`: commit 860080e240
   - Line 48: `func backendType() -> Kreuzberg.OcrBackendType { .tesseract }`
   - Line 60: `func processingStage() -> Kreuzberg.ProcessingStage { .early }`

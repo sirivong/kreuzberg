@@ -5,7 +5,7 @@ Tip at audit time: `e0cad0e6c5`.
 
 The audit covers all paths owned by each of the 11 currently-green bindings (Python, Node, PHP, Java, Ruby, Elixir, R, Zig, Go, C#, Rust). Scope was inspected with:
 
-```
+```text
 git log --oneline bd1bef129d..HEAD -- <paths>
 git diff       bd1bef129d..HEAD -- <paths>
 ```

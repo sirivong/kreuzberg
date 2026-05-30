@@ -21,7 +21,7 @@ repository = "https://github.com/kreuzberg-dev/kreuzberg"
 ignored = ["ahash", "serde_json", "tokio", "async-trait"]
 
 [lib]
-crate-type = ["cdylib", "staticlib", "rlib"]
+crate-type = ["cdylib", "staticlib"]
 
 [features]
 default = []

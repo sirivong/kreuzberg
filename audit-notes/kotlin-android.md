@@ -329,7 +329,7 @@ Alef kotlin-android template should standardize on this pattern:
 
 ### 1. Byte Marshalling
 
-```
+```text
 Rust Vec<u8>  ──→  JVM byte[] (via JNI)  ──→  Kotlin ByteArray
                        ↓ (unsafe)
                     String (Base64)
@@ -343,7 +343,7 @@ Rust Vec<u8>  ──→  JVM byte[] (via JNI)  ──→  Kotlin ByteArray
 
 ### 2. Configuration Marshalling
 
-```
+```text
 Kotlin ExtractionConfig  ──→  mapper.writeValueAsString()
     ↓
   JSON string
@@ -360,7 +360,7 @@ Kotlin ExtractionConfig  ──→  mapper.writeValueAsString()
 
 ### 3. MIME Type Handling
 
-```
+```text
 Kotlin: mimeType ?: ""  (null collapse to empty string)
   ↓ (JNI)
 Rust: cstr_ptr_or_null() → *const c_char (null if empty)
@@ -372,7 +372,7 @@ CreuzbergFFI: Treat null as "auto-detect from path"
 
 ### 4. File Path Resolution (E2E & Production)
 
-```
+```text
 Kotlin parameter: content: String  (could be path OR UTF-8 bytes)
   ↓
 loadBytesFromPathOrUtf8(content)
@@ -387,7 +387,7 @@ ByteArray (ready for Base64 encoding)
 
 ### 5. Exception Handling
 
-```
+```text
 Rust FFI returns:
   - NULL pointer on failure
   - Valid pointer on success
@@ -404,7 +404,7 @@ JNI handler:
 
 ### 6. Sealed Class Serialization
 
-```
+```text
 Rust:  #[derive(serde::Serialize)]
        pub enum OutputFormat {
            Plain, Markdown, Custom(String), ...
