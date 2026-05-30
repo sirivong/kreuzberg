@@ -6386,6 +6386,67 @@ public func extractFile(
 , config
 )
 }
+
+/// Convenience overload: accepts JSON-string config (matches e2e generator pattern).
+public func extractFile(
+    _ path: String,
+    _ mimeType: String?,
+    _ configJson: String
+) throws -> ExtractionResult {
+    let config = try extractionConfigFromJson(configJson)
+    return try extractFile(path: path, mimeType: mimeType, config: config)
+}
+
+/// Convenience overload: accepts JSON-string config (matches e2e generator pattern).
+public func extractFileSync(
+    _ path: String,
+    _ mimeType: String?,
+    _ configJson: String
+) throws -> ExtractionResult {
+    let config = try extractionConfigFromJson(configJson)
+    return try extractFileSync(path: path, mimeType: mimeType, config: config)
+}
+
+/// Convenience overload: accepts JSON-string config (matches e2e generator pattern).
+public func extractBytes(
+    _ content: String,
+    _ mimeType: String,
+    _ configJson: String
+) throws -> ExtractionResult {
+    let config = try extractionConfigFromJson(configJson)
+    return try extractBytes(content: content, mimeType: mimeType, config: config)
+}
+
+/// Convenience overload: accepts JSON-string config (matches e2e generator pattern).
+public func extractBytes(
+    _ content: [UInt8],
+    _ mimeType: String,
+    _ configJson: String
+) throws -> ExtractionResult {
+    let config = try extractionConfigFromJson(configJson)
+    return try extractBytes(content: content, mimeType: mimeType, config: config)
+}
+
+/// Convenience overload: accepts JSON-string config (matches e2e generator pattern).
+public func extractBytesSync(
+    _ content: String,
+    _ mimeType: String,
+    _ configJson: String
+) throws -> ExtractionResult {
+    let config = try extractionConfigFromJson(configJson)
+    return try extractBytesSync(makeByteVec(Array(content.utf8)), mimeType, config)
+}
+
+/// Convenience overload: accepts JSON-string config (matches e2e generator pattern).
+public func extractBytesSync(
+    _ content: [UInt8],
+    _ mimeType: String,
+    _ configJson: String
+) throws -> ExtractionResult {
+    let config = try extractionConfigFromJson(configJson)
+    return try extractBytesSync(makeByteVec(content), mimeType, config)
+}
+
 // MARK: - From-JSON Helpers
 // Public helpers that decode JSON into first-class Swift types.
 // First-class struct types (Codable) use JSONDecoder directly.
@@ -7291,6 +7352,16 @@ public func batchExtractBytesSync(items: [BatchBytesItem], config: ExtractionCon
     return out.reversed()
 }
 
+/// Convenience overload: uses default ExtractionConfig when none provided.
+public func batchExtractBytesSync(items: [BatchBytesItem]) throws -> [ExtractionResult] {
+    return try batchExtractBytesSync(items: items, config: ExtractionConfig())
+}
+
+/// Convenience overload: accepts items with default config.
+public func batchExtractFilesSync(paths: [BatchFileItem]) throws -> [ExtractionResult] {
+    return try batchExtractFilesSync(items: paths, config: ExtractionConfig())
+}
+
 /// Extract content from multiple files concurrently.
 ///
 /// This function processes multiple files in parallel, automatically managing
@@ -7426,6 +7497,16 @@ public func batchExtractBytes(items: [BatchBytesItem], config: ExtractionConfig)
     return out.reversed()
 }
 
+/// Convenience overload: uses default ExtractionConfig when none provided.
+public func batchExtractBytes(items: [BatchBytesItem]) async throws -> [ExtractionResult] {
+    return try await batchExtractBytes(items: items, config: ExtractionConfig())
+}
+
+/// Convenience overload: accepts items with default config.
+public func batchExtractFiles(paths: [BatchFileItem]) async throws -> [ExtractionResult] {
+    return try await batchExtractFiles(items: paths, config: ExtractionConfig())
+}
+
 /// Detect MIME type from raw file bytes.
 ///
 /// Uses magic byte signatures to detect file type from content.
@@ -7448,6 +7529,12 @@ public func batchExtractBytes(items: [BatchBytesItem], config: ExtractionConfig)
 public func detectMimeTypeFromBytes(content: [UInt8]) throws -> String {
     let _rb_content: RustVec<UInt8> = { let v = RustVec<UInt8>(); for b in content { v.push(value: b) }; return v }()
     return try RustBridge.detectMimeTypeFromBytes(_rb_content).toString()
+}
+
+/// Convenience overload: reads file from path and detects MIME type from bytes.
+public func detectMimeTypeFromBytes(_ path: String) throws -> String {
+    let data = try Data(contentsOf: URL(fileURLWithPath: path))
+    return try detectMimeTypeFromBytes([UInt8](data))
 }
 
 /// Get file extensions for a given MIME type.

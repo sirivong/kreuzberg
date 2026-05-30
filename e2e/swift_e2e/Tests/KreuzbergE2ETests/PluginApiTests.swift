@@ -19,7 +19,7 @@ final class PluginApiTests: XCTestCase {
         // register_document_extractor: trait bridge
         class TestStubRegisterDocumentExtractorTraitBridge: SwiftDocumentExtractorBridge {
     var name: String { "register_document_extractor_trait_bridge" }
-    func extractBytes(_ content: Data, _ mimeType: String, _ config: ExtractionConfig) async throws -> InternalDocument { InternalDocument() }
+    func extractBytes(content: Data, mime_type: String, config: ExtractionConfig) async throws -> String { "" }
     func supportedMimeTypes() -> [String] { [] }
 }
 
@@ -30,8 +30,8 @@ final class PluginApiTests: XCTestCase {
         // register_embedding_backend: trait bridge
         class TestStubRegisterEmbeddingBackendTraitBridge: SwiftEmbeddingBackendBridge {
     var name: String { "register_embedding_backend_trait_bridge" }
-    func dimensions() -> UInt { 0 }
-    func embed(_ texts: [String]) async throws -> [[Float]] { [] }
+    func dimensions() -> Int { 0 }
+    func embed(texts: [String]) async throws -> [[Float]] { [] }
 }
 
         let result = try Kreuzberg.registerEmbeddingBackend(backend: TestStubRegisterEmbeddingBackendTraitBridge())
@@ -41,9 +41,9 @@ final class PluginApiTests: XCTestCase {
         // register_ocr_backend: trait bridge
         class TestStubRegisterOcrBackendTraitBridge: SwiftOcrBackendBridge {
     var name: String { "register_ocr_backend_trait_bridge" }
-    func processImage(_ imageBytes: Data, _ config: OcrConfig) async throws -> ExtractionResult { ExtractionResult() }
-    func supportsLanguage(_ lang: String) -> Bool { false }
-    func backendType() -> OcrBackendType { OcrBackendType() }
+    func processImage(image_bytes: Data, config: OcrConfig) async throws -> ExtractionResult { try RustBridge.extractionResultFromJson("{}") }
+    func supportsLanguage(lang: String) -> Bool { false }
+    func backendType() -> OcrBackendType { .tesseract }
 }
 
         let result = try Kreuzberg.registerOcrBackend(backend: TestStubRegisterOcrBackendTraitBridge())
@@ -53,8 +53,8 @@ final class PluginApiTests: XCTestCase {
         // register_post_processor: trait bridge
         class TestStubRegisterPostProcessorTraitBridge: SwiftPostProcessorBridge {
     var name: String { "register_post_processor_trait_bridge" }
-    func process(_ result: ExtractionResult, _ config: ExtractionConfig) async throws -> Void { () }
-    func processingStage() -> ProcessingStage { ProcessingStage() }
+    func process(result: ExtractionResult, config: ExtractionConfig) async throws -> Void { () }
+    func processingStage() -> ProcessingStage { .early }
 }
 
         let result = try Kreuzberg.registerPostProcessor(processor: TestStubRegisterPostProcessorTraitBridge())
@@ -64,7 +64,7 @@ final class PluginApiTests: XCTestCase {
         // register_renderer: trait bridge
         class TestStubRegisterRendererTraitBridge: SwiftRendererBridge {
     var name: String { "register_renderer_trait_bridge" }
-    func render(_ doc: InternalDocument) -> String { "" }
+    func render(doc: InternalDocument) throws -> String { "" }
 }
 
         let result = try Kreuzberg.registerRenderer(renderer: TestStubRegisterRendererTraitBridge())
@@ -74,7 +74,7 @@ final class PluginApiTests: XCTestCase {
         // register_validator: trait bridge
         class TestStubRegisterValidatorTraitBridge: SwiftValidatorBridge {
     var name: String { "register_validator_trait_bridge" }
-    func validate(_ result: ExtractionResult, _ config: ExtractionConfig) async throws -> Void { () }
+    func validate(result: ExtractionResult, config: ExtractionConfig) async throws -> Void { () }
 }
 
         let result = try Kreuzberg.registerValidator(validator: TestStubRegisterValidatorTraitBridge())
