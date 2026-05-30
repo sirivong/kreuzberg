@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.20.14"
+alef_version = "0.21.0"
 languages = [
   "python",
   "node",
@@ -863,6 +863,7 @@ result_fields = [
   "content",
   "mime_type",
   "djot_content",
+  "result",
 ]
 
 [crates.e2e.call]
@@ -1535,6 +1536,10 @@ module = "Kreuzberg"
 function = "clear_ocr_backends"
 module = "kreuzberg"
 
+[crates.e2e.calls.clear_ocr_backends.overrides.kotlin_android]
+function = "clearAll"
+module = "OcrBackendBridge"
+
 [crates.e2e.calls.clear_post_processors]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
@@ -1605,6 +1610,10 @@ module = "Kreuzberg"
 function = "clear_post_processors"
 module = "kreuzberg"
 
+[crates.e2e.calls.clear_post_processors.overrides.kotlin_android]
+function = "clearAll"
+module = "PostProcessorBridge"
+
 [crates.e2e.calls.clear_validators]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
@@ -1674,6 +1683,10 @@ module = "Kreuzberg"
 [crates.e2e.calls.clear_validators.overrides.zig]
 function = "clear_validators"
 module = "kreuzberg"
+
+[crates.e2e.calls.clear_validators.overrides.kotlin_android]
+function = "clearAll"
+module = "ValidatorBridge"
 
 [crates.e2e.calls.unregister_ocr_backend]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
@@ -1746,6 +1759,10 @@ module = "Kreuzberg"
 function = "unregister_ocr_backend"
 module = "kreuzberg"
 
+[crates.e2e.calls.unregister_ocr_backend.overrides.kotlin_android]
+function = "unregister"
+module = "OcrBackendBridge"
+
 [crates.e2e.calls.unregister_post_processor]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
@@ -1816,6 +1833,10 @@ module = "Kreuzberg"
 function = "unregister_post_processor"
 module = "kreuzberg"
 
+[crates.e2e.calls.unregister_post_processor.overrides.kotlin_android]
+function = "unregister"
+module = "PostProcessorBridge"
+
 [crates.e2e.calls.unregister_validator]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
@@ -1885,6 +1906,10 @@ module = "Kreuzberg"
 [crates.e2e.calls.unregister_validator.overrides.zig]
 function = "unregister_validator"
 module = "kreuzberg"
+
+[crates.e2e.calls.unregister_validator.overrides.kotlin_android]
+function = "unregister"
+module = "ValidatorBridge"
 
 [crates.e2e.calls.register_ocr_backend]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
@@ -1958,6 +1983,10 @@ function = "register_ocr_backend"
 module = "kreuzberg"
 returns_result = false
 
+[crates.e2e.calls.register_ocr_backend.overrides.kotlin_android]
+function = "register"
+module = "OcrBackendBridge"
+
 [crates.e2e.calls.register_post_processor]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
@@ -2029,6 +2058,10 @@ module = "Kreuzberg"
 function = "register_post_processor"
 module = "kreuzberg"
 returns_result = false
+
+[crates.e2e.calls.register_post_processor.overrides.kotlin_android]
+function = "register"
+module = "PostProcessorBridge"
 
 [crates.e2e.calls.register_validator]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
@@ -2102,6 +2135,10 @@ function = "register_validator"
 module = "kreuzberg"
 returns_result = false
 
+[crates.e2e.calls.register_validator.overrides.kotlin_android]
+function = "register"
+module = "ValidatorBridge"
+
 [crates.e2e.calls.register_embedding_backend]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
@@ -2174,6 +2211,10 @@ function = "register_embedding_backend"
 module = "kreuzberg"
 returns_result = false
 
+[crates.e2e.calls.register_embedding_backend.overrides.kotlin_android]
+function = "register"
+module = "EmbeddingBackendBridge"
+
 [crates.e2e.calls.unregister_embedding_backend]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
@@ -2244,6 +2285,10 @@ module = "Kreuzberg"
 function = "unregister_embedding_backend"
 module = "kreuzberg"
 
+[crates.e2e.calls.unregister_embedding_backend.overrides.kotlin_android]
+function = "unregister"
+module = "EmbeddingBackendBridge"
+
 [crates.e2e.calls.clear_embedding_backends]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
@@ -2313,6 +2358,10 @@ module = "Kreuzberg"
 [crates.e2e.calls.clear_embedding_backends.overrides.zig]
 function = "clear_embedding_backends"
 module = "kreuzberg"
+
+[crates.e2e.calls.clear_embedding_backends.overrides.kotlin_android]
+function = "clearAll"
+module = "EmbeddingBackendBridge"
 
 [crates.e2e.calls.register_document_extractor]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
@@ -2386,6 +2435,10 @@ function = "register_document_extractor"
 module = "kreuzberg"
 returns_result = false
 
+[crates.e2e.calls.register_document_extractor.overrides.kotlin_android]
+function = "register"
+module = "DocumentExtractorBridge"
+
 [crates.e2e.calls.unregister_document_extractor]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
@@ -2456,6 +2509,10 @@ module = "Kreuzberg"
 function = "unregister_document_extractor"
 module = "kreuzberg"
 
+[crates.e2e.calls.unregister_document_extractor.overrides.kotlin_android]
+function = "unregister"
+module = "DocumentExtractorBridge"
+
 [crates.e2e.calls.clear_document_extractors]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
@@ -2525,6 +2582,10 @@ module = "Kreuzberg"
 [crates.e2e.calls.clear_document_extractors.overrides.zig]
 function = "clear_document_extractors"
 module = "kreuzberg"
+
+[crates.e2e.calls.clear_document_extractors.overrides.kotlin_android]
+function = "clearAll"
+module = "DocumentExtractorBridge"
 
 [crates.e2e.calls.register_renderer]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
@@ -2598,6 +2659,10 @@ function = "register_renderer"
 module = "kreuzberg"
 returns_result = false
 
+[crates.e2e.calls.register_renderer.overrides.kotlin_android]
+function = "register"
+module = "RendererBridge"
+
 [crates.e2e.calls.unregister_renderer]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
@@ -2668,6 +2733,10 @@ module = "Kreuzberg"
 function = "unregister_renderer"
 module = "kreuzberg"
 
+[crates.e2e.calls.unregister_renderer.overrides.kotlin_android]
+function = "unregister"
+module = "RendererBridge"
+
 [crates.e2e.calls.clear_renderers]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
 result_is_simple = true
@@ -2737,6 +2806,10 @@ module = "Kreuzberg"
 [crates.e2e.calls.clear_renderers.overrides.zig]
 function = "clear_renderers"
 module = "kreuzberg"
+
+[crates.e2e.calls.clear_renderers.overrides.kotlin_android]
+function = "clearAll"
+module = "RendererBridge"
 
 [crates.e2e.calls.embed_texts_async]
 result_is_simple = true
@@ -3258,7 +3331,6 @@ registry_getter = "kreuzberg::plugins::registry::get_ocr_backend_registry"
 register_fn = "register_ocr_backend"
 unregister_fn = "unregister_ocr_backend"
 clear_fn = "clear_ocr_backends"
-exclude_languages = ["kotlin_android"]
 
 [[crates.trait_bridges]]
 trait_name = "PostProcessor"
@@ -3267,7 +3339,6 @@ registry_getter = "kreuzberg::plugins::registry::get_post_processor_registry"
 register_fn = "register_post_processor"
 unregister_fn = "unregister_post_processor"
 clear_fn = "clear_post_processors"
-exclude_languages = ["kotlin_android"]
 
 [[crates.trait_bridges]]
 trait_name = "Validator"
@@ -3276,7 +3347,6 @@ registry_getter = "kreuzberg::plugins::registry::get_validator_registry"
 register_fn = "register_validator"
 unregister_fn = "unregister_validator"
 clear_fn = "clear_validators"
-exclude_languages = ["kotlin_android"]
 
 [[crates.trait_bridges]]
 trait_name = "EmbeddingBackend"
@@ -3285,7 +3355,6 @@ registry_getter = "kreuzberg::plugins::registry::get_embedding_backend_registry"
 register_fn = "register_embedding_backend"
 unregister_fn = "unregister_embedding_backend"
 clear_fn = "clear_embedding_backends"
-exclude_languages = ["kotlin_android"]
 
 [[crates.trait_bridges]]
 trait_name = "DocumentExtractor"
@@ -3298,7 +3367,6 @@ clear_fn = "clear_document_extractors"
 # cannot traverse the C FFI boundary. Skip it in the FFI vtable and let the default impl
 # (returns None) take over.
 ffi_skip_methods = ["as_sync_extractor"]
-exclude_languages = ["kotlin_android"]
 
 [[crates.trait_bridges]]
 trait_name = "Renderer"
@@ -3307,4 +3375,3 @@ registry_getter = "kreuzberg::plugins::registry::get_renderer_registry"
 register_fn = "register_renderer"
 unregister_fn = "unregister_renderer"
 clear_fn = "clear_renderers"
-exclude_languages = ["kotlin_android"]
