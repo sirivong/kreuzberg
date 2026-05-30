@@ -39,13 +39,17 @@ function _alefE2eFormatMetadataDisplay(fm: unknown): string {
 
 describe('plugin_api', () => {  it('register_document_extractor_trait_bridge: register_document_extractor: trait bridge', () => {    class _TestStub_register_document_extractor_trait_bridge {
   name(): string { return "test-extractor"; }
-  async extract_bytes(_p0?: any, _p1?: any, _p2?: any): Promise<any> { return "{}"; }
-  supported_mime_types(): any { return []; }
+  initialize(): void {}
+  shutdown(): void {}
+  async extractBytes(_p0?: any, _p1?: any, _p2?: any): Promise<any> { return "{}"; }
+  supportedMimeTypes(): any { return []; }
 }
     registerDocumentExtractor(new _TestStub_register_document_extractor_trait_bridge());
   }, 30000);
   it('register_embedding_backend_trait_bridge: register_embedding_backend: trait bridge', () => {    class _TestStub_register_embedding_backend_trait_bridge {
   name(): string { return "test-embedding-backend"; }
+  initialize(): void {}
+  shutdown(): void {}
   dimensions(): any { return 1; }
   async embed(_p0?: any): Promise<any> { return []; }
 }
@@ -53,27 +57,35 @@ describe('plugin_api', () => {  it('register_document_extractor_trait_bridge: re
   }, 600000);
   it('register_ocr_backend_trait_bridge: register_ocr_backend: trait bridge', () => {    class _TestStub_register_ocr_backend_trait_bridge {
   name(): string { return "test-backend"; }
-  async process_image(_p0?: any, _p1?: any): Promise<any> { return "{}"; }
-  supports_language(_p0?: any): any { return false; }
-  backend_type(): any { return "{}"; }
+  initialize(): void {}
+  shutdown(): void {}
+  async processImage(_p0?: any, _p1?: any): Promise<any> { return "{}"; }
+  supportsLanguage(_p0?: any): any { return false; }
+  backendType(): any { return "{}"; }
 }
     registerOcrBackend(new _TestStub_register_ocr_backend_trait_bridge());
   }, 30000);
   it('register_post_processor_trait_bridge: register_post_processor: trait bridge', () => {    class _TestStub_register_post_processor_trait_bridge {
   name(): string { return "test-processor"; }
+  initialize(): void {}
+  shutdown(): void {}
   async process(_p0?: any, _p1?: any): Promise<any> { return null; }
-  processing_stage(): any { return "{}"; }
+  processingStage(): any { return "{}"; }
 }
     registerPostProcessor(new _TestStub_register_post_processor_trait_bridge());
   }, 30000);
   it('register_renderer_trait_bridge: register_renderer: trait bridge', () => {    class _TestStub_register_renderer_trait_bridge {
   name(): string { return "test-renderer"; }
+  initialize(): void {}
+  shutdown(): void {}
   render(_p0?: any): any { return ""; }
 }
     registerRenderer(new _TestStub_register_renderer_trait_bridge());
   }, 30000);
   it('register_validator_trait_bridge: register_validator: trait bridge', () => {    class _TestStub_register_validator_trait_bridge {
   name(): string { return "test-validator"; }
+  initialize(): void {}
+  shutdown(): void {}
   async validate(_p0?: any, _p1?: any): Promise<any> { return null; }
 }
     registerValidator(new _TestStub_register_validator_trait_bridge());

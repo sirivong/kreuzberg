@@ -13402,8 +13402,8 @@ pub struct ExtractionConfigInput {
     pub security_limits: Option<kreuzberg::SecurityLimits>,
     #[serde(rename = "outputFormat")]
     pub output_format: Option<kreuzberg::OutputFormat>,
-    #[serde(rename = "layout")]
-    pub layout: Option<kreuzberg::LayoutDetectionConfig>,
+    #[serde(rename = "layout", skip)]
+    pub layout: Option<serde_json::Value>,
     #[serde(rename = "useLayoutForMarkdown")]
     pub use_layout_for_markdown: Option<bool>,
     #[serde(rename = "includeDocumentStructure")]
@@ -13420,8 +13420,8 @@ pub struct ExtractionConfigInput {
     pub concurrency: Option<String>,
     #[serde(rename = "maxArchiveDepth")]
     pub max_archive_depth: Option<usize>,
-    #[serde(rename = "treeSitter")]
-    pub tree_sitter: Option<kreuzberg::TreeSitterConfig>,
+    #[serde(rename = "treeSitter", skip)]
+    pub tree_sitter: Option<serde_json::Value>,
     #[serde(rename = "structuredExtraction")]
     pub structured_extraction: Option<kreuzberg::StructuredExtractionConfig>,
     #[serde(rename = "cancelToken")]
@@ -13497,9 +13497,8 @@ impl From<ExtractionConfigInput> for kreuzberg::ExtractionConfig {
         if let Some(v) = val.output_format {
             out.output_format = v.into();
         }
-        if let Some(v) = val.layout {
-            out.layout = v.into();
-        }
+        // layout: stripped on wasm (LayoutDetectionConfig requires layout-types feature, not enabled in wasm-target)
+        let _ = val.layout;
         if let Some(v) = val.use_layout_for_markdown {
             out.use_layout_for_markdown = v.into();
         }
@@ -13524,9 +13523,8 @@ impl From<ExtractionConfigInput> for kreuzberg::ExtractionConfig {
         if let Some(v) = val.max_archive_depth {
             out.max_archive_depth = v.into();
         }
-        if let Some(v) = val.tree_sitter {
-            out.tree_sitter = v.into();
-        }
+        // tree_sitter: stripped on wasm (TreeSitterConfig requires tree-sitter feature, not enabled in wasm-target)
+        let _ = val.tree_sitter;
         if let Some(v) = val.structured_extraction {
             out.structured_extraction = v.into();
         }
@@ -14711,10 +14709,10 @@ mod __alef_wasm_bridge_embeddingbackend {
             };
 
             // Convert result
-            // Convert JS result to usize
+            // JS dimensions() returns a number, not a JSON string.
             result
-                .as_string()
-                .and_then(|s| serde_json::from_str::<usize>(&s).ok())
+                .as_f64()
+                .map(|n| n as usize)
                 .unwrap_or_default()
         }
 
@@ -16607,10 +16605,7 @@ impl From<WasmExtractionResult> for kreuzberg::ExtractionResult {
                 .structured_output
                 .as_ref()
                 .and_then(|v| serde_wasm_bindgen::from_value(v.clone()).ok()),
-            code_intelligence: val
-                .code_intelligence
-                .as_ref()
-                .and_then(|v| serde_wasm_bindgen::from_value(v.clone()).ok()),
+            // code_intelligence: stripped on wasm (field removed from kreuzberg::ExtractionResult)
             llm_usage: val.llm_usage.map(|v| v.into_iter().map(Into::into).collect()),
             formatted_content: val.formatted_content,
             ocr_internal_document: Default::default(),
@@ -16644,10 +16639,7 @@ impl From<kreuzberg::ExtractionResult> for WasmExtractionResult {
                 .structured_output
                 .as_ref()
                 .and_then(|v| serde_wasm_bindgen::to_value(v).ok()),
-            code_intelligence: val
-                .code_intelligence
-                .as_ref()
-                .and_then(|v| serde_wasm_bindgen::to_value(v).ok()),
+            code_intelligence: None, // stripped on wasm (field removed from kreuzberg::ExtractionResult)
             llm_usage: val.llm_usage.map(|v| v.into_iter().map(Into::into).collect()),
             formatted_content: val.formatted_content,
             ocr_internal_document: val.ocr_internal_document.as_ref().map(|v| format!("{v:?}")),
@@ -19683,7 +19675,7 @@ impl From<WasmFormatMetadata> for kreuzberg::FormatMetadata {
                     .and_then(|v| serde_wasm_bindgen::from_value::<kreuzberg::PstMetadata>(v.clone()).ok())
                     .unwrap_or_default(),
             ),
-            "code" => Self::Code(Default::default()),
+            // "code": stripped on wasm (Code variant gated behind tree-sitter feature)
             _ => Self::Pdf(Default::default()),
         }
     }
@@ -19768,10 +19760,7 @@ impl From<kreuzberg::FormatMetadata> for WasmFormatMetadata {
                 format_type: "pst".to_string(),
                 _0: serde_wasm_bindgen::to_value(&field0).ok(),
             },
-            kreuzberg::FormatMetadata::Code(field0) => Self {
-                format_type: "code".to_string(),
-                _0: serde_wasm_bindgen::to_value(&field0).ok(),
-            },
+            // FormatMetadata::Code: stripped on wasm (Code variant gated behind tree-sitter feature)
         }
     }
 }

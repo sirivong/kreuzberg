@@ -8,40 +8,12 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-// Pre-initialize the wasm-bindgen module so that exports are callable
-// in every vitest worker. The async default export uses fetch() which
-// does not support file:// URLs in Node.js; use initSync with a
-// readFileSync buffer instead.
-try {
-  const _require = createRequire(import.meta.url);
-  const wasmPkgDir = _require.resolve('kreuzberg');
-  const wasmModule = await import(/* @vite-ignore */ wasmPkgDir);
-  const initSync = (wasmModule as unknown as Record<string, unknown>).initSync as ((mod: WebAssembly.Module | BufferSource) => unknown) | undefined;
-  if (typeof initSync === 'function') {
-    // Locate the .wasm binary next to the JS entry.
-    const wasmJsPath = fileURLToPath(new URL(wasmPkgDir, 'file://'));
-    const wasmBinPath = wasmJsPath.replace(/\.js$/, '_bg.wasm');
-    const wasmBytes = readFileSync(wasmBinPath);
-    // Pass as object form to avoid wasm-bindgen deprecation warning.
-    initSync({ module: wasmBytes });
-  } else {
-    // Fallback: try the async default init (wasm-pack --target nodejs bundles).
-    const initDefault = (wasmModule as unknown as Record<string, unknown>).default as (() => Promise<unknown>) | undefined;
-    if (typeof initDefault === 'function') await initDefault();
-  }
-} catch (err) {
-  // Module may not require explicit init — continue anyway.
-  console.warn('[alef wasm setup] init skipped:', (err as Error).message);
-}
-
 // Patch CommonJS `require('env')` and `require('wasi_snapshot_preview1')` to
 // return shim objects. wasm-pack `--target nodejs` emits bare `require()`
 // calls for these from getrandom/wasi transitives, but they are not real
 // Node modules — the WASM module imports them by name and the host is
 // expected to satisfy them. Patch Module._load BEFORE the wasm bundle is
-// imported by any test file.
-// Note: setupFiles run per-test-worker; vitest imports the test files
-// AFTER setupFiles complete, so this hook installs in time.
+// imported by any test file or pre-init below.
 {
   const _require = createRequire(import.meta.url);
   const Module = _require('module');
@@ -161,6 +133,29 @@ try {
   } as unknown as typeof WebAssembly.Instance;
   PatchedInstance.prototype = _OrigInstance.prototype;
   (WebAssembly as unknown as { Instance: typeof WebAssembly.Instance }).Instance = PatchedInstance;
+}
+
+// Pre-initialize the wasm-bindgen module so that exports are callable
+// in every vitest worker. This MUST happen after the env/wasi patches
+// above so the bare `require('env')` calls inside kreuzberg_wasm.js can
+// resolve through our Module._load hook.
+try {
+  const _require = createRequire(import.meta.url);
+  const wasmPkgDir = _require.resolve('kreuzberg');
+  const wasmModule = await import(/* @vite-ignore */ wasmPkgDir);
+  const initSync = (wasmModule as unknown as Record<string, unknown>).initSync as ((mod: WebAssembly.Module | BufferSource) => unknown) | undefined;
+  if (typeof initSync === 'function') {
+    const wasmJsPath = fileURLToPath(new URL(wasmPkgDir, 'file://'));
+    const wasmBinPath = wasmJsPath.replace(/\.js$/, '_bg.wasm');
+    const wasmBytes = readFileSync(wasmBinPath);
+    initSync({ module: wasmBytes });
+  } else {
+    const initDefault = (wasmModule as unknown as Record<string, unknown>).default as (() => Promise<unknown>) | undefined;
+    if (typeof initDefault === 'function') await initDefault();
+  }
+} catch (err) {
+  // Module may not require explicit init — continue anyway.
+  console.warn('[alef wasm setup] init skipped:', (err as Error).message);
 }
 
 // Change to the configured test-documents directory so that fixture file paths like
