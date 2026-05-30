@@ -14,6 +14,10 @@ defmodule Kreuzberg.MixProject do
         ]
       ],
       description: "High-performance document intelligence library",
+      dialyzer: [
+        plt_add_apps: [:stdlib, :kernel],
+        plt_add_plugins: [:rustler]
+      ],
       package: package(),
       deps: deps()
     ]
@@ -34,6 +38,7 @@ defmodule Kreuzberg.MixProject do
       {:rustler, "~> 0.37.0", runtime: false},
       {:rustler_precompiled, "~> 0.9"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:ex_doc, "~> 0.40", only: :dev, runtime: false}
     ]
   end
