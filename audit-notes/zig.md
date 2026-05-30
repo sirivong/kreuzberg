@@ -49,6 +49,8 @@ return blk: {
 
 ## Fix Strategy
 
+### For Extract Functions (6 affected functions)
+
 For each extract function:
 
 1. **Check `_result` before unwrap**:
@@ -75,6 +77,22 @@ For each extract function:
 
 3. **Ensure error-code check runs first**:
    Move the error-code check to immediately after the C call, before any other operations.
+
+### For Vtable Thunks (24 affected functions)
+
+For each vtable thunk that casts `ud: ?*anyopaque` to `*T`:
+
+1. **Null-check before cast**:
+   ```zig
+   const self: *T = if (ud) |u| @ptrCast(@alignCast(u)) else {
+       // Handle null user_data - should not happen in normal operation
+       // Either return error or abort with clear message
+       return error.NullUserData; // or similar
+   };
+   ```
+
+2. **Or, require non-null in the vtable signature** (if feasible):
+   Change function pointer signatures to use `*anyopaque` instead of `?*anyopaque` where null is not expected.
 
 ---
 
@@ -126,6 +144,21 @@ For each extract function:
 
 ---
 
+### Vtable Function Pointers
+
+**Status**: ❌ FAIL
+- **Locations**: Lines 4710, 4724, 4737, 4744, 4755, 4766, 4773, 4780, 5019, 5033, 5044, 5051, 5058, 5306, 5320, 5327, 5456, 5463, 5669, 5683, 5696, 5707, 5714, 5846 (24 occurrences)
+- **Issue**: All vtable thunks cast `ud: ?*anyopaque` to `*T` without null-check:
+  ```zig
+  const self: *T = @ptrCast(@alignCast(ud));  // CRASH if ud is null
+  ```
+- **Root Cause**: The thunks assume `ud` is never null (always points to the user data passed at registration). But if Rust code calls the thunk with null ud, this crashes.
+- **Affected Vtables**: DocumentExtractor, OcrBackend, PostProcessor, Validator, Renderer, EmbeddingBackend (all plugin trait implementations)
+
+**Risk**: HIGH - If Rust FFI layer ever calls a vtable thunk with null `ud`, the binding crashes. This would be a soundness hole if user code accidentally passes null when registering plugins.
+
+---
+
 ## Test Findings
 
 **Baseline**: Currently 0/100 green (all 22 tests crash with SIGABRT + 23 skipped due to linking)
@@ -138,12 +171,24 @@ dyld[XXXX]: Library not loaded: @rpath/libkreuzberg_ffi.dylib
 
 ---
 
+## Summary of Issues
+
+| Category | Count | Severity | Lines |
+|----------|-------|----------|-------|
+| Extract result null-deref | 6 | CRITICAL | 3885, 3931, 3968, 3999, 4460, 4462 |
+| JSON pointer null-deref | 6 | CRITICAL | 3888, 3934, 3971, 4002, 4463+ |
+| Vtable ud null-deref | 24 | HIGH | 4710, 4724, ..., 5846 |
+| **Total** | **36** | **CRITICAL/HIGH** | See details above |
+
+---
+
 ## Recommendations
 
 1. **Immediate**: Fix null-checks in all extract functions (6 functions total)
-2. **Follow-up**: Add runtime assertions or sanitizers to catch null-deref earlier in CI
+2. **Follow-up**: Fix null-checks in all vtable thunks (24 functions total)
 3. **Testing**: All tests should exercise error paths, not just happy paths
 4. **Codegen**: Review Alef's Zig generator to ensure it always emits null-checks after C calls
+5. **CI**: Enable address sanitizer or Valgrind for Zig e2e tests to catch null-derefs earlier
 
 ---
 
