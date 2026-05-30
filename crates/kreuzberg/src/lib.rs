@@ -34,6 +34,17 @@
 
 #![deny(unsafe_code)]
 
+#[cfg(all(feature = "ort-bundled", feature = "ort-dynamic"))]
+#[deprecated(
+    note = "features 'ort-bundled' and 'ort-dynamic' are both enabled; bundled ORT remains the default unless dynamic ORT is explicitly selected at runtime"
+)]
+const ORT_FEATURE_SELECTION_WARNING: () = ();
+
+#[cfg(all(feature = "ort-bundled", feature = "ort-dynamic"))]
+const _: () = {
+    let _ = ORT_FEATURE_SELECTION_WARNING;
+};
+
 pub mod cache;
 pub(crate) mod cache_dir;
 pub mod cancellation;
@@ -65,6 +76,9 @@ pub mod mcp;
 #[cfg(feature = "chunking")]
 pub mod chunking;
 
+// TODO(wasm-llm): `liter-llm` stays in no-ORT/wasm target presets because the
+// dependency supports hosted HTTP providers on wasm. The runtime module remains
+// disabled until the wasm request/runtime integration is wired and tested.
 #[cfg(all(feature = "liter-llm", not(target_os = "windows"), not(target_arch = "wasm32")))]
 pub mod llm;
 
@@ -150,7 +164,7 @@ pub use extractors::security::SecurityLimits;
 #[cfg(feature = "quality")]
 pub use text::{ReductionLevel, TokenReductionConfig};
 
-#[cfg(feature = "api")]
+#[cfg(feature = "api-types")]
 pub use core::server_config::ServerConfig;
 
 #[cfg(feature = "pdf")]
@@ -179,7 +193,7 @@ pub use layout::types::{BBox, DetectionResult, LayoutClass, LayoutDetection};
 
 #[cfg(feature = "layout-types")]
 pub use layout::types::RecognizedTable;
-#[cfg(feature = "ocr")]
+#[cfg(any(feature = "ocr", feature = "ocr-wasm"))]
 pub use ocr::types::PSMMode;
 
 pub use core::config::{OcrPipelineConfig, OcrPipelineStage, OcrQualityThresholds};

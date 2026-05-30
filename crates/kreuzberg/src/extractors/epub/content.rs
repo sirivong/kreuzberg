@@ -17,7 +17,6 @@ use super::metadata::{EpubPackageDocument, ManifestItem};
 use super::parsing::read_file_from_zip;
 
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 /// A resolved XHTML spine document prepared for EPUB extraction.
 ///
 /// The stored XHTML is sanitized so all downstream extraction paths see the
@@ -28,7 +27,6 @@ pub(super) struct EpubSpineDocument {
     pub(super) xhtml: String,
 }
 
-#[allow(dead_code)]
 /// Read all body documents from the EPUB archive and downgrade per-item I/O
 /// failures into processing warnings.
 pub(super) fn read_body_documents(
@@ -117,7 +115,6 @@ pub(super) fn read_body_documents(
     Ok((documents, warnings))
 }
 
-#[allow(dead_code)]
 fn resolve_renderable_manifest_item<'a>(
     package: &'a EpubPackageDocument,
     start_idref: &str,

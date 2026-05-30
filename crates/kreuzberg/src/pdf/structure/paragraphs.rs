@@ -100,8 +100,9 @@ pub(super) fn split_embedded_list_items(paragraphs: &mut Vec<PdfParagraph>) {
             .collect::<Vec<_>>()
             .join(" ");
 
-        // Count bullet occurrences — only split if there are multiple
-        let bullet_count = full_text.matches('\u{2022}').count();
+        // Count bullet occurrences — only split if there are multiple. The
+        // text repair pass normalizes `•` to middle dot, so accept both forms.
+        let bullet_count = full_text.matches(['\u{2022}', '\u{00B7}']).count();
         if bullet_count < 2 {
             paragraphs.push(para);
             continue;
@@ -111,14 +112,18 @@ pub(super) fn split_embedded_list_items(paragraphs: &mut Vec<PdfParagraph>) {
         let font_size = para.dominant_font_size;
         let is_bold = para.is_bold;
 
-        // Split the full text on • and produce separate paragraphs
-        let parts: Vec<&str> = full_text.split('\u{2022}').collect();
-        let before = parts[0].trim();
+        // Split the full text on bullet markers and produce separate paragraphs.
+        let parts: Vec<&str> = full_text.split(['\u{2022}', '\u{00B7}']).collect();
+        let before = parts[0].trim().trim_end_matches('\u{00C2}').trim();
         if !before.is_empty() {
             paragraphs.push(text_to_paragraph(before, font_size, is_bold, false));
         }
         for part in &parts[1..] {
-            let item_text = part.trim();
+            let item_text = part
+                .trim()
+                .trim_start_matches('\u{00C2}')
+                .trim_end_matches('\u{00C2}')
+                .trim();
             if !item_text.is_empty() {
                 paragraphs.push(text_to_paragraph(item_text, font_size, is_bold, true));
             }

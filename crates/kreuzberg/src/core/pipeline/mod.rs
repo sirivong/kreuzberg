@@ -193,6 +193,8 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
 
     // Run LLM-based structured extraction BEFORE output formatting
     // so extraction sees plain text, not markdown/HTML
+    // TODO(wasm-llm): hosted structured extraction should run on wasm through
+    // liter-llm's wasm-http backend once browser/runtime support is wired.
     #[cfg(all(feature = "liter-llm", not(target_os = "windows"), not(target_arch = "wasm32")))]
     if let Some(ref structured_config) = config.structured_extraction {
         match crate::llm::structured::extract_structured(&result.content, structured_config).await {
@@ -210,6 +212,8 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
         }
     }
 
+    // TODO(wasm-llm): keep wasm in the fallback branch until structured
+    // extraction has an async wasm-compatible runtime path.
     #[cfg(any(not(feature = "liter-llm"), target_os = "windows", target_arch = "wasm32"))]
     if config.structured_extraction.is_some() {
         result.processing_warnings.push(crate::types::ProcessingWarning {

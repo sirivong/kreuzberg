@@ -23,15 +23,6 @@ pub type OxideUnifiedExtractionResult = (
     PdfExtractionMetadata,
 );
 
-/// Extract all text from a PDF document, concatenating pages with double newlines.
-///
-/// Simple convenience function that returns only the text content.
-#[allow(dead_code)]
-pub(crate) fn extract_text(doc: &mut OxideDocument) -> Result<String> {
-    let (content, _, _) = extract_text_from_oxide_document(doc, None, None)?;
-    Ok(content)
-}
-
 /// Extract text and metadata from a PDF document in a single pass.
 ///
 /// This is the oxide equivalent of `extract_text_and_metadata_from_pdf_document`.

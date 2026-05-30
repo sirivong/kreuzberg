@@ -44,9 +44,9 @@ pub use custom_properties::CustomProperties;
 pub use odt_properties::OdtProperties;
 
 // Private re-exports for internal extraction APIs
-pub(crate) use app_properties::{
-    extract_docx_app_properties, extract_pptx_app_properties, extract_xlsx_app_properties,
-};
+#[cfg(any(feature = "excel", feature = "excel-wasm"))]
+pub(crate) use app_properties::extract_xlsx_app_properties;
+pub(crate) use app_properties::{extract_docx_app_properties, extract_pptx_app_properties};
 pub(crate) use core_properties::extract_core_properties;
 pub(crate) use custom_properties::extract_custom_properties;
 pub(crate) use odt_properties::extract_odt_properties;

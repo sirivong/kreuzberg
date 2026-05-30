@@ -1,6 +1,6 @@
 //! OCR backend registry.
 
-#[cfg(any(feature = "ocr", feature = "ocr-wasm", test))]
+#[cfg(any(feature = "ocr", feature = "ocr-wasm"))]
 use crate::KreuzbergError;
 use crate::Result;
 use crate::plugins::OcrBackend;
@@ -116,6 +116,8 @@ impl OcrBackendRegistry {
             }
         }
 
+        // TODO(wasm-llm): VLM OCR should be available on wasm once hosted LLM
+        // request handling is wired; the feature remains in wasm presets until then.
         #[cfg(all(feature = "liter-llm", not(target_os = "windows"), not(target_arch = "wasm32")))]
         {
             use crate::llm::vlm_ocr::VlmOcrBackend;

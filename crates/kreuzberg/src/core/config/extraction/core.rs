@@ -525,9 +525,9 @@ impl ExtractionConfig {
 
         let image_extraction_enabled = self.images.as_ref().map(|i| i.extract_images).unwrap_or(false);
 
-        #[cfg(feature = "layout-types")]
+        #[cfg(feature = "layout-detection")]
         let layout_enabled = self.layout.is_some();
-        #[cfg(not(feature = "layout-types"))]
+        #[cfg(not(feature = "layout-detection"))]
         let layout_enabled = false;
 
         ocr_enabled || image_extraction_enabled || layout_enabled

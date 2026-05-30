@@ -1267,6 +1267,8 @@ pub(crate) async fn run_ocr_pipeline(
         if let Some(ref pc) = stage.paddle_ocr_config {
             stage_ocr.paddle_ocr_config = Some(pc.clone());
         }
+        stage_ocr.vlm_config = stage.vlm_config.clone();
+        stage_ocr.backend_options = stage.backend_options.clone();
 
         let stage_config = ExtractionConfig {
             ocr: Some(stage_ocr),
@@ -1409,7 +1411,7 @@ fn ensure_elements_enabled(config: &crate::core::config::ocr::OcrConfig) -> crat
 // The OCR path uses the pixel-space variant because OCR-derived paragraphs
 // reach `apply_layout_overrides` in pixel space (via `ocr_doc_to_paragraphs`).
 
-#[cfg(test)]
+#[cfg(all(test, feature = "ocr"))]
 mod tests {
     use super::*;
 

@@ -189,13 +189,6 @@ impl ContentBuilder {
         self.content.push('\n');
     }
 
-    #[allow(dead_code)]
-    pub(super) fn add_image(&mut self, _image_id: &str, _slide_number: u32) {
-        if !self.plain {
-            self.content.push_str("![image]()\n");
-        }
-    }
-
     pub(super) fn add_image_with_desc(&mut self, _image_id: &str, description: Option<&str>, target: &str) {
         if !self.plain {
             // Normalize alt text: replace newlines with spaces for valid markdown

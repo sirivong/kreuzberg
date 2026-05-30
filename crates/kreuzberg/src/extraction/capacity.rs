@@ -98,14 +98,8 @@ pub(crate) fn estimate_content_capacity(file_size: u64, format: &str) -> usize {
 /// # Returns
 ///
 /// An estimated capacity for the markdown table output
-#[cfg(any(
-    feature = "excel",
-    feature = "excel-wasm",
-    feature = "office",
-    feature = "html",
-    feature = "xml"
-))]
 #[inline]
+#[cfg(any(feature = "office", feature = "xml"))]
 pub(crate) fn estimate_table_markdown_capacity(row_count: usize, col_count: usize) -> usize {
     let base = 50 + (col_count * 5);
     let cell_estimate = row_count.saturating_mul(col_count).saturating_mul(12);
@@ -173,26 +167,14 @@ mod tests {
         assert_eq!(lower, mixed);
     }
 
-    #[cfg(any(
-        feature = "excel",
-        feature = "excel-wasm",
-        feature = "office",
-        feature = "html",
-        feature = "xml"
-    ))]
+    #[cfg(any(feature = "office", feature = "xml"))]
     #[test]
     fn test_table_markdown_capacity() {
         let capacity = estimate_table_markdown_capacity(10, 5);
         assert_eq!(capacity, 675);
     }
 
-    #[cfg(any(
-        feature = "excel",
-        feature = "excel-wasm",
-        feature = "office",
-        feature = "html",
-        feature = "xml"
-    ))]
+    #[cfg(any(feature = "office", feature = "xml"))]
     #[test]
     fn test_table_markdown_capacity_minimum() {
         let capacity = estimate_table_markdown_capacity(0, 0);

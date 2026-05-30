@@ -536,7 +536,7 @@ pub(crate) fn italic(start: u32, end: u32) -> TextAnnotation {
 }
 
 /// Create an underline annotation for the given byte range.
-#[cfg(any(feature = "office", feature = "html", feature = "xml"))]
+#[cfg(any(feature = "office", feature = "xml"))]
 pub(crate) fn underline(start: u32, end: u32) -> TextAnnotation {
     TextAnnotation {
         start,
@@ -576,7 +576,7 @@ pub(crate) fn strikethrough(start: u32, end: u32) -> TextAnnotation {
 }
 
 /// Create a subscript annotation for the given byte range.
-#[cfg(any(feature = "office", feature = "html", feature = "xml"))]
+#[cfg(any(feature = "office", feature = "xml"))]
 pub(crate) fn subscript(start: u32, end: u32) -> TextAnnotation {
     TextAnnotation {
         start,
@@ -586,7 +586,7 @@ pub(crate) fn subscript(start: u32, end: u32) -> TextAnnotation {
 }
 
 /// Create a superscript annotation for the given byte range.
-#[cfg(any(feature = "office", feature = "html", feature = "xml"))]
+#[cfg(any(feature = "office", feature = "xml"))]
 pub(crate) fn superscript(start: u32, end: u32) -> TextAnnotation {
     TextAnnotation {
         start,
@@ -596,7 +596,7 @@ pub(crate) fn superscript(start: u32, end: u32) -> TextAnnotation {
 }
 
 /// Create a font size annotation for the given byte range.
-#[cfg(any(feature = "office", feature = "html", feature = "xml"))]
+#[cfg(feature = "office")]
 pub(crate) fn font_size(start: u32, end: u32, value: &str) -> TextAnnotation {
     TextAnnotation {
         start,
@@ -608,7 +608,7 @@ pub(crate) fn font_size(start: u32, end: u32, value: &str) -> TextAnnotation {
 }
 
 /// Create a color annotation for the given byte range.
-#[cfg(any(feature = "office", feature = "html", feature = "xml"))]
+#[cfg(feature = "office")]
 pub(crate) fn color(start: u32, end: u32, value: &str) -> TextAnnotation {
     TextAnnotation {
         start,
@@ -620,7 +620,7 @@ pub(crate) fn color(start: u32, end: u32, value: &str) -> TextAnnotation {
 }
 
 /// Create a highlight annotation for the given byte range.
-#[cfg(any(feature = "office", feature = "html", feature = "xml"))]
+#[cfg(feature = "office")]
 pub(crate) fn highlight(start: u32, end: u32) -> TextAnnotation {
     TextAnnotation {
         start,

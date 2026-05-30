@@ -470,7 +470,7 @@ impl SecurityBudget {
     }
 
     /// Build with explicit defaults (no config available, e.g. internal call sites).
-    #[cfg(any(feature = "xml", feature = "office"))]
+    #[cfg(any(feature = "xml", all(test, feature = "office")))]
     pub(crate) fn with_defaults() -> Self {
         Self::from_limits(&SecurityLimits::default())
     }

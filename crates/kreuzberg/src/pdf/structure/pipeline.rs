@@ -251,6 +251,7 @@ fn process_single_page(
         // and heading hierarchy. Layout overrides (apply_layout_overrides) handle
         // classification corrections from the layout model without destroying
         // paragraph structure.
+        apply_text_repair_to_structure_tree_paragraphs(&mut paragraphs, true);
         //
         // Apply heading classification to struct tree pages that have
         // font size variation but no structure-tree-level headings.
@@ -1843,7 +1844,6 @@ fn is_dedup_candidate(p: &PdfParagraph) -> bool {
         && p.caption_for.is_none()
 }
 
-#[allow(dead_code)] // Used by structure tree pages in process_single_page
 fn apply_text_repair_to_structure_tree_paragraphs(paragraphs: &mut Vec<PdfParagraph>, has_positions: bool) {
     // Apply fused text repairs to all segments.
     apply_to_all_segments(paragraphs, fused_text_repairs);
@@ -1904,6 +1904,49 @@ mod tests {
             block_bbox: None,
             word_count,
         }
+    }
+
+    fn paragraph_text(paragraph: &PdfParagraph) -> String {
+        paragraph
+            .lines
+            .iter()
+            .flat_map(|line| line.segments.iter())
+            .map(|segment| segment.text.as_str())
+            .collect::<Vec<_>>()
+            .join(" ")
+    }
+
+    #[test]
+    fn test_structure_tree_page_runs_text_repair_before_assembly() {
+        let paragraphs = vec![para(vec![line(vec![seg(
+            "Intro\u{00AD}duction, , body • first item • second item",
+            10.0,
+            320.0,
+        )])])];
+
+        let output = process_single_page(
+            PageInput {
+                page_index: 0,
+                struct_paragraphs: Some(paragraphs),
+                heuristic_segments: Vec::new(),
+                page_hints: None,
+                table_bboxes: Vec::new(),
+                hint_validations: Vec::new(),
+                needs_classify: false,
+                paragraph_gap_ys: Vec::new(),
+                include_headers: true,
+                include_footers: true,
+            },
+            &[],
+            None,
+        );
+
+        assert_eq!(output.len(), 3);
+        assert_eq!(paragraph_text(&output[0]), "Introduction, body");
+        assert!(output[1].is_list_item);
+        assert_eq!(paragraph_text(&output[1]), "first item");
+        assert!(output[2].is_list_item);
+        assert_eq!(paragraph_text(&output[2]), "second item");
     }
 
     /// Full-width line at x=10, width=490 → right edge 500.

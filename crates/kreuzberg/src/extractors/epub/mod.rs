@@ -24,17 +24,14 @@ use crate::types::internal::InternalDocument;
 use crate::types::internal_builder::InternalDocumentBuilder;
 use crate::types::metadata::{EpubMetadata, FormatMetadata};
 use crate::types::uri::{ExtractedUri, UriKind, classify_uri};
-use ahash::{AHashMap, AHashSet};
+use ahash::AHashMap;
 use async_trait::async_trait;
 use std::borrow::Cow;
 use std::io::{Cursor, Read};
 use zip::ZipArchive;
 
 use crate::extractors::security::SecurityBudget;
-use content::{
-    extract_text_from_xhtml, extract_text_from_xhtml_budgeted, looks_like_navigation_document, strip_document_head,
-    strip_specialized_navigation_sections,
-};
+use content::{extract_text_from_xhtml, extract_text_from_xhtml_budgeted, looks_like_navigation_document};
 use metadata::{build_additional_metadata, parse_opf};
 use parsing::{parse_container_xml, read_file_from_zip, resolve_path};
 #[cfg_attr(alef, alef(skip))]
@@ -198,9 +195,7 @@ impl EpubExtractor {
     /// archive and emitted as the first Image element.
     fn build_internal_document(
         archive: &mut ZipArchive<Cursor<Vec<u8>>>,
-        spine_hrefs: &[String],
-        manifest_dir: &str,
-        nav_hrefs: &AHashSet<String>,
+        spine_documents: &[content::EpubSpineDocument],
         cover_image_path: Option<&str>,
         budget: &mut SecurityBudget,
         config: &ExtractionConfig,
@@ -261,36 +256,17 @@ impl EpubExtractor {
             }
         }
 
-        for (index, href) in spine_hrefs.iter().enumerate() {
+        for (index, spine_doc) in spine_documents.iter().enumerate() {
             if budget.step().is_err() {
                 break;
             }
 
-            let file_path = match resolve_path(manifest_dir, href) {
-                Ok(canonical) => canonical.path,
-                Err(_) => continue,
-            };
-
-            // Skip EPUB3 navigation documents (TOC, landmarks, page-list)
-            if nav_hrefs.contains(&file_path) {
-                continue;
-            }
-
-            let xhtml_content = match read_file_from_zip(archive, &file_path) {
-                Ok(content) => content,
-                Err(_) => continue,
-            };
-
-            let normalized = content::normalize_xhtml(&xhtml_content);
-            let sanitized = strip_specialized_navigation_sections(&strip_document_head(&normalized));
+            let file_path = &spine_doc.file_path;
+            let sanitized = &spine_doc.xhtml;
 
             // If markdown/djot output requested, try to pre-render this chapter
             if wants_markup {
-                let spine_doc = content::EpubSpineDocument {
-                    file_path: file_path.clone(),
-                    xhtml: sanitized.clone(),
-                };
-                let rendered = Self::render_spine_document(&spine_doc, index, config);
+                let rendered = Self::render_spine_document(spine_doc, index, config);
                 if rendered.content_fully_converted {
                     pre_rendered_fragments.push(rendered.content_fragment);
                 } else {
@@ -316,10 +292,10 @@ impl EpubExtractor {
             if chapter_structure.nodes.is_empty() {
                 // Fallback: extract plain text
                 let chapter_title =
-                    extract_title_from_xhtml(&xhtml_content).unwrap_or_else(|| format!("Chapter {}", index + 1));
+                    extract_title_from_xhtml(sanitized).unwrap_or_else(|| format!("Chapter {}", index + 1));
                 builder.push_heading(1, &chapter_title, None, None);
 
-                let text = extract_text_from_xhtml_budgeted(&xhtml_content, budget);
+                let text = extract_text_from_xhtml_budgeted(sanitized, budget);
                 for paragraph in text.split("\n\n") {
                     let trimmed = paragraph.trim();
                     if !trimmed.is_empty() {
@@ -634,7 +610,7 @@ impl DocumentExtractor for EpubExtractor {
         };
 
         let opf_xml = read_file_from_zip(&mut archive, &opf_path)?;
-        let (package, _processing_warnings) = parse_opf(&opf_xml, &manifest_dir, &mut budget)?;
+        let (package, mut processing_warnings) = parse_opf(&opf_xml, &manifest_dir, &mut budget)?;
         let additional_metadata = build_additional_metadata(&package.metadata);
         let epub_format_metadata = FormatMetadata::Epub(EpubMetadata {
             coverage: package.metadata.coverage.clone(),
@@ -645,25 +621,8 @@ impl DocumentExtractor for EpubExtractor {
             cover_image: package.metadata.cover_image_href.clone(),
         });
 
-        // Collect nav document hrefs so we can skip them in content extraction
-        let nav_hrefs: AHashSet<String> = package
-            .manifest
-            .values()
-            .filter(|item| item.is_nav())
-            .filter_map(|item| item.path.clone())
-            .collect();
-
-        // Extract spine hrefs for internal document building
-        let spine_hrefs: Vec<String> = package
-            .spine_items
-            .iter()
-            .filter_map(|spine_item| {
-                package
-                    .manifest
-                    .get(&spine_item.idref)
-                    .map(|item| item.raw_href.clone())
-            })
-            .collect();
+        let (spine_documents, mut body_warnings) = content::read_body_documents(&mut archive, &package)?;
+        processing_warnings.append(&mut body_warnings);
 
         let metadata_map: AHashMap<Cow<'static, str>, serde_json::Value> = additional_metadata
             .into_iter()
@@ -672,17 +631,11 @@ impl DocumentExtractor for EpubExtractor {
 
         // Build InternalDocument from spine chapters
         let cover_image_path = package.metadata.cover_image_href.as_deref();
-        let mut doc = Self::build_internal_document(
-            &mut archive,
-            &spine_hrefs,
-            &manifest_dir,
-            &nav_hrefs,
-            cover_image_path,
-            &mut budget,
-            config,
-        )
-        .unwrap_or_else(|| InternalDocumentBuilder::new("epub").build());
+        let mut doc =
+            Self::build_internal_document(&mut archive, &spine_documents, cover_image_path, &mut budget, config)
+                .unwrap_or_else(|| InternalDocumentBuilder::new("epub").build());
         doc.mime_type = mime_type.to_string();
+        doc.processing_warnings.extend(processing_warnings);
 
         // Preserve output_format if it was set by build_internal_document (for markdown/djot pre-rendering)
         let output_format = doc.metadata.output_format.take();

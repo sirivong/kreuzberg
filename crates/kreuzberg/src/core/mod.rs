@@ -40,6 +40,7 @@ pub mod io;
 pub mod mime;
 pub(crate) mod path_resolver;
 pub mod pipeline;
+#[cfg(feature = "api-types")]
 pub mod server_config;
 
 #[cfg(feature = "pdf")]
@@ -48,6 +49,7 @@ pub use config::{
     ChunkingConfig, EmbeddingConfig, EmbeddingModelType, ExtractionConfig, ImageExtractionConfig,
     LanguageDetectionConfig, OcrConfig, OutputFormat, PageConfig, PostProcessorConfig, TokenReductionOptions,
 };
+#[cfg(feature = "api-types")]
 pub use server_config::ServerConfig;
 
 #[cfg(feature = "tokio-runtime")]

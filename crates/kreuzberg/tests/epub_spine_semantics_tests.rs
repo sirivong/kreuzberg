@@ -1,14 +1,3 @@
-//! TODO: Restored from 245539484 alef-migration cleanup. Currently exercises
-//! pub(crate) APIs that the migration deliberately narrowed; gated until
-//! either (a) these APIs are re-exposed publicly, or (b) the test is
-//! rewritten against the public extraction surface.
-
-#![cfg(any())]
-
-// Original content preserved below; recompiled once gating cfg drops.
-// Disabled by the file-level cfg(any()) above.
-
-/*
 //! EPUB integration tests.
 //!
 //! These tests validate EPUB-specific spine and navigation semantics.
@@ -18,8 +7,37 @@
 use kreuzberg::core::config::{ExtractionConfig, OutputFormat};
 use kreuzberg::extractors::EpubExtractor;
 use kreuzberg::plugins::DocumentExtractor;
+use kreuzberg::types::internal::{ElementKind, InternalDocument};
 use std::io::{Cursor, Write};
 use zip::write::FileOptions;
+
+fn content(document: &InternalDocument) -> String {
+    if let Some(content) = &document.pre_rendered_content {
+        return content.clone();
+    }
+
+    document
+        .elements
+        .iter()
+        .filter(|element| {
+            !matches!(
+                element.kind,
+                ElementKind::ListStart { .. }
+                    | ElementKind::ListEnd
+                    | ElementKind::QuoteStart
+                    | ElementKind::QuoteEnd
+                    | ElementKind::GroupStart
+                    | ElementKind::GroupEnd
+                    | ElementKind::PageBreak
+                    | ElementKind::Image { .. }
+                    | ElementKind::Table { .. }
+            )
+        })
+        .map(|element| element.text.as_str())
+        .filter(|text| !text.trim().is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
 
 fn start_epub_writer(cursor: &mut Cursor<Vec<u8>>) -> zip::ZipWriter<&mut Cursor<Vec<u8>>> {
     let mut writer = zip::ZipWriter::new(cursor);
@@ -409,29 +427,29 @@ async fn test_epub3_excludes_navigation_but_keeps_non_linear_spine_content() {
         result.processing_warnings
     );
     assert!(
-        !result.content().contains("?xml version"),
+        !content(&result).contains("?xml version"),
         "XML declarations should not leak into Markdown output:\n{}",
-        result.content()
+        content(&result)
     );
     assert!(
-        !result.content().contains("Table of Contents"),
+        !content(&result).contains("Table of Contents"),
         "Navigation documents should not be rendered as body content:\n{}",
-        result.content()
+        content(&result)
     );
     assert!(
-        result.content().contains("Reading note outside navigation."),
+        content(&result).contains("Reading note outside navigation."),
         "Expected prose outside specialized nav content to be preserved:\n{}",
-        result.content()
+        content(&result)
     );
-    assert!(result.content().contains("# Intro"), "Expected intro heading");
-    assert!(result.content().contains("# Chapter One"), "Expected chapter heading");
+    assert!(content(&result).contains("# Intro"), "Expected intro heading");
+    assert!(content(&result).contains("# Chapter One"), "Expected chapter heading");
     assert!(
-        result.content().contains("# Appendix"),
+        content(&result).contains("# Appendix"),
         "Non-linear spine content should still be extracted:\n{}",
-        result.content()
+        content(&result)
     );
     assert!(
-        result.content().contains("Auxiliary back matter."),
+        content(&result).contains("Auxiliary back matter."),
         "Expected non-linear appendix text in extracted content"
     );
 }
@@ -447,24 +465,24 @@ async fn test_epub3_plain_output_excludes_specialized_navigation_but_keeps_body_
         .expect("EPUB extraction should succeed");
 
     assert!(
-        result.content().contains("Reading note outside navigation."),
+        content(&result).contains("Reading note outside navigation."),
         "Expected prose outside specialized nav content to be preserved:\n{}",
-        result.content()
+        content(&result)
     );
     assert!(
-        !result.content().contains("Table of Contents"),
+        !content(&result).contains("Table of Contents"),
         "Specialized navigation content should stay out of plain-text extraction:\n{}",
-        result.content()
+        content(&result)
     );
     assert!(
-        result.content().contains("Main chapter text."),
+        content(&result).contains("Main chapter text."),
         "Expected real chapter body content in plain-text extraction:\n{}",
-        result.content()
+        content(&result)
     );
     assert!(
-        result.content().contains("Auxiliary back matter."),
+        content(&result).contains("Auxiliary back matter."),
         "Expected non-linear spine prose to remain in plain-text extraction:\n{}",
-        result.content()
+        content(&result)
     );
 }
 
@@ -483,7 +501,7 @@ async fn test_epub_document_structure_excludes_navigation_but_keeps_non_linear_s
         .await
         .expect("EPUB extraction should succeed");
 
-    let all_text = result.content();
+    let all_text = content(&result);
 
     assert!(
         all_text.contains("Intro"),
@@ -519,16 +537,16 @@ async fn test_epub2_guide_toc_document_is_excluded_but_auxiliary_content_remains
         .expect("EPUB extraction should succeed");
 
     assert!(
-        !result.content().contains("Contents"),
+        !content(&result).contains("Contents"),
         "EPUB 2 guide TOC document should not be rendered as body content:\n{}",
-        result.content()
+        content(&result)
     );
     assert!(
-        result.content().contains("Chapter One"),
+        content(&result).contains("Chapter One"),
         "Expected main chapter content in EPUB 2 extraction"
     );
     assert!(
-        result.content().contains("Supplemental material."),
+        content(&result).contains("Supplemental material."),
         "Expected non-linear appendix content in EPUB 2 extraction"
     );
 }
@@ -544,11 +562,11 @@ async fn test_epub_ignores_invalid_unused_manifest_assets_when_body_content_is_v
         .expect("EPUB extraction should succeed");
 
     assert!(
-        result.content().contains("Chapter One"),
+        content(&result).contains("Chapter One"),
         "Expected valid spine content to be extracted"
     );
     assert!(
-        result.content().contains("Main chapter text."),
+        content(&result).contains("Main chapter text."),
         "Expected chapter body text to be extracted"
     );
 }
@@ -573,12 +591,12 @@ async fn test_epub_manifest_fallback_resolves_renderable_body_document() {
         result.processing_warnings
     );
     assert!(
-        result.content().contains("# Fallback Chapter"),
+        content(&result).contains("# Fallback Chapter"),
         "Expected heading from fallback XHTML document:\n{}",
-        result.content()
+        content(&result)
     );
     assert!(
-        result.content().contains("Resolved through manifest fallback."),
+        content(&result).contains("Resolved through manifest fallback."),
         "Expected body text from fallback XHTML document"
     );
 }
@@ -725,10 +743,8 @@ async fn test_epub_empty_spine_produces_empty_content_without_error() {
         .expect("EPUB extraction should succeed with empty spine");
 
     assert!(
-        result.content().trim().is_empty(),
+        content(&result).trim().is_empty(),
         "Expected empty or whitespace-only content for empty spine, got: '{}'",
-        result.content()
+        content(&result)
     );
 }
-
-*/
