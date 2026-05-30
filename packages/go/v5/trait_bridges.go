@@ -457,10 +457,12 @@ func RegisterOcrBackend(impl OcrBackend) error {
 			msg = C.GoString(cErr)
 			C.free(unsafe.Pointer(cErr))
 		}
-		handle.Delete()
+		ocrBackendRegistry.deleteAllOnError(handle)
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Store handle by name for later cleanup on unregister
+	ocrBackendRegistry.store(impl.Name(), handle)
 	return nil
 }
 
@@ -480,6 +482,8 @@ func UnregisterOcrBackend(name string) error {
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Delete the handle now that Rust has unregistered the plugin
+	ocrBackendRegistry.delete(name)
 	return nil
 }
 
@@ -497,6 +501,8 @@ func ClearOcrBackends() error {
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Delete all handles now that Rust has cleared all plugins
+	ocrBackendRegistry.clear()
 	return nil
 }
 
@@ -785,10 +791,12 @@ func RegisterPostProcessor(impl PostProcessor) error {
 			msg = C.GoString(cErr)
 			C.free(unsafe.Pointer(cErr))
 		}
-		handle.Delete()
+		postProcessorRegistry.deleteAllOnError(handle)
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Store handle by name for later cleanup on unregister
+	postProcessorRegistry.store(impl.Name(), handle)
 	return nil
 }
 
@@ -808,6 +816,8 @@ func UnregisterPostProcessor(name string) error {
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Delete the handle now that Rust has unregistered the plugin
+	postProcessorRegistry.delete(name)
 	return nil
 }
 
@@ -825,6 +835,8 @@ func ClearPostProcessors() error {
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Delete all handles now that Rust has cleared all plugins
+	postProcessorRegistry.clear()
 	return nil
 }
 
@@ -1052,10 +1064,12 @@ func RegisterValidator(impl Validator) error {
 			msg = C.GoString(cErr)
 			C.free(unsafe.Pointer(cErr))
 		}
-		handle.Delete()
+		validatorRegistry.deleteAllOnError(handle)
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Store handle by name for later cleanup on unregister
+	validatorRegistry.store(impl.Name(), handle)
 	return nil
 }
 
@@ -1075,6 +1089,8 @@ func UnregisterValidator(name string) error {
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Delete the handle now that Rust has unregistered the plugin
+	validatorRegistry.delete(name)
 	return nil
 }
 
@@ -1092,6 +1108,8 @@ func ClearValidators() error {
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Delete all handles now that Rust has cleared all plugins
+	validatorRegistry.clear()
 	return nil
 }
 
@@ -1275,10 +1293,12 @@ func RegisterEmbeddingBackend(impl EmbeddingBackend) error {
 			msg = C.GoString(cErr)
 			C.free(unsafe.Pointer(cErr))
 		}
-		handle.Delete()
+		embeddingBackendRegistry.deleteAllOnError(handle)
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Store handle by name for later cleanup on unregister
+	embeddingBackendRegistry.store(impl.Name(), handle)
 	return nil
 }
 
@@ -1298,6 +1318,8 @@ func UnregisterEmbeddingBackend(name string) error {
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Delete the handle now that Rust has unregistered the plugin
+	embeddingBackendRegistry.delete(name)
 	return nil
 }
 
@@ -1315,6 +1337,8 @@ func ClearEmbeddingBackends() error {
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Delete all handles now that Rust has cleared all plugins
+	embeddingBackendRegistry.clear()
 	return nil
 }
 
@@ -1814,10 +1838,12 @@ func RegisterRenderer(impl Renderer) error {
 			msg = C.GoString(cErr)
 			C.free(unsafe.Pointer(cErr))
 		}
-		handle.Delete()
+		rendererRegistry.deleteAllOnError(handle)
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Store handle by name for later cleanup on unregister
+	rendererRegistry.store(impl.Name(), handle)
 	return nil
 }
 
@@ -1837,6 +1863,8 @@ func UnregisterRenderer(name string) error {
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Delete the handle now that Rust has unregistered the plugin
+	rendererRegistry.delete(name)
 	return nil
 }
 
@@ -1854,5 +1882,7 @@ func ClearRenderers() error {
 		return fmt.Errorf("%s", msg)
 	}
 
+	// Delete all handles now that Rust has cleared all plugins
+	rendererRegistry.clear()
 	return nil
 }

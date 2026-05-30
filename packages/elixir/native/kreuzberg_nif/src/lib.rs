@@ -3310,25 +3310,31 @@ pub fn extract_bytes_async(
         .map(|s| serde_json::from_str::<kreuzberg::ExtractionConfig>(&s))
         .transpose()
         .map_err(|e| e.to_string())?;
-    std::thread::Builder::new()
-        .stack_size(32 * 1024 * 1024)
-        .spawn(move || {
-            let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
-            let result = rt
-                .block_on(async {
-                    kreuzberg::extract_bytes(
-                        &content,
-                        &mime_type,
-                        config_core.as_ref().unwrap_or(&Default::default()),
-                    )
-                    .await
-                })
-                .map_err(|e| e.to_string())?;
-            Ok(result.into())
-        })
-        .map_err(|e| e.to_string())?
-        .join()
-        .map_err(|_| "thread panicked".to_string())?
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        std::thread::Builder::new()
+            .stack_size(32 * 1024 * 1024)
+            .spawn(move || {
+                let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+                let result = rt
+                    .block_on(async {
+                        kreuzberg::extract_bytes(
+                            &content,
+                            &mime_type,
+                            config_core.as_ref().unwrap_or(&Default::default()),
+                        )
+                        .await
+                    })
+                    .map_err(|e| e.to_string())?;
+                Ok(result.into())
+            })
+            .map_err(|e| e.to_string())?
+            .join()
+            .map_err(|_| "thread panicked during extraction".to_string())
+    }));
+    match result {
+        Ok(inner_result) => inner_result,
+        Err(_) => Err("thread panicked during extraction spawning".to_string()),
+    }
 }
 
 /// Extract content from a file.
@@ -3376,25 +3382,31 @@ pub fn extract_file_async(
         .map(|s| serde_json::from_str::<kreuzberg::ExtractionConfig>(&s))
         .transpose()
         .map_err(|e| e.to_string())?;
-    std::thread::Builder::new()
-        .stack_size(32 * 1024 * 1024)
-        .spawn(move || {
-            let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
-            let result = rt
-                .block_on(async {
-                    kreuzberg::extract_file(
-                        std::path::PathBuf::from(path),
-                        mime_type.as_deref(),
-                        config_core.as_ref().unwrap_or(&Default::default()),
-                    )
-                    .await
-                })
-                .map_err(|e| e.to_string())?;
-            Ok(result.into())
-        })
-        .map_err(|e| e.to_string())?
-        .join()
-        .map_err(|_| "thread panicked".to_string())?
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        std::thread::Builder::new()
+            .stack_size(32 * 1024 * 1024)
+            .spawn(move || {
+                let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+                let result = rt
+                    .block_on(async {
+                        kreuzberg::extract_file(
+                            std::path::PathBuf::from(path),
+                            mime_type.as_deref(),
+                            config_core.as_ref().unwrap_or(&Default::default()),
+                        )
+                        .await
+                    })
+                    .map_err(|e| e.to_string())?;
+                Ok(result.into())
+            })
+            .map_err(|e| e.to_string())?
+            .join()
+            .map_err(|_| "thread panicked during extraction".to_string())
+    }));
+    match result {
+        Ok(inner_result) => inner_result,
+        Err(_) => Err("thread panicked during extraction spawning".to_string()),
+    }
 }
 
 /// Synchronous wrapper for `extract_file`.
@@ -3418,7 +3430,7 @@ pub fn extract_file_async(
 /// let result = extract_file_sync("document.pdf", None, &config)?;
 /// println!("Content: {}", result.content);
 /// ```
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyIo")]
 pub fn extract_file_sync(
     path: String,
     mime_type: Option<String>,
@@ -3456,7 +3468,7 @@ pub fn extract_file_sync(
 /// let result = extract_bytes_sync(bytes, "text/plain", &config)?;
 /// println!("Content: {}", result.content);
 /// ```
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 pub fn extract_bytes_sync(
     content: rustler::Binary,
     mime_type: String,
@@ -3649,20 +3661,26 @@ pub fn embed_texts_async(texts: Vec<String>, config: Option<String>) -> Result<V
         .map(|s| serde_json::from_str::<kreuzberg::EmbeddingConfig>(&s))
         .transpose()
         .map_err(|e| e.to_string())?;
-    std::thread::Builder::new()
-        .stack_size(32 * 1024 * 1024)
-        .spawn(move || {
-            let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
-            let result = rt
-                .block_on(async {
-                    kreuzberg::embed_texts_async(texts, config_core.as_ref().unwrap_or(&Default::default())).await
-                })
-                .map_err(|e| e.to_string())?;
-            Ok(result)
-        })
-        .map_err(|e| e.to_string())?
-        .join()
-        .map_err(|_| "thread panicked".to_string())?
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        std::thread::Builder::new()
+            .stack_size(32 * 1024 * 1024)
+            .spawn(move || {
+                let rt = tokio::runtime::Runtime::new().map_err(|e| e.to_string())?;
+                let result = rt
+                    .block_on(async {
+                        kreuzberg::embed_texts_async(texts, config_core.as_ref().unwrap_or(&Default::default())).await
+                    })
+                    .map_err(|e| e.to_string())?;
+                Ok(result)
+            })
+            .map_err(|e| e.to_string())?
+            .join()
+            .map_err(|_| "thread panicked during embedding".to_string())
+    }));
+    match result {
+        Ok(inner_result) => inner_result,
+        Err(_) => Err("thread panicked during embedding spawning".to_string()),
+    }
 }
 
 /// Render a single PDF page to PNG bytes.
@@ -3681,7 +3699,7 @@ pub fn embed_texts_async(texts: Vec<String>, config: Option<String>) -> Result<V
 ///
 /// Returns `KreuzbergError::Parsing` if the PDF cannot be opened, authenticated,
 /// or rendered, or if `page_index` is out of range.
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 pub fn render_pdf_page_to_png(
     pdf_bytes: rustler::Binary,
     page_index: usize,
@@ -3706,7 +3724,7 @@ pub fn detect_mime_type(path: String, check_exists: bool) -> Result<String, Stri
 /// Embed a list of texts using the configured embedding model.
 ///
 /// Returns a 2D vector where each inner vector is the embedding for the corresponding text.
-#[rustler::nif]
+#[rustler::nif(schedule = "DirtyCpu")]
 pub fn embed_texts(texts: Vec<String>, config: Option<String>) -> Result<Vec<Vec<f32>>, String> {
     let config_core: Option<kreuzberg::EmbeddingConfig> = config
         .map(|s| serde_json::from_str::<kreuzberg::EmbeddingConfig>(&s))

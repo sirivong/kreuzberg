@@ -2,8 +2,8 @@
 // Delegates to FFI (kreuzberg-ffi) for all operations.
 #![allow(non_snake_case, unsafe_code, unsafe_attr_outside_unsafe)]
 
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use jni::JNIEnv;
 use jni::objects::{JClass, JString};
 use jni::sys::{jboolean, jbyteArray, jint, jlong, jstring};
@@ -25,10 +25,9 @@ use kreuzberg_ffi::{
     kreuzberg_extract_file_sync, kreuzberg_extraction_config_free, kreuzberg_extraction_config_from_json,
     kreuzberg_extraction_result_free, kreuzberg_extraction_result_to_json, kreuzberg_free_bytes, kreuzberg_free_string,
     kreuzberg_get_embedding_preset, kreuzberg_get_extensions_for_mime, kreuzberg_last_error_code,
-    kreuzberg_last_error_context,
-    kreuzberg_list_document_extractors, kreuzberg_list_embedding_backends, kreuzberg_list_embedding_presets,
-    kreuzberg_list_ocr_backends, kreuzberg_list_post_processors, kreuzberg_list_renderers, kreuzberg_list_validators,
-    kreuzberg_render_pdf_page_to_png,
+    kreuzberg_last_error_context, kreuzberg_list_document_extractors, kreuzberg_list_embedding_backends,
+    kreuzberg_list_embedding_presets, kreuzberg_list_ocr_backends, kreuzberg_list_post_processors,
+    kreuzberg_list_renderers, kreuzberg_list_validators, kreuzberg_render_pdf_page_to_png,
 };
 
 // ============================================================================
@@ -53,8 +52,9 @@ fn throw_exception_void(env: &mut JNIEnv, message: &str) {
 
 /// Get FFI error message from last error context
 fn get_ffi_error_message() -> String {
-    // SAFETY: kreuzberg_last_error_context returns a valid C string
-    let error_msg = unsafe {
+    // SAFETY: kreuzberg_last_error_context() returns a valid C string owned by the FFI
+    // layer. The pointer is checked for null before dereferencing via CStr::from_ptr.
+    unsafe {
         let ptr = kreuzberg_last_error_context();
         if ptr.is_null() {
             return "Unknown error".to_string();
@@ -63,8 +63,7 @@ fn get_ffi_error_message() -> String {
             Ok(s) => s.to_string(),
             Err(_) => "Failed to decode error message".to_string(),
         }
-    };
-    error_msg
+    }
 }
 
 /// Convert JString to Rust String, returning an error message if conversion fails
@@ -88,7 +87,9 @@ fn cstring_or_none(s: String) -> Result<Option<CString>, String> {
     if s.is_empty() {
         Ok(None)
     } else {
-        CString::new(s).map(Some).map_err(|e| format!("Invalid C string: {}", e))
+        CString::new(s)
+            .map(Some)
+            .map_err(|e| format!("Invalid C string: {}", e))
     }
 }
 
@@ -141,7 +142,6 @@ pub extern "system" fn Java_dev_kreuzberg_KreuzbergBridge_nativeExtractBytesImpl
         Ok(s) => s,
         Err(e) => return throw_exception(&mut env, &e),
     };
-
 
     // Decode content from Base64 (Kotlin wrapper encodes bytes as Base64 to pass through JNI)
     let content_bytes = match base64_decode(&content_str) {
@@ -308,7 +308,10 @@ pub extern "system" fn Java_dev_kreuzberg_KreuzbergBridge_nativeExtractFileSyncI
 
     let config_ptr = unsafe { kreuzberg_extraction_config_from_json(config_c.as_ptr()) };
     if config_ptr.is_null() {
-        return throw_exception(&mut env, &format!("Failed to parse config JSON: {}", config_c.to_string_lossy()));
+        return throw_exception(
+            &mut env,
+            &format!("Failed to parse config JSON: {}", config_c.to_string_lossy()),
+        );
     }
 
     // SAFETY: We have valid pointers from CString; mime null = FFI auto-detect.
@@ -318,7 +321,10 @@ pub extern "system" fn Java_dev_kreuzberg_KreuzbergBridge_nativeExtractFileSyncI
         unsafe {
             kreuzberg_extraction_config_free(config_ptr);
         }
-        return throw_exception(&mut env, &format!("Extract file sync failed: {}", get_ffi_error_message()));
+        return throw_exception(
+            &mut env,
+            &format!("Extract file sync failed: {}", get_ffi_error_message()),
+        );
     }
 
     // SAFETY: result is a valid ExtractionResult pointer from FFI
@@ -391,7 +397,10 @@ pub extern "system" fn Java_dev_kreuzberg_KreuzbergBridge_nativeExtractBytesSync
         unsafe {
             kreuzberg_extraction_config_free(config_ptr);
         }
-        return throw_exception(&mut env, &format!("Extract bytes sync failed: {}", get_ffi_error_message()));
+        return throw_exception(
+            &mut env,
+            &format!("Extract bytes sync failed: {}", get_ffi_error_message()),
+        );
     }
 
     // SAFETY: result is a valid ExtractionResult pointer from FFI
@@ -449,7 +458,10 @@ pub extern "system" fn Java_dev_kreuzberg_KreuzbergBridge_nativeBatchExtractFile
         unsafe {
             kreuzberg_extraction_config_free(config_ptr);
         }
-        return throw_exception(&mut env, &format!("Batch extract files sync failed: {}", get_ffi_error_message()));
+        return throw_exception(
+            &mut env,
+            &format!("Batch extract files sync failed: {}", get_ffi_error_message()),
+        );
     }
 
     let jstr = cstring_ptr_to_jstring(&mut env, result_ptr);
@@ -554,7 +566,10 @@ pub extern "system" fn Java_dev_kreuzberg_KreuzbergBridge_nativeBatchExtractFile
         unsafe {
             kreuzberg_extraction_config_free(config_ptr);
         }
-        return throw_exception(&mut env, &format!("Batch extract files failed: {}", get_ffi_error_message()));
+        return throw_exception(
+            &mut env,
+            &format!("Batch extract files failed: {}", get_ffi_error_message()),
+        );
     }
 
     let jstr = cstring_ptr_to_jstring(&mut env, result_ptr);
@@ -605,7 +620,10 @@ pub extern "system" fn Java_dev_kreuzberg_KreuzbergBridge_nativeBatchExtractByte
         unsafe {
             kreuzberg_extraction_config_free(config_ptr);
         }
-        return throw_exception(&mut env, &format!("Batch extract bytes failed: {}", get_ffi_error_message()));
+        return throw_exception(
+            &mut env,
+            &format!("Batch extract bytes failed: {}", get_ffi_error_message()),
+        );
     }
 
     let jstr = cstring_ptr_to_jstring(&mut env, result_ptr);
@@ -1102,18 +1120,12 @@ pub extern "system" fn Java_dev_kreuzberg_KreuzbergBridge_nativeRenderPdfPageToP
 ) -> jbyteArray {
     let pdf_bytes_str = match jstring_to_string(&mut env, &pdf_bytes) {
         Ok(s) => s,
-        Err(e) => {
-            throw_exception(&mut env, &e);
-            return std::ptr::null_mut();
-        }
+        Err(e) => return throw_exception(&mut env, &e),
     };
 
     let password_str = match jstring_to_string(&mut env, &password) {
         Ok(s) => s,
-        Err(e) => {
-            throw_exception(&mut env, &e);
-            return std::ptr::null_mut();
-        }
+        Err(e) => return throw_exception(&mut env, &e),
     };
 
     // The Kotlin wrapper Base64-encodes the PDF bytes before crossing JNI
@@ -1125,10 +1137,7 @@ pub extern "system" fn Java_dev_kreuzberg_KreuzbergBridge_nativeRenderPdfPageToP
 
     let password_c = match CString::new(password_str) {
         Ok(cs) => cs,
-        Err(e) => {
-            throw_exception(&mut env, &format!("Invalid password: {}", e));
-            return std::ptr::null_mut();
-        }
+        Err(e) => return throw_exception(&mut env, &format!("Invalid password: {}", e)),
     };
 
     // FFI returns -1 on failure or fills the out_ptr/out_len/out_cap triple.
@@ -1142,7 +1151,7 @@ pub extern "system" fn Java_dev_kreuzberg_KreuzbergBridge_nativeRenderPdfPageToP
             pdf_bytes_data.as_ptr(),
             pdf_bytes_data.len(),
             page_index as usize,
-            dpi as i32,
+            dpi,
             password_c.as_ptr(),
             &mut out_ptr,
             &mut out_len,
@@ -1151,7 +1160,10 @@ pub extern "system" fn Java_dev_kreuzberg_KreuzbergBridge_nativeRenderPdfPageToP
     };
 
     if rc != 0 || out_ptr.is_null() {
-        throw_exception(&mut env, &format!("Render PDF page to PNG failed: {}", get_ffi_error_message()));
+        throw_exception(
+            &mut env,
+            &format!("Render PDF page to PNG failed: {}", get_ffi_error_message()),
+        );
         return std::ptr::null_mut();
     }
 

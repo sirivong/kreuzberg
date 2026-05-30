@@ -11,6 +11,7 @@ Found **1 critical bug** affecting GVL (Global VM Lock) management that silently
 **Severity:** Critical (silent multi-threading bug)
 
 **Affected Functions:**
+
 - `extract_bytes_async`
 - `extract_file_async`
 - `batch_extract_files`
@@ -25,6 +26,7 @@ Found **1 critical bug** affecting GVL (Global VM Lock) management that silently
 These functions call `tokio::runtime::Runtime::new()` and `.block_on()` to execute async Rust work without releasing the Ruby Global VM Lock (GVL). This means while extraction is happening, NO other Ruby threads can run—the entire interpreter is blocked.
 
 Example from `extract_bytes_async`:
+
 ```rust
 fn extract_bytes_async(args: &[magnus::Value]) -> Result<ExtractionResult, Error> {
     // ... arg parsing ...
@@ -43,6 +45,7 @@ The e2e suite runs tests sequentially (single-threaded), so GVL blocking is invi
 **Consequence:**
 
 A Rails server with worker threads, or any multi-threaded Ruby app calling `extract_bytes_async()`, experiences:
+
 - Latency spikes for other threads
 - Potential request timeouts
 - Unpredictable performance under load
@@ -88,6 +91,7 @@ fn extract_bytes_async(...) -> Result<ExtractionResult, Error> { ... }
 ```
 
 The fix requires:
+
 1. Patch Alef's Ruby codegen backend to wrap async function bodies with `release_gvl()`
 2. Regenerate ruby binding source with `task alef:generate`
 3. Recompile and re-test with e2e suite
@@ -98,38 +102,45 @@ The fix requires:
 ## Minor Findings
 
 ### RBS Type Signatures
+
 - ✅ Auto-generated from Rust source via Alef
 - ✅ Comprehensive coverage (all 68 types)
 - ✅ Sorbet-compatible interface syntax (`T::Helpers`, `interface!`)
 - ✅ `steep check` clean (no type checking failures in CI)
 
 ### Magnus Type Conversions
+
 - ✅ All TryConvert impls use safe `.ok()` chains with `unwrap_or_default()` / `unwrap_or_else()`
 - ✅ No dangerous `.unwrap()` or `.expect()` in type conversions
 - ✅ Proper error mapping to Ruby exceptions (`exception_runtime_error()`)
 - ✅ JSON fallback in all TryConvert impls for flexible input
 
 ### Exception Handling
+
 - ✅ All errors converted to `magnus::Error` with `exception_runtime_error()`
 - ✅ Error messages include context (e.g., "failed to deserialize AccelerationConfig: {}")
 - ✅ No panics in binding code
 
 ### Required Field Validation
+
 - ✅ `ExtractionResult.element_type` properly marked as required, raises `ArgError` if missing
 - ✅ Other required fields (`metadata` in `Element`) similarly validated
 
 ### Rakefile & Build
+
 - ✅ Multi-ABI cross-compilation configured (x86_64-linux, aarch64-linux, x86_64-darwin, arm64-darwin, x64-mingw32/ucrt)
 - ✅ Native extension task properly isolated in `EXT_NATIVE_DIR`
 - ✅ `rake-compiler` integration correct for gem distribution
 
 ### Data Structure Cloning
+
 - All mutable fields properly cloned in getter methods:
   - Strings: `self.field.clone()`
   - Collections: `self.vec.clone()`, `self.hashmap.clone()`
   - Avoids aliasing bugs in Ruby GC
 
 ### E2E Test Coverage
+
 - ✅ Error handling: empty input, invalid MIME, conflicting flags
 - ✅ Batch operations: empty list, unsupported MIME, file not found, partial success
 - ✅ Type conversions: all variants properly tested
@@ -156,7 +167,7 @@ The fix requires:
 
 ## Test Results
 
-```
+```text
 Ruby e2e: 97 examples, 0 failures
 ├─ error_spec.rb: 5 tests (error handling)
 ├─ batch_spec.rb: 10 tests (batch operations)

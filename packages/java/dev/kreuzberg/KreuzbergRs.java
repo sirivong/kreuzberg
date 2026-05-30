@@ -43,6 +43,9 @@ public final class KreuzbergRs {
         final String mimeType,
         final ExtractionConfig config
     ) throws KreuzbergRsException {
+        if (NativeLib.KREUZBERG_EXTRACTION_RESULT_TO_JSON == null) {
+            throw new KreuzbergRsException("Extraction result conversion not available (extraction feature missing)");
+        }
         try (var arena = Arena.ofShared()) {
             var ccontent = arena.allocateFrom(ValueLayout.JAVA_BYTE, content);
             var ccontentLen = (long) content.length;
@@ -57,13 +60,15 @@ public final class KreuzbergRs {
                 NativeLib.KREUZBERG_EXTRACTION_CONFIG_FREE.invoke(cconfig);
             }
             if (resultPtr.equals(MemorySegment.NULL)) {
-                checkLastError();                return null;            }
+                checkLastError();
+                throw new KreuzbergRsException("Extraction failed: null result without error code");
+            }
             // CPD-OFF
             var jsonPtr = (MemorySegment) NativeLib.KREUZBERG_EXTRACTION_RESULT_TO_JSON.invoke(resultPtr);
             NativeLib.KREUZBERG_EXTRACTION_RESULT_FREE.invoke(resultPtr);
             if (jsonPtr.equals(MemorySegment.NULL)) {
                 checkLastError();
-                return null;
+                throw new KreuzbergRsException("Result serialization failed: null JSON");
             }
             String json = jsonPtr.reinterpret(Long.MAX_VALUE).getString(0);
             NativeLib.KREUZBERG_FREE_STRING.invoke(jsonPtr);
@@ -115,6 +120,9 @@ public final class KreuzbergRs {
         final @Nullable String mimeType,
         final ExtractionConfig config
     ) throws KreuzbergRsException {
+        if (NativeLib.KREUZBERG_EXTRACTION_RESULT_TO_JSON == null) {
+            throw new KreuzbergRsException("Extraction result conversion not available (extraction feature missing)");
+        }
         try (var arena = Arena.ofShared()) {
             var cpath = arena.allocateFrom(path.toString());
             var cmimeType = mimeType != null ? arena.allocateFrom(mimeType) : MemorySegment.NULL;
@@ -128,13 +136,15 @@ public final class KreuzbergRs {
                 NativeLib.KREUZBERG_EXTRACTION_CONFIG_FREE.invoke(cconfig);
             }
             if (resultPtr.equals(MemorySegment.NULL)) {
-                checkLastError();                return null;            }
+                checkLastError();
+                throw new KreuzbergRsException("Extraction failed: null result without error code");
+            }
             // CPD-OFF
             var jsonPtr = (MemorySegment) NativeLib.KREUZBERG_EXTRACTION_RESULT_TO_JSON.invoke(resultPtr);
             NativeLib.KREUZBERG_EXTRACTION_RESULT_FREE.invoke(resultPtr);
             if (jsonPtr.equals(MemorySegment.NULL)) {
                 checkLastError();
-                return null;
+                throw new KreuzbergRsException("Result serialization failed: null JSON");
             }
             String json = jsonPtr.reinterpret(Long.MAX_VALUE).getString(0);
             NativeLib.KREUZBERG_FREE_STRING.invoke(jsonPtr);
@@ -176,6 +186,9 @@ public final class KreuzbergRs {
         final @Nullable String mimeType,
         final ExtractionConfig config
     ) throws KreuzbergRsException {
+        if (NativeLib.KREUZBERG_EXTRACTION_RESULT_TO_JSON == null) {
+            throw new KreuzbergRsException("Extraction result conversion not available (extraction feature missing)");
+        }
         try (var arena = Arena.ofShared()) {
             var cpath = arena.allocateFrom(path.toString());
             var cmimeType = mimeType != null ? arena.allocateFrom(mimeType) : MemorySegment.NULL;
@@ -189,13 +202,15 @@ public final class KreuzbergRs {
                 NativeLib.KREUZBERG_EXTRACTION_CONFIG_FREE.invoke(cconfig);
             }
             if (resultPtr.equals(MemorySegment.NULL)) {
-                checkLastError();                return null;            }
+                checkLastError();
+                throw new KreuzbergRsException("Extraction failed: null result without error code");
+            }
             // CPD-OFF
             var jsonPtr = (MemorySegment) NativeLib.KREUZBERG_EXTRACTION_RESULT_TO_JSON.invoke(resultPtr);
             NativeLib.KREUZBERG_EXTRACTION_RESULT_FREE.invoke(resultPtr);
             if (jsonPtr.equals(MemorySegment.NULL)) {
                 checkLastError();
-                return null;
+                throw new KreuzbergRsException("Result serialization failed: null JSON");
             }
             String json = jsonPtr.reinterpret(Long.MAX_VALUE).getString(0);
             NativeLib.KREUZBERG_FREE_STRING.invoke(jsonPtr);
@@ -220,6 +235,9 @@ public final class KreuzbergRs {
         final String mimeType,
         final ExtractionConfig config
     ) throws KreuzbergRsException {
+        if (NativeLib.KREUZBERG_EXTRACTION_RESULT_TO_JSON == null) {
+            throw new KreuzbergRsException("Extraction result conversion not available (extraction feature missing)");
+        }
         try (var arena = Arena.ofShared()) {
             var ccontent = arena.allocateFrom(ValueLayout.JAVA_BYTE, content);
             var ccontentLen = (long) content.length;
@@ -234,13 +252,15 @@ public final class KreuzbergRs {
                 NativeLib.KREUZBERG_EXTRACTION_CONFIG_FREE.invoke(cconfig);
             }
             if (resultPtr.equals(MemorySegment.NULL)) {
-                checkLastError();                return null;            }
+                checkLastError();
+                throw new KreuzbergRsException("Extraction failed: null result without error code");
+            }
             // CPD-OFF
             var jsonPtr = (MemorySegment) NativeLib.KREUZBERG_EXTRACTION_RESULT_TO_JSON.invoke(resultPtr);
             NativeLib.KREUZBERG_EXTRACTION_RESULT_FREE.invoke(resultPtr);
             if (jsonPtr.equals(MemorySegment.NULL)) {
                 checkLastError();
-                return null;
+                throw new KreuzbergRsException("Result serialization failed: null JSON");
             }
             String json = jsonPtr.reinterpret(Long.MAX_VALUE).getString(0);
             NativeLib.KREUZBERG_FREE_STRING.invoke(jsonPtr);
@@ -562,6 +582,9 @@ public final class KreuzbergRs {
      * - {@code Err(...)} if any shutdown method failed
      */
     public static void clearOcrBackends() throws KreuzbergRsException {
+        if (NativeLib.KREUZBERG_CLEAR_OCR_BACKEND == null) {
+            throw new KreuzbergRsException("OCR backend management not available (plugin system or OCR feature missing)");
+        }
         try (var arena = Arena.ofShared()) {
             var outErr = arena.allocate(ValueLayout.ADDRESS);
             var primitiveResult = (int) NativeLib.KREUZBERG_CLEAR_OCR_BACKEND.invoke(outErr);
@@ -696,9 +719,14 @@ public final class KreuzbergRs {
         final String text,
         final @Nullable Map<String, Object> metadata
     ) throws KreuzbergRsException {
+        if (NativeLib.KREUZBERG_CALCULATE_QUALITY_SCORE == null) {
+            throw new KreuzbergRsException("Quality scoring feature not available (requires 'quality' feature in Rust build)");
+        }
         try (var arena = Arena.ofShared()) {
             var ctext = arena.allocateFrom(text);
-            var primitiveResult = (double) NativeLib.KREUZBERG_CALCULATE_QUALITY_SCORE.invoke(ctext, metadata);
+            var cmetadataJson = metadata != null ? MAPPER.writeValueAsString(metadata) : null;
+            var cmetadataSeg = cmetadataJson != null ? arena.allocateFrom(cmetadataJson) : MemorySegment.NULL;
+            var primitiveResult = (double) NativeLib.KREUZBERG_CALCULATE_QUALITY_SCORE.invoke(ctext, cmetadataSeg);
             return primitiveResult;
         } catch (Throwable e) {
             throw new KreuzbergRsException("FFI call failed", e);
@@ -854,17 +882,22 @@ public final class KreuzbergRs {
      * clone so the value is safe to pass across FFI boundaries.
      */
     public static Optional<EmbeddingPreset> getEmbeddingPreset(final String name) throws KreuzbergRsException {
+        if (NativeLib.KREUZBERG_EMBEDDING_PRESET_TO_JSON == null) {
+            throw new KreuzbergRsException("Embedding presets feature not available (requires 'embeddings' feature in Rust build)");
+        }
         try (var arena = Arena.ofShared()) {
             var cname = arena.allocateFrom(name);
             var resultPtr = (MemorySegment) NativeLib.KREUZBERG_GET_EMBEDDING_PRESET.invoke(cname);
             if (resultPtr.equals(MemorySegment.NULL)) {
-                checkLastError();                return Optional.empty();            }
+                checkLastError();
+                return Optional.empty();
+            }
             // CPD-OFF
             var jsonPtr = (MemorySegment) NativeLib.KREUZBERG_EMBEDDING_PRESET_TO_JSON.invoke(resultPtr);
             NativeLib.KREUZBERG_EMBEDDING_PRESET_FREE.invoke(resultPtr);
             if (jsonPtr.equals(MemorySegment.NULL)) {
                 checkLastError();
-                return Optional.empty();
+                throw new KreuzbergRsException("Preset serialization failed: null JSON");
             }
             String json = jsonPtr.reinterpret(Long.MAX_VALUE).getString(0);
             NativeLib.KREUZBERG_FREE_STRING.invoke(jsonPtr);

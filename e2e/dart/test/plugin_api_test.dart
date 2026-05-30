@@ -149,7 +149,7 @@ Future<void> _initTestStubRegisterPostProcessorTraitBridge() async {
 
 class TestStubRegisterRendererTraitBridge extends Renderer {
   String get name => 'register_renderer_trait_bridge';
-  String render(ExtractionResult doc) => '';
+  Future<String> render(InternalDocument doc) async => '';
 }
 final _TestStubRegisterRendererTraitBridge_instance = TestStubRegisterRendererTraitBridge();
 late final RendererDartImpl _TestStubRegisterRendererTraitBridge_wrapped;
