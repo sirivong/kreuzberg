@@ -12,11 +12,13 @@
 
 **File:** `packages/csharp/src/Kreuzberg/KreuzbergLib.cs`
 **Functions affected:**
+
 - `ExtractBytesAsync` (line 53)
 - `ExtractBytesSync` (line ~212)
 - `DetectMimeTypeFromBytes` (line ~432)
 
 **Problem:**
+
 ```csharp
 var contentHandle = GCHandle.Alloc(content, GCHandleType.Pinned);
 var configHandle = NativeMethods.ExtractionConfigFromJson(configJson);
@@ -33,6 +35,7 @@ When `ExtractionConfigFromJson` fails, the exception is thrown before `contentHa
 **Impact:** Memory leak on all config JSON parse errors; buffer is pinned for lifetime of process.
 
 **Fix:** Use try-finally or throw cleanup:
+
 ```csharp
 var contentHandle = GCHandle.Alloc(content, GCHandleType.Pinned);
 try {
@@ -56,12 +59,14 @@ try {
 
 **File:** `packages/csharp/src/Kreuzberg/KreuzbergLib.cs`
 **Functions affected:**
+
 - `BatchExtractFilesSync` (line ~242-264)
 - `BatchExtractBytesSync` (line ~281-305)
 - `BatchExtractFilesAsync` (line ~331-360)
 - `BatchExtractBytesAsync` (line ~382-411)
 
 **Problem:**
+
 ```csharp
 var itemsJson = JsonSerializer.Serialize(items, JsonSerializationOptions);
 var itemsHandle = global::System.Runtime.InteropServices.Marshal.StringToHGlobalAnsi(itemsJson);
@@ -82,6 +87,7 @@ When `ExtractionConfigFromJson` fails, `itemsHandle` (allocated via `StringToHGl
 **Impact:** Unmanaged heap leak (C library malloc) on all batch config JSON parse errors.
 
 **Fix:** Use try-finally:
+
 ```csharp
 var itemsHandle = Marshal.StringToHGlobalAnsi(itemsJson);
 try {
@@ -103,6 +109,7 @@ try {
 **Functions affected:** All extraction functions (ExtractBytesAsync, ExtractFileAsync, etc.)
 
 **Problem:**
+
 ```csharp
 var configHandle = NativeMethods.ExtractionConfigFromJson(configJson);
 if (configHandle == IntPtr.Zero) {
@@ -121,6 +128,7 @@ If `ExtractBytes` returns null, the exception is thrown before `ExtractionConfig
 **Impact:** Rust-side config struct leak on all extraction errors.
 
 **Fix:** Use try-finally around all Rust handles:
+
 ```csharp
 var configHandle = NativeMethods.ExtractionConfigFromJson(configJson);
 if (configHandle == IntPtr.Zero) throw new KreuzbergException(...);
@@ -147,11 +155,13 @@ try {
 **Issue:** All P/Invoke free functions operate on bare IntPtr with no type safety or automatic cleanup.
 
 **Functions affected:**
+
 - All `*Free` functions in `NativeMethods.cs` (DocumentExtractorFree, ExtractionResultFree, etc.)
 
 **Problem:** IntPtr offers no deterministic cleanup guarantee. If an exception occurs between allocation and deallocation, the handle leaks. No compile-time enforcement that paired _new() and _free() calls exist.
 
 **Example:**
+
 ```csharp
 // No type safety — developer must manually pair calls
 var handle = NativeMethods.DocumentExtractorFree(someIntPtr);  // Could be called on wrong handle type
@@ -159,6 +169,7 @@ NativeMethods.DocumentExtractorFree(handle);  // Forgotten
 ```
 
 **Fix:** Create SafeHandle subclasses for each opaque type:
+
 ```csharp
 internal sealed class ExtractionConfigHandle : SafeHandle {
     public override bool IsInvalid => handle == IntPtr.Zero;
@@ -175,6 +186,7 @@ internal sealed class ExtractionConfigHandle : SafeHandle {
 ```
 
 Then use `using` statements:
+
 ```csharp
 using var configHandle = new ExtractionConfigHandle { handle = NativeMethods.ExtractionConfigFromJson(configJson) };
 if (configHandle.IsInvalid) throw new KreuzbergException(...);
@@ -190,6 +202,7 @@ if (configHandle.IsInvalid) throw new KreuzbergException(...);
 **Lines:** 343, 498, etc.
 
 **Problem:**
+
 ```csharp
 [DllImport(LibName, CallingConvention = CallingConvention.Cdecl,
     EntryPoint = "kreuzberg_detect_mime_type")]
@@ -202,6 +215,7 @@ internal static extern IntPtr DetectMimeType(
 The C ABI for bool on Windows is 32-bit (BOOL = i32), but on Unix/macOS it's 8-bit. `MarshalAs(UnmanagedType.U1)` marshals as byte (8-bit), which is **incorrect on Windows**. The 24 high bits are garbage.
 
 **Fix:** Use explicit int or check C header ABI:
+
 ```csharp
 [MarshalAs(UnmanagedType.I4)] int checkExists  // i32 on all platforms
 // OR
@@ -218,6 +232,7 @@ Check the C FFI header to see what type is actually used in the Rust signature.
 **Example:** Line 441, 466, 485, etc.
 
 **Problem:**
+
 ```csharp
 var returnValue = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(nativeResult) ?? string.Empty;
 NativeMethods.FreeString(nativeResult);
@@ -226,6 +241,7 @@ NativeMethods.FreeString(nativeResult);
 If the Rust function returns a JSON string with embedded null bytes or invalid UTF-8, `PtrToStringUTF8` silently truncates or throws. No validation that the FFI contract is upheld.
 
 **Fix:** Validate before deserialization:
+
 ```csharp
 var jsonPtr = NativeMethods.ExtractionResultToJson(nativeResult);
 if (jsonPtr == IntPtr.Zero) throw new KreuzbergException(-1, "Conversion to JSON failed");
@@ -248,6 +264,7 @@ try {
 **File:** `packages/csharp/Kreuzberg/Kreuzberg.csproj`
 
 **Problem:** The project lacks Native AOT support declaration:
+
 - No `<PublishAot>true</PublishAot>` in csproj
 - No AOT-trimming metadata (`[DynamicDependency]`)
 - `JsonSerializer.Serialize/Deserialize` uses reflection (not source-generated)
@@ -256,6 +273,7 @@ try {
 **Impact:** Project cannot be published with `dotnet publish -c Release -r win-x64 --self-contained /p:PublishAot=true`. Reflection-based JSON serialization will fail at runtime in AOT mode.
 
 **Fix:**
+
 ```xml
 <PropertyGroup>
   <PublishAot>true</PublishAot>
@@ -265,6 +283,7 @@ try {
 ```
 
 And add source-generated JSON context:
+
 ```csharp
 [JsonSerializable(typeof(ExtractionResult))]
 [JsonSerializable(typeof(ExtractionConfig))]
@@ -272,6 +291,7 @@ internal partial class KreuzbergJsonContext : JsonSerializerContext { }
 ```
 
 Use in KreuzbergLib:
+
 ```csharp
 JsonSerializer.Serialize(config, KreuzbergJsonContext.Default.ExtractionConfig)
 ```
@@ -287,6 +307,7 @@ JsonSerializer.Serialize(config, KreuzbergJsonContext.Default.ExtractionConfig)
 **Impact:** Binding can have warnings at compile time; users may ignore them. No enforcement of code quality.
 
 **Fix:**
+
 ```xml
 <PropertyGroup>
   <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -307,6 +328,7 @@ JsonSerializer.Serialize(config, KreuzbergJsonContext.Default.ExtractionConfig)
 **Lines:** ~209, 250, 289, etc.
 
 **Problem:** Error context pointer is not validated before use:
+
 ```csharp
 var ctxPtr = NativeMethods.LastErrorContext();
 var msg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(ctxPtr) ?? "ExtractionConfigFromJson failed";
@@ -315,6 +337,7 @@ var msg = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(ctxPtr)
 If `ctxPtr` is invalid (non-null but not a valid UTF-8 string), `PtrToStringUTF8` can throw or read past buffer.
 
 **Fix:** Always validate:
+
 ```csharp
 var ctxPtr = NativeMethods.LastErrorContext();
 var msg = ctxPtr != IntPtr.Zero
@@ -327,16 +350,19 @@ var msg = ctxPtr != IntPtr.Zero
 ## Summary of Changes Required
 
 ### Priority 1 (Correctness)
+
 1. Fix GCHandle leaks with try-finally (ExtractBytesAsync, ExtractBytesSync, DetectMimeTypeFromBytes)
 2. Fix HGlobal leaks with try-finally (Batch* functions)
 3. Fix ConfigHandle leaks with try-finally (all extraction functions)
 
 ### Priority 2 (Safety)
+
 4. Create SafeHandle wrappers for all Rust opaque types
 5. Verify bool marshalling ABI correctness against C FFI header
 6. Add error validation on JSON conversions
 
 ### Priority 3 (Compatibility)
+
 7. Add Native AOT support (PublishAot, source-generated JSON)
 8. Configure Roslyn analyzers (TreatWarningsAsErrors)
 
@@ -356,6 +382,7 @@ var msg = ctxPtr != IntPtr.Zero
 **Commit:** 59a36286be "fix(csharp): add try-finally guards for all P/Invoke handle cleanup"
 
 **Critical leaks FIXED:**
+
 - ExtractBytesAsync: GCHandle + ConfigHandle + ExtractionResult leaks
 - ExtractFileAsync: ConfigHandle + ExtractionResult leaks
 - ExtractFileSync: ConfigHandle + ExtractionResult leaks
@@ -369,6 +396,7 @@ var msg = ctxPtr != IntPtr.Zero
 All changes are **backward-compatible** (internal try-finally guards only). No public API changes.
 
 **Remaining work (for future PRs):**
+
 - SafeHandle refactoring (medium effort, not blocking v5)
 - Native AOT support (medium effort)
 - Bool marshalling ABI validation (low effort)
