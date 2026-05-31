@@ -31,6 +31,13 @@ pub enum DiffLine {
     Removed(String),
 }
 
+impl Default for DiffLine {
+    /// Returns an empty context line — carries no semantic change, the safest neutral value.
+    fn default() -> Self {
+        Self::Context(String::new())
+    }
+}
+
 /// A single changed cell within a table.
 ///
 /// Defined here (rather than only in `crate::diff`) so `RevisionDelta` can
@@ -143,6 +150,13 @@ pub enum RevisionAnchor {
         /// Sheet display name when available.
         name: Option<String>,
     },
+}
+
+impl Default for RevisionAnchor {
+    /// Returns `Paragraph { index: 0 }` — the most neutral, zero-cost anchor variant.
+    fn default() -> Self {
+        Self::Paragraph { index: 0 }
+    }
 }
 
 /// The content changes that make up a single revision.
