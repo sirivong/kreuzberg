@@ -34,17 +34,6 @@
 
 #![deny(unsafe_code)]
 
-#[cfg(all(feature = "ort-bundled", feature = "ort-dynamic"))]
-#[deprecated(
-    note = "features 'ort-bundled' and 'ort-dynamic' are both enabled; bundled ORT remains the default unless dynamic ORT is explicitly selected at runtime"
-)]
-const ORT_FEATURE_SELECTION_WARNING: () = ();
-
-#[cfg(all(feature = "ort-bundled", feature = "ort-dynamic"))]
-const _: () = {
-    ORT_FEATURE_SELECTION_WARNING;
-};
-
 pub mod cache;
 pub(crate) mod cache_dir;
 pub mod cancellation;

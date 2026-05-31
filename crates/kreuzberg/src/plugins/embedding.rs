@@ -158,8 +158,8 @@ pub fn clear_embedding_backends() -> Result<()> {
 
 /// List the names of all registered embedding backends.
 ///
-/// Used by `kreuzberg-cli` and the api/mcp endpoints; excluded from the
-/// language bindings via `alef.toml [exclude].functions`.
+/// Used by `kreuzberg-cli`, the api/mcp endpoints, and generated language
+/// bindings.
 pub fn list_embedding_backends() -> Result<Vec<String>> {
     use crate::plugins::registry::get_embedding_backend_registry;
 

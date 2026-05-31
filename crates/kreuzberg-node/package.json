@@ -1,5 +1,5 @@
 {
-  "name": "kreuzberg",
+  "name": "@kreuzberg/node",
   "version": "5.0.0-rc.3",
   "description": "High-performance document intelligence library",
   "license": "Elastic-2.0",
@@ -18,17 +18,17 @@
   },
   "files": ["index.js", "index.d.ts", "*.node"],
   "optionalDependencies": {
-    "kreuzberg-linux-x64-gnu": "5.0.0-rc.3",
-    "kreuzberg-linux-arm64-gnu": "5.0.0-rc.3",
-    "kreuzberg-linux-x64-musl": "5.0.0-rc.3",
-    "kreuzberg-linux-arm64-musl": "5.0.0-rc.3",
-    "kreuzberg-darwin-x64": "5.0.0-rc.3",
-    "kreuzberg-darwin-arm64": "5.0.0-rc.3",
-    "kreuzberg-win32-x64-msvc": "5.0.0-rc.3",
-    "kreuzberg-win32-arm64-msvc": "5.0.0-rc.3"
+    "@kreuzberg/node-linux-x64-gnu": "5.0.0-rc.3",
+    "@kreuzberg/node-linux-arm64-gnu": "5.0.0-rc.3",
+    "@kreuzberg/node-linux-x64-musl": "5.0.0-rc.3",
+    "@kreuzberg/node-linux-arm64-musl": "5.0.0-rc.3",
+    "@kreuzberg/node-darwin-x64": "5.0.0-rc.3",
+    "@kreuzberg/node-darwin-arm64": "5.0.0-rc.3",
+    "@kreuzberg/node-win32-x64-msvc": "5.0.0-rc.3",
+    "@kreuzberg/node-win32-arm64-msvc": "5.0.0-rc.3"
   },
   "napi": {
-    "packageName": "kreuzberg",
+    "packageName": "@kreuzberg/node",
     "binaryName": "kreuzberg-node",
     "targets": [
       "x86_64-unknown-linux-gnu",

@@ -69,7 +69,7 @@ export {
   unregisterPostProcessor,
   unregisterRenderer,
   unregisterValidator,
-} from 'kreuzberg';
+} from '@kreuzberg/node';
 
 export type {
   AccelerationConfig,
@@ -209,4 +209,4 @@ export type {
   XmlMetadata,
   YakeParams,
   YearRange,
-} from 'kreuzberg';
+} from '@kreuzberg/node';

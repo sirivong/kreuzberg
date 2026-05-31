@@ -1,5 +1,5 @@
 {
-  "name": "kreuzberg-win32-arm64-msvc",
+  "name": "@kreuzberg/node-win32-arm64-msvc",
   "version": "5.0.0-rc.3",
   "license": "Elastic-2.0",
   "repository": {

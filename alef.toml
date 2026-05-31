@@ -208,7 +208,7 @@ exclude_functions = [
 output = "packages/python/kreuzberg/"
 
 [crates.node]
-package_name = "kreuzberg"
+package_name = "@kreuzberg/node"
 exclude_types = [
   # Opaque Arc<Mutex<T>> types — codegen doesn't generate .lock() calls for methods
   "StreamReader",
@@ -274,6 +274,7 @@ exclude_types = [
 ]
 
 [crates.wasm]
+package_name = "@kreuzberg/wasm"
 exclude_types = [
   # ORT/runtime-only types not available in the wasm-target feature set
   "OcrFallbackDecision",
@@ -850,7 +851,7 @@ options_type = "ExtractionConfig"
 [crates.e2e.call.overrides.node]
 module = "kreuzberg"
 function = "extractFile"
-options_type = "JsExtractionConfig"
+options_type = "ExtractionConfig"
 arg_order = ["path", "config", "mime_type"]
 result_enum_fields = { outputFormat = "OutputFormat", "metadata.format" = "FormatMetadata" }
 
@@ -1001,7 +1002,7 @@ args = [
 ]
 
 [crates.e2e.calls.extract_file_sync.overrides.node]
-options_type = "JsExtractionConfig"
+options_type = "ExtractionConfig"
 arg_order = ["path", "config", "mime_type"]
 
 [crates.e2e.calls.extract_file_sync.overrides.csharp]
@@ -1253,7 +1254,7 @@ options_type = "TokenReductionConfig"
 
 [crates.e2e.calls.serialize_to_toon.overrides.node]
 result_is_simple = true
-options_type = "JsExtractionConfig"
+options_type = "ExtractionConfig"
 
 [crates.e2e.calls.serialize_to_toon.overrides.csharp]
 result_is_simple = true
@@ -1261,7 +1262,7 @@ options_type = "ExtractionConfig"
 
 [crates.e2e.calls.serialize_to_json.overrides.node]
 result_is_simple = true
-options_type = "JsExtractionConfig"
+options_type = "ExtractionConfig"
 
 [crates.e2e.calls.serialize_to_json.overrides.csharp]
 result_is_simple = true
@@ -2943,7 +2944,7 @@ name = "kreuzberg"
 path = "../../packages/python"
 
 [crates.e2e.packages.node]
-name = "kreuzberg"
+name = "@kreuzberg/node"
 path = "../../crates/kreuzberg-node"
 
 [crates.e2e.packages.go]
@@ -2993,7 +2994,7 @@ path = "../../packages/zig"
 # cannot satisfy at import time. The `pkg/nodejs/` variant inlines those
 # imports as `require()` calls handled by wasm-bindgen's Node loader.
 [crates.e2e.packages.wasm]
-name = "kreuzberg"
+name = "@kreuzberg/wasm"
 path = "../../crates/kreuzberg-wasm/pkg/nodejs"
 
 [crates.e2e.format]
