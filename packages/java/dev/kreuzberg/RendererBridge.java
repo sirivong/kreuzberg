@@ -90,7 +90,13 @@ public final class RendererBridge implements AutoCloseable {
             vtable.set(ValueLayout.ADDRESS, offset, stubFreeString);
             offset += ValueLayout.ADDRESS.byteSize();
 
-            vtable.set(ValueLayout.ADDRESS, offset, MemorySegment.NULL);
+            var stubFreeUserData = LINKER.upcallStub(LOOKUP.bind(this, "freeUserData",
+                MethodType.methodType(void.class, MemorySegment.class)),
+                FunctionDescriptor.ofVoid(ValueLayout.ADDRESS),
+                arena);
+            vtable.set(ValueLayout.ADDRESS, offset, stubFreeUserData);
+            offset += ValueLayout.ADDRESS.byteSize();
+
 
         } catch (ReflectiveOperationException e) {
             arena.close();
@@ -148,6 +154,10 @@ public final class RendererBridge implements AutoCloseable {
 
     private void freeString(MemorySegment ptr) {
         // Strings returned by Java callbacks are arena-owned and released when this bridge closes.
+    }
+
+    private void freeUserData(MemorySegment userData) {
+        // User data is Java-side state (the impl object), not freed by Rust on drop.
     }
 
     /** Read a NUL-terminated native C string safely without unbounded reinterpret. */
