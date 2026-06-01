@@ -56,8 +56,7 @@ def _build_baseline_pptx() -> bytes:
 def _comment_authors_xml() -> bytes:
     """Build ``ppt/commentAuthors.xml``."""
     authors_xml = "".join(
-        f'<p:cmAuthor id="{aid}" name="{name}" initials="{name[0]}" lastIdx="0" clrIdx="0"/>'
-        for aid, name in AUTHORS
+        f'<p:cmAuthor id="{aid}" name="{name}" initials="{name[0]}" lastIdx="0" clrIdx="0"/>' for aid, name in AUTHORS
     )
     xml = (
         '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'

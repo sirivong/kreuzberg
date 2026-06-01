@@ -14,7 +14,7 @@ xref chains, or paired diff inputs.
 
 ## Layout
 
-```
+```text
 tools/generate_test_fixtures/
   pyproject.toml
   src/generate_test_fixtures/
