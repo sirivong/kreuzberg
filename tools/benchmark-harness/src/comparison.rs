@@ -79,6 +79,10 @@ pub enum Pipeline {
     PdfOxide,
     /// pdf_oxide backend + layout detection
     PdfOxideLayout,
+    /// Candle-based TrOCR (force_ocr, plain text)
+    CandleTrocr,
+    /// Candle-based PaddleOCR-VL (force_ocr, end-to-end markdown)
+    CandlePaddleocrVl,
 }
 
 impl Pipeline {
@@ -103,6 +107,8 @@ impl Pipeline {
             Pipeline::LayoutSlanetAuto => "layout+slanet-auto",
             Pipeline::PdfOxide => "pdf-oxide",
             Pipeline::PdfOxideLayout => "pdf-oxide+layout",
+            Pipeline::CandleTrocr => "candle-trocr",
+            Pipeline::CandlePaddleocrVl => "candle-paddleocr-vl",
         }
     }
 
@@ -131,6 +137,8 @@ impl Pipeline {
             }
             "pdf-oxide" | "pdf_oxide" | "oxide" => Some(Pipeline::PdfOxide),
             "pdf-oxide+layout" | "pdf-oxide-layout" | "oxide+layout" | "oxide-layout" => Some(Pipeline::PdfOxideLayout),
+            "candle-trocr" | "candle_trocr" | "trocr" => Some(Pipeline::CandleTrocr),
+            "candle-paddleocr-vl" | "candle_paddleocr_vl" | "paddleocr-vl" => Some(Pipeline::CandlePaddleocrVl),
             _ => None,
         }
     }
@@ -372,6 +380,24 @@ pub fn build_extraction_config(pipeline: Pipeline) -> kreuzberg::ExtractionConfi
             }),
             ocr: Some(kreuzberg::core::config::OcrConfig {
                 backend: "tesseract".to_string(),
+                language: "eng".to_string(),
+                ..Default::default()
+            }),
+            ..base
+        },
+        Pipeline::CandleTrocr => kreuzberg::ExtractionConfig {
+            force_ocr: true,
+            ocr: Some(kreuzberg::core::config::OcrConfig {
+                backend: "candle-trocr".to_string(),
+                language: "eng".to_string(),
+                ..Default::default()
+            }),
+            ..base
+        },
+        Pipeline::CandlePaddleocrVl => kreuzberg::ExtractionConfig {
+            force_ocr: true,
+            ocr: Some(kreuzberg::core::config::OcrConfig {
+                backend: "candle-paddleocr-vl".to_string(),
                 language: "eng".to_string(),
                 ..Default::default()
             }),
