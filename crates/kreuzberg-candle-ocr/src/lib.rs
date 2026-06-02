@@ -28,6 +28,9 @@ pub mod models;
 pub use device::DevicePreference;
 pub use error::{CandleOcrError, Result};
 
+#[cfg(not(target_arch = "wasm32"))]
+pub use candle_core::DType;
+
 /// Identifier for the model emitted by a [`CandleEngine`]. Used by the
 /// backend layer to record telemetry and pick decoding hyperparameters.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
