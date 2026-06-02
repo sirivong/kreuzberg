@@ -3441,6 +3441,1276 @@ as String,
 }
 
 /// @nodoc
+mixin _$KreuzbergError {
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'KreuzbergError()';
+}
+
+
+}
+
+/// @nodoc
+class $KreuzbergErrorCopyWith<$Res>  {
+$KreuzbergErrorCopyWith(KreuzbergError _, $Res Function(KreuzbergError) __);
+}
+
+
+/// Adds pattern-matching-related methods to [KreuzbergError].
+extension KreuzbergErrorPatterns on KreuzbergError {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( KreuzbergError_Io value)?  io,TResult Function( KreuzbergError_Parsing value)?  parsing,TResult Function( KreuzbergError_Ocr value)?  ocr,TResult Function( KreuzbergError_Validation value)?  validation,TResult Function( KreuzbergError_Cache value)?  cache,TResult Function( KreuzbergError_ImageProcessing value)?  imageProcessing,TResult Function( KreuzbergError_Serialization value)?  serialization,TResult Function( KreuzbergError_MissingDependency value)?  missingDependency,TResult Function( KreuzbergError_Plugin value)?  plugin,TResult Function( KreuzbergError_LockPoisoned value)?  lockPoisoned,TResult Function( KreuzbergError_UnsupportedFormat value)?  unsupportedFormat,TResult Function( KreuzbergError_Embedding value)?  embedding,TResult Function( KreuzbergError_Timeout value)?  timeout,TResult Function( KreuzbergError_Cancelled value)?  cancelled,TResult Function( KreuzbergError_Security value)?  security,TResult Function( KreuzbergError_Other value)?  other,required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case KreuzbergError_Io() when io != null:
+return io(_that);case KreuzbergError_Parsing() when parsing != null:
+return parsing(_that);case KreuzbergError_Ocr() when ocr != null:
+return ocr(_that);case KreuzbergError_Validation() when validation != null:
+return validation(_that);case KreuzbergError_Cache() when cache != null:
+return cache(_that);case KreuzbergError_ImageProcessing() when imageProcessing != null:
+return imageProcessing(_that);case KreuzbergError_Serialization() when serialization != null:
+return serialization(_that);case KreuzbergError_MissingDependency() when missingDependency != null:
+return missingDependency(_that);case KreuzbergError_Plugin() when plugin != null:
+return plugin(_that);case KreuzbergError_LockPoisoned() when lockPoisoned != null:
+return lockPoisoned(_that);case KreuzbergError_UnsupportedFormat() when unsupportedFormat != null:
+return unsupportedFormat(_that);case KreuzbergError_Embedding() when embedding != null:
+return embedding(_that);case KreuzbergError_Timeout() when timeout != null:
+return timeout(_that);case KreuzbergError_Cancelled() when cancelled != null:
+return cancelled(_that);case KreuzbergError_Security() when security != null:
+return security(_that);case KreuzbergError_Other() when other != null:
+return other(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( KreuzbergError_Io value)  io,required TResult Function( KreuzbergError_Parsing value)  parsing,required TResult Function( KreuzbergError_Ocr value)  ocr,required TResult Function( KreuzbergError_Validation value)  validation,required TResult Function( KreuzbergError_Cache value)  cache,required TResult Function( KreuzbergError_ImageProcessing value)  imageProcessing,required TResult Function( KreuzbergError_Serialization value)  serialization,required TResult Function( KreuzbergError_MissingDependency value)  missingDependency,required TResult Function( KreuzbergError_Plugin value)  plugin,required TResult Function( KreuzbergError_LockPoisoned value)  lockPoisoned,required TResult Function( KreuzbergError_UnsupportedFormat value)  unsupportedFormat,required TResult Function( KreuzbergError_Embedding value)  embedding,required TResult Function( KreuzbergError_Timeout value)  timeout,required TResult Function( KreuzbergError_Cancelled value)  cancelled,required TResult Function( KreuzbergError_Security value)  security,required TResult Function( KreuzbergError_Other value)  other,}){
+final _that = this;
+switch (_that) {
+case KreuzbergError_Io():
+return io(_that);case KreuzbergError_Parsing():
+return parsing(_that);case KreuzbergError_Ocr():
+return ocr(_that);case KreuzbergError_Validation():
+return validation(_that);case KreuzbergError_Cache():
+return cache(_that);case KreuzbergError_ImageProcessing():
+return imageProcessing(_that);case KreuzbergError_Serialization():
+return serialization(_that);case KreuzbergError_MissingDependency():
+return missingDependency(_that);case KreuzbergError_Plugin():
+return plugin(_that);case KreuzbergError_LockPoisoned():
+return lockPoisoned(_that);case KreuzbergError_UnsupportedFormat():
+return unsupportedFormat(_that);case KreuzbergError_Embedding():
+return embedding(_that);case KreuzbergError_Timeout():
+return timeout(_that);case KreuzbergError_Cancelled():
+return cancelled(_that);case KreuzbergError_Security():
+return security(_that);case KreuzbergError_Other():
+return other(_that);}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( KreuzbergError_Io value)?  io,TResult? Function( KreuzbergError_Parsing value)?  parsing,TResult? Function( KreuzbergError_Ocr value)?  ocr,TResult? Function( KreuzbergError_Validation value)?  validation,TResult? Function( KreuzbergError_Cache value)?  cache,TResult? Function( KreuzbergError_ImageProcessing value)?  imageProcessing,TResult? Function( KreuzbergError_Serialization value)?  serialization,TResult? Function( KreuzbergError_MissingDependency value)?  missingDependency,TResult? Function( KreuzbergError_Plugin value)?  plugin,TResult? Function( KreuzbergError_LockPoisoned value)?  lockPoisoned,TResult? Function( KreuzbergError_UnsupportedFormat value)?  unsupportedFormat,TResult? Function( KreuzbergError_Embedding value)?  embedding,TResult? Function( KreuzbergError_Timeout value)?  timeout,TResult? Function( KreuzbergError_Cancelled value)?  cancelled,TResult? Function( KreuzbergError_Security value)?  security,TResult? Function( KreuzbergError_Other value)?  other,}){
+final _that = this;
+switch (_that) {
+case KreuzbergError_Io() when io != null:
+return io(_that);case KreuzbergError_Parsing() when parsing != null:
+return parsing(_that);case KreuzbergError_Ocr() when ocr != null:
+return ocr(_that);case KreuzbergError_Validation() when validation != null:
+return validation(_that);case KreuzbergError_Cache() when cache != null:
+return cache(_that);case KreuzbergError_ImageProcessing() when imageProcessing != null:
+return imageProcessing(_that);case KreuzbergError_Serialization() when serialization != null:
+return serialization(_that);case KreuzbergError_MissingDependency() when missingDependency != null:
+return missingDependency(_that);case KreuzbergError_Plugin() when plugin != null:
+return plugin(_that);case KreuzbergError_LockPoisoned() when lockPoisoned != null:
+return lockPoisoned(_that);case KreuzbergError_UnsupportedFormat() when unsupportedFormat != null:
+return unsupportedFormat(_that);case KreuzbergError_Embedding() when embedding != null:
+return embedding(_that);case KreuzbergError_Timeout() when timeout != null:
+return timeout(_that);case KreuzbergError_Cancelled() when cancelled != null:
+return cancelled(_that);case KreuzbergError_Security() when security != null:
+return security(_that);case KreuzbergError_Other() when other != null:
+return other(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String field0)?  io,TResult Function( String message)?  parsing,TResult Function( String message)?  ocr,TResult Function( String message)?  validation,TResult Function( String message)?  cache,TResult Function( String message)?  imageProcessing,TResult Function( String message)?  serialization,TResult Function( String field0)?  missingDependency,TResult Function( String message,  String pluginName)?  plugin,TResult Function( String field0)?  lockPoisoned,TResult Function( String field0)?  unsupportedFormat,TResult Function( String message)?  embedding,TResult Function( PlatformInt64 elapsedMs,  PlatformInt64 limitMs)?  timeout,TResult Function()?  cancelled,TResult Function( String message)?  security,TResult Function( String field0)?  other,required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case KreuzbergError_Io() when io != null:
+return io(_that.field0);case KreuzbergError_Parsing() when parsing != null:
+return parsing(_that.message);case KreuzbergError_Ocr() when ocr != null:
+return ocr(_that.message);case KreuzbergError_Validation() when validation != null:
+return validation(_that.message);case KreuzbergError_Cache() when cache != null:
+return cache(_that.message);case KreuzbergError_ImageProcessing() when imageProcessing != null:
+return imageProcessing(_that.message);case KreuzbergError_Serialization() when serialization != null:
+return serialization(_that.message);case KreuzbergError_MissingDependency() when missingDependency != null:
+return missingDependency(_that.field0);case KreuzbergError_Plugin() when plugin != null:
+return plugin(_that.message,_that.pluginName);case KreuzbergError_LockPoisoned() when lockPoisoned != null:
+return lockPoisoned(_that.field0);case KreuzbergError_UnsupportedFormat() when unsupportedFormat != null:
+return unsupportedFormat(_that.field0);case KreuzbergError_Embedding() when embedding != null:
+return embedding(_that.message);case KreuzbergError_Timeout() when timeout != null:
+return timeout(_that.elapsedMs,_that.limitMs);case KreuzbergError_Cancelled() when cancelled != null:
+return cancelled();case KreuzbergError_Security() when security != null:
+return security(_that.message);case KreuzbergError_Other() when other != null:
+return other(_that.field0);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String field0)  io,required TResult Function( String message)  parsing,required TResult Function( String message)  ocr,required TResult Function( String message)  validation,required TResult Function( String message)  cache,required TResult Function( String message)  imageProcessing,required TResult Function( String message)  serialization,required TResult Function( String field0)  missingDependency,required TResult Function( String message,  String pluginName)  plugin,required TResult Function( String field0)  lockPoisoned,required TResult Function( String field0)  unsupportedFormat,required TResult Function( String message)  embedding,required TResult Function( PlatformInt64 elapsedMs,  PlatformInt64 limitMs)  timeout,required TResult Function()  cancelled,required TResult Function( String message)  security,required TResult Function( String field0)  other,}) {final _that = this;
+switch (_that) {
+case KreuzbergError_Io():
+return io(_that.field0);case KreuzbergError_Parsing():
+return parsing(_that.message);case KreuzbergError_Ocr():
+return ocr(_that.message);case KreuzbergError_Validation():
+return validation(_that.message);case KreuzbergError_Cache():
+return cache(_that.message);case KreuzbergError_ImageProcessing():
+return imageProcessing(_that.message);case KreuzbergError_Serialization():
+return serialization(_that.message);case KreuzbergError_MissingDependency():
+return missingDependency(_that.field0);case KreuzbergError_Plugin():
+return plugin(_that.message,_that.pluginName);case KreuzbergError_LockPoisoned():
+return lockPoisoned(_that.field0);case KreuzbergError_UnsupportedFormat():
+return unsupportedFormat(_that.field0);case KreuzbergError_Embedding():
+return embedding(_that.message);case KreuzbergError_Timeout():
+return timeout(_that.elapsedMs,_that.limitMs);case KreuzbergError_Cancelled():
+return cancelled();case KreuzbergError_Security():
+return security(_that.message);case KreuzbergError_Other():
+return other(_that.field0);}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String field0)?  io,TResult? Function( String message)?  parsing,TResult? Function( String message)?  ocr,TResult? Function( String message)?  validation,TResult? Function( String message)?  cache,TResult? Function( String message)?  imageProcessing,TResult? Function( String message)?  serialization,TResult? Function( String field0)?  missingDependency,TResult? Function( String message,  String pluginName)?  plugin,TResult? Function( String field0)?  lockPoisoned,TResult? Function( String field0)?  unsupportedFormat,TResult? Function( String message)?  embedding,TResult? Function( PlatformInt64 elapsedMs,  PlatformInt64 limitMs)?  timeout,TResult? Function()?  cancelled,TResult? Function( String message)?  security,TResult? Function( String field0)?  other,}) {final _that = this;
+switch (_that) {
+case KreuzbergError_Io() when io != null:
+return io(_that.field0);case KreuzbergError_Parsing() when parsing != null:
+return parsing(_that.message);case KreuzbergError_Ocr() when ocr != null:
+return ocr(_that.message);case KreuzbergError_Validation() when validation != null:
+return validation(_that.message);case KreuzbergError_Cache() when cache != null:
+return cache(_that.message);case KreuzbergError_ImageProcessing() when imageProcessing != null:
+return imageProcessing(_that.message);case KreuzbergError_Serialization() when serialization != null:
+return serialization(_that.message);case KreuzbergError_MissingDependency() when missingDependency != null:
+return missingDependency(_that.field0);case KreuzbergError_Plugin() when plugin != null:
+return plugin(_that.message,_that.pluginName);case KreuzbergError_LockPoisoned() when lockPoisoned != null:
+return lockPoisoned(_that.field0);case KreuzbergError_UnsupportedFormat() when unsupportedFormat != null:
+return unsupportedFormat(_that.field0);case KreuzbergError_Embedding() when embedding != null:
+return embedding(_that.message);case KreuzbergError_Timeout() when timeout != null:
+return timeout(_that.elapsedMs,_that.limitMs);case KreuzbergError_Cancelled() when cancelled != null:
+return cancelled();case KreuzbergError_Security() when security != null:
+return security(_that.message);case KreuzbergError_Other() when other != null:
+return other(_that.field0);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_Io extends KreuzbergError {
+  const KreuzbergError_Io({required this.field0}): super._();
+  
+
+ final  String field0;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_IoCopyWith<KreuzbergError_Io> get copyWith => _$KreuzbergError_IoCopyWithImpl<KreuzbergError_Io>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_Io&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'KreuzbergError.io(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_IoCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_IoCopyWith(KreuzbergError_Io value, $Res Function(KreuzbergError_Io) _then) = _$KreuzbergError_IoCopyWithImpl;
+@useResult
+$Res call({
+ String field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_IoCopyWithImpl<$Res>
+    implements $KreuzbergError_IoCopyWith<$Res> {
+  _$KreuzbergError_IoCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_Io _self;
+  final $Res Function(KreuzbergError_Io) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(KreuzbergError_Io(
+field0: null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_Parsing extends KreuzbergError {
+  const KreuzbergError_Parsing({required this.message}): super._();
+  
+
+ final  String message;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_ParsingCopyWith<KreuzbergError_Parsing> get copyWith => _$KreuzbergError_ParsingCopyWithImpl<KreuzbergError_Parsing>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_Parsing&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message);
+
+@override
+String toString() {
+  return 'KreuzbergError.parsing(message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_ParsingCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_ParsingCopyWith(KreuzbergError_Parsing value, $Res Function(KreuzbergError_Parsing) _then) = _$KreuzbergError_ParsingCopyWithImpl;
+@useResult
+$Res call({
+ String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_ParsingCopyWithImpl<$Res>
+    implements $KreuzbergError_ParsingCopyWith<$Res> {
+  _$KreuzbergError_ParsingCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_Parsing _self;
+  final $Res Function(KreuzbergError_Parsing) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
+  return _then(KreuzbergError_Parsing(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_Ocr extends KreuzbergError {
+  const KreuzbergError_Ocr({required this.message}): super._();
+  
+
+ final  String message;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_OcrCopyWith<KreuzbergError_Ocr> get copyWith => _$KreuzbergError_OcrCopyWithImpl<KreuzbergError_Ocr>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_Ocr&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message);
+
+@override
+String toString() {
+  return 'KreuzbergError.ocr(message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_OcrCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_OcrCopyWith(KreuzbergError_Ocr value, $Res Function(KreuzbergError_Ocr) _then) = _$KreuzbergError_OcrCopyWithImpl;
+@useResult
+$Res call({
+ String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_OcrCopyWithImpl<$Res>
+    implements $KreuzbergError_OcrCopyWith<$Res> {
+  _$KreuzbergError_OcrCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_Ocr _self;
+  final $Res Function(KreuzbergError_Ocr) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
+  return _then(KreuzbergError_Ocr(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_Validation extends KreuzbergError {
+  const KreuzbergError_Validation({required this.message}): super._();
+  
+
+ final  String message;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_ValidationCopyWith<KreuzbergError_Validation> get copyWith => _$KreuzbergError_ValidationCopyWithImpl<KreuzbergError_Validation>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_Validation&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message);
+
+@override
+String toString() {
+  return 'KreuzbergError.validation(message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_ValidationCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_ValidationCopyWith(KreuzbergError_Validation value, $Res Function(KreuzbergError_Validation) _then) = _$KreuzbergError_ValidationCopyWithImpl;
+@useResult
+$Res call({
+ String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_ValidationCopyWithImpl<$Res>
+    implements $KreuzbergError_ValidationCopyWith<$Res> {
+  _$KreuzbergError_ValidationCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_Validation _self;
+  final $Res Function(KreuzbergError_Validation) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
+  return _then(KreuzbergError_Validation(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_Cache extends KreuzbergError {
+  const KreuzbergError_Cache({required this.message}): super._();
+  
+
+ final  String message;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_CacheCopyWith<KreuzbergError_Cache> get copyWith => _$KreuzbergError_CacheCopyWithImpl<KreuzbergError_Cache>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_Cache&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message);
+
+@override
+String toString() {
+  return 'KreuzbergError.cache(message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_CacheCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_CacheCopyWith(KreuzbergError_Cache value, $Res Function(KreuzbergError_Cache) _then) = _$KreuzbergError_CacheCopyWithImpl;
+@useResult
+$Res call({
+ String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_CacheCopyWithImpl<$Res>
+    implements $KreuzbergError_CacheCopyWith<$Res> {
+  _$KreuzbergError_CacheCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_Cache _self;
+  final $Res Function(KreuzbergError_Cache) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
+  return _then(KreuzbergError_Cache(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_ImageProcessing extends KreuzbergError {
+  const KreuzbergError_ImageProcessing({required this.message}): super._();
+  
+
+ final  String message;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_ImageProcessingCopyWith<KreuzbergError_ImageProcessing> get copyWith => _$KreuzbergError_ImageProcessingCopyWithImpl<KreuzbergError_ImageProcessing>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_ImageProcessing&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message);
+
+@override
+String toString() {
+  return 'KreuzbergError.imageProcessing(message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_ImageProcessingCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_ImageProcessingCopyWith(KreuzbergError_ImageProcessing value, $Res Function(KreuzbergError_ImageProcessing) _then) = _$KreuzbergError_ImageProcessingCopyWithImpl;
+@useResult
+$Res call({
+ String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_ImageProcessingCopyWithImpl<$Res>
+    implements $KreuzbergError_ImageProcessingCopyWith<$Res> {
+  _$KreuzbergError_ImageProcessingCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_ImageProcessing _self;
+  final $Res Function(KreuzbergError_ImageProcessing) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
+  return _then(KreuzbergError_ImageProcessing(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_Serialization extends KreuzbergError {
+  const KreuzbergError_Serialization({required this.message}): super._();
+  
+
+ final  String message;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_SerializationCopyWith<KreuzbergError_Serialization> get copyWith => _$KreuzbergError_SerializationCopyWithImpl<KreuzbergError_Serialization>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_Serialization&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message);
+
+@override
+String toString() {
+  return 'KreuzbergError.serialization(message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_SerializationCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_SerializationCopyWith(KreuzbergError_Serialization value, $Res Function(KreuzbergError_Serialization) _then) = _$KreuzbergError_SerializationCopyWithImpl;
+@useResult
+$Res call({
+ String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_SerializationCopyWithImpl<$Res>
+    implements $KreuzbergError_SerializationCopyWith<$Res> {
+  _$KreuzbergError_SerializationCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_Serialization _self;
+  final $Res Function(KreuzbergError_Serialization) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
+  return _then(KreuzbergError_Serialization(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_MissingDependency extends KreuzbergError {
+  const KreuzbergError_MissingDependency({required this.field0}): super._();
+  
+
+ final  String field0;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_MissingDependencyCopyWith<KreuzbergError_MissingDependency> get copyWith => _$KreuzbergError_MissingDependencyCopyWithImpl<KreuzbergError_MissingDependency>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_MissingDependency&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'KreuzbergError.missingDependency(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_MissingDependencyCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_MissingDependencyCopyWith(KreuzbergError_MissingDependency value, $Res Function(KreuzbergError_MissingDependency) _then) = _$KreuzbergError_MissingDependencyCopyWithImpl;
+@useResult
+$Res call({
+ String field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_MissingDependencyCopyWithImpl<$Res>
+    implements $KreuzbergError_MissingDependencyCopyWith<$Res> {
+  _$KreuzbergError_MissingDependencyCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_MissingDependency _self;
+  final $Res Function(KreuzbergError_MissingDependency) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(KreuzbergError_MissingDependency(
+field0: null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_Plugin extends KreuzbergError {
+  const KreuzbergError_Plugin({required this.message, required this.pluginName}): super._();
+  
+
+ final  String message;
+ final  String pluginName;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_PluginCopyWith<KreuzbergError_Plugin> get copyWith => _$KreuzbergError_PluginCopyWithImpl<KreuzbergError_Plugin>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_Plugin&&(identical(other.message, message) || other.message == message)&&(identical(other.pluginName, pluginName) || other.pluginName == pluginName));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message,pluginName);
+
+@override
+String toString() {
+  return 'KreuzbergError.plugin(message: $message, pluginName: $pluginName)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_PluginCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_PluginCopyWith(KreuzbergError_Plugin value, $Res Function(KreuzbergError_Plugin) _then) = _$KreuzbergError_PluginCopyWithImpl;
+@useResult
+$Res call({
+ String message, String pluginName
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_PluginCopyWithImpl<$Res>
+    implements $KreuzbergError_PluginCopyWith<$Res> {
+  _$KreuzbergError_PluginCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_Plugin _self;
+  final $Res Function(KreuzbergError_Plugin) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = null,Object? pluginName = null,}) {
+  return _then(KreuzbergError_Plugin(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,pluginName: null == pluginName ? _self.pluginName : pluginName // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_LockPoisoned extends KreuzbergError {
+  const KreuzbergError_LockPoisoned({required this.field0}): super._();
+  
+
+ final  String field0;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_LockPoisonedCopyWith<KreuzbergError_LockPoisoned> get copyWith => _$KreuzbergError_LockPoisonedCopyWithImpl<KreuzbergError_LockPoisoned>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_LockPoisoned&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'KreuzbergError.lockPoisoned(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_LockPoisonedCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_LockPoisonedCopyWith(KreuzbergError_LockPoisoned value, $Res Function(KreuzbergError_LockPoisoned) _then) = _$KreuzbergError_LockPoisonedCopyWithImpl;
+@useResult
+$Res call({
+ String field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_LockPoisonedCopyWithImpl<$Res>
+    implements $KreuzbergError_LockPoisonedCopyWith<$Res> {
+  _$KreuzbergError_LockPoisonedCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_LockPoisoned _self;
+  final $Res Function(KreuzbergError_LockPoisoned) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(KreuzbergError_LockPoisoned(
+field0: null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_UnsupportedFormat extends KreuzbergError {
+  const KreuzbergError_UnsupportedFormat({required this.field0}): super._();
+  
+
+ final  String field0;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_UnsupportedFormatCopyWith<KreuzbergError_UnsupportedFormat> get copyWith => _$KreuzbergError_UnsupportedFormatCopyWithImpl<KreuzbergError_UnsupportedFormat>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_UnsupportedFormat&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'KreuzbergError.unsupportedFormat(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_UnsupportedFormatCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_UnsupportedFormatCopyWith(KreuzbergError_UnsupportedFormat value, $Res Function(KreuzbergError_UnsupportedFormat) _then) = _$KreuzbergError_UnsupportedFormatCopyWithImpl;
+@useResult
+$Res call({
+ String field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_UnsupportedFormatCopyWithImpl<$Res>
+    implements $KreuzbergError_UnsupportedFormatCopyWith<$Res> {
+  _$KreuzbergError_UnsupportedFormatCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_UnsupportedFormat _self;
+  final $Res Function(KreuzbergError_UnsupportedFormat) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(KreuzbergError_UnsupportedFormat(
+field0: null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_Embedding extends KreuzbergError {
+  const KreuzbergError_Embedding({required this.message}): super._();
+  
+
+ final  String message;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_EmbeddingCopyWith<KreuzbergError_Embedding> get copyWith => _$KreuzbergError_EmbeddingCopyWithImpl<KreuzbergError_Embedding>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_Embedding&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message);
+
+@override
+String toString() {
+  return 'KreuzbergError.embedding(message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_EmbeddingCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_EmbeddingCopyWith(KreuzbergError_Embedding value, $Res Function(KreuzbergError_Embedding) _then) = _$KreuzbergError_EmbeddingCopyWithImpl;
+@useResult
+$Res call({
+ String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_EmbeddingCopyWithImpl<$Res>
+    implements $KreuzbergError_EmbeddingCopyWith<$Res> {
+  _$KreuzbergError_EmbeddingCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_Embedding _self;
+  final $Res Function(KreuzbergError_Embedding) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
+  return _then(KreuzbergError_Embedding(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_Timeout extends KreuzbergError {
+  const KreuzbergError_Timeout({required this.elapsedMs, required this.limitMs}): super._();
+  
+
+ final  PlatformInt64 elapsedMs;
+ final  PlatformInt64 limitMs;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_TimeoutCopyWith<KreuzbergError_Timeout> get copyWith => _$KreuzbergError_TimeoutCopyWithImpl<KreuzbergError_Timeout>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_Timeout&&(identical(other.elapsedMs, elapsedMs) || other.elapsedMs == elapsedMs)&&(identical(other.limitMs, limitMs) || other.limitMs == limitMs));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,elapsedMs,limitMs);
+
+@override
+String toString() {
+  return 'KreuzbergError.timeout(elapsedMs: $elapsedMs, limitMs: $limitMs)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_TimeoutCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_TimeoutCopyWith(KreuzbergError_Timeout value, $Res Function(KreuzbergError_Timeout) _then) = _$KreuzbergError_TimeoutCopyWithImpl;
+@useResult
+$Res call({
+ PlatformInt64 elapsedMs, PlatformInt64 limitMs
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_TimeoutCopyWithImpl<$Res>
+    implements $KreuzbergError_TimeoutCopyWith<$Res> {
+  _$KreuzbergError_TimeoutCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_Timeout _self;
+  final $Res Function(KreuzbergError_Timeout) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? elapsedMs = null,Object? limitMs = null,}) {
+  return _then(KreuzbergError_Timeout(
+elapsedMs: null == elapsedMs ? _self.elapsedMs : elapsedMs // ignore: cast_nullable_to_non_nullable
+as PlatformInt64,limitMs: null == limitMs ? _self.limitMs : limitMs // ignore: cast_nullable_to_non_nullable
+as PlatformInt64,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_Cancelled extends KreuzbergError {
+  const KreuzbergError_Cancelled(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_Cancelled);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'KreuzbergError.cancelled()';
+}
+
+
+}
+
+
+
+
+/// @nodoc
+
+
+class KreuzbergError_Security extends KreuzbergError {
+  const KreuzbergError_Security({required this.message}): super._();
+  
+
+ final  String message;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_SecurityCopyWith<KreuzbergError_Security> get copyWith => _$KreuzbergError_SecurityCopyWithImpl<KreuzbergError_Security>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_Security&&(identical(other.message, message) || other.message == message));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,message);
+
+@override
+String toString() {
+  return 'KreuzbergError.security(message: $message)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_SecurityCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_SecurityCopyWith(KreuzbergError_Security value, $Res Function(KreuzbergError_Security) _then) = _$KreuzbergError_SecurityCopyWithImpl;
+@useResult
+$Res call({
+ String message
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_SecurityCopyWithImpl<$Res>
+    implements $KreuzbergError_SecurityCopyWith<$Res> {
+  _$KreuzbergError_SecurityCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_Security _self;
+  final $Res Function(KreuzbergError_Security) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? message = null,}) {
+  return _then(KreuzbergError_Security(
+message: null == message ? _self.message : message // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class KreuzbergError_Other extends KreuzbergError {
+  const KreuzbergError_Other({required this.field0}): super._();
+  
+
+ final  String field0;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$KreuzbergError_OtherCopyWith<KreuzbergError_Other> get copyWith => _$KreuzbergError_OtherCopyWithImpl<KreuzbergError_Other>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is KreuzbergError_Other&&(identical(other.field0, field0) || other.field0 == field0));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,field0);
+
+@override
+String toString() {
+  return 'KreuzbergError.other(field0: $field0)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $KreuzbergError_OtherCopyWith<$Res> implements $KreuzbergErrorCopyWith<$Res> {
+  factory $KreuzbergError_OtherCopyWith(KreuzbergError_Other value, $Res Function(KreuzbergError_Other) _then) = _$KreuzbergError_OtherCopyWithImpl;
+@useResult
+$Res call({
+ String field0
+});
+
+
+
+
+}
+/// @nodoc
+class _$KreuzbergError_OtherCopyWithImpl<$Res>
+    implements $KreuzbergError_OtherCopyWith<$Res> {
+  _$KreuzbergError_OtherCopyWithImpl(this._self, this._then);
+
+  final KreuzbergError_Other _self;
+  final $Res Function(KreuzbergError_Other) _then;
+
+/// Create a copy of KreuzbergError
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(KreuzbergError_Other(
+field0: null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as String,
+  ));
+}
+
+
+}
+
+/// @nodoc
 mixin _$NodeContent {
 
 
@@ -5201,7 +6471,7 @@ class OcrBoundingGeometry_Quadrilateral extends OcrBoundingGeometry {
   const OcrBoundingGeometry_Quadrilateral({required this.points}): super._();
   
 
-/// Four corner points as `[(x, y), ...]` in clockwise order
+/// Four corner points as `[[x, y], ...]` in clockwise order
  final  String points;
 
 /// Create a copy of OcrBoundingGeometry

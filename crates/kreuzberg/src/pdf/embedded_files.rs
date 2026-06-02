@@ -430,7 +430,12 @@ mod tests {
         let (_children, warnings) = extract_and_process_embedded_files(&buf, &config).await;
 
         let cap_warnings: Vec<_> = warnings.iter().filter(|w| w.message.contains("exceeds cap")).collect();
-        assert_eq!(cap_warnings.len(), 1, "expected one size-cap warning, got: {:?}", warnings);
+        assert_eq!(
+            cap_warnings.len(),
+            1,
+            "expected one size-cap warning, got: {:?}",
+            warnings
+        );
         assert!(
             cap_warnings[0].message.contains("test.txt"),
             "warning must name the file: {}",
@@ -502,10 +507,7 @@ mod tests {
             ..Default::default()
         };
         let (_children, warnings) = extract_and_process_embedded_files(&buf, &config).await;
-        let ratio_warnings: Vec<_> = warnings
-            .iter()
-            .filter(|w| w.message.contains("ratio"))
-            .collect();
+        let ratio_warnings: Vec<_> = warnings.iter().filter(|w| w.message.contains("ratio")).collect();
         assert!(
             ratio_warnings.is_empty(),
             "stored-mode stream must not trigger ratio guard: {:?}",

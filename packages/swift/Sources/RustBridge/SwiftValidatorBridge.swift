@@ -8,8 +8,21 @@ import RustBridge
 /// Protocol for outbound `Validator` implementations.
 /// Conform your Swift class or struct to this protocol to implement
 /// a Rust trait from the host side.
-public protocol SwiftValidatorBridge: AnyObject {
-    func validate(result: String, config: ExtractionConfig) throws -> Void
+public protocol SwiftValidatorBridge: SwiftPluginBridge {
+    func validate(result: String, config: String) throws -> Void
+    func shouldValidate(result: String, config: String) -> Bool
+    func priority() -> Int32
+}
+
+public extension SwiftValidatorBridge {
+    func shouldValidate(result: String, config: String) -> Bool {
+        return true
+    }
+
+    func priority() -> Int32 {
+        return 50
+    }
+
 }
 
 /// Internal adapter wrapping a `SwiftValidatorBridge` conformer.
@@ -22,13 +35,23 @@ final class SwiftValidatorAdapter {
     self.bridge = bridge
     }
 
-    func validateCall(result: String, config: ExtractionConfig) throws -> String {
+    func validateCall(result: String, config: String) throws -> String {
         do {
     let result = try self.bridge.validate(result: result, config: config)
             return marshal_ok_result(Empty())
     } catch {
         return marshal_error_result(error)
     }
+    }
+
+    func shouldValidateCall(result: String, config: String) -> Bool {
+        let result = self.bridge.shouldValidate(result: result, config: config)
+        return result
+    }
+
+    func priorityCall() -> Int32 {
+        let result = self.bridge.priority()
+        return result
     }
 
 }

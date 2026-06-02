@@ -5,40 +5,33 @@
 import Foundation
 import RustBridge
 
-/// Protocol for outbound `DocumentExtractor` implementations.
+/// Protocol for outbound `Renderer` implementations.
 /// Conform your Swift class or struct to this protocol to implement
 /// a Rust trait from the host side.
-public protocol SwiftDocumentExtractorBridge: AnyObject {
-    func extractBytes(content: Data, mime_type: String, config: ExtractionConfig) throws -> String
-    func supportedMimeTypes() -> [String]
+public protocol SwiftRendererBridge: SwiftPluginBridge {
+    func render(doc: String) throws -> String
 }
 
-/// Internal adapter wrapping a `SwiftDocumentExtractorBridge` conformer.
+public extension SwiftRendererBridge {
+}
+
+/// Internal adapter wrapping a `SwiftRendererBridge` conformer.
 /// Marshals Swift types and trait calls to/from the C boundary.
 /// Excluded/internal types are serialised to/from JSON strings.
-final class SwiftDocumentExtractorAdapter {
-    private let bridge: any SwiftDocumentExtractorBridge
+final class SwiftRendererAdapter {
+    private let bridge: any SwiftRendererBridge
 
-    init(bridge: any SwiftDocumentExtractorBridge) {
+    init(bridge: any SwiftRendererBridge) {
     self.bridge = bridge
     }
 
-    func extractBytesCall(content: Data, mime_type: String, config: ExtractionConfig) throws -> String {
+    func renderCall(doc: String) throws -> String {
         do {
-    let result = try self.bridge.extractBytes(content: content, mime_type: mime_type, config: config)
-            let encodedData = try marshal_encode_excluded(result)
-    if let jsonString = String(data: encodedData, encoding: .utf8) {
-        return "{\"ok\": \(jsonString)}"
-    }
-    return "{\"ok\": null}"
+    let result = try self.bridge.render(doc: doc)
+            return marshal_ok_result(result)
     } catch {
         return marshal_error_result(error)
     }
-    }
-
-    func supportedMimeTypesCall() -> [String] {
-        let result = self.bridge.supportedMimeTypes()
-        return result
     }
 
 }

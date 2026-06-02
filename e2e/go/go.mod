@@ -1,4 +1,4 @@
-module e2e_go
+module github.com/kreuzberg-dev/kreuzberg/v5/e2e
 
 go 1.26
 

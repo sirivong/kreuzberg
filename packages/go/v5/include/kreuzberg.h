@@ -78,6 +78,14 @@ typedef struct KREUZBERGBlockType KREUZBERGBlockType;
 typedef struct KREUZBERGBoundingBox KREUZBERGBoundingBox;
 typedef struct KREUZBERGCacheStats KREUZBERGCacheStats;
 /**
+ * A single changed cell within a table.
+ *
+ * Defined here (rather than only in `crate::diff`) so `RevisionDelta` can
+ * reference it unconditionally, without requiring the `diff` Cargo feature.
+ * `crate::diff` re-exports this type verbatim.
+ */
+typedef struct KREUZBERGCellChange KREUZBERGCellChange;
+/**
  * A text chunk with optional embedding and metadata.
  *
  * Chunks are created when chunking is enabled in `ExtractionConfig`. Each chunk
@@ -201,6 +209,22 @@ typedef struct KREUZBERGDetectResponse KREUZBERGDetectResponse;
  */
 typedef struct KREUZBERGDetectionResult KREUZBERGDetectionResult;
 /**
+ * A single contiguous hunk in a unified diff.
+ */
+typedef struct KREUZBERGDiffHunk KREUZBERGDiffHunk;
+/**
+ * A single line in a unified-diff hunk.
+ *
+ * Defined here (rather than only in `crate::diff`) so `RevisionDelta` can
+ * reference it unconditionally, without requiring the `diff` Cargo feature.
+ * `crate::diff` re-exports this type verbatim.
+ */
+typedef struct KREUZBERGDiffLine KREUZBERGDiffLine;
+/**
+ * Options controlling how two `ExtractionResult` values are compared.
+ */
+typedef struct KREUZBERGDiffOptions KREUZBERGDiffOptions;
+/**
  * Comprehensive Djot document structure with semantic preservation.
  *
  * This type captures the full richness of Djot markup, including:
@@ -297,6 +321,15 @@ typedef struct KREUZBERGDocumentNode KREUZBERGDocumentNode;
  */
 typedef struct KREUZBERGDocumentRelationship KREUZBERGDocumentRelationship;
 /**
+ * A single tracked change embedded in a document.
+ *
+ * Populated by per-format extractors that understand change-tracking metadata
+ * (DOCX `w:ins`/`w:del`/`w:rPrChange`, ODT `text:change-*`, â¦). Every
+ * extractor defaults to `ExtractionResult.revisions = None` until a
+ * format-specific implementation is added.
+ */
+typedef struct KREUZBERGDocumentRevision KREUZBERGDocumentRevision;
+/**
  * Top-level structured document representation.
  *
  * A flat array of nodes with index-based parent/child references forming a tree.
@@ -363,6 +396,14 @@ typedef struct KREUZBERGEmailExtractionResult KREUZBERGEmailExtractionResult;
  * Includes sender/recipient information, message ID, and attachment list.
  */
 typedef struct KREUZBERGEmailMetadata KREUZBERGEmailMetadata;
+/**
+ * Changes to embedded archive children between two results.
+ */
+typedef struct KREUZBERGEmbeddedChanges KREUZBERGEmbeddedChanges;
+/**
+ * Diff for a single embedded archive entry that appears in both results.
+ */
+typedef struct KREUZBERGEmbeddedDiff KREUZBERGEmbeddedDiff;
 /**
  * Embedded file descriptor extracted from the PDF name tree.
  */
@@ -504,6 +545,10 @@ typedef struct KREUZBERGExtractedUri KREUZBERGExtractedUri;
  * \endcode
  */
 typedef struct KREUZBERGExtractionConfig KREUZBERGExtractionConfig;
+/**
+ * The complete diff between two `ExtractionResult` values.
+ */
+typedef struct KREUZBERGExtractionDiff KREUZBERGExtractionDiff;
 /**
  * How the extracted text was produced.
  */
@@ -1249,6 +1294,23 @@ typedef struct KREUZBERGRenderer KREUZBERGRenderer;
  */
 typedef struct KREUZBERGResultFormat KREUZBERGResultFormat;
 /**
+ * Best-effort document location for a revision.
+ */
+typedef struct KREUZBERGRevisionAnchor KREUZBERGRevisionAnchor;
+/**
+ * The content changes that make up a single revision.
+ *
+ * For insertions and deletions the `content` field carries the added/removed
+ * lines as `DiffLine::Added` / `DiffLine::Removed` entries. For format
+ * changes, `content` is empty â the property diff is left as a TODO for a
+ * later enrichment pass.
+ */
+typedef struct KREUZBERGRevisionDelta KREUZBERGRevisionDelta;
+/**
+ * Semantic classification of a tracked change.
+ */
+typedef struct KREUZBERGRevisionKind KREUZBERGRevisionKind;
+/**
  * Configuration for security limits across extractors.
  *
  * All limits are intentionally conservative to prevent DoS attacks
@@ -1319,6 +1381,10 @@ typedef struct KREUZBERGTable KREUZBERGTable;
  * Future extension point for rich table support with cell-level metadata.
  */
 typedef struct KREUZBERGTableCell KREUZBERGTableCell;
+/**
+ * Cell-level changes for a pair of tables that share the same index.
+ */
+typedef struct KREUZBERGTableDiff KREUZBERGTableDiff;
 /**
  * Structured table grid with cell-level metadata.
  *
@@ -1499,15 +1565,17 @@ typedef struct KREUZBERGYearRange KREUZBERGYearRange;
  */
 typedef struct KREUZBERGKreuzbergOcrBackendVTable {
   /**
-   * Return a null-terminated UTF-8 name string into `out_name`.
+   * Return a null-terminated UTF-8 name string into `out_name`; return 0 on success.
    */
-  void (*name_fn)(const void *user_data,
-                  char **out_name);
+  int32_t (*name_fn)(const void *user_data,
+                     char **out_name,
+                     char **out_error);
   /**
-   * Return a null-terminated UTF-8 version string into `out_version`.
+   * Return a null-terminated UTF-8 version string into `out_version`; return 0 on success.
    */
-  void (*version_fn)(const void *user_data,
-                     char **out_version);
+  int32_t (*version_fn)(const void *user_data,
+                        char **out_version,
+                        char **out_error);
   /**
    * Initialise the plugin; return 0 on success, non-zero on failure (error text in `out_error`).
    */
@@ -1674,6 +1742,10 @@ typedef struct KREUZBERGKreuzbergOcrBackendVTable {
                               char **out_result,
                               char **out_error);
   /**
+   * Optional string destructor: called for strings returned by vtable callbacks.
+   */
+  void (*free_string)(char*);
+  /**
    * Optional destructor: called once with `user_data` when the bridge is dropped.
    */
   void (*free_user_data)(void*);
@@ -1690,15 +1762,17 @@ typedef struct KREUZBERGKreuzbergOcrBackendVTable {
  */
 typedef struct KREUZBERGKreuzbergPostProcessorVTable {
   /**
-   * Return a null-terminated UTF-8 name string into `out_name`.
+   * Return a null-terminated UTF-8 name string into `out_name`; return 0 on success.
    */
-  void (*name_fn)(const void *user_data,
-                  char **out_name);
+  int32_t (*name_fn)(const void *user_data,
+                     char **out_name,
+                     char **out_error);
   /**
-   * Return a null-terminated UTF-8 version string into `out_version`.
+   * Return a null-terminated UTF-8 version string into `out_version`; return 0 on success.
    */
-  void (*version_fn)(const void *user_data,
-                     char **out_version);
+  int32_t (*version_fn)(const void *user_data,
+                        char **out_version,
+                        char **out_error);
   /**
    * Initialise the plugin; return 0 on success, non-zero on failure (error text in `out_error`).
    */
@@ -1843,6 +1917,10 @@ typedef struct KREUZBERGKreuzbergPostProcessorVTable {
    */
   int32_t (*priority)(const void *user_data);
   /**
+   * Optional string destructor: called for strings returned by vtable callbacks.
+   */
+  void (*free_string)(char*);
+  /**
    * Optional destructor: called once with `user_data` when the bridge is dropped.
    */
   void (*free_user_data)(void*);
@@ -1859,15 +1937,17 @@ typedef struct KREUZBERGKreuzbergPostProcessorVTable {
  */
 typedef struct KREUZBERGKreuzbergValidatorVTable {
   /**
-   * Return a null-terminated UTF-8 name string into `out_name`.
+   * Return a null-terminated UTF-8 name string into `out_name`; return 0 on success.
    */
-  void (*name_fn)(const void *user_data,
-                  char **out_name);
+  int32_t (*name_fn)(const void *user_data,
+                     char **out_name,
+                     char **out_error);
   /**
-   * Return a null-terminated UTF-8 version string into `out_version`.
+   * Return a null-terminated UTF-8 version string into `out_version`; return 0 on success.
    */
-  void (*version_fn)(const void *user_data,
-                     char **out_version);
+  int32_t (*version_fn)(const void *user_data,
+                        char **out_version,
+                        char **out_error);
   /**
    * Initialise the plugin; return 0 on success, non-zero on failure (error text in `out_error`).
    */
@@ -2020,6 +2100,10 @@ typedef struct KREUZBERGKreuzbergValidatorVTable {
    */
   int32_t (*priority)(const void *user_data);
   /**
+   * Optional string destructor: called for strings returned by vtable callbacks.
+   */
+  void (*free_string)(char*);
+  /**
    * Optional destructor: called once with `user_data` when the bridge is dropped.
    */
   void (*free_user_data)(void*);
@@ -2036,15 +2120,17 @@ typedef struct KREUZBERGKreuzbergValidatorVTable {
  */
 typedef struct KREUZBERGKreuzbergEmbeddingBackendVTable {
   /**
-   * Return a null-terminated UTF-8 name string into `out_name`.
+   * Return a null-terminated UTF-8 name string into `out_name`; return 0 on success.
    */
-  void (*name_fn)(const void *user_data,
-                  char **out_name);
+  int32_t (*name_fn)(const void *user_data,
+                     char **out_name,
+                     char **out_error);
   /**
-   * Return a null-terminated UTF-8 version string into `out_version`.
+   * Return a null-terminated UTF-8 version string into `out_version`; return 0 on success.
    */
-  void (*version_fn)(const void *user_data,
-                     char **out_version);
+  int32_t (*version_fn)(const void *user_data,
+                        char **out_version,
+                        char **out_error);
   /**
    * Initialise the plugin; return 0 on success, non-zero on failure (error text in `out_error`).
    */
@@ -2074,6 +2160,10 @@ typedef struct KREUZBERGKreuzbergEmbeddingBackendVTable {
                    char **out_result,
                    char **out_error);
   /**
+   * Optional string destructor: called for strings returned by vtable callbacks.
+   */
+  void (*free_string)(char*);
+  /**
    * Optional destructor: called once with `user_data` when the bridge is dropped.
    */
   void (*free_user_data)(void*);
@@ -2090,15 +2180,17 @@ typedef struct KREUZBERGKreuzbergEmbeddingBackendVTable {
  */
 typedef struct KREUZBERGKreuzbergDocumentExtractorVTable {
   /**
-   * Return a null-terminated UTF-8 name string into `out_name`.
+   * Return a null-terminated UTF-8 name string into `out_name`; return 0 on success.
    */
-  void (*name_fn)(const void *user_data,
-                  char **out_name);
+  int32_t (*name_fn)(const void *user_data,
+                     char **out_name,
+                     char **out_error);
   /**
-   * Return a null-terminated UTF-8 version string into `out_version`.
+   * Return a null-terminated UTF-8 version string into `out_version`; return 0 on success.
    */
-  void (*version_fn)(const void *user_data,
-                     char **out_version);
+  int32_t (*version_fn)(const void *user_data,
+                        char **out_version,
+                        char **out_error);
   /**
    * Initialise the plugin; return 0 on success, non-zero on failure (error text in `out_error`).
    */
@@ -2217,6 +2309,10 @@ typedef struct KREUZBERGKreuzbergDocumentExtractorVTable {
                         const char *_path,
                         const char *_mime_type);
   /**
+   * Optional string destructor: called for strings returned by vtable callbacks.
+   */
+  void (*free_string)(char*);
+  /**
    * Optional destructor: called once with `user_data` when the bridge is dropped.
    */
   void (*free_user_data)(void*);
@@ -2233,15 +2329,17 @@ typedef struct KREUZBERGKreuzbergDocumentExtractorVTable {
  */
 typedef struct KREUZBERGKreuzbergRendererVTable {
   /**
-   * Return a null-terminated UTF-8 name string into `out_name`.
+   * Return a null-terminated UTF-8 name string into `out_name`; return 0 on success.
    */
-  void (*name_fn)(const void *user_data,
-                  char **out_name);
+  int32_t (*name_fn)(const void *user_data,
+                     char **out_name,
+                     char **out_error);
   /**
-   * Return a null-terminated UTF-8 version string into `out_version`.
+   * Return a null-terminated UTF-8 version string into `out_version`; return 0 on success.
    */
-  void (*version_fn)(const void *user_data,
-                     char **out_version);
+  int32_t (*version_fn)(const void *user_data,
+                        char **out_version,
+                        char **out_error);
   /**
    * Initialise the plugin; return 0 on success, non-zero on failure (error text in `out_error`).
    */
@@ -2271,6 +2369,10 @@ typedef struct KREUZBERGKreuzbergRendererVTable {
                     const char *doc,
                     char **out_result,
                     char **out_error);
+  /**
+   * Optional string destructor: called for strings returned by vtable callbacks.
+   */
+  void (*free_string)(char*);
   /**
    * Optional destructor: called once with `user_data` when the bridge is dropped.
    */
@@ -2664,6 +2766,13 @@ KREUZBERGResultFormat *kreuzberg_extraction_config_result_format(const KREUZBERG
  * Pointer must be a valid handle returned by this library.
  */
 KREUZBERGSecurityLimits *kreuzberg_extraction_config_security_limits(const KREUZBERGExtractionConfig *ptr);
+
+/**
+ * Get the `max_embedded_file_bytes` field from a `ExtractionConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uint64_t kreuzberg_extraction_config_max_embedded_file_bytes(const KREUZBERGExtractionConfig *ptr);
 
 /**
  * Get the `output_format` field from a `ExtractionConfig`.
@@ -6277,6 +6386,13 @@ char *kreuzberg_extraction_result_children(const KREUZBERGExtractionResult *ptr)
 char *kreuzberg_extraction_result_uris(const KREUZBERGExtractionResult *ptr);
 
 /**
+ * Get the `revisions` field from a `ExtractionResult`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_extraction_result_revisions(const KREUZBERGExtractionResult *ptr);
+
+/**
  * Get the `structured_output` field from a `ExtractionResult`.
  * # Safety
  * Pointer must be a valid handle returned by this library.
@@ -6995,6 +7111,13 @@ char *kreuzberg_excel_workbook_sheets(const KREUZBERGExcelWorkbook *ptr);
 char *kreuzberg_excel_workbook_metadata(const KREUZBERGExcelWorkbook *ptr);
 
 /**
+ * Get the `revisions` field from a `ExcelWorkbook`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_excel_workbook_revisions(const KREUZBERGExcelWorkbook *ptr);
+
+/**
  * Create a `ExcelSheet` from a JSON string. Returns null on failure.
  * # Safety
  * JSON string must be valid UTF-8 and null-terminated.
@@ -7253,6 +7376,13 @@ KREUZBERGDocumentStructure *kreuzberg_pptx_extraction_result_document(const KREU
  * Pointer must be a valid handle returned by this library.
  */
 char *kreuzberg_pptx_extraction_result_office_metadata(const KREUZBERGPptxExtractionResult *ptr);
+
+/**
+ * Get the `revisions` field from a `PptxExtractionResult`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_pptx_extraction_result_revisions(const KREUZBERGPptxExtractionResult *ptr);
 
 /**
  * Create a `EmailExtractionResult` from a JSON string. Returns null on failure.
@@ -9945,6 +10075,13 @@ char *kreuzberg_page_content_speaker_notes(const KREUZBERGPageContent *ptr);
 char *kreuzberg_page_content_section_name(const KREUZBERGPageContent *ptr);
 
 /**
+ * Get the `sheet_name` field from a `PageContent`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_page_content_sheet_name(const KREUZBERGPageContent *ptr);
+
+/**
  * Create a `LayoutRegion` from a JSON string. Returns null on failure.
  * # Safety
  * JSON string must be valid UTF-8 and null-terminated.
@@ -10075,6 +10212,159 @@ float kreuzberg_hierarchical_block_font_size(const KREUZBERGHierarchicalBlock *p
  * Pointer must be a valid handle returned by this library.
  */
 char *kreuzberg_hierarchical_block_level(const KREUZBERGHierarchicalBlock *ptr);
+
+/**
+ * Create a `CellChange` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_cell_change_free`.
+ */
+KREUZBERGCellChange *kreuzberg_cell_change_from_json(const char *json);
+
+/**
+ * Serialize a `CellChange` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_cell_change_to_json(const KREUZBERGCellChange *ptr);
+
+/**
+ * Free a `CellChange` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_cell_change_free(KREUZBERGCellChange *ptr);
+
+/**
+ * Get the `row` field from a `CellChange`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_cell_change_row(const KREUZBERGCellChange *ptr);
+
+/**
+ * Get the `col` field from a `CellChange`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_cell_change_col(const KREUZBERGCellChange *ptr);
+
+/**
+ * Get the `from` field from a `CellChange`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_cell_change_from(const KREUZBERGCellChange *ptr);
+
+/**
+ * Get the `to` field from a `CellChange`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_cell_change_to(const KREUZBERGCellChange *ptr);
+
+/**
+ * Create a `DocumentRevision` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_document_revision_free`.
+ */
+KREUZBERGDocumentRevision *kreuzberg_document_revision_from_json(const char *json);
+
+/**
+ * Serialize a `DocumentRevision` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_document_revision_to_json(const KREUZBERGDocumentRevision *ptr);
+
+/**
+ * Free a `DocumentRevision` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_document_revision_free(KREUZBERGDocumentRevision *ptr);
+
+/**
+ * Get the `revision_id` field from a `DocumentRevision`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_document_revision_revision_id(const KREUZBERGDocumentRevision *ptr);
+
+/**
+ * Get the `author` field from a `DocumentRevision`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_document_revision_author(const KREUZBERGDocumentRevision *ptr);
+
+/**
+ * Get the `timestamp` field from a `DocumentRevision`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_document_revision_timestamp(const KREUZBERGDocumentRevision *ptr);
+
+/**
+ * Get the `kind` field from a `DocumentRevision`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+KREUZBERGRevisionKind *kreuzberg_document_revision_kind(const KREUZBERGDocumentRevision *ptr);
+
+/**
+ * Get the `anchor` field from a `DocumentRevision`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+KREUZBERGRevisionAnchor *kreuzberg_document_revision_anchor(const KREUZBERGDocumentRevision *ptr);
+
+/**
+ * Get the `delta` field from a `DocumentRevision`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+KREUZBERGRevisionDelta *kreuzberg_document_revision_delta(const KREUZBERGDocumentRevision *ptr);
+
+/**
+ * Create a `RevisionDelta` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_revision_delta_free`.
+ */
+KREUZBERGRevisionDelta *kreuzberg_revision_delta_from_json(const char *json);
+
+/**
+ * Serialize a `RevisionDelta` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_revision_delta_to_json(const KREUZBERGRevisionDelta *ptr);
+
+/**
+ * Free a `RevisionDelta` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_revision_delta_free(KREUZBERGRevisionDelta *ptr);
+
+/**
+ * Get the `content` field from a `RevisionDelta`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_revision_delta_content(const KREUZBERGRevisionDelta *ptr);
+
+/**
+ * Get the `table_changes` field from a `RevisionDelta`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_revision_delta_table_changes(const KREUZBERGRevisionDelta *ptr);
 
 /**
  * Create a `Table` from a JSON string. Returns null on failure.
@@ -10265,6 +10555,304 @@ char *kreuzberg_detect_response_mime_type(const KREUZBERGDetectResponse *ptr);
  * Pointer must be a valid handle returned by this library.
  */
 char *kreuzberg_detect_response_filename(const KREUZBERGDetectResponse *ptr);
+
+/**
+ * Create a `DiffOptions` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_diff_options_free`.
+ */
+KREUZBERGDiffOptions *kreuzberg_diff_options_from_json(const char *json);
+
+/**
+ * Serialize a `DiffOptions` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_diff_options_to_json(const KREUZBERGDiffOptions *ptr);
+
+/**
+ * Free a `DiffOptions` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_diff_options_free(KREUZBERGDiffOptions *ptr);
+
+/**
+ * Get the `include_metadata` field from a `DiffOptions`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_diff_options_include_metadata(const KREUZBERGDiffOptions *ptr);
+
+/**
+ * Get the `include_embedded` field from a `DiffOptions`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_diff_options_include_embedded(const KREUZBERGDiffOptions *ptr);
+
+/**
+ * Get the `max_content_chars` field from a `DiffOptions`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_diff_options_max_content_chars(const KREUZBERGDiffOptions *ptr);
+
+/**
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+KREUZBERGDiffOptions *kreuzberg_diff_options_default(void);
+
+/**
+ * Create a `ExtractionDiff` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_extraction_diff_free`.
+ */
+KREUZBERGExtractionDiff *kreuzberg_extraction_diff_from_json(const char *json);
+
+/**
+ * Serialize a `ExtractionDiff` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_extraction_diff_to_json(const KREUZBERGExtractionDiff *ptr);
+
+/**
+ * Free a `ExtractionDiff` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_extraction_diff_free(KREUZBERGExtractionDiff *ptr);
+
+/**
+ * Get the `content_diff` field from a `ExtractionDiff`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_extraction_diff_content_diff(const KREUZBERGExtractionDiff *ptr);
+
+/**
+ * Get the `tables_added` field from a `ExtractionDiff`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_extraction_diff_tables_added(const KREUZBERGExtractionDiff *ptr);
+
+/**
+ * Get the `tables_removed` field from a `ExtractionDiff`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_extraction_diff_tables_removed(const KREUZBERGExtractionDiff *ptr);
+
+/**
+ * Get the `tables_changed` field from a `ExtractionDiff`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_extraction_diff_tables_changed(const KREUZBERGExtractionDiff *ptr);
+
+/**
+ * Get the `metadata_changed` field from a `ExtractionDiff`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_extraction_diff_metadata_changed(const KREUZBERGExtractionDiff *ptr);
+
+/**
+ * Get the `embedded_changes` field from a `ExtractionDiff`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+KREUZBERGEmbeddedChanges *kreuzberg_extraction_diff_embedded_changes(const KREUZBERGExtractionDiff *ptr);
+
+/**
+ * Create a `DiffHunk` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_diff_hunk_free`.
+ */
+KREUZBERGDiffHunk *kreuzberg_diff_hunk_from_json(const char *json);
+
+/**
+ * Serialize a `DiffHunk` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_diff_hunk_to_json(const KREUZBERGDiffHunk *ptr);
+
+/**
+ * Free a `DiffHunk` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_diff_hunk_free(KREUZBERGDiffHunk *ptr);
+
+/**
+ * Get the `from_line` field from a `DiffHunk`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_diff_hunk_from_line(const KREUZBERGDiffHunk *ptr);
+
+/**
+ * Get the `from_count` field from a `DiffHunk`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_diff_hunk_from_count(const KREUZBERGDiffHunk *ptr);
+
+/**
+ * Get the `to_line` field from a `DiffHunk`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_diff_hunk_to_line(const KREUZBERGDiffHunk *ptr);
+
+/**
+ * Get the `to_count` field from a `DiffHunk`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_diff_hunk_to_count(const KREUZBERGDiffHunk *ptr);
+
+/**
+ * Get the `lines` field from a `DiffHunk`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_diff_hunk_lines(const KREUZBERGDiffHunk *ptr);
+
+/**
+ * Create a `TableDiff` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_table_diff_free`.
+ */
+KREUZBERGTableDiff *kreuzberg_table_diff_from_json(const char *json);
+
+/**
+ * Serialize a `TableDiff` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_table_diff_to_json(const KREUZBERGTableDiff *ptr);
+
+/**
+ * Free a `TableDiff` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_table_diff_free(KREUZBERGTableDiff *ptr);
+
+/**
+ * Get the `from_index` field from a `TableDiff`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_table_diff_from_index(const KREUZBERGTableDiff *ptr);
+
+/**
+ * Get the `to_index` field from a `TableDiff`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_table_diff_to_index(const KREUZBERGTableDiff *ptr);
+
+/**
+ * Get the `cell_changes` field from a `TableDiff`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_table_diff_cell_changes(const KREUZBERGTableDiff *ptr);
+
+/**
+ * Create a `EmbeddedChanges` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_embedded_changes_free`.
+ */
+KREUZBERGEmbeddedChanges *kreuzberg_embedded_changes_from_json(const char *json);
+
+/**
+ * Serialize a `EmbeddedChanges` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_embedded_changes_to_json(const KREUZBERGEmbeddedChanges *ptr);
+
+/**
+ * Free a `EmbeddedChanges` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_embedded_changes_free(KREUZBERGEmbeddedChanges *ptr);
+
+/**
+ * Get the `added` field from a `EmbeddedChanges`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_embedded_changes_added(const KREUZBERGEmbeddedChanges *ptr);
+
+/**
+ * Get the `removed` field from a `EmbeddedChanges`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_embedded_changes_removed(const KREUZBERGEmbeddedChanges *ptr);
+
+/**
+ * Get the `changed` field from a `EmbeddedChanges`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_embedded_changes_changed(const KREUZBERGEmbeddedChanges *ptr);
+
+/**
+ * Create a `EmbeddedDiff` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_embedded_diff_free`.
+ */
+KREUZBERGEmbeddedDiff *kreuzberg_embedded_diff_from_json(const char *json);
+
+/**
+ * Serialize a `EmbeddedDiff` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_embedded_diff_to_json(const KREUZBERGEmbeddedDiff *ptr);
+
+/**
+ * Free a `EmbeddedDiff` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_embedded_diff_free(KREUZBERGEmbeddedDiff *ptr);
+
+/**
+ * Get the `path` field from a `EmbeddedDiff`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_embedded_diff_path(const KREUZBERGEmbeddedDiff *ptr);
+
+/**
+ * Get the `diff` field from a `EmbeddedDiff`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+KREUZBERGExtractionDiff *kreuzberg_embedded_diff_diff(const KREUZBERGEmbeddedDiff *ptr);
 
 /**
  * Create a `EmbeddingPreset` from a JSON string. Returns null on failure.
@@ -11083,6 +11671,13 @@ uint8_t *kreuzberg_embedded_file_data(const KREUZBERGEmbeddedFile *ptr,
                                       uintptr_t *out_len);
 
 /**
+ * Get the `compressed_size` field from a `EmbeddedFile`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_embedded_file_compressed_size(const KREUZBERGEmbeddedFile *ptr);
+
+/**
  * Get the `mime_type` field from a `EmbeddedFile`.
  * # Safety
  * Pointer must be a valid handle returned by this library.
@@ -11633,6 +12228,51 @@ int32_t kreuzberg_page_unit_type_from_i32(int32_t value);
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
 int32_t kreuzberg_page_unit_type_from_str(const char *name);
+
+/**
+ * Convert an integer to a `DiffLine` variant. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure all pointer arguments are valid or null.
+ * Returned pointers must be freed with the appropriate free function.
+ */
+int32_t kreuzberg_diff_line_from_i32(int32_t value);
+
+/**
+ * Convert a `DiffLine` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
+ */
+int32_t kreuzberg_diff_line_from_str(const char *name);
+
+/**
+ * Convert an integer to a `RevisionKind` variant. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure all pointer arguments are valid or null.
+ * Returned pointers must be freed with the appropriate free function.
+ */
+int32_t kreuzberg_revision_kind_from_i32(int32_t value);
+
+/**
+ * Convert a `RevisionKind` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
+ */
+int32_t kreuzberg_revision_kind_from_str(const char *name);
+
+/**
+ * Convert an integer to a `RevisionAnchor` variant. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure all pointer arguments are valid or null.
+ * Returned pointers must be freed with the appropriate free function.
+ */
+int32_t kreuzberg_revision_anchor_from_i32(int32_t value);
+
+/**
+ * Convert a `RevisionAnchor` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
+ */
+int32_t kreuzberg_revision_anchor_from_str(const char *name);
 
 /**
  * Convert an integer to a `UriKind` variant. Returns -1 on invalid input.
@@ -12435,6 +13075,56 @@ char *kreuzberg_page_unit_type_to_json(const KREUZBERGPageUnitType *ptr);
 char *kreuzberg_page_unit_type_to_string(const KREUZBERGPageUnitType *ptr);
 
 /**
+ * Free a heap-allocated `RevisionKind` returned by a pointer-returning FFI function.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_revision_kind_free(KREUZBERGRevisionKind *ptr);
+
+/**
+ * Serialize a heap-allocated `RevisionKind` to a JSON string.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_revision_kind_to_json(const KREUZBERGRevisionKind *ptr);
+
+/**
+ * Render a heap-allocated `RevisionKind` as its string representation
+ * (the unit-variant name as serialized by serde — e.g. `"completed"`,
+ * without surrounding JSON quotes).
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_revision_kind_to_string(const KREUZBERGRevisionKind *ptr);
+
+/**
+ * Free a heap-allocated `RevisionAnchor` returned by a pointer-returning FFI function.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_revision_anchor_free(KREUZBERGRevisionAnchor *ptr);
+
+/**
+ * Serialize a heap-allocated `RevisionAnchor` to a JSON string.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_revision_anchor_to_json(const KREUZBERGRevisionAnchor *ptr);
+
+/**
+ * Render a heap-allocated `RevisionAnchor` as its string representation
+ * (the unit-variant name as serialized by serde — e.g. `"completed"`,
+ * without surrounding JSON quotes).
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_revision_anchor_to_string(const KREUZBERGRevisionAnchor *ptr);
+
+/**
  * Free a heap-allocated `UriKind` returned by a pointer-returning FFI function.
  * # Safety
  * Pointer must have been returned by this library, or be null.
@@ -12885,8 +13575,8 @@ uintptr_t kreuzberg_get_extensions_for_mime_len(const char *_mime_type);
 /**
  * List the names of all registered embedding backends.
  *
- * Used by `kreuzberg-cli` and the api/mcp endpoints; excluded from the
- * language bindings via `alef.toml [exclude].functions`.
+ * Used by `kreuzberg-cli`, the api/mcp endpoints, and generated language
+ * bindings.
  * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
  * freed with the appropriate free function.
  */
@@ -13006,6 +13696,32 @@ char *kreuzberg_list_validators(void);
  * with `kreuzberg_list_validators`.
  */
 uintptr_t kreuzberg_list_validators_len(void);
+
+/**
+ * Compare two extraction results and return a structured diff.
+ *
+ * The comparison is purely structural â no I/O, no side effects. All fields
+ * of [`ExtractionDiff`] are populated according to the provided [`DiffOptions`].
+ * \param a â the "before" extraction result
+ * \param b â the "after" extraction result
+ * \param opts â controls which sections are compared and optional truncation
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ * \code
+ * use kreuzberg::{ExtractionResult, diff::{compare, DiffOptions}};
+ *
+ * let mut a = ExtractionResult::default();
+ * let mut b = ExtractionResult::default();
+ * a.content = "Hello world".to_string();
+ * b.content = "Hello Rust".to_string();
+ *
+ * let diff = compare(&a, &b, &DiffOptions::default());
+ * assert_eq!(diff.content_diff.len(), 1);
+ * \endcode
+ */
+KREUZBERGExtractionDiff *kreuzberg_compare(const KREUZBERGExtractionResult *a,
+                                           const KREUZBERGExtractionResult *b,
+                                           const KREUZBERGDiffOptions *opts);
 
 /**
  * Generate embeddings asynchronously for a list of text strings.
@@ -13153,7 +13869,7 @@ uintptr_t kreuzberg_list_embedding_presets_len(void);
  * into the plugin.
  */
 int32_t kreuzberg_register_ocr_backend(const char *name,
-                                       struct KREUZBERGKreuzbergOcrBackendVTable vtable,
+                                       const struct KREUZBERGKreuzbergOcrBackendVTable *vtable,
                                        const void *user_data,
                                        char **out_error);
 
@@ -13203,7 +13919,7 @@ int32_t kreuzberg_clear_ocr_backend(char **out_error);
  * into the plugin.
  */
 int32_t kreuzberg_register_post_processor(const char *name,
-                                          struct KREUZBERGKreuzbergPostProcessorVTable vtable,
+                                          const struct KREUZBERGKreuzbergPostProcessorVTable *vtable,
                                           const void *user_data,
                                           char **out_error);
 
@@ -13253,7 +13969,7 @@ int32_t kreuzberg_clear_post_processor(char **out_error);
  * into the plugin.
  */
 int32_t kreuzberg_register_validator(const char *name,
-                                     struct KREUZBERGKreuzbergValidatorVTable vtable,
+                                     const struct KREUZBERGKreuzbergValidatorVTable *vtable,
                                      const void *user_data,
                                      char **out_error);
 
@@ -13303,7 +14019,7 @@ int32_t kreuzberg_clear_validator(char **out_error);
  * into the plugin.
  */
 int32_t kreuzberg_register_embedding_backend(const char *name,
-                                             struct KREUZBERGKreuzbergEmbeddingBackendVTable vtable,
+                                             const struct KREUZBERGKreuzbergEmbeddingBackendVTable *vtable,
                                              const void *user_data,
                                              char **out_error);
 
@@ -13353,7 +14069,7 @@ int32_t kreuzberg_clear_embedding_backend(char **out_error);
  * into the plugin.
  */
 int32_t kreuzberg_register_document_extractor(const char *name,
-                                              struct KREUZBERGKreuzbergDocumentExtractorVTable vtable,
+                                              const struct KREUZBERGKreuzbergDocumentExtractorVTable *vtable,
                                               const void *user_data,
                                               char **out_error);
 
@@ -13403,7 +14119,7 @@ int32_t kreuzberg_clear_document_extractor(char **out_error);
  * into the plugin.
  */
 int32_t kreuzberg_register_renderer(const char *name,
-                                    struct KREUZBERGKreuzbergRendererVTable vtable,
+                                    const struct KREUZBERGKreuzbergRendererVTable *vtable,
                                     const void *user_data,
                                     char **out_error);
 

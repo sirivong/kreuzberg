@@ -8,7 +8,7 @@ import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'lib.freezed.dart';
 
-// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DocumentExtractorDartCallbacks`, `EmbeddingBackendDartCallbacks`, `KreuzbergError`, `ListType`, `OcrBackendDartCallbacks`, `PSMMode`, `PaddleLanguage`, `PostProcessorDartCallbacks`, `RendererDartCallbacks`, `ValidatorDartCallbacks`
+// These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DocumentExtractorDartCallbacks`, `EmbeddingBackendDartCallbacks`, `OcrBackendDartCallbacks`, `PostProcessorDartCallbacks`, `RendererDartCallbacks`, `ValidatorDartCallbacks`
 // These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `backend_type`, `can_handle`, `dimensions`, `embed`, `estimated_duration_ms`, `extract_bytes`, `extract_file`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `name`, `name`, `name`, `name`, `name`, `name`, `priority`, `priority`, `priority`, `process_document`, `process_image_file`, `process_image`, `process`, `processing_stage`, `render`, `should_process`, `should_validate`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `supported_languages`, `supported_mime_types`, `supports_document_processing`, `supports_language`, `supports_table_detection`, `validate`, `version`, `version`, `version`, `version`, `version`, `version`
 
 /// Extract content from a byte array.
@@ -6038,6 +6038,46 @@ class KeywordConfig {
           rakeParams == other.rakeParams;
 }
 
+@freezed
+sealed class KreuzbergError with _$KreuzbergError {
+  const KreuzbergError._();
+
+  const factory KreuzbergError.io({required String field0}) = KreuzbergError_Io;
+  const factory KreuzbergError.parsing({required String message}) =
+      KreuzbergError_Parsing;
+  const factory KreuzbergError.ocr({required String message}) =
+      KreuzbergError_Ocr;
+  const factory KreuzbergError.validation({required String message}) =
+      KreuzbergError_Validation;
+  const factory KreuzbergError.cache({required String message}) =
+      KreuzbergError_Cache;
+  const factory KreuzbergError.imageProcessing({required String message}) =
+      KreuzbergError_ImageProcessing;
+  const factory KreuzbergError.serialization({required String message}) =
+      KreuzbergError_Serialization;
+  const factory KreuzbergError.missingDependency({required String field0}) =
+      KreuzbergError_MissingDependency;
+  const factory KreuzbergError.plugin({
+    required String message,
+    required String pluginName,
+  }) = KreuzbergError_Plugin;
+  const factory KreuzbergError.lockPoisoned({required String field0}) =
+      KreuzbergError_LockPoisoned;
+  const factory KreuzbergError.unsupportedFormat({required String field0}) =
+      KreuzbergError_UnsupportedFormat;
+  const factory KreuzbergError.embedding({required String message}) =
+      KreuzbergError_Embedding;
+  const factory KreuzbergError.timeout({
+    required PlatformInt64 elapsedMs,
+    required PlatformInt64 limitMs,
+  }) = KreuzbergError_Timeout;
+  const factory KreuzbergError.cancelled() = KreuzbergError_Cancelled;
+  const factory KreuzbergError.security({required String message}) =
+      KreuzbergError_Security;
+  const factory KreuzbergError.other({required String field0}) =
+      KreuzbergError_Other;
+}
+
 /// Language detection configuration.
 class LanguageDetectionConfig {
   /// Enable language detection
@@ -6283,6 +6323,21 @@ enum LinkType {
 
   /// Other link type
   other,
+}
+
+/// Type of list detection.
+enum ListType {
+  /// Bullet points (-, *, •, etc.)
+  bullet,
+
+  /// Numbered lists (1., 2., etc.)
+  numbered,
+
+  /// Lettered lists (a., b., A., B., etc.)
+  lettered,
+
+  /// Indented items
+  indented,
 }
 
 /// Configuration for an LLM provider/model via liter-llm.
@@ -6777,7 +6832,7 @@ sealed class OcrBoundingGeometry with _$OcrBoundingGeometry {
   /// Points are in clockwise order starting from top-left:
   /// `[top_left, top_right, bottom_right, bottom_left]`
   const factory OcrBoundingGeometry.quadrilateral({
-    /// Four corner points as `[(x, y), ...]` in clockwise order
+    /// Four corner points as `[[x, y], ...]` in clockwise order
     required String points,
   }) = OcrBoundingGeometry_Quadrilateral;
 }
@@ -7570,6 +7625,59 @@ sealed class OutputFormat with _$OutputFormat {
   /// The string is the renderer name (e.g., "docx", "latex").
   const factory OutputFormat.custom({required String field0}) =
       OutputFormat_Custom;
+}
+
+/// Supported languages in PaddleOCR.
+///
+/// Maps user-friendly language codes to paddle-ocr-rs language identifiers.
+enum PaddleLanguage {
+  /// English
+  english,
+
+  /// Simplified Chinese
+  chinese,
+
+  /// Japanese
+  japanese,
+
+  /// Korean
+  korean,
+
+  /// German
+  german,
+
+  /// French
+  french,
+
+  /// Latin script (covers most European languages)
+  latin,
+
+  /// Cyrillic (Russian and related)
+  cyrillic,
+
+  /// Traditional Chinese
+  traditionalChinese,
+
+  /// Thai
+  thai,
+
+  /// Greek
+  greek,
+
+  /// East Slavic (Russian, Ukrainian, Belarusian)
+  eastSlavic,
+
+  /// Arabic (Arabic, Persian, Urdu)
+  arabic,
+
+  /// Devanagari (Hindi, Marathi, Sanskrit, Nepali)
+  devanagari,
+
+  /// Tamil
+  tamil,
+
+  /// Telugu
+  telugu,
 }
 
 /// Configuration for PaddleOCR backend.
@@ -8602,6 +8710,21 @@ class ProcessingWarning {
           runtimeType == other.runtimeType &&
           source == other.source &&
           message == other.message;
+}
+
+/// Page Segmentation Mode for Tesseract OCR
+enum PSMMode {
+  osdOnly,
+  autoOsd,
+  autoOnly,
+  auto,
+  singleColumn,
+  singleBlockVertical,
+  singleBlock,
+  singleLine,
+  singleWord,
+  circleWord,
+  singleChar,
 }
 
 /// Outlook PST archive metadata.

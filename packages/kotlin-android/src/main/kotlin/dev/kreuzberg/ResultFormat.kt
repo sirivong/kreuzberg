@@ -18,6 +18,7 @@
     "LongParameterList",
     "CyclomaticComplexMethod",
     "LongMethod",
+    "MagicNumber",
 )
 
 package dev.kreuzberg
@@ -31,25 +32,25 @@ package dev.kreuzberg
  */
 enum class ResultFormat {
     /** Unified format with all content in `content` field */
-    @com.fasterxml.jackson.annotation.JsonProperty("unified")
-    UNIFIED,
+    @com.fasterxml.jackson.annotation.JsonProperty("unified") UNIFIED,
     /** Element-based format with semantic element extraction */
-    @com.fasterxml.jackson.annotation.JsonProperty("element_based")
-    ELEMENT_BASED;
+    @com.fasterxml.jackson.annotation.JsonProperty("element_based") ELEMENT_BASED;
 
     @com.fasterxml.jackson.annotation.JsonValue
-    fun toWire(): String = when (this) {
-        UNIFIED -> "unified"
-        ELEMENT_BASED -> "element_based"
-    }
+    fun toWire(): String =
+        when (this) {
+            UNIFIED -> "unified"
+            ELEMENT_BASED -> "element_based"
+        }
 
     companion object {
         @com.fasterxml.jackson.annotation.JsonCreator
         @JvmStatic
-        fun fromWire(value: String): ResultFormat = when (value) {
-            "unified" -> UNIFIED
-            "element_based" -> ELEMENT_BASED
-            else -> throw IllegalArgumentException("Unknown ResultFormat value: $value")
-        }
+        fun fromWire(value: String): ResultFormat =
+            when (value) {
+                "unified" -> UNIFIED
+                "element_based" -> ELEMENT_BASED
+                else -> throw IllegalArgumentException("Unknown ResultFormat value: $value")
+            }
     }
 }

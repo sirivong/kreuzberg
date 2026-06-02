@@ -31,8 +31,8 @@ import io
 import re
 from pathlib import Path
 
-from reportlab.lib.pagesizes import LETTER  # type: ignore[import-untyped]
-from reportlab.pdfgen import canvas  # type: ignore[import-untyped]
+from reportlab.lib.pagesizes import LETTER  # type: ignore[import-untyped, import-not-found, unused-ignore]
+from reportlab.pdfgen import canvas  # type: ignore[import-untyped, import-not-found, unused-ignore]
 
 from .gt_schema import revisions_expectation, write_ground_truth
 
@@ -118,9 +118,7 @@ def _append_incremental_update(
     # xref subsection for the new object.
     xref_offset = len(pdf_bytes)
     xref_block = (
-        b"xref\n"
-        + f"{new_object_number} 1\n".encode("ascii")
-        + f"{obj_offset:010d} 00000 n \n".encode("ascii")
+        b"xref\n" + f"{new_object_number} 1\n".encode("ascii") + f"{obj_offset:010d} 00000 n \n".encode("ascii")
     )
     pdf_bytes += xref_block
 

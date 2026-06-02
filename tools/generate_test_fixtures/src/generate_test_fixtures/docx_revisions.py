@@ -19,7 +19,7 @@ import zipfile
 from collections.abc import Iterable
 from pathlib import Path
 
-from docx import Document  # type: ignore[import-untyped]
+from docx import Document  # type: ignore[import-untyped, import-not-found, unused-ignore]
 
 from .gt_schema import revisions_expectation, write_ground_truth
 
@@ -71,7 +71,7 @@ def _ins_block(author: str, date: str, rev_id: str, text: str) -> str:
     return (
         f'<w:p xmlns:w="{W_NS}">'
         f'<w:ins w:id="{rev_id}" w:author="{author}" w:date="{date}">'
-        f"<w:r><w:t xml:space=\"preserve\">{text}</w:t></w:r>"
+        f'<w:r><w:t xml:space="preserve">{text}</w:t></w:r>'
         f"</w:ins>"
         f"</w:p>"
     )
@@ -81,7 +81,7 @@ def _del_block(author: str, date: str, rev_id: str, text: str) -> str:
     return (
         f'<w:p xmlns:w="{W_NS}">'
         f'<w:del w:id="{rev_id}" w:author="{author}" w:date="{date}">'
-        f"<w:r><w:delText xml:space=\"preserve\">{text}</w:delText></w:r>"
+        f'<w:r><w:delText xml:space="preserve">{text}</w:delText></w:r>'
         f"</w:del>"
         f"</w:p>"
     )

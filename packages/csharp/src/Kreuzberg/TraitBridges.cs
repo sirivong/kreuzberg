@@ -37,16 +37,16 @@ public interface IOcrBackend {
     bool SupportsLanguage(string Lang);
 
     /// <summary>backend_type</summary>
-    OcrBackendType BackendType();
+    OcrBackendType BackendType { get; }
 
     /// <summary>supported_languages</summary>
-    List<string> SupportedLanguages();
+    List<string> SupportedLanguages { get; }
 
     /// <summary>supports_table_detection</summary>
-    bool SupportsTableDetection();
+    bool SupportsTableDetection { get; }
 
     /// <summary>supports_document_processing</summary>
-    bool SupportsDocumentProcessing();
+    bool SupportsDocumentProcessing { get; }
 
     /// <summary>process_document</summary>
     ExtractionResult ProcessDocument(string Path, OcrConfig Config);
@@ -471,7 +471,7 @@ public sealed class OcrBackendBridge : IDisposable {
         }
         try {
             var bridge = _bridgeFromRegistry!;
-            var methodResult = bridge._impl.BackendType();
+            var methodResult = bridge._impl.BackendType;
             try {
                 string __result_str = (methodResult.ToFfiJson()) ?? string.Empty;
                 outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(__result_str);
@@ -522,7 +522,7 @@ public sealed class OcrBackendBridge : IDisposable {
         }
         try {
             var bridge = _bridgeFromRegistry!;
-            var methodResult = bridge._impl.SupportedLanguages();
+            var methodResult = bridge._impl.SupportedLanguages;
             try {
                 string __result_str = (ToJsonString(methodResult)) ?? string.Empty;
                 outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(__result_str);
@@ -571,7 +571,7 @@ public sealed class OcrBackendBridge : IDisposable {
         }
         try {
             var bridge = _bridgeFromRegistry!;
-            var methodResult = bridge._impl.SupportsTableDetection();
+            var methodResult = bridge._impl.SupportsTableDetection;
             return methodResult ? 1 : 0;
         } catch (Exception) {
             return 0;
@@ -596,7 +596,7 @@ public sealed class OcrBackendBridge : IDisposable {
         }
         try {
             var bridge = _bridgeFromRegistry!;
-            var methodResult = bridge._impl.SupportsDocumentProcessing();
+            var methodResult = bridge._impl.SupportsDocumentProcessing;
             return methodResult ? 1 : 0;
         } catch (Exception) {
             return 0;
@@ -850,7 +850,7 @@ public interface IPostProcessor {
     void Process(ExtractionResult Result, ExtractionConfig Config);
 
     /// <summary>processing_stage</summary>
-    ProcessingStage ProcessingStage();
+    ProcessingStage ProcessingStage { get; }
 
     /// <summary>should_process</summary>
     bool ShouldProcess(ExtractionResult Result, ExtractionConfig Config);
@@ -859,7 +859,7 @@ public interface IPostProcessor {
     ulong EstimatedDurationMs(ExtractionResult Result);
 
     /// <summary>priority</summary>
-    int Priority();
+    int Priority { get; }
 }
 
 /// <summary>
@@ -1150,7 +1150,7 @@ public sealed class PostProcessorBridge : IDisposable {
         }
         try {
             var bridge = _bridgeFromRegistry!;
-            var methodResult = bridge._impl.ProcessingStage();
+            var methodResult = bridge._impl.ProcessingStage;
             try {
                 string __result_str = (methodResult.ToFfiJson()) ?? string.Empty;
                 outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(__result_str);
@@ -1255,7 +1255,7 @@ public sealed class PostProcessorBridge : IDisposable {
         }
         try {
             var bridge = _bridgeFromRegistry!;
-            var methodResult = bridge._impl.Priority();
+            var methodResult = bridge._impl.Priority;
             return methodResult;
         } catch (Exception) {
             return 0;
@@ -1457,7 +1457,7 @@ public interface IValidator {
     bool ShouldValidate(ExtractionResult Result, ExtractionConfig Config);
 
     /// <summary>priority</summary>
-    int Priority();
+    int Priority { get; }
 }
 
 /// <summary>
@@ -1759,7 +1759,7 @@ public sealed class ValidatorBridge : IDisposable {
         }
         try {
             var bridge = _bridgeFromRegistry!;
-            var methodResult = bridge._impl.Priority();
+            var methodResult = bridge._impl.Priority;
             return methodResult;
         } catch (Exception) {
             return 0;
@@ -1955,7 +1955,7 @@ public interface IEmbeddingBackend {
     void Shutdown();
 
     /// <summary>dimensions</summary>
-    ulong Dimensions();
+    ulong Dimensions { get; }
 
     /// <summary>embed</summary>
     List<List<float>> Embed(List<string> Texts);
@@ -2194,7 +2194,7 @@ public sealed class EmbeddingBackendBridge : IDisposable {
         }
         try {
             var bridge = _bridgeFromRegistry!;
-            var methodResult = bridge._impl.Dimensions();
+            var methodResult = bridge._impl.Dimensions;
             return methodResult;
         } catch (Exception) {
             return 0;
@@ -2449,10 +2449,10 @@ public interface IDocumentExtractor {
     string ExtractFile(string Path, string MimeType, ExtractionConfig Config);
 
     /// <summary>supported_mime_types</summary>
-    List<string> SupportedMimeTypes();
+    List<string> SupportedMimeTypes { get; }
 
     /// <summary>priority</summary>
-    int Priority();
+    int Priority { get; }
 
     /// <summary>can_handle</summary>
     bool CanHandle(string Path, string MimeType);
@@ -2829,7 +2829,7 @@ public sealed class DocumentExtractorBridge : IDisposable {
         }
         try {
             var bridge = _bridgeFromRegistry!;
-            var methodResult = bridge._impl.SupportedMimeTypes();
+            var methodResult = bridge._impl.SupportedMimeTypes;
             try {
                 string __result_str = (ToJsonString(methodResult)) ?? string.Empty;
                 outResult = global::System.Runtime.InteropServices.Marshal.StringToCoTaskMemUTF8(__result_str);
@@ -2878,7 +2878,7 @@ public sealed class DocumentExtractorBridge : IDisposable {
         }
         try {
             var bridge = _bridgeFromRegistry!;
-            var methodResult = bridge._impl.Priority();
+            var methodResult = bridge._impl.Priority;
             return methodResult;
         } catch (Exception) {
             return 0;

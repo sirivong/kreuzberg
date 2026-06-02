@@ -18,6 +18,7 @@
     "LongParameterList",
     "CyclomaticComplexMethod",
     "LongMethod",
+    "MagicNumber",
 )
 
 package dev.kreuzberg
@@ -30,30 +31,29 @@ package dev.kreuzberg
  */
 enum class CodeContentMode {
     /** Use TSLP semantic chunks as content (default). */
-    @com.fasterxml.jackson.annotation.JsonProperty("chunks")
-    CHUNKS,
+    @com.fasterxml.jackson.annotation.JsonProperty("chunks") CHUNKS,
     /** Use raw source code as content. */
-    @com.fasterxml.jackson.annotation.JsonProperty("raw")
-    RAW,
+    @com.fasterxml.jackson.annotation.JsonProperty("raw") RAW,
     /** Emit function/class headings + docstrings (no code bodies). */
-    @com.fasterxml.jackson.annotation.JsonProperty("structure")
-    STRUCTURE;
+    @com.fasterxml.jackson.annotation.JsonProperty("structure") STRUCTURE;
 
     @com.fasterxml.jackson.annotation.JsonValue
-    fun toWire(): String = when (this) {
-        CHUNKS -> "chunks"
-        RAW -> "raw"
-        STRUCTURE -> "structure"
-    }
+    fun toWire(): String =
+        when (this) {
+            CHUNKS -> "chunks"
+            RAW -> "raw"
+            STRUCTURE -> "structure"
+        }
 
     companion object {
         @com.fasterxml.jackson.annotation.JsonCreator
         @JvmStatic
-        fun fromWire(value: String): CodeContentMode = when (value) {
-            "chunks" -> CHUNKS
-            "raw" -> RAW
-            "structure" -> STRUCTURE
-            else -> throw IllegalArgumentException("Unknown CodeContentMode value: $value")
-        }
+        fun fromWire(value: String): CodeContentMode =
+            when (value) {
+                "chunks" -> CHUNKS
+                "raw" -> RAW
+                "structure" -> STRUCTURE
+                else -> throw IllegalArgumentException("Unknown CodeContentMode value: $value")
+            }
     }
 }

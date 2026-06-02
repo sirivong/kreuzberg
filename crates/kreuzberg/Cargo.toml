@@ -206,10 +206,11 @@ otel = ["dep:opentelemetry", "dep:opentelemetry_sdk", "dep:tracing-opentelemetry
 # WASM). Pure-Rust only — no ORT, no native-only C++ deps. Used as a foundation for both
 # wasm-target and android-target to avoid duplication.
 #
-# liter-llm is intentionally retained here: hosted LLM calls do not require ORT
-# and the dependency has a wasm-http backend. Runtime cfg gates still disable the
-# wasm LLM paths until the browser/runtime integration is wired; see the TODOs
-# next to those gates.
+# Excluded:
+# - liter-llm: tokenizers → hf-hub → ureq 2.12.1 → rustls 0.23 + socks 0.3 (both wasm-incompatible).
+#   Added to android-target explicitly; WASM does not use LLM for now.
+# - hwpx: unhwp → zip → xz2 → lzma-sys (native C, missing wasm stdlib). Native-only;
+#   re-enabled in android-target.
 no-ort-target = [
     "pdf",
     "html",
@@ -223,10 +224,8 @@ no-ort-target = [
     "office",
     "iwork",
     "hwp",
-    "hwpx",
     "mdx",
     "archives",
-    "liter-llm",
     "stopwords",
     "embedding-presets",
     "layout-types",
@@ -238,7 +237,16 @@ wasm-target = ["no-ort-target", "excel-wasm", "tree-sitter-wasm", "ocr-wasm"]
 # android-target: no-ort-target plus native-Linux variants that work on Android ABI
 # (excel with tokio, native tree-sitter, Tesseract OCR, and API/MCP transport).
 # Excludes ORT-dependent features (paddle-ocr, layout-detection, embeddings, auto-rotate).
-android-target = ["no-ort-target", "excel", "tree-sitter", "ocr", "api", "mcp"]
+android-target = [
+    "no-ort-target",
+    "excel",
+    "tree-sitter",
+    "ocr",
+    "api",
+    "mcp",
+    "liter-llm",
+    "hwpx",
+]
 # Mobile deployment preset — formats + analysis + Tesseract OCR + code intelligence + API types.
 # Excludes ORT-dependent features (paddle-ocr, layout-detection, embeddings, auto-rotate)
 # and server transport infrastructure (mcp, otel, liter-llm).
@@ -399,10 +407,7 @@ tar = { version = "^0.4", optional = true }
 tempfile = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tiff = { version = "0.11", optional = true }
-tokenizers = { version = "0.23", optional = true, default-features = false, features = [
-    "http",
-    "fancy-regex",
-] }
+tokenizers = { version = "0.23", optional = true, default-features = false, features = ["fancy-regex"] }
 tokio = { workspace = true, optional = true }
 toml = { workspace = true }
 tower = { version = "0.5", features = ["timeout", "limit", "util"], optional = true }
@@ -417,7 +422,7 @@ tower-http = { version = "0.6", features = [
 ], optional = true }
 tracing = { workspace = true }
 tracing-opentelemetry = { version = "0.33", optional = true }
-unhwp = { version = "0.3.2", default-features = false, features = ["hwpx"], optional = true }
+unhwp = { version = "0.5.0", default-features = false, features = ["hwpx"], optional = true }
 unicode-normalization = { version = "0.1.25", optional = true }
 urlencoding = "2"
 utoipa = { version = "5.5", features = ["axum_extras"], optional = true }
@@ -437,6 +442,9 @@ kreuzberg-paddle-ocr = { path = "../kreuzberg-paddle-ocr", version = "5.0.0-rc.3
 # a fix, restrict liter-llm to non-Windows targets so Windows FFI/CLI builds don't pull aws-lc-sys.
 liter-llm = { workspace = true, optional = true, features = ["native-http"] }
 pprof = { version = "0.15.0", features = ["flamegraph"], optional = true }
+# Enable tokenizers `http` feature on native targets so model downloads work via hf-hub.
+# Wasm builds get tokenizers without `http` to avoid hf-hub → ureq 2.12.1 → rustls 0.23 (wasm-incompat).
+tokenizers = { version = "0.23", default-features = false, features = ["http", "fancy-regex"], optional = true }
 # Force ureq (transitive dep via hf-hub) to use rustls on non-Windows
 ureq = { version = "3.3", default-features = false, features = ["rustls", "json"], optional = true }
 
@@ -445,6 +453,8 @@ ureq = { version = "3.3", default-features = false, features = ["rustls", "json"
 hf-hub = { version = "0.5", default-features = false, features = ["ureq"], optional = true }
 # PaddleOCR via ONNX Runtime - not available on WASM (vendored from paddle-ocr-rs)
 kreuzberg-paddle-ocr = { path = "../kreuzberg-paddle-ocr", version = "5.0.0-rc.3", optional = true }
+# Enable tokenizers `http` feature on Windows so model downloads work via hf-hub.
+tokenizers = { version = "0.23", default-features = false, features = ["http", "fancy-regex"], optional = true }
 # Force ureq (transitive dep via hf-hub) to use native-tls on Windows
 ureq = { version = "3.3", default-features = false, features = [
     "native-tls",
@@ -457,9 +467,12 @@ features = ["dynamic-loading", "download", "serde"]
 optional = true
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-# Override getrandom to enable wasm_js feature for WASM targets
-# This is needed because ring/rustls (via ureq) depend on getrandom without wasm_js feature
 getrandom = { version = "0.4", features = ["wasm_js"] }
+# Force-enable the wasm_js backend for every getrandom major in the graph.
+# 0.2 is pulled in by ring (via build-deps), 0.3 by ahash/tokenizers/tree-sitter-language-pack,
+# 0.4 is the latest. Without these features the wasm_js OS-RNG backend can't be selected.
+getrandom_02 = { package = "getrandom", version = "0.2", features = ["js"] }
+getrandom_03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
 # On wasm32, swap kreuzberg-tesseract from its native default ("static-linking" -> "build-tesseract")
 # to the WASI-SDK build path ("build-tesseract-wasm") and bundle eng.traineddata so OCR works
 # in-memory with no filesystem.
@@ -482,7 +495,7 @@ dotenvy = "0.15"
 filetime = "0.2"
 image = { workspace = true, default-features = false, features = ["png"] }
 jsonschema = "0.46"
-serial_test = "3.4.0"
+serial_test = "3.5.0"
 tar = "^0.4"
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["macros", "time"] }

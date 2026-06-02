@@ -8,9 +8,12 @@ import RustBridge
 /// Protocol for outbound `EmbeddingBackend` implementations.
 /// Conform your Swift class or struct to this protocol to implement
 /// a Rust trait from the host side.
-public protocol SwiftEmbeddingBackendBridge: AnyObject {
+public protocol SwiftEmbeddingBackendBridge: SwiftPluginBridge {
     func dimensions() -> Int
     func embed(texts: [String]) throws -> [[Float]]
+}
+
+public extension SwiftEmbeddingBackendBridge {
 }
 
 /// Internal adapter wrapping a `SwiftEmbeddingBackendBridge` conformer.

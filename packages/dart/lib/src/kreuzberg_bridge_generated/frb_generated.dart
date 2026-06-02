@@ -10721,6 +10721,59 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  KreuzbergError dco_decode_kreuzberg_error(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    switch (raw[0]) {
+      case 0:
+        return KreuzbergError_Io(field0: dco_decode_String(raw[1]));
+      case 1:
+        return KreuzbergError_Parsing(message: dco_decode_String(raw[1]));
+      case 2:
+        return KreuzbergError_Ocr(message: dco_decode_String(raw[1]));
+      case 3:
+        return KreuzbergError_Validation(message: dco_decode_String(raw[1]));
+      case 4:
+        return KreuzbergError_Cache(message: dco_decode_String(raw[1]));
+      case 5:
+        return KreuzbergError_ImageProcessing(
+          message: dco_decode_String(raw[1]),
+        );
+      case 6:
+        return KreuzbergError_Serialization(message: dco_decode_String(raw[1]));
+      case 7:
+        return KreuzbergError_MissingDependency(
+          field0: dco_decode_String(raw[1]),
+        );
+      case 8:
+        return KreuzbergError_Plugin(
+          message: dco_decode_String(raw[1]),
+          pluginName: dco_decode_String(raw[2]),
+        );
+      case 9:
+        return KreuzbergError_LockPoisoned(field0: dco_decode_String(raw[1]));
+      case 10:
+        return KreuzbergError_UnsupportedFormat(
+          field0: dco_decode_String(raw[1]),
+        );
+      case 11:
+        return KreuzbergError_Embedding(message: dco_decode_String(raw[1]));
+      case 12:
+        return KreuzbergError_Timeout(
+          elapsedMs: dco_decode_i_64(raw[1]),
+          limitMs: dco_decode_i_64(raw[2]),
+        );
+      case 13:
+        return KreuzbergError_Cancelled();
+      case 14:
+        return KreuzbergError_Security(message: dco_decode_String(raw[1]));
+      case 15:
+        return KreuzbergError_Other(field0: dco_decode_String(raw[1]));
+      default:
+        throw Exception("unreachable");
+    }
+  }
+
+  @protected
   LanguageDetectionConfig dco_decode_language_detection_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -11158,6 +11211,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<TextAnnotation> dco_decode_list_text_annotation(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return (raw as List<dynamic>).map(dco_decode_text_annotation).toList();
+  }
+
+  @protected
+  ListType dco_decode_list_type(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return ListType.values[raw as int];
   }
 
   @protected
@@ -12112,6 +12171,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PaddleLanguage dco_decode_paddle_language(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return PaddleLanguage.values[raw as int];
+  }
+
+  @protected
   PaddleOcrConfig dco_decode_paddle_ocr_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
@@ -12377,6 +12442,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       source: dco_decode_String(arr[0]),
       message: dco_decode_String(arr[1]),
     );
+  }
+
+  @protected
+  PSMMode dco_decode_psm_mode(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    return PSMMode.values[raw as int];
   }
 
   @protected
@@ -15821,6 +15892,72 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  KreuzbergError sse_decode_kreuzberg_error(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+
+    var tag_ = sse_decode_i_32(deserializer);
+    switch (tag_) {
+      case 0:
+        var var_field0 = sse_decode_String(deserializer);
+        return KreuzbergError_Io(field0: var_field0);
+      case 1:
+        var var_message = sse_decode_String(deserializer);
+        return KreuzbergError_Parsing(message: var_message);
+      case 2:
+        var var_message = sse_decode_String(deserializer);
+        return KreuzbergError_Ocr(message: var_message);
+      case 3:
+        var var_message = sse_decode_String(deserializer);
+        return KreuzbergError_Validation(message: var_message);
+      case 4:
+        var var_message = sse_decode_String(deserializer);
+        return KreuzbergError_Cache(message: var_message);
+      case 5:
+        var var_message = sse_decode_String(deserializer);
+        return KreuzbergError_ImageProcessing(message: var_message);
+      case 6:
+        var var_message = sse_decode_String(deserializer);
+        return KreuzbergError_Serialization(message: var_message);
+      case 7:
+        var var_field0 = sse_decode_String(deserializer);
+        return KreuzbergError_MissingDependency(field0: var_field0);
+      case 8:
+        var var_message = sse_decode_String(deserializer);
+        var var_pluginName = sse_decode_String(deserializer);
+        return KreuzbergError_Plugin(
+          message: var_message,
+          pluginName: var_pluginName,
+        );
+      case 9:
+        var var_field0 = sse_decode_String(deserializer);
+        return KreuzbergError_LockPoisoned(field0: var_field0);
+      case 10:
+        var var_field0 = sse_decode_String(deserializer);
+        return KreuzbergError_UnsupportedFormat(field0: var_field0);
+      case 11:
+        var var_message = sse_decode_String(deserializer);
+        return KreuzbergError_Embedding(message: var_message);
+      case 12:
+        var var_elapsedMs = sse_decode_i_64(deserializer);
+        var var_limitMs = sse_decode_i_64(deserializer);
+        return KreuzbergError_Timeout(
+          elapsedMs: var_elapsedMs,
+          limitMs: var_limitMs,
+        );
+      case 13:
+        return KreuzbergError_Cancelled();
+      case 14:
+        var var_message = sse_decode_String(deserializer);
+        return KreuzbergError_Security(message: var_message);
+      case 15:
+        var var_field0 = sse_decode_String(deserializer);
+        return KreuzbergError_Other(field0: var_field0);
+      default:
+        throw UnimplementedError('');
+    }
+  }
+
+  @protected
   LanguageDetectionConfig sse_decode_language_detection_config(
     SseDeserializer deserializer,
   ) {
@@ -16643,6 +16780,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       ans_.add(sse_decode_text_annotation(deserializer));
     }
     return ans_;
+  }
+
+  @protected
+  ListType sse_decode_list_type(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return ListType.values[inner];
   }
 
   @protected
@@ -18171,6 +18315,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  PaddleLanguage sse_decode_paddle_language(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return PaddleLanguage.values[inner];
+  }
+
+  @protected
   PaddleOcrConfig sse_decode_paddle_ocr_config(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_language = sse_decode_String(deserializer);
@@ -18506,6 +18657,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_source = sse_decode_String(deserializer);
     var var_message = sse_decode_String(deserializer);
     return ProcessingWarning(source: var_source, message: var_message);
+  }
+
+  @protected
+  PSMMode sse_decode_psm_mode(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var inner = sse_decode_i_32(deserializer);
+    return PSMMode.values[inner];
   }
 
   @protected
@@ -21840,6 +21998,71 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_kreuzberg_error(
+    KreuzbergError self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    switch (self) {
+      case KreuzbergError_Io(field0: final field0):
+        sse_encode_i_32(0, serializer);
+        sse_encode_String(field0, serializer);
+      case KreuzbergError_Parsing(message: final message):
+        sse_encode_i_32(1, serializer);
+        sse_encode_String(message, serializer);
+      case KreuzbergError_Ocr(message: final message):
+        sse_encode_i_32(2, serializer);
+        sse_encode_String(message, serializer);
+      case KreuzbergError_Validation(message: final message):
+        sse_encode_i_32(3, serializer);
+        sse_encode_String(message, serializer);
+      case KreuzbergError_Cache(message: final message):
+        sse_encode_i_32(4, serializer);
+        sse_encode_String(message, serializer);
+      case KreuzbergError_ImageProcessing(message: final message):
+        sse_encode_i_32(5, serializer);
+        sse_encode_String(message, serializer);
+      case KreuzbergError_Serialization(message: final message):
+        sse_encode_i_32(6, serializer);
+        sse_encode_String(message, serializer);
+      case KreuzbergError_MissingDependency(field0: final field0):
+        sse_encode_i_32(7, serializer);
+        sse_encode_String(field0, serializer);
+      case KreuzbergError_Plugin(
+        message: final message,
+        pluginName: final pluginName,
+      ):
+        sse_encode_i_32(8, serializer);
+        sse_encode_String(message, serializer);
+        sse_encode_String(pluginName, serializer);
+      case KreuzbergError_LockPoisoned(field0: final field0):
+        sse_encode_i_32(9, serializer);
+        sse_encode_String(field0, serializer);
+      case KreuzbergError_UnsupportedFormat(field0: final field0):
+        sse_encode_i_32(10, serializer);
+        sse_encode_String(field0, serializer);
+      case KreuzbergError_Embedding(message: final message):
+        sse_encode_i_32(11, serializer);
+        sse_encode_String(message, serializer);
+      case KreuzbergError_Timeout(
+        elapsedMs: final elapsedMs,
+        limitMs: final limitMs,
+      ):
+        sse_encode_i_32(12, serializer);
+        sse_encode_i_64(elapsedMs, serializer);
+        sse_encode_i_64(limitMs, serializer);
+      case KreuzbergError_Cancelled():
+        sse_encode_i_32(13, serializer);
+      case KreuzbergError_Security(message: final message):
+        sse_encode_i_32(14, serializer);
+        sse_encode_String(message, serializer);
+      case KreuzbergError_Other(field0: final field0):
+        sse_encode_i_32(15, serializer);
+        sse_encode_String(field0, serializer);
+    }
+  }
+
+  @protected
   void sse_encode_language_detection_config(
     LanguageDetectionConfig self,
     SseSerializer serializer,
@@ -22566,6 +22789,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     for (final item in self) {
       sse_encode_text_annotation(item, serializer);
     }
+  }
+
+  @protected
+  void sse_encode_list_type(ListType self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected
@@ -23956,6 +24185,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  void sse_encode_paddle_language(
+    PaddleLanguage self,
+    SseSerializer serializer,
+  ) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
+  }
+
+  @protected
   void sse_encode_paddle_ocr_config(
     PaddleOcrConfig self,
     SseSerializer serializer,
@@ -24167,6 +24405,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_String(self.source, serializer);
     sse_encode_String(self.message, serializer);
+  }
+
+  @protected
+  void sse_encode_psm_mode(PSMMode self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_i_32(self.index, serializer);
   }
 
   @protected

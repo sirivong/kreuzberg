@@ -19,7 +19,7 @@ import re
 import zipfile
 from pathlib import Path
 
-from openpyxl import Workbook  # type: ignore[import-untyped]
+from openpyxl import Workbook  # type: ignore[import-untyped, import-not-found, unused-ignore]
 
 from .gt_schema import revisions_expectation, write_ground_truth
 
@@ -70,9 +70,7 @@ def _revision_headers_xml() -> bytes:
 def _patch_content_types(original: bytes) -> bytes:
     """Register the revisionHeaders content-type as an Override."""
     text = original.decode("utf-8")
-    override = (
-        f'<Override PartName="/{REVISION_HEADERS_PATH}" ContentType="{REVISION_HEADERS_CT}"/>'
-    )
+    override = f'<Override PartName="/{REVISION_HEADERS_PATH}" ContentType="{REVISION_HEADERS_CT}"/>'
     if override in text:
         return original
     return text.replace("</Types>", f"{override}</Types>").encode("utf-8")

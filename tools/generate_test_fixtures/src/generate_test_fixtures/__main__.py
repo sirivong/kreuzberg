@@ -95,7 +95,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         # Preserve user ordering, drop duplicates.
         seen: set[str] = set()
-        selected = [c for c in args.commands if not (c in seen or seen.add(c))]
+        selected = [c for c in args.commands if not (c in seen or seen.add(c))]  # type: ignore[func-returns-value]
 
     generators = _generators()
     total_written = 0

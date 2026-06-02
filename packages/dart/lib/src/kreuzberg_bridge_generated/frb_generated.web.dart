@@ -938,6 +938,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KeywordConfig dco_decode_keyword_config(dynamic raw);
 
   @protected
+  KreuzbergError dco_decode_kreuzberg_error(dynamic raw);
+
+  @protected
   LanguageDetectionConfig dco_decode_language_detection_config(dynamic raw);
 
   @protected
@@ -1132,6 +1135,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<TextAnnotation> dco_decode_list_text_annotation(dynamic raw);
+
+  @protected
+  ListType dco_decode_list_type(dynamic raw);
 
   @protected
   LlmConfig dco_decode_llm_config(dynamic raw);
@@ -1462,6 +1468,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   OutputFormat dco_decode_output_format(dynamic raw);
 
   @protected
+  PaddleLanguage dco_decode_paddle_language(dynamic raw);
+
+  @protected
   PaddleOcrConfig dco_decode_paddle_ocr_config(dynamic raw);
 
   @protected
@@ -1514,6 +1523,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ProcessingWarning dco_decode_processing_warning(dynamic raw);
+
+  @protected
+  PSMMode dco_decode_psm_mode(dynamic raw);
 
   @protected
   PstMetadata dco_decode_pst_metadata(dynamic raw);
@@ -2550,6 +2562,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   KeywordConfig sse_decode_keyword_config(SseDeserializer deserializer);
 
   @protected
+  KreuzbergError sse_decode_kreuzberg_error(SseDeserializer deserializer);
+
+  @protected
   LanguageDetectionConfig sse_decode_language_detection_config(
     SseDeserializer deserializer,
   );
@@ -2810,6 +2825,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<TextAnnotation> sse_decode_list_text_annotation(
     SseDeserializer deserializer,
   );
+
+  @protected
+  ListType sse_decode_list_type(SseDeserializer deserializer);
 
   @protected
   LlmConfig sse_decode_llm_config(SseDeserializer deserializer);
@@ -3252,6 +3270,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   OutputFormat sse_decode_output_format(SseDeserializer deserializer);
 
   @protected
+  PaddleLanguage sse_decode_paddle_language(SseDeserializer deserializer);
+
+  @protected
   PaddleOcrConfig sse_decode_paddle_ocr_config(SseDeserializer deserializer);
 
   @protected
@@ -3312,6 +3333,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ProcessingWarning sse_decode_processing_warning(SseDeserializer deserializer);
+
+  @protected
+  PSMMode sse_decode_psm_mode(SseDeserializer deserializer);
 
   @protected
   PstMetadata sse_decode_pst_metadata(SseDeserializer deserializer);
@@ -4743,6 +4767,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_keyword_config(KeywordConfig self, SseSerializer serializer);
 
   @protected
+  void sse_encode_kreuzberg_error(
+    KreuzbergError self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_language_detection_config(
     LanguageDetectionConfig self,
     SseSerializer serializer,
@@ -5071,6 +5101,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     List<TextAnnotation> self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_list_type(ListType self, SseSerializer serializer);
 
   @protected
   void sse_encode_llm_config(LlmConfig self, SseSerializer serializer);
@@ -5616,6 +5649,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_output_format(OutputFormat self, SseSerializer serializer);
 
   @protected
+  void sse_encode_paddle_language(
+    PaddleLanguage self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_paddle_ocr_config(
     PaddleOcrConfig self,
     SseSerializer serializer,
@@ -5689,6 +5728,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     ProcessingWarning self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_psm_mode(PSMMode self, SseSerializer serializer);
 
   @protected
   void sse_encode_pst_metadata(PstMetadata self, SseSerializer serializer);

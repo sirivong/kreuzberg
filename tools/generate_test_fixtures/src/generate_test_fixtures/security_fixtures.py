@@ -25,7 +25,7 @@ import io
 import zipfile
 from pathlib import Path
 
-from openpyxl import Workbook  # type: ignore[import-untyped]
+from openpyxl import Workbook  # type: ignore[import-untyped, import-not-found, unused-ignore]
 
 from .gt_schema import security_expectation, write_ground_truth
 
@@ -148,7 +148,7 @@ def _emit_xlsx_safe(output_dir: Path, repo_root: Path) -> list[Path]:
 
 def _emit_docx_oversized_embedded(output_dir: Path, repo_root: Path) -> list[Path]:
     """DOCX whose ``word/embeddings/oversized.bin`` is a 100 MiB zero stream."""
-    from docx import Document  # type: ignore[import-untyped]
+    from docx import Document  # type: ignore[import-untyped, import-not-found, unused-ignore]
 
     doc = Document()
     doc.add_paragraph("Document carrying an oversized embedded part.")
@@ -170,8 +170,7 @@ def _emit_docx_oversized_embedded(output_dir: Path, repo_root: Path) -> list[Pat
 
     new_content_types = content_types.replace(
         b"</Types>",
-        b'<Override PartName="/word/embeddings/oversized.bin" '
-        b'ContentType="application/octet-stream"/></Types>',
+        b'<Override PartName="/word/embeddings/oversized.bin" ContentType="application/octet-stream"/></Types>',
     )
     new_document_rels = document_rels.replace(
         b"</Relationships>",

@@ -19,7 +19,7 @@ import io
 import zipfile
 from pathlib import Path
 
-from pptx import Presentation  # type: ignore[import-untyped]
+from pptx import Presentation  # type: ignore[import-untyped, import-not-found, unused-ignore]
 
 from .gt_schema import revisions_expectation, write_ground_truth
 

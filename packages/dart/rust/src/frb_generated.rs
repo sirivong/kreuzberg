@@ -6643,6 +6643,56 @@ const _: fn() = || {
         let _: Option<crate::YakeParams> = KeywordConfig.yake_params;
         let _: Option<crate::RakeParams> = KeywordConfig.rake_params;
     }
+    match None::<crate::KreuzbergError>.unwrap() {
+        crate::KreuzbergError::Io { field0 } => {
+            let _: String = field0;
+        }
+        crate::KreuzbergError::Parsing { message } => {
+            let _: String = message;
+        }
+        crate::KreuzbergError::Ocr { message } => {
+            let _: String = message;
+        }
+        crate::KreuzbergError::Validation { message } => {
+            let _: String = message;
+        }
+        crate::KreuzbergError::Cache { message } => {
+            let _: String = message;
+        }
+        crate::KreuzbergError::ImageProcessing { message } => {
+            let _: String = message;
+        }
+        crate::KreuzbergError::Serialization { message } => {
+            let _: String = message;
+        }
+        crate::KreuzbergError::MissingDependency { field0 } => {
+            let _: String = field0;
+        }
+        crate::KreuzbergError::Plugin { message, plugin_name } => {
+            let _: String = message;
+            let _: String = plugin_name;
+        }
+        crate::KreuzbergError::LockPoisoned { field0 } => {
+            let _: String = field0;
+        }
+        crate::KreuzbergError::UnsupportedFormat { field0 } => {
+            let _: String = field0;
+        }
+        crate::KreuzbergError::Embedding { message } => {
+            let _: String = message;
+        }
+        crate::KreuzbergError::Timeout { elapsed_ms, limit_ms } => {
+            let _: i64 = elapsed_ms;
+            let _: i64 = limit_ms;
+        }
+        crate::KreuzbergError::Cancelled => {}
+        crate::KreuzbergError::Security { message } => {
+            let _: String = message;
+        }
+        crate::KreuzbergError::Other { field0 } => {
+            let _: String = field0;
+        }
+    }
     {
         let LanguageDetectionConfig = None::<crate::LanguageDetectionConfig>.unwrap();
         let _: bool = LanguageDetectionConfig.enabled;
@@ -10153,6 +10203,89 @@ impl SseDecode for crate::KeywordConfig {
     }
 }
 
+impl SseDecode for crate::KreuzbergError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut tag_ = <i32>::sse_decode(deserializer);
+        match tag_ {
+            0 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::KreuzbergError::Io { field0: var_field0 };
+            }
+            1 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::KreuzbergError::Parsing { message: var_message };
+            }
+            2 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::KreuzbergError::Ocr { message: var_message };
+            }
+            3 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::KreuzbergError::Validation { message: var_message };
+            }
+            4 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::KreuzbergError::Cache { message: var_message };
+            }
+            5 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::KreuzbergError::ImageProcessing { message: var_message };
+            }
+            6 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::KreuzbergError::Serialization { message: var_message };
+            }
+            7 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::KreuzbergError::MissingDependency { field0: var_field0 };
+            }
+            8 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                let mut var_pluginName = <String>::sse_decode(deserializer);
+                return crate::KreuzbergError::Plugin {
+                    message: var_message,
+                    plugin_name: var_pluginName,
+                };
+            }
+            9 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::KreuzbergError::LockPoisoned { field0: var_field0 };
+            }
+            10 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::KreuzbergError::UnsupportedFormat { field0: var_field0 };
+            }
+            11 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::KreuzbergError::Embedding { message: var_message };
+            }
+            12 => {
+                let mut var_elapsedMs = <i64>::sse_decode(deserializer);
+                let mut var_limitMs = <i64>::sse_decode(deserializer);
+                return crate::KreuzbergError::Timeout {
+                    elapsed_ms: var_elapsedMs,
+                    limit_ms: var_limitMs,
+                };
+            }
+            13 => {
+                return crate::KreuzbergError::Cancelled;
+            }
+            14 => {
+                let mut var_message = <String>::sse_decode(deserializer);
+                return crate::KreuzbergError::Security { message: var_message };
+            }
+            15 => {
+                let mut var_field0 = <String>::sse_decode(deserializer);
+                return crate::KreuzbergError::Other { field0: var_field0 };
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseDecode for crate::LanguageDetectionConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -10945,6 +11078,20 @@ impl SseDecode for Vec<crate::TextAnnotation> {
             ans_.push(<crate::TextAnnotation>::sse_decode(deserializer));
         }
         return ans_;
+    }
+}
+
+impl SseDecode for crate::ListType {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::ListType::Bullet,
+            1 => crate::ListType::Numbered,
+            2 => crate::ListType::Lettered,
+            3 => crate::ListType::Indented,
+            _ => unreachable!("Invalid variant for ListType: {}", inner),
+        };
     }
 }
 
@@ -12388,6 +12535,32 @@ impl SseDecode for crate::OutputFormat {
     }
 }
 
+impl SseDecode for crate::PaddleLanguage {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::PaddleLanguage::English,
+            1 => crate::PaddleLanguage::Chinese,
+            2 => crate::PaddleLanguage::Japanese,
+            3 => crate::PaddleLanguage::Korean,
+            4 => crate::PaddleLanguage::German,
+            5 => crate::PaddleLanguage::French,
+            6 => crate::PaddleLanguage::Latin,
+            7 => crate::PaddleLanguage::Cyrillic,
+            8 => crate::PaddleLanguage::TraditionalChinese,
+            9 => crate::PaddleLanguage::Thai,
+            10 => crate::PaddleLanguage::Greek,
+            11 => crate::PaddleLanguage::EastSlavic,
+            12 => crate::PaddleLanguage::Arabic,
+            13 => crate::PaddleLanguage::Devanagari,
+            14 => crate::PaddleLanguage::Tamil,
+            15 => crate::PaddleLanguage::Telugu,
+            _ => unreachable!("Invalid variant for PaddleLanguage: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::PaddleOcrConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -12747,6 +12920,27 @@ impl SseDecode for crate::ProcessingWarning {
         return crate::ProcessingWarning {
             source: var_source,
             message: var_message,
+        };
+    }
+}
+
+impl SseDecode for crate::PSMMode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::PSMMode::OsdOnly,
+            1 => crate::PSMMode::AutoOsd,
+            2 => crate::PSMMode::AutoOnly,
+            3 => crate::PSMMode::Auto,
+            4 => crate::PSMMode::SingleColumn,
+            5 => crate::PSMMode::SingleBlockVertical,
+            6 => crate::PSMMode::SingleBlock,
+            7 => crate::PSMMode::SingleLine,
+            8 => crate::PSMMode::SingleWord,
+            9 => crate::PSMMode::CircleWord,
+            10 => crate::PSMMode::SingleChar,
+            _ => unreachable!("Invalid variant for PSMMode: {}", inner),
         };
     }
 }
@@ -15823,6 +16017,70 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::KeywordConfig>> for cra
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::KreuzbergError> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::KreuzbergError::Io { field0 } => [0.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            crate::KreuzbergError::Parsing { message } => {
+                [1.into_dart(), message.into_into_dart().into_dart()].into_dart()
+            }
+            crate::KreuzbergError::Ocr { message } => [2.into_dart(), message.into_into_dart().into_dart()].into_dart(),
+            crate::KreuzbergError::Validation { message } => {
+                [3.into_dart(), message.into_into_dart().into_dart()].into_dart()
+            }
+            crate::KreuzbergError::Cache { message } => {
+                [4.into_dart(), message.into_into_dart().into_dart()].into_dart()
+            }
+            crate::KreuzbergError::ImageProcessing { message } => {
+                [5.into_dart(), message.into_into_dart().into_dart()].into_dart()
+            }
+            crate::KreuzbergError::Serialization { message } => {
+                [6.into_dart(), message.into_into_dart().into_dart()].into_dart()
+            }
+            crate::KreuzbergError::MissingDependency { field0 } => {
+                [7.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::KreuzbergError::Plugin { message, plugin_name } => [
+                8.into_dart(),
+                message.into_into_dart().into_dart(),
+                plugin_name.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::KreuzbergError::LockPoisoned { field0 } => {
+                [9.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::KreuzbergError::UnsupportedFormat { field0 } => {
+                [10.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            crate::KreuzbergError::Embedding { message } => {
+                [11.into_dart(), message.into_into_dart().into_dart()].into_dart()
+            }
+            crate::KreuzbergError::Timeout { elapsed_ms, limit_ms } => [
+                12.into_dart(),
+                elapsed_ms.into_into_dart().into_dart(),
+                limit_ms.into_into_dart().into_dart(),
+            ]
+            .into_dart(),
+            crate::KreuzbergError::Cancelled => [13.into_dart()].into_dart(),
+            crate::KreuzbergError::Security { message } => {
+                [14.into_dart(), message.into_into_dart().into_dart()].into_dart()
+            }
+            crate::KreuzbergError::Other { field0 } => {
+                [15.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::KreuzbergError> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::KreuzbergError>> for crate::KreuzbergError {
+    fn into_into_dart(self) -> FrbWrapper<crate::KreuzbergError> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::LanguageDetectionConfig> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -15960,6 +16218,24 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::LinkType> {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::LinkType> {}
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::LinkType>> for crate::LinkType {
     fn into_into_dart(self) -> FrbWrapper<crate::LinkType> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::ListType> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::ListType::Bullet => 0.into_dart(),
+            crate::ListType::Numbered => 1.into_dart(),
+            crate::ListType::Lettered => 2.into_dart(),
+            crate::ListType::Indented => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::ListType> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::ListType>> for crate::ListType {
+    fn into_into_dart(self) -> FrbWrapper<crate::ListType> {
         self.into()
     }
 }
@@ -16504,6 +16780,36 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::OutputFormat>> for crat
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::PaddleLanguage> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::PaddleLanguage::English => 0.into_dart(),
+            crate::PaddleLanguage::Chinese => 1.into_dart(),
+            crate::PaddleLanguage::Japanese => 2.into_dart(),
+            crate::PaddleLanguage::Korean => 3.into_dart(),
+            crate::PaddleLanguage::German => 4.into_dart(),
+            crate::PaddleLanguage::French => 5.into_dart(),
+            crate::PaddleLanguage::Latin => 6.into_dart(),
+            crate::PaddleLanguage::Cyrillic => 7.into_dart(),
+            crate::PaddleLanguage::TraditionalChinese => 8.into_dart(),
+            crate::PaddleLanguage::Thai => 9.into_dart(),
+            crate::PaddleLanguage::Greek => 10.into_dart(),
+            crate::PaddleLanguage::EastSlavic => 11.into_dart(),
+            crate::PaddleLanguage::Arabic => 12.into_dart(),
+            crate::PaddleLanguage::Devanagari => 13.into_dart(),
+            crate::PaddleLanguage::Tamil => 14.into_dart(),
+            crate::PaddleLanguage::Telugu => 15.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::PaddleLanguage> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::PaddleLanguage>> for crate::PaddleLanguage {
+    fn into_into_dart(self) -> FrbWrapper<crate::PaddleLanguage> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::PaddleOcrConfig> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -16865,6 +17171,31 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::ProcessingWarning> {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::ProcessingWarning> {}
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::ProcessingWarning>> for crate::ProcessingWarning {
     fn into_into_dart(self) -> FrbWrapper<crate::ProcessingWarning> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::PSMMode> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::PSMMode::OsdOnly => 0.into_dart(),
+            crate::PSMMode::AutoOsd => 1.into_dart(),
+            crate::PSMMode::AutoOnly => 2.into_dart(),
+            crate::PSMMode::Auto => 3.into_dart(),
+            crate::PSMMode::SingleColumn => 4.into_dart(),
+            crate::PSMMode::SingleBlockVertical => 5.into_dart(),
+            crate::PSMMode::SingleBlock => 6.into_dart(),
+            crate::PSMMode::SingleLine => 7.into_dart(),
+            crate::PSMMode::SingleWord => 8.into_dart(),
+            crate::PSMMode::CircleWord => 9.into_dart(),
+            crate::PSMMode::SingleChar => 10.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::PSMMode> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::PSMMode>> for crate::PSMMode {
+    fn into_into_dart(self) -> FrbWrapper<crate::PSMMode> {
         self.into()
     }
 }
@@ -19289,6 +19620,82 @@ impl SseEncode for crate::KeywordConfig {
     }
 }
 
+impl SseEncode for crate::KreuzbergError {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        match self {
+            crate::KreuzbergError::Io { field0 } => {
+                <i32>::sse_encode(0, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::KreuzbergError::Parsing { message } => {
+                <i32>::sse_encode(1, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::KreuzbergError::Ocr { message } => {
+                <i32>::sse_encode(2, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::KreuzbergError::Validation { message } => {
+                <i32>::sse_encode(3, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::KreuzbergError::Cache { message } => {
+                <i32>::sse_encode(4, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::KreuzbergError::ImageProcessing { message } => {
+                <i32>::sse_encode(5, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::KreuzbergError::Serialization { message } => {
+                <i32>::sse_encode(6, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::KreuzbergError::MissingDependency { field0 } => {
+                <i32>::sse_encode(7, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::KreuzbergError::Plugin { message, plugin_name } => {
+                <i32>::sse_encode(8, serializer);
+                <String>::sse_encode(message, serializer);
+                <String>::sse_encode(plugin_name, serializer);
+            }
+            crate::KreuzbergError::LockPoisoned { field0 } => {
+                <i32>::sse_encode(9, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::KreuzbergError::UnsupportedFormat { field0 } => {
+                <i32>::sse_encode(10, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            crate::KreuzbergError::Embedding { message } => {
+                <i32>::sse_encode(11, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::KreuzbergError::Timeout { elapsed_ms, limit_ms } => {
+                <i32>::sse_encode(12, serializer);
+                <i64>::sse_encode(elapsed_ms, serializer);
+                <i64>::sse_encode(limit_ms, serializer);
+            }
+            crate::KreuzbergError::Cancelled => {
+                <i32>::sse_encode(13, serializer);
+            }
+            crate::KreuzbergError::Security { message } => {
+                <i32>::sse_encode(14, serializer);
+                <String>::sse_encode(message, serializer);
+            }
+            crate::KreuzbergError::Other { field0 } => {
+                <i32>::sse_encode(15, serializer);
+                <String>::sse_encode(field0, serializer);
+            }
+            _ => {
+                unimplemented!("");
+            }
+        }
+    }
+}
+
 impl SseEncode for crate::LanguageDetectionConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -19947,6 +20354,24 @@ impl SseEncode for Vec<crate::TextAnnotation> {
         for item in self {
             <crate::TextAnnotation>::sse_encode(item, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::ListType {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::ListType::Bullet => 0,
+                crate::ListType::Numbered => 1,
+                crate::ListType::Lettered => 2,
+                crate::ListType::Indented => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -21143,6 +21568,36 @@ impl SseEncode for crate::OutputFormat {
     }
 }
 
+impl SseEncode for crate::PaddleLanguage {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::PaddleLanguage::English => 0,
+                crate::PaddleLanguage::Chinese => 1,
+                crate::PaddleLanguage::Japanese => 2,
+                crate::PaddleLanguage::Korean => 3,
+                crate::PaddleLanguage::German => 4,
+                crate::PaddleLanguage::French => 5,
+                crate::PaddleLanguage::Latin => 6,
+                crate::PaddleLanguage::Cyrillic => 7,
+                crate::PaddleLanguage::TraditionalChinese => 8,
+                crate::PaddleLanguage::Thai => 9,
+                crate::PaddleLanguage::Greek => 10,
+                crate::PaddleLanguage::EastSlavic => 11,
+                crate::PaddleLanguage::Arabic => 12,
+                crate::PaddleLanguage::Devanagari => 13,
+                crate::PaddleLanguage::Tamil => 14,
+                crate::PaddleLanguage::Telugu => 15,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::PaddleOcrConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -21385,6 +21840,31 @@ impl SseEncode for crate::ProcessingWarning {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.source, serializer);
         <String>::sse_encode(self.message, serializer);
+    }
+}
+
+impl SseEncode for crate::PSMMode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::PSMMode::OsdOnly => 0,
+                crate::PSMMode::AutoOsd => 1,
+                crate::PSMMode::AutoOnly => 2,
+                crate::PSMMode::Auto => 3,
+                crate::PSMMode::SingleColumn => 4,
+                crate::PSMMode::SingleBlockVertical => 5,
+                crate::PSMMode::SingleBlock => 6,
+                crate::PSMMode::SingleLine => 7,
+                crate::PSMMode::SingleWord => 8,
+                crate::PSMMode::CircleWord => 9,
+                crate::PSMMode::SingleChar => 10,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 

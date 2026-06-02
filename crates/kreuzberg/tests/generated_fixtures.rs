@@ -82,10 +82,9 @@ pub fn load_fixture(name: &str) -> (PathBuf, FixtureGt) {
             root = root.display(),
         )
     });
-    let raw = fs::read_to_string(&sidecar)
-        .unwrap_or_else(|e| panic!("failed to read {}: {e}", sidecar.display()));
-    let gt: FixtureGt = serde_json::from_str(&raw)
-        .unwrap_or_else(|e| panic!("failed to parse {}: {e}", sidecar.display()));
+    let raw = fs::read_to_string(&sidecar).unwrap_or_else(|e| panic!("failed to read {}: {e}", sidecar.display()));
+    let gt: FixtureGt =
+        serde_json::from_str(&raw).unwrap_or_else(|e| panic!("failed to parse {}: {e}", sidecar.display()));
     let binary = repo_root().join(&gt.fixture_path);
     assert!(
         binary.is_file(),
@@ -146,7 +145,10 @@ fn revisions_docx_track_changes_basic_matches_ground_truth() {
     let expected_count = gt.expectations["expected_count"]
         .as_u64()
         .expect("expected_count must be present in revisions GT");
-    assert!(expected_count > 0, "revisions fixture must declare at least one revision");
+    assert!(
+        expected_count > 0,
+        "revisions fixture must declare at least one revision"
+    );
 
     // When the kreuzberg extractor lands the revisions field on
     // ExtractionResult, replace the placeholder below with:
@@ -168,7 +170,11 @@ fn diff_xlsx_budget_pair_round_trips() {
     let cell_changes = gt.expectations["table_cell_changes"]
         .as_array()
         .expect("table_cell_changes must be an array");
-    assert_eq!(cell_changes.len(), 1, "budget diff must declare exactly one cell change");
+    assert_eq!(
+        cell_changes.len(),
+        1,
+        "budget diff must declare exactly one cell change"
+    );
     let change = &cell_changes[0];
     assert_eq!(change["row"].as_u64(), Some(1));
     assert_eq!(change["col"].as_u64(), Some(1));
@@ -204,5 +210,8 @@ fn security_zip_bomb_pathological_is_rejected() {
         .iter()
         .filter_map(|v| v.as_str())
         .any(|s| s.contains("bomb") || s.contains("zip"));
-    assert!(has_bomb_term, "pathological zip-bomb GT must mention zip/bomb in warnings");
+    assert!(
+        has_bomb_term,
+        "pathological zip-bomb GT must mention zip/bomb in warnings"
+    );
 }

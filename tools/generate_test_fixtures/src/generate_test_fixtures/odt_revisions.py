@@ -20,8 +20,8 @@ import io
 import zipfile
 from pathlib import Path
 
-from odf.opendocument import OpenDocumentText  # type: ignore[import-untyped]
-from odf.text import H, P  # type: ignore[import-untyped]
+from odf.opendocument import OpenDocumentText  # type: ignore[import-untyped, import-not-found, unused-ignore]
+from odf.text import H, P  # type: ignore[import-untyped, import-not-found, unused-ignore]
 
 from .gt_schema import revisions_expectation, write_ground_truth
 

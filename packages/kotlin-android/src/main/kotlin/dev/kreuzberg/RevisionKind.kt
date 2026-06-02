@@ -18,6 +18,7 @@
     "LongParameterList",
     "CyclomaticComplexMethod",
     "LongMethod",
+    "MagicNumber",
 )
 
 package dev.kreuzberg
@@ -25,35 +26,33 @@ package dev.kreuzberg
 /** Semantic classification of a tracked change. */
 enum class RevisionKind {
     /** Text or content was inserted. */
-    @com.fasterxml.jackson.annotation.JsonProperty("insertion")
-    INSERTION,
+    @com.fasterxml.jackson.annotation.JsonProperty("insertion") INSERTION,
     /** Text or content was deleted. */
-    @com.fasterxml.jackson.annotation.JsonProperty("deletion")
-    DELETION,
+    @com.fasterxml.jackson.annotation.JsonProperty("deletion") DELETION,
     /** Run-level formatting (font, size, colour, …) was changed. */
-    @com.fasterxml.jackson.annotation.JsonProperty("format_change")
-    FORMAT_CHANGE,
+    @com.fasterxml.jackson.annotation.JsonProperty("format_change") FORMAT_CHANGE,
     /** A reviewer comment or annotation. */
-    @com.fasterxml.jackson.annotation.JsonProperty("comment")
-    COMMENT;
+    @com.fasterxml.jackson.annotation.JsonProperty("comment") COMMENT;
 
     @com.fasterxml.jackson.annotation.JsonValue
-    fun toWire(): String = when (this) {
-        INSERTION -> "insertion"
-        DELETION -> "deletion"
-        FORMAT_CHANGE -> "format_change"
-        COMMENT -> "comment"
-    }
+    fun toWire(): String =
+        when (this) {
+            INSERTION -> "insertion"
+            DELETION -> "deletion"
+            FORMAT_CHANGE -> "format_change"
+            COMMENT -> "comment"
+        }
 
     companion object {
         @com.fasterxml.jackson.annotation.JsonCreator
         @JvmStatic
-        fun fromWire(value: String): RevisionKind = when (value) {
-            "insertion" -> INSERTION
-            "deletion" -> DELETION
-            "format_change" -> FORMAT_CHANGE
-            "comment" -> COMMENT
-            else -> throw IllegalArgumentException("Unknown RevisionKind value: $value")
-        }
+        fun fromWire(value: String): RevisionKind =
+            when (value) {
+                "insertion" -> INSERTION
+                "deletion" -> DELETION
+                "format_change" -> FORMAT_CHANGE
+                "comment" -> COMMENT
+                else -> throw IllegalArgumentException("Unknown RevisionKind value: $value")
+            }
     }
 }

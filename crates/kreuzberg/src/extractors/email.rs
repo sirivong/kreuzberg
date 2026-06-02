@@ -636,10 +636,7 @@ Content-Type: text/html; charset=utf-8
         use crate::extractors::security::SecurityLimits;
 
         let long_body = "x".repeat(1000);
-        let eml = format!(
-            "From: sender@example.com\r\nSubject: Big\r\n\r\n{}",
-            long_body
-        );
+        let eml = format!("From: sender@example.com\r\nSubject: Big\r\n\r\n{}", long_body);
 
         let config = ExtractionConfig {
             security_limits: Some(SecurityLimits {

@@ -22,8 +22,8 @@ from __future__ import annotations
 import io
 from pathlib import Path
 
-from docx import Document  # type: ignore[import-untyped]
-from openpyxl import Workbook  # type: ignore[import-untyped]
+from docx import Document  # type: ignore[import-untyped, import-not-found, unused-ignore]
+from openpyxl import Workbook  # type: ignore[import-untyped, import-not-found, unused-ignore]
 
 from .gt_schema import diff_expectation, write_ground_truth
 
@@ -140,8 +140,8 @@ def _emit_xlsx_pair(output_dir: Path, repo_root: Path) -> list[Path]:
     v2_path = output_dir / "xlsx_budget_v2.xlsx"
     sidecar_path = output_dir / "xlsx_budget_diff.gt.json"
 
-    v1_path.write_bytes(_save_xlsx(XLSX_HEADER, XLSX_V1_ROWS))
-    v2_path.write_bytes(_save_xlsx(XLSX_HEADER, XLSX_V2_ROWS))
+    v1_path.write_bytes(_save_xlsx(XLSX_HEADER, XLSX_V1_ROWS))  # type: ignore[arg-type]
+    v2_path.write_bytes(_save_xlsx(XLSX_HEADER, XLSX_V2_ROWS))  # type: ignore[arg-type]
 
     repo_root_resolved = repo_root.resolve()
 

@@ -18,66 +18,69 @@
     "LongParameterList",
     "CyclomaticComplexMethod",
     "LongMethod",
+    "MagicNumber",
 )
 
 package dev.kreuzberg
 
 /** Page Segmentation Mode for Tesseract OCR */
 enum class PSMMode {
-    @com.fasterxml.jackson.annotation.JsonProperty("OsdOnly")
-    OSD_ONLY,
-    @com.fasterxml.jackson.annotation.JsonProperty("AutoOsd")
-    AUTO_OSD,
-    @com.fasterxml.jackson.annotation.JsonProperty("AutoOnly")
-    AUTO_ONLY,
-    @com.fasterxml.jackson.annotation.JsonProperty("Auto")
-    AUTO,
-    @com.fasterxml.jackson.annotation.JsonProperty("SingleColumn")
-    SINGLE_COLUMN,
-    @com.fasterxml.jackson.annotation.JsonProperty("SingleBlockVertical")
-    SINGLE_BLOCK_VERTICAL,
-    @com.fasterxml.jackson.annotation.JsonProperty("SingleBlock")
-    SINGLE_BLOCK,
-    @com.fasterxml.jackson.annotation.JsonProperty("SingleLine")
-    SINGLE_LINE,
-    @com.fasterxml.jackson.annotation.JsonProperty("SingleWord")
-    SINGLE_WORD,
-    @com.fasterxml.jackson.annotation.JsonProperty("CircleWord")
-    CIRCLE_WORD,
-    @com.fasterxml.jackson.annotation.JsonProperty("SingleChar")
-    SINGLE_CHAR;
+    @com.fasterxml.jackson.annotation.JsonProperty("OsdOnly") OSD_ONLY,
+    @com.fasterxml.jackson.annotation.JsonProperty("AutoOsd") AUTO_OSD,
+    @com.fasterxml.jackson.annotation.JsonProperty("AutoOnly") AUTO_ONLY,
+    @com.fasterxml.jackson.annotation.JsonProperty("Auto") AUTO,
+    @com.fasterxml.jackson.annotation.JsonProperty("SingleColumn") SINGLE_COLUMN,
+    @com.fasterxml.jackson.annotation.JsonProperty("SingleBlockVertical") SINGLE_BLOCK_VERTICAL,
+    @com.fasterxml.jackson.annotation.JsonProperty("SingleBlock") SINGLE_BLOCK,
+    @com.fasterxml.jackson.annotation.JsonProperty("SingleLine") SINGLE_LINE,
+    @com.fasterxml.jackson.annotation.JsonProperty("SingleWord") SINGLE_WORD,
+    @com.fasterxml.jackson.annotation.JsonProperty("CircleWord") CIRCLE_WORD,
+    @com.fasterxml.jackson.annotation.JsonProperty("SingleChar") SINGLE_CHAR;
 
     @com.fasterxml.jackson.annotation.JsonValue
-    fun toWire(): String = when (this) {
-        OSD_ONLY -> "OsdOnly"
-        AUTO_OSD -> "AutoOsd"
-        AUTO_ONLY -> "AutoOnly"
-        AUTO -> "Auto"
-        SINGLE_COLUMN -> "SingleColumn"
-        SINGLE_BLOCK_VERTICAL -> "SingleBlockVertical"
-        SINGLE_BLOCK -> "SingleBlock"
-        SINGLE_LINE -> "SingleLine"
-        SINGLE_WORD -> "SingleWord"
-        CIRCLE_WORD -> "CircleWord"
-        SINGLE_CHAR -> "SingleChar"
-    }
+    fun toWire(): String =
+        when (this) {
+            OSD_ONLY -> "OsdOnly"
+            AUTO_OSD -> "AutoOsd"
+            AUTO_ONLY -> "AutoOnly"
+            AUTO -> "Auto"
+            SINGLE_COLUMN -> "SingleColumn"
+            SINGLE_BLOCK_VERTICAL -> "SingleBlockVertical"
+            SINGLE_BLOCK -> "SingleBlock"
+            SINGLE_LINE -> "SingleLine"
+            SINGLE_WORD -> "SingleWord"
+            CIRCLE_WORD -> "CircleWord"
+            SINGLE_CHAR -> "SingleChar"
+        }
 
     companion object {
         @com.fasterxml.jackson.annotation.JsonCreator
         @JvmStatic
-        fun fromWire(value: String): PSMMode = when (value) {
-            "OsdOnly", "osdonly" -> OSD_ONLY
-            "AutoOsd", "autoosd" -> AUTO_OSD
-            "AutoOnly", "autoonly" -> AUTO_ONLY
-            "Auto", "auto" -> AUTO
-            "SingleColumn", "singlecolumn" -> SINGLE_COLUMN
-            "SingleBlockVertical", "singleblockvertical" -> SINGLE_BLOCK_VERTICAL
-            "SingleBlock", "singleblock" -> SINGLE_BLOCK
-            "SingleLine", "singleline" -> SINGLE_LINE
-            "SingleWord", "singleword" -> SINGLE_WORD
-            "CircleWord", "circleword" -> CIRCLE_WORD
-            "SingleChar", "singlechar" -> SINGLE_CHAR
-            else -> throw IllegalArgumentException("Unknown PSMMode value: $value")
-        }
+        fun fromWire(value: String): PSMMode =
+            when (value) {
+                "OsdOnly",
+                "osdonly" -> OSD_ONLY
+                "AutoOsd",
+                "autoosd" -> AUTO_OSD
+                "AutoOnly",
+                "autoonly" -> AUTO_ONLY
+                "Auto",
+                "auto" -> AUTO
+                "SingleColumn",
+                "singlecolumn" -> SINGLE_COLUMN
+                "SingleBlockVertical",
+                "singleblockvertical" -> SINGLE_BLOCK_VERTICAL
+                "SingleBlock",
+                "singleblock" -> SINGLE_BLOCK
+                "SingleLine",
+                "singleline" -> SINGLE_LINE
+                "SingleWord",
+                "singleword" -> SINGLE_WORD
+                "CircleWord",
+                "circleword" -> CIRCLE_WORD
+                "SingleChar",
+                "singlechar" -> SINGLE_CHAR
+                else -> throw IllegalArgumentException("Unknown PSMMode value: $value")
+            }
     }
 }

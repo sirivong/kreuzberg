@@ -166,8 +166,7 @@ mod tests {
     fn make_zip_with_file(entry_path: &str, entry_data: &[u8]) -> Vec<u8> {
         let buf = Cursor::new(Vec::new());
         let mut zip = zip::ZipWriter::new(buf);
-        let options =
-            zip::write::FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
+        let options = zip::write::FileOptions::<()>::default().compression_method(zip::CompressionMethod::Stored);
         zip.start_file(entry_path, options).unwrap();
         zip.write_all(entry_data).unwrap();
         zip.finish().unwrap().into_inner()

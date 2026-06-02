@@ -15,8 +15,8 @@ echo "Using swift-bridge output from: $OUT"
 
 # Fix swift-bridge visibility: make 'var ptr' and 'var isOwned' properties public for internal type conversion
 fixVisibility() {
-    sed -e 's/^    var ptr: UnsafeMutableRawPointer$/    public var ptr: UnsafeMutableRawPointer/g' \
-        -e 's/^    var isOwned: Bool = true$/    public var isOwned: Bool = true/g'
+  sed -e 's/^    var ptr: UnsafeMutableRawPointer$/    public var ptr: UnsafeMutableRawPointer/g' \
+    -e 's/^    var isOwned: Bool = true$/    public var isOwned: Bool = true/g'
 }
 
 # Ensure target directories exist

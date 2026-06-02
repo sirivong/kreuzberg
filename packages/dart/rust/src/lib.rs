@@ -3463,7 +3463,7 @@ pub struct PdfMetadata {
 ///
 /// Determines which hardware backend is used for model inference.
 /// `Auto` (default) selects the best available provider per platform.
-#[frb(mirror(ExecutionProviderType))]
+#[frb(mirror(ExecutionProviderType), unignore)]
 pub enum ExecutionProviderType {
     /// Auto-select: CoreML on macOS, CUDA on Linux, CPU elsewhere.
     Auto,
@@ -3484,7 +3484,7 @@ pub enum ExecutionProviderType {
 /// `Plain` returns the raw extracted text.
 /// `Structured` returns JSON with full OCR element data including bounding
 /// boxes and confidence scores.
-#[frb(mirror(OutputFormat))]
+#[frb(mirror(OutputFormat), unignore)]
 pub enum OutputFormat {
     /// Plain text content only (default)
     Plain,
@@ -3504,7 +3504,7 @@ pub enum OutputFormat {
 }
 
 /// Built-in HTML theme selection.
-#[frb(mirror(HtmlTheme))]
+#[frb(mirror(HtmlTheme), unignore)]
 pub enum HtmlTheme {
     /// Sensible defaults: system font stack, neutral colours, readable line
     /// measure. CSS custom properties (`--kb-*`) are all defined so user CSS
@@ -3526,7 +3526,7 @@ pub enum HtmlTheme {
 /// Controls the model used for table cell detection within layout-detected
 /// table regions. Wire format is snake_case in all serializers (JSON, TOML,
 /// YAML).
-#[frb(mirror(TableModel))]
+#[frb(mirror(TableModel), unignore)]
 pub enum TableModel {
     /// TATR (Table Transformer) -- default, 30MB, DETR-based row/column detection.
     Tatr,
@@ -3557,7 +3557,7 @@ pub enum TableModel {
 ///   blank-line paragraphs) and merges groups into chunks capped at
 ///   `max_characters` (default 1000). `topic_threshold` has no effect in the
 ///   fallback path. For best results, pair with an embedding model.
-#[frb(mirror(ChunkerType))]
+#[frb(mirror(ChunkerType), unignore)]
 pub enum ChunkerType {
     Text,
     Markdown,
@@ -3573,7 +3573,7 @@ pub enum ChunkerType {
 /// Token-based sizing uses HuggingFace tokenizers loaded at runtime. Any tokenizer
 /// available on HuggingFace Hub can be used, including OpenAI-compatible tokenizers
 /// (e.g., `Xenova/gpt-4o`, `Xenova/cl100k_base`).
-#[frb(mirror(ChunkSizing))]
+#[frb(mirror(ChunkSizing), unignore)]
 pub enum ChunkSizing {
     /// Size measured in Unicode characters (default).
     Characters,
@@ -3589,7 +3589,7 @@ pub enum ChunkSizing {
 }
 
 /// Embedding model types supported by Kreuzberg.
-#[frb(mirror(EmbeddingModelType))]
+#[frb(mirror(EmbeddingModelType), unignore)]
 pub enum EmbeddingModelType {
     /// Use a preset model configuration (recommended)
     Preset { name: String },
@@ -3626,7 +3626,7 @@ pub enum EmbeddingModelType {
 ///
 /// Controls how extracted code content is represented in the `content` field
 /// of `ExtractionResult`.
-#[frb(mirror(CodeContentMode))]
+#[frb(mirror(CodeContentMode), unignore)]
 pub enum CodeContentMode {
     /// Use TSLP semantic chunks as content (default).
     Chunks,
@@ -3637,7 +3637,7 @@ pub enum CodeContentMode {
 }
 
 /// Type of list detection.
-#[frb(mirror(ListType))]
+#[frb(mirror(ListType), unignore)]
 pub enum ListType {
     /// Bullet points (-, *, •, etc.)
     Bullet,
@@ -3650,7 +3650,7 @@ pub enum ListType {
 }
 
 /// OCR backend types.
-#[frb(mirror(OcrBackendType))]
+#[frb(mirror(OcrBackendType), unignore)]
 pub enum OcrBackendType {
     /// Tesseract OCR (native Rust binding)
     Tesseract,
@@ -3666,7 +3666,7 @@ pub enum OcrBackendType {
 ///
 /// Post-processors are executed in stage order (Early → Middle → Late).
 /// Use stages to control the order of post-processing operations.
-#[frb(mirror(ProcessingStage))]
+#[frb(mirror(ProcessingStage), unignore)]
 pub enum ProcessingStage {
     /// Early stage - foundational processing.
     ///
@@ -3694,7 +3694,7 @@ pub enum ProcessingStage {
     Late,
 }
 
-#[frb(mirror(ReductionLevel))]
+#[frb(mirror(ReductionLevel), unignore)]
 pub enum ReductionLevel {
     Off,
     Light,
@@ -3704,7 +3704,7 @@ pub enum ReductionLevel {
 }
 
 /// Type of PDF annotation.
-#[frb(mirror(PdfAnnotationType))]
+#[frb(mirror(PdfAnnotationType), unignore)]
 pub enum PdfAnnotationType {
     /// Sticky note / text annotation
     Text,
@@ -3723,7 +3723,7 @@ pub enum PdfAnnotationType {
 }
 
 /// Types of block-level elements in Djot.
-#[frb(mirror(BlockType))]
+#[frb(mirror(BlockType), unignore)]
 pub enum BlockType {
     Paragraph,
     Heading,
@@ -3744,7 +3744,7 @@ pub enum BlockType {
 }
 
 /// Types of inline elements in Djot.
-#[frb(mirror(InlineType))]
+#[frb(mirror(InlineType), unignore)]
 pub enum InlineType {
     Text,
     Strong,
@@ -3765,7 +3765,7 @@ pub enum InlineType {
 }
 
 /// Semantic kind of a relationship between document elements.
-#[frb(mirror(RelationshipKind))]
+#[frb(mirror(RelationshipKind), unignore)]
 pub enum RelationshipKind {
     /// Footnote marker -> footnote definition.
     FootnoteReference,
@@ -3786,7 +3786,7 @@ pub enum RelationshipKind {
 /// Content layer classification for document nodes.
 ///
 /// Replaces separate body/furniture arrays with per-node granularity.
-#[frb(mirror(ContentLayer))]
+#[frb(mirror(ContentLayer), unignore)]
 pub enum ContentLayer {
     /// Main document body content.
     Body,
@@ -3802,7 +3802,7 @@ pub enum ContentLayer {
 ///
 /// Uses `#[serde(tag = "node_type")]` to avoid "type" keyword collision in
 /// Go/Java/TypeScript bindings.
-#[frb(mirror(NodeContent))]
+#[frb(mirror(NodeContent), unignore)]
 pub enum NodeContent {
     /// Document title.
     Title { text: String },
@@ -3876,7 +3876,7 @@ pub enum NodeContent {
 }
 
 /// Types of inline text annotations.
-#[frb(mirror(AnnotationKind))]
+#[frb(mirror(AnnotationKind), unignore)]
 pub enum AnnotationKind {
     Bold,
     Italic,
@@ -3907,7 +3907,7 @@ pub enum AnnotationKind {
 }
 
 /// How the extracted text was produced.
-#[frb(mirror(ExtractionMethod))]
+#[frb(mirror(ExtractionMethod), unignore)]
 pub enum ExtractionMethod {
     Native,
     Ocr,
@@ -3919,7 +3919,7 @@ pub enum ExtractionMethod {
 /// Assigned by the heuristic classifier in `chunking::classifier`.
 /// Defaults to `Unknown` when no rule matches.
 /// Designed to be extended in future versions without breaking changes.
-#[frb(mirror(ChunkType))]
+#[frb(mirror(ChunkType), unignore)]
 pub enum ChunkType {
     /// Section heading or document title.
     Heading,
@@ -3950,7 +3950,7 @@ pub enum ChunkType {
 }
 
 /// Heuristic classification of what an image likely depicts.
-#[frb(mirror(ImageKind))]
+#[frb(mirror(ImageKind), unignore)]
 pub enum ImageKind {
     /// Photographic image (natural scene, photograph)
     Photograph,
@@ -3983,7 +3983,7 @@ pub enum ImageKind {
 /// Distinct from `OutputFormat` (which controls rendering — Plain, Markdown,
 /// HTML, etc.). `ResultFormat` controls the *shape* of the result: a unified content
 /// blob vs. an element-based decomposition.
-#[frb(mirror(ResultFormat))]
+#[frb(mirror(ResultFormat), unignore)]
 pub enum ResultFormat {
     /// Unified format with all content in `content` field
     Unified,
@@ -3995,7 +3995,7 @@ pub enum ResultFormat {
 ///
 /// Categorizes text content into semantic units for downstream processing.
 /// Supports the element types commonly found in Unstructured documents.
-#[frb(mirror(ElementType))]
+#[frb(mirror(ElementType), unignore)]
 pub enum ElementType {
     /// Document title
     Title,
@@ -4025,7 +4025,7 @@ pub enum ElementType {
 ///
 /// Only one format type can exist per extraction result. This provides
 /// type-safe, clean metadata without nested optionals.
-#[frb(mirror(FormatMetadata))]
+#[frb(mirror(FormatMetadata), unignore)]
 pub enum FormatMetadata {
     Pdf { field0: PdfMetadata },
     Docx { field0: DocxMetadata },
@@ -4050,7 +4050,7 @@ pub enum FormatMetadata {
 }
 
 /// Text direction enumeration for HTML documents.
-#[frb(mirror(TextDirection))]
+#[frb(mirror(TextDirection), unignore)]
 pub enum TextDirection {
     /// Left-to-right text direction
     LeftToRight,
@@ -4061,7 +4061,7 @@ pub enum TextDirection {
 }
 
 /// Link type classification.
-#[frb(mirror(LinkType))]
+#[frb(mirror(LinkType), unignore)]
 pub enum LinkType {
     /// Anchor link (#section)
     Anchor,
@@ -4078,7 +4078,7 @@ pub enum LinkType {
 }
 
 /// Image type classification.
-#[frb(mirror(ImageType))]
+#[frb(mirror(ImageType), unignore)]
 pub enum ImageType {
     /// Data URI image
     DataUri,
@@ -4091,7 +4091,7 @@ pub enum ImageType {
 }
 
 /// Structured data type classification.
-#[frb(mirror(StructuredDataType))]
+#[frb(mirror(StructuredDataType), unignore)]
 pub enum StructuredDataType {
     /// JSON-LD structured data
     JsonLd,
@@ -4105,7 +4105,7 @@ pub enum StructuredDataType {
 ///
 /// Supports both axis-aligned rectangles (from Tesseract) and 4-point quadrilaterals
 /// (from PaddleOCR and rotated text detection).
-#[frb(mirror(OcrBoundingGeometry))]
+#[frb(mirror(OcrBoundingGeometry), unignore)]
 pub enum OcrBoundingGeometry {
     /// Axis-aligned bounding box (typical for Tesseract output).
     Rectangle {
@@ -4123,7 +4123,7 @@ pub enum OcrBoundingGeometry {
     /// Points are in clockwise order starting from top-left:
     /// `[top_left, top_right, bottom_right, bottom_left]`
     Quadrilateral {
-        /// Four corner points as `[(x, y), ...]` in clockwise order
+        /// Four corner points as `[[x, y], ...]` in clockwise order
         points: String,
     },
 }
@@ -4132,7 +4132,7 @@ pub enum OcrBoundingGeometry {
 ///
 /// Maps to Tesseract's page segmentation hierarchy and provides
 /// equivalent semantics for PaddleOCR.
-#[frb(mirror(OcrElementLevel))]
+#[frb(mirror(OcrElementLevel), unignore)]
 pub enum OcrElementLevel {
     /// Individual word
     Word,
@@ -4147,7 +4147,7 @@ pub enum OcrElementLevel {
 /// Type of paginated unit in a document.
 ///
 /// Distinguishes between different types of "pages" (PDF pages, presentation slides, spreadsheet sheets).
-#[frb(mirror(PageUnitType))]
+#[frb(mirror(PageUnitType), unignore)]
 pub enum PageUnitType {
     /// Standard document pages (PDF, DOCX, images)
     Page,
@@ -4162,7 +4162,7 @@ pub enum PageUnitType {
 /// Defined here (rather than only in `crate::diff`) so `RevisionDelta` can
 /// reference it unconditionally, without requiring the `diff` Cargo feature.
 /// `crate::diff` re-exports this type verbatim.
-#[frb(mirror(DiffLine))]
+#[frb(mirror(DiffLine), unignore)]
 pub enum DiffLine {
     /// Unchanged context line.
     Context { field0: String },
@@ -4173,7 +4173,7 @@ pub enum DiffLine {
 }
 
 /// Semantic classification of a tracked change.
-#[frb(mirror(RevisionKind))]
+#[frb(mirror(RevisionKind), unignore)]
 pub enum RevisionKind {
     /// Text or content was inserted.
     Insertion,
@@ -4186,7 +4186,7 @@ pub enum RevisionKind {
 }
 
 /// Best-effort document location for a revision.
-#[frb(mirror(RevisionAnchor))]
+#[frb(mirror(RevisionAnchor), unignore)]
 pub enum RevisionAnchor {
     /// Body paragraph, identified by its zero-based index in the document flow.
     Paragraph {
@@ -4222,7 +4222,7 @@ pub enum RevisionAnchor {
 }
 
 /// Semantic classification of an extracted URI.
-#[frb(mirror(UriKind))]
+#[frb(mirror(UriKind), unignore)]
 pub enum UriKind {
     /// A clickable hyperlink (web URL, file link).
     Hyperlink,
@@ -4239,7 +4239,7 @@ pub enum UriKind {
 }
 
 /// Keyword algorithm selection.
-#[frb(mirror(KeywordAlgorithm))]
+#[frb(mirror(KeywordAlgorithm), unignore)]
 pub enum KeywordAlgorithm {
     /// YAKE (Yet Another Keyword Extractor) - statistical approach
     Yake,
@@ -4248,7 +4248,7 @@ pub enum KeywordAlgorithm {
 }
 
 /// Page Segmentation Mode for Tesseract OCR
-#[frb(mirror(PSMMode))]
+#[frb(mirror(PSMMode), unignore)]
 pub enum PSMMode {
     OsdOnly,
     AutoOsd,
@@ -4266,7 +4266,7 @@ pub enum PSMMode {
 /// Supported languages in PaddleOCR.
 ///
 /// Maps user-friendly language codes to paddle-ocr-rs language identifiers.
-#[frb(mirror(PaddleLanguage))]
+#[frb(mirror(PaddleLanguage), unignore)]
 pub enum PaddleLanguage {
     /// English
     English,
@@ -4309,7 +4309,7 @@ pub enum PaddleLanguage {
 /// map to the closest equivalent.
 ///
 /// Wire format is snake_case in all serializers (JSON, TOML, YAML).
-#[frb(mirror(LayoutClass))]
+#[frb(mirror(LayoutClass), unignore)]
 pub enum LayoutClass {
     Caption,
     Footnote,
@@ -4349,7 +4349,7 @@ pub enum LayoutClass {
 /// - `LockPoisoned` - Mutex/RwLock poisoning (should not happen in normal operation)
 /// - `UnsupportedFormat` - Unsupported MIME type or file format
 /// - `Other` - Catch-all for uncommon errors
-#[frb(mirror(KreuzbergError))]
+#[frb(mirror(KreuzbergError), unignore)]
 pub enum KreuzbergError {
     Io { field0: String },
     Parsing { message: String },

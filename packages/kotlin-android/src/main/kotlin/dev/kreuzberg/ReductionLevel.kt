@@ -18,41 +18,44 @@
     "LongParameterList",
     "CyclomaticComplexMethod",
     "LongMethod",
+    "MagicNumber",
 )
 
 package dev.kreuzberg
 
 enum class ReductionLevel {
-    @com.fasterxml.jackson.annotation.JsonProperty("Off")
-    OFF,
-    @com.fasterxml.jackson.annotation.JsonProperty("Light")
-    LIGHT,
-    @com.fasterxml.jackson.annotation.JsonProperty("Moderate")
-    MODERATE,
-    @com.fasterxml.jackson.annotation.JsonProperty("Aggressive")
-    AGGRESSIVE,
-    @com.fasterxml.jackson.annotation.JsonProperty("Maximum")
-    MAXIMUM;
+    @com.fasterxml.jackson.annotation.JsonProperty("Off") OFF,
+    @com.fasterxml.jackson.annotation.JsonProperty("Light") LIGHT,
+    @com.fasterxml.jackson.annotation.JsonProperty("Moderate") MODERATE,
+    @com.fasterxml.jackson.annotation.JsonProperty("Aggressive") AGGRESSIVE,
+    @com.fasterxml.jackson.annotation.JsonProperty("Maximum") MAXIMUM;
 
     @com.fasterxml.jackson.annotation.JsonValue
-    fun toWire(): String = when (this) {
-        OFF -> "Off"
-        LIGHT -> "Light"
-        MODERATE -> "Moderate"
-        AGGRESSIVE -> "Aggressive"
-        MAXIMUM -> "Maximum"
-    }
+    fun toWire(): String =
+        when (this) {
+            OFF -> "Off"
+            LIGHT -> "Light"
+            MODERATE -> "Moderate"
+            AGGRESSIVE -> "Aggressive"
+            MAXIMUM -> "Maximum"
+        }
 
     companion object {
         @com.fasterxml.jackson.annotation.JsonCreator
         @JvmStatic
-        fun fromWire(value: String): ReductionLevel = when (value) {
-            "Off", "off" -> OFF
-            "Light", "light" -> LIGHT
-            "Moderate", "moderate" -> MODERATE
-            "Aggressive", "aggressive" -> AGGRESSIVE
-            "Maximum", "maximum" -> MAXIMUM
-            else -> throw IllegalArgumentException("Unknown ReductionLevel value: $value")
-        }
+        fun fromWire(value: String): ReductionLevel =
+            when (value) {
+                "Off",
+                "off" -> OFF
+                "Light",
+                "light" -> LIGHT
+                "Moderate",
+                "moderate" -> MODERATE
+                "Aggressive",
+                "aggressive" -> AGGRESSIVE
+                "Maximum",
+                "maximum" -> MAXIMUM
+                else -> throw IllegalArgumentException("Unknown ReductionLevel value: $value")
+            }
     }
 }

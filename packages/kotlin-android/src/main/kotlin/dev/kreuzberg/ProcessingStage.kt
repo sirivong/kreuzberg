@@ -18,6 +18,7 @@
     "LongParameterList",
     "CyclomaticComplexMethod",
     "LongMethod",
+    "MagicNumber",
 )
 
 package dev.kreuzberg
@@ -39,8 +40,7 @@ enum class ProcessingStage {
      * - Entity extraction (NER)
      * - Text quality scoring
      */
-    @com.fasterxml.jackson.annotation.JsonProperty("Early")
-    EARLY,
+    @com.fasterxml.jackson.annotation.JsonProperty("Early") EARLY,
     /**
      * Middle stage - content transformation.
      *
@@ -51,8 +51,7 @@ enum class ProcessingStage {
      * - Text summarization
      * - Semantic analysis
      */
-    @com.fasterxml.jackson.annotation.JsonProperty("Middle")
-    MIDDLE,
+    @com.fasterxml.jackson.annotation.JsonProperty("Middle") MIDDLE,
     /**
      * Late stage - final enrichment.
      *
@@ -63,24 +62,28 @@ enum class ProcessingStage {
      * - Final validation
      * - Output formatting
      */
-    @com.fasterxml.jackson.annotation.JsonProperty("Late")
-    LATE;
+    @com.fasterxml.jackson.annotation.JsonProperty("Late") LATE;
 
     @com.fasterxml.jackson.annotation.JsonValue
-    fun toWire(): String = when (this) {
-        EARLY -> "Early"
-        MIDDLE -> "Middle"
-        LATE -> "Late"
-    }
+    fun toWire(): String =
+        when (this) {
+            EARLY -> "Early"
+            MIDDLE -> "Middle"
+            LATE -> "Late"
+        }
 
     companion object {
         @com.fasterxml.jackson.annotation.JsonCreator
         @JvmStatic
-        fun fromWire(value: String): ProcessingStage = when (value) {
-            "Early", "early" -> EARLY
-            "Middle", "middle" -> MIDDLE
-            "Late", "late" -> LATE
-            else -> throw IllegalArgumentException("Unknown ProcessingStage value: $value")
-        }
+        fun fromWire(value: String): ProcessingStage =
+            when (value) {
+                "Early",
+                "early" -> EARLY
+                "Middle",
+                "middle" -> MIDDLE
+                "Late",
+                "late" -> LATE
+                else -> throw IllegalArgumentException("Unknown ProcessingStage value: $value")
+            }
     }
 }
