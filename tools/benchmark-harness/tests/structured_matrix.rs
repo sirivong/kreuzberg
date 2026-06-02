@@ -1,11 +1,9 @@
 use anyhow::{Context, Result};
-use benchmark_harness::datasets::{cord, Split};
-use benchmark_harness::json_quality::{
-    field_precision_recall_f1, is_valid_against_schema, type_correctness_rate,
-};
-use kreuzberg::extract_file;
+use benchmark_harness::datasets::{Split, cord};
+use benchmark_harness::json_quality::{field_precision_recall_f1, is_valid_against_schema, type_correctness_rate};
 use kreuzberg::core::config::{ExtractionConfig, LlmConfig, StructuredExtractionConfig};
-use serde_json::{json, Value};
+use kreuzberg::extract_file;
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::env;
 use std::fs;
@@ -65,10 +63,7 @@ async fn test_structured_extraction_matrix() -> Result<()> {
     // Load CORD fixtures
     let fixtures_path = format!("{}/CORD/test", datasets_root);
     if !PathBuf::from(&fixtures_path).exists() {
-        eprintln!(
-            "Skipping test: CORD dataset not found at {}",
-            fixtures_path
-        );
+        eprintln!("Skipping test: CORD dataset not found at {}", fixtures_path);
         return Ok(());
     }
 
@@ -77,8 +72,7 @@ async fn test_structured_extraction_matrix() -> Result<()> {
         .and_then(|v| v.parse().ok())
         .unwrap_or(10);
 
-    let mut fixtures = cord::load(Path::new(&datasets_root), Split::Test)
-        .context("Failed to load CORD fixtures")?;
+    let mut fixtures = cord::load(Path::new(&datasets_root), Split::Test).context("Failed to load CORD fixtures")?;
     fixtures.truncate(max_docs);
 
     if fixtures.is_empty() {
@@ -97,10 +91,7 @@ async fn test_structured_extraction_matrix() -> Result<()> {
     }
 
     if !unavailable_keys.is_empty() {
-        eprintln!(
-            "Skipping test: missing API keys: {}",
-            unavailable_keys.join(", ")
-        );
+        eprintln!("Skipping test: missing API keys: {}", unavailable_keys.join(", "));
         return Ok(());
     }
 
@@ -111,8 +102,7 @@ async fn test_structured_extraction_matrix() -> Result<()> {
     for provider in PROVIDERS {
         eprintln!("\nTesting provider: {} ({})", provider.name, provider.model);
 
-        let api_key = env::var(provider.api_key_env)
-            .context(format!("Missing {} env var", provider.api_key_env))?;
+        let api_key = env::var(provider.api_key_env).context(format!("Missing {} env var", provider.api_key_env))?;
 
         let mut f1_scores = Vec::new();
         let mut type_correctness_scores = Vec::new();
@@ -159,9 +149,9 @@ async fn test_structured_extraction_matrix() -> Result<()> {
             // Capture LLM usage across all calls this extraction made.
             if let Some(usages) = &result.llm_usage {
                 for usage in usages {
-                    total_tokens += usage.total_tokens.unwrap_or_else(|| {
-                        usage.input_tokens.unwrap_or(0) + usage.output_tokens.unwrap_or(0)
-                    });
+                    total_tokens += usage
+                        .total_tokens
+                        .unwrap_or_else(|| usage.input_tokens.unwrap_or(0) + usage.output_tokens.unwrap_or(0));
                     total_estimated_cost += usage.estimated_cost.unwrap_or(0.0);
                 }
             }
@@ -313,8 +303,7 @@ async fn test_structured_extraction_matrix() -> Result<()> {
     ));
 
     let md_path = bench_out_dir.join("cord_matrix.md");
-    fs::write(&md_path, &md_report)
-        .context(format!("Failed to write markdown report to {:?}", md_path))?;
+    fs::write(&md_path, &md_report).context(format!("Failed to write markdown report to {:?}", md_path))?;
 
     eprintln!("\nMarkdown report written to {:?}", md_path);
 
