@@ -17,7 +17,8 @@ use serde::{Deserialize, Serialize};
 /// model = "openai/gpt-4o"
 /// api_key = "sk-..."  # or use KREUZBERG_LLM_API_KEY env var
 /// ```
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct LlmConfig {
     /// Provider/model string using liter-llm routing format.
     ///

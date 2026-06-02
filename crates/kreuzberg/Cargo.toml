@@ -190,6 +190,25 @@ keywords = ["keywords-yake", "keywords-rake"]
 
 diff = ["dep:similar"]
 
+# OSS v5 follow-up: text analysis, redaction, classification, captioning, QR detection.
+# Each feature lands in its own module under `crates/kreuzberg/src/text/` (or
+# `crates/kreuzberg/src/extractors/` for QR) and is wired through a built-in
+# post-processor under `crates/kreuzberg/src/plugins/processor/builtin/`.
+ner = []                                  # NER result types only; safe on every target.
+ner-llm = ["ner", "liter-llm"]            # LLM-driven zero-shot NER (no ORT).
+ner-onnx = ["ner"]                        # gline-rs ONNX backend; subagent will add deps.
+
+redaction = []                            # Pattern-based PII engine; pure-Rust.
+redaction-ml = ["redaction", "ner"]       # Couple in NER for PERSON/ORG/LOC redaction.
+
+summarization = []                        # TextRank extractive only; pure-Rust.
+summarization-llm = ["summarization", "liter-llm"]
+
+translation = ["liter-llm"]
+classification = ["liter-llm"]
+captioning = ["liter-llm"]
+qr-codes = []                             # Subagent adds `rqrr` dep.
+
 tower-service = ["dep:tower", "tokio-runtime"]
 
 api-types = []
@@ -239,6 +258,10 @@ no-ort-target = [
     "layout-types",
     "auto-rotate-types",
     "paddle-ocr-types",
+    "ner",
+    "redaction",
+    "summarization",
+    "qr-codes",
 ]
 # wasm-target: no-ort-target plus WASM-specific overrides (excel-wasm, tree-sitter-wasm, ocr-wasm).
 wasm-target = ["no-ort-target", "excel-wasm", "tree-sitter-wasm", "ocr-wasm"]
@@ -297,6 +320,16 @@ full = [
     "liter-llm",
     "tokio-runtime",
     "diff",
+    "ner-llm",
+    "ner-onnx",
+    "redaction",
+    "redaction-ml",
+    "summarization",
+    "summarization-llm",
+    "translation",
+    "classification",
+    "captioning",
+    "qr-codes",
 ]
 # Server deployment preset — formats + analysis + services + OCR.
 server = ["formats", "analysis", "services", "ocr", "paddle-ocr", "layout-detection"]

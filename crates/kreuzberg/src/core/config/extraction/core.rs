@@ -294,6 +294,43 @@ pub struct ExtractionConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub structured_extraction: Option<super::super::llm::StructuredExtractionConfig>,
 
+    /// Named-entity recognition configuration. When set, the NER post-processor runs at
+    /// the Middle stage and populates `ExtractionResult::entities`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub ner: Option<super::super::ner::NerConfig>,
+
+    /// Redaction / anonymisation configuration. When set, the redaction post-processor
+    /// runs at the Late stage and rewrites every textual field in `ExtractionResult`,
+    /// emitting an audit trail in `ExtractionResult::redaction_report`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub redaction: Option<super::super::redaction::RedactionConfig>,
+
+    /// Summarisation configuration. When set, the summarisation post-processor runs at
+    /// the Middle stage and populates `ExtractionResult::summary`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub summarization: Option<super::super::summarization::SummarizationConfig>,
+
+    /// Translation configuration. When set, the translation post-processor runs at the
+    /// Middle stage and populates `ExtractionResult::translation`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub translation: Option<super::super::translation::TranslationConfig>,
+
+    /// Per-page classification configuration. When set, the classification post-processor
+    /// runs at the Middle stage and populates `ExtractionResult::page_classifications`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub page_classification: Option<super::super::classification::PageClassificationConfig>,
+
+    /// VLM captioning configuration for extracted images. When set, the captioning
+    /// post-processor runs at the Middle stage and writes a caption into each
+    /// `ExtractedImage::caption`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub captioning: Option<super::super::captioning::CaptioningConfig>,
+
+    /// Enable QR-code detection in extracted images. When `true`, the QR post-processor
+    /// runs at the Middle stage and populates `ExtractedImage::qr_codes`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub qr_codes: Option<bool>,
+
     /// Cancellation token for this extraction (None = no external cancellation).
     ///
     /// Pass a [`CancellationToken`] clone here and call [`CancellationToken::cancel`]
@@ -350,6 +387,13 @@ impl Default for ExtractionConfig {
             #[cfg(feature = "tree-sitter")]
             tree_sitter: None,
             structured_extraction: None,
+            ner: None,
+            redaction: None,
+            summarization: None,
+            translation: None,
+            page_classification: None,
+            captioning: None,
+            qr_codes: None,
             cancel_token: None,
         }
     }

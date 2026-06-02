@@ -17,3 +17,16 @@ pub use quality_processor::QualityProcessor;
 
 #[cfg(feature = "quality")]
 pub use token_reduction::{ReductionLevel, TokenReductionConfig};
+
+// OSS v5 follow-up text-analysis modules. Each subsystem is feature-gated so the
+// non-OSS targets (no-ort-target, wasm-target, android-target) compile out cleanly.
+#[cfg(feature = "ner")]
+pub mod ner;
+#[cfg(feature = "redaction")]
+pub mod redaction;
+#[cfg(feature = "summarization")]
+pub mod summarization;
+#[cfg(feature = "translation")]
+pub mod translation;
+#[cfg(feature = "classification")]
+pub mod classification;
