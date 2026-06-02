@@ -512,6 +512,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "clap",
+ "dotenvy",
  "futures",
  "jsonschema 0.18.3",
  "kreuzberg",
