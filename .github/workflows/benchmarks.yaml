@@ -124,7 +124,10 @@ jobs:
   bench-rust:
     name: bench-rust (${{ matrix.pipeline }}, ${{ matrix.output_format }}, ${{ matrix.mode }})
     needs: setup
-    runs-on: runner-medium-arm64
+    # Layout pipeline loads RT-DETR (~50MB) + TATR (~235MB) ONNX models and exhausts
+    # runner-medium-arm64; the runner agent stopped responding at ~24min on every
+    # layout job. Route layout jobs to runner-large-arm64 (16-core, 64Gi).
+    runs-on: ${{ matrix.pipeline == 'layout' && 'runner-large-arm64' || 'runner-medium-arm64' }}
     timeout-minutes: 360
     permissions:
       contents: read
