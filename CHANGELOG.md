@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **ci(ruby)**: Refreshed `packages/ruby/Gemfile.lock` to match current gemspec. The `kreuzberg.gemspec` constraint for `rb_sys` changed from `~> 0.9` to `>= 0.9`, but the lock file was stale and conflicted with frozen mode in CI. Bundle install now succeeds in frozen mode.
 - **chore(alef)**: pin to alef v0.22.8 with 6 Dart FRB codegen fixes (slice/Vec borrow, &Vec<&str> vs &[String], .collect turbofish, PathBuf Display, &mut self propagation, Vec<PathBuf> lossy-display).
 - **fix(jni)**: port to jni 0.22 EnvUnowned/Env split. Updated five call sites in `crates/kreuzberg-jni/src/lib.rs` (`throw_exception`, `throw_exception_void`, `jstring_to_string`, `string_to_jstring`, `byte_array_from_slice`) to use `env.with_env(|env| { ... })` wrapper to access `Env` methods from `EnvUnowned<'local>`.
 - **ci(windows)**: Fixed Windows FFI build failure where NER LLM backend compilation was not guarded by platform check. The `ner::llm` submodule is only available on non-Windows targets, but `crates/kreuzberg/src/text/redaction/engine.rs` was attempting to access it without the `not(target_os = "windows")` cfg guard. Updated both the availability branch and the error fallback to match the platform constraint used in `crates/kreuzberg/src/plugins/processor/builtin/ner.rs`.
