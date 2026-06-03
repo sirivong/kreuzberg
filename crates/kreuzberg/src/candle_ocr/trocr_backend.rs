@@ -19,6 +19,15 @@ use kreuzberg_candle_ocr::models::TrocrVariant;
 /// Recognizes text in images via Microsoft's TrOCR model. Supports printed
 /// and handwritten text with four model variants (base/large × printed/handwritten).
 ///
+/// # Important: line-level only
+///
+/// TrOCR is trained to recognise a single line of text per image. When given a
+/// full-page document the model will typically decode only the most prominent
+/// region and produce nearly-empty output. Use TrOCR for cropped text regions —
+/// upstream stages must detect text regions (e.g. PaddleOCR text detector or a
+/// layout model) and hand each crop to this backend individually. For full-page
+/// VLM OCR use [`PaddleOcrVlBackend`](super::PaddleOcrVlBackend) instead.
+///
 /// # Configuration
 ///
 /// TrOCR accepts backend options for runtime tuning:

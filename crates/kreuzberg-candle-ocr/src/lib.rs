@@ -4,8 +4,13 @@
 //!
 //! ## Per-model sub-features
 //!
-//! - `trocr` — Microsoft TrOCR (printed and handwritten variants)
-//! - `paddleocr-vl` — PaddleOCR-VL 0.9B (multi-task: OCR, tables, formulas, charts)
+//! - `trocr` — Microsoft TrOCR (printed and handwritten variants). **Line-level
+//!   only**: TrOCR is trained to recognise a single line of text per image and
+//!   produces poor output on full-page documents. Combine with a text-detection
+//!   step (e.g. PaddleOCR's text detector) that crops text regions before
+//!   handing each crop to TrOCR.
+//! - `paddleocr-vl` — PaddleOCR-VL 0.9B vision-language model. Full-page
+//!   multi-task: OCR, tables, formulas, charts. Emits markdown directly.
 //!
 //! ## Device acceleration
 //!
@@ -29,8 +34,6 @@ pub use candle_core::DType;
 pub enum ModelKind {
     Trocr,
     PaddleOcrVl,
-    GotOcr,
-    GlmOcr,
 }
 
 /// Output produced by a candle OCR engine for a single image.
