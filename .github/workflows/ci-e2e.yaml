@@ -284,8 +284,15 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ matrix.ruby-version }}
-          bundler-cache: true
+          bundler-cache: false
           working-directory: e2e/ruby
+
+      - name: Bundle install
+        if: matrix.ruby-version
+        working-directory: e2e/ruby
+        run: |
+          bundle config set frozen true
+          bundle install --jobs 4
 
       - name: Setup Java
         if: matrix.java-version

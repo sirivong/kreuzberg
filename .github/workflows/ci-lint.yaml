@@ -61,8 +61,14 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.4"
-          bundler-cache: true
+          bundler-cache: false
           working-directory: packages/ruby
+
+      - name: Bundle install
+        working-directory: packages/ruby
+        run: |
+          bundle config set frozen true
+          bundle install --jobs 4
 
       - name: Setup PHP
         uses: kreuzberg-dev/actions/setup-php@v1
