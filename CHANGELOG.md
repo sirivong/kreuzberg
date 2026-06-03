@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **chore(alef)**: pin to alef v0.22.8 with 6 Dart FRB codegen fixes (slice/Vec borrow, &Vec<&str> vs &[String], .collect turbofish, PathBuf Display, &mut self propagation, Vec<PathBuf> lossy-display).
 - **fix(jni)**: port to jni 0.22 EnvUnowned/Env split. Updated five call sites in `crates/kreuzberg-jni/src/lib.rs` (`throw_exception`, `throw_exception_void`, `jstring_to_string`, `string_to_jstring`, `byte_array_from_slice`) to use `env.with_env(|env| { ... })` wrapper to access `Env` methods from `EnvUnowned<'local>`.
 - **ci(windows)**: Fixed Windows FFI build failure where NER LLM backend compilation was not guarded by platform check. The `ner::llm` submodule is only available on non-Windows targets, but `crates/kreuzberg/src/text/redaction/engine.rs` was attempting to access it without the `not(target_os = "windows")` cfg guard. Updated both the availability branch and the error fallback to match the platform constraint used in `crates/kreuzberg/src/plugins/processor/builtin/ner.rs`.
 - **ci(ruby)**: Work around bundler 2.6 `--frozen` flag removal in `ruby/setup-ruby@v1` action. Set `bundler-cache: false` and explicitly run `bundle config set frozen true && bundle install --jobs 4` in affected workflows (`ci-lint`, `ci-e2e`). Bundler 2.6+ requires runtime configuration instead of the deprecated flag.
