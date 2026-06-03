@@ -171,11 +171,28 @@ pub use text::{ReductionLevel, TokenReductionConfig};
 ))]
 pub use text::ner::llm::LlmBackend;
 
+// Stub for Android x86_64 (no ORT prebuilt), so alef-generated bindings compile.
+// See feature flag policy: android-target excludes ner-llm.
+#[cfg(all(not(feature = "ner-llm"), all(target_os = "android", target_arch = "x86_64")))]
+#[derive(Clone, Debug)]
+pub struct LlmBackend {
+    pub model_id: String,
+}
+
 // GlineBackend (GLiNER ONNX NER) and RegionKind (per-region VLM extraction) are
 // re-exported here so alef-generated bindings can refer to them as `kreuzberg::GlineBackend`
 // and `kreuzberg::RegionKind` without internal module path exposure.
 #[cfg(feature = "ner-onnx")]
 pub use text::ner::gline::GlineBackend;
+
+// Stub for Android x86_64 (no ORT prebuilt), so alef-generated bindings compile.
+// See feature flag policy: android-target excludes ner-onnx.
+#[cfg(all(not(feature = "ner-onnx"), all(target_os = "android", target_arch = "x86_64")))]
+pub struct GlineBackend {
+    pub repo_id: String,
+    pub model_path: String,
+    pub tokenizer_path: String,
+}
 
 #[cfg(all(feature = "liter-llm", not(target_os = "windows")))]
 pub use llm::region_extractor::RegionKind;

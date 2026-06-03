@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **fix(ci)**: Android x86_64 emulator cargo check failure in kreuzberg-dart. Added stub implementations of `LlmBackend`, `GlineBackend`, `text::ner::{download_model, default_model_name, known_models}`, `text::classification::classify_pages`, and `text::translation::translate_result` in the core library when their features are disabled. Alef-generated Dart bindings reference these types unconditionally; stubs allow compilation on android-target (which excludes ner, ner-llm, classification, translation due to missing ORT prebuilts).
+
+### Fixed
+
 - **ci(ruby)**: Refreshed `packages/ruby/Gemfile.lock` to match current gemspec. The `kreuzberg.gemspec` constraint for `rb_sys` changed from `~> 0.9` to `>= 0.9`, but the lock file was stale and conflicted with frozen mode in CI. Bundle install now succeeds in frozen mode.
 - **chore(alef)**: pin to alef v0.22.16 with cumulative Dart FRB codegen fixes (slice/Vec borrow guards, typed `|v: Vec<_>|` closure annotations, `vec_inner_is_ref` guard for `&[String]` vs `&[&str]`, exhaustive `unreachable!()` arms for variant-level `binding_excluded` variants, mut-receiver propagation, napi `ThreadsafeFunction` generics, sync-versions zig hash substitution, kotlin android JDK 21 toolchain, Elixir harness deps) and v0.22.16 visitor codegen hardening, PHP optionality preservation, napi Value mapping, and rustler hex constraint flexibility.
 - **chore(deps)**: allow `MIT-0` license (transitive via `borrow-or-share` → `fluent-uri` → `referencing` → `jsonschema`); add `kreuzberg-gliner-rs` and `kreuzberg-orp` to cargo-machete ignored list (forks whose package names don't match their lib names `gliner` / `orp`).

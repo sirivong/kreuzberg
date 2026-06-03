@@ -3152,6 +3152,12 @@ Combined paths to all models needed for OCR (backward compatibility).
 
 ---
 
+#### NerBackend
+
+NER backend trait (stub for Android x86_64).
+
+---
+
 #### NerConfig
 
 Configuration for the NER post-processor.

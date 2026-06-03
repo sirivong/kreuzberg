@@ -3136,6 +3136,12 @@ Combined paths to all models needed for OCR (backward compatibility).
 
 ---
 
+#### KreuzbergNerBackend
+
+NER backend trait (stub for Android x86_64).
+
+---
+
 #### KreuzbergNerConfig
 
 Configuration for the NER post-processor.

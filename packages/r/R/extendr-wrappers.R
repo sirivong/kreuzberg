@@ -1749,6 +1749,26 @@ GlineBackend$detect_with_custom <- function(self, text, categories, custom_label
 detect.GlineBackend <- function(x, ...) x$detect(...)
 #' @export
 detect_with_custom.GlineBackend <- function(x, ...) x$detect_with_custom(...)
+#' Liter-llm-backed NER backend
+#' @export
+LlmBackend <- new.env(parent = emptyenv())
+LlmBackend$detect <- function(self, text, categories) .Call("wrap__LlmBackend__detect", self, text, categories, PACKAGE = "kreuzberg")
+LlmBackend$detect_with_custom <- function(self, text, categories, custom_labels) .Call("wrap__LlmBackend__detect_with_custom", self, text, categories, custom_labels, PACKAGE = "kreuzberg")
+#' @export
+`$.LlmBackend` <- function(self, name) {
+  func <- LlmBackend[[name]]
+  if (identical(names(formals(func))[1], "self")) {
+    function(...) func(self, ...)
+  } else {
+    func
+  }
+}
+#' @export
+`[[.LlmBackend` <- `$.LlmBackend`
+#' @export
+detect.LlmBackend <- function(x, ...) x$detect(...)
+#' @export
+detect_with_custom.LlmBackend <- function(x, ...) x$detect_with_custom(...)
 #' One detected PII span in the input text
 #' @field start Inclusive byte-offset start of the match in the source text.
 #' @field end Exclusive byte-offset end of the match.
@@ -1767,6 +1787,21 @@ PatternMatch <- new.env(parent = emptyenv())
 }
 #' @export
 `[[.PatternMatch` <- `$.PatternMatch`
+#' Per-category running counter for [`RedactionStrategy::TokenReplace`]
+#' @export
+TokenCounter <- new.env(parent = emptyenv())
+TokenCounter$new <- function() .Call("wrap__TokenCounter__new", PACKAGE = "kreuzberg")
+#' @export
+`$.TokenCounter` <- function(self, name) {
+  func <- TokenCounter[[name]]
+  if (identical(names(formals(func))[1], "self")) {
+    function(...) func(self, ...)
+  } else {
+    func
+  }
+}
+#' @export
+`[[.TokenCounter` <- `$.TokenCounter`
 #' A PDF annotation extracted from a document page
 #' @field annotation_type The type of annotation.
 #' @field content Text content of the annotation (e.g., comment text, link URL).

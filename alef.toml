@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.22.16"
+alef_version = "0.22.18"
 languages = [
   "python",
   "node",
@@ -385,6 +385,44 @@ exclude_functions = [
 [[crates.ffi.target_dep_overrides]]
 cfg = 'all(target_os = "android", target_arch = "x86_64")'
 features = ["android-target"]
+
+# Windows lacks native support for liter-llm (no ORT binaries). Exclude all
+# LLM-dependent FFI functions to prevent compilation errors. These functions
+# reference RegionKind (liter-llm feature), LlmBackend, PageClassificationConfig,
+# and TranslationConfig, all of which are gated behind `not(target_os = "windows")`.
+[[crates.ffi.target_dep_overrides]]
+cfg = 'target_os = "windows"'
+exclude_functions = [
+  # Region/RegionKind (liter-llm feature, win-excluded)
+  "region_kind_from_i32_rs",
+  # LlmBackend functions
+  "kreuzberg_llm_backend_free",
+  "kreuzberg_llm_backend_new",
+  "kreuzberg_llm_backend_invoke",
+  "kreuzberg_llm_backend_invoke_streaming",
+  "kreuzberg_llm_backend_count_tokens",
+  # PageClassificationConfig functions
+  "kreuzberg_page_classification_config_from_json",
+  "kreuzberg_page_classification_config_to_json",
+  "kreuzberg_page_classification_config_free",
+  "kreuzberg_page_classification_config_prompt_template",
+  "kreuzberg_page_classification_config_labels",
+  "kreuzberg_page_classification_config_multi_label",
+  "kreuzberg_page_classification_config_llm",
+  # TranslationConfig functions
+  "kreuzberg_translation_config_from_json",
+  "kreuzberg_translation_config_to_json",
+  "kreuzberg_translation_config_free",
+  "kreuzberg_translation_config_target_lang",
+  "kreuzberg_translation_config_source_lang",
+  "kreuzberg_translation_config_preserve_markup",
+  "kreuzberg_translation_config_llm",
+  # PageClassification result type functions
+  "kreuzberg_page_classification_from_json",
+  "kreuzberg_page_classification_to_json",
+  "kreuzberg_page_classification_free",
+  "kreuzberg_page_classification_pages",
+]
 
 [crates.go]
 module = "github.com/kreuzberg-dev/kreuzberg/v5"

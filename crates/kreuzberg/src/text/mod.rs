@@ -22,11 +22,62 @@ pub use token_reduction::{ReductionLevel, TokenReductionConfig};
 // non-OSS targets (no-ort-target, wasm-target, android-target) compile out cleanly.
 #[cfg(all(feature = "classification", not(target_os = "windows")))]
 pub mod classification;
+
+// Stub module for Android x86_64 when classification feature is disabled (android-target has no ORT).
+#[cfg(not(all(feature = "classification", not(target_os = "windows"))))]
+pub mod classification {
+    use crate::{ExtractionResult, PageClassificationConfig, Result};
+
+    /// Classify pages in an extraction result.
+    pub async fn classify_pages(_result: &mut ExtractionResult, _config: &PageClassificationConfig) -> Result<()> {
+        Err(crate::KreuzbergError::Other("classification feature not available on this target".into()))
+    }
+}
+
 #[cfg(feature = "ner")]
 pub mod ner;
+
+// Stub module for Android x86_64 when ner feature is disabled (android-target has no ORT prebuilt).
+// Allows alef-generated bindings to reference types and functions without compilation errors.
+#[cfg(not(feature = "ner"))]
+pub mod ner {
+    use crate::Result;
+    use std::path::PathBuf;
+
+    /// NER backend trait (stub for Android x86_64).
+    pub trait NerBackend: Send + Sync {}
+
+    /// Download a NER model into the kreuzberg cache.
+    pub fn download_model(_name: &str, _cache_dir: Option<PathBuf>) -> Result<PathBuf> {
+        Err(crate::KreuzbergError::Other("ner feature not available on this target".into()))
+    }
+
+    /// Default NER model identifier.
+    pub fn default_model_name() -> &'static str {
+        "gliner-stub"
+    }
+
+    /// All NER models kreuzberg knows about.
+    pub fn known_models() -> Vec<&'static str> {
+        vec![]
+    }
+}
+
 #[cfg(feature = "redaction")]
 pub mod redaction;
 #[cfg(feature = "summarization")]
 pub mod summarization;
+
 #[cfg(all(feature = "translation", not(target_os = "windows")))]
 pub mod translation;
+
+// Stub module for Android x86_64 when translation feature is disabled (android-target has no ORT).
+#[cfg(not(all(feature = "translation", not(target_os = "windows"))))]
+pub mod translation {
+    use crate::{ExtractionResult, TranslationConfig, Result};
+
+    /// Translate an extraction result.
+    pub async fn translate_result(_result: &mut ExtractionResult, _config: &TranslationConfig) -> Result<()> {
+        Err(crate::KreuzbergError::Other("translation feature not available on this target".into()))
+    }
+}
