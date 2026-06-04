@@ -433,7 +433,10 @@ pub(super) fn apply_hint_to_paragraph(para: &mut PdfParagraph, hint: &LayoutHint
             para.is_list_item = true;
         }
         LayoutHintClass::PageHeader | LayoutHintClass::PageFooter => {
-            para.is_page_furniture = true;
+            // Only mark as furniture if confidence is high. On OCR-rendered pages,
+            // furniture detection is unreliable and can drop valid body content
+            // (fixes #936 category B/D: total output failure, PageHeader suppression).
+            para.is_page_furniture = hint.confidence >= 0.8;
         }
         LayoutHintClass::Picture => {
             // Text classified as Picture by layout model is figure-internal text
@@ -1026,5 +1029,110 @@ mod tests {
         assert!((bbox.right - 180.0).abs() < f32::EPSILON);
         // top = max(700+12, 680+14) = max(712, 694) = 712
         assert!((bbox.y_max - 712.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_page_header_furniture_requires_high_confidence() {
+        // Low-confidence PageHeader hints should NOT mark paragraphs as furniture
+        // (fixes #936 category B: total output failure on OCR-rendered pages).
+        let mut para = PdfParagraph {
+            text: "Header text with content".to_string(),
+            lines: vec![],
+            dominant_font_size: 12.0,
+            heading_level: None,
+            is_bold: false,
+            is_list_item: false,
+            is_code_block: false,
+            is_formula: false,
+            is_page_furniture: false,
+            layout_class: None,
+            caption_for: None,
+            block_bbox: None,
+            word_count: 5,
+        };
+
+        // Test 1: confidence < 0.8 should NOT mark as furniture
+        let low_conf_hint = LayoutHint {
+            class_name: LayoutHintClass::PageHeader,
+            confidence: 0.7,
+            left: 0.0,
+            bottom: 0.0,
+            right: 100.0,
+            top: 50.0,
+        };
+        apply_hint_to_paragraph(&mut para, &low_conf_hint, None);
+        assert!(
+            !para.is_page_furniture,
+            "Low-confidence PageHeader (0.7) should NOT mark paragraph as furniture"
+        );
+        assert_eq!(
+            para.layout_class,
+            Some(LayoutHintClass::PageHeader),
+            "layout_class should still be set"
+        );
+
+        // Test 2: confidence >= 0.8 should mark as furniture
+        let mut para2 = PdfParagraph {
+            text: "Header text with content".to_string(),
+            lines: vec![],
+            dominant_font_size: 12.0,
+            heading_level: None,
+            is_bold: false,
+            is_list_item: false,
+            is_code_block: false,
+            is_formula: false,
+            is_page_furniture: false,
+            layout_class: None,
+            caption_for: None,
+            block_bbox: None,
+            word_count: 5,
+        };
+        let high_conf_hint = LayoutHint {
+            class_name: LayoutHintClass::PageHeader,
+            confidence: 0.85,
+            left: 0.0,
+            bottom: 0.0,
+            right: 100.0,
+            top: 50.0,
+        };
+        apply_hint_to_paragraph(&mut para2, &high_conf_hint, None);
+        assert!(
+            para2.is_page_furniture,
+            "High-confidence PageHeader (0.85) should mark paragraph as furniture"
+        );
+    }
+
+    #[test]
+    fn test_page_footer_furniture_requires_high_confidence() {
+        // Low-confidence PageFooter hints should NOT mark paragraphs as furniture.
+        let mut para = PdfParagraph {
+            text: "Footer text".to_string(),
+            lines: vec![],
+            dominant_font_size: 12.0,
+            heading_level: None,
+            is_bold: false,
+            is_list_item: false,
+            is_code_block: false,
+            is_formula: false,
+            is_page_furniture: false,
+            layout_class: None,
+            caption_for: None,
+            block_bbox: None,
+            word_count: 2,
+        };
+
+        let low_conf_hint = LayoutHint {
+            class_name: LayoutHintClass::PageFooter,
+            confidence: 0.6,
+            left: 0.0,
+            bottom: 0.0,
+            right: 100.0,
+            top: 50.0,
+        };
+        apply_hint_to_paragraph(&mut para, &low_conf_hint, None);
+        assert!(
+            !para.is_page_furniture,
+            "Low-confidence PageFooter (0.6) should NOT mark paragraph as furniture"
+        );
     }
 }
