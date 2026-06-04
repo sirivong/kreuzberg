@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.23.2"
+alef_version = "0.23.3"
 languages = [
   "python",
   "node",
@@ -399,9 +399,8 @@ features = ["android-target"]
 [[crates.ffi.target_dep_overrides]]
 cfg = 'target_os = "windows"'
 # Curated Windows feature set: excludes paddle-ocr, paddle-ocr-types, layout-detection,
-# layout-types, embeddings, embedding-presets. Default features pull in paddle-ocr et al,
-# which fail to link on Windows (no ORT bundle). Type-only features (layout-types,
-# paddle-ocr-types, embedding-presets) are included for compatibility with public APIs.
+# layout-types, embeddings, embedding-presets, ner-llm. Type-only features (layout-types,
+# paddle-ocr-types, embedding-presets, ner-llm-types) are included for compatibility with public APIs.
 features = [
   "pdf",
   "ocr",
@@ -419,6 +418,8 @@ features = [
   "layout-types",
   "paddle-ocr-types",
   "embedding-presets",
+  "ner",
+  "ner-llm-types",
   "redaction",
   "diff",
   "qr-codes",
