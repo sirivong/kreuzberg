@@ -46,7 +46,7 @@ COPY crates/kreuzberg-paddle-ocr/ crates/kreuzberg-paddle-ocr/
 COPY packages/elixir/native/kreuzberg_nif/ packages/elixir/native/kreuzberg_nif/
 
 # Remove workspace members that aren't included
-RUN sed -i '/kreuzberg-py/d; /kreuzberg_rb/d; /kreuzberg-node/d; /kreuzberg-cli/d; /kreuzberg-ffi/d; /kreuzberg-php/d; /packages\/dart\/rust/d; /packages\/swift\/rust/d; /"crates\/kreuzberg-wasm"/d; /^\[profile\.release\.package\.kreuzberg-wasm\]$/,$d; /benchmark-harness/d; /e2e-generator/d; /snippet-runner/d; /e2e\/rust/d' Cargo.toml
+RUN sed -i '/kreuzberg-py/d; /kreuzberg_rb/d; /kreuzberg-node/d; /kreuzberg-cli/d; /kreuzberg-ffi/d; /kreuzberg-jni/d; /kreuzberg-php/d; /packages\/dart\/rust/d; /packages\/swift\/rust/d; /"crates\/kreuzberg-wasm"/d; /^\[profile\.release\.package\.kreuzberg-wasm\]$/,$d; /benchmark-harness/d; /e2e-generator/d; /snippet-runner/d; /e2e\/rust/d' Cargo.toml
 
 # Build the Rustler NIF shared library (the crate is excluded from the workspace,
 # so we build it directly from its package directory).

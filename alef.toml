@@ -424,6 +424,7 @@ features = [
   "diff",
   "qr-codes",
   "summarization",
+  "transcription-types",
   "tokio-runtime",
   "api",
   "mcp",

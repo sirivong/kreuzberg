@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **ci**: exclude `.rs` files from the `check-executables-have-shebangs` and `check-shebang-scripts-are-executable` prek hooks; Rust inner attributes (`#![cfg(...)]`, `#![allow(...)]`) start with `#!` and were being mis-classified as shebangs.
+
+- **ci**: disable the `rustdoc-lint` hook pending a workspace-wide `-D missing-docs` cleanup pass (tracked separately).
+
+- **publish**: `docker/Dockerfile.musl-{ffi,build,rustler}` now strip `kreuzberg-jni` from the workspace member list in the same `sed` pass as the other excluded crates, restoring Alpine-based publish builds (Java/C# musl natives, CLI aarch64-musl).
+
+- **ffi/windows**: add `transcription-types` to the Windows FFI feature set so `TranscriptionConfig`, `WhisperModel`, and `AudioMetadata` resolve in the generated bindings.
+
 ## [5.0.0-rc.4] - 2026-06-06
 
 ### Changed
