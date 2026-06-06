@@ -6262,6 +6262,7 @@ public enum VlmFallbackPolicy: Codable, Sendable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case mode
+
         case qualityThreshold = "quality_threshold"    }
 
     public init(from decoder: Decoder) throws {
@@ -6349,7 +6350,9 @@ public enum ChunkSizing: Codable, Sendable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case type
-        case cacheDir = "cache_dir"        case model    }
+
+        case cacheDir = "cache_dir"
+        case model    }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -6423,7 +6426,11 @@ public enum EmbeddingModelType: Codable, Sendable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case type
-        case dimensions        case llm        case modelId = "model_id"        case name    }
+
+        case dimensions
+        case llm
+        case modelId = "model_id"
+        case name    }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -6778,7 +6785,27 @@ public enum NodeContent: Codable, Sendable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case node_type
-        case content        case definition        case description        case entries        case format        case grid        case headingLevel = "heading_level"        case headingText = "heading_text"        case imageIndex = "image_index"        case key        case kind        case label        case language        case level        case number        case ordered        case src        case term        case text        case title    }
+
+        case content
+        case definition
+        case description
+        case entries
+        case format
+        case grid
+        case headingLevel = "heading_level"
+        case headingText = "heading_text"
+        case imageIndex = "image_index"
+        case key
+        case kind
+        case label
+        case language
+        case level
+        case number
+        case ordered
+        case src
+        case term
+        case text
+        case title    }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -6953,7 +6980,11 @@ public enum AnnotationKind: Codable, Sendable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case annotation_type
-        case name        case title        case url        case value    }
+
+        case name
+        case title
+        case url
+        case value    }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -7307,7 +7338,12 @@ public enum OcrBoundingGeometry: Codable, Sendable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case type
-        case height        case left        case points        case top        case width    }
+
+        case height
+        case left
+        case points
+        case top
+        case width    }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -7464,6 +7500,7 @@ public enum DiffLine: Codable, Sendable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case kind
+
         case field0 = "_0"    }
 
     public init(from decoder: Decoder) throws {
@@ -7545,7 +7582,12 @@ public enum RevisionAnchor: Codable, Sendable, Hashable {
 
     private enum CodingKeys: String, CodingKey {
         case type
-        case col        case index        case name        case row        case tableIndex = "table_index"    }
+
+        case col
+        case index
+        case name
+        case row
+        case tableIndex = "table_index"    }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -7970,21 +8012,21 @@ public func classifyPages(_ resultJson: String, _ configJson: String) async thro
 }
 
 public func redact(_ resultJson: String, _ configJson: String) async throws -> Void {
-    let result = try extractionResultFromJson(resultJson)
     let config = try redactionConfigFromJson(configJson)
+    let result = try extractionResultFromJson(resultJson)
     return try await redact(result: result, config: config)
 }
 
 public func translateResult(_ resultJson: String, _ configJson: String) async throws -> Void {
-    let result = try extractionResultFromJson(resultJson)
     let config = try translationConfigFromJson(configJson)
+    let result = try extractionResultFromJson(resultJson)
     return try await translateResult(result: result, config: config)
 }
 
 public func compare(_ aJson: String, _ bJson: String, _ optsJson: String) throws -> ExtractionDiff {
-    let opts = try diffOptionsFromJson(optsJson)
     let a = try extractionResultFromJson(aJson)
     let b = try extractionResultFromJson(bJson)
+    let opts = try diffOptionsFromJson(optsJson)
     return try compare(a: a, b: b, opts: opts)
 }
 

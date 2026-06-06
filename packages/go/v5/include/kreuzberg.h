@@ -1767,7 +1767,7 @@ typedef struct KREUZBERGYearRange KREUZBERGYearRange;
  * this vtable.  `free_user_data`, when non-null, is called once with `user_data`
  * when the bridge is dropped.
  */
-typedef struct KREUZBERGKreuzbergOcrBackendVTable {
+typedef struct {
   /**
    * Return a null-terminated UTF-8 name string into `out_name`; return 0 on success.
    */
@@ -1964,7 +1964,7 @@ typedef struct KREUZBERGKreuzbergOcrBackendVTable {
  * this vtable.  `free_user_data`, when non-null, is called once with `user_data`
  * when the bridge is dropped.
  */
-typedef struct KREUZBERGKreuzbergPostProcessorVTable {
+typedef struct {
   /**
    * Return a null-terminated UTF-8 name string into `out_name`; return 0 on success.
    */
@@ -2139,7 +2139,7 @@ typedef struct KREUZBERGKreuzbergPostProcessorVTable {
  * this vtable.  `free_user_data`, when non-null, is called once with `user_data`
  * when the bridge is dropped.
  */
-typedef struct KREUZBERGKreuzbergValidatorVTable {
+typedef struct {
   /**
    * Return a null-terminated UTF-8 name string into `out_name`; return 0 on success.
    */
@@ -2322,7 +2322,7 @@ typedef struct KREUZBERGKreuzbergValidatorVTable {
  * this vtable.  `free_user_data`, when non-null, is called once with `user_data`
  * when the bridge is dropped.
  */
-typedef struct KREUZBERGKreuzbergEmbeddingBackendVTable {
+typedef struct {
   /**
    * Return a null-terminated UTF-8 name string into `out_name`; return 0 on success.
    */
@@ -2382,7 +2382,7 @@ typedef struct KREUZBERGKreuzbergEmbeddingBackendVTable {
  * this vtable.  `free_user_data`, when non-null, is called once with `user_data`
  * when the bridge is dropped.
  */
-typedef struct KREUZBERGKreuzbergDocumentExtractorVTable {
+typedef struct {
   /**
    * Return a null-terminated UTF-8 name string into `out_name`; return 0 on success.
    */
@@ -2531,7 +2531,7 @@ typedef struct KREUZBERGKreuzbergDocumentExtractorVTable {
  * this vtable.  `free_user_data`, when non-null, is called once with `user_data`
  * when the bridge is dropped.
  */
-typedef struct KREUZBERGKreuzbergRendererVTable {
+typedef struct {
   /**
    * Return a null-terminated UTF-8 name string into `out_name`; return 0 on success.
    */
@@ -15789,7 +15789,7 @@ uintptr_t kreuzberg_list_embedding_presets_len(void);
  * into the plugin.
  */
 int32_t kreuzberg_register_ocr_backend(const char *name,
-                                       const struct KREUZBERGKreuzbergOcrBackendVTable *vtable,
+                                       const KREUZBERGKreuzbergOcrBackendVTable *vtable,
                                        const void *user_data,
                                        char **out_error);
 
@@ -15839,7 +15839,7 @@ int32_t kreuzberg_clear_ocr_backend(char **out_error);
  * into the plugin.
  */
 int32_t kreuzberg_register_post_processor(const char *name,
-                                          const struct KREUZBERGKreuzbergPostProcessorVTable *vtable,
+                                          const KREUZBERGKreuzbergPostProcessorVTable *vtable,
                                           const void *user_data,
                                           char **out_error);
 
@@ -15889,7 +15889,7 @@ int32_t kreuzberg_clear_post_processor(char **out_error);
  * into the plugin.
  */
 int32_t kreuzberg_register_validator(const char *name,
-                                     const struct KREUZBERGKreuzbergValidatorVTable *vtable,
+                                     const KREUZBERGKreuzbergValidatorVTable *vtable,
                                      const void *user_data,
                                      char **out_error);
 
@@ -15939,7 +15939,7 @@ int32_t kreuzberg_clear_validator(char **out_error);
  * into the plugin.
  */
 int32_t kreuzberg_register_embedding_backend(const char *name,
-                                             const struct KREUZBERGKreuzbergEmbeddingBackendVTable *vtable,
+                                             const KREUZBERGKreuzbergEmbeddingBackendVTable *vtable,
                                              const void *user_data,
                                              char **out_error);
 
@@ -15989,7 +15989,7 @@ int32_t kreuzberg_clear_embedding_backend(char **out_error);
  * into the plugin.
  */
 int32_t kreuzberg_register_document_extractor(const char *name,
-                                              const struct KREUZBERGKreuzbergDocumentExtractorVTable *vtable,
+                                              const KREUZBERGKreuzbergDocumentExtractorVTable *vtable,
                                               const void *user_data,
                                               char **out_error);
 
@@ -16039,7 +16039,7 @@ int32_t kreuzberg_clear_document_extractor(char **out_error);
  * into the plugin.
  */
 int32_t kreuzberg_register_renderer(const char *name,
-                                    const struct KREUZBERGKreuzbergRendererVTable *vtable,
+                                    const KREUZBERGKreuzbergRendererVTable *vtable,
                                     const void *user_data,
                                     char **out_error);
 

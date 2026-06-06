@@ -756,8 +756,8 @@ e2e = "cd e2e/php && php run_tests.php"
 
 [crates.test.java]
 precondition = "command -v mvn >/dev/null 2>&1"
-before = "cargo build --release -p kreuzberg-ffi && cd packages/java && mvn -T 1 package -DskipTests -q"
-e2e = "cd e2e/java && mvn test -q"
+before = "cargo build --release -p kreuzberg-ffi && cd packages/java && mvn -T 1 package -DskipTests"
+e2e = "cd e2e/java && mvn test"
 
 [crates.test.csharp]
 precondition = "command -v dotnet >/dev/null 2>&1"
