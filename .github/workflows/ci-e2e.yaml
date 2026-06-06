@@ -265,6 +265,16 @@ jobs:
         with:
           ort-version: ${{ env.ORT_VERSION }}
 
+      - name: Stage ORT libraries alongside FFI
+        shell: bash
+        run: |
+          if [ -n "${ORT_LIB_LOCATION:-}" ] && [ -d "$ORT_LIB_LOCATION" ]; then
+            mkdir -p target/release
+            cp -f "$ORT_LIB_LOCATION"/libonnxruntime.so* target/release/ || true
+            echo "Staged ORT libraries to target/release:"
+            ls -la target/release/libonnxruntime.so* 2>/dev/null || echo "No ORT libraries found (may be bundled)"
+          fi
+
       - name: Setup Tesseract cache
         uses: ./.github/actions/setup-tesseract-cache
         with:

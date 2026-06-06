@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **ffi/windows**: add `transcription-types` to the Windows FFI feature set so `TranscriptionConfig`, `WhisperModel`, and `AudioMetadata` resolve in the generated bindings.
 
+- **ci/e2e**: stage `libonnxruntime.so*` into `target/release/` alongside `libkreuzberg_ffi.so` so the dynamic loader resolves ORT via `$ORIGIN`/dirname when loading the FFI library from test binaries. Fixes `libonnxruntime.so.1: cannot open shared object file` errors in rust, zig, elixir, and java e2e test execution on Linux even when `LD_LIBRARY_PATH` is correctly set.
+
 ## [5.0.0-rc.4] - 2026-06-06
 
 ### Changed
