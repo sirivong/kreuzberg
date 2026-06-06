@@ -561,8 +561,7 @@ pub(crate) async fn extract_mixed_ocr_native(
         #[cfg(target_arch = "wasm32")]
         {
             for (page_idx, data, _w, _h) in &encoded {
-                let result = backend.process_image(data, &ocr_config_owned).await?;
-                let mut extraction_result = result;
+                let mut extraction_result = backend.process_image(data.as_slice(), &ocr_config_owned).await?;
                 if let Some(usage) = extraction_result.llm_usage.take() {
                     accumulated_llm_usage.extend(usage);
                 }
@@ -921,10 +920,9 @@ pub(crate) async fn extract_with_ocr(
         }
         #[cfg(target_arch = "wasm32")]
         {
-            for (i, (page_idx, image_data, _width, _height)) in encoded_batch.iter().enumerate() {
-                let ocr_result = backend.process_image(image_data, &ocr_config_owned).await?;
-                batch_ocr_results[i] = Some(ocr_result);
-                let _ = page_idx; // page_idx used for ordering in native path; serial is in-order
+            for (page_idx, image_data, _width, _height) in &encoded_batch {
+                let ocr_result = backend.process_image(image_data.as_slice(), &ocr_config_owned).await?;
+                batch_ocr_results[page_idx - batch_start] = Some(ocr_result);
             }
         }
 
