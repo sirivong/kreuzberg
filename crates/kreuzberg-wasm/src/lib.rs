@@ -2,6 +2,7 @@
 // alef:hash:df949a23ed01418d22789527e8549214dbbbfc9722e5d867b5312dbc59a47aff
 // Re-generate with: alef generate
 #![allow(dead_code, unused_imports, unused_variables, unreachable_patterns, missing_docs)]
+#![allow(rustdoc::broken_intra_doc_links)]
 #![allow(
     clippy::too_many_arguments,
     clippy::let_unit_value,

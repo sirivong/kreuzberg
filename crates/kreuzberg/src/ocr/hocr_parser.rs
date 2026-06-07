@@ -1,9 +1,9 @@
-//! hOCR → [`InternalDocument`] parser.
+//! hOCR → `InternalDocument` parser.
 //!
-//! Adapted from [`html_to_markdown_rs::hocr`] property and element parsing.
+//! Adapted from `html_to_markdown_rs::hocr` property and element parsing.
 //!
 //! This module parses hOCR HTML produced by Tesseract (and compatible engines)
-//! into kreuzberg's [`InternalDocument`] representation, preserving bounding boxes,
+//! into kreuzberg's `InternalDocument` representation, preserving bounding boxes,
 //! confidence scores, and page structure.
 //!
 //! ## hOCR hierarchy handled
@@ -24,7 +24,7 @@ use crate::types::ocr_elements::{OcrBoundingGeometry, OcrConfidence, OcrElementL
 // Public API
 // ============================================================================
 
-/// Parse hOCR HTML into an [`InternalDocument`] with full spatial and confidence metadata.
+/// Parse hOCR HTML into an `InternalDocument` with full spatial and confidence metadata.
 ///
 /// This is the primary entry point. It replaces the older `convert_hocr_to_markdown` path
 /// by producing structured [`InternalElement`]s directly, preserving OCR geometry and

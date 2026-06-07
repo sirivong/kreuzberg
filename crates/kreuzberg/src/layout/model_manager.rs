@@ -197,7 +197,7 @@ impl LayoutModelManager {
     /// Ensures the default layout models (RT-DETR + TATR) are downloaded and cached.
     ///
     /// This downloads only the core models needed for basic layout detection and table
-    /// structure recognition. Use [`ensure_all_models`] to also download the larger
+    /// structure recognition. Use [`Self::ensure_all_models`] to also download the larger
     /// SLANeXT variants (~730MB).
     pub fn ensure_default_models(&self) -> Result<(), LayoutError> {
         self.ensure_model("rtdetr")?;
@@ -209,7 +209,7 @@ impl LayoutModelManager {
     /// Ensures all layout models are downloaded and cached.
     ///
     /// Downloads RT-DETR, TATR, and all SLANeXT table structure variants (~730MB).
-    /// For a lighter download that omits SLANeXT, use [`ensure_default_models`].
+    /// For a lighter download that omits SLANeXT, use [`Self::ensure_default_models`].
     pub fn ensure_all_models(&self) -> Result<(), LayoutError> {
         for model in MODELS {
             self.ensure_model(model.model_type)?;

@@ -3,6 +3,7 @@
 #![allow(dead_code, unused_imports, unused_variables)]
 #![allow(unsafe_code)]
 #![allow(missing_docs)]
+#![allow(rustdoc::broken_intra_doc_links)]
 #![allow(
     clippy::too_many_arguments,
     clippy::let_unit_value,

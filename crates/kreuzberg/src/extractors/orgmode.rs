@@ -10,7 +10,7 @@
 //! - **Lists**: Ordered, unordered, and nested lists
 //! - **Code blocks**: #+BEGIN_SRC...#+END_SRC with language specification
 //! - **Tables**: Pipe tables (| cell | cell |) converted to Table structs
-//! - **Inline formatting**: *bold*, /italic/, =code=, ~verbatim~, [[links]]
+//! - **Inline formatting**: *bold*, /italic/, =code=, ~verbatim~, `[[links]]`
 //!
 //! Requires the `office` feature.
 

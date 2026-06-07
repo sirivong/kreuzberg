@@ -1,4 +1,4 @@
-//! Pure-Rust QR-code detection over the bytes of an [`ExtractedImage`].
+//! Pure-Rust QR-code detection over the bytes of an [`crate::types::ExtractedImage`].
 //!
 //! Used by the QR post-processor
 //! (`crates/kreuzberg/src/plugins/processor/builtin/qr.rs`) to populate
@@ -22,7 +22,7 @@
 
 use crate::types::qr::{QrBoundingBox, QrCode};
 
-/// Detect QR codes in the bytes of an [`ExtractedImage`].
+/// Detect QR codes in the bytes of an [`crate::types::ExtractedImage`].
 ///
 /// `format_hint` is currently unused — the `image` crate auto-detects the
 /// container format from magic bytes — but the parameter is retained so future

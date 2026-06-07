@@ -2,6 +2,7 @@
 // alef:hash:df949a23ed01418d22789527e8549214dbbbfc9722e5d867b5312dbc59a47aff
 // Re-generate with: alef generate
 #![allow(dead_code, unused_imports, unused_variables, missing_docs)]
+#![allow(rustdoc::broken_intra_doc_links)]
 #![allow(unsafe_code)]
 #![allow(non_snake_case)]
 #![allow(

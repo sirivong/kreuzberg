@@ -4,7 +4,7 @@
 //! Activates when [`ExtractionConfig::qr_codes`](crate::core::config::ExtractionConfig::qr_codes)
 //! is `Some(true)`. Walks `result.images.iter_mut()`, runs the pure-Rust
 //! [`crate::extractors::qr::detect_qr_codes`] decoder on each image's bytes,
-//! and writes the result into [`ExtractedImage::qr_codes`]. A `Some(vec![])`
+//! and writes the result into [`crate::types::ExtractedImage::qr_codes`]. A `Some(vec![])`
 //! is written when detection ran but found nothing; `None` only when QR
 //! detection was not enabled.
 
@@ -19,7 +19,7 @@ use crate::plugins::{Plugin, PostProcessor, ProcessingStage, register_post_proce
 use crate::types::ExtractionResult;
 
 /// Post-processor that runs `rqrr` over each image and writes the decoded QR
-/// payloads into [`ExtractedImage::qr_codes`].
+/// payloads into [`crate::types::ExtractedImage::qr_codes`].
 #[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct QrCodeProcessor;

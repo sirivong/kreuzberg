@@ -19,7 +19,7 @@ use tokenizers::Tokenizer;
 #[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Pooling {
-    /// Use the [CLS] token embedding (first token).
+    /// Use the `[CLS]` token embedding (first token).
     Cls,
     /// Mean of all token embeddings, weighted by attention mask.
     Mean,

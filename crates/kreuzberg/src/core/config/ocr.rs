@@ -237,7 +237,7 @@ pub struct OcrPipelineConfig {
 ///
 /// Both `OnLowQuality` and `Always` require [`OcrConfig::vlm_config`] to be `Some`.
 /// Constructing an [`OcrConfig`] with one of these policies but no `vlm_config` is
-/// detected by [`OcrConfig::validate`] and will surface as a
+/// detected by `OcrConfig::validate` and will surface as a
 /// [`crate::KreuzbergError::Validation`] error at extraction time, not a panic.
 ///
 /// # Example

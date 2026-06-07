@@ -3,6 +3,7 @@
 // Re-generate with: alef generate
 #![allow(dead_code, unused_imports, unused_variables, unused_mut, noop_method_call)]
 #![allow(missing_docs)]
+#![allow(rustdoc::broken_intra_doc_links)]
 #![allow(
     clippy::too_many_arguments,
     clippy::let_unit_value,
