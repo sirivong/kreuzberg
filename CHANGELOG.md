@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **csharp/ffi**: fix macOS arm64 dylib rpath and runtime dependency bundling. `libkreuzberg_ffi.dylib` referenced `@rpath/libonnxruntime.1.24.2.dylib` but had no LC_RPATH entries and ORT dylib was not bundled in the NuGet package, causing all C# FFI calls to fail with dyld errors on macOS arm64. Added `-Wl,-rpath,@loader_path` linker flag in build.rs and implemented `copy_macos_runtime_deps()` in the build-csharp-natives action to extract and bundle referenced dylibs alongside the main FFI library.
+
 - **ci**: override `ImageOS` environment variable in Elixir NIF build step to work around `erlef/setup-beam` hardcoded OS allowlist. GitHub's new `ubuntu-24.04-arm` runner sets `ImageOS=ubuntu24-arm64`, but the action only recognizes `ubuntu24`. Explicit override allows the step to complete on ARM runners.
 
 - **python**: fix maturin sdist build failure by switching `kreuzberg-py` to workspace-inherited version. Hardcoded version `"5.0.0-rc.5"` prevented maturin from resolving workspace member `kreuzberg-tesseract` during vendoring; workspace inheritance ensures consistent version resolution across all workspace crates.

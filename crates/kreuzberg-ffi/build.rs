@@ -6,14 +6,17 @@ fn main() {
         .expect("Unable to generate C bindings")
         .write_to_file("include/kreuzberg.h");
 
-    // Set @rpath-relative install_name on macOS so the cdylib can be relocated
-    // (bundled into language packages like packages/go/.lib/<rid>/, packages/
+    // Set @rpath-relative install_name and add rpath on macOS so the cdylib can be
+    // relocated (bundled into language packages like packages/go/.lib/<rid>/, packages/
     // java/src/main/resources/natives/<rid>/, etc.) and located via the consumer
-    // binary's rpath at runtime. Without this, the install_name embeds the CI
-    // runner build path (`/Users/runner/work/.../target/.../deps/lib<name>.dylib`)
-    // and dyld fails to load the bundled copy from its actual location.
+    // binary's rpath at runtime. The rpath @loader_path allows runtime dependencies
+    // (libonnxruntime.dylib) to be found in the same directory as libkreuzberg_ffi.dylib.
+    // Without this, the install_name embeds the CI runner build path
+    // (`/Users/runner/work/.../target/.../deps/lib<name>.dylib`) and dyld fails to load
+    // the bundled copy from its actual location, and linked dylibs are unreachable.
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
         println!("cargo:rustc-link-arg-cdylib=-Wl,-install_name,@rpath/libkreuzberg_ffi.dylib");
+        println!("cargo:rustc-link-arg-cdylib=-Wl,-rpath,@loader_path");
     }
 
     let go_include_dir = std::path::Path::new("../../../packages/go/v5/include");
