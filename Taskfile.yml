@@ -77,6 +77,8 @@ includes:
     taskfile: ./.task/tools/demo.yml
   fixtures:
     taskfile: ./.task/tools/fixtures.yml
+  test-apps:
+    taskfile: ./.task/tools/test-apps.yml
   _tools:
     taskfile: ./.task/tools/general.yml
     flatten: true
