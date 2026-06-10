@@ -475,6 +475,7 @@ features = [
   "stopwords",
   "auto-rotate",
   "auto-rotate-types",
+  "tree-sitter",
   "tokio-runtime",
   "api",
   "mcp",
@@ -1625,6 +1626,10 @@ args = []
 result_is_simple = true
 returns_result = true
 
+[crates.e2e.calls.list_ocr_backends.overrides.dart]
+function = "listOcrBackends"
+module = "kreuzberg"
+
 [crates.e2e.calls.list_post_processors]
 result_is_simple = true
 function = "list_post_processors"
@@ -1635,6 +1640,10 @@ args = []
 [crates.e2e.calls.list_post_processors.overrides.go]
 result_is_simple = true
 returns_result = true
+
+[crates.e2e.calls.list_post_processors.overrides.dart]
+function = "listPostProcessors"
+module = "kreuzberg"
 
 [crates.e2e.calls.list_validators]
 result_is_simple = true
@@ -1647,6 +1656,10 @@ args = []
 result_is_simple = true
 returns_result = true
 
+[crates.e2e.calls.list_validators.overrides.dart]
+function = "listValidators"
+module = "kreuzberg"
+
 [crates.e2e.calls.list_embedding_backends]
 result_is_simple = true
 function = "list_embedding_backends"
@@ -1658,6 +1671,10 @@ args = []
 result_is_simple = true
 returns_result = true
 
+[crates.e2e.calls.list_embedding_backends.overrides.dart]
+function = "listEmbeddingBackends"
+module = "kreuzberg"
+
 [crates.e2e.calls.list_renderers]
 result_is_simple = true
 function = "list_renderers"
@@ -1668,6 +1685,10 @@ args = []
 [crates.e2e.calls.list_renderers.overrides.go]
 result_is_simple = true
 returns_result = true
+
+[crates.e2e.calls.list_renderers.overrides.dart]
+function = "listRenderers"
+module = "kreuzberg"
 
 [crates.e2e.calls.clear_ocr_backends]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
