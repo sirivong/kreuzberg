@@ -7,12 +7,12 @@
 import 'package:test/test.dart';
 import 'dart:typed_data';
 import 'package:kreuzberg/kreuzberg.dart';
-import 'package:kreuzberg/kreuzberg.dart' show Validator;
-import 'package:kreuzberg/kreuzberg.dart' show RerankerBackend;
-import 'package:kreuzberg/kreuzberg.dart' show OcrBackend;
-import 'package:kreuzberg/kreuzberg.dart' show DocumentExtractor;
 import 'package:kreuzberg/kreuzberg.dart' show Renderer;
+import 'package:kreuzberg/kreuzberg.dart' show RerankerBackend;
+import 'package:kreuzberg/kreuzberg.dart' show Validator;
 import 'package:kreuzberg/kreuzberg.dart' show EmbeddingBackend;
+import 'package:kreuzberg/kreuzberg.dart' show DocumentExtractor;
+import 'package:kreuzberg/kreuzberg.dart' show OcrBackend;
 import 'package:kreuzberg/kreuzberg.dart' show PostProcessor;
 import 'package:kreuzberg/src/kreuzberg_bridge_generated/frb_generated.dart' show RustLib;
 

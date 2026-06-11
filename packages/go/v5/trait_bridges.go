@@ -77,111 +77,153 @@ extern int32_t goRerankerBackendInitialize(void*, char**);
 extern int32_t goRerankerBackendShutdown(void*, char**);
 extern void goRerankerBackendFreeUserData(void*);
 extern void goRerankerBackendFreeString(char*);
-// C helper function to construct the KREUZBERGKreuzbergOcrBackendVTable vtable with proper function pointers.
-// Function pointers must be populated in C using address-of operators (&) to ensure
-// ABI-correct values on all platforms (especially ARM64 macOS where unsafe.Pointer casts fail).
-static KREUZBERGKreuzbergOcrBackendVTable* kreuzberg_ocr_backend_vtable_new(	void (*goOcrBackendProcessImage)(void),	void (*goOcrBackendProcessImageFile)(void),	void (*goOcrBackendSupportsLanguage)(void),	void (*goOcrBackendBackendType)(void),	void (*goOcrBackendSupportedLanguages)(void),	void (*goOcrBackendSupportsTableDetection)(void),	void (*goOcrBackendSupportsDocumentProcessing)(void),	void (*goOcrBackendProcessDocument)(void)) {
+// Note: suppress -Wincompatible-function-pointer-types because cgo exports may have
+// signatures that C strictly typechecks. The function pointers are ABI-compatible.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-function-pointer-types"
+// C inline function to construct the KREUZBERGKreuzbergOcrBackendVTable vtable.
+// This allows direct assignment of function pointers with proper casting.
+static inline KREUZBERGKreuzbergOcrBackendVTable* kreuzberg_ocr_backend_vtable_new(void) {
+	// Note: All function pointers are assigned with generic casts to suppress warnings.
+	// The actual function addresses are ABI-compatible despite signature differences.
 	KREUZBERGKreuzbergOcrBackendVTable* vtable = (KREUZBERGKreuzbergOcrBackendVTable*)malloc(sizeof(KREUZBERGKreuzbergOcrBackendVTable));
 	if (!vtable) return NULL;
-	memset(vtable, 0, sizeof(KREUZBERGKreuzbergOcrBackendVTable));	vtable->process_image = (int32_t(*)(void* user_data, uint8_t* image_bytes, size_t image_bytes_len, char* config, char** out_result, char** out_error))goOcrBackendProcessImage;	vtable->process_image_file = (int32_t(*)(void* user_data, char* path, char* config, char** out_result, char** out_error))goOcrBackendProcessImageFile;	vtable->supports_language = (int32_t(*)(void* user_data, char* lang, char** out_result, char** out_error))goOcrBackendSupportsLanguage;	vtable->backend_type = (int32_t(*)(void* user_data, char** out_result, char** out_error))goOcrBackendBackendType;	vtable->supported_languages = (int32_t(*)(void* user_data, char** out_result, char** out_error))goOcrBackendSupportedLanguages;	vtable->supports_table_detection = (int32_t(*)(void* user_data, char** out_result, char** out_error))goOcrBackendSupportsTableDetection;	vtable->supports_document_processing = (int32_t(*)(void* user_data, char** out_result, char** out_error))goOcrBackendSupportsDocumentProcessing;	vtable->process_document = (int32_t(*)(void* user_data, char* _path, char* _config, char** out_result, char** out_error))goOcrBackendProcessDocument;	vtable->free_string = (void(*)(char*))goOcrBackendFreeString;
-	vtable->free_user_data = (void(*)(void*))goOcrBackendFreeUserData;
-	vtable->name_fn = (int32_t(*)(void*, char**, char**))goOcrBackendName;
-	vtable->version_fn = (int32_t(*)(void*, char**, char**))goOcrBackendVersion;
-	vtable->initialize_fn = (int32_t(*)(void*, char**))goOcrBackendInitialize;
-	vtable->shutdown_fn = (int32_t(*)(void*, char**))goOcrBackendShutdown;
+	memset(vtable, 0, sizeof(KREUZBERGKreuzbergOcrBackendVTable));	vtable->process_image = (void(*)(void))goOcrBackendProcessImage;	vtable->process_image_file = (void(*)(void))goOcrBackendProcessImageFile;	vtable->supports_language = (void(*)(void))goOcrBackendSupportsLanguage;	vtable->backend_type = (void(*)(void))goOcrBackendBackendType;	vtable->supported_languages = (void(*)(void))goOcrBackendSupportedLanguages;	vtable->supports_table_detection = (void(*)(void))goOcrBackendSupportsTableDetection;	vtable->supports_document_processing = (void(*)(void))goOcrBackendSupportsDocumentProcessing;	vtable->process_document = (void(*)(void))goOcrBackendProcessDocument;	vtable->free_string = (void(*)(void))goOcrBackendFreeString;
+	vtable->free_user_data = (void(*)(void))goOcrBackendFreeUserData;
+	vtable->name_fn = (void(*)(void))goOcrBackendName;
+	vtable->version_fn = (void(*)(void))goOcrBackendVersion;
+	vtable->initialize_fn = (void(*)(void))goOcrBackendInitialize;
+	vtable->shutdown_fn = (void(*)(void))goOcrBackendShutdown;
 
 	return vtable;
 }
-// C helper function to construct the KREUZBERGKreuzbergPostProcessorVTable vtable with proper function pointers.
-// Function pointers must be populated in C using address-of operators (&) to ensure
-// ABI-correct values on all platforms (especially ARM64 macOS where unsafe.Pointer casts fail).
-static KREUZBERGKreuzbergPostProcessorVTable* kreuzberg_post_processor_vtable_new(	void (*goPostProcessorProcess)(void),	void (*goPostProcessorProcessingStage)(void),	void (*goPostProcessorShouldProcess)(void),	void (*goPostProcessorEstimatedDurationMs)(void),	void (*goPostProcessorPriority)(void)) {
+#pragma GCC diagnostic pop
+// Note: suppress -Wincompatible-function-pointer-types because cgo exports may have
+// signatures that C strictly typechecks. The function pointers are ABI-compatible.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-function-pointer-types"
+// C inline function to construct the KREUZBERGKreuzbergPostProcessorVTable vtable.
+// This allows direct assignment of function pointers with proper casting.
+static inline KREUZBERGKreuzbergPostProcessorVTable* kreuzberg_post_processor_vtable_new(void) {
+	// Note: All function pointers are assigned with generic casts to suppress warnings.
+	// The actual function addresses are ABI-compatible despite signature differences.
 	KREUZBERGKreuzbergPostProcessorVTable* vtable = (KREUZBERGKreuzbergPostProcessorVTable*)malloc(sizeof(KREUZBERGKreuzbergPostProcessorVTable));
 	if (!vtable) return NULL;
-	memset(vtable, 0, sizeof(KREUZBERGKreuzbergPostProcessorVTable));	vtable->process = (int32_t(*)(void* user_data, char* result, char* config, char** out_error))goPostProcessorProcess;	vtable->processing_stage = (int32_t(*)(void* user_data, char** out_result, char** out_error))goPostProcessorProcessingStage;	vtable->should_process = (int32_t(*)(void* user_data, char* _result, char* _config, char** out_result, char** out_error))goPostProcessorShouldProcess;	vtable->estimated_duration_ms = (int32_t(*)(void* user_data, char* _result, char** out_result, char** out_error))goPostProcessorEstimatedDurationMs;	vtable->priority = (int32_t(*)(void* user_data, char** out_result, char** out_error))goPostProcessorPriority;	vtable->free_string = (void(*)(char*))goPostProcessorFreeString;
-	vtable->free_user_data = (void(*)(void*))goPostProcessorFreeUserData;
-	vtable->name_fn = (int32_t(*)(void*, char**, char**))goPostProcessorName;
-	vtable->version_fn = (int32_t(*)(void*, char**, char**))goPostProcessorVersion;
-	vtable->initialize_fn = (int32_t(*)(void*, char**))goPostProcessorInitialize;
-	vtable->shutdown_fn = (int32_t(*)(void*, char**))goPostProcessorShutdown;
+	memset(vtable, 0, sizeof(KREUZBERGKreuzbergPostProcessorVTable));	vtable->process = (void(*)(void))goPostProcessorProcess;	vtable->processing_stage = (void(*)(void))goPostProcessorProcessingStage;	vtable->should_process = (void(*)(void))goPostProcessorShouldProcess;	vtable->estimated_duration_ms = (void(*)(void))goPostProcessorEstimatedDurationMs;	vtable->priority = (void(*)(void))goPostProcessorPriority;	vtable->free_string = (void(*)(void))goPostProcessorFreeString;
+	vtable->free_user_data = (void(*)(void))goPostProcessorFreeUserData;
+	vtable->name_fn = (void(*)(void))goPostProcessorName;
+	vtable->version_fn = (void(*)(void))goPostProcessorVersion;
+	vtable->initialize_fn = (void(*)(void))goPostProcessorInitialize;
+	vtable->shutdown_fn = (void(*)(void))goPostProcessorShutdown;
 
 	return vtable;
 }
-// C helper function to construct the KREUZBERGKreuzbergValidatorVTable vtable with proper function pointers.
-// Function pointers must be populated in C using address-of operators (&) to ensure
-// ABI-correct values on all platforms (especially ARM64 macOS where unsafe.Pointer casts fail).
-static KREUZBERGKreuzbergValidatorVTable* kreuzberg_validator_vtable_new(	void (*goValidatorValidate)(void),	void (*goValidatorShouldValidate)(void),	void (*goValidatorPriority)(void)) {
+#pragma GCC diagnostic pop
+// Note: suppress -Wincompatible-function-pointer-types because cgo exports may have
+// signatures that C strictly typechecks. The function pointers are ABI-compatible.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-function-pointer-types"
+// C inline function to construct the KREUZBERGKreuzbergValidatorVTable vtable.
+// This allows direct assignment of function pointers with proper casting.
+static inline KREUZBERGKreuzbergValidatorVTable* kreuzberg_validator_vtable_new(void) {
+	// Note: All function pointers are assigned with generic casts to suppress warnings.
+	// The actual function addresses are ABI-compatible despite signature differences.
 	KREUZBERGKreuzbergValidatorVTable* vtable = (KREUZBERGKreuzbergValidatorVTable*)malloc(sizeof(KREUZBERGKreuzbergValidatorVTable));
 	if (!vtable) return NULL;
-	memset(vtable, 0, sizeof(KREUZBERGKreuzbergValidatorVTable));	vtable->validate = (int32_t(*)(void* user_data, char* result, char* config, char** out_error))goValidatorValidate;	vtable->should_validate = (int32_t(*)(void* user_data, char* _result, char* _config, char** out_result, char** out_error))goValidatorShouldValidate;	vtable->priority = (int32_t(*)(void* user_data, char** out_result, char** out_error))goValidatorPriority;	vtable->free_string = (void(*)(char*))goValidatorFreeString;
-	vtable->free_user_data = (void(*)(void*))goValidatorFreeUserData;
-	vtable->name_fn = (int32_t(*)(void*, char**, char**))goValidatorName;
-	vtable->version_fn = (int32_t(*)(void*, char**, char**))goValidatorVersion;
-	vtable->initialize_fn = (int32_t(*)(void*, char**))goValidatorInitialize;
-	vtable->shutdown_fn = (int32_t(*)(void*, char**))goValidatorShutdown;
+	memset(vtable, 0, sizeof(KREUZBERGKreuzbergValidatorVTable));	vtable->validate = (void(*)(void))goValidatorValidate;	vtable->should_validate = (void(*)(void))goValidatorShouldValidate;	vtable->priority = (void(*)(void))goValidatorPriority;	vtable->free_string = (void(*)(void))goValidatorFreeString;
+	vtable->free_user_data = (void(*)(void))goValidatorFreeUserData;
+	vtable->name_fn = (void(*)(void))goValidatorName;
+	vtable->version_fn = (void(*)(void))goValidatorVersion;
+	vtable->initialize_fn = (void(*)(void))goValidatorInitialize;
+	vtable->shutdown_fn = (void(*)(void))goValidatorShutdown;
 
 	return vtable;
 }
-// C helper function to construct the KREUZBERGKreuzbergEmbeddingBackendVTable vtable with proper function pointers.
-// Function pointers must be populated in C using address-of operators (&) to ensure
-// ABI-correct values on all platforms (especially ARM64 macOS where unsafe.Pointer casts fail).
-static KREUZBERGKreuzbergEmbeddingBackendVTable* kreuzberg_embedding_backend_vtable_new(	void (*goEmbeddingBackendDimensions)(void),	void (*goEmbeddingBackendEmbed)(void)) {
+#pragma GCC diagnostic pop
+// Note: suppress -Wincompatible-function-pointer-types because cgo exports may have
+// signatures that C strictly typechecks. The function pointers are ABI-compatible.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-function-pointer-types"
+// C inline function to construct the KREUZBERGKreuzbergEmbeddingBackendVTable vtable.
+// This allows direct assignment of function pointers with proper casting.
+static inline KREUZBERGKreuzbergEmbeddingBackendVTable* kreuzberg_embedding_backend_vtable_new(void) {
+	// Note: All function pointers are assigned with generic casts to suppress warnings.
+	// The actual function addresses are ABI-compatible despite signature differences.
 	KREUZBERGKreuzbergEmbeddingBackendVTable* vtable = (KREUZBERGKreuzbergEmbeddingBackendVTable*)malloc(sizeof(KREUZBERGKreuzbergEmbeddingBackendVTable));
 	if (!vtable) return NULL;
-	memset(vtable, 0, sizeof(KREUZBERGKreuzbergEmbeddingBackendVTable));	vtable->dimensions = (int32_t(*)(void* user_data, char** out_result, char** out_error))goEmbeddingBackendDimensions;	vtable->embed = (int32_t(*)(void* user_data, char* texts, char** out_result, char** out_error))goEmbeddingBackendEmbed;	vtable->free_string = (void(*)(char*))goEmbeddingBackendFreeString;
-	vtable->free_user_data = (void(*)(void*))goEmbeddingBackendFreeUserData;
-	vtable->name_fn = (int32_t(*)(void*, char**, char**))goEmbeddingBackendName;
-	vtable->version_fn = (int32_t(*)(void*, char**, char**))goEmbeddingBackendVersion;
-	vtable->initialize_fn = (int32_t(*)(void*, char**))goEmbeddingBackendInitialize;
-	vtable->shutdown_fn = (int32_t(*)(void*, char**))goEmbeddingBackendShutdown;
+	memset(vtable, 0, sizeof(KREUZBERGKreuzbergEmbeddingBackendVTable));	vtable->dimensions = (void(*)(void))goEmbeddingBackendDimensions;	vtable->embed = (void(*)(void))goEmbeddingBackendEmbed;	vtable->free_string = (void(*)(void))goEmbeddingBackendFreeString;
+	vtable->free_user_data = (void(*)(void))goEmbeddingBackendFreeUserData;
+	vtable->name_fn = (void(*)(void))goEmbeddingBackendName;
+	vtable->version_fn = (void(*)(void))goEmbeddingBackendVersion;
+	vtable->initialize_fn = (void(*)(void))goEmbeddingBackendInitialize;
+	vtable->shutdown_fn = (void(*)(void))goEmbeddingBackendShutdown;
 
 	return vtable;
 }
-// C helper function to construct the KREUZBERGKreuzbergDocumentExtractorVTable vtable with proper function pointers.
-// Function pointers must be populated in C using address-of operators (&) to ensure
-// ABI-correct values on all platforms (especially ARM64 macOS where unsafe.Pointer casts fail).
-static KREUZBERGKreuzbergDocumentExtractorVTable* kreuzberg_document_extractor_vtable_new(	void (*goDocumentExtractorExtractBytes)(void),	void (*goDocumentExtractorExtractFile)(void),	void (*goDocumentExtractorSupportedMimeTypes)(void),	void (*goDocumentExtractorPriority)(void),	void (*goDocumentExtractorCanHandle)(void)) {
+#pragma GCC diagnostic pop
+// Note: suppress -Wincompatible-function-pointer-types because cgo exports may have
+// signatures that C strictly typechecks. The function pointers are ABI-compatible.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-function-pointer-types"
+// C inline function to construct the KREUZBERGKreuzbergDocumentExtractorVTable vtable.
+// This allows direct assignment of function pointers with proper casting.
+static inline KREUZBERGKreuzbergDocumentExtractorVTable* kreuzberg_document_extractor_vtable_new(void) {
+	// Note: All function pointers are assigned with generic casts to suppress warnings.
+	// The actual function addresses are ABI-compatible despite signature differences.
 	KREUZBERGKreuzbergDocumentExtractorVTable* vtable = (KREUZBERGKreuzbergDocumentExtractorVTable*)malloc(sizeof(KREUZBERGKreuzbergDocumentExtractorVTable));
 	if (!vtable) return NULL;
-	memset(vtable, 0, sizeof(KREUZBERGKreuzbergDocumentExtractorVTable));	vtable->extract_bytes = (int32_t(*)(void* user_data, uint8_t* content, size_t content_len, char* mime_type, char* config, char** out_result, char** out_error))goDocumentExtractorExtractBytes;	vtable->extract_file = (int32_t(*)(void* user_data, char* path, char* mime_type, char* config, char** out_result, char** out_error))goDocumentExtractorExtractFile;	vtable->supported_mime_types = (int32_t(*)(void* user_data, char** out_result, char** out_error))goDocumentExtractorSupportedMimeTypes;	vtable->priority = (int32_t(*)(void* user_data, char** out_result, char** out_error))goDocumentExtractorPriority;	vtable->can_handle = (int32_t(*)(void* user_data, char* _path, char* _mime_type, char** out_result, char** out_error))goDocumentExtractorCanHandle;	vtable->free_string = (void(*)(char*))goDocumentExtractorFreeString;
-	vtable->free_user_data = (void(*)(void*))goDocumentExtractorFreeUserData;
-	vtable->name_fn = (int32_t(*)(void*, char**, char**))goDocumentExtractorName;
-	vtable->version_fn = (int32_t(*)(void*, char**, char**))goDocumentExtractorVersion;
-	vtable->initialize_fn = (int32_t(*)(void*, char**))goDocumentExtractorInitialize;
-	vtable->shutdown_fn = (int32_t(*)(void*, char**))goDocumentExtractorShutdown;
+	memset(vtable, 0, sizeof(KREUZBERGKreuzbergDocumentExtractorVTable));	vtable->extract_bytes = (void(*)(void))goDocumentExtractorExtractBytes;	vtable->extract_file = (void(*)(void))goDocumentExtractorExtractFile;	vtable->supported_mime_types = (void(*)(void))goDocumentExtractorSupportedMimeTypes;	vtable->priority = (void(*)(void))goDocumentExtractorPriority;	vtable->can_handle = (void(*)(void))goDocumentExtractorCanHandle;	vtable->free_string = (void(*)(void))goDocumentExtractorFreeString;
+	vtable->free_user_data = (void(*)(void))goDocumentExtractorFreeUserData;
+	vtable->name_fn = (void(*)(void))goDocumentExtractorName;
+	vtable->version_fn = (void(*)(void))goDocumentExtractorVersion;
+	vtable->initialize_fn = (void(*)(void))goDocumentExtractorInitialize;
+	vtable->shutdown_fn = (void(*)(void))goDocumentExtractorShutdown;
 
 	return vtable;
 }
-// C helper function to construct the KREUZBERGKreuzbergRendererVTable vtable with proper function pointers.
-// Function pointers must be populated in C using address-of operators (&) to ensure
-// ABI-correct values on all platforms (especially ARM64 macOS where unsafe.Pointer casts fail).
-static KREUZBERGKreuzbergRendererVTable* kreuzberg_renderer_vtable_new(	void (*goRendererRender)(void)) {
+#pragma GCC diagnostic pop
+// Note: suppress -Wincompatible-function-pointer-types because cgo exports may have
+// signatures that C strictly typechecks. The function pointers are ABI-compatible.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-function-pointer-types"
+// C inline function to construct the KREUZBERGKreuzbergRendererVTable vtable.
+// This allows direct assignment of function pointers with proper casting.
+static inline KREUZBERGKreuzbergRendererVTable* kreuzberg_renderer_vtable_new(void) {
+	// Note: All function pointers are assigned with generic casts to suppress warnings.
+	// The actual function addresses are ABI-compatible despite signature differences.
 	KREUZBERGKreuzbergRendererVTable* vtable = (KREUZBERGKreuzbergRendererVTable*)malloc(sizeof(KREUZBERGKreuzbergRendererVTable));
 	if (!vtable) return NULL;
-	memset(vtable, 0, sizeof(KREUZBERGKreuzbergRendererVTable));	vtable->render = (int32_t(*)(void* user_data, char* doc, char** out_result, char** out_error))goRendererRender;	vtable->free_string = (void(*)(char*))goRendererFreeString;
-	vtable->free_user_data = (void(*)(void*))goRendererFreeUserData;
-	vtable->name_fn = (int32_t(*)(void*, char**, char**))goRendererName;
-	vtable->version_fn = (int32_t(*)(void*, char**, char**))goRendererVersion;
-	vtable->initialize_fn = (int32_t(*)(void*, char**))goRendererInitialize;
-	vtable->shutdown_fn = (int32_t(*)(void*, char**))goRendererShutdown;
+	memset(vtable, 0, sizeof(KREUZBERGKreuzbergRendererVTable));	vtable->render = (void(*)(void))goRendererRender;	vtable->free_string = (void(*)(void))goRendererFreeString;
+	vtable->free_user_data = (void(*)(void))goRendererFreeUserData;
+	vtable->name_fn = (void(*)(void))goRendererName;
+	vtable->version_fn = (void(*)(void))goRendererVersion;
+	vtable->initialize_fn = (void(*)(void))goRendererInitialize;
+	vtable->shutdown_fn = (void(*)(void))goRendererShutdown;
 
 	return vtable;
 }
-// C helper function to construct the KREUZBERGKreuzbergRerankerBackendVTable vtable with proper function pointers.
-// Function pointers must be populated in C using address-of operators (&) to ensure
-// ABI-correct values on all platforms (especially ARM64 macOS where unsafe.Pointer casts fail).
-static KREUZBERGKreuzbergRerankerBackendVTable* kreuzberg_reranker_backend_vtable_new(	void (*goRerankerBackendRerank)(void)) {
+#pragma GCC diagnostic pop
+// Note: suppress -Wincompatible-function-pointer-types because cgo exports may have
+// signatures that C strictly typechecks. The function pointers are ABI-compatible.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wincompatible-function-pointer-types"
+// C inline function to construct the KREUZBERGKreuzbergRerankerBackendVTable vtable.
+// This allows direct assignment of function pointers with proper casting.
+static inline KREUZBERGKreuzbergRerankerBackendVTable* kreuzberg_reranker_backend_vtable_new(void) {
+	// Note: All function pointers are assigned with generic casts to suppress warnings.
+	// The actual function addresses are ABI-compatible despite signature differences.
 	KREUZBERGKreuzbergRerankerBackendVTable* vtable = (KREUZBERGKreuzbergRerankerBackendVTable*)malloc(sizeof(KREUZBERGKreuzbergRerankerBackendVTable));
 	if (!vtable) return NULL;
-	memset(vtable, 0, sizeof(KREUZBERGKreuzbergRerankerBackendVTable));	vtable->rerank = (int32_t(*)(void* user_data, char* query, char* documents, char** out_result, char** out_error))goRerankerBackendRerank;	vtable->free_string = (void(*)(char*))goRerankerBackendFreeString;
-	vtable->free_user_data = (void(*)(void*))goRerankerBackendFreeUserData;
-	vtable->name_fn = (int32_t(*)(void*, char**, char**))goRerankerBackendName;
-	vtable->version_fn = (int32_t(*)(void*, char**, char**))goRerankerBackendVersion;
-	vtable->initialize_fn = (int32_t(*)(void*, char**))goRerankerBackendInitialize;
-	vtable->shutdown_fn = (int32_t(*)(void*, char**))goRerankerBackendShutdown;
+	memset(vtable, 0, sizeof(KREUZBERGKreuzbergRerankerBackendVTable));	vtable->rerank = (void(*)(void))goRerankerBackendRerank;	vtable->free_string = (void(*)(void))goRerankerBackendFreeString;
+	vtable->free_user_data = (void(*)(void))goRerankerBackendFreeUserData;
+	vtable->name_fn = (void(*)(void))goRerankerBackendName;
+	vtable->version_fn = (void(*)(void))goRerankerBackendVersion;
+	vtable->initialize_fn = (void(*)(void))goRerankerBackendInitialize;
+	vtable->shutdown_fn = (void(*)(void))goRerankerBackendShutdown;
 
 	return vtable;
 }
+#pragma GCC diagnostic pop
 */
 import "C"
 
@@ -654,7 +696,7 @@ func RegisterOcrBackend(impl OcrBackend) error {
 	handle := cgo.NewHandle(bridge)
 	// Build the C vtable by calling the C helper function.
 	// This ensures function pointers are correctly populated in C, fixing ARM64 macOS issues.
-	vtable := C.kreuzberg_ocr_backend_vtable_new(		C.goOcrBackendProcessImage,		C.goOcrBackendProcessImageFile,		C.goOcrBackendSupportsLanguage,		C.goOcrBackendBackendType,		C.goOcrBackendSupportedLanguages,		C.goOcrBackendSupportsTableDetection,		C.goOcrBackendSupportsDocumentProcessing,		C.goOcrBackendProcessDocument	)
+	vtable := C.kreuzberg_ocr_backend_vtable_new()
 	if vtable == nil {
 		return fmt.Errorf("failed to allocate %s vtable", impl.Name())
 	}
@@ -1034,7 +1076,7 @@ func RegisterPostProcessor(impl PostProcessor) error {
 	handle := cgo.NewHandle(bridge)
 	// Build the C vtable by calling the C helper function.
 	// This ensures function pointers are correctly populated in C, fixing ARM64 macOS issues.
-	vtable := C.kreuzberg_post_processor_vtable_new(		C.goPostProcessorProcess,		C.goPostProcessorProcessingStage,		C.goPostProcessorShouldProcess,		C.goPostProcessorEstimatedDurationMs,		C.goPostProcessorPriority	)
+	vtable := C.kreuzberg_post_processor_vtable_new()
 	if vtable == nil {
 		return fmt.Errorf("failed to allocate %s vtable", impl.Name())
 	}
@@ -1347,7 +1389,7 @@ func RegisterValidator(impl Validator) error {
 	handle := cgo.NewHandle(bridge)
 	// Build the C vtable by calling the C helper function.
 	// This ensures function pointers are correctly populated in C, fixing ARM64 macOS issues.
-	vtable := C.kreuzberg_validator_vtable_new(		C.goValidatorValidate,		C.goValidatorShouldValidate,		C.goValidatorPriority	)
+	vtable := C.kreuzberg_validator_vtable_new()
 	if vtable == nil {
 		return fmt.Errorf("failed to allocate %s vtable", impl.Name())
 	}
@@ -1613,7 +1655,7 @@ func RegisterEmbeddingBackend(impl EmbeddingBackend) error {
 	handle := cgo.NewHandle(bridge)
 	// Build the C vtable by calling the C helper function.
 	// This ensures function pointers are correctly populated in C, fixing ARM64 macOS issues.
-	vtable := C.kreuzberg_embedding_backend_vtable_new(		C.goEmbeddingBackendDimensions,		C.goEmbeddingBackendEmbed	)
+	vtable := C.kreuzberg_embedding_backend_vtable_new()
 	if vtable == nil {
 		return fmt.Errorf("failed to allocate %s vtable", impl.Name())
 	}
@@ -2000,7 +2042,7 @@ func RegisterDocumentExtractor(impl DocumentExtractor) error {
 	handle := cgo.NewHandle(bridge)
 	// Build the C vtable by calling the C helper function.
 	// This ensures function pointers are correctly populated in C, fixing ARM64 macOS issues.
-	vtable := C.kreuzberg_document_extractor_vtable_new(		C.goDocumentExtractorExtractBytes,		C.goDocumentExtractorExtractFile,		C.goDocumentExtractorSupportedMimeTypes,		C.goDocumentExtractorPriority,		C.goDocumentExtractorCanHandle	)
+	vtable := C.kreuzberg_document_extractor_vtable_new()
 	if vtable == nil {
 		return fmt.Errorf("failed to allocate %s vtable", impl.Name())
 	}
@@ -2233,7 +2275,7 @@ func RegisterRenderer(impl Renderer) error {
 	handle := cgo.NewHandle(bridge)
 	// Build the C vtable by calling the C helper function.
 	// This ensures function pointers are correctly populated in C, fixing ARM64 macOS issues.
-	vtable := C.kreuzberg_renderer_vtable_new(		C.goRendererRender	)
+	vtable := C.kreuzberg_renderer_vtable_new()
 	if vtable == nil {
 		return fmt.Errorf("failed to allocate %s vtable", impl.Name())
 	}
@@ -2472,7 +2514,7 @@ func RegisterRerankerBackend(impl RerankerBackend) error {
 	handle := cgo.NewHandle(bridge)
 	// Build the C vtable by calling the C helper function.
 	// This ensures function pointers are correctly populated in C, fixing ARM64 macOS issues.
-	vtable := C.kreuzberg_reranker_backend_vtable_new(		C.goRerankerBackendRerank	)
+	vtable := C.kreuzberg_reranker_backend_vtable_new()
 	if vtable == nil {
 		return fmt.Errorf("failed to allocate %s vtable", impl.Name())
 	}
