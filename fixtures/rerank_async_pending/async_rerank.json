@@ -1,0 +1,25 @@
+{
+  "id": "async_rerank",
+  "category": "rerank_async_pending",
+  "description": "rerank_async: basic async reranking with registered mock backend",
+  "call": "rerank_async",
+  "input": {
+    "query": "neural networks",
+    "documents": [
+      "Neural networks are a class of machine learning models inspired by biological brains.",
+      "The Eiffel Tower is located in Paris.",
+      "Convolutional neural networks excel at image recognition tasks."
+    ],
+    "config": {
+      "model": {
+        "type": "plugin",
+        "name": "async_rerank"
+      }
+    }
+  },
+  "assertions": [
+    {
+      "type": "not_error"
+    }
+  ]
+}

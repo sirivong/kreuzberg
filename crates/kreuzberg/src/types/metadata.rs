@@ -14,6 +14,16 @@ pub use crate::pdf::metadata::PdfMetadata;
 use super::formats::ImagePreprocessingMetadata;
 use super::page::PageStructure;
 
+/// Wrapper for tree-sitter language pack code metadata (internal, not exposed in bindings).
+///
+/// Hides the external tree_sitter_language_pack::ProcessResult type from FFI/binding
+/// surface while preserving tree-sitter code analysis results for Rust consumers.
+#[cfg(feature = "tree-sitter")]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[doc(hidden)]
+#[cfg_attr(alef, alef(skip))]
+pub struct CodeMetadataInner(pub tree_sitter_language_pack::ProcessResult);
+
 /// Custom serialization and deserialization for AHashMap<Cow<'static, str>, Value>.
 ///
 /// serde doesn't natively support serializing Cow keys, so we convert to/from
@@ -110,7 +120,9 @@ pub enum FormatMetadata {
     Audio(AudioMetadata),
     /// Code metadata (tree-sitter analysis results).
     #[cfg(feature = "tree-sitter")]
-    Code,
+    #[cfg_attr(alef, alef(skip))]
+    #[doc(hidden)]
+    Code(CodeMetadataInner),
 }
 
 impl Default for FormatMetadata {
@@ -166,7 +178,7 @@ impl std::fmt::Display for FormatMetadata {
             #[cfg(feature = "transcription-types")]
             Self::Audio(_) => f.write_str("audio"),
             #[cfg(feature = "tree-sitter")]
-            Self::Code => f.write_str("code"),
+            Self::Code(_) => f.write_str("code"),
         }
     }
 }

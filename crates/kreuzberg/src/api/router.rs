@@ -23,7 +23,8 @@ use super::{
     handlers::{
         cache_clear_handler, cache_manifest_handler, cache_stats_handler, cache_warm_handler, chunk_handler,
         detect_handler, embed_handler, extract_async_handler, extract_handler, extract_structured_handler,
-        formats_handler, health_handler, info_handler, job_status_handler, not_found_handler, version_handler,
+        formats_handler, health_handler, info_handler, job_status_handler, not_found_handler, rerank_handler,
+        version_handler,
     },
     openweb::{openweb_docling_handler, openweb_external_handler},
     types::{ApiSizeLimits, ApiState},
@@ -173,6 +174,7 @@ pub(crate) fn create_router_with_limits_and_server_config(
         .route("/jobs/{job_id}", get(job_status_handler))
         .route("/detect", post(detect_handler))
         .route("/embed", post(embed_handler))
+        .route("/rerank", post(rerank_handler))
         .route("/chunk", post(chunk_handler))
         .route("/formats", get(formats_handler))
         .route("/health", get(health_handler))

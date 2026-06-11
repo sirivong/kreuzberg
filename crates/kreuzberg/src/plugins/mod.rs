@@ -181,6 +181,7 @@ mod ocr;
 pub mod processor;
 pub mod registry;
 pub mod renderer;
+pub(crate) mod reranker;
 pub mod startup_validation;
 mod traits;
 pub mod validator;
@@ -201,6 +202,10 @@ pub use processor::{
     unregister_post_processor,
 };
 pub use renderer::{Renderer, clear_renderers, list_renderers, register_renderer, unregister_renderer};
+pub use reranker::{
+    RerankerBackend, clear_reranker_backends, list_reranker_backends, register_reranker_backend,
+    unregister_reranker_backend,
+};
 pub use traits::Plugin;
 pub use validator::{Validator, clear_validators, list_validators, register_validator, unregister_validator};
 
@@ -227,6 +232,15 @@ pub mod embedding_backend {
     pub use super::{
         EmbeddingBackend, clear_embedding_backends, list_embedding_backends, register_embedding_backend,
         unregister_embedding_backend,
+    };
+}
+/// Re-exports for the reranker backend plugin type, used by alef-generated bindings.
+///
+/// Since v5.0.0.
+pub mod reranker_backend {
+    pub use super::{
+        RerankerBackend, clear_reranker_backends, list_reranker_backends, register_reranker_backend,
+        unregister_reranker_backend,
     };
 }
 /// Re-exports for the document extractor plugin type, used by alef-generated bindings.

@@ -129,7 +129,11 @@ sources = [
   # Plugin trait (for trait bridges)
   "crates/kreuzberg/src/plugins/traits.rs",
   "crates/kreuzberg/src/plugins/embedding.rs",
+  "crates/kreuzberg/src/plugins/reranker.rs",
   "crates/kreuzberg/src/plugins/registry/mod.rs",
+  "crates/kreuzberg/src/plugins/registry/reranker.rs",
+  "crates/kreuzberg/src/core/config/reranker.rs",
+  "crates/kreuzberg/src/reranking/mod.rs",
   # Public module APIs
   "crates/kreuzberg/src/rendering/mod.rs",
   "crates/kreuzberg/src/keywords/mod.rs",
@@ -175,6 +179,8 @@ features = [
   "layout-types",
   "embeddings",
   "embedding-presets",
+  "reranker",
+  "reranker-presets",
   "chunking",
   "keywords-yake",
   "keywords-rake",
@@ -395,12 +401,13 @@ cfg = 'all(target_os = "android", target_arch = "x86_64")'
 features = ["android-target"]
 
 # Windows now supports liter-llm after aws-lc-sys MSVC fixes. Exclude only ORT-dependent
-# features (paddle-ocr, layout-detection, embeddings) from Windows FFI.
+# features (paddle-ocr, layout-detection, embeddings, reranker) from Windows FFI.
 [[crates.ffi.target_dep_overrides]]
 cfg = 'target_os = "windows"'
 # Curated Windows feature set: excludes paddle-ocr, paddle-ocr-types, layout-detection,
-# layout-types, embeddings, embedding-presets, ner-llm. Type-only features (layout-types,
-# paddle-ocr-types, embedding-presets, ner-llm-types) are included for compatibility with public APIs.
+# layout-types, embeddings, embedding-presets, reranker, ner-llm. Type-only features
+# (layout-types, paddle-ocr-types, embedding-presets, reranker-presets, ner-llm-types)
+# are included for compatibility with public APIs.
 features = [
   "pdf",
   "ocr",
@@ -418,6 +425,7 @@ features = [
   "layout-types",
   "paddle-ocr-types",
   "embedding-presets",
+  "reranker-presets",
   "ner",
   "ner-llm-types",
   "redaction",
@@ -464,6 +472,8 @@ features = [
   "layout-types",
   "embeddings",
   "embedding-presets",
+  "reranker",
+  "reranker-presets",
   "chunking",
   "keywords-yake",
   "keywords-rake",
@@ -1068,14 +1078,12 @@ result_is_json_struct = true
 # instead of extractFile (path string). The file_path arg type generates readAsBytesSync().
 function = "extractBytes"
 arg_name_map = { path = "content" }
-options_type = "ExtractionConfig"
 
 [crates.e2e.calls.extract_file]
 function = "extract_file"
 module = "kreuzberg"
 async = true
 returns_result = true
-options_type = "ExtractionConfig"
 # kreuzberg's `chunks` is a plain `Vec<TextChunk>` field on `ExtractionResult`,
 # not a streaming channel. Without this opt-out, alef's streaming auto-detect
 # triggers on any assertion targeting `chunks` / `chunks.length` and emits
@@ -1676,6 +1684,21 @@ returns_result = true
 
 [crates.e2e.calls.list_embedding_backends.overrides.dart]
 function = "listEmbeddingBackends"
+module = "kreuzberg"
+
+[crates.e2e.calls.list_reranker_backends]
+result_is_simple = true
+function = "list_reranker_backends"
+module = "kreuzberg"
+async = false
+args = []
+
+[crates.e2e.calls.list_reranker_backends.overrides.go]
+result_is_simple = true
+returns_result = true
+
+[crates.e2e.calls.list_reranker_backends.overrides.dart]
+function = "listRerankerBackends"
 module = "kreuzberg"
 
 [crates.e2e.calls.list_renderers]
@@ -2553,6 +2576,367 @@ module = "kreuzberg"
 [crates.e2e.calls.clear_embedding_backends.overrides.kotlin_android]
 function = "clearAll"
 class = "EmbeddingBackendBridge"
+
+# ── Reranker backend lifecycle calls ─────────────────────────────────────────
+
+[crates.e2e.calls.register_reranker_backend]
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
+result_is_simple = true
+function = ""
+module = ""
+async = false
+returns_result = false
+returns_void = true
+args = []
+
+[crates.e2e.calls.register_reranker_backend.overrides.python]
+function = "register_reranker_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_reranker_backend.overrides.rust]
+function = "register_reranker_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_reranker_backend.overrides.node]
+function = "registerRerankerBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_reranker_backend.overrides.go]
+function = "RegisterRerankerBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_reranker_backend.overrides.ruby]
+function = "register_reranker_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_reranker_backend.overrides.php]
+function = "registerRerankerBackend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_reranker_backend.overrides.java]
+function = "registerRerankerBackend"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.register_reranker_backend.overrides.csharp]
+function = "RegisterRerankerBackend"
+module = "Kreuzberg"
+
+
+[crates.e2e.calls.register_reranker_backend.overrides.swift]
+function = "registerRerankerBackend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_reranker_backend.overrides.dart]
+function = "registerRerankerBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_reranker_backend.overrides.wasm]
+function = "registerRerankerBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.register_reranker_backend.overrides.r]
+function = "register_reranker_backend"
+module = "kreuzberg"
+arg_name_map = { backend = "r_backend" }
+
+[crates.e2e.calls.register_reranker_backend.overrides.elixir]
+function = "register_reranker_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.register_reranker_backend.overrides.zig]
+function = "register_reranker_backend"
+module = "kreuzberg"
+returns_result = false
+
+[crates.e2e.calls.register_reranker_backend.overrides.kotlin_android]
+function = "register"
+class = "RerankerBackendBridge"
+
+[crates.e2e.calls.unregister_reranker_backend]
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
+result_is_simple = true
+function = ""
+module = ""
+async = false
+returns_result = false
+returns_void = true
+args = [{ name = "name", field = "input.name", type = "string" }]
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.python]
+function = "unregister_reranker_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.rust]
+function = "unregister_reranker_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.node]
+function = "unregisterRerankerBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.go]
+function = "UnregisterRerankerBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.ruby]
+function = "unregister_reranker_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.php]
+function = "unregisterRerankerBackend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.java]
+function = "unregisterRerankerBackend"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.csharp]
+function = "UnregisterRerankerBackend"
+module = "Kreuzberg"
+
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.swift]
+function = "unregisterRerankerBackend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.dart]
+function = "unregisterRerankerBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.wasm]
+function = "unregisterRerankerBackend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.r]
+function = "unregister_reranker_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.elixir]
+function = "unregister_reranker_backend"
+module = "Kreuzberg"
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.zig]
+function = "unregister_reranker_backend"
+module = "kreuzberg"
+
+[crates.e2e.calls.unregister_reranker_backend.overrides.kotlin_android]
+function = "unregister"
+class = "RerankerBackendBridge"
+
+[crates.e2e.calls.clear_reranker_backends]
+# Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
+result_is_simple = true
+function = ""
+module = ""
+async = false
+returns_result = false
+returns_void = true
+args = []
+
+[crates.e2e.calls.clear_reranker_backends.overrides.python]
+function = "clear_reranker_backends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_reranker_backends.overrides.rust]
+function = "clear_reranker_backends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_reranker_backends.overrides.node]
+function = "clearRerankerBackends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_reranker_backends.overrides.go]
+function = "ClearRerankerBackends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_reranker_backends.overrides.ruby]
+function = "clear_reranker_backends"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_reranker_backends.overrides.php]
+function = "clearRerankerBackends"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_reranker_backends.overrides.java]
+function = "clearRerankerBackends"
+module = "dev.kreuzberg.Kreuzberg"
+
+[crates.e2e.calls.clear_reranker_backends.overrides.csharp]
+function = "ClearRerankerBackends"
+module = "Kreuzberg"
+
+
+[crates.e2e.calls.clear_reranker_backends.overrides.swift]
+function = "clearRerankerBackends"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_reranker_backends.overrides.dart]
+function = "clearRerankerBackends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_reranker_backends.overrides.wasm]
+function = "clearRerankerBackends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_reranker_backends.overrides.r]
+function = "clear_reranker_backends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_reranker_backends.overrides.elixir]
+function = "clear_reranker_backends"
+module = "Kreuzberg"
+
+[crates.e2e.calls.clear_reranker_backends.overrides.zig]
+function = "clear_reranker_backends"
+module = "kreuzberg"
+
+[crates.e2e.calls.clear_reranker_backends.overrides.kotlin_android]
+function = "clearAll"
+class = "RerankerBackendBridge"
+
+# ── rerank call ───────────────────────────────────────────────────────────────
+
+[crates.e2e.calls.rerank]
+result_is_simple = true
+result_is_array = true
+function = "rerank"
+module = "kreuzberg"
+async = false
+returns_result = true
+skip_languages = ["wasm"]
+options_type = "RerankerConfig"
+args = [
+  { name = "query", field = "input.query", type = "string" },
+  { name = "documents", field = "input.documents", type = "json_object", owned = true, element_type = "String" },
+  { name = "config", field = "input.config", type = "json_object", optional = true },
+]
+nested_types = { reranker = "RerankerConfig", reranker_model = "RerankerModelType" }
+
+# Python excludes sync rerank; redirect to async variant
+[crates.e2e.calls.rerank.overrides.python]
+function = "rerank_async"
+async = true
+result_is_simple = true
+result_is_array = true
+options_type = "RerankerConfig"
+
+# Ruby excludes sync rerank; redirect to async variant
+[crates.e2e.calls.rerank.overrides.ruby]
+function = "rerank_async"
+async = true
+result_is_simple = true
+result_is_array = true
+
+# Elixir excludes sync rerank; redirect to async variant
+[crates.e2e.calls.rerank.overrides.elixir]
+function = "rerank_async"
+async = true
+result_is_simple = true
+result_is_array = true
+
+# Go excludes sync rerank; redirect to async variant
+[crates.e2e.calls.rerank.overrides.go]
+function = "RerankAsync"
+async = true
+result_is_simple = true
+result_is_array = true
+options_type = "RerankerConfig"
+
+# Java excludes sync rerank; redirect to async variant
+[crates.e2e.calls.rerank.overrides.java]
+function = "rerankAsync"
+async = true
+result_is_simple = true
+options_type = "RerankerConfig"
+
+# Swift excludes sync rerank; redirect to async variant
+[crates.e2e.calls.rerank.overrides.swift]
+function = "rerankAsync"
+async = true
+options_type = "RerankerConfig"
+
+# Dart excludes sync rerank; redirect to async variant
+[crates.e2e.calls.rerank.overrides.dart]
+function = "rerankAsync"
+async = true
+result_is_simple = true
+options_type = "RerankerConfig"
+
+# Zig excludes sync rerank; redirect to async variant
+[crates.e2e.calls.rerank.overrides.zig]
+function = "rerank_async"
+async = true
+result_is_json_struct = true
+
+# R excludes sync rerank; redirect to async variant
+[crates.e2e.calls.rerank.overrides.r]
+function = "rerank_async"
+async = true
+result_is_simple = true
+result_is_array = true
+
+# Csharp excludes sync rerank; redirect to async variant
+[crates.e2e.calls.rerank.overrides.csharp]
+function = "RerankAsync"
+async = true
+result_is_simple = true
+options_type = "RerankerConfig"
+nested_types = { reranker_model = "RerankerModelType" }
+
+# Node only exposes the async variant rerankAsync (NAPI-RS sync functions are
+# only generated for non-async functions; the suspend wrapper is the public API).
+[crates.e2e.calls.rerank.overrides.node]
+function = "rerankAsync"
+module = "@kreuzberg/node"
+async = true
+result_is_simple = true
+result_is_array = true
+
+# PHP extension only exposes rerankAsync
+[crates.e2e.calls.rerank.overrides.php]
+function = "rerankAsync"
+result_is_simple = true
+options_type = "RerankerConfig"
+
+[crates.e2e.calls.rerank_async]
+result_is_simple = true
+result_is_array = true
+function = "rerank_async"
+module = "kreuzberg"
+async = true
+returns_result = true
+skip_languages = ["wasm", "swift"]
+options_type = "RerankerConfig"
+args = [
+  { name = "query", field = "input.query", type = "string" },
+  { name = "documents", field = "input.documents", type = "json_object", owned = true, element_type = "String" },
+  { name = "config", field = "input.config", type = "json_object", optional = true },
+]
+nested_types = { reranker = "RerankerConfig", reranker_model = "RerankerModelType" }
+
+[crates.e2e.calls.rerank_async.overrides.csharp]
+result_is_simple = true
+options_type = "RerankerConfig"
+nested_types = { reranker_model = "RerankerModelType" }
+
+[crates.e2e.calls.rerank_async.overrides.java]
+result_is_simple = true
+options_type = "RerankerConfig"
+
+[crates.e2e.calls.rerank_async.overrides.go]
+result_is_simple = true
+result_is_array = true
+options_type = "RerankerConfig"
+
+[crates.e2e.calls.rerank_async.overrides.php]
+result_is_simple = true
+
+[crates.e2e.calls.rerank_async.overrides.dart]
+result_is_simple = true
+options_type = "RerankerConfig"
+
+[crates.e2e.calls.rerank_async.overrides.swift]
+options_type = "RerankerConfig"
 
 [crates.e2e.calls.register_document_extractor]
 # Trait-bridge function — excluded from gen_function surface; bridges emit it directly.
@@ -3568,3 +3952,11 @@ registry_getter = "kreuzberg::plugins::registry::get_renderer_registry"
 register_fn = "register_renderer"
 unregister_fn = "unregister_renderer"
 clear_fn = "clear_renderers"
+
+[[crates.trait_bridges]]
+trait_name = "RerankerBackend"
+super_trait = "kreuzberg::plugins::Plugin"
+registry_getter = "kreuzberg::plugins::registry::get_reranker_backend_registry"
+register_fn = "register_reranker_backend"
+unregister_fn = "unregister_reranker_backend"
+clear_fn = "clear_reranker_backends"

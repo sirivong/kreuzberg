@@ -9,6 +9,7 @@
 //! - `POST /extract-structured` - Extract structured data via LLM with JSON schema (multipart form data)
 //! - `POST /detect` - Detect MIME type of an uploaded file (multipart form data)
 //! - `POST /embed` - Generate embeddings for text (JSON body with texts array)
+//! - `POST /rerank` - Rerank documents by relevance to a query (JSON body with query and documents)
 //! - `POST /chunk` - Chunk text into smaller pieces (JSON body with text and config)
 //! - `GET /health` - Health check endpoint
 //! - `GET /info` - Server information
@@ -85,6 +86,11 @@
 //!      -H "Content-Type: application/json" \
 //!      -d '{"texts":["Hello world","Second text"]}'
 //!
+//! # Rerank documents by relevance to a query
+//! curl -X POST http://localhost:8000/rerank \
+//!      -H "Content-Type: application/json" \
+//!      -d '{"query":"What is Rust?","documents":["Rust is a systems language","Python is dynamic","Rust has ownership"]}'
+//!
 //! # Chunk text
 //! curl -X POST http://localhost:8000/chunk \
 //!      -H "Content-Type: application/json" \
@@ -112,5 +118,6 @@ pub use types::{
     ApiSizeLimits, ApiState, CacheClearResponse, CacheStatsResponse, ChunkRequest, ChunkResponse, DetectResponse,
     DoclingCompatDocument, DoclingCompatResponse, EmbedRequest, EmbedResponse, ErrorResponse, ExtractResponse,
     HealthResponse, InfoResponse, ManifestEntryResponse, ManifestResponse, OpenWebDocumentMetadata,
-    OpenWebDocumentResponse, StructuredExtractionResponse, VersionResponse, WarmRequest, WarmResponse,
+    OpenWebDocumentResponse, RerankRequest, RerankResponse, StructuredExtractionResponse, VersionResponse, WarmRequest,
+    WarmResponse,
 };

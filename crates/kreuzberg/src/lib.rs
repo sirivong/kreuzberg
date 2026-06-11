@@ -79,6 +79,9 @@ pub mod llm;
 #[cfg(feature = "embedding-presets")]
 pub mod embeddings;
 
+#[cfg(any(feature = "reranker-presets", feature = "reranker"))]
+pub mod reranking;
+
 #[cfg(feature = "ocr")]
 /// Image preprocessing and DPI utilities for OCR pipelines.
 pub mod image;
@@ -102,6 +105,7 @@ pub mod ocr;
 #[cfg(any(
     feature = "paddle-ocr",
     feature = "embeddings",
+    feature = "reranker",
     feature = "layout-detection",
     feature = "auto-rotate"
 ))]
@@ -162,8 +166,8 @@ pub use core::config::{
     ContentFilterConfig, EmailConfig, EmbeddingConfig, EmbeddingModelType, ExecutionProviderType, ExtractionConfig,
     FileExtractionConfig, ImageExtractionConfig, LanguageDetectionConfig, LlmConfig, NerBackendKind, NerConfig,
     OcrConfig, OutputFormat, PageClassificationConfig, PageConfig, PostProcessorConfig, RedactionConfig,
-    RedactionPattern, RedactionTerm, StructuredExtractionConfig, SummarizationConfig, TokenReductionOptions,
-    TranslationConfig,
+    RedactionPattern, RedactionTerm, RerankerConfig, RerankerModelType, StructuredExtractionConfig,
+    SummarizationConfig, TokenReductionOptions, TranslationConfig,
 };
 #[cfg(feature = "transcription-types")]
 pub use core::config::{TranscriptionConfig, WhisperModel};
@@ -383,10 +387,11 @@ pub use pdf::render::render_pdf_page_to_png;
 #[cfg_attr(alef, alef(skip))]
 pub use plugins::{
     clear_document_extractors, clear_embedding_backends, clear_ocr_backends, clear_post_processors, clear_renderers,
-    clear_validators, list_document_extractors, list_embedding_backends, list_ocr_backends, list_post_processors,
-    list_renderers, list_validators, register_document_extractor, register_embedding_backend, register_ocr_backend,
-    register_post_processor, register_renderer, register_validator, unregister_document_extractor,
-    unregister_embedding_backend, unregister_ocr_backend, unregister_post_processor, unregister_renderer,
+    clear_reranker_backends, clear_validators, list_document_extractors, list_embedding_backends, list_ocr_backends,
+    list_post_processors, list_renderers, list_reranker_backends, list_validators, register_document_extractor,
+    register_embedding_backend, register_ocr_backend, register_post_processor, register_renderer,
+    register_reranker_backend, register_validator, unregister_document_extractor, unregister_embedding_backend,
+    unregister_ocr_backend, unregister_post_processor, unregister_renderer, unregister_reranker_backend,
     unregister_validator,
 };
 
@@ -396,7 +401,7 @@ pub use plugins::{
 #[cfg_attr(alef, alef(skip))]
 pub use plugins::{
     DocumentExtractor, EmbeddingBackend, OcrBackend, OcrBackendType, PostProcessor, ProcessingStage, Renderer,
-    Validator,
+    RerankerBackend, Validator,
 };
 
 // ── Embeddings — public API (4 functions + 1 type, feature-gated) ────────────
@@ -502,5 +507,151 @@ pub fn get_embedding_preset(_name: &str) -> Option<EmbeddingPreset> {
 /// Returns an empty list for builds without the `embedding-presets` feature.
 #[cfg(not(feature = "embedding-presets"))]
 pub fn list_embedding_presets() -> Vec<String> {
+    Vec::new()
+}
+
+// ── Reranking — public API (4 functions + 2 types, feature-gated) ─────────────
+/// Re-export `RerankerPreset` when the `reranker-presets` feature is active.
+///
+/// Since v5.0.0.
+#[cfg(feature = "reranker-presets")]
+pub use reranking::RerankerPreset;
+
+/// Re-export `RerankedDocument` — needed for stub signatures and result types.
+///
+/// Since v5.0.0.
+#[cfg(any(feature = "reranker-presets", feature = "reranker"))]
+pub use reranking::RerankedDocument;
+
+/// Rerank a list of documents by relevance to a query.
+///
+/// Returns documents sorted descending by score. Applies `top_k` truncation if
+/// configured.
+///
+/// # Errors
+///
+/// - [`KreuzbergError::Validation`] if `query` is empty or blank.
+/// - [`KreuzbergError::MissingDependency`] if ONNX Runtime is not installed (ONNX path).
+/// - [`KreuzbergError::Reranking`] if the preset is unknown or model download fails.
+///
+/// Since v5.0.0.
+#[cfg(feature = "reranker")]
+pub fn rerank(
+    query: String,
+    documents: Vec<String>,
+    config: &core::config::RerankerConfig,
+) -> crate::Result<Vec<reranking::RerankedDocument>> {
+    reranking::rerank(query, documents, config)
+}
+
+/// Stub for builds without the `reranker` feature — keeps the symbol available
+/// on no-ORT targets (Android x86_64 emulator, WASM) so language bindings compile.
+///
+/// Since v5.0.0.
+#[cfg(all(feature = "reranker-presets", not(feature = "reranker")))]
+pub fn rerank(
+    _query: String,
+    _documents: Vec<String>,
+    _config: &core::config::RerankerConfig,
+) -> crate::Result<Vec<reranking::RerankedDocument>> {
+    Err(KreuzbergError::validation(
+        "rerank requires the `reranker` feature, which depends on ONNX Runtime; \
+         not available on this target (Android x86_64 emulator or WASM)",
+    ))
+}
+
+#[cfg(all(feature = "reranker", feature = "tokio-runtime"))]
+pub use reranking::rerank_async;
+
+/// Stub for builds without the `reranker` feature.
+///
+/// Since v5.0.0.
+#[doc(alias = "rerank")]
+#[cfg(all(feature = "reranker-presets", not(feature = "reranker"), feature = "tokio-runtime"))]
+pub async fn rerank_async(
+    _query: String,
+    _documents: Vec<String>,
+    _config: &core::config::RerankerConfig,
+) -> crate::Result<Vec<reranking::RerankedDocument>> {
+    Err(KreuzbergError::validation(
+        "rerank_async requires the `reranker` feature, which depends on ONNX Runtime; \
+         not available on this target (Android x86_64 emulator or WASM)",
+    ))
+}
+
+/// Get a reranker preset by name.
+///
+/// Returns `None` if no preset with the given name exists. Returns an owned
+/// clone so the value is safe to pass across FFI boundaries.
+///
+/// Since v5.0.0.
+#[cfg(feature = "reranker-presets")]
+pub fn get_reranker_preset(name: &str) -> Option<reranking::RerankerPreset> {
+    reranking::get_preset(name)
+}
+
+/// List the names of all available reranker presets.
+///
+/// Returns owned `String`s so the values are safe to pass across FFI boundaries.
+///
+/// Since v5.0.0.
+#[cfg(feature = "reranker-presets")]
+pub fn list_reranker_presets() -> Vec<String> {
+    reranking::list_presets()
+}
+
+// ── Reranker-preset stubs for builds without the feature ─────────────────────
+/// Stub preset type for builds without the `reranker-presets` feature.
+///
+/// Field names match the real type so JSON round-trips remain schema-compatible.
+/// When the feature is absent, `get_reranker_preset` always returns `None`, so
+/// the stub is never allocated in practice.
+///
+/// Since v5.0.0.
+#[cfg(not(feature = "reranker-presets"))]
+#[cfg_attr(alef, alef(skip))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct RerankerPreset {
+    /// Unique preset identifier (e.g. "balanced", "multilingual").
+    pub name: String,
+    /// HuggingFace repository ID for the model.
+    pub model_repo: String,
+    /// ONNX model file name within the repository.
+    pub model_file: String,
+    /// Maximum token sequence length the model supports.
+    pub max_length: usize,
+    /// Human-readable description of the preset's intended use case.
+    pub description: String,
+}
+
+/// Stub result document type for builds without `reranker-presets`.
+///
+/// Since v5.0.0.
+#[cfg(not(feature = "reranker-presets"))]
+#[cfg_attr(alef, alef(skip))]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
+pub struct RerankedDocument {
+    /// Position of this document in the original input slice.
+    pub index: usize,
+    /// Relevance score in `[0, 1]`.
+    pub score: f32,
+    /// The document text.
+    pub document: String,
+}
+
+/// Returns `None` for builds without the `reranker-presets` feature.
+///
+/// Since v5.0.0.
+#[cfg(not(feature = "reranker-presets"))]
+pub fn get_reranker_preset(_name: &str) -> Option<RerankerPreset> {
+    None
+}
+
+/// Returns an empty list for builds without the `reranker-presets` feature.
+///
+/// Since v5.0.0.
+#[cfg(not(feature = "reranker-presets"))]
+pub fn list_reranker_presets() -> Vec<String> {
     Vec::new()
 }

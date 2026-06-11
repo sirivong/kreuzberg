@@ -613,6 +613,50 @@ void kreuzberg_clear_renderers();
 
 ---
 
+#### kreuzberg_clear_reranker_backends()
+
+Clear all reranker backends from the global registry.
+
+Calls `shutdown()` on every registered backend, then empties the registry.
+
+**Errors:**
+
+- Any error returned by a backend's `shutdown()` method. The first error
+  encountered stops processing of remaining backends.
+
+Since v5.0.0.
+
+**Signature:**
+
+```c
+void kreuzberg_clear_reranker_backends();
+```
+
+**Returns:** `void`
+**Errors:** Returns `NULL` on error.
+
+---
+
+#### kreuzberg_list_reranker_backends()
+
+List the names of all registered reranker backends.
+
+Used by `kreuzberg-cli`, the api/mcp endpoints, and generated language
+bindings.
+
+Since v5.0.0.
+
+**Signature:**
+
+```c
+const char** kreuzberg_list_reranker_backends();
+```
+
+**Returns:** `const char**`
+**Errors:** Returns `NULL` on error.
+
+---
+
 #### kreuzberg_list_validators()
 
 List names of all registered validators.
@@ -1003,6 +1047,108 @@ Returns owned `String`s so the values are safe to pass across FFI boundaries.
 
 ```c
 const char** kreuzberg_list_embedding_presets();
+```
+
+**Returns:** `const char**`
+
+---
+
+#### kreuzberg_rerank()
+
+Rerank a list of documents by relevance to a query.
+
+Returns documents sorted descending by score. Applies `top_k` truncation if
+configured.
+
+**Errors:**
+
+- `KreuzbergError.Validation` if `query` is empty or blank.
+- `KreuzbergError.MissingDependency` if ONNX Runtime is not installed (ONNX path).
+- `KreuzbergError.Reranking` if the preset is unknown or model download fails.
+
+Since v5.0.0.
+
+**Signature:**
+
+```c
+KreuzbergRerankedDocument* kreuzberg_rerank(const char* query, const char** documents, KreuzbergRerankerConfig config);
+```
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `query` | `const char*` | Yes | The query |
+| `documents` | `const char**` | Yes | The documents |
+| `config` | `KreuzbergRerankerConfig` | Yes | The configuration options |
+
+**Returns:** `KreuzbergRerankedDocument*`
+**Errors:** Returns `NULL` on error.
+
+---
+
+#### kreuzberg_rerank_async()
+
+Stub for builds without the `reranker` feature.
+
+Since v5.0.0.
+
+**Signature:**
+
+```c
+KreuzbergRerankedDocument* kreuzberg_rerank_async(const char* query, const char** documents, KreuzbergRerankerConfig config);
+```
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `query` | `const char*` | Yes | The  query |
+| `documents` | `const char**` | Yes | The  documents |
+| `config` | `KreuzbergRerankerConfig` | Yes | The reranker config |
+
+**Returns:** `KreuzbergRerankedDocument*`
+**Errors:** Returns `NULL` on error.
+
+---
+
+#### kreuzberg_get_reranker_preset()
+
+Get a reranker preset by name.
+
+Returns `NULL` if no preset with the given name exists. Returns an owned
+clone so the value is safe to pass across FFI boundaries.
+
+Since v5.0.0.
+
+**Signature:**
+
+```c
+KreuzbergRerankerPreset* kreuzberg_get_reranker_preset(const char* name);
+```
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `name` | `const char*` | Yes | The name |
+
+**Returns:** `KreuzbergRerankerPreset*`
+
+---
+
+#### kreuzberg_list_reranker_presets()
+
+List the names of all available reranker presets.
+
+Returns owned `String`s so the values are safe to pass across FFI boundaries.
+
+Since v5.0.0.
+
+**Signature:**
+
+```c
+const char** kreuzberg_list_reranker_presets();
 ```
 
 **Returns:** `const char**`
@@ -4404,6 +4550,144 @@ const char* kreuzberg_render(KreuzbergInternalDocument doc);
 
 ---
 
+#### KreuzbergRerankedDocument
+
+A single document returned by the reranker, with its position in the input and score.
+
+`index` maps back to the caller's original document list, so metadata arrays
+(e.g. IDs, paths) can be reordered without passing them through the reranker.
+
+Since v5.0.0.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `index` | `uintptr_t` | — | Position of this document in the original input `documents` slice. |
+| `score` | `float` | — | Relevance score in `[0, 1]`. Higher means more relevant to the query. |
+| `document` | `const char*` | — | The document text. |
+
+---
+
+#### KreuzbergRerankerBackend
+
+Trait for in-process reranker backend plugins.
+
+Cross-encoders score `(query, document)` pairs jointly and return a
+raw logit per document. The dispatcher in `rerank` applies
+sigmoid to convert logits to `[0, 1]` scores, sorts descending by score,
+and truncates to `top_k`.
+
+Async to match the convention used by `EmbeddingBackend`
+and other plugin traits. Host-language bridges wrap their synchronous
+host callables in `spawn_blocking` or the equivalent.
+
+### Thread safety
+
+Backends must be `Send + Sync + 'static`. They are stored in
+`Arc<dyn RerankerBackend>` and may be called concurrently from kreuzberg's
+dispatcher. If the backend's underlying model is not thread-safe, the
+backend itself must serialize access internally (e.g. via `Mutex<Inner>`).
+
+### Contract
+
+- `rerank(query, documents)` MUST return exactly `documents.len()` scores.
+  The dispatcher validates this before sorting and returning to callers;
+  a non-conforming backend surfaces as a `KreuzbergError.Validation`, not
+  a panic.
+
+- Scores are raw logits in any range — callers must NOT assume `[0, 1]`.
+  The dispatcher applies sigmoid before sorting.
+
+- `rerank` may be called from any thread. Its future must be `Send`
+  (enforced by `async_trait` when `#[async_trait]` is used on non-WASM
+  targets).
+
+- `shutdown()` (inherited from `Plugin`) may be invoked
+  concurrently with an in-flight `rerank()` call. Implementations must
+  tolerate this — letting in-flight calls finish via the `Arc` reference
+  and only releasing shared state that isn't needed by `rerank`.
+
+### Runtime
+
+The synchronous `rerank` entry uses
+`tokio.task.block_in_place` to await the trait's async `rerank`, which
+requires a multi-thread tokio runtime. Callers running inside a
+`current_thread` runtime must use `rerank_async` instead.
+
+Since v5.0.0.
+
+### Methods
+
+#### kreuzberg_rerank()
+
+Score a list of documents against a query.
+
+Returns one raw logit per document in the same order as the input.
+The dispatcher applies sigmoid to convert to `[0, 1]` scores.
+
+**Errors:**
+
+Implementations should return `Plugin` for
+backend-specific failures. The dispatcher validates the returned length
+against `documents.len()` before sorting.
+
+**Signature:**
+
+```c
+float* kreuzberg_rerank(const char* query, const char** documents);
+```
+
+---
+
+#### KreuzbergRerankerConfig
+
+Configuration for the reranking pipeline.
+
+Controls which model to use, how many results to return, and download/cache
+behavior for local ONNX models.
+
+Since v5.0.0.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `model` | `KreuzbergRerankerModelType` | `KREUZBERG_KREUZBERG_PRESET` | The reranker model to use (defaults to "balanced" preset if not specified). |
+| `top_k` | `uintptr_t*` | `NULL` | Return at most this many documents. `NULL` returns all. Applied after sorting by score, so the highest-scoring documents are kept. |
+| `batch_size` | `uintptr_t` | `32` | Batch size for local ONNX cross-encoder inference. |
+| `show_download_progress` | `bool` | `false` | Show model download progress (local ONNX path only). |
+| `cache_dir` | `const char**` | `NULL` | Custom cache directory for model files. Defaults to `~/.cache/kreuzberg/rerankers/` if not specified. |
+| `acceleration` | `KreuzbergAccelerationConfig*` | `NULL` | Hardware acceleration for the reranker ONNX model. Controls which execution provider (CPU, CUDA, CoreML, TensorRT) is used for local inference. Defaults to `NULL` (auto-select per platform). |
+| `max_rerank_duration_secs` | `uint64_t*` | `NULL` | Maximum wall-clock duration (in seconds) for a single `rerank()` call when using `RerankerModelType.Plugin`. Applies only to the in-process plugin path — protects against hung host-language backends. On timeout, the dispatcher returns `Plugin` instead of blocking forever. `NULL` disables the timeout. The default (60 seconds) is conservative for common in-process inference; increase for large document sets on slow hardware. |
+
+### Methods
+
+#### kreuzberg_default()
+
+**Signature:**
+
+```c
+KreuzbergRerankerConfig kreuzberg_default();
+```
+
+---
+
+#### KreuzbergRerankerPreset
+
+Metadata for a bundled reranker preset.
+
+All string fields are owned `String` for FFI compatibility — instances are
+safe to clone and pass across language boundaries.
+
+Since v5.0.0.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `name` | `const char*` | — | Short identifier (e.g. `"balanced"`, `"fast"`, `"quality"`). |
+| `model_repo` | `const char*` | — | HuggingFace repository name for the model. |
+| `model_file` | `const char*` | — | Path to the ONNX model file within the repo. |
+| `max_length` | `uintptr_t` | — | Maximum token sequence length the model supports. |
+| `description` | `const char*` | — | Human-readable description of the preset's intended use case. |
+
+---
+
 #### KreuzbergRevisionDelta
 
 The content changes that make up a single revision.
@@ -5395,6 +5679,21 @@ Embedding model types supported by Kreuzberg.
 
 ---
 
+#### KreuzbergRerankerModelType
+
+Reranker model types supported by Kreuzberg.
+
+Since v5.0.0.
+
+| Value | Description |
+|-------|-------------|
+| `KREUZBERG_PRESET` | Use a preset cross-encoder model (recommended). — Fields: `name`: `const char*` |
+| `KREUZBERG_CUSTOM` | Use a custom ONNX cross-encoder from HuggingFace. — Fields: `model_id`: `const char*`, `max_length`: `int64_t` |
+| `KREUZBERG_LLM` | Provider-hosted reranker via liter-llm (e.g. Cohere, Jina, Voyage). The model in the nested `LlmConfig` must be a rerank-capable model ID (e.g. `"cohere/rerank-english-v3.0"`). — Fields: `llm`: `KreuzbergLlmConfig` |
+| `KREUZBERG_PLUGIN` | In-process reranker registered via the plugin system. The caller registers a `RerankerBackend` once (e.g. a wrapper around a `sentence-transformers` cross-encoder or a provider client), then references it by name in config. Kreuzberg calls back into the registered backend — no HuggingFace download, no ONNX Runtime requirement. When this variant is selected, only `max_rerank_duration_secs` applies. Model-loading fields (`batch_size`, `cache_dir`, `show_download_progress`, `acceleration`) are ignored — the host owns the model lifecycle. See `register_reranker_backend`. — Fields: `name`: `const char*` |
+
+---
+
 #### KreuzbergWhisperModel
 
 Supported Whisper model sizes.
@@ -5782,7 +6081,6 @@ type-safe, clean metadata without nested optionals.
 | `KREUZBERG_EPUB` | Metadata extracted from an EPUB e-book. — Fields: `0`: `KreuzbergEpubMetadata` |
 | `KREUZBERG_PST` | Metadata extracted from an Outlook PST archive. — Fields: `0`: `KreuzbergPstMetadata` |
 | `KREUZBERG_AUDIO` | Metadata extracted from an audio or video file. — Fields: `0`: `KreuzbergAudioMetadata` |
-| `KREUZBERG_CODE` | Code metadata (tree-sitter analysis results). |
 
 ---
 
@@ -6131,6 +6429,7 @@ and provides context for debugging.
 | `KREUZBERG_LOCK_POISONED` | An internal `Mutex` or `RwLock` was found in a poisoned state. |
 | `KREUZBERG_UNSUPPORTED_FORMAT` | The document's MIME type is not supported by any registered extractor. |
 | `KREUZBERG_EMBEDDING` | The embedding model or embedding pipeline returned an error. |
+| `KREUZBERG_RERANKING` | The reranker model or reranking pipeline returned an error. Since v5.0.0. |
 | `KREUZBERG_TRANSCRIPTION` | Audio/video transcription failed. |
 | `KREUZBERG_TIMEOUT` | The extraction operation exceeded the configured time limit. |
 | `KREUZBERG_CANCELLED` | The extraction was cancelled via a `CancellationToken`. |

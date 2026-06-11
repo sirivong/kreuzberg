@@ -206,6 +206,20 @@ embeddings = [
     "ort-bundled",
     "embedding-presets",
 ]
+# v5.0.0: cross-encoder reranking.
+# reranker-presets: static preset metadata (WASM/Android-safe, no ORT).
+reranker-presets = []
+# reranker: full cross-encoder inference via ONNX Runtime (ORT-dependent,
+# WASM-incompatible). NOTE: reranker-presets is a subset of reranker; always implied.
+reranker = [
+    "reranker-presets",
+    "dep:hf-hub",
+    "dep:ort",
+    "dep:ndarray",
+    "dep:tokenizers",
+    "tokio-runtime",
+    "ort-bundled",
+]
 stopwords = []
 quality = ["dep:unicode-normalization", "dep:chardetng", "stopwords"]
 
@@ -284,6 +298,7 @@ no-ort-target = [
     "email",
     "language-detection",
     "chunking",
+    "chunking-tokenizers",
     "quality",
     "keywords",
     "office",
@@ -293,6 +308,7 @@ no-ort-target = [
     "archives",
     "stopwords",
     "embedding-presets",
+    "reranker-presets",
     "layout-types",
     "auto-rotate-types",
     "paddle-ocr-types",
@@ -309,7 +325,6 @@ wasm-target = ["no-ort-target", "excel-wasm", "tree-sitter-wasm", "ocr-wasm"]
 # Excludes ORT-dependent features (paddle-ocr, layout-detection, embeddings, auto-rotate).
 android-target = [
     "no-ort-target",
-    "chunking-tokenizers",
     "excel",
     "tree-sitter",
     "ocr",
@@ -355,6 +370,7 @@ full = [
     "paddle-ocr",
     "layout-detection",
     "embeddings",
+    "reranker",
     "transcription",
     "chunking-tokenizers",
     "tree-sitter",

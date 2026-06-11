@@ -501,6 +501,27 @@ Configuration for the redaction post-processor.
 
 ---
 
+### RerankerConfig
+
+Configuration for the reranking pipeline.
+
+Controls which model to use, how many results to return, and download/cache
+behavior for local ONNX models.
+
+Since v5.0.0.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `model` | `RerankerModelType` | `RerankerModelType.PRESET` | The reranker model to use (defaults to "balanced" preset if not specified). |
+| `top_k` | `int \| None` | `None` | Return at most this many documents. `None` returns all. Applied after sorting by score, so the highest-scoring documents are kept. |
+| `batch_size` | `int` | `32` | Batch size for local ONNX cross-encoder inference. |
+| `show_download_progress` | `bool` | `False` | Show model download progress (local ONNX path only). |
+| `cache_dir` | `str \| None` | `None` | Custom cache directory for model files. Defaults to `~/.cache/kreuzberg/rerankers/` if not specified. |
+| `acceleration` | `AccelerationConfig \| None` | `None` | Hardware acceleration for the reranker ONNX model. Controls which execution provider (CPU, CUDA, CoreML, TensorRT) is used for local inference. Defaults to `None` (auto-select per platform). |
+| `max_rerank_duration_secs` | `int \| None` | `None` | Maximum wall-clock duration (in seconds) for a single `rerank()` call when using `RerankerModelType.Plugin`. Applies only to the in-process plugin path — protects against hung host-language backends. On timeout, the dispatcher returns `Plugin` instead of blocking forever. `None` disables the timeout. The default (60 seconds) is conservative for common in-process inference; increase for large document sets on slow hardware. |
+
+---
+
 ### SummarizationConfig
 
 Configuration for the summarisation post-processor.
@@ -1672,7 +1693,6 @@ type-safe, clean metadata without nested optionals.
 | `Epub` | `epub` | Metadata extracted from an EPUB e-book. — Fields: `_0`: `EpubMetadata` |
 | `Pst` | `pst` | Metadata extracted from an Outlook PST archive. — Fields: `_0`: `PstMetadata` |
 | `Audio` | `audio` | Metadata extracted from an audio or video file. — Fields: `_0`: `AudioMetadata` |
-| `Code` | `code` | Code metadata (tree-sitter analysis results). |
 
 ---
 
@@ -1831,6 +1851,21 @@ Intensity level for the token-reduction pipeline.
 | `Moderate` | Balanced stopword removal and redundancy filtering. |
 | `Aggressive` | Aggressive filtering; may remove less common content words. |
 | `Maximum` | Maximum compression; prioritizes brevity over completeness. |
+
+---
+
+#### RerankerModelType
+
+Reranker model types supported by Kreuzberg.
+
+Since v5.0.0.
+
+| Variant | Wire value | Description |
+|---------|------------|-------------|
+| `Preset` | `preset` | Use a preset cross-encoder model (recommended). — Fields: `name`: `String` |
+| `Custom` | `custom` | Use a custom ONNX cross-encoder from HuggingFace. — Fields: `model_id`: `String`, `max_length`: `i64` |
+| `Llm` | `llm` | Provider-hosted reranker via liter-llm (e.g. Cohere, Jina, Voyage). The model in the nested `LlmConfig` must be a rerank-capable model ID (e.g. `"cohere/rerank-english-v3.0"`). — Fields: `llm`: `LlmConfig` |
+| `Plugin` | `plugin` | In-process reranker registered via the plugin system. The caller registers a `RerankerBackend` once (e.g. a wrapper around a `sentence-transformers` cross-encoder or a provider client), then references it by name in config. Kreuzberg calls back into the registered backend — no HuggingFace download, no ONNX Runtime requirement. When this variant is selected, only `max_rerank_duration_secs` applies. Model-loading fields (`batch_size`, `cache_dir`, `show_download_progress`, `acceleration`) are ignored — the host owns the model lifecycle. See `register_reranker_backend`. — Fields: `name`: `String` |
 
 ---
 

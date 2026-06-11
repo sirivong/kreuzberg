@@ -183,8 +183,10 @@ pub(crate) fn list_presets() -> Vec<String> {
 }
 
 /// Returns installation instructions for ONNX Runtime.
+///
+/// `pub(crate)` so sibling ONNX modules can reference the same install instructions.
 #[cfg(feature = "embeddings")]
-fn onnx_runtime_install_message() -> String {
+pub(crate) fn onnx_runtime_install_message() -> String {
     #[cfg(all(windows, target_env = "gnu"))]
     {
         return "ONNX Runtime embeddings are not supported on Windows MinGW builds. \
@@ -715,8 +717,10 @@ fn get_or_init_engine(
 }
 
 /// Check if an error message looks like an ONNX Runtime missing dependency.
+///
+/// `pub(crate)` for possible reuse by sibling ONNX modules.
 #[cfg(feature = "embeddings")]
-fn looks_like_ort_error(msg: &str) -> bool {
+pub(crate) fn looks_like_ort_error(msg: &str) -> bool {
     msg.contains("onnxruntime")
         || msg.contains("ORT")
         || msg.contains("libonnxruntime")
@@ -728,8 +732,10 @@ fn looks_like_ort_error(msg: &str) -> bool {
 }
 
 /// Convert a panic payload to a string message.
+///
+/// `pub(crate)` for possible reuse by sibling ONNX modules.
 #[cfg(feature = "embeddings")]
-fn panic_to_string(payload: Box<dyn std::any::Any + Send>) -> String {
+pub(crate) fn panic_to_string(payload: Box<dyn std::any::Any + Send>) -> String {
     if let Some(s) = payload.downcast_ref::<&str>() {
         s.to_string()
     } else if let Some(s) = payload.downcast_ref::<String>() {

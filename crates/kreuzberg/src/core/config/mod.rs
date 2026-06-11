@@ -22,6 +22,7 @@ pub mod page;
 pub mod pdf;
 pub mod processing;
 pub mod redaction;
+pub mod reranker;
 pub mod summarization;
 pub mod transcription;
 pub mod translation;
@@ -50,6 +51,7 @@ pub use pdf::{HierarchyConfig, PdfConfig};
 pub use processing::{
     ChunkSizing, ChunkerType, ChunkingConfig, EmbeddingConfig, EmbeddingModelType, PostProcessorConfig,
 };
+pub use reranker::{RerankerConfig, RerankerModelType};
 #[cfg(feature = "tree-sitter")]
 pub use tree_sitter::{CodeContentMode, TreeSitterConfig, TreeSitterProcessConfig};
 

@@ -166,6 +166,18 @@ pub enum KreuzbergError {
         source: Option<Box<dyn std::error::Error + Send + Sync>>,
     },
 
+    /// The reranker model or reranking pipeline returned an error.
+    ///
+    /// Since v5.0.0.
+    #[error("Reranking error: {message}")]
+    Reranking {
+        /// Human-readable description of the reranking failure.
+        message: String,
+        #[source]
+        /// Underlying error from the reranker backend, if available.
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
+
     /// Audio/video transcription failed.
     #[error("Transcription error: {message}")]
     Transcription {
@@ -297,6 +309,7 @@ impl KreuzbergError {
     error_constructor!(image_processing, ImageProcessing);
     error_constructor!(serialization, Serialization);
     error_constructor!(embedding, Embedding);
+    error_constructor!(reranking, Reranking);
     error_constructor!(security, Security);
     error_constructor!(transcription, Transcription);
 }

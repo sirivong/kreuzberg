@@ -1,0 +1,18 @@
+{
+  "id": "unregister_reranker_backend",
+  "category": "plugin_api",
+  "description": "unregister_reranker_backend",
+  "call": "unregister_reranker_backend",
+  "input": {
+    "name": "test-reranker-backend"
+  },
+  "assertions": [
+    {
+      "type": "not_error"
+    }
+  ],
+  "tags": [
+    "plugin-lifecycle",
+    "trait-bridge"
+  ]
+}

@@ -41,6 +41,7 @@ use utoipa::OpenApi;
         crate::api::handlers::cache_manifest_handler,
         crate::api::handlers::cache_warm_handler,
         crate::api::handlers::embed_handler,
+        crate::api::handlers::rerank_handler,
         crate::api::handlers::chunk_handler,
         crate::api::handlers::version_handler,
         crate::api::openweb::openweb_external_handler,
@@ -56,6 +57,9 @@ use utoipa::OpenApi;
             crate::api::types::CacheClearResponse,
             crate::api::types::EmbedRequest,
             crate::api::types::EmbedResponse,
+            crate::api::types::RerankRequest,
+            crate::api::types::RerankResponse,
+            crate::RerankedDocument,
             crate::api::types::ChunkRequest,
             crate::api::types::ChunkResponse,
             crate::api::types::ChunkItem,
@@ -99,6 +103,7 @@ use utoipa::OpenApi;
         (name = "extraction", description = "Document extraction endpoints"),
         (name = "cache", description = "Cache management endpoints"),
         (name = "embeddings", description = "Text embedding generation"),
+        (name = "reranking", description = "Document reranking by relevance score"),
         (name = "chunking", description = "Text chunking operations"),
         (name = "openweb", description = "OpenWebUI compatibility endpoints")
     )
@@ -172,6 +177,8 @@ mod tests {
         assert!(schema.contains("/cache/warm"));
         // Embeddings
         assert!(schema.contains("/embed"));
+        // Reranking
+        assert!(schema.contains("/rerank"));
         // Chunking
         assert!(schema.contains("/chunk"));
     }
@@ -183,6 +190,7 @@ mod tests {
         assert!(schema.contains("HealthResponse"));
         assert!(schema.contains("ErrorResponse"));
         assert!(schema.contains("EmbedRequest"));
+        assert!(schema.contains("RerankRequest"));
         assert!(schema.contains("ChunkRequest"));
         assert!(schema.contains("VersionResponse"));
         assert!(schema.contains("DetectResponse"));

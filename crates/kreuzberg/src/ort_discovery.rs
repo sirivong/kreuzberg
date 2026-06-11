@@ -104,7 +104,8 @@ fn platform_candidates() -> &'static [&'static str] {
     feature = "layout-detection",
     feature = "embeddings",
     feature = "paddle-ocr",
-    feature = "auto-rotate"
+    feature = "auto-rotate",
+    feature = "reranker"
 ))]
 pub(crate) fn apply_execution_providers(
     builder: ort::session::builder::SessionBuilder,

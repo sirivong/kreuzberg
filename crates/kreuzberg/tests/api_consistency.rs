@@ -567,10 +567,23 @@ fn test_tree_sitter_process_config_all_fields_serialized() {
 fn test_format_metadata_code_variant_serialization() {
     use kreuzberg::types::metadata::FormatMetadata;
 
-    let metadata = FormatMetadata::Code;
+    // Use a default ProcessResult to test serialization shape without needing a grammar
+    let result = kreuzberg::ProcessResult {
+        language: "python".to_string(),
+        ..kreuzberg::ProcessResult::default()
+    };
+
+    let metadata = FormatMetadata::Code(kreuzberg::CodeMetadataInner(result));
     let json = serde_json::to_value(&metadata).expect("Failed to serialize FormatMetadata::Code");
 
+    // Verify the tagged union format
     assert_eq!(json["format_type"], "code", "format_type tag should be 'code'");
+    assert_eq!(json["language"], "python", "language should be 'python'");
+    assert!(json.get("metrics").is_some(), "metrics should be present");
+    assert!(
+        json["metrics"]["total_lines"].is_number(),
+        "metrics.total_lines should be a number"
+    );
 }
 
 #[cfg(feature = "tree-sitter")]

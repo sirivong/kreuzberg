@@ -42,6 +42,7 @@ and provides context for debugging.
 | `LockPoisoned` | Lock poisoned: {0} | An internal `Mutex` or `RwLock` was found in a poisoned state. |
 | `UnsupportedFormat` | Unsupported format: {0} | The document's MIME type is not supported by any registered extractor. |
 | `Embedding` | Embedding error: {message} | The embedding model or embedding pipeline returned an error. |
+| `Reranking` | Reranking error: {message} | The reranker model or reranking pipeline returned an error. Since v5.0.0. |
 | `Transcription` | Transcription error: {message} | Audio/video transcription failed. |
 | `Timeout` | Extraction timed out after {elapsed_ms}ms (limit: {limit_ms}ms) | The extraction operation exceeded the configured time limit. |
 | `Cancelled` | Extraction cancelled | The extraction was cancelled via a `CancellationToken`. |

@@ -1406,6 +1406,84 @@ typedef struct KREUZBERGRelationshipKind KREUZBERGRelationshipKind;
  */
 typedef struct KREUZBERGRenderer KREUZBERGRenderer;
 /**
+ * A single document returned by the reranker, with its position in the input and score.
+ *
+ * `index` maps back to the caller's original document list, so metadata arrays
+ * (e.g. IDs, paths) can be reordered without passing them through the reranker.
+ *
+ * Since v5.0.0.
+ */
+typedef struct KREUZBERGRerankedDocument KREUZBERGRerankedDocument;
+/**
+ * Trait for in-process reranker backend plugins.
+ *
+ * Cross-encoders score `(query, document)` pairs jointly and return a
+ * raw logit per document. The dispatcher in `rerank` applies
+ * sigmoid to convert logits to `[0, 1]` scores, sorts descending by score,
+ * and truncates to `top_k`.
+ *
+ * Async to match the convention used by `EmbeddingBackend`
+ * and other plugin traits. Host-language bridges wrap their synchronous
+ * host callables in `spawn_blocking` or the equivalent.
+ *
+ * # Thread safety
+ *
+ * Backends must be `Send + Sync + 'static`. They are stored in
+ * `Arc<dyn RerankerBackend>` and may be called concurrently from kreuzberg's
+ * dispatcher. If the backend's underlying model is not thread-safe, the
+ * backend itself must serialize access internally (e.g. via `Mutex<Inner>`).
+ *
+ * # Contract
+ *
+ * - `rerank(query, documents)` MUST return exactly `documents.len()` scores.
+ *   The dispatcher validates this before sorting and returning to callers;
+ *   a non-conforming backend surfaces as a `KreuzbergError::Validation`, not
+ *   a panic.
+ * - Scores are raw logits in any range â callers must NOT assume `[0, 1]`.
+ *   The dispatcher applies sigmoid before sorting.
+ * - `rerank` may be called from any thread. Its future must be `Send`
+ *   (enforced by `async_trait` when `#`async_trait`` is used on non-WASM
+ *   targets).
+ * - `shutdown()` (inherited from `Plugin`) may be invoked
+ *   concurrently with an in-flight `rerank()` call. Implementations must
+ *   tolerate this â letting in-flight calls finish via the `Arc` reference
+ *   and only releasing shared state that isn't needed by `rerank`.
+ *
+ * # Runtime
+ *
+ * The synchronous `rerank` entry uses
+ * `tokio.task.block_in_place` to await the trait's async `rerank`, which
+ * requires a multi-thread tokio runtime. Callers running inside a
+ * `current_thread` runtime must use `rerank_async` instead.
+ *
+ * Since v5.0.0.
+ */
+typedef struct KREUZBERGRerankerBackend KREUZBERGRerankerBackend;
+/**
+ * Configuration for the reranking pipeline.
+ *
+ * Controls which model to use, how many results to return, and download/cache
+ * behavior for local ONNX models.
+ *
+ * Since v5.0.0.
+ */
+typedef struct KREUZBERGRerankerConfig KREUZBERGRerankerConfig;
+/**
+ * Reranker model types supported by Kreuzberg.
+ *
+ * Since v5.0.0.
+ */
+typedef struct KREUZBERGRerankerModelType KREUZBERGRerankerModelType;
+/**
+ * Metadata for a bundled reranker preset.
+ *
+ * All string fields are owned `String` for FFI compatibility â instances are
+ * safe to clone and pass across language boundaries.
+ *
+ * Since v5.0.0.
+ */
+typedef struct KREUZBERGRerankerPreset KREUZBERGRerankerPreset;
+/**
  * Result-shape selection for extraction results.
  *
  * Distinct from `OutputFormat` (which controls rendering â Plain, Markdown,
@@ -2593,6 +2671,65 @@ typedef struct KREUZBERGKreuzbergRendererVTable {
    */
   void (*free_user_data)(void*);
 } KREUZBERGKreuzbergRendererVTable;
+
+/**
+ * VTable for C plugin bridges implementing the `RerankerBackend` trait.
+ *
+ * # Safety
+ *
+ * All function pointers must be valid for the lifetime of any bridge created from
+ * this vtable.  `free_user_data`, when non-null, is called once with `user_data`
+ * when the bridge is dropped.
+ */
+typedef struct KREUZBERGKreuzbergRerankerBackendVTable {
+  /**
+   * Return a null-terminated UTF-8 name string into `out_name`; return 0 on success.
+   */
+  int32_t (*name_fn)(const void *user_data,
+                     char **out_name,
+                     char **out_error);
+  /**
+   * Return a null-terminated UTF-8 version string into `out_version`; return 0 on success.
+   */
+  int32_t (*version_fn)(const void *user_data,
+                        char **out_version,
+                        char **out_error);
+  /**
+   * Initialise the plugin; return 0 on success, non-zero on failure (error text in `out_error`).
+   */
+  int32_t (*initialize_fn)(const void *user_data,
+                           char **out_error);
+  /**
+   * Shut down the plugin; return 0 on success, non-zero on failure (error text in `out_error`).
+   */
+  int32_t (*shutdown_fn)(const void *user_data,
+                         char **out_error);
+  /**
+   * Score a list of documents against a query.
+   *
+   * Returns one raw logit per document in the same order as the input.
+   * The dispatcher applies sigmoid to convert to `[0, 1]` scores.
+   *
+   * # Errors
+   *
+   * Implementations should return `Plugin` for
+   * backend-specific failures. The dispatcher validates the returned length
+   * against `documents.len()` before sorting.
+   */
+  int32_t (*rerank)(const void *user_data,
+                    const char *query,
+                    const char *documents,
+                    char **out_result,
+                    char **out_error);
+  /**
+   * Optional string destructor: called for strings returned by vtable callbacks.
+   */
+  void (*free_string)(char*);
+  /**
+   * Optional destructor: called once with `user_data` when the bridge is dropped.
+   */
+  void (*free_user_data)(void*);
+} KREUZBERGKreuzbergRerankerBackendVTable;
 
 /**
  * Return the last error code (0 means no error).
@@ -5039,6 +5176,84 @@ int32_t kreuzberg_redaction_pattern_case_sensitive(const KREUZBERGRedactionPatte
  */
 KREUZBERGRedactionPattern *kreuzberg_redaction_pattern_labeled(const char *label,
                                                                const char *pattern);
+
+/**
+ * Create a `RerankerConfig` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_reranker_config_free`.
+ */
+KREUZBERGRerankerConfig *kreuzberg_reranker_config_from_json(const char *json);
+
+/**
+ * Serialize a `RerankerConfig` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_reranker_config_to_json(const KREUZBERGRerankerConfig *ptr);
+
+/**
+ * Free a `RerankerConfig` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_reranker_config_free(KREUZBERGRerankerConfig *ptr);
+
+/**
+ * Get the `model` field from a `RerankerConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+KREUZBERGRerankerModelType *kreuzberg_reranker_config_model(const KREUZBERGRerankerConfig *ptr);
+
+/**
+ * Get the `top_k` field from a `RerankerConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_reranker_config_top_k(const KREUZBERGRerankerConfig *ptr);
+
+/**
+ * Get the `batch_size` field from a `RerankerConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_reranker_config_batch_size(const KREUZBERGRerankerConfig *ptr);
+
+/**
+ * Get the `show_download_progress` field from a `RerankerConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_reranker_config_show_download_progress(const KREUZBERGRerankerConfig *ptr);
+
+/**
+ * Get the `cache_dir` field from a `RerankerConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_reranker_config_cache_dir(const KREUZBERGRerankerConfig *ptr);
+
+/**
+ * Get the `acceleration` field from a `RerankerConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+KREUZBERGAccelerationConfig *kreuzberg_reranker_config_acceleration(const KREUZBERGRerankerConfig *ptr);
+
+/**
+ * Get the `max_rerank_duration_secs` field from a `RerankerConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uint64_t kreuzberg_reranker_config_max_rerank_duration_secs(const KREUZBERGRerankerConfig *ptr);
+
+/**
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+KREUZBERGRerankerConfig *kreuzberg_reranker_config_default(void);
 
 /**
  * Create a `SummarizationConfig` from a JSON string. Returns null on failure.
@@ -12364,6 +12579,108 @@ uintptr_t kreuzberg_embedding_preset_dimensions(const KREUZBERGEmbeddingPreset *
 char *kreuzberg_embedding_preset_description(const KREUZBERGEmbeddingPreset *ptr);
 
 /**
+ * Create a `RerankedDocument` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_reranked_document_free`.
+ */
+KREUZBERGRerankedDocument *kreuzberg_reranked_document_from_json(const char *json);
+
+/**
+ * Serialize a `RerankedDocument` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_reranked_document_to_json(const KREUZBERGRerankedDocument *ptr);
+
+/**
+ * Free a `RerankedDocument` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_reranked_document_free(KREUZBERGRerankedDocument *ptr);
+
+/**
+ * Get the `index` field from a `RerankedDocument`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_reranked_document_index(const KREUZBERGRerankedDocument *ptr);
+
+/**
+ * Get the `score` field from a `RerankedDocument`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+float kreuzberg_reranked_document_score(const KREUZBERGRerankedDocument *ptr);
+
+/**
+ * Get the `document` field from a `RerankedDocument`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_reranked_document_document(const KREUZBERGRerankedDocument *ptr);
+
+/**
+ * Create a `RerankerPreset` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_reranker_preset_free`.
+ */
+KREUZBERGRerankerPreset *kreuzberg_reranker_preset_from_json(const char *json);
+
+/**
+ * Serialize a `RerankerPreset` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_reranker_preset_to_json(const KREUZBERGRerankerPreset *ptr);
+
+/**
+ * Free a `RerankerPreset` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_reranker_preset_free(KREUZBERGRerankerPreset *ptr);
+
+/**
+ * Get the `name` field from a `RerankerPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_reranker_preset_name(const KREUZBERGRerankerPreset *ptr);
+
+/**
+ * Get the `model_repo` field from a `RerankerPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_reranker_preset_model_repo(const KREUZBERGRerankerPreset *ptr);
+
+/**
+ * Get the `model_file` field from a `RerankerPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_reranker_preset_model_file(const KREUZBERGRerankerPreset *ptr);
+
+/**
+ * Get the `max_length` field from a `RerankerPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t kreuzberg_reranker_preset_max_length(const KREUZBERGRerankerPreset *ptr);
+
+/**
+ * Get the `description` field from a `RerankerPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *kreuzberg_reranker_preset_description(const KREUZBERGRerankerPreset *ptr);
+
+/**
  * Create a `YakeParams` from a JSON string. Returns null on failure.
  * # Safety
  * JSON string must be valid UTF-8 and null-terminated.
@@ -13315,6 +13632,21 @@ int32_t kreuzberg_embedding_model_type_from_i32(int32_t value);
 int32_t kreuzberg_embedding_model_type_from_str(const char *name);
 
 /**
+ * Convert an integer to a `RerankerModelType` variant. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure all pointer arguments are valid or null.
+ * Returned pointers must be freed with the appropriate free function.
+ */
+int32_t kreuzberg_reranker_model_type_from_i32(int32_t value);
+
+/**
+ * Convert a `RerankerModelType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
+ */
+int32_t kreuzberg_reranker_model_type_from_str(const char *name);
+
+/**
  * Convert an integer to a `WhisperModel` variant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure all pointer arguments are valid or null.
@@ -14123,6 +14455,31 @@ char *kreuzberg_embedding_model_type_to_json(const KREUZBERGEmbeddingModelType *
  * The returned string must be freed with `kreuzberg_free_string`.
  */
 char *kreuzberg_embedding_model_type_to_string(const KREUZBERGEmbeddingModelType *ptr);
+
+/**
+ * Free a heap-allocated `RerankerModelType` returned by a pointer-returning FFI function.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_reranker_model_type_free(KREUZBERGRerankerModelType *ptr);
+
+/**
+ * Serialize a heap-allocated `RerankerModelType` to a JSON string.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_reranker_model_type_to_json(const KREUZBERGRerankerModelType *ptr);
+
+/**
+ * Render a heap-allocated `RerankerModelType` as its string representation
+ * (the unit-variant name as serialized by serde — e.g. `"completed"`,
+ * without surrounding JSON quotes).
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_reranker_model_type_to_string(const KREUZBERGRerankerModelType *ptr);
 
 /**
  * Free a heap-allocated `WhisperModel` returned by a pointer-returning FFI function.
@@ -15472,6 +15829,27 @@ char *kreuzberg_list_renderers(void);
 uintptr_t kreuzberg_list_renderers_len(void);
 
 /**
+ * List the names of all registered reranker backends.
+ *
+ * Used by `kreuzberg-cli`, the api/mcp endpoints, and generated language
+ * bindings.
+ *
+ * Since v5.0.0.
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+char *kreuzberg_list_reranker_backends(void);
+
+/**
+ * Return the byte length of the C string most recently returned by `kreuzberg_list_reranker_backends`
+ * on this thread. Returns 0 when the primary call returned null or failed before producing a string.
+ * Enables safe slice construction in Zig and Java FFM Panama without a NUL-scan.
+ * \note SAFETY: Pointer arguments are ignored and are present only to keep the companion ABI aligned
+ * with `kreuzberg_list_reranker_backends`.
+ */
+uintptr_t kreuzberg_list_reranker_backends_len(void);
+
+/**
  * List names of all registered validators.
  * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
  * freed with the appropriate free function.
@@ -15788,6 +16166,88 @@ char *kreuzberg_list_embedding_presets(void);
 uintptr_t kreuzberg_list_embedding_presets_len(void);
 
 /**
+ * Rerank a list of documents by relevance to a query.
+ *
+ * Returns documents sorted descending by score. Applies `top_k` truncation if
+ * configured.
+ * \note - `KreuzbergError.Validation` if `query` is empty or blank.
+ * - `KreuzbergError.MissingDependency` if ONNX Runtime is not installed (ONNX path).
+ * - `KreuzbergError.Reranking` if the preset is unknown or model download fails.
+ *
+ * Since v5.0.0.
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+char *kreuzberg_rerank(const char *query,
+                       const char *documents,
+                       const KREUZBERGRerankerConfig *config);
+
+/**
+ * Return the byte length of the C string most recently returned by `kreuzberg_rerank` on this thread.
+ * Returns 0 when the primary call returned null or failed before producing a string. Enables safe
+ * slice construction in Zig and Java FFM Panama without a NUL-scan.
+ * \note SAFETY: Pointer arguments are ignored and are present only to keep the companion ABI aligned
+ * with `kreuzberg_rerank`.
+ */
+uintptr_t kreuzberg_rerank_len(const char *_query,
+                               const char *_documents,
+                               const KREUZBERGRerankerConfig *_config);
+
+/**
+ * Stub for builds without the `reranker` feature.
+ *
+ * Since v5.0.0.
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+char *kreuzberg_rerank_async(const char *_query,
+                             const char *_documents,
+                             const KREUZBERGRerankerConfig *_config);
+
+/**
+ * Return the byte length of the C string most recently returned by `kreuzberg_rerank_async` on this
+ * thread. Returns 0 when the primary call returned null or failed before producing a string. Enables
+ * safe slice construction in Zig and Java FFM Panama without a NUL-scan.
+ * \note SAFETY: Pointer arguments are ignored and are present only to keep the companion ABI aligned
+ * with `kreuzberg_rerank_async`.
+ */
+uintptr_t kreuzberg_rerank_async_len(const char *__query,
+                                     const char *__documents,
+                                     const KREUZBERGRerankerConfig *__config);
+
+/**
+ * Get a reranker preset by name.
+ *
+ * Returns `None` if no preset with the given name exists. Returns an owned
+ * clone so the value is safe to pass across FFI boundaries.
+ *
+ * Since v5.0.0.
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+KREUZBERGRerankerPreset *kreuzberg_get_reranker_preset(const char *name);
+
+/**
+ * List the names of all available reranker presets.
+ *
+ * Returns owned `String`s so the values are safe to pass across FFI boundaries.
+ *
+ * Since v5.0.0.
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+char *kreuzberg_list_reranker_presets(void);
+
+/**
+ * Return the byte length of the C string most recently returned by `kreuzberg_list_reranker_presets`
+ * on this thread. Returns 0 when the primary call returned null or failed before producing a string.
+ * Enables safe slice construction in Zig and Java FFM Panama without a NUL-scan.
+ * \note SAFETY: Pointer arguments are ignored and are present only to keep the companion ABI aligned
+ * with `kreuzberg_list_reranker_presets`.
+ */
+uintptr_t kreuzberg_list_reranker_presets_len(void);
+
+/**
  * Register a C plugin implementing `OcrBackend` via a vtable.
  *
  * # Parameters
@@ -16086,5 +16546,55 @@ int32_t kreuzberg_unregister_renderer(const char *name,
  * and must free it with `kreuzberg_free_string`.
  */
 int32_t kreuzberg_clear_renderer(char **out_error);
+
+/**
+ * Register a C plugin implementing `RerankerBackend` via a vtable.
+ *
+ * # Parameters
+ *
+ * - `name`: null-terminated UTF-8 plugin name. Must not be null.
+ * - `vtable`: vtable with function pointers implementing the trait.
+ * - `user_data`: opaque pointer forwarded to every vtable function.
+ * - `out_error`: receives a heap-allocated error string on failure.
+ *
+ * # Safety
+ *
+ * All function pointers in `vtable` must remain valid until the plugin is
+ * unregistered. `user_data` must be safe to use from any thread that calls
+ * into the plugin.
+ */
+int32_t kreuzberg_register_reranker_backend(const char *name,
+                                            const struct KREUZBERGKreuzbergRerankerBackendVTable *vtable,
+                                            const void *user_data,
+                                            char **out_error);
+
+/**
+ * Unregister a previously registered C plugin by name.
+ *
+ * # Parameters
+ *
+ * - `name`: null-terminated UTF-8 plugin name. Must not be null.
+ * - `out_error`: receives a heap-allocated error string on failure.
+ *
+ * # Safety
+ *
+ * `name` must point to a valid null-terminated C string.
+ */
+int32_t kreuzberg_unregister_reranker_backend(const char *name,
+                                              char **out_error);
+
+/**
+ * Remove all registered C plugins of this trait.
+ *
+ * # Parameters
+ *
+ * - `out_error`: receives a heap-allocated error string on failure.
+ *
+ * # Safety
+ *
+ * `out_error` may be null. When non-null, the caller owns the resulting string
+ * and must free it with `kreuzberg_free_string`.
+ */
+int32_t kreuzberg_clear_reranker_backend(char **out_error);
 
 #endif  /* KREUZBERG_H */
