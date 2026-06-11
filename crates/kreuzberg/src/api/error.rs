@@ -123,6 +123,7 @@ impl ApiError {
             KreuzbergError::Cancelled => "CancelledError",
             KreuzbergError::Security { .. } => "SecurityError",
             KreuzbergError::Transcription { .. } => "TranscriptionError",
+            KreuzbergError::Reranking { .. } => "RerankingError",
         };
 
         Self {

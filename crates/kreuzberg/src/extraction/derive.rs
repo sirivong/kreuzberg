@@ -633,12 +633,23 @@ pub fn derive_extraction_result(
         Some(doc.uris)
     };
 
-    // Code intelligence was historically extracted from FormatMetadata::Code,
-    // but tree-sitter processing results are now only available in Rust.
-    // Language bindings receive the code content via the document structure
-    // (blocks and formatting), not through separate code_intelligence field.
+    // Extract code intelligence from FormatMetadata::Code if present.
+    // Serialised to serde_json::Value so that all language bindings receive a
+    // raw JSON object; the concrete ProcessResult type lives in an external crate
+    // that binding generators cannot resolve to a typed struct.
     #[cfg(feature = "tree-sitter")]
-    let code_intelligence = None;
+    let code_intelligence = match &doc.metadata.format {
+        Some(crate::types::metadata::FormatMetadata::Code(code_metadata)) => {
+            match serde_json::to_value(&code_metadata.0) {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    tracing::warn!(error = %e, "failed to serialise code_intelligence; omitting field");
+                    None
+                }
+            }
+        }
+        _ => None,
+    };
 
     let extraction_method = doc
         .metadata

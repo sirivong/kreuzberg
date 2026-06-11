@@ -9,6 +9,8 @@ pub mod client;
 pub mod prompts;
 #[cfg(feature = "liter-llm")]
 pub mod region_extractor;
+#[cfg(all(feature = "liter-llm", not(target_arch = "wasm32")))]
+pub(crate) mod rerank;
 #[cfg(feature = "liter-llm")]
 pub mod structured;
 #[cfg(feature = "liter-llm")]

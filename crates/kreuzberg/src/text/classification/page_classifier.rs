@@ -130,6 +130,68 @@ fn page_slices(result: &ExtractionResult) -> Vec<(u32, &str)> {
     }
 }
 
+/// Pre-rendered classification context shared across one or more pages.
+///
+/// Building this once and threading it through `classify_one` avoids
+/// re-joining label lists / re-building the JSON schema per page when the
+/// caller drives `classify_pages` in a loop.
+struct ClassifyContext<'a> {
+    template: &'a str,
+    labels_joined: String,
+    schema: Value,
+    schema_name: &'static str,
+}
+
+impl<'a> ClassifyContext<'a> {
+    fn new(config: &'a PageClassificationConfig) -> Self {
+        let template = config
+            .prompt_template
+            .as_deref()
+            .unwrap_or(DEFAULT_CLASSIFICATION_TEMPLATE);
+        let labels_joined = config.labels.join(", ");
+        let schema = build_schema(&config.labels, config.multi_label);
+        let schema_name = if config.multi_label {
+            "page_classification_multi"
+        } else {
+            "page_classification_single"
+        };
+        Self {
+            template,
+            labels_joined,
+            schema,
+            schema_name,
+        }
+    }
+}
+
+/// Classify a single text snippet (one page or a standalone document body)
+/// and return its labels plus the LLM call's usage record, if any.
+async fn classify_one(
+    text: &str,
+    ctx: &ClassifyContext<'_>,
+    config: &PageClassificationConfig,
+) -> crate::Result<(Vec<ClassificationLabel>, Option<LlmUsage>)> {
+    let render_ctx = minijinja::context! {
+        labels => &ctx.labels_joined,
+        page_text => text,
+        multi_label => config.multi_label,
+    };
+    let prompt = crate::llm::prompts::render_template(ctx.template, &render_ctx)?;
+
+    let (value, usage) = crate::llm::structured::complete_with_json_schema(
+        &config.llm,
+        &prompt,
+        ctx.schema_name,
+        &ctx.schema,
+        "page_classification",
+    )
+    .await?;
+
+    // page_number is irrelevant here — we only need the label vector.
+    let parsed = parse_response(0, &value, config.multi_label);
+    Ok((parsed.labels, usage))
+}
+
 /// Run page classification against an extraction result.
 ///
 /// Mutates `result.page_classifications` with one entry per non-empty page and
@@ -152,39 +214,13 @@ pub async fn classify_pages(result: &mut ExtractionResult, config: &PageClassifi
         return Ok(());
     }
 
-    let template = config
-        .prompt_template
-        .as_deref()
-        .unwrap_or(DEFAULT_CLASSIFICATION_TEMPLATE);
-    let labels_joined = config.labels.join(", ");
-    let schema = build_schema(&config.labels, config.multi_label);
-    let schema_name = if config.multi_label {
-        "page_classification_multi"
-    } else {
-        "page_classification_single"
-    };
-
+    let ctx = ClassifyContext::new(config);
     let mut classifications: Vec<PageClassification> = Vec::with_capacity(pages.len());
     let mut usages: Vec<LlmUsage> = Vec::new();
 
     for (page_number, page_text) in pages {
-        let ctx = minijinja::context! {
-            labels => &labels_joined,
-            page_text => page_text,
-            multi_label => config.multi_label,
-        };
-        let prompt = crate::llm::prompts::render_template(template, &ctx)?;
-
-        let (value, usage) = crate::llm::structured::complete_with_json_schema(
-            &config.llm,
-            &prompt,
-            schema_name,
-            &schema,
-            "page_classification",
-        )
-        .await?;
-
-        classifications.push(parse_response(page_number, &value, config.multi_label));
+        let (labels, usage) = classify_one(page_text, &ctx, config).await?;
+        classifications.push(PageClassification { page_number, labels });
         if let Some(u) = usage {
             usages.push(u);
         }
@@ -198,6 +234,31 @@ pub async fn classify_pages(result: &mut ExtractionResult, config: &PageClassifi
     }
 
     Ok(())
+}
+
+/// Classify a single piece of text without requiring an `ExtractionResult`.
+///
+/// Use this when the caller already has plain text (e.g. a RAG ingest pipeline
+/// receiving documents off a queue) and wants a label list back without
+/// manufacturing extractor-side metadata.
+///
+/// # Errors
+///
+/// Same as [`classify_pages`]: a validation error when `config.labels` is empty,
+/// or any error returned by prompt rendering or the underlying LLM call.
+pub async fn classify_text(text: &str, config: &PageClassificationConfig) -> crate::Result<Vec<ClassificationLabel>> {
+    if config.labels.is_empty() {
+        return Err(crate::KreuzbergError::validation(
+            "PageClassificationConfig.labels must contain at least one entry",
+        ));
+    }
+    if text.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let ctx = ClassifyContext::new(config);
+    let (labels, _usage) = classify_one(text, &ctx, config).await?;
+    Ok(labels)
 }
 
 #[cfg(test)]

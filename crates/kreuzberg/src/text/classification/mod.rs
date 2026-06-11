@@ -11,4 +11,4 @@
 
 pub mod page_classifier;
 
-pub use page_classifier::classify_pages;
+pub use page_classifier::{classify_pages, classify_text};

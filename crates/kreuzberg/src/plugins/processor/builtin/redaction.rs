@@ -40,8 +40,7 @@ impl Plugin for RedactionProcessor {
     }
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[async_trait]
 impl PostProcessor for RedactionProcessor {
     async fn process(&self, result: &mut ExtractionResult, config: &ExtractionConfig) -> Result<()> {
         let Some(redaction_config) = config.redaction.as_ref() else {

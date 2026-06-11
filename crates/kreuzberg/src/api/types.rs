@@ -305,6 +305,34 @@ pub struct EmbedResponse {
     pub count: usize,
 }
 
+/// Request body for POST /rerank — score (query, document) pairs.
+///
+/// Since v5.0.0.
+#[cfg_attr(alef, alef(skip))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
+pub struct RerankRequest {
+    /// The query to score each document against.
+    pub query: String,
+    /// Documents to rerank (may be empty — returns empty results without error).
+    pub documents: Vec<String>,
+    /// Optional reranker configuration (model, top_k, cache_dir, etc.).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "api", schema(value_type = Option<Object>))]
+    pub config: Option<crate::RerankerConfig>,
+}
+
+/// Response body for POST /rerank.
+///
+/// Since v5.0.0.
+#[cfg_attr(alef, alef(skip))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
+pub struct RerankResponse {
+    /// Reranked documents sorted descending by score.
+    pub results: Vec<crate::RerankedDocument>,
+}
+
 /// Default chunker type.
 fn default_chunker_type() -> String {
     "text".to_string()

@@ -151,6 +151,22 @@ to support additional output formats.
 
 ---
 
+## Reranking
+
+Reranking is a query-time operation separate from the extraction pipeline. After retrieving
+candidate documents (typically from a vector database), reranking uses cross-encoder models
+to jointly score (query, document) pairs and reorder by relevance.
+
+Reranking is not part of extraction — it sits downstream for RAG workflows. The `rerank()`
+API accepts a query and list of documents, runs them through a RerankerBackend (preset ONNX
+model, custom HuggingFace model, LLM API, or plugin), and returns sorted `RerankedDocument`
+results with scores.
+
+The RerankerRegistry manages backends by name (e.g., `"fast"`, `"my-llama-reranker"`), allowing
+runtime registration and selection. See [Reranking Concepts](reranking.md) for preset details.
+
+---
+
 ## Why Rust?
 
 **Speed.** Rust compiles to native machine code with LLVM optimizations. PDF parsing uses

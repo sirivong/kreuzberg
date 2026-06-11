@@ -127,6 +127,14 @@ pub(crate) fn map_kreuzberg_error_to_mcp(error: KreuzbergError) -> McpError {
             }
             McpError::internal_error(error_message, None)
         }
+
+        KreuzbergError::Reranking { message, source } => {
+            let mut error_message = format!("Reranking error: {}", message);
+            if let Some(src) = source {
+                let _ = write!(error_message, " (caused by: {})", src);
+            }
+            McpError::internal_error(error_message, None)
+        }
     }
 }
 
@@ -358,6 +366,7 @@ mod tests {
             KreuzbergError::LockPoisoned("test".to_string()),
             KreuzbergError::Other("test".to_string()),
             KreuzbergError::Cancelled,
+            KreuzbergError::reranking("test rerank error"),
         ];
 
         for error in errors {

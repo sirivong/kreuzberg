@@ -42,8 +42,7 @@ impl Plugin for QrCodeProcessor {
     }
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[async_trait]
 impl PostProcessor for QrCodeProcessor {
     async fn process(&self, result: &mut ExtractionResult, config: &ExtractionConfig) -> Result<()> {
         if config.qr_codes != Some(true) {

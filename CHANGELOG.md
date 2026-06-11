@@ -9,6 +9,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **[v5.0.0] reranking: cross-encoder reordering with optional liter-llm wiring.**
+  New top-level `rerank` / `rerank_async` API, `RerankerConfig` with
+  Preset/Custom/Llm/Plugin variants, `RerankerBackend` plugin trait +
+  registry, `POST /rerank` HTTP endpoint, and per-language bindings via
+  alef. Gated behind the new `reranker` + `reranker-presets` Cargo
+  features; reranker-presets is WASM/Android-safe.
+
+- **[v5.0.0] reranker preset catalog now mirrors fastembed-rs verbatim.**
+  Four verified entries: `bge-reranker-base` (BAAI/bge-reranker-base,
+  EN+ZH), `bge-reranker-v2-m3` (rozgo/bge-reranker-v2-m3 with the
+  required `model.onnx.data` sibling, multilingual), `jina-reranker-v1-turbo-en`,
+  and `jina-reranker-v2-base-multilingual`. Friendly aliases
+  `fast` / `balanced` / `quality` / `multilingual` resolve to catalog
+  entries, so existing call sites keep working.
+
+- **[v5.0.0] `RerankerPreset` + `RerankerModelType::Custom` gained
+  `additional_files: Vec<String>`.** Lets multi-blob ONNX exports
+  (notably `rozgo/bge-reranker-v2-m3`, which splits weights into
+  `model.onnx` + `model.onnx.data`) actually load.
+
+- **[v5.0.0] `RerankerModelType::Custom` gained `model_file: Option<String>`.**
+  Lets callers point at non-default ONNX paths (e.g. quantized variants)
+  without falling back to the plugin escape hatch. Defaults to
+  `"onnx/model.onnx"` when omitted.
+
+- **[v5.0.0] CI `live-hf` job.** Always-on reranker preset-path validation
+  on every PR via a new `.github/actions/cache-hf-fastembed` composite
+  action that caches `~/.cache/huggingface/hub` keyed on the catalog
+  literal — any preset path change triggers a fresh download so we catch
+  drift the moment it happens. Tests cover all four presets plus a
+  `Preset` / `Custom`-equivalent crosscheck and `top_k` truncation.
+
+### Changed
+
+- **[v5.0.0] BREAKING: reranker preset paths replaced.** The four
+  unverified Xenova / BAAI paths that shipped in earlier rc builds
+  (`Xenova/ms-marco-MiniLM-L-6-v2`, `Xenova/bge-reranker-base`,
+  `Xenova/bge-reranker-large`, `BAAI/bge-reranker-v2-m3`) are removed.
+  The hand-curated `model_file` paths were not verified against HF and
+  would have 404'd at runtime. Three of four upstream paths were wrong.
+  Callers using the friendly aliases (`fast` / `balanced` / `quality` /
+  `multilingual`) keep working; callers who hardcoded the old catalog
+  names need to switch to the new short-names listed above. Users who
+  specifically need `ms-marco-MiniLM` or `bge-reranker-large` can pass
+  them via `Custom { model_id, ... }` or a registered `Plugin` backend.
+
+- **[v5.0.0] BREAKING: `RerankerModelType::Custom` is no longer a
+  two-field tuple.** Exhaustive Rust matches on `Custom { model_id,
+  max_length }` need to add `model_file` and `additional_files`. Serde
+  defaults keep existing TOML / JSON configs valid without migration.
+
+### Fixed
+
+- **reranker: `RerankError` migrated to `thiserror`.** Matches the rest
+  of the library and `rust-conventions`.
+
+- **reranker: `shutdown_all` now best-effort.** Continues invoking
+  `shutdown()` on every backend even after one fails, returns the first
+  error, drops subsequent ones (logged at `warn`). Previously stopped on
+  the first failure, leaving the registry in a half-shutdown state.
+
+- **reranker: synchronous `rerank()` returns a clear error instead of
+  panicking on a current-thread Tokio runtime.** `block_in_place`
+  requires a multi-thread scheduler; the previous code path would panic
+  rather than refuse the call. The LLM and Plugin synchronous branches
+  now detect `RuntimeFlavor::CurrentThread` and ask the caller to use
+  `rerank_async()` or build a multi-thread runtime.
+
+- **reranker: stronger sigmoid coverage in `tests/api_rerank.rs`.**
+  Happy-path test now uses mixed-sign logits (`-2.0`, `3.0`, `0.5`) and
+  asserts both the sigmoid output range `[0, 1]` and the sign-→-side
+  property — silently dropping the sigmoid would break the test.
+
+- **reranker: engine tests share the production `sigmoid_f32`** instead
+  of duplicating it locally. Keeps the test signal honest if the
+  production function ever changes.
+
 ### Fixed
 
 - **publish.yaml `trigger-pubdev` job: explicit `permissions: actions: write`.** Since the `a8f8597e45` migration to the `kreuzberg-dev-publisher` App-token, the `gh workflow run publish-pubdev.yaml` step has 403'd with "Resource not accessible by integration" — the App's installation token didn't carry `actions: write`. Adding job-level `permissions: { actions: write, contents: read }` covers the case where GITHUB_TOKEN is used as a fallback, and documents that the App's permissions also need `actions: write` configured on github.com.

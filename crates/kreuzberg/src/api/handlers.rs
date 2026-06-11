@@ -14,7 +14,8 @@ use super::{
     types::{
         ApiState, AsyncJobResponse, CacheClearResponse, CacheStatsResponse, ChunkRequest, ChunkResponse,
         DetectResponse, EmbedRequest, EmbedResponse, ExtractResponse, HealthResponse, InfoResponse, JobStatusResponse,
-        ManifestEntryResponse, ManifestResponse, VersionResponse, WarmRequest, WarmResponse,
+        ManifestEntryResponse, ManifestResponse, RerankRequest, RerankResponse, VersionResponse, WarmRequest,
+        WarmResponse,
     },
 };
 
@@ -523,6 +524,145 @@ pub(crate) async fn embed_handler(JsonApi(request): JsonApi<EmbedRequest>) -> Re
 pub(crate) async fn embed_handler(JsonApi(_request): JsonApi<EmbedRequest>) -> Result<Json<EmbedResponse>, ApiError> {
     Err(ApiError::internal(crate::error::KreuzbergError::MissingDependency(
         "Embeddings feature is not enabled. Rebuild with --features embeddings".to_string(),
+    )))
+}
+
+/// Reranking endpoint handler.
+///
+/// POST /rerank
+///
+/// Accepts a JSON body with:
+/// - `query`: The query string to score each document against
+/// - `documents`: Array of document strings to rerank (may be empty)
+/// - `config` (optional): Reranker configuration (model, top_k, cache_dir, etc.)
+///
+/// Returns documents sorted descending by relevance score.
+///
+/// # Errors
+///
+/// Returns `ApiError::BadRequest` if:
+/// - `query` is empty or whitespace-only
+/// - `documents` contains empty strings
+///
+/// Returns `ApiError::Internal` if:
+/// - Reranker feature is not enabled
+/// - ONNX Runtime is not available
+/// - Model initialization or inference fails
+#[utoipa::path(
+    post,
+    path = "/rerank",
+    tag = "reranking",
+    request_body = RerankRequest,
+    responses(
+        (status = 200, description = "Documents reranked by relevance score", body = RerankResponse),
+        (status = 400, description = "Bad request - empty query or documents contain empty strings", body = crate::api::types::ErrorResponse),
+        (status = 422, description = "Unprocessable entity - invalid JSON body", body = crate::api::types::ErrorResponse),
+        (status = 500, description = "Internal server error", body = crate::api::types::ErrorResponse),
+    )
+)]
+#[cfg(feature = "reranker")]
+#[cfg_attr(
+    feature = "otel",
+    tracing::instrument(
+        name = "api.rerank",
+        skip(request),
+        fields(
+            documents_count = request.documents.len(),
+        )
+    )
+)]
+pub(crate) async fn rerank_handler(JsonApi(request): JsonApi<RerankRequest>) -> Result<Json<RerankResponse>, ApiError> {
+    /// Maximum number of documents accepted in a single `/rerank` request.
+    ///
+    /// Caps allocation and ONNX inference work to bound DOS exposure; bigger
+    /// retrieval pools should be chunked client-side. Tuned to comfortably exceed
+    /// typical top-100..top-500 RAG retrieval depths.
+    const MAX_RERANK_DOCUMENTS: usize = 1024;
+
+    if request.query.trim().is_empty() {
+        return Err(ApiError::validation(crate::error::KreuzbergError::validation(
+            "query must not be empty",
+        )));
+    }
+
+    if request.documents.is_empty() {
+        return Ok(Json(RerankResponse { results: Vec::new() }));
+    }
+
+    if request.documents.len() > MAX_RERANK_DOCUMENTS {
+        return Err(ApiError::validation(crate::error::KreuzbergError::validation(format!(
+            "documents must not exceed {MAX_RERANK_DOCUMENTS} entries (got {})",
+            request.documents.len()
+        ))));
+    }
+
+    if request.documents.iter().any(|d| d.trim().is_empty()) {
+        return Err(ApiError::validation(crate::error::KreuzbergError::validation(
+            "documents must not contain empty strings",
+        )));
+    }
+
+    let config = request.config.unwrap_or_default();
+
+    // Validate preset name if model type is Preset so unknown presets surface as 400
+    // instead of routing through dispatch and producing 500.
+    if let crate::RerankerModelType::Preset { ref name } = config.model
+        && crate::reranking::get_preset(name).is_none()
+    {
+        let available: Vec<String> = crate::reranking::list_presets();
+        return Err(ApiError::validation(crate::error::KreuzbergError::validation(format!(
+            "Unknown reranker preset '{}'. Available: {}",
+            name,
+            available.join(", ")
+        ))));
+    }
+
+    // Validate plugin name if model type is Plugin so unknown backends surface as 400.
+    if let crate::RerankerModelType::Plugin { ref name } = config.model {
+        let registry = crate::plugins::registry::get_reranker_backend_registry();
+        let guard = registry.read();
+        if guard.get(name).is_err() {
+            let available = guard.list();
+            return Err(ApiError::validation(crate::error::KreuzbergError::validation(format!(
+                "Unknown reranker backend '{}'. Available: {}",
+                name,
+                if available.is_empty() {
+                    "(none registered)".to_string()
+                } else {
+                    available.join(", ")
+                }
+            ))));
+        }
+    }
+
+    let results = crate::rerank_async(request.query, request.documents, &config)
+        .await
+        .map_err(ApiError::internal)?;
+
+    Ok(Json(RerankResponse { results }))
+}
+
+/// Reranking endpoint handler (when reranker feature is disabled).
+///
+/// Returns an error indicating the reranker feature is not enabled.
+#[utoipa::path(
+    post,
+    path = "/rerank",
+    tag = "reranking",
+    request_body = RerankRequest,
+    responses(
+        (status = 200, description = "Documents reranked by relevance score", body = RerankResponse),
+        (status = 400, description = "Bad request - empty query or documents contain empty strings", body = crate::api::types::ErrorResponse),
+        (status = 422, description = "Unprocessable entity - invalid JSON body", body = crate::api::types::ErrorResponse),
+        (status = 500, description = "Internal server error", body = crate::api::types::ErrorResponse),
+    )
+)]
+#[cfg(not(feature = "reranker"))]
+pub(crate) async fn rerank_handler(
+    JsonApi(_request): JsonApi<RerankRequest>,
+) -> Result<Json<RerankResponse>, ApiError> {
+    Err(ApiError::internal(crate::error::KreuzbergError::MissingDependency(
+        "Reranker feature is not enabled. Rebuild with --features reranker".to_string(),
     )))
 }
 
@@ -1539,6 +1679,35 @@ mod tests {
         assert!(
             error_msg.contains("Unknown embedding preset"),
             "Expected preset validation error, got: {}",
+            error_msg
+        );
+    }
+
+    #[cfg(feature = "reranker")]
+    #[tokio::test]
+    async fn test_rerank_handler_invalid_config_returns_400() {
+        let app = test_router();
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/rerank")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        r#"{"query": "test query", "documents": ["doc1"], "config": {"model": {"type": "preset", "name": "nonexistent_reranker_preset"}}}"#,
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        let error_msg = json["message"].as_str().unwrap_or("");
+        assert!(
+            error_msg.contains("Unknown reranker preset"),
+            "Expected reranker preset validation error, got: {}",
             error_msg
         );
     }

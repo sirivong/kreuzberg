@@ -120,6 +120,28 @@ You can register your own OCR backend (for example, a cloud-based API, a custom 
 
 ---
 
+### RerankerBackend
+
+A `RerankerBackend` scores (query, document) pairs jointly for query-time relevance ranking. It
+declares a backend name and provides an async method to rank documents.
+
+See [`RerankerBackend`](../reference/types.md) for the trait signature.
+
+Four backends ship out of the box:
+
+| Backend | Engine | Strengths |
+|---------|--------|-----------|
+| **fast** | Xenova/ms-marco-MiniLM-L-6-v2 (ONNX) | 22M params, <1 sec/10 docs, English only. |
+| **balanced** | Xenova/bge-reranker-base (ONNX) | 278M params, 1-2 sec/10 docs, English/Chinese. |
+| **quality** | Xenova/bge-reranker-large (ONNX) | 560M params, 2-3 sec/10 docs, English/Chinese, highest accuracy. |
+| **multilingual** | Xenova/bge-reranker-v2-m3 (ONNX) | 568M params, 100+ languages, 8192 token limit. |
+
+Custom backends can wrap HuggingFace models, LLM APIs (Cohere, Jina, Voyage), or domain-specific
+rerankers. Unlike extraction, reranking is not part of the extraction pipeline — it's a query-time
+operation for RAG workflows to reorder retrieved documents before LLM context.
+
+---
+
 ### PostProcessor
 
 A `PostProcessor` transforms extraction results after the main extraction and
