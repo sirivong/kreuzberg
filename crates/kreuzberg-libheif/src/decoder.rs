@@ -5,9 +5,9 @@ use std::sync::Mutex;
 
 use libheif_sys as lh;
 
-use crate::utils::{cstr_to_str, str_to_cstring};
 #[cfg(feature = "v1_20")]
 use crate::AlphaCompositionMode;
+use crate::utils::{cstr_to_str, str_to_cstring};
 use crate::{ChromaDownsamplingAlgorithm, ChromaUpsamplingAlgorithm, ColorProfileNCLX, HeifError};
 static DECODER_MUTEX: Mutex<()> = Mutex::new(());
 
@@ -40,11 +40,7 @@ impl Drop for DecodingOptions {
             let inner_mut = self.inner_mut();
             if !inner_mut.color_conversion_options_ext.is_null() {
                 // SAFETY: libheif C API; color_conversion_options_ext is non-null and owned.
-                unsafe {
-                    lh::heif_color_conversion_options_ext_free(
-                        inner_mut.color_conversion_options_ext,
-                    )
-                };
+                unsafe { lh::heif_color_conversion_options_ext_free(inner_mut.color_conversion_options_ext) };
                 inner_mut.color_conversion_options_ext = ptr::null_mut();
             }
         }
@@ -150,8 +146,7 @@ impl DecodingOptions {
         let inner = self.inner_mut();
         if inner.color_conversion_options_ext.is_null() {
             // SAFETY: libheif C API; returns a heap-allocated color conversion options ext or null.
-            inner.color_conversion_options_ext =
-                unsafe { lh::heif_color_conversion_options_ext_alloc() };
+            inner.color_conversion_options_ext = unsafe { lh::heif_color_conversion_options_ext_alloc() };
         }
         v.fill_libheif_cc_options_ext(inner.color_conversion_options_ext);
     }
@@ -220,13 +215,8 @@ impl DecodingOptions {
 
 /// This function makes sure the decoding options
 /// won't be freed too early.
-pub(crate) fn get_decoding_options_ptr(
-    options: &Option<DecodingOptions>,
-) -> *mut lh::heif_decoding_options {
-    options
-        .as_ref()
-        .map(|o| o.inner.as_ptr())
-        .unwrap_or_else(ptr::null_mut)
+pub(crate) fn get_decoding_options_ptr(options: &Option<DecodingOptions>) -> *mut lh::heif_decoding_options {
+    options.as_ref().map(|o| o.inner.as_ptr()).unwrap_or_else(ptr::null_mut)
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -251,9 +241,7 @@ impl Default for ColorConversionOptions {
         #[cfg(feature = "v1_19")]
         {
             // SAFETY: libheif C API; cc_options is valid mutable struct.
-            unsafe {
-                lh::heif_color_conversion_options_set_defaults(&mut cc_options)
-            };
+            unsafe { lh::heif_color_conversion_options_set_defaults(&mut cc_options) };
         }
         Self::from_cc_options(&cc_options)
     }
@@ -271,8 +259,7 @@ impl ColorConversionOptions {
         let preferred_chroma_upsampling_algorithm =
             ChromaUpsamplingAlgorithm::n(cc_options.preferred_chroma_upsampling_algorithm)
                 .unwrap_or(ChromaUpsamplingAlgorithm::Bilinear);
-        let only_use_preferred_chroma_algorithm =
-            cc_options.only_use_preferred_chroma_algorithm != 0;
+        let only_use_preferred_chroma_algorithm = cc_options.only_use_preferred_chroma_algorithm != 0;
         Self {
             preferred_chroma_downsampling_algorithm,
             preferred_chroma_upsampling_algorithm,
@@ -281,12 +268,9 @@ impl ColorConversionOptions {
     }
 
     pub(crate) fn fill_cc_options(&self, cc_options: &mut lh::heif_color_conversion_options) {
-        cc_options.preferred_chroma_downsampling_algorithm =
-            self.preferred_chroma_downsampling_algorithm as _;
-        cc_options.preferred_chroma_upsampling_algorithm =
-            self.preferred_chroma_upsampling_algorithm as _;
-        cc_options.only_use_preferred_chroma_algorithm =
-            self.only_use_preferred_chroma_algorithm as _;
+        cc_options.preferred_chroma_downsampling_algorithm = self.preferred_chroma_downsampling_algorithm as _;
+        cc_options.preferred_chroma_upsampling_algorithm = self.preferred_chroma_upsampling_algorithm as _;
+        cc_options.only_use_preferred_chroma_algorithm = self.only_use_preferred_chroma_algorithm as _;
     }
 }
 

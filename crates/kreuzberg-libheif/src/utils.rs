@@ -58,7 +58,7 @@ pub(crate) fn get_non_null_ptr<T>(ptr: *mut T) -> Result<std::ptr::NonNull<T>> {
 
 /// Check a file type by it first bytes.
 /// Input data should be at least 12 bytes.
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 pub fn check_file_type(data: &[u8]) -> FileTypeResult {
     let res = unsafe { lh::heif_check_filetype(data.as_ptr(), data.len() as _) };
     FileTypeResult::n(res).unwrap_or(FileTypeResult::No)

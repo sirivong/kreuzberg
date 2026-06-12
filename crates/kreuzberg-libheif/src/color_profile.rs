@@ -21,14 +21,11 @@ pub mod color_profile_types {
 #[repr(C)]
 pub enum ColorPrimaries {
     Unspecified = lh::heif_color_primaries_heif_color_primaries_unspecified as _,
-    ITU_R_BT_470_6_System_M =
-        lh::heif_color_primaries_heif_color_primaries_ITU_R_BT_470_6_System_M as _,
-    ITU_R_BT_470_6_System_B_G =
-        lh::heif_color_primaries_heif_color_primaries_ITU_R_BT_470_6_System_B_G as _,
+    ITU_R_BT_470_6_System_M = lh::heif_color_primaries_heif_color_primaries_ITU_R_BT_470_6_System_M as _,
+    ITU_R_BT_470_6_System_B_G = lh::heif_color_primaries_heif_color_primaries_ITU_R_BT_470_6_System_B_G as _,
     ITU_R_BT_601_6 = lh::heif_color_primaries_heif_color_primaries_ITU_R_BT_601_6 as _,
     ITU_R_BT_709_5 = lh::heif_color_primaries_heif_color_primaries_ITU_R_BT_709_5 as _,
-    ITU_R_BT_2020_2_and_2100_0 =
-        lh::heif_color_primaries_heif_color_primaries_ITU_R_BT_2020_2_and_2100_0 as _,
+    ITU_R_BT_2020_2_and_2100_0 = lh::heif_color_primaries_heif_color_primaries_ITU_R_BT_2020_2_and_2100_0 as _,
     GenericFilm = lh::heif_color_primaries_heif_color_primaries_generic_film as _,
     SMPTE_240M = lh::heif_color_primaries_heif_color_primaries_SMPTE_240M as _,
     SMPTE_ST_428_1 = lh::heif_color_primaries_heif_color_primaries_SMPTE_ST_428_1 as _,
@@ -43,38 +40,25 @@ pub enum ColorPrimaries {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, enumn::N)]
 #[repr(C)]
 pub enum TransferCharacteristics {
-    ITU_R_BT_709_5 =
-        lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_709_5 as _,
+    ITU_R_BT_709_5 = lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_709_5 as _,
     Unspecified = lh::heif_transfer_characteristics_heif_transfer_characteristic_unspecified as _,
     ITU_R_BT_470_6_System_M =
         lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_470_6_System_M as _,
     ITU_R_BT_470_6_System_B_G =
-        lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_470_6_System_B_G
-            as _,
-    ITU_R_BT_601_6 =
-        lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_601_6 as _,
+        lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_470_6_System_B_G as _,
+    ITU_R_BT_601_6 = lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_601_6 as _,
     SMPTE_240M = lh::heif_transfer_characteristics_heif_transfer_characteristic_SMPTE_240M as _,
     Linear = lh::heif_transfer_characteristics_heif_transfer_characteristic_linear as _,
-    Logarithmic100 =
-        lh::heif_transfer_characteristics_heif_transfer_characteristic_logarithmic_100 as _,
-    Logarithmic100Sqrt10 =
-        lh::heif_transfer_characteristics_heif_transfer_characteristic_logarithmic_100_sqrt10 as _,
-    IEC_61966_2_4 =
-        lh::heif_transfer_characteristics_heif_transfer_characteristic_IEC_61966_2_4 as _,
-    ITU_R_BT_1361 =
-        lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_1361 as _,
-    IEC_61966_2_1 =
-        lh::heif_transfer_characteristics_heif_transfer_characteristic_IEC_61966_2_1 as _,
-    ITU_R_BT_2020_2_10bit =
-        lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_2020_2_10bit as _,
-    ITU_R_BT_2020_2_12bit =
-        lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_2020_2_12bit as _,
-    ITU_R_BT_2100_0_PQ =
-        lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_2100_0_PQ as _,
-    SMPTE_ST_428_1 =
-        lh::heif_transfer_characteristics_heif_transfer_characteristic_SMPTE_ST_428_1 as _,
-    ITU_R_BT_2100_0_HLG =
-        lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_2100_0_HLG as _,
+    Logarithmic100 = lh::heif_transfer_characteristics_heif_transfer_characteristic_logarithmic_100 as _,
+    Logarithmic100Sqrt10 = lh::heif_transfer_characteristics_heif_transfer_characteristic_logarithmic_100_sqrt10 as _,
+    IEC_61966_2_4 = lh::heif_transfer_characteristics_heif_transfer_characteristic_IEC_61966_2_4 as _,
+    ITU_R_BT_1361 = lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_1361 as _,
+    IEC_61966_2_1 = lh::heif_transfer_characteristics_heif_transfer_characteristic_IEC_61966_2_1 as _,
+    ITU_R_BT_2020_2_10bit = lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_2020_2_10bit as _,
+    ITU_R_BT_2020_2_12bit = lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_2020_2_12bit as _,
+    ITU_R_BT_2100_0_PQ = lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_2100_0_PQ as _,
+    SMPTE_ST_428_1 = lh::heif_transfer_characteristics_heif_transfer_characteristic_SMPTE_ST_428_1 as _,
+    ITU_R_BT_2100_0_HLG = lh::heif_transfer_characteristics_heif_transfer_characteristic_ITU_R_BT_2100_0_HLG as _,
     /// This value is used when library `libheif` returns unknown value of transfer characteristics.
     Unknown,
 }
@@ -91,11 +75,15 @@ pub enum MatrixCoefficients {
     ITU_R_BT_601_6 = lh::heif_matrix_coefficients_heif_matrix_coefficients_ITU_R_BT_601_6 as _,
     SMPTE_240M = lh::heif_matrix_coefficients_heif_matrix_coefficients_SMPTE_240M as _,
     YCgCo = lh::heif_matrix_coefficients_heif_matrix_coefficients_YCgCo as _,
-    ITU_R_BT_2020_2_NonConstantLuminance = lh::heif_matrix_coefficients_heif_matrix_coefficients_ITU_R_BT_2020_2_non_constant_luminance as _,
-    ITU_R_BT_2020_2_ConstantLuminance = lh::heif_matrix_coefficients_heif_matrix_coefficients_ITU_R_BT_2020_2_constant_luminance as _,
+    ITU_R_BT_2020_2_NonConstantLuminance =
+        lh::heif_matrix_coefficients_heif_matrix_coefficients_ITU_R_BT_2020_2_non_constant_luminance as _,
+    ITU_R_BT_2020_2_ConstantLuminance =
+        lh::heif_matrix_coefficients_heif_matrix_coefficients_ITU_R_BT_2020_2_constant_luminance as _,
     SMPTE_ST_2085 = lh::heif_matrix_coefficients_heif_matrix_coefficients_SMPTE_ST_2085 as _,
-    ChromaticityDerivedNonConstantLuminance = lh::heif_matrix_coefficients_heif_matrix_coefficients_chromaticity_derived_non_constant_luminance as _,
-    ChromaticityDerivedConstantLuminance = lh::heif_matrix_coefficients_heif_matrix_coefficients_chromaticity_derived_constant_luminance as _,
+    ChromaticityDerivedNonConstantLuminance =
+        lh::heif_matrix_coefficients_heif_matrix_coefficients_chromaticity_derived_non_constant_luminance as _,
+    ChromaticityDerivedConstantLuminance =
+        lh::heif_matrix_coefficients_heif_matrix_coefficients_chromaticity_derived_constant_luminance as _,
     ICtCp = lh::heif_matrix_coefficients_heif_matrix_coefficients_ICtCp as _,
     /// This value is used when library `libheif` returns unknown value of matrix coefficients.
     Unknown,
@@ -185,8 +173,7 @@ impl ColorProfileNCLX {
     }
 
     pub fn matrix_coefficients(&self) -> MatrixCoefficients {
-        MatrixCoefficients::n(self.inner_ref().matrix_coefficients)
-            .unwrap_or(MatrixCoefficients::Unknown)
+        MatrixCoefficients::n(self.inner_ref().matrix_coefficients).unwrap_or(MatrixCoefficients::Unknown)
     }
 
     pub fn full_range_flag(&self) -> u8 {

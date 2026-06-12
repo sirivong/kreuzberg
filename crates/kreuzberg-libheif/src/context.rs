@@ -6,17 +6,14 @@ use std::{ffi, ptr};
 use four_cc::FourCC;
 use libheif_sys as lh;
 
-use crate::encoder::get_encoding_options_ptr;
-use crate::reader::{Reader, HEIF_READER};
-use crate::utils::str_to_cstring;
 #[cfg(feature = "v1_19")]
 use crate::SecurityLimits;
 #[cfg(feature = "v1_20")]
 use crate::Track;
-use crate::{
-    Encoder, EncodingOptions, HeifError, HeifErrorCode, HeifErrorSubCode, Image, ImageHandle,
-    ItemId, Result,
-};
+use crate::encoder::get_encoding_options_ptr;
+use crate::reader::{HEIF_READER, Reader};
+use crate::utils::str_to_cstring;
+use crate::{Encoder, EncodingOptions, HeifError, HeifErrorCode, HeifErrorSubCode, Image, ImageHandle, ItemId, Result};
 
 #[allow(dead_code)]
 enum Source<'a> {
@@ -79,8 +76,7 @@ impl<'a> HeifContext<'a> {
         self.source = Source::File;
         let c_name = ffi::CString::new(name).unwrap();
         // SAFETY: libheif C API; c_name is valid, self.inner is non-null.
-        let err =
-            unsafe { lh::heif_context_read_from_file(self.inner, c_name.as_ptr(), ptr::null()) };
+        let err = unsafe { lh::heif_context_read_from_file(self.inner, c_name.as_ptr(), ptr::null()) };
         HeifError::from_heif_error(err)?;
         Ok(())
     }
@@ -91,9 +87,7 @@ impl<'a> HeifContext<'a> {
         let mut reader_box = Box::new(reader);
         let user_data = reader_box.as_mut() as *mut _ as *mut c_void;
         // SAFETY: libheif C API; self.inner is non-null, reader_box outlives the C call.
-        let err = unsafe {
-            lh::heif_context_read_from_reader(self.inner, &HEIF_READER, user_data, ptr::null())
-        };
+        let err = unsafe { lh::heif_context_read_from_reader(self.inner, &HEIF_READER, user_data, ptr::null()) };
         HeifError::from_heif_error(err)?;
         self.source = Source::Reader(reader_box);
         Ok(())
@@ -127,12 +121,7 @@ impl<'a> HeifContext<'a> {
         self.source = Source::Memory(bytes);
         // SAFETY: libheif C API; bytes is valid for 'b, self.inner is non-null.
         let err = unsafe {
-            lh::heif_context_read_from_memory_without_copy(
-                self.inner,
-                bytes.as_ptr() as _,
-                bytes.len(),
-                ptr::null(),
-            )
+            lh::heif_context_read_from_memory_without_copy(self.inner, bytes.as_ptr() as _, bytes.len(), ptr::null())
         };
         HeifError::from_heif_error(err)?;
         Ok(())
@@ -207,11 +196,8 @@ impl<'a> HeifContext<'a> {
         } else {
             // SAFETY: libheif C API; self.inner is non-null, item_ids is valid mutable slice.
             unsafe {
-                lh::heif_context_get_list_of_top_level_image_IDs(
-                    self.inner,
-                    item_ids.as_mut_ptr(),
-                    item_ids.len() as _,
-                ) as usize
+                lh::heif_context_get_list_of_top_level_image_IDs(self.inner, item_ids.as_mut_ptr(), item_ids.len() as _)
+                    as usize
             }
         }
     }
@@ -224,11 +210,7 @@ impl<'a> HeifContext<'a> {
         let mut item_ids = vec![0; count];
         // SAFETY: libheif C API; self.inner is non-null, item_ids is valid mutable slice.
         let real_count = unsafe {
-            lh::heif_context_get_list_of_top_level_image_IDs(
-                self.inner,
-                item_ids.as_mut_ptr(),
-                count as _,
-            ) as usize
+            lh::heif_context_get_list_of_top_level_image_IDs(self.inner, item_ids.as_mut_ptr(), count as _) as usize
         };
         item_ids.truncate(real_count);
         item_ids
@@ -353,8 +335,7 @@ impl<'a> HeifContext<'a> {
         encoding_options: Option<EncodingOptions>,
     ) -> Result<Option<ImageHandle>> {
         let mut handle: *mut lh::heif_image_handle = ptr::null_mut();
-        let mut tiles_inners: Vec<*mut lh::heif_image> =
-            tiles.iter().map(|img| img.inner).collect();
+        let mut tiles_inners: Vec<*mut lh::heif_image> = tiles.iter().map(|img| img.inner).collect();
         let rows = rows.get();
         let columns = (tiles_inners.len() as u32 / rows as u32).min(u16::MAX as _) as u16;
         // SAFETY: libheif C API; all ptrs are non-null; tiles_inners, encoder.inner valid; handle is valid mutable ptr.
@@ -382,11 +363,8 @@ impl<'a> HeifContext<'a> {
     ) -> Result<()> {
         // SAFETY: libheif C API; all ptrs are non-null.
         unsafe {
-            let err = lh::heif_context_assign_thumbnail(
-                self.inner,
-                master_image_handle.inner,
-                thumbnail_image_handle.inner,
-            );
+            let err =
+                lh::heif_context_assign_thumbnail(self.inner, master_image_handle.inner, thumbnail_image_handle.inner);
             HeifError::from_heif_error(err)
         }
     }
@@ -444,12 +422,7 @@ impl<'a> HeifContext<'a> {
     pub fn add_exif_metadata(&mut self, master_image: &ImageHandle, data: &[u8]) -> Result<()> {
         // SAFETY: libheif C API; all ptrs are non-null; data is valid slice.
         let error = unsafe {
-            lh::heif_context_add_exif_metadata(
-                self.inner,
-                master_image.inner,
-                data.as_ptr() as _,
-                data.len() as _,
-            )
+            lh::heif_context_add_exif_metadata(self.inner, master_image.inner, data.as_ptr() as _, data.len() as _)
         };
         HeifError::from_heif_error(error)
     }
@@ -459,12 +432,7 @@ impl<'a> HeifContext<'a> {
     pub fn add_xmp_metadata(&mut self, master_image: &ImageHandle, data: &[u8]) -> Result<()> {
         // SAFETY: libheif C API; all ptrs are non-null; data is valid slice.
         let error = unsafe {
-            lh::heif_context_add_XMP_metadata(
-                self.inner,
-                master_image.inner,
-                data.as_ptr() as _,
-                data.len() as _,
-            )
+            lh::heif_context_add_XMP_metadata(self.inner, master_image.inner, data.as_ptr() as _, data.len() as _)
         };
         HeifError::from_heif_error(error)
     }

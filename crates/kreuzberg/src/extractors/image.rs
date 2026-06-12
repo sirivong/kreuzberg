@@ -431,8 +431,8 @@ impl DocumentExtractor for ImageExtractor {
         #[cfg(feature = "heic")]
         let owned_png;
         #[cfg(feature = "heic")]
-        let (content, mime_type): (&[u8], &str) = if crate::extraction::image::is_heif_container(content) {
-            owned_png = crate::extraction::image::decode_heic_to_png(content)?;
+        let (content, mime_type): (&[u8], &str) = if crate::extraction::heif::is_heif_container(content) {
+            owned_png = crate::extraction::heif::decode_heic_to_png(content)?;
             (owned_png.as_slice(), "image/png")
         } else {
             (content, mime_type)

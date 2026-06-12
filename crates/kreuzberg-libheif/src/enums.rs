@@ -31,10 +31,7 @@ pub enum ColorSpace {
 }
 
 impl ColorSpace {
-    pub(crate) fn from_libheif(
-        color_space: lh::heif_colorspace,
-        chroma: lh::heif_chroma,
-    ) -> Option<Self> {
+    pub(crate) fn from_libheif(color_space: lh::heif_colorspace, chroma: lh::heif_chroma) -> Option<Self> {
         match color_space {
             lh::heif_colorspace_heif_colorspace_undefined => Some(ColorSpace::Undefined),
             lh::heif_colorspace_heif_colorspace_monochrome => Some(ColorSpace::Monochrome),
@@ -46,24 +43,12 @@ impl ColorSpace {
             },
             lh::heif_colorspace_heif_colorspace_RGB => match chroma {
                 lh::heif_chroma_heif_chroma_444 => Some(ColorSpace::Rgb(RgbChroma::C444)),
-                lh::heif_chroma_heif_chroma_interleaved_RGB => {
-                    Some(ColorSpace::Rgb(RgbChroma::Rgb))
-                }
-                lh::heif_chroma_heif_chroma_interleaved_RGBA => {
-                    Some(ColorSpace::Rgb(RgbChroma::Rgba))
-                }
-                lh::heif_chroma_heif_chroma_interleaved_RRGGBB_BE => {
-                    Some(ColorSpace::Rgb(RgbChroma::HdrRgbBe))
-                }
-                lh::heif_chroma_heif_chroma_interleaved_RRGGBB_LE => {
-                    Some(ColorSpace::Rgb(RgbChroma::HdrRgbLe))
-                }
-                lh::heif_chroma_heif_chroma_interleaved_RRGGBBAA_BE => {
-                    Some(ColorSpace::Rgb(RgbChroma::HdrRgbaBe))
-                }
-                lh::heif_chroma_heif_chroma_interleaved_RRGGBBAA_LE => {
-                    Some(ColorSpace::Rgb(RgbChroma::HdrRgbaLe))
-                }
+                lh::heif_chroma_heif_chroma_interleaved_RGB => Some(ColorSpace::Rgb(RgbChroma::Rgb)),
+                lh::heif_chroma_heif_chroma_interleaved_RGBA => Some(ColorSpace::Rgb(RgbChroma::Rgba)),
+                lh::heif_chroma_heif_chroma_interleaved_RRGGBB_BE => Some(ColorSpace::Rgb(RgbChroma::HdrRgbBe)),
+                lh::heif_chroma_heif_chroma_interleaved_RRGGBB_LE => Some(ColorSpace::Rgb(RgbChroma::HdrRgbLe)),
+                lh::heif_chroma_heif_chroma_interleaved_RRGGBBAA_BE => Some(ColorSpace::Rgb(RgbChroma::HdrRgbaBe)),
+                lh::heif_chroma_heif_chroma_interleaved_RRGGBBAA_LE => Some(ColorSpace::Rgb(RgbChroma::HdrRgbaLe)),
                 _ => None,
             },
             #[cfg(feature = "v1_19")]
@@ -154,11 +139,9 @@ pub enum ImageOrientation {
     FlipHorizontally = lh::heif_orientation_heif_orientation_flip_horizontally as _,
     Rotate180 = lh::heif_orientation_heif_orientation_rotate_180 as _,
     FlipVertically = lh::heif_orientation_heif_orientation_flip_vertically as _,
-    Rotate90CwThenFlipHorizontally =
-        lh::heif_orientation_heif_orientation_rotate_90_cw_then_flip_horizontally as _,
+    Rotate90CwThenFlipHorizontally = lh::heif_orientation_heif_orientation_rotate_90_cw_then_flip_horizontally as _,
     Rotate90Cw = lh::heif_orientation_heif_orientation_rotate_90_cw as _,
-    Rotate90CwThenFlipVertically =
-        lh::heif_orientation_heif_orientation_rotate_90_cw_then_flip_vertically as _,
+    Rotate90CwThenFlipVertically = lh::heif_orientation_heif_orientation_rotate_90_cw_then_flip_vertically as _,
     Rotate270Cw = lh::heif_orientation_heif_orientation_rotate_270_cw as _,
     /// This value is used when library `libheif` returns unknown value of image orientation.
     Unknown,
@@ -168,8 +151,7 @@ pub enum ImageOrientation {
 #[non_exhaustive]
 #[repr(C)]
 pub enum ChromaDownsamplingAlgorithm {
-    NearestNeighbor =
-        lh::heif_chroma_downsampling_algorithm_heif_chroma_downsampling_nearest_neighbor as _,
+    NearestNeighbor = lh::heif_chroma_downsampling_algorithm_heif_chroma_downsampling_nearest_neighbor as _,
     Average = lh::heif_chroma_downsampling_algorithm_heif_chroma_downsampling_average as _,
     /// Combine with `ChromaUpsamplingAlgorithm::Bilinear` for best quality.
     /// Makes edges look sharper when using YUV 420 with bilinear chroma upsampling.
@@ -180,8 +162,7 @@ pub enum ChromaDownsamplingAlgorithm {
 #[non_exhaustive]
 #[repr(C)]
 pub enum ChromaUpsamplingAlgorithm {
-    NearestNeighbor =
-        lh::heif_chroma_upsampling_algorithm_heif_chroma_upsampling_nearest_neighbor as _,
+    NearestNeighbor = lh::heif_chroma_upsampling_algorithm_heif_chroma_upsampling_nearest_neighbor as _,
     Bilinear = lh::heif_chroma_upsampling_algorithm_heif_chroma_upsampling_bilinear as _,
 }
 
@@ -202,19 +183,15 @@ pub enum AlphaCompositionMode {
 }
 
 #[cfg(feature = "v1_20")]
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 impl AlphaCompositionMode {
-    pub(crate) fn from_libheif(
-        cc_options_ext: *const lh::heif_color_conversion_options_ext,
-    ) -> Self {
+    pub(crate) fn from_libheif(cc_options_ext: *const lh::heif_color_conversion_options_ext) -> Self {
         let cc_options_ext = unsafe { cc_options_ext.as_ref() };
         let Some(cc_options_ext) = cc_options_ext else {
             return Self::None;
         };
         match cc_options_ext.alpha_composition_mode {
-            lh::heif_alpha_composition_mode_heif_alpha_composition_mode_none => {
-                AlphaCompositionMode::None
-            }
+            lh::heif_alpha_composition_mode_heif_alpha_composition_mode_none => AlphaCompositionMode::None,
             lh::heif_alpha_composition_mode_heif_alpha_composition_mode_solid_color => {
                 AlphaCompositionMode::SolidColor {
                     background_rgb: [
@@ -243,10 +220,7 @@ impl AlphaCompositionMode {
         }
     }
 
-    pub(crate) fn fill_libheif_cc_options_ext(
-        &self,
-        cc_options_ext_ptr: *mut lh::heif_color_conversion_options_ext,
-    ) {
+    pub(crate) fn fill_libheif_cc_options_ext(&self, cc_options_ext_ptr: *mut lh::heif_color_conversion_options_ext) {
         if let Some(cc_options_ext) = unsafe { cc_options_ext_ptr.as_mut() } {
             match self {
                 AlphaCompositionMode::None => {

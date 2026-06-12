@@ -67,10 +67,7 @@ fn heif_mime_types_and_extensions_are_registered() {
     let formats = list_supported_formats();
     let mimes: std::collections::HashSet<_> = formats.iter().map(|f| f.mime_type.as_str()).collect();
     for mime in ["image/heic", "image/heif", "image/avif", "image/avcs"] {
-        assert!(
-            mimes.contains(mime),
-            "{mime} missing from list_supported_formats()"
-        );
+        assert!(mimes.contains(mime), "{mime} missing from list_supported_formats()");
     }
 
     let exts: std::collections::HashSet<_> = formats.iter().map(|f| f.extension.as_str()).collect();

@@ -5,8 +5,8 @@ use std::{ptr, slice};
 use libheif_sys as lh;
 
 use crate::{
-    Channel, ColorProfileNCLX, ColorProfileRaw, ColorProfileType, ColorSpace, HeifError,
-    HeifErrorCode, HeifErrorSubCode, Result,
+    Channel, ColorProfileNCLX, ColorProfileRaw, ColorProfileType, ColorSpace, HeifError, HeifErrorCode,
+    HeifErrorSubCode, Result,
 };
 
 const MAX_IMAGE_SIZE: u32 = i32::MAX as _;
@@ -37,7 +37,7 @@ pub struct Image {
 
 pub struct ScalingOptions {}
 
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 impl Image {
     /// Create a new image of the specified resolution and colorspace.
     /// Note: no memory for the actual image data is reserved yet. You have to use
@@ -131,8 +131,7 @@ impl Image {
     #[allow(unsafe_code)]
     fn plane_inner(&self, channel: Channel) -> (*const u8, usize) {
         let mut stride: usize = 1;
-        let data =
-            unsafe { lh::heif_image_get_plane_readonly2(self.inner, channel as _, &mut stride) };
+        let data = unsafe { lh::heif_image_get_plane_readonly2(self.inner, channel as _, &mut stride) };
         (data, stride)
     }
 
@@ -140,8 +139,7 @@ impl Image {
     #[allow(unsafe_code)]
     fn plane_inner(&self, channel: Channel) -> (*const u8, usize) {
         let mut stride: i32 = 1;
-        let data =
-            unsafe { lh::heif_image_get_plane_readonly(self.inner, channel as _, &mut stride) };
+        let data = unsafe { lh::heif_image_get_plane_readonly(self.inner, channel as _, &mut stride) };
         (data, stride as _)
     }
 
@@ -265,21 +263,10 @@ impl Image {
     ///
     /// Note: Currently, `_scaling_options` is not used. Pass a `None`.
     #[allow(unsafe_code)]
-    pub fn scale(
-        &self,
-        width: u32,
-        height: u32,
-        _scaling_options: Option<ScalingOptions>,
-    ) -> Result<Image> {
+    pub fn scale(&self, width: u32, height: u32, _scaling_options: Option<ScalingOptions>) -> Result<Image> {
         let mut c_image = MaybeUninit::<_>::uninit();
         let err = unsafe {
-            lh::heif_image_scale_image(
-                self.inner,
-                c_image.as_mut_ptr(),
-                width as _,
-                height as _,
-                ptr::null(),
-            )
+            lh::heif_image_scale_image(self.inner, c_image.as_mut_ptr(), width as _, height as _, ptr::null())
         };
         HeifError::from_heif_error(err)?;
         Ok(Image {
@@ -293,13 +280,7 @@ impl Image {
     /// For backward compatibility, one can also specify 24bits for RGB and
     /// 32bits for RGBA, instead of the preferred 8 bits.
     #[allow(unsafe_code)]
-    pub fn create_plane(
-        &mut self,
-        channel: Channel,
-        width: u32,
-        height: u32,
-        bit_depth: u8,
-    ) -> Result<()> {
+    pub fn create_plane(&mut self, channel: Channel, width: u32, height: u32, bit_depth: u8) -> Result<()> {
         let err = unsafe {
             lh::heif_image_add_plane(
                 self.inner,
@@ -365,8 +346,7 @@ impl Image {
     #[allow(unsafe_code)]
     pub fn color_profile_nclx(&self) -> Option<ColorProfileNCLX> {
         let mut profile_ptr = MaybeUninit::<_>::uninit();
-        let err =
-            unsafe { lh::heif_image_get_nclx_color_profile(self.inner, profile_ptr.as_mut_ptr()) };
+        let err = unsafe { lh::heif_image_get_nclx_color_profile(self.inner, profile_ptr.as_mut_ptr()) };
         if err.code != 0 {
             // Only one error is possible inside `libheif` - `ColorProfileDoesNotExist`
             return None;
@@ -386,11 +366,7 @@ impl Image {
         let mut aspect_h = 0;
         let mut aspect_v = 0;
         unsafe {
-            lh::heif_image_get_pixel_aspect_ratio(
-                self.inner,
-                &mut aspect_h as _,
-                &mut aspect_v as _,
-            );
+            lh::heif_image_get_pixel_aspect_ratio(self.inner, &mut aspect_h as _, &mut aspect_v as _);
         }
         (aspect_h, aspect_v)
     }
@@ -415,7 +391,7 @@ impl Image {
     }
 }
 
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 impl Drop for Image {
     #[allow(unsafe_code)]
     fn drop(&mut self) {
@@ -423,5 +399,5 @@ impl Drop for Image {
     }
 }
 
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 unsafe impl Send for Image {}

@@ -8,8 +8,8 @@ use libheif_sys as lh;
 
 use crate::utils::cstr_to_str;
 use crate::{
-    ColorProfileNCLX, ColorProfileRaw, ColorProfileType, ColorSpace, HeifError, HeifErrorCode,
-    HeifErrorSubCode, ImageMetadata, Result,
+    ColorProfileNCLX, ColorProfileRaw, ColorProfileType, ColorSpace, HeifError, HeifErrorCode, HeifErrorSubCode,
+    ImageMetadata, Result,
 };
 
 cfg_if::cfg_if! {
@@ -136,11 +136,7 @@ impl ImageHandle {
         let mut out_depth_handler = MaybeUninit::<_>::uninit();
         // SAFETY: libheif C API; self.inner is non-null, out_depth_handler is valid mutable ptr.
         let err = unsafe {
-            lh::heif_image_handle_get_depth_image_handle(
-                self.inner,
-                depth_image_id,
-                out_depth_handler.as_mut_ptr(),
-            )
+            lh::heif_image_handle_get_depth_image_handle(self.inner, depth_image_id, out_depth_handler.as_mut_ptr())
         };
         HeifError::from_heif_error(err)?;
         // SAFETY: err code is 0 means out_depth_handler is initialized.
@@ -165,11 +161,8 @@ impl ImageHandle {
         } else {
             // SAFETY: libheif C API; self.inner is non-null, item_ids is valid mutable slice.
             unsafe {
-                lh::heif_image_handle_get_list_of_thumbnail_IDs(
-                    self.inner,
-                    item_ids.as_mut_ptr(),
-                    item_ids.len() as _,
-                ) as usize
+                lh::heif_image_handle_get_list_of_thumbnail_IDs(self.inner, item_ids.as_mut_ptr(), item_ids.len() as _)
+                    as usize
             }
         }
     }
@@ -179,11 +172,7 @@ impl ImageHandle {
         let mut out_thumbnail_handler = MaybeUninit::<_>::uninit();
         // SAFETY: libheif C API; self.inner is non-null, out_thumbnail_handler is valid mutable ptr.
         let err = unsafe {
-            lh::heif_image_handle_get_thumbnail(
-                self.inner,
-                thumbnail_id,
-                out_thumbnail_handler.as_mut_ptr(),
-            )
+            lh::heif_image_handle_get_thumbnail(self.inner, thumbnail_id, out_thumbnail_handler.as_mut_ptr())
         };
         HeifError::from_heif_error(err)?;
         // SAFETY: err code is 0 means out_thumbnail_handler is initialized.
@@ -249,16 +238,14 @@ impl ImageHandle {
     #[allow(unsafe_code)]
     pub fn metadata_type(&self, metadata_id: ItemId) -> Option<&str> {
         // SAFETY: libheif C API; self.inner is non-null; returns a valid c string or null.
-        let c_type: *const c_char =
-            unsafe { lh::heif_image_handle_get_metadata_type(self.inner, metadata_id) };
+        let c_type: *const c_char = unsafe { lh::heif_image_handle_get_metadata_type(self.inner, metadata_id) };
         cstr_to_str(c_type)
     }
 
     #[allow(unsafe_code)]
     pub fn metadata_content_type(&self, metadata_id: ItemId) -> Option<&str> {
         // SAFETY: libheif C API; self.inner is non-null; returns a valid c string or null.
-        let c_type =
-            unsafe { lh::heif_image_handle_get_metadata_content_type(self.inner, metadata_id) };
+        let c_type = unsafe { lh::heif_image_handle_get_metadata_content_type(self.inner, metadata_id) };
         cstr_to_str(c_type)
     }
 
@@ -271,8 +258,7 @@ impl ImageHandle {
     #[allow(unsafe_code)]
     pub fn metadata_item_uri_type(&self, metadata_id: ItemId) -> Option<&str> {
         // SAFETY: libheif C API; self.inner is non-null; returns a valid c string or null.
-        let c_type =
-            unsafe { lh::heif_image_handle_get_metadata_item_uri_type(self.inner, metadata_id) };
+        let c_type = unsafe { lh::heif_image_handle_get_metadata_item_uri_type(self.inner, metadata_id) };
         cstr_to_str(c_type)
     }
 
@@ -289,8 +275,7 @@ impl ImageHandle {
         let mut result: Vec<u8> = Vec::with_capacity(size);
         // SAFETY: libheif C API; self.inner is non-null, result.as_ptr() is valid for size bytes.
         unsafe {
-            let err =
-                lh::heif_image_handle_get_metadata(self.inner, metadata_id, result.as_ptr() as _);
+            let err = lh::heif_image_handle_get_metadata(self.inner, metadata_id, result.as_ptr() as _);
             HeifError::from_heif_error(err)?;
             result.set_len(size);
         }
@@ -319,9 +304,7 @@ impl ImageHandle {
             .filter(|t| t.len() == 4)
             .map(|t| FourCC::from(t.as_bytes()))?;
         let content_type = self.metadata_content_type(item_id).map(String::from)?;
-        let uri_type = self
-            .metadata_item_uri_type(item_id)
-            .map(|s| s.to_string())?;
+        let uri_type = self.metadata_item_uri_type(item_id).map(|s| s.to_string())?;
         let raw_data = self.metadata(item_id).ok()?;
         Some(ImageMetadata {
             item_type,
@@ -337,11 +320,7 @@ impl ImageHandle {
         let mut lh_chroma = lh::heif_chroma_heif_chroma_undefined;
         // SAFETY: libheif C API; self.inner is non-null, lh_colorspace and lh_chroma are valid mutable ptrs.
         let err = unsafe {
-            lh::heif_image_handle_get_preferred_decoding_colorspace(
-                self.inner,
-                &mut lh_colorspace,
-                &mut lh_chroma,
-            )
+            lh::heif_image_handle_get_preferred_decoding_colorspace(self.inner, &mut lh_colorspace, &mut lh_chroma)
         };
         HeifError::from_heif_error(err)?;
         Ok(ColorSpace::from_libheif(lh_colorspace, lh_chroma).unwrap_or(ColorSpace::Undefined))
@@ -356,9 +335,7 @@ impl ImageHandle {
         }
         let mut result: Vec<u8> = Vec::with_capacity(size);
         // SAFETY: libheif C API; self.inner is non-null, result.as_ptr() is valid.
-        let err = unsafe {
-            lh::heif_image_handle_get_raw_color_profile(self.inner, result.as_ptr() as _)
-        };
+        let err = unsafe { lh::heif_image_handle_get_raw_color_profile(self.inner, result.as_ptr() as _) };
         if err.code != 0 {
             return None;
         }
@@ -380,9 +357,7 @@ impl ImageHandle {
     pub fn color_profile_nclx(&self) -> Option<ColorProfileNCLX> {
         let mut profile_ptr = MaybeUninit::<_>::uninit();
         // SAFETY: libheif C API; self.inner is non-null, profile_ptr is valid mutable ptr.
-        let err = unsafe {
-            lh::heif_image_handle_get_nclx_color_profile(self.inner, profile_ptr.as_mut_ptr())
-        };
+        let err = unsafe { lh::heif_image_handle_get_nclx_color_profile(self.inner, profile_ptr.as_mut_ptr()) };
         if err.code != 0 {
             return None;
         }
@@ -396,11 +371,7 @@ impl ImageHandle {
 
     #[cfg(feature = "v1_18")]
     #[allow(unsafe_code)]
-    pub fn add_region_item(
-        &mut self,
-        reference_width: u32,
-        reference_height: u32,
-    ) -> Result<RegionItem> {
+    pub fn add_region_item(&mut self, reference_width: u32, reference_height: u32) -> Result<RegionItem> {
         let mut lh_region_item_ptr: *mut lh::heif_region_item = ptr::null_mut();
         // SAFETY: libheif C API; self.inner is non-null, lh_region_item_ptr is valid mutable ptr.
         let err = unsafe {
@@ -431,19 +402,13 @@ impl ImageHandle {
         if size > 0 {
             // SAFETY: libheif C API; self.inner is non-null, item_ids is valid mutable slice.
             unsafe {
-                lh::heif_image_handle_get_list_of_region_item_ids(
-                    self.inner,
-                    item_ids.as_mut_ptr(),
-                    num_items,
-                );
+                lh::heif_image_handle_get_list_of_region_item_ids(self.inner, item_ids.as_mut_ptr(), num_items);
                 item_ids.set_len(size);
             }
             for item_id in item_ids {
                 let mut item_ptr = ptr::null_mut();
                 // SAFETY: libheif C API; context is valid, item_id is valid.
-                let err = unsafe {
-                    lh::heif_context_get_region_item(self.context().inner, item_id, &mut item_ptr)
-                };
+                let err = unsafe { lh::heif_context_get_region_item(self.context().inner, item_id, &mut item_ptr) };
                 if HeifError::from_heif_error(err).is_ok()
                     && let Some(region_item_ptr) = ptr::NonNull::new(item_ptr)
                 {
@@ -455,14 +420,10 @@ impl ImageHandle {
     }
 
     #[allow(unsafe_code)]
-    pub fn auxiliary_images<T: Into<Option<AuxiliaryImagesFilter>>>(
-        &self,
-        filter: T,
-    ) -> Vec<ImageHandle> {
+    pub fn auxiliary_images<T: Into<Option<AuxiliaryImagesFilter>>>(&self, filter: T) -> Vec<ImageHandle> {
         let filter = filter.into().unwrap_or_default();
         // SAFETY: libheif C API; self.inner is non-null.
-        let num_items =
-            unsafe { lh::heif_image_handle_get_number_of_auxiliary_images(self.inner, filter.0) };
+        let num_items = unsafe { lh::heif_image_handle_get_number_of_auxiliary_images(self.inner, filter.0) };
         let size = num_items.max(0) as usize;
         let mut item_ids: Vec<ItemId> = Vec::with_capacity(size);
         let mut image_handles = Vec::with_capacity(size);
@@ -480,13 +441,8 @@ impl ImageHandle {
             for item_id in item_ids {
                 let mut handle_ptr = ptr::null_mut();
                 // SAFETY: libheif C API; self.inner is non-null, handle_ptr is valid mutable ptr.
-                let err = unsafe {
-                    lh::heif_image_handle_get_auxiliary_image_handle(
-                        self.inner,
-                        item_id,
-                        &mut handle_ptr,
-                    )
-                };
+                let err =
+                    unsafe { lh::heif_image_handle_get_auxiliary_image_handle(self.inner, item_id, &mut handle_ptr) };
                 if HeifError::from_heif_error(err).is_ok() && !handle_ptr.is_null() {
                     image_handles.push(ImageHandle::new(handle_ptr));
                 }
@@ -499,8 +455,7 @@ impl ImageHandle {
     pub fn auxiliary_type(&self) -> Result<String> {
         let mut type_str_ptr = ptr::null();
         // SAFETY: libheif C API; self.inner is non-null, type_str_ptr is valid mutable ptr.
-        let err =
-            unsafe { lh::heif_image_handle_get_auxiliary_type(self.inner, &mut type_str_ptr) };
+        let err = unsafe { lh::heif_image_handle_get_auxiliary_type(self.inner, &mut type_str_ptr) };
         HeifError::from_heif_error(err)?;
         let res = cstr_to_str(type_str_ptr).unwrap_or("").to_owned();
         if !type_str_ptr.is_null() {

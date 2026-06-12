@@ -60,34 +60,27 @@ pub enum HeifErrorSubCode {
     NoPictHandler = lh::heif_suberror_code_heif_suberror_No_pict_handler as _,
     IpmaBoxReferencesNonExistingProperty =
         lh::heif_suberror_code_heif_suberror_Ipma_box_references_nonexisting_property as _,
-    NoPropertiesAssignedToItem =
-        lh::heif_suberror_code_heif_suberror_No_properties_assigned_to_item as _,
+    NoPropertiesAssignedToItem = lh::heif_suberror_code_heif_suberror_No_properties_assigned_to_item as _,
     NoItemData = lh::heif_suberror_code_heif_suberror_No_item_data as _,
     InvalidGridData = lh::heif_suberror_code_heif_suberror_Invalid_grid_data as _,
     MissingGridImages = lh::heif_suberror_code_heif_suberror_Missing_grid_images as _,
     InvalidCleanAperture = lh::heif_suberror_code_heif_suberror_Invalid_clean_aperture as _,
     InvalidOverlayData = lh::heif_suberror_code_heif_suberror_Invalid_overlay_data as _,
-    OverlayImageOutsideOfCanvas =
-        lh::heif_suberror_code_heif_suberror_Overlay_image_outside_of_canvas as _,
-    AuxiliaryImageTypeUnspecified =
-        lh::heif_suberror_code_heif_suberror_Auxiliary_image_type_unspecified as _,
+    OverlayImageOutsideOfCanvas = lh::heif_suberror_code_heif_suberror_Overlay_image_outside_of_canvas as _,
+    AuxiliaryImageTypeUnspecified = lh::heif_suberror_code_heif_suberror_Auxiliary_image_type_unspecified as _,
     NoOrInvalidPrimaryItem = lh::heif_suberror_code_heif_suberror_No_or_invalid_primary_item as _,
     NoInfeBox = lh::heif_suberror_code_heif_suberror_No_infe_box as _,
     UnknownColorProfileType = lh::heif_suberror_code_heif_suberror_Unknown_color_profile_type as _,
-    WrongTileImageChromaFormat =
-        lh::heif_suberror_code_heif_suberror_Wrong_tile_image_chroma_format as _,
+    WrongTileImageChromaFormat = lh::heif_suberror_code_heif_suberror_Wrong_tile_image_chroma_format as _,
     InvalidFractionalNumber = lh::heif_suberror_code_heif_suberror_Invalid_fractional_number as _,
     InvalidImageSize = lh::heif_suberror_code_heif_suberror_Invalid_image_size as _,
     InvalidPixiBox = lh::heif_suberror_code_heif_suberror_Invalid_pixi_box as _,
     NoAv1cBox = lh::heif_suberror_code_heif_suberror_No_av1C_box as _,
-    WrongTileImagePixelDepth =
-        lh::heif_suberror_code_heif_suberror_Wrong_tile_image_pixel_depth as _,
+    WrongTileImagePixelDepth = lh::heif_suberror_code_heif_suberror_Wrong_tile_image_pixel_depth as _,
     SecurityLimitExceeded = lh::heif_suberror_code_heif_suberror_Security_limit_exceeded as _,
-    NonExistingItemReferenced =
-        lh::heif_suberror_code_heif_suberror_Nonexisting_item_referenced as _,
+    NonExistingItemReferenced = lh::heif_suberror_code_heif_suberror_Nonexisting_item_referenced as _,
     NullPointerArgument = lh::heif_suberror_code_heif_suberror_Null_pointer_argument as _,
-    NonExistingImageChannelReferenced =
-        lh::heif_suberror_code_heif_suberror_Nonexisting_image_channel_referenced as _,
+    NonExistingImageChannelReferenced = lh::heif_suberror_code_heif_suberror_Nonexisting_image_channel_referenced as _,
     UnsupportedPluginVersion = lh::heif_suberror_code_heif_suberror_Unsupported_plugin_version as _,
     UnsupportedWriterVersion = lh::heif_suberror_code_heif_suberror_Unsupported_writer_version as _,
     UnsupportedParameter = lh::heif_suberror_code_heif_suberror_Unsupported_parameter as _,
@@ -95,24 +88,19 @@ pub enum HeifErrorSubCode {
     UnsupportedCodec = lh::heif_suberror_code_heif_suberror_Unsupported_codec as _,
     UnsupportedImageType = lh::heif_suberror_code_heif_suberror_Unsupported_image_type as _,
     UnsupportedDataVersion = lh::heif_suberror_code_heif_suberror_Unsupported_data_version as _,
-    UnsupportedColorConversion =
-        lh::heif_suberror_code_heif_suberror_Unsupported_color_conversion as _,
-    UnsupportedItemConstructionMethod =
-        lh::heif_suberror_code_heif_suberror_Unsupported_item_construction_method as _,
+    UnsupportedColorConversion = lh::heif_suberror_code_heif_suberror_Unsupported_color_conversion as _,
+    UnsupportedItemConstructionMethod = lh::heif_suberror_code_heif_suberror_Unsupported_item_construction_method as _,
     UnsupportedBitDepth = lh::heif_suberror_code_heif_suberror_Unsupported_bit_depth as _,
     CannotWriteOutputData = lh::heif_suberror_code_heif_suberror_Cannot_write_output_data as _,
-    UnknownNclxColorPrimaries =
-        lh::heif_suberror_code_heif_suberror_Unknown_NCLX_color_primaries as _,
+    UnknownNclxColorPrimaries = lh::heif_suberror_code_heif_suberror_Unknown_NCLX_color_primaries as _,
     UnknownNclxTransferCharacteristics =
         lh::heif_suberror_code_heif_suberror_Unknown_NCLX_transfer_characteristics as _,
-    UnknownNclxMatrixCoefficients =
-        lh::heif_suberror_code_heif_suberror_Unknown_NCLX_matrix_coefficients as _,
+    UnknownNclxMatrixCoefficients = lh::heif_suberror_code_heif_suberror_Unknown_NCLX_matrix_coefficients as _,
     UnsupportedHeaderCompressionMethod =
         lh::heif_suberror_code_heif_suberror_Unsupported_header_compression_method as _,
     PluginLoadingError = lh::heif_suberror_code_heif_suberror_Plugin_loading_error as _,
     PluginIsNotLoaded = lh::heif_suberror_code_heif_suberror_Plugin_is_not_loaded as _,
-    CannotReadPluginDirectory =
-        lh::heif_suberror_code_heif_suberror_Cannot_read_plugin_directory as _,
+    CannotReadPluginDirectory = lh::heif_suberror_code_heif_suberror_Cannot_read_plugin_directory as _,
     InvalidRegionData = lh::heif_suberror_code_heif_suberror_Invalid_region_data as _,
     InvalidProperty = lh::heif_suberror_code_heif_suberror_Invalid_property as _,
     ItemReferenceCycle = lh::heif_suberror_code_heif_suberror_Item_reference_cycle as _,
@@ -123,11 +111,9 @@ pub enum HeifErrorSubCode {
     #[cfg(feature = "v1_18")]
     NoIspeProperty = lh::heif_suberror_code_heif_suberror_No_ispe_property as _,
     #[cfg(feature = "v1_18")]
-    CameraIntrinsicMatrixUndefined =
-        lh::heif_suberror_code_heif_suberror_Camera_intrinsic_matrix_undefined as _,
+    CameraIntrinsicMatrixUndefined = lh::heif_suberror_code_heif_suberror_Camera_intrinsic_matrix_undefined as _,
     #[cfg(feature = "v1_18")]
-    CameraExtrinsicMatrixUndefined =
-        lh::heif_suberror_code_heif_suberror_Camera_extrinsic_matrix_undefined as _,
+    CameraExtrinsicMatrixUndefined = lh::heif_suberror_code_heif_suberror_Camera_extrinsic_matrix_undefined as _,
     #[cfg(feature = "v1_18")]
     InvalidJ2kCodeStream = lh::heif_suberror_code_heif_suberror_Invalid_J2K_codestream as _,
     #[cfg(feature = "v1_18")]
@@ -137,21 +123,18 @@ pub enum HeifErrorSubCode {
     #[cfg(feature = "v1_18")]
     DecompressionInvalidData = lh::heif_suberror_code_heif_suberror_Decompression_invalid_data as _,
     #[cfg(feature = "v1_18")]
-    CompressionInitialisationError =
-        lh::heif_suberror_code_heif_suberror_Compression_initialisation_error as _,
+    CompressionInitialisationError = lh::heif_suberror_code_heif_suberror_Compression_initialisation_error as _,
     #[cfg(feature = "v1_18")]
     UnsupportedGenericCompressionMethod =
         lh::heif_suberror_code_heif_suberror_Unsupported_generic_compression_method as _,
     #[cfg(feature = "v1_18")]
-    NoMatchingDecoderInstalled =
-        lh::heif_suberror_code_heif_suberror_No_matching_decoder_installed as _,
+    NoMatchingDecoderInstalled = lh::heif_suberror_code_heif_suberror_No_matching_decoder_installed as _,
     #[cfg(feature = "v1_19")]
     NoAvccBox = lh::heif_suberror_code_heif_suberror_No_avcC_box as _,
     #[cfg(feature = "v1_19")]
     InvalidMiniBox = lh::heif_suberror_code_heif_suberror_Invalid_mini_box as _,
     #[cfg(feature = "v1_19")]
-    UnsupportedEssentialProperty =
-        lh::heif_suberror_code_heif_suberror_Unsupported_essential_property as _,
+    UnsupportedEssentialProperty = lh::heif_suberror_code_heif_suberror_Unsupported_essential_property as _,
     #[cfg(feature = "v1_20")]
     NoMoovBox = lh::heif_suberror_code_heif_suberror_No_moov_box as _,
     #[cfg(feature = "v1_21")]
@@ -171,7 +154,7 @@ pub type Result<T> = std::result::Result<T, HeifError>;
 
 impl std::error::Error for HeifError {}
 
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 impl fmt::Display for HeifError {
     #[allow(unsafe_code)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -179,7 +162,7 @@ impl fmt::Display for HeifError {
     }
 }
 
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 impl HeifError {
     #[allow(unsafe_code)]
     pub fn from_heif_error(err: lh::heif_error) -> Result<()> {

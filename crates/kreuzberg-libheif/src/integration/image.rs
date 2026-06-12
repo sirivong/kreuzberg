@@ -11,24 +11,16 @@ macro_rules! magick {
     ($v1:literal, $v2:literal, $v3:literal, $v4:literal) => {
         [
             // As a major brand
-            &[
-                0, 0, 0, 0, b'f', b't', b'y', b'p', $v1, $v2, $v3, $v4, 0, 0, 0, 0,
-            ],
+            &[0, 0, 0, 0, b'f', b't', b'y', b'p', $v1, $v2, $v3, $v4, 0, 0, 0, 0],
             // As a minor brand
-            &[
-                0, 0, 0, 0, b'f', b't', b'y', b'p', 0, 0, 0, 0, $v1, $v2, $v3, $v4,
-            ],
+            &[0, 0, 0, 0, b'f', b't', b'y', b'p', 0, 0, 0, 0, $v1, $v2, $v3, $v4],
         ]
     };
 }
 
 static MASKS: [&[u8]; 2] = [
-    &[
-        0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0,
-    ],
-    &[
-        0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff,
-    ],
+    &[0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0],
+    &[0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff],
 ];
 
 /// HEVC image (`heic`) brand.
@@ -58,10 +50,8 @@ static MIF2_BRAND: [&[u8]; 2] = magick!(b'm', b'i', b'f', b'2');
 
 /// Registers the decoder with the `image` crate for heif-files.
 pub fn register_heif_decoding_hook() -> bool {
-    let registered = image::hooks::register_decoding_hook(
-        "heif".into(),
-        Box::new(|r| Ok(Box::new(HeifDecoder::new(r)?))),
-    );
+    let registered =
+        image::hooks::register_decoding_hook("heif".into(), Box::new(|r| Ok(Box::new(HeifDecoder::new(r)?))));
     if registered {
         for brands in [MIF1_BRAND, MIF2_BRAND, JPGS_BRAND, J2KI_BRAND] {
             image::hooks::register_format_detection_hook("heif".into(), brands[0], Some(MASKS[0]));
@@ -73,10 +63,8 @@ pub fn register_heif_decoding_hook() -> bool {
 
 /// Registers the decoder with the `image` crate for heic-files.
 pub fn register_heic_decoding_hook() -> bool {
-    let registered = image::hooks::register_decoding_hook(
-        "heic".into(),
-        Box::new(|r| Ok(Box::new(HeifDecoder::new(r)?))),
-    );
+    let registered =
+        image::hooks::register_decoding_hook("heic".into(), Box::new(|r| Ok(Box::new(HeifDecoder::new(r)?))));
     if registered {
         for brands in [HEIC_BRAND, HEIX_BRAND] {
             image::hooks::register_format_detection_hook("heic".into(), brands[0], Some(MASKS[0]));
@@ -88,10 +76,8 @@ pub fn register_heic_decoding_hook() -> bool {
 
 /// Registers the decoder with the `image` crate for avif-files.
 pub fn register_avif_decoding_hook() -> bool {
-    let registered = image::hooks::register_decoding_hook(
-        "avif".into(),
-        Box::new(|r| Ok(Box::new(HeifDecoder::new(r)?))),
-    );
+    let registered =
+        image::hooks::register_decoding_hook("avif".into(), Box::new(|r| Ok(Box::new(HeifDecoder::new(r)?))));
     if registered {
         image::hooks::register_format_detection_hook("avif".into(), AVIF_BRAND[0], Some(MASKS[0]));
         image::hooks::register_format_detection_hook("avif".into(), AVIF_BRAND[1], Some(MASKS[1]));
@@ -108,10 +94,7 @@ pub fn register_all_decoding_hooks() {
 }
 
 fn image_error(err: impl Into<Box<dyn Error + Send + Sync>>) -> ImageError {
-    ImageError::Decoding(DecodingError::new(
-        ImageFormatHint::Name("heif".into()),
-        err,
-    ))
+    ImageError::Decoding(DecodingError::new(ImageFormatHint::Name("heif".into()), err))
 }
 
 impl From<HeifError> for ImageError {
@@ -154,10 +137,7 @@ fn get_color_type(image_handle: &ImageHandle) -> ImageResult<ColorType> {
         }
         ColorSpace::Rgb(chroma) => match chroma {
             RgbChroma::C444 | RgbChroma::Rgb | RgbChroma::Rgba => (false, false),
-            RgbChroma::HdrRgbBe
-            | RgbChroma::HdrRgbaBe
-            | RgbChroma::HdrRgbLe
-            | RgbChroma::HdrRgbaLe => (false, true),
+            RgbChroma::HdrRgbBe | RgbChroma::HdrRgbaBe | RgbChroma::HdrRgbLe | RgbChroma::HdrRgbaLe => (false, true),
         },
         ColorSpace::Monochrome => {
             let bit_depth = image_handle.luma_bits_per_pixel();

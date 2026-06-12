@@ -27,7 +27,7 @@ pub struct Track {
     pub(crate) inner: *mut lh::heif_track,
 }
 
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 impl Track {
     #[inline]
     pub(crate) fn from_heif_track(track: *mut lh::heif_track) -> Track {
@@ -74,9 +74,7 @@ impl Track {
     pub fn image_resolution(&self) -> Result<ImageResolution> {
         let mut res = ImageResolution::default();
 
-        let err = unsafe {
-            lh::heif_track_get_image_resolution(self.inner, &mut res.width, &mut res.height)
-        };
+        let err = unsafe { lh::heif_track_get_image_resolution(self.inner, &mut res.width, &mut res.height) };
 
         HeifError::from_heif_error(err)?;
         Ok(res)
@@ -116,7 +114,7 @@ impl Track {
     }
 }
 
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 impl Drop for Track {
     #[allow(unsafe_code)]
     fn drop(&mut self) {

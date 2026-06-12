@@ -8,9 +8,7 @@ use std::sync::Mutex;
 use libheif_sys as lh;
 
 use crate::utils::cstr_to_str;
-use crate::{
-    ColorConversionOptions, HeifError, HeifErrorCode, HeifErrorSubCode, ImageOrientation, Result,
-};
+use crate::{ColorConversionOptions, HeifError, HeifErrorCode, HeifErrorSubCode, ImageOrientation, Result};
 
 static ENCODER_MUTEX: Mutex<()> = Mutex::new(());
 
@@ -121,22 +119,14 @@ impl<'a> Encoder<'a> {
     }
 
     #[allow(unsafe_code)]
-    fn parameter_value(
-        &self,
-        name: &str,
-        parameter_type: EncoderParameterType,
-    ) -> Result<EncoderParameterValue> {
+    fn parameter_value(&self, name: &str, parameter_type: EncoderParameterType) -> Result<EncoderParameterValue> {
         let c_param_name = CString::new(name).unwrap();
         let param_value = match parameter_type {
             EncoderParameterType::Int => {
                 let mut value = 0;
                 // SAFETY: libheif C API; self.inner is non-null, c_param_name is valid, value is valid mutable ptr.
                 let err = unsafe {
-                    lh::heif_encoder_get_parameter_integer(
-                        self.inner,
-                        c_param_name.as_ptr(),
-                        &mut value as _,
-                    )
+                    lh::heif_encoder_get_parameter_integer(self.inner, c_param_name.as_ptr(), &mut value as _)
                 };
                 HeifError::from_heif_error(err)?;
                 EncoderParameterValue::Int(value)
@@ -145,11 +135,7 @@ impl<'a> Encoder<'a> {
                 let mut value = 0;
                 // SAFETY: libheif C API; self.inner is non-null, c_param_name is valid, value is valid mutable ptr.
                 let err = unsafe {
-                    lh::heif_encoder_get_parameter_boolean(
-                        self.inner,
-                        c_param_name.as_ptr(),
-                        &mut value as _,
-                    )
+                    lh::heif_encoder_get_parameter_boolean(self.inner, c_param_name.as_ptr(), &mut value as _)
                 };
                 HeifError::from_heif_error(err)?;
                 EncoderParameterValue::Bool(value > 0)
@@ -158,17 +144,10 @@ impl<'a> Encoder<'a> {
                 let value: Vec<u8> = vec![0; 51];
                 // SAFETY: libheif C API; self.inner is non-null, c_param_name is valid, value is valid buffer.
                 let err = unsafe {
-                    lh::heif_encoder_get_parameter_string(
-                        self.inner,
-                        c_param_name.as_ptr(),
-                        value.as_ptr() as _,
-                        50,
-                    )
+                    lh::heif_encoder_get_parameter_string(self.inner, c_param_name.as_ptr(), value.as_ptr() as _, 50)
                 };
                 HeifError::from_heif_error(err)?;
-                EncoderParameterValue::String(
-                    cstr_to_str(value.as_ptr() as _).unwrap_or("").to_string(),
-                )
+                EncoderParameterValue::String(cstr_to_str(value.as_ptr() as _).unwrap_or("").to_string())
             }
         };
 
@@ -204,11 +183,7 @@ impl<'a> Encoder<'a> {
             },
             EncoderParameterValue::String(v) => unsafe {
                 let c_param_value = CString::new(v).unwrap();
-                lh::heif_encoder_set_parameter_string(
-                    self.inner,
-                    c_param_name.as_ptr(),
-                    c_param_value.as_ptr(),
-                )
+                lh::heif_encoder_set_parameter_string(self.inner, c_param_name.as_ptr(), c_param_value.as_ptr())
             },
         };
         HeifError::from_heif_error(err)?;
@@ -326,28 +301,22 @@ impl EncodingOptions {
 
     #[inline]
     pub fn save_two_colr_boxes_when_icc_and_nclx_available(&self) -> bool {
-        self.inner_ref()
-            .save_two_colr_boxes_when_ICC_and_nclx_available
-            != 0
+        self.inner_ref().save_two_colr_boxes_when_ICC_and_nclx_available != 0
     }
 
     #[inline]
     pub fn set_save_two_colr_boxes_when_icc_and_nclx_available(&mut self, enable: bool) {
-        self.inner_mut()
-            .save_two_colr_boxes_when_ICC_and_nclx_available = if enable { 1 } else { 0 };
+        self.inner_mut().save_two_colr_boxes_when_ICC_and_nclx_available = if enable { 1 } else { 0 };
     }
 
     #[inline]
     pub fn mac_os_compatibility_workaround_no_nclx_profile(&self) -> bool {
-        self.inner_ref()
-            .macOS_compatibility_workaround_no_nclx_profile
-            != 0
+        self.inner_ref().macOS_compatibility_workaround_no_nclx_profile != 0
     }
 
     #[inline]
     pub fn set_mac_os_compatibility_workaround_no_nclx_profile(&mut self, enable: bool) {
-        self.inner_mut()
-            .macOS_compatibility_workaround_no_nclx_profile = if enable { 1 } else { 0 };
+        self.inner_mut().macOS_compatibility_workaround_no_nclx_profile = if enable { 1 } else { 0 };
     }
 
     #[inline]
@@ -374,13 +343,8 @@ impl EncodingOptions {
 
 /// This function makes sure the encoding options
 /// won't be freed too early.
-pub(crate) fn get_encoding_options_ptr(
-    options: &Option<EncodingOptions>,
-) -> *mut lh::heif_encoding_options {
-    options
-        .as_ref()
-        .map(|o| o.inner.as_ptr())
-        .unwrap_or_else(ptr::null_mut)
+pub(crate) fn get_encoding_options_ptr(options: &Option<EncodingOptions>) -> *mut lh::heif_encoding_options {
+    options.as_ref().map(|o| o.inner.as_ptr()).unwrap_or_else(ptr::null_mut)
 }
 
 #[derive(Copy, Clone)]

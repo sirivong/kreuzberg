@@ -115,11 +115,7 @@ unsafe extern "C" fn read(data: *mut c_void, size: usize, user_data: *mut c_void
     // SAFETY: user_data is set to &mut Box<dyn Reader> we leaked; data is valid for size bytes.
     let reader = unsafe { &mut *(user_data as *mut Box<dyn Reader>) };
     let buf = unsafe { slice::from_raw_parts_mut(data as *mut u8, size) };
-    if reader.read_exact(buf).is_ok() {
-        0
-    } else {
-        1
-    }
+    if reader.read_exact(buf).is_ok() { 0 } else { 1 }
 }
 
 #[allow(unsafe_code)]
@@ -133,10 +129,7 @@ unsafe extern "C" fn seek(position: i64, user_data: *mut c_void) -> c_int {
 }
 
 #[allow(unsafe_code)]
-unsafe extern "C" fn wait_for_file_size(
-    target_size: i64,
-    user_data: *mut c_void,
-) -> lh::heif_reader_grow_status {
+unsafe extern "C" fn wait_for_file_size(target_size: i64, user_data: *mut c_void) -> lh::heif_reader_grow_status {
     // SAFETY: user_data is set to &mut Box<dyn Reader> we leaked; valid C callback.
     let reader = unsafe { &mut *(user_data as *mut Box<dyn Reader>) };
     let target_size = target_size as u64;

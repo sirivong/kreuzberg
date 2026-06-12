@@ -4,6 +4,10 @@
 //! including support for multi-frame TIFF files.
 
 use crate::error::{KreuzbergError, Result};
+use crate::extraction::exif::extract_exif_data;
+#[cfg(feature = "heic")]
+use crate::extraction::heif::decode_heic_to_png;
+use crate::extraction::heif::is_heif_container;
 use image::ImageReader;
 use std::collections::HashMap;
 use std::io::Cursor;
@@ -350,68 +354,6 @@ pub(crate) fn load_image_for_ocr(image_bytes: &[u8]) -> Result<image::DynamicIma
     }
 }
 
-/// Detect a HEIF-family container (HEIC / HEIF / AVIF / HEICS / AVCS) by sniffing
-/// the `ftyp` box brand at offset 4..8 with one of the known major brands at 8..12.
-pub(crate) fn is_heif_container(bytes: &[u8]) -> bool {
-    if bytes.len() < 12 || &bytes[4..8] != b"ftyp" {
-        return false;
-    }
-    matches!(
-        &bytes[8..12],
-        b"heic" | b"heix" | b"heim" | b"heis" | b"hevc" | b"hevm" | b"hevs"
-        | b"mif1" | b"msf1" | b"avif" | b"avis" | b"avcs"
-    )
-}
-
-/// Decode any HEIF-family container to PNG bytes via the vendored libheif bindings.
-///
-/// Decoded as interleaved RGBA, then re-encoded as PNG so the result can flow through
-/// the existing OCR / image pipeline without further special-casing.
-#[cfg(feature = "heic")]
-pub(crate) fn decode_heic_to_png(bytes: &[u8]) -> Result<Vec<u8>> {
-    use image::ImageEncoder;
-    use image::codecs::png::PngEncoder;
-    use kreuzberg_libheif::{ColorSpace, HeifContext, LibHeif, RgbChroma};
-
-    let lib = LibHeif::new();
-    let ctx = HeifContext::read_from_bytes(bytes)
-        .map_err(|e| KreuzbergError::parsing(format!("Failed to read HEIF container: {e}")))?;
-    let handle = ctx
-        .primary_image_handle()
-        .map_err(|e| KreuzbergError::parsing(format!("Failed to read HEIF primary image handle: {e}")))?;
-    let image = lib
-        .decode(&handle, ColorSpace::Rgb(RgbChroma::Rgba), None)
-        .map_err(|e| KreuzbergError::parsing(format!("Failed to decode HEIF image: {e}")))?;
-
-    let width = image.width();
-    let height = image.height();
-    let planes = image.planes();
-    let plane = planes
-        .interleaved
-        .ok_or_else(|| KreuzbergError::parsing("HEIF decode returned no interleaved RGBA plane".to_string()))?;
-
-    // libheif rows are padded to `stride` bytes. Repack to a tight (width * 4)-byte
-    // row layout before handing off to the PNG encoder.
-    let row_bytes = (width as usize) * 4;
-    let mut packed = Vec::with_capacity(row_bytes * (height as usize));
-    for row in 0..(height as usize) {
-        let start = row * plane.stride;
-        let end = start + row_bytes;
-        if end > plane.data.len() {
-            return Err(KreuzbergError::parsing(
-                "HEIF decoded plane shorter than declared dimensions".to_string(),
-            ));
-        }
-        packed.extend_from_slice(&plane.data[start..end]);
-    }
-
-    let mut png_bytes = Vec::with_capacity(row_bytes * height as usize);
-    PngEncoder::new(&mut png_bytes)
-        .write_image(&packed, width, height, image::ExtendedColorType::Rgba8)
-        .map_err(|e| KreuzbergError::parsing(format!("Failed to re-encode HEIF as PNG: {e}")))?;
-    Ok(png_bytes)
-}
-
 /// Extract metadata from image bytes.
 ///
 /// Extracts dimensions, format, and EXIF data from the image.
@@ -485,131 +427,6 @@ pub(crate) fn extract_image_metadata(bytes: &[u8]) -> Result<ExtractedImageMetad
             decode_err
         ))),
     }
-}
-
-/// Extract EXIF data from image bytes.
-///
-/// Returns a HashMap of EXIF tag names to display strings. Empty when EXIF is
-/// absent, malformed, or the container is unrecognised.
-///
-/// Backed by `nom-exif`, which supports EXIF blocks across JPEG, PNG, TIFF,
-/// HEIC/HEIF, AVIF and several video containers in a single pure-Rust API.
-/// Compiled under any of the `ocr`, `ocr-wasm`, or `heic` features.
-#[cfg(any(feature = "ocr", feature = "ocr-wasm", feature = "heic"))]
-fn extract_exif_data(bytes: &[u8]) -> HashMap<String, String> {
-    use nom_exif::{Exif, ExifIter, ExifTag, MediaParser, MediaSource};
-
-    let mut exif_map = HashMap::new();
-
-    let bytes_owned = bytes::Bytes::copy_from_slice(bytes);
-    let Ok(ms) = MediaSource::from_memory(bytes_owned) else {
-        return exif_map;
-    };
-
-    let mut parser = MediaParser::new();
-    let Ok(iter): nom_exif::Result<ExifIter> = parser.parse_exif(ms) else {
-        return exif_map;
-    };
-    let exif: Exif = iter.into();
-
-    // Extensive tag coverage: identity, timestamps, exposure, lens, GPS, thumbnail,
-    // colour space, and provenance. Tags are listed in roughly the order a reader
-    // would expect them.
-    const TAGS: &[(ExifTag, &str)] = &[
-        // Identity / provenance
-        (ExifTag::Make, "Make"),
-        (ExifTag::Model, "Model"),
-        (ExifTag::Software, "Software"),
-        (ExifTag::HostComputer, "HostComputer"),
-        (ExifTag::ImageDescription, "ImageDescription"),
-        (ExifTag::Copyright, "Copyright"),
-        (ExifTag::CameraSerialNumber, "CameraSerialNumber"),
-        (ExifTag::ImageUniqueID, "ImageUniqueID"),
-        (ExifTag::ExifVersion, "ExifVersion"),
-        // Timestamps
-        (ExifTag::ModifyDate, "DateTime"),
-        (ExifTag::DateTimeOriginal, "DateTimeOriginal"),
-        (ExifTag::CreateDate, "DateTimeDigitized"),
-        (ExifTag::OffsetTime, "OffsetTime"),
-        (ExifTag::OffsetTimeOriginal, "OffsetTimeOriginal"),
-        (ExifTag::OffsetTimeDigitized, "OffsetTimeDigitized"),
-        (ExifTag::SubSecTime, "SubSecTime"),
-        (ExifTag::SubSecTimeOriginal, "SubSecTimeOriginal"),
-        (ExifTag::SubSecTimeDigitized, "SubSecTimeDigitized"),
-        // Image geometry / resolution
-        (ExifTag::ImageWidth, "ImageWidth"),
-        (ExifTag::ImageHeight, "ImageHeight"),
-        (ExifTag::ExifImageWidth, "ExifImageWidth"),
-        (ExifTag::ExifImageHeight, "ExifImageHeight"),
-        (ExifTag::Orientation, "Orientation"),
-        (ExifTag::XResolution, "XResolution"),
-        (ExifTag::YResolution, "YResolution"),
-        (ExifTag::ResolutionUnit, "ResolutionUnit"),
-        (ExifTag::ColorSpace, "ColorSpace"),
-        // Exposure
-        (ExifTag::ExposureTime, "ExposureTime"),
-        (ExifTag::FNumber, "FNumber"),
-        (ExifTag::ApertureValue, "ApertureValue"),
-        (ExifTag::ShutterSpeedValue, "ShutterSpeedValue"),
-        (ExifTag::ExposureProgram, "ExposureProgram"),
-        (ExifTag::ExposureMode, "ExposureMode"),
-        (ExifTag::ExposureBiasValue, "ExposureBiasValue"),
-        (ExifTag::ISOSpeedRatings, "ISO"),
-        (ExifTag::SensitivityType, "SensitivityType"),
-        (ExifTag::MeteringMode, "MeteringMode"),
-        (ExifTag::LightSource, "LightSource"),
-        (ExifTag::Flash, "Flash"),
-        (ExifTag::WhiteBalanceMode, "WhiteBalance"),
-        (ExifTag::SceneCaptureType, "SceneCaptureType"),
-        (ExifTag::SubjectDistance, "SubjectDistance"),
-        (ExifTag::SubjectDistanceRange, "SubjectDistanceRange"),
-        (ExifTag::SubjectArea, "SubjectArea"),
-        (ExifTag::DigitalZoomRatio, "DigitalZoomRatio"),
-        (ExifTag::Contrast, "Contrast"),
-        (ExifTag::Saturation, "Saturation"),
-        (ExifTag::Sharpness, "Sharpness"),
-        // Lens
-        (ExifTag::FocalLength, "FocalLength"),
-        (ExifTag::FocalLengthIn35mmFilm, "FocalLengthIn35mmFilm"),
-        (ExifTag::LensMake, "LensMake"),
-        (ExifTag::LensModel, "LensModel"),
-        (ExifTag::LensSpecification, "LensSpecification"),
-        (ExifTag::LensSerialNumber, "LensSerialNumber"),
-        // GPS
-        (ExifTag::GPSLatitudeRef, "GPSLatitudeRef"),
-        (ExifTag::GPSLatitude, "GPSLatitude"),
-        (ExifTag::GPSLongitudeRef, "GPSLongitudeRef"),
-        (ExifTag::GPSLongitude, "GPSLongitude"),
-        (ExifTag::GPSAltitudeRef, "GPSAltitudeRef"),
-        (ExifTag::GPSAltitude, "GPSAltitude"),
-        (ExifTag::GPSTimeStamp, "GPSTimeStamp"),
-        (ExifTag::GPSDateStamp, "GPSDateStamp"),
-        (ExifTag::GPSSpeed, "GPSSpeed"),
-        (ExifTag::GPSSpeedRef, "GPSSpeedRef"),
-        (ExifTag::GPSTrack, "GPSTrack"),
-        (ExifTag::GPSTrackRef, "GPSTrackRef"),
-        (ExifTag::GPSImgDirection, "GPSImgDirection"),
-        (ExifTag::GPSImgDirectionRef, "GPSImgDirectionRef"),
-        (ExifTag::GPSMapDatum, "GPSMapDatum"),
-        (ExifTag::GPSProcessingMethod, "GPSProcessingMethod"),
-        // Thumbnail
-        (ExifTag::ThumbnailOffset, "ThumbnailOffset"),
-        (ExifTag::ThumbnailLength, "ThumbnailLength"),
-    ];
-
-    for (tag, field_name) in TAGS {
-        if let Some(value) = exif.get(*tag) {
-            exif_map.insert((*field_name).to_string(), value.to_string());
-        }
-    }
-
-    exif_map
-}
-
-/// Stub EXIF extraction when no EXIF-capable feature is active.
-#[cfg(not(any(feature = "ocr", feature = "ocr-wasm", feature = "heic")))]
-fn extract_exif_data(_bytes: &[u8]) -> HashMap<String, String> {
-    HashMap::new()
 }
 
 /// Result of OCR extraction from an image with optional page tracking.
@@ -950,54 +767,6 @@ mod tests {
         assert!(result.is_ok());
         let metadata = result.unwrap();
         assert!(metadata.exif_data.is_empty());
-    }
-
-    #[test]
-    fn test_is_heif_container_detects_known_brands() {
-        // Synthesise an ftyp box with each major brand we register.
-        let make = |brand: &[u8; 4]| {
-            let mut buf = Vec::from(&b"\x00\x00\x00\x18"[..]); // box size (24)
-            buf.extend_from_slice(b"ftyp");
-            buf.extend_from_slice(brand);
-            buf.extend_from_slice(&[0u8; 12]); // padding to fill the box
-            buf
-        };
-        // ISO/IEC 14496-12 / 23008-12 / 23000-22 major brands actually emitted by
-        // HEIF-family encoders. `heif` itself is not a real ftyp brand — HEIF still
-        // images use `mif1` or codec-specific brands (`heic`, `heix`, `avif`, …).
-        for brand in [b"heic", b"heix", b"avif", b"avcs", b"mif1", b"avis"] {
-            assert!(
-                is_heif_container(&make(brand)),
-                "brand {:?} should sniff as HEIF",
-                std::str::from_utf8(brand).unwrap()
-            );
-        }
-    }
-
-    #[test]
-    fn test_is_heif_container_rejects_non_heif() {
-        assert!(!is_heif_container(b""));
-        assert!(!is_heif_container(b"hello world"));
-        assert!(!is_heif_container(&[0u8; 4]));
-        // PNG magic bytes
-        assert!(!is_heif_container(b"\x89PNG\r\n\x1a\n0000"));
-        // ftyp box with an unknown brand
-        assert!(!is_heif_container(b"\x00\x00\x00\x18ftypxxxxRESERVED___"));
-    }
-
-    #[cfg(feature = "heic")]
-    #[test]
-    fn test_decode_heic_to_png_produces_valid_png() {
-        const HEIC: &[u8] = include_bytes!("../../../../test_documents/images/test.heic");
-        let png = decode_heic_to_png(HEIC).expect("decode_heic_to_png");
-        assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n", "output is not a PNG");
-
-        // Round-trip through the image crate to confirm structure.
-        let reader = ImageReader::new(Cursor::new(&png))
-            .with_guessed_format()
-            .expect("guess format on decoded PNG");
-        let (w, h) = reader.into_dimensions().expect("PNG dimensions");
-        assert!(w > 0 && h > 0);
     }
 
     #[cfg(feature = "heic")]

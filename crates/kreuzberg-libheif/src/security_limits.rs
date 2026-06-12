@@ -10,7 +10,7 @@ pub struct SecurityLimits {
     inner: lh::heif_security_limits,
 }
 
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 impl Default for SecurityLimits {
     #[allow(unsafe_code)]
     fn default() -> Self {
@@ -24,7 +24,7 @@ impl Default for SecurityLimits {
     }
 }
 
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 impl SecurityLimits {
     /// Returns a new instance with default values of limits.
     #[allow(unsafe_code)]

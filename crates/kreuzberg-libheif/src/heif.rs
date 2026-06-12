@@ -7,8 +7,8 @@ use libheif_sys as lh;
 use crate::decoder::get_decoding_options_ptr;
 use crate::utils::path_to_cstring;
 use crate::{
-    ColorSpace, CompressionFormat, DecoderDescriptor, DecodingOptions, Encoder, EncoderDescriptor,
-    HeifError, Image, ImageHandle, Result,
+    ColorSpace, CompressionFormat, DecoderDescriptor, DecodingOptions, Encoder, EncoderDescriptor, HeifError, Image,
+    ImageHandle, Result,
 };
 
 /// Guard structure used for `libheif` initialization, working with plugins,
@@ -23,7 +23,7 @@ use crate::{
 /// all those plugins will be available to all other instances.
 pub struct LibHeif(());
 
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 impl LibHeif {
     #[allow(unsafe_code)]
     pub fn new() -> Self {
@@ -48,7 +48,7 @@ impl LibHeif {
     }
 }
 
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 impl Drop for LibHeif {
     #[allow(unsafe_code)]
     fn drop(&mut self) {
@@ -58,7 +58,7 @@ impl Drop for LibHeif {
     }
 }
 
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 impl Default for LibHeif {
     #[allow(unsafe_code)]
     fn default() -> Self {
@@ -66,7 +66,7 @@ impl Default for LibHeif {
     }
 }
 
-    #[allow(unsafe_code)]
+#[allow(unsafe_code)]
 impl LibHeif {
     /// Version of linked `libheif` as an array of numbers in format:
     ///
@@ -92,14 +92,8 @@ impl LibHeif {
     fn _load_plugins(&self, dir_path: &Path) -> Result<usize> {
         let dir_path = path_to_cstring(dir_path);
         let mut plugins_loaded: libc::c_int = 0;
-        let err = unsafe {
-            lh::heif_load_plugins(
-                dir_path.as_ptr(),
-                ptr::null_mut() as _,
-                &mut plugins_loaded as _,
-                0,
-            )
-        };
+        let err =
+            unsafe { lh::heif_load_plugins(dir_path.as_ptr(), ptr::null_mut() as _, &mut plugins_loaded as _, 0) };
         HeifError::from_heif_error(err)?;
         Ok(plugins_loaded as usize)
     }
@@ -146,11 +140,8 @@ impl LibHeif {
 
         let mut descriptors_ptr = Vec::with_capacity(max_count);
         unsafe {
-            let count = lh::heif_get_decoder_descriptors(
-                format_filter as _,
-                descriptors_ptr.as_mut_ptr(),
-                max_count as _,
-            );
+            let count =
+                lh::heif_get_decoder_descriptors(format_filter as _, descriptors_ptr.as_mut_ptr(), max_count as _);
             descriptors_ptr.set_len(count as usize);
         }
 
@@ -177,9 +168,7 @@ impl LibHeif {
     ) -> Vec<EncoderDescriptor<'_>> {
         let format_filter = format_filter.unwrap_or(CompressionFormat::Undefined);
         let max_count = max_count.min(libc::c_int::MAX as usize);
-        let name_filter = name_filter
-            .map(|s| CString::new(s).ok())
-            .unwrap_or_default();
+        let name_filter = name_filter.map(|s| CString::new(s).ok()).unwrap_or_default();
         let name_filter_ptr = name_filter.map(|s| s.as_ptr()).unwrap_or(ptr::null());
 
         let mut descriptors_ptr = Vec::with_capacity(max_count);
@@ -204,9 +193,7 @@ impl LibHeif {
     #[allow(unsafe_code)]
     pub fn encoder(&self, descriptor: EncoderDescriptor) -> Result<Encoder<'_>> {
         let mut c_encoder: *mut lh::heif_encoder = ptr::null_mut();
-        let err = unsafe {
-            lh::heif_context_get_encoder(ptr::null_mut(), descriptor.inner, &mut c_encoder)
-        };
+        let err = unsafe { lh::heif_context_get_encoder(ptr::null_mut(), descriptor.inner, &mut c_encoder) };
         HeifError::from_heif_error(err)?;
         let encoder = Encoder::new(unsafe { &mut *c_encoder })?;
         Ok(encoder)
@@ -218,13 +205,7 @@ impl LibHeif {
     #[allow(unsafe_code)]
     pub fn encoder_for_format(&self, format: CompressionFormat) -> Result<Encoder<'_>> {
         let mut c_encoder: *mut lh::heif_encoder = ptr::null_mut();
-        let err = unsafe {
-            lh::heif_context_get_encoder_for_format(
-                ptr::null_mut() as _,
-                format as _,
-                &mut c_encoder,
-            )
-        };
+        let err = unsafe { lh::heif_context_get_encoder_for_format(ptr::null_mut() as _, format as _, &mut c_encoder) };
         HeifError::from_heif_error(err)?;
         let encoder = Encoder::new(unsafe { &mut *c_encoder })?;
         Ok(encoder)
