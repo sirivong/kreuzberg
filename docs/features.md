@@ -52,7 +52,19 @@ A map of what Kreuzberg can do. Each section links to the guide or reference pag
     <span class="format-chip">JPEG 2000 <code>.jp2 .jpx .jpm .mj2</code></span>
     <span class="format-chip">JBIG2 <code>.jbig2</code></span>
     <span class="format-chip">PNM <code>.pnm .pbm .pgm .ppm</code></span>
+    <span class="format-chip">HEIC <code>.heic .heics</code></span>
+    <span class="format-chip">HEIF <code>.heif</code></span>
+    <span class="format-chip">AVIF <code>.avif</code></span>
+    <span class="format-chip">AVCS <code>.avcs</code></span>
     </div>
+
+    !!! info "HEIF / HEIC / AVIF"
+        Pixel decoding for HEIF-family containers requires the `heic` Cargo
+        feature (included in `full`) and the system `libheif` library at build
+        and runtime. Native targets only — not available on `wasm-target` or
+        `android-target`. EXIF metadata extraction from HEIC / AVIF works on
+        every target via the pure-Rust `nom-exif` integration. See the
+        [installation guide](getting-started/installation.md#heif--heic--avif-support).
 
 === "Email"
 
