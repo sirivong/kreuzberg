@@ -547,6 +547,11 @@ exclude_functions = [
   "calculate_quality_score",
 ]
 
+[crates.jni]
+# JNI shim crate that emits Java_* symbols for all JNI functions and trait-bridge
+# registrations. Paired with kotlin_android backend to provide type-safe calling
+# interface from Kotlin to Rust core via JNI.
+
 [crates.swift]
 module_name = "Kreuzberg"
 package_name = "Kreuzberg"
@@ -614,6 +619,7 @@ wasm = "crates/kreuzberg-wasm/src/"
 java = "packages/java/"
 csharp = "packages/csharp/src/"
 r = "packages/r/src/rust/src/"
+jni = "crates/kreuzberg-jni/src/"
 kotlin_android = "packages/kotlin-android/"
 swift = "packages/swift/Sources/Kreuzberg/"
 dart = "packages/dart/lib/src/"
