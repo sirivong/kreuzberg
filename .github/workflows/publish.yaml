@@ -553,6 +553,9 @@ jobs:
         with:
           node-version: "24"
 
+      - name: Install system dependencies
+        uses: ./.github/actions/install-system-deps
+
       - name: Setup ONNX Runtime
         uses: ./.github/actions/setup-onnx-runtime
         with:
