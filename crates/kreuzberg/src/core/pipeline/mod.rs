@@ -322,6 +322,14 @@ pub fn run_pipeline_sync(doc: InternalDocument, config: &ExtractionConfig) -> Re
         result.formatted_content = Some(md);
     }
 
+    // Re-encode extracted images to the caller-requested output format.
+    // Mirrors the async pipeline so WASM/sync callers also get SVG sanitize
+    // and the configured raster output format applied.
+    #[cfg(feature = "image-encode")]
+    if let Some(ref image_cfg) = config.images {
+        apply_output_format_pass(&mut result, image_cfg);
+    }
+
     // 2. Run synchronous post-processing
     execute_chunking(&mut result, config)?;
 
@@ -346,8 +354,11 @@ pub fn run_pipeline_sync(doc: InternalDocument, config: &ExtractionConfig) -> Re
 ///
 /// Runs after OCR has completed and before post-processors so that downstream
 /// consumers (captioning, QR) always see coherent `data` + `format` pairs.
-/// Images whose source format cannot be decoded (e.g. SVG, EMF) are left untouched;
+/// Images whose source format cannot be decoded (e.g. EMF, WMF) are left untouched;
 /// a `ProcessingWarning` is pushed for each failure.
+///
+/// When the `svg` feature is active and `config.output_format` is `Native`, a
+/// sanitization pass is still applied to SVG images if `config.svg.sanitize` is set.
 #[cfg(feature = "image-encode")]
 fn apply_output_format_pass(
     result: &mut ExtractionResult,
@@ -356,13 +367,25 @@ fn apply_output_format_pass(
     use crate::core::config::extraction::ImageOutputFormat;
     use crate::core::image_encode::re_encode;
 
+    // When the svg feature is active we still need to run even in Native mode
+    // for the sanitize pass on SVG images.
+    #[cfg(not(feature = "svg"))]
     if matches!(config.output_format, ImageOutputFormat::Native) {
+        return;
+    }
+    #[cfg(feature = "svg")]
+    if matches!(config.output_format, ImageOutputFormat::Native) && !config.svg.sanitize {
         return;
     }
 
     let target = config.output_format;
     for image in result.images.iter_mut().flatten() {
-        match re_encode(image, target) {
+        match re_encode(
+            image,
+            target,
+            #[cfg(feature = "svg")]
+            &config.svg,
+        ) {
             Ok(_) => {}
             Err(warning) => {
                 result.processing_warnings.push(crate::types::ProcessingWarning {

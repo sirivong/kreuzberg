@@ -71,6 +71,17 @@ pub enum ImageOutputFormat {
         #[serde(default = "default_heif_quality")]
         quality: u8,
     },
+
+    /// Output pure-vector SVG. Lossless. Raster sources are not re-encoded
+    /// (a warning is emitted and the image bytes are left untouched).
+    ///
+    /// When the source is already SVG, the bytes are passed through the
+    /// `usvg` sanitizer (strips external hrefs, JS event handlers, and
+    /// `foreignObject` elements) when [`SvgOptions::sanitize`] is `true`.
+    ///
+    /// Requires the `svg` feature.
+    #[cfg(feature = "svg")]
+    Svg,
 }
 
 const fn default_jpeg_quality() -> u8 {
@@ -84,6 +95,37 @@ const fn default_webp_quality() -> u8 {
 #[cfg(feature = "heic")]
 const fn default_heif_quality() -> u8 {
     80
+}
+
+/// SVG-specific configuration for the image-encode pipeline.
+///
+/// Applies when the source image is SVG or when the output format is set to
+/// [`ImageOutputFormat::Svg`].  Available when the `svg` feature is active.
+///
+/// Used via [`ImageExtractionConfig::svg`].
+#[cfg(feature = "svg")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct SvgOptions {
+    /// Run SVG bytes through `usvg` sanitization (strips external `href` attributes,
+    /// JavaScript event handlers, and `foreignObject` elements) even when the
+    /// output format is `Native`.  Defaults to `true`.
+    pub sanitize: bool,
+
+    /// Target DPI when rasterizing SVG to a pixel-based format (PNG, JPEG, WebP,
+    /// HEIF).  The tree's viewBox is scaled by `render_dpi / 96.0` before the
+    /// pixel buffer is allocated.  Defaults to `96.0` (1× CSS pixel density).
+    pub render_dpi: f32,
+}
+
+#[cfg(feature = "svg")]
+impl Default for SvgOptions {
+    fn default() -> Self {
+        Self {
+            sanitize: true,
+            render_dpi: 96.0,
+        }
+    }
 }
 
 /// Batch item for byte array extraction.
@@ -211,6 +253,14 @@ pub struct ImageExtractionConfig {
     /// `ExtractedImage.format` reflects the source extractor's output.
     #[serde(default)]
     pub output_format: ImageOutputFormat,
+
+    /// SVG-specific knobs for the image-encode pipeline.
+    ///
+    /// Controls sanitization and rasterization DPI when the source or output
+    /// format is SVG.  Only available when the `svg` feature is active.
+    #[cfg(feature = "svg")]
+    #[serde(default)]
+    pub svg: SvgOptions,
 }
 
 /// Token reduction configuration.
@@ -258,6 +308,8 @@ impl Default for ImageExtractionConfig {
             ocr_text_only: false,
             append_ocr_text: false,
             output_format: ImageOutputFormat::Native,
+            #[cfg(feature = "svg")]
+            svg: SvgOptions::default(),
         }
     }
 }

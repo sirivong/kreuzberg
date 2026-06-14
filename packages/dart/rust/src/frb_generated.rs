@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -617709332;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -408494823;
 
 // Section: executor
 
@@ -5371,6 +5371,34 @@ fn wire__crate__create_supported_format_from_json_impl(
         },
     )
 }
+fn wire__crate__create_svg_options_from_json_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_svg_options_from_json",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
+            };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_json = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::create_svg_options_from_json(api_json)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__create_table_cell_from_json_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -7551,13 +7579,6 @@ const _: fn() = || {
         let _: Option<crate::HeadingContext> = ChunkMetadata.heading_context;
         let _: Vec<i64> = ChunkMetadata.image_indices;
     }
-    match None::<crate::ChunkSizing>.unwrap() {
-        crate::ChunkSizing::Characters => {}
-        crate::ChunkSizing::Tokenizer { model, cache_dir } => {
-            let _: String = model;
-            let _: String = cache_dir;
-        }
-    }
     {
         let ChunkingConfig = None::<crate::ChunkingConfig>.unwrap();
         let _: i64 = ChunkingConfig.max_characters;
@@ -8066,12 +8087,6 @@ const _: fn() = || {
         let _: Vec<crate::FormattedBlock> = Footnote.content;
     }
     match None::<crate::FormatMetadata>.unwrap() {
-        crate::FormatMetadata::Pdf { field0 } => {
-            let _: crate::PdfMetadata = field0;
-        }
-        crate::FormatMetadata::Docx { field0 } => {
-            let _: crate::DocxMetadata = field0;
-        }
         crate::FormatMetadata::Excel { field0 } => {
             let _: crate::ExcelMetadata = field0;
         }
@@ -8102,31 +8117,9 @@ const _: fn() = || {
         crate::FormatMetadata::Csv { field0 } => {
             let _: crate::CsvMetadata = field0;
         }
-        crate::FormatMetadata::Bibtex { field0 } => {
-            let _: crate::BibtexMetadata = field0;
-        }
-        crate::FormatMetadata::Citation { field0 } => {
-            let _: crate::CitationMetadata = field0;
-        }
-        crate::FormatMetadata::FictionBook { field0 } => {
-            let _: crate::FictionBookMetadata = field0;
-        }
-        crate::FormatMetadata::Dbf { field0 } => {
-            let _: crate::DbfMetadata = field0;
-        }
-        crate::FormatMetadata::Jats { field0 } => {
-            let _: crate::JatsMetadata = field0;
-        }
-        crate::FormatMetadata::Epub { field0 } => {
-            let _: crate::EpubMetadata = field0;
-        }
         crate::FormatMetadata::Pst { field0 } => {
             let _: crate::PstMetadata = field0;
         }
-        crate::FormatMetadata::Audio { field0 } => {
-            let _: crate::AudioMetadata = field0;
-        }
-        crate::FormatMetadata::Code => {}
     }
     {
         let FormattedBlock = None::<crate::FormattedBlock>.unwrap();
@@ -8241,9 +8234,6 @@ const _: fn() = || {
             let _: i64 = quality;
         }
         crate::ImageOutputFormat::Webp { quality } => {
-            let _: i64 = quality;
-        }
-        crate::ImageOutputFormat::Heif { quality } => {
             let _: i64 = quality;
         }
     }
@@ -9028,6 +9018,11 @@ const _: fn() = || {
         let SupportedFormat = None::<crate::SupportedFormat>.unwrap();
         let _: String = SupportedFormat.extension;
         let _: String = SupportedFormat.mime_type;
+    }
+    {
+        let SvgOptions = None::<crate::SvgOptions>.unwrap();
+        let _: bool = SvgOptions.sanitize;
+        let _: f64 = SvgOptions.render_dpi;
     }
     {
         let Table = None::<crate::Table>.unwrap();
@@ -10432,23 +10427,11 @@ impl SseDecode for crate::ChunkMetadata {
 impl SseDecode for crate::ChunkSizing {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut tag_ = <i32>::sse_decode(deserializer);
-        match tag_ {
-            0 => {
-                return crate::ChunkSizing::Characters;
-            }
-            1 => {
-                let mut var_model = <String>::sse_decode(deserializer);
-                let mut var_cacheDir = <String>::sse_decode(deserializer);
-                return crate::ChunkSizing::Tokenizer {
-                    model: var_model,
-                    cache_dir: var_cacheDir,
-                };
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::ChunkSizing::Characters,
+            _ => unreachable!("Invalid variant for ChunkSizing: {}", inner),
+        };
     }
 }
 
@@ -11708,87 +11691,48 @@ impl SseDecode for crate::FormatMetadata {
         let mut tag_ = <i32>::sse_decode(deserializer);
         match tag_ {
             0 => {
-                let mut var_field0 = <crate::PdfMetadata>::sse_decode(deserializer);
-                return crate::FormatMetadata::Pdf { field0: var_field0 };
-            }
-            1 => {
-                let mut var_field0 = <crate::DocxMetadata>::sse_decode(deserializer);
-                return crate::FormatMetadata::Docx { field0: var_field0 };
-            }
-            2 => {
                 let mut var_field0 = <crate::ExcelMetadata>::sse_decode(deserializer);
                 return crate::FormatMetadata::Excel { field0: var_field0 };
             }
-            3 => {
+            1 => {
                 let mut var_field0 = <crate::EmailMetadata>::sse_decode(deserializer);
                 return crate::FormatMetadata::Email { field0: var_field0 };
             }
-            4 => {
+            2 => {
                 let mut var_field0 = <crate::PptxMetadata>::sse_decode(deserializer);
                 return crate::FormatMetadata::Pptx { field0: var_field0 };
             }
-            5 => {
+            3 => {
                 let mut var_field0 = <crate::ArchiveMetadata>::sse_decode(deserializer);
                 return crate::FormatMetadata::Archive { field0: var_field0 };
             }
-            6 => {
+            4 => {
                 let mut var_field0 = <crate::ImageMetadata>::sse_decode(deserializer);
                 return crate::FormatMetadata::Image { field0: var_field0 };
             }
-            7 => {
+            5 => {
                 let mut var_field0 = <crate::XmlMetadata>::sse_decode(deserializer);
                 return crate::FormatMetadata::Xml { field0: var_field0 };
             }
-            8 => {
+            6 => {
                 let mut var_field0 = <crate::TextMetadata>::sse_decode(deserializer);
                 return crate::FormatMetadata::Text { field0: var_field0 };
             }
-            9 => {
+            7 => {
                 let mut var_field0 = <crate::HtmlMetadata>::sse_decode(deserializer);
                 return crate::FormatMetadata::Html { field0: var_field0 };
             }
-            10 => {
+            8 => {
                 let mut var_field0 = <crate::OcrMetadata>::sse_decode(deserializer);
                 return crate::FormatMetadata::Ocr { field0: var_field0 };
             }
-            11 => {
+            9 => {
                 let mut var_field0 = <crate::CsvMetadata>::sse_decode(deserializer);
                 return crate::FormatMetadata::Csv { field0: var_field0 };
             }
-            12 => {
-                let mut var_field0 = <crate::BibtexMetadata>::sse_decode(deserializer);
-                return crate::FormatMetadata::Bibtex { field0: var_field0 };
-            }
-            13 => {
-                let mut var_field0 = <crate::CitationMetadata>::sse_decode(deserializer);
-                return crate::FormatMetadata::Citation { field0: var_field0 };
-            }
-            14 => {
-                let mut var_field0 = <crate::FictionBookMetadata>::sse_decode(deserializer);
-                return crate::FormatMetadata::FictionBook { field0: var_field0 };
-            }
-            15 => {
-                let mut var_field0 = <crate::DbfMetadata>::sse_decode(deserializer);
-                return crate::FormatMetadata::Dbf { field0: var_field0 };
-            }
-            16 => {
-                let mut var_field0 = <crate::JatsMetadata>::sse_decode(deserializer);
-                return crate::FormatMetadata::Jats { field0: var_field0 };
-            }
-            17 => {
-                let mut var_field0 = <crate::EpubMetadata>::sse_decode(deserializer);
-                return crate::FormatMetadata::Epub { field0: var_field0 };
-            }
-            18 => {
+            10 => {
                 let mut var_field0 = <crate::PstMetadata>::sse_decode(deserializer);
                 return crate::FormatMetadata::Pst { field0: var_field0 };
-            }
-            19 => {
-                let mut var_field0 = <crate::AudioMetadata>::sse_decode(deserializer);
-                return crate::FormatMetadata::Audio { field0: var_field0 };
-            }
-            20 => {
-                return crate::FormatMetadata::Code;
             }
             _ => {
                 unimplemented!("");
@@ -12101,10 +12045,6 @@ impl SseDecode for crate::ImageOutputFormat {
                 let mut var_quality = <i64>::sse_decode(deserializer);
                 return crate::ImageOutputFormat::Webp { quality: var_quality };
             }
-            4 => {
-                let mut var_quality = <i64>::sse_decode(deserializer);
-                return crate::ImageOutputFormat::Heif { quality: var_quality };
-            }
             _ => {
                 unimplemented!("");
             }
@@ -12266,8 +12206,6 @@ impl SseDecode for crate::KeywordAlgorithm {
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut inner = <i32>::sse_decode(deserializer);
         return match inner {
-            0 => crate::KeywordAlgorithm::Yake,
-            1 => crate::KeywordAlgorithm::Rake,
             _ => unreachable!("Invalid variant for KeywordAlgorithm: {}", inner),
         };
     }
@@ -16016,6 +15954,18 @@ impl SseDecode for crate::SupportedFormat {
     }
 }
 
+impl SseDecode for crate::SvgOptions {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_sanitize = <bool>::sse_decode(deserializer);
+        let mut var_renderDpi = <f64>::sse_decode(deserializer);
+        return crate::SvgOptions {
+            sanitize: var_sanitize,
+            render_dpi: var_renderDpi,
+        };
+    }
+}
+
 impl SseDecode for crate::Table {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -16675,77 +16625,78 @@ fn pde_ffi_dispatcher_primary_impl(
         178 => wire__crate__create_structured_extraction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
         179 => wire__crate__create_summarization_config_from_json_impl(port, ptr, rust_vec_len, data_len),
         180 => wire__crate__create_supported_format_from_json_impl(port, ptr, rust_vec_len, data_len),
-        181 => wire__crate__create_table_cell_from_json_impl(port, ptr, rust_vec_len, data_len),
-        182 => wire__crate__create_table_diff_from_json_impl(port, ptr, rust_vec_len, data_len),
-        183 => wire__crate__create_table_from_json_impl(port, ptr, rust_vec_len, data_len),
-        184 => wire__crate__create_table_grid_from_json_impl(port, ptr, rust_vec_len, data_len),
-        185 => wire__crate__create_tesseract_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        186 => wire__crate__create_text_annotation_from_json_impl(port, ptr, rust_vec_len, data_len),
-        187 => wire__crate__create_text_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
-        188 => wire__crate__create_text_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        189 => wire__crate__create_token_reduction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        190 => wire__crate__create_token_reduction_options_from_json_impl(port, ptr, rust_vec_len, data_len),
-        191 => wire__crate__create_transcription_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        192 => wire__crate__create_translation_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        193 => wire__crate__create_translation_from_json_impl(port, ptr, rust_vec_len, data_len),
-        194 => wire__crate__create_tree_sitter_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        195 => wire__crate__create_tree_sitter_process_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        196 => wire__crate__create_validator_dart_impl_impl(port, ptr, rust_vec_len, data_len),
-        197 => wire__crate__create_xlsx_app_properties_from_json_impl(port, ptr, rust_vec_len, data_len),
-        198 => wire__crate__create_xml_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
-        199 => wire__crate__create_xml_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        200 => wire__crate__create_yake_params_from_json_impl(port, ptr, rust_vec_len, data_len),
-        201 => wire__crate__create_year_range_from_json_impl(port, ptr, rust_vec_len, data_len),
-        202 => wire__crate__default_model_name_impl(port, ptr, rust_vec_len, data_len),
-        203 => wire__crate__detect_mime_type_impl(port, ptr, rust_vec_len, data_len),
-        204 => wire__crate__detect_mime_type_from_bytes_impl(port, ptr, rust_vec_len, data_len),
-        205 => wire__crate__detect_qr_codes_impl(port, ptr, rust_vec_len, data_len),
-        206 => wire__crate__download_model_impl(port, ptr, rust_vec_len, data_len),
-        207 => wire__crate__embed_texts_async_impl(port, ptr, rust_vec_len, data_len),
-        208 => wire__crate__extract_bytes_impl(port, ptr, rust_vec_len, data_len),
-        209 => wire__crate__extract_bytes_sync_impl(port, ptr, rust_vec_len, data_len),
-        210 => wire__crate__extract_file_impl(port, ptr, rust_vec_len, data_len),
-        211 => wire__crate__extract_file_sync_impl(port, ptr, rust_vec_len, data_len),
-        212 => wire__crate__extract_keywords_impl(port, ptr, rust_vec_len, data_len),
-        213 => wire__crate__extract_region_with_vlm_impl(port, ptr, rust_vec_len, data_len),
-        214 => wire__crate__find_all_impl(port, ptr, rust_vec_len, data_len),
-        215 => wire__crate__get_embedding_preset_impl(port, ptr, rust_vec_len, data_len),
-        216 => wire__crate__get_extensions_for_mime_impl(port, ptr, rust_vec_len, data_len),
-        217 => wire__crate__get_reranker_preset_impl(port, ptr, rust_vec_len, data_len),
-        218 => wire__crate__known_models_impl(port, ptr, rust_vec_len, data_len),
-        219 => wire__crate__list_document_extractors_impl(port, ptr, rust_vec_len, data_len),
-        220 => wire__crate__list_embedding_backends_impl(port, ptr, rust_vec_len, data_len),
-        221 => wire__crate__list_embedding_presets_impl(port, ptr, rust_vec_len, data_len),
-        222 => wire__crate__list_ocr_backends_impl(port, ptr, rust_vec_len, data_len),
-        223 => wire__crate__list_post_processors_impl(port, ptr, rust_vec_len, data_len),
-        224 => wire__crate__list_renderers_impl(port, ptr, rust_vec_len, data_len),
-        225 => wire__crate__list_reranker_backends_impl(port, ptr, rust_vec_len, data_len),
-        226 => wire__crate__list_reranker_presets_impl(port, ptr, rust_vec_len, data_len),
-        227 => wire__crate__list_supported_formats_impl(port, ptr, rust_vec_len, data_len),
-        228 => wire__crate__list_validators_impl(port, ptr, rust_vec_len, data_len),
-        229 => wire__crate__redact_impl(port, ptr, rust_vec_len, data_len),
-        230 => wire__crate__register_builtin_impl(port, ptr, rust_vec_len, data_len),
-        231 => wire__crate__register_document_extractor_impl(port, ptr, rust_vec_len, data_len),
-        232 => wire__crate__register_embedding_backend_impl(port, ptr, rust_vec_len, data_len),
-        233 => wire__crate__register_ocr_backend_impl(port, ptr, rust_vec_len, data_len),
-        234 => wire__crate__register_post_processor_impl(port, ptr, rust_vec_len, data_len),
-        235 => wire__crate__register_renderer_impl(port, ptr, rust_vec_len, data_len),
-        236 => wire__crate__register_reranker_backend_impl(port, ptr, rust_vec_len, data_len),
-        237 => wire__crate__register_validator_impl(port, ptr, rust_vec_len, data_len),
-        238 => wire__crate__render_pdf_page_to_png_impl(port, ptr, rust_vec_len, data_len),
-        239 => wire__crate__rerank_impl(port, ptr, rust_vec_len, data_len),
-        240 => wire__crate__rerank_async_impl(port, ptr, rust_vec_len, data_len),
-        241 => wire__crate__scan_text_impl(port, ptr, rust_vec_len, data_len),
-        242 => wire__crate__summarize_impl(port, ptr, rust_vec_len, data_len),
-        243 => wire__crate__token_count_impl(port, ptr, rust_vec_len, data_len),
-        244 => wire__crate__translate_result_impl(port, ptr, rust_vec_len, data_len),
-        245 => wire__crate__unregister_document_extractor_impl(port, ptr, rust_vec_len, data_len),
-        246 => wire__crate__unregister_embedding_backend_impl(port, ptr, rust_vec_len, data_len),
-        247 => wire__crate__unregister_ocr_backend_impl(port, ptr, rust_vec_len, data_len),
-        248 => wire__crate__unregister_post_processor_impl(port, ptr, rust_vec_len, data_len),
-        249 => wire__crate__unregister_renderer_impl(port, ptr, rust_vec_len, data_len),
-        250 => wire__crate__unregister_reranker_backend_impl(port, ptr, rust_vec_len, data_len),
-        251 => wire__crate__unregister_validator_impl(port, ptr, rust_vec_len, data_len),
+        181 => wire__crate__create_svg_options_from_json_impl(port, ptr, rust_vec_len, data_len),
+        182 => wire__crate__create_table_cell_from_json_impl(port, ptr, rust_vec_len, data_len),
+        183 => wire__crate__create_table_diff_from_json_impl(port, ptr, rust_vec_len, data_len),
+        184 => wire__crate__create_table_from_json_impl(port, ptr, rust_vec_len, data_len),
+        185 => wire__crate__create_table_grid_from_json_impl(port, ptr, rust_vec_len, data_len),
+        186 => wire__crate__create_tesseract_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        187 => wire__crate__create_text_annotation_from_json_impl(port, ptr, rust_vec_len, data_len),
+        188 => wire__crate__create_text_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
+        189 => wire__crate__create_text_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        190 => wire__crate__create_token_reduction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        191 => wire__crate__create_token_reduction_options_from_json_impl(port, ptr, rust_vec_len, data_len),
+        192 => wire__crate__create_transcription_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        193 => wire__crate__create_translation_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        194 => wire__crate__create_translation_from_json_impl(port, ptr, rust_vec_len, data_len),
+        195 => wire__crate__create_tree_sitter_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        196 => wire__crate__create_tree_sitter_process_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        197 => wire__crate__create_validator_dart_impl_impl(port, ptr, rust_vec_len, data_len),
+        198 => wire__crate__create_xlsx_app_properties_from_json_impl(port, ptr, rust_vec_len, data_len),
+        199 => wire__crate__create_xml_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
+        200 => wire__crate__create_xml_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        201 => wire__crate__create_yake_params_from_json_impl(port, ptr, rust_vec_len, data_len),
+        202 => wire__crate__create_year_range_from_json_impl(port, ptr, rust_vec_len, data_len),
+        203 => wire__crate__default_model_name_impl(port, ptr, rust_vec_len, data_len),
+        204 => wire__crate__detect_mime_type_impl(port, ptr, rust_vec_len, data_len),
+        205 => wire__crate__detect_mime_type_from_bytes_impl(port, ptr, rust_vec_len, data_len),
+        206 => wire__crate__detect_qr_codes_impl(port, ptr, rust_vec_len, data_len),
+        207 => wire__crate__download_model_impl(port, ptr, rust_vec_len, data_len),
+        208 => wire__crate__embed_texts_async_impl(port, ptr, rust_vec_len, data_len),
+        209 => wire__crate__extract_bytes_impl(port, ptr, rust_vec_len, data_len),
+        210 => wire__crate__extract_bytes_sync_impl(port, ptr, rust_vec_len, data_len),
+        211 => wire__crate__extract_file_impl(port, ptr, rust_vec_len, data_len),
+        212 => wire__crate__extract_file_sync_impl(port, ptr, rust_vec_len, data_len),
+        213 => wire__crate__extract_keywords_impl(port, ptr, rust_vec_len, data_len),
+        214 => wire__crate__extract_region_with_vlm_impl(port, ptr, rust_vec_len, data_len),
+        215 => wire__crate__find_all_impl(port, ptr, rust_vec_len, data_len),
+        216 => wire__crate__get_embedding_preset_impl(port, ptr, rust_vec_len, data_len),
+        217 => wire__crate__get_extensions_for_mime_impl(port, ptr, rust_vec_len, data_len),
+        218 => wire__crate__get_reranker_preset_impl(port, ptr, rust_vec_len, data_len),
+        219 => wire__crate__known_models_impl(port, ptr, rust_vec_len, data_len),
+        220 => wire__crate__list_document_extractors_impl(port, ptr, rust_vec_len, data_len),
+        221 => wire__crate__list_embedding_backends_impl(port, ptr, rust_vec_len, data_len),
+        222 => wire__crate__list_embedding_presets_impl(port, ptr, rust_vec_len, data_len),
+        223 => wire__crate__list_ocr_backends_impl(port, ptr, rust_vec_len, data_len),
+        224 => wire__crate__list_post_processors_impl(port, ptr, rust_vec_len, data_len),
+        225 => wire__crate__list_renderers_impl(port, ptr, rust_vec_len, data_len),
+        226 => wire__crate__list_reranker_backends_impl(port, ptr, rust_vec_len, data_len),
+        227 => wire__crate__list_reranker_presets_impl(port, ptr, rust_vec_len, data_len),
+        228 => wire__crate__list_supported_formats_impl(port, ptr, rust_vec_len, data_len),
+        229 => wire__crate__list_validators_impl(port, ptr, rust_vec_len, data_len),
+        230 => wire__crate__redact_impl(port, ptr, rust_vec_len, data_len),
+        231 => wire__crate__register_builtin_impl(port, ptr, rust_vec_len, data_len),
+        232 => wire__crate__register_document_extractor_impl(port, ptr, rust_vec_len, data_len),
+        233 => wire__crate__register_embedding_backend_impl(port, ptr, rust_vec_len, data_len),
+        234 => wire__crate__register_ocr_backend_impl(port, ptr, rust_vec_len, data_len),
+        235 => wire__crate__register_post_processor_impl(port, ptr, rust_vec_len, data_len),
+        236 => wire__crate__register_renderer_impl(port, ptr, rust_vec_len, data_len),
+        237 => wire__crate__register_reranker_backend_impl(port, ptr, rust_vec_len, data_len),
+        238 => wire__crate__register_validator_impl(port, ptr, rust_vec_len, data_len),
+        239 => wire__crate__render_pdf_page_to_png_impl(port, ptr, rust_vec_len, data_len),
+        240 => wire__crate__rerank_impl(port, ptr, rust_vec_len, data_len),
+        241 => wire__crate__rerank_async_impl(port, ptr, rust_vec_len, data_len),
+        242 => wire__crate__scan_text_impl(port, ptr, rust_vec_len, data_len),
+        243 => wire__crate__summarize_impl(port, ptr, rust_vec_len, data_len),
+        244 => wire__crate__token_count_impl(port, ptr, rust_vec_len, data_len),
+        245 => wire__crate__translate_result_impl(port, ptr, rust_vec_len, data_len),
+        246 => wire__crate__unregister_document_extractor_impl(port, ptr, rust_vec_len, data_len),
+        247 => wire__crate__unregister_embedding_backend_impl(port, ptr, rust_vec_len, data_len),
+        248 => wire__crate__unregister_ocr_backend_impl(port, ptr, rust_vec_len, data_len),
+        249 => wire__crate__unregister_post_processor_impl(port, ptr, rust_vec_len, data_len),
+        250 => wire__crate__unregister_renderer_impl(port, ptr, rust_vec_len, data_len),
+        251 => wire__crate__unregister_reranker_backend_impl(port, ptr, rust_vec_len, data_len),
+        252 => wire__crate__unregister_validator_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -17354,16 +17305,8 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::ChunkMetadata>> for cra
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::ChunkSizing> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self.0 {
-            crate::ChunkSizing::Characters => [0.into_dart()].into_dart(),
-            crate::ChunkSizing::Tokenizer { model, cache_dir } => [
-                1.into_dart(),
-                model.into_into_dart().into_dart(),
-                cache_dir.into_into_dart().into_dart(),
-            ]
-            .into_dart(),
-            _ => {
-                unimplemented!("");
-            }
+            crate::ChunkSizing::Characters => 0.into_dart(),
+            _ => unreachable!(),
         }
     }
 }
@@ -18586,37 +18529,19 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::Footnote>> for crate::F
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::FormatMetadata> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self.0 {
-            crate::FormatMetadata::Pdf { field0 } => [0.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::FormatMetadata::Docx { field0 } => [1.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::FormatMetadata::Excel { field0 } => [2.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::FormatMetadata::Email { field0 } => [3.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::FormatMetadata::Pptx { field0 } => [4.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            crate::FormatMetadata::Excel { field0 } => [0.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            crate::FormatMetadata::Email { field0 } => [1.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            crate::FormatMetadata::Pptx { field0 } => [2.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
             crate::FormatMetadata::Archive { field0 } => {
-                [5.into_dart(), field0.into_into_dart().into_dart()].into_dart()
+                [3.into_dart(), field0.into_into_dart().into_dart()].into_dart()
             }
-            crate::FormatMetadata::Image { field0 } => [6.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::FormatMetadata::Xml { field0 } => [7.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::FormatMetadata::Text { field0 } => [8.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::FormatMetadata::Html { field0 } => [9.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::FormatMetadata::Ocr { field0 } => [10.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::FormatMetadata::Csv { field0 } => [11.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::FormatMetadata::Bibtex { field0 } => {
-                [12.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::FormatMetadata::Citation { field0 } => {
-                [13.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::FormatMetadata::FictionBook { field0 } => {
-                [14.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::FormatMetadata::Dbf { field0 } => [15.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::FormatMetadata::Jats { field0 } => [16.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::FormatMetadata::Epub { field0 } => [17.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::FormatMetadata::Pst { field0 } => [18.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
-            crate::FormatMetadata::Audio { field0 } => {
-                [19.into_dart(), field0.into_into_dart().into_dart()].into_dart()
-            }
-            crate::FormatMetadata::Code => [20.into_dart()].into_dart(),
+            crate::FormatMetadata::Image { field0 } => [4.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            crate::FormatMetadata::Xml { field0 } => [5.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            crate::FormatMetadata::Text { field0 } => [6.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            crate::FormatMetadata::Html { field0 } => [7.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            crate::FormatMetadata::Ocr { field0 } => [8.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            crate::FormatMetadata::Csv { field0 } => [9.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
+            crate::FormatMetadata::Pst { field0 } => [10.into_dart(), field0.into_into_dart().into_dart()].into_dart(),
             _ => {
                 unimplemented!("");
             }
@@ -18921,9 +18846,6 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::ImageOutputFormat> {
             crate::ImageOutputFormat::Webp { quality } => {
                 [3.into_dart(), quality.into_into_dart().into_dart()].into_dart()
             }
-            crate::ImageOutputFormat::Heif { quality } => {
-                [4.into_dart(), quality.into_into_dart().into_dart()].into_dart()
-            }
             _ => {
                 unimplemented!("");
             }
@@ -19101,8 +19023,6 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::Keyword>> for crate::Ke
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::KeywordAlgorithm> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self.0 {
-            crate::KeywordAlgorithm::Yake => 0.into_dart(),
-            crate::KeywordAlgorithm::Rake => 1.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -21018,6 +20938,22 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::SupportedFormat>> for c
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::SvgOptions> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.sanitize.into_into_dart().into_dart(),
+            self.0.render_dpi.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::SvgOptions> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::SvgOptions>> for crate::SvgOptions {
+    fn into_into_dart(self) -> FrbWrapper<crate::SvgOptions> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::Table> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -22089,19 +22025,15 @@ impl SseEncode for crate::ChunkMetadata {
 impl SseEncode for crate::ChunkSizing {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        match self {
-            crate::ChunkSizing::Characters => {
-                <i32>::sse_encode(0, serializer);
-            }
-            crate::ChunkSizing::Tokenizer { model, cache_dir } => {
-                <i32>::sse_encode(1, serializer);
-                <String>::sse_encode(model, serializer);
-                <String>::sse_encode(cache_dir, serializer);
-            }
-            _ => {
-                unimplemented!("");
-            }
-        }
+        <i32>::sse_encode(
+            match self {
+                crate::ChunkSizing::Characters => 0,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -22963,88 +22895,49 @@ impl SseEncode for crate::FormatMetadata {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         match self {
-            crate::FormatMetadata::Pdf { field0 } => {
-                <i32>::sse_encode(0, serializer);
-                <crate::PdfMetadata>::sse_encode(field0, serializer);
-            }
-            crate::FormatMetadata::Docx { field0 } => {
-                <i32>::sse_encode(1, serializer);
-                <crate::DocxMetadata>::sse_encode(field0, serializer);
-            }
             crate::FormatMetadata::Excel { field0 } => {
-                <i32>::sse_encode(2, serializer);
+                <i32>::sse_encode(0, serializer);
                 <crate::ExcelMetadata>::sse_encode(field0, serializer);
             }
             crate::FormatMetadata::Email { field0 } => {
-                <i32>::sse_encode(3, serializer);
+                <i32>::sse_encode(1, serializer);
                 <crate::EmailMetadata>::sse_encode(field0, serializer);
             }
             crate::FormatMetadata::Pptx { field0 } => {
-                <i32>::sse_encode(4, serializer);
+                <i32>::sse_encode(2, serializer);
                 <crate::PptxMetadata>::sse_encode(field0, serializer);
             }
             crate::FormatMetadata::Archive { field0 } => {
-                <i32>::sse_encode(5, serializer);
+                <i32>::sse_encode(3, serializer);
                 <crate::ArchiveMetadata>::sse_encode(field0, serializer);
             }
             crate::FormatMetadata::Image { field0 } => {
-                <i32>::sse_encode(6, serializer);
+                <i32>::sse_encode(4, serializer);
                 <crate::ImageMetadata>::sse_encode(field0, serializer);
             }
             crate::FormatMetadata::Xml { field0 } => {
-                <i32>::sse_encode(7, serializer);
+                <i32>::sse_encode(5, serializer);
                 <crate::XmlMetadata>::sse_encode(field0, serializer);
             }
             crate::FormatMetadata::Text { field0 } => {
-                <i32>::sse_encode(8, serializer);
+                <i32>::sse_encode(6, serializer);
                 <crate::TextMetadata>::sse_encode(field0, serializer);
             }
             crate::FormatMetadata::Html { field0 } => {
-                <i32>::sse_encode(9, serializer);
+                <i32>::sse_encode(7, serializer);
                 <crate::HtmlMetadata>::sse_encode(field0, serializer);
             }
             crate::FormatMetadata::Ocr { field0 } => {
-                <i32>::sse_encode(10, serializer);
+                <i32>::sse_encode(8, serializer);
                 <crate::OcrMetadata>::sse_encode(field0, serializer);
             }
             crate::FormatMetadata::Csv { field0 } => {
-                <i32>::sse_encode(11, serializer);
+                <i32>::sse_encode(9, serializer);
                 <crate::CsvMetadata>::sse_encode(field0, serializer);
             }
-            crate::FormatMetadata::Bibtex { field0 } => {
-                <i32>::sse_encode(12, serializer);
-                <crate::BibtexMetadata>::sse_encode(field0, serializer);
-            }
-            crate::FormatMetadata::Citation { field0 } => {
-                <i32>::sse_encode(13, serializer);
-                <crate::CitationMetadata>::sse_encode(field0, serializer);
-            }
-            crate::FormatMetadata::FictionBook { field0 } => {
-                <i32>::sse_encode(14, serializer);
-                <crate::FictionBookMetadata>::sse_encode(field0, serializer);
-            }
-            crate::FormatMetadata::Dbf { field0 } => {
-                <i32>::sse_encode(15, serializer);
-                <crate::DbfMetadata>::sse_encode(field0, serializer);
-            }
-            crate::FormatMetadata::Jats { field0 } => {
-                <i32>::sse_encode(16, serializer);
-                <crate::JatsMetadata>::sse_encode(field0, serializer);
-            }
-            crate::FormatMetadata::Epub { field0 } => {
-                <i32>::sse_encode(17, serializer);
-                <crate::EpubMetadata>::sse_encode(field0, serializer);
-            }
             crate::FormatMetadata::Pst { field0 } => {
-                <i32>::sse_encode(18, serializer);
+                <i32>::sse_encode(10, serializer);
                 <crate::PstMetadata>::sse_encode(field0, serializer);
-            }
-            crate::FormatMetadata::Audio { field0 } => {
-                <i32>::sse_encode(19, serializer);
-                <crate::AudioMetadata>::sse_encode(field0, serializer);
-            }
-            crate::FormatMetadata::Code => {
-                <i32>::sse_encode(20, serializer);
             }
             _ => {
                 unimplemented!("");
@@ -23272,10 +23165,6 @@ impl SseEncode for crate::ImageOutputFormat {
                 <i32>::sse_encode(3, serializer);
                 <i64>::sse_encode(quality, serializer);
             }
-            crate::ImageOutputFormat::Heif { quality } => {
-                <i32>::sse_encode(4, serializer);
-                <i64>::sse_encode(quality, serializer);
-            }
             _ => {
                 unimplemented!("");
             }
@@ -23407,8 +23296,6 @@ impl SseEncode for crate::KeywordAlgorithm {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <i32>::sse_encode(
             match self {
-                crate::KeywordAlgorithm::Yake => 0,
-                crate::KeywordAlgorithm::Rake => 1,
                 _ => {
                     unimplemented!("");
                 }
@@ -26496,6 +26383,14 @@ impl SseEncode for crate::SupportedFormat {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.extension, serializer);
         <String>::sse_encode(self.mime_type, serializer);
+    }
+}
+
+impl SseEncode for crate::SvgOptions {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.sanitize, serializer);
+        <f64>::sse_encode(self.render_dpi, serializer);
     }
 }
 

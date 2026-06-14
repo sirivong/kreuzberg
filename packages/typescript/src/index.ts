@@ -259,6 +259,7 @@ export type {
   StructuredExtractionConfig,
   SummarizationConfig,
   SupportedFormat,
+  SvgOptions,
   Table,
   TableCell,
   TableDiff,

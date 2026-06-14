@@ -2,7 +2,7 @@
 title: "Zig API Reference"
 ---
 
-## Zig API Reference <span class="version-badge">v5.0.0-rc.12</span>
+## Zig API Reference <span class="version-badge">v5.0.0-rc.13</span>
 
 ### Functions
 
@@ -5059,6 +5059,32 @@ Represents a file extension and its corresponding MIME type that Kreuzberg can p
 
 ---
 
+#### SvgOptions
+
+SVG-specific configuration for the image-encode pipeline.
+
+Applies when the source image is SVG or when the output format is set to
+`ImageOutputFormat.Svg`.  Available when the `svg` feature is active.
+
+Used via `ImageExtractionConfig.svg`.
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `sanitize` | `bool` | `true` | Run SVG bytes through `usvg` sanitization (strips external `href` attributes, JavaScript event handlers, and `foreignObject` elements) even when the output format is `Native`.  Defaults to `true`. |
+| `renderDpi` | `f32` | `96` | Target DPI when rasterizing SVG to a pixel-based format (PNG, JPEG, WebP, HEIF).  The tree's viewBox is scaled by `render_dpi / 96.0` before the pixel buffer is allocated.  Defaults to `96.0` (1× CSS pixel density). |
+
+### Methods
+
+#### default()
+
+**Signature:**
+
+```zig
+pub fn default() SvgOptions
+```
+
+---
+
 #### Table
 
 Extracted table structure.
@@ -5709,6 +5735,7 @@ Uses a tagged enum: `{"type": "native"}`, `{"type": "png"}`,
 | `Jpeg` | Re-encode all extracted images as JPEG at the given quality level. `quality` must be in `1..=100`. Values outside this range are clamped and a warning is emitted. Higher values produce larger files with less artefacting; 85 is a reasonable default. — Fields: `quality`: `u8` |
 | `Webp` | Re-encode all extracted images as WebP at the given quality level. `quality` must be in `1..=100`. Values outside this range are clamped and a warning is emitted. 80 is a reasonable default. — Fields: `quality`: `u8` |
 | `Heif` | Re-encode all extracted images as HEIF/HEIC at the given quality level. Requires the `heic` feature. `quality` must be in `1..=100`. Values outside this range are clamped and a warning is emitted. 80 is a reasonable default. — Fields: `quality`: `u8` |
+| `Svg` | Output pure-vector SVG. Lossless. Raster sources are not re-encoded (a warning is emitted and the image bytes are left untouched). When the source is already SVG, the bytes are passed through the `usvg` sanitizer (strips external hrefs, JS event handlers, and `foreignObject` elements) when `SvgOptions.sanitize` is `true`. Requires the `svg` feature. |
 
 ---
 

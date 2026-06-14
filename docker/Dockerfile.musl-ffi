@@ -52,7 +52,8 @@ COPY crates/kreuzberg-libheif/ crates/kreuzberg-libheif/
 RUN sed -i '/kreuzberg-py/d; /kreuzberg_rb/d; /kreuzberg-node/d; /kreuzberg-cli/d; /kreuzberg-jni/d; /kreuzberg-php/d; /kreuzberg_rustler/d; /kreuzberg_nif/d; /packages\/dart\/rust/d; /packages\/swift\/rust/d; /"crates\/kreuzberg-wasm"/d; /^\[profile\.release\.package\.kreuzberg-wasm\]$/,$d; /benchmark-harness/d; /e2e-generator/d; /snippet-runner/d; /e2e\/rust/d' Cargo.toml
 
 # Build the FFI shared library
-RUN cargo build --locked --release --package kreuzberg-ffi && \
+# See Dockerfile.musl-build for --offline rationale (sed mutates manifest).
+RUN cargo build --offline --release --package kreuzberg-ffi && \
     cp target/release/libkreuzberg_ffi.so /build/libkreuzberg_ffi.so && \
     strip /build/libkreuzberg_ffi.so
 

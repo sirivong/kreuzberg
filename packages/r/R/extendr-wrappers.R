@@ -857,6 +857,31 @@ FileExtractionConfig$from_json <- function(json) {
 }
 #' @export
 `[[.FileExtractionConfig` <- `$.FileExtractionConfig`
+#' SVG-specific configuration for the image-encode pipeline
+#'
+#' Applies when the source image is SVG or when the output format is set to
+#' [`ImageOutputFormat::Svg`].  Available when the `svg` feature is active.
+#'
+#' Used via [`ImageExtractionConfig::svg`].
+#' @field sanitize Run SVG bytes through `usvg` sanitization (strips external `href` attributes, JavaScript event
+#' @field render_dpi Target DPI when rasterizing SVG to a pixel-based format (PNG, JPEG, WebP, HEIF).  The tree's
+#' @export
+SvgOptions <- new.env(parent = emptyenv())
+SvgOptions$default <- function() .Call("wrap__SvgOptions__default", PACKAGE = "kreuzberg")
+SvgOptions$from_json <- function(json) {
+  .Call("wrap__SvgOptions__from_json", json, PACKAGE = "kreuzberg")
+}
+#' @export
+`$.SvgOptions` <- function(self, name) {
+  func <- SvgOptions[[name]]
+  if (identical(names(formals(func))[1], "self")) {
+    function(...) func(self, ...)
+  } else {
+    func
+  }
+}
+#' @export
+`[[.SvgOptions` <- `$.SvgOptions`
 #' Batch item for byte array extraction
 #'
 #' Used with `batch_extract_bytes` and `batch_extract_bytes_sync`
@@ -3691,6 +3716,7 @@ PdfMetadata$from_json <- function(json) {
 #' @field Jpeg Re-encode all extracted images as JPEG at the given quality level.
 #' @field Webp Re-encode all extracted images as WebP at the given quality level.
 #' @field Heif Re-encode all extracted images as HEIF/HEIC at the given quality level.
+#' @field Svg Output pure-vector SVG. Lossless. Raster sources are not re-encoded (a warning is emitted and the image
 #' @export
 ImageOutputFormat <- new.env(parent = emptyenv())
 #' @export

@@ -7,11 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [5.0.0-rc.13] - 2026-06-14
 
 ### Added
 
-- **Image output format normalisation via `ImageExtractionConfig.output_format`.** New opt-in pass that re-encodes extracted images to a single output format after OCR but before post-processors, so OCR backends see source bytes (correct probing) while captioning and QR detection consume normalized bytes (correct MIME). Variants: `Native` (default, no behaviour change), `Png`, `Jpeg { quality }` (default 85), `WebP { quality }` (default 80, lossless-only; quality value accepted for forward-compatibility), `Heif { quality }` (default 80, requires `heic` feature). Source formats the `image` crate cannot decode (`svg`, `emf`, `wmf`, `jp2`/`jpeg2000`) are skipped with `ProcessingWarning { source: "image_encoder" }` and source bytes are preserved. Gated by new `image-encode` Cargo feature pulled in automatically by `pdf`, `ocr-pipeline`, `heic`, and `paddle-ocr`.
+- **SVG support (v5+)**: New `svg` Cargo feature enables SVG input and output via resvg/usvg library.
+  - `ImageOutputFormat::Svg` variant (wire tag: `"svg"`). Gated by `svg` feature; included in `no-ort-target` and `formats` aggregates (ships in WASM, Android, `full`).
+  - `SvgOptions` struct with two fields: `sanitize: bool` (default `true`) and `render_dpi: f32` (default `96.0`, clamped `1.0`–`600.0`). Available via `ImageExtractionConfig.svg` when `svg` feature is active.
+  - SVG → PNG/JPEG/WebP/HEIF rasterization: parses source via `usvg::Tree`, renders to pixmap with `resvg::render`, encodes to target format.
+  - SVG → SVG: re-parses via usvg and re-serializes. When `sanitize = true` (default), strips `<script>` elements, external `xlink:href` / `href` attributes, `<foreignObject>` containers, and JavaScript event handlers. This is a lossy normalization.
+  - Raster → SVG: returns `EncodeWarning::UnsupportedDirection` (new variant) instead of attempting vectorization; image bytes are left untouched.
+  - Security caps: SVG input capped at `10 MB` (`SVG_MAX_INPUT_BYTES`); rasterized output capped at `16384² pixels` (`SVG_MAX_PIXELS`, ~1 GB peak allocation); `render_dpi` clamped to `[1.0, 600.0]` before pixmap allocation. Exceeding any cap returns `EncodeWarning::DecodeFailed` or `EncodeFailed` with a clear message. usvg's `image_href_resolver` is set to a no-op to prevent SSRF or filesystem access via embedded `<image href="...">` elements.
+  - Sync pipeline path (`run_pipeline_sync`) now applies the image output format pass, enabling SVG sanitization and rasterization in WASM and sync-only contexts (previously only the async path did).
+
+- **Image output format normalisation via `ImageExtractionConfig.output_format`.** New opt-in pass that re-encodes extracted images to a single output format after OCR but before post-processors, so OCR backends see source bytes (correct probing) while captioning and QR detection consume normalized bytes (correct MIME). Variants: `Native` (default, no behaviour change), `Png`, `Jpeg { quality }` (default 85), `Webp { quality }` (default 80, lossless-only; quality value accepted for forward-compatibility), `Heif { quality }` (default 80, requires `heic` feature), `Svg` (v5+, requires `svg` feature). Source formats the `image` crate cannot decode (`emf`, `wmf`, `jp2`/`jpeg2000`) are skipped with `ProcessingWarning { source: "image_encoder" }` and source bytes are preserved (SVG is now decodable when `svg` feature is active). Gated by new `image-encode` Cargo feature pulled in automatically by `pdf`, `ocr-pipeline`, `heic`, and `paddle-ocr`.
 
 ### Notes
 

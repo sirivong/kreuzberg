@@ -506,7 +506,7 @@ checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 
 [[package]]
 name = "benchmark-harness"
-version = "5.0.0-rc.12"
+version = "5.0.0-rc.13"
 dependencies = [
  "ahash",
  "anyhow",
@@ -1744,6 +1744,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a4ae5f15dda3c708c0ade84bfee31ccab44a3da4f88015ed22f63732abe300c8"
 
 [[package]]
+name = "data-url"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
+
+[[package]]
 name = "dbase"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2301,6 +2307,12 @@ dependencies = [
  "miniz_oxide",
  "zlib-rs",
 ]
+
+[[package]]
+name = "float-cmp"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "98de4bbd547a563b716d8dfa9aad1cb19bfab00f4fa09a6a4ed21dbcf44ce9c4"
 
 [[package]]
 name = "fluent-uri"
@@ -3344,6 +3356,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "imagesize"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "09e54e57b4c48b40f7aec75635392b12b3421fa26fe8b4332e63138ed278459c"
+
+[[package]]
 name = "imgref"
 version = "1.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3719,7 +3737,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg"
-version = "5.0.0-rc.12"
+version = "5.0.0-rc.13"
 dependencies = [
  "ahash",
  "anyhow",
@@ -3797,6 +3815,7 @@ dependencies = [
  "rake",
  "rayon",
  "regex",
+ "resvg",
  "rmcp",
  "rmp-serde",
  "roxmltree 0.21.1",
@@ -3841,7 +3860,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-cli"
-version = "5.0.0-rc.12"
+version = "5.0.0-rc.13"
 dependencies = [
  "anstyle",
  "anyhow",
@@ -3863,7 +3882,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-dart"
-version = "5.0.0-rc.12"
+version = "5.0.0-rc.13"
 dependencies = [
  "async-trait",
  "flutter_rust_bridge",
@@ -3875,7 +3894,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-ffi"
-version = "5.0.0-rc.12"
+version = "5.0.0-rc.13"
 dependencies = [
  "ahash",
  "async-trait",
@@ -3906,7 +3925,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-jni"
-version = "5.0.0-rc.12"
+version = "5.0.0-rc.13"
 dependencies = [
  "base64 0.22.1",
  "futures-util",
@@ -3918,7 +3937,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-libheif"
-version = "5.0.0-rc.12"
+version = "5.0.0-rc.13"
 dependencies = [
  "cfg-if",
  "enumn",
@@ -3930,7 +3949,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-node"
-version = "5.0.0-rc.12"
+version = "5.0.0-rc.13"
 dependencies = [
  "async-trait",
  "kreuzberg",
@@ -3956,7 +3975,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-paddle-ocr"
-version = "5.0.0-rc.12"
+version = "5.0.0-rc.13"
 dependencies = [
  "geo-clipper",
  "geo-types",
@@ -3970,7 +3989,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-php"
-version = "5.0.0-rc.12"
+version = "5.0.0-rc.13"
 dependencies = [
  "async-trait",
  "ext-php-rs",
@@ -3982,7 +4001,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-py"
-version = "5.0.0-rc.12"
+version = "5.0.0-rc.13"
 dependencies = [
  "async-trait",
  "kreuzberg",
@@ -3995,7 +4014,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-swift"
-version = "5.0.0-rc.12"
+version = "5.0.0-rc.13"
 dependencies = [
  "ahash",
  "async-trait",
@@ -4010,7 +4029,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-tesseract"
-version = "5.0.0-rc.12"
+version = "5.0.0-rc.13"
 dependencies = [
  "cc",
  "cmake",
@@ -4022,7 +4041,7 @@ dependencies = [
 
 [[package]]
 name = "kreuzberg-wasm"
-version = "5.0.0-rc.12"
+version = "5.0.0-rc.13"
 dependencies = [
  "async-trait",
  "futures",
@@ -5311,6 +5330,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "pico-args"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5be167a7af36ee22fe3115051bc51f6e6c7054c9348e28deb4f49bd6f705a315"
+
+[[package]]
 name = "pin-project"
 version = "1.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6081,6 +6106,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "resvg"
+version = "0.47.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9be183ad6a216aa96f33e4c8033b0988b8b3ea6fd2359d19af5bac4643fd8e81"
+dependencies = [
+ "log",
+ "pico-args",
+ "rgb",
+ "svgtypes",
+ "tiny-skia",
+ "usvg",
+]
+
+[[package]]
 name = "rgb"
 version = "0.8.53"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6813,6 +6852,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "simplecss"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a9c6883ca9c3c7c90e888de77b7a5c849c779d25d74a1269b0218b14e8b136c"
+dependencies = [
+ "log",
+]
+
+[[package]]
 name = "siphasher"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6970,6 +7018,9 @@ name = "strict-num"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6637bab7722d379c8b41ba849228d680cc12d0a45ba1fa2b48f2a30577a06731"
+dependencies = [
+ "float-cmp",
+]
 
 [[package]]
 name = "string_cache"
@@ -7071,6 +7122,16 @@ name = "subtle"
 version = "2.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
+
+[[package]]
+name = "svgtypes"
+version = "0.16.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "695b5790b3131dafa99b3bbfd25a216edb3d216dad9ca208d4657bfb8f2abc3d"
+dependencies = [
+ "kurbo",
+ "siphasher",
+]
 
 [[package]]
 name = "swift-bridge"
@@ -8206,6 +8267,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "daf8dba3b7eb870caf1ddeed7bc9d2a049f3cfdfae7cb521b087cc33ae4c49da"
 
 [[package]]
+name = "usvg"
+version = "0.47.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d46cf96c5f498d36b7a9693bc6a7075c0bb9303189d61b2249b0dc3d309c07de"
+dependencies = [
+ "base64 0.22.1",
+ "data-url",
+ "flate2",
+ "imagesize",
+ "kurbo",
+ "log",
+ "pico-args",
+ "roxmltree 0.21.1",
+ "simplecss",
+ "siphasher",
+ "strict-num",
+ "svgtypes",
+ "tiny-skia-path",
+ "xmlwriter",
+]
+
+[[package]]
 name = "utf-8"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9118,6 +9201,12 @@ dependencies = [
  "libc",
  "rustix",
 ]
+
+[[package]]
+name = "xmlwriter"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
 name = "xz2"

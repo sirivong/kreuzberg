@@ -259,6 +259,30 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
+      - name: Verify libheif installation (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          echo "Checking libheif installation..."
+          if [ -f /usr/local/lib/pkgconfig/libheif.pc ]; then
+            version=$(pkg-config --modversion libheif 2>/dev/null || echo "unknown")
+            echo "✓ Found libheif at /usr/local/lib (version: $version)"
+          elif pkg-config --exists libheif; then
+            version=$(pkg-config --modversion libheif)
+            location=$(pkg-config --variable=libdir libheif)
+            echo "⚠ libheif found at $location (version: $version), not /usr/local/lib"
+            if [ "$(printf '%s\n' "$version" "1.21" | sort -V | head -n1)" = "1.21" ] && [ "$version" != "1.21" ]; then
+              echo "::notice::System libheif version $version >= 1.21, should be compatible"
+            else
+              echo "::warning::System libheif version $version < 1.21, may cause ABI mismatches"
+            fi
+          else
+            echo "::error::libheif not found on system"
+            exit 1
+          fi
+          echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
+          echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
+
       - name: Setup OpenSSL
         uses: kreuzberg-dev/actions/setup-openssl@v1
 
@@ -412,7 +436,9 @@ jobs:
         shell: bash
         run: |
           export PKG_CONFIG_PATH="${PWD}/crates/kreuzberg-ffi:${PKG_CONFIG_PATH}"
-          export LD_LIBRARY_PATH="${PWD}/target/release:${ORT_LIB_LOCATION}:${LD_LIBRARY_PATH}"
+          # Ensure /usr/local/lib is on LD_LIBRARY_PATH for source-built system libs
+          # (e.g., libheif 1.23.0 from install-system-deps, not apt's older version)
+          export LD_LIBRARY_PATH="/usr/local/lib:${PWD}/target/release:${ORT_LIB_LOCATION}:${LD_LIBRARY_PATH}"
           echo "PKG_CONFIG_PATH=${PKG_CONFIG_PATH}" >> "$GITHUB_ENV"
           echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
 

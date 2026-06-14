@@ -53,8 +53,9 @@ RUN sed -i '/kreuzberg-py/d; /kreuzberg_rb/d; /kreuzberg-node/d; /kreuzberg-cli/
 
 # Build the Rustler NIF shared library (the crate is excluded from the workspace,
 # so we build it directly from its package directory).
+# See Dockerfile.musl-build for --offline rationale (sed mutates parent manifest).
 RUN cd packages/elixir/native/kreuzberg_nif && \
-    cargo build --locked --release && \
+    cargo build --offline --release && \
     cp target/release/libkreuzberg_nif.so /build/libkreuzberg_nif.so && \
     strip /build/libkreuzberg_nif.so
 

@@ -107,20 +107,20 @@ Add to your `pom.xml`:
 <dependency>
     <groupId>dev.kreuzberg</groupId>
     <artifactId>kreuzberg</artifactId>
-    <version>5.0.0-rc.12</version>
+    <version>5.0.0-rc.13</version>
 </dependency>
 ```
 
 Kotlin DSL (`build.gradle.kts`):
 
 ```kotlin
-implementation("dev.kreuzberg:kreuzberg:5.0.0-rc.12")
+implementation("dev.kreuzberg:kreuzberg:5.0.0-rc.13")
 ```
 
 Groovy DSL (`build.gradle`):
 
 ```groovy
-implementation 'dev.kreuzberg:kreuzberg:5.0.0-rc.12'
+implementation 'dev.kreuzberg:kreuzberg:5.0.0-rc.13'
 ```
 
 ### System Requirements

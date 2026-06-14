@@ -26,23 +26,30 @@ import { extractBytesSync, listDocumentExtractors, listRenderers } from "@kreuzb
 import kreuzberg from "@kreuzberg/node";
 const native = kreuzberg as unknown as Record<string, (...args: unknown[]) => unknown>;
 
+// Helper to get a fresh native binding reference on each call. This works around
+// vitest worker isolation issues where trait-bridge NAPI resources may not be
+// properly disposed, corrupting the module state for subsequent tests.
+function getNativeBinding(): Record<string, (...args: unknown[]) => unknown> {
+	return require("@kreuzberg/node") as unknown as Record<string, (...args: unknown[]) => unknown>;
+}
+
 function registerDocumentExtractor(obj: unknown): void {
-	(native["registerDocumentExtractor"] as (o: unknown) => void)(obj);
+	(getNativeBinding()["registerDocumentExtractor"] as (o: unknown) => void)(obj);
 }
 function unregisterDocumentExtractor(name: string): void {
-	(native["unregisterDocumentExtractor"] as (n: string) => void)(name);
+	(getNativeBinding()["unregisterDocumentExtractor"] as (n: string) => void)(name);
 }
 function clearDocumentExtractors(): void {
-	(native["clearDocumentExtractors"] as () => void)();
+	(getNativeBinding()["clearDocumentExtractors"] as () => void)();
 }
 function registerRenderer(obj: unknown): void {
-	(native["registerRenderer"] as (o: unknown) => void)(obj);
+	(getNativeBinding()["registerRenderer"] as (o: unknown) => void)(obj);
 }
 function unregisterRenderer(name: string): void {
-	(native["unregisterRenderer"] as (n: string) => void)(name);
+	(getNativeBinding()["unregisterRenderer"] as (n: string) => void)(name);
 }
 function clearRenderers(): void {
-	(native["clearRenderers"] as () => void)();
+	(getNativeBinding()["clearRenderers"] as () => void)();
 }
 
 // ---------------------------------------------------------------------------

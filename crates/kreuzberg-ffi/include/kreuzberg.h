@@ -720,6 +720,24 @@ typedef struct KREUZBERGImageMetadata KREUZBERGImageMetadata;
  */
 typedef struct KREUZBERGImageMetadataType KREUZBERGImageMetadataType;
 /**
+ * Target format for re-encoding extracted images.
+ *
+ * Controls whether and how extracted images are normalised to a uniform
+ * container format before being returned in `ExtractionResult.images`.
+ * The default (`Native`) preserves the format produced by each extractor
+ * without any additional encode pass.
+ *
+ * Callers that need uniform output â e.g. cloud pipelines that always store
+ * WebP thumbnails â set this once on `ImageExtractionConfig.output_format`
+ * rather than re-encoding downstream.
+ *
+ * # Serde shape
+ *
+ * Uses a tagged enum: `{"type": "native"}`, `{"type": "png"}`,
+ * `{"type": "jpeg", "quality": 90}`, etc.
+ */
+typedef struct KREUZBERGImageOutputFormat KREUZBERGImageOutputFormat;
+/**
  * Image preprocessing configuration for OCR.
  *
  * These settings control how images are preprocessed before OCR to improve
@@ -1577,6 +1595,15 @@ typedef struct KREUZBERGSummaryStrategy KREUZBERGSummaryStrategy;
  * Represents a file extension and its corresponding MIME type that Kreuzberg can process.
  */
 typedef struct KREUZBERGSupportedFormat KREUZBERGSupportedFormat;
+/**
+ * SVG-specific configuration for the image-encode pipeline.
+ *
+ * Applies when the source image is SVG or when the output format is set to
+ * `ImageOutputFormat.Svg`.  Available when the `svg` feature is active.
+ *
+ * Used via `ImageExtractionConfig.svg`.
+ */
+typedef struct KREUZBERGSvgOptions KREUZBERGSvgOptions;
 /**
  * Extracted table structure.
  *
@@ -3559,6 +3586,49 @@ KREUZBERGTreeSitterConfig *kreuzberg_file_extraction_config_tree_sitter(const KR
 KREUZBERGStructuredExtractionConfig *kreuzberg_file_extraction_config_structured_extraction(const KREUZBERGFileExtractionConfig *ptr);
 
 /**
+ * Create a `SvgOptions` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `kreuzberg_svg_options_free`.
+ */
+KREUZBERGSvgOptions *kreuzberg_svg_options_from_json(const char *json);
+
+/**
+ * Serialize a `SvgOptions` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_svg_options_to_json(const KREUZBERGSvgOptions *ptr);
+
+/**
+ * Free a `SvgOptions` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_svg_options_free(KREUZBERGSvgOptions *ptr);
+
+/**
+ * Get the `sanitize` field from a `SvgOptions`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t kreuzberg_svg_options_sanitize(const KREUZBERGSvgOptions *ptr);
+
+/**
+ * Get the `render_dpi` field from a `SvgOptions`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+float kreuzberg_svg_options_render_dpi(const KREUZBERGSvgOptions *ptr);
+
+/**
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+KREUZBERGSvgOptions *kreuzberg_svg_options_default(void);
+
+/**
  * Create a `BatchBytesItem` from a JSON string. Returns null on failure.
  * # Safety
  * JSON string must be valid UTF-8 and null-terminated.
@@ -3753,6 +3823,13 @@ int32_t kreuzberg_image_extraction_config_ocr_text_only(const KREUZBERGImageExtr
  * Pointer must be a valid handle returned by this library.
  */
 int32_t kreuzberg_image_extraction_config_append_ocr_text(const KREUZBERGImageExtractionConfig *ptr);
+
+/**
+ * Get the `output_format` field from a `ImageExtractionConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+KREUZBERGImageOutputFormat *kreuzberg_image_extraction_config_output_format(const KREUZBERGImageExtractionConfig *ptr);
 
 /**
  * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
@@ -13537,6 +13614,21 @@ int32_t kreuzberg_execution_provider_type_from_i32(int32_t value);
 int32_t kreuzberg_execution_provider_type_from_str(const char *name);
 
 /**
+ * Convert an integer to a `ImageOutputFormat` variant. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure all pointer arguments are valid or null.
+ * Returned pointers must be freed with the appropriate free function.
+ */
+int32_t kreuzberg_image_output_format_from_i32(int32_t value);
+
+/**
+ * Convert a `ImageOutputFormat` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
+ */
+int32_t kreuzberg_image_output_format_from_str(const char *name);
+
+/**
  * Convert an integer to a `OutputFormat` variant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure all pointer arguments are valid or null.
@@ -14280,6 +14372,31 @@ char *kreuzberg_execution_provider_type_to_json(const KREUZBERGExecutionProvider
  * The returned string must be freed with `kreuzberg_free_string`.
  */
 char *kreuzberg_execution_provider_type_to_string(const KREUZBERGExecutionProviderType *ptr);
+
+/**
+ * Free a heap-allocated `ImageOutputFormat` returned by a pointer-returning FFI function.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void kreuzberg_image_output_format_free(KREUZBERGImageOutputFormat *ptr);
+
+/**
+ * Serialize a heap-allocated `ImageOutputFormat` to a JSON string.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_image_output_format_to_json(const KREUZBERGImageOutputFormat *ptr);
+
+/**
+ * Render a heap-allocated `ImageOutputFormat` as its string representation
+ * (the unit-variant name as serialized by serde — e.g. `"completed"`,
+ * without surrounding JSON quotes).
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `kreuzberg` function.
+ * The returned string must be freed with `kreuzberg_free_string`.
+ */
+char *kreuzberg_image_output_format_to_string(const KREUZBERGImageOutputFormat *ptr);
 
 /**
  * Free a heap-allocated `OutputFormat` returned by a pointer-returning FFI function.

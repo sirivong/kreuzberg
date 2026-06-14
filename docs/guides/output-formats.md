@@ -6,6 +6,7 @@ Choose the format that matches your downstream processing:
 - **Element-Based** — Flat array of typed elements with metadata, for RAG chunking and semantic search
 - **Document Structure** — Hierarchical tree with explicit parent-child references, for knowledge graphs and structured apps
 - **PDF Hierarchy** — Font-size classification into heading levels (H1–H6) for PDFs
+- **Image Output Formats** — Normalize extracted images to PNG, JPEG, WebP, HEIF, or SVG
 
 ## Unified Output (Default)
 
@@ -15,6 +16,108 @@ No configuration required. The result contains:
 - `pages` — Per-page breakdown for PDFs, DOCX, and PPTX
 - `tables` — Extracted tables in structured format
 - `images` — Image metadata and paths
+
+---
+
+## Image Output Formats
+
+Normalize extracted images to a uniform format after extraction but before post-processors.
+
+By default, images are returned in their native format (JPEG from PDFs, PNG from rasterization, etc.). Set `ImageExtractionConfig.output_format` to re-encode all images to a single target format. This is useful for cloud pipelines that require uniform storage, thumbnails, or downstream processing.
+
+### Supported Formats
+
+| Format | Quality param | Use case | Notes |
+|--------|---------------|----------|-------|
+| `Native` | — | Default; preserve source format | No re-encode pass. Fastest. |
+| `Png` | — | Lossless archival | Large file sizes; recommended for quality-critical workflows. |
+| `Jpeg` | `1`–`100` | Web/cloud storage | Default quality `85`. Lossy; good balance of size and quality. |
+| `Webp` | `1`–`100` | Modern web use | Default quality `80`. Better compression than JPEG; requires browser support. |
+| `Heif` | `1`–`100` | Apple ecosystem | Default quality `80`. Requires `heic` feature. Superior compression ratio vs JPEG/WebP. |
+| `Svg` | — | Archival of vector images | (v5+) Lossless vector output. Raster sources return a warning; not auto-vectorized. Requires `svg` feature. |
+
+### SVG Support (v5+)
+
+When the `svg` feature is active and `output_format` is set to `Svg`:
+
+- **SVG → SVG**: Re-parses the source via `usvg` and re-serializes. When `svg.sanitize = true` (default), strips `<script>` elements, external `xlink:href`/`href` attributes, `<foreignObject>` containers, and JavaScript event handlers. This is a lossy normalization for security.
+- **SVG → PNG/JPEG/WebP/HEIF**: Rasterizes to pixel format using `resvg` at the specified `render_dpi` (default 96.0, clamped 1.0–600.0 DPI).
+- **Raster → SVG**: Returns `EncodeWarning::UnsupportedDirection`; bytes are left untouched. No auto-vectorization.
+- **Security**: SVG input capped at 10 MB; rasterized output capped at 16384² pixels (~1 GB peak). External resource loading is disabled.
+
+### Configuration
+
+=== "Python"
+
+    ```python
+    from kreuzberg import ExtractionConfig, ImageExtractionConfig, ImageOutputFormat
+
+    # Normalize all images to WebP at quality 80
+    config = ExtractionConfig(
+        images=ImageExtractionConfig(
+            output_format=ImageOutputFormat.Webp(quality=80)
+        )
+    )
+    ```
+
+=== "TypeScript"
+
+    ```typescript
+    import { ExtractionConfig, ImageOutputFormat } from "@kreuzberg/node";
+
+    const config: ExtractionConfig = {
+      images: {
+        outputFormat: { type: "webp", quality: 80 }
+      }
+    };
+    ```
+
+=== "Rust"
+
+    ```rust
+    use kreuzberg::{ExtractionConfig, ImageExtractionConfig, ImageOutputFormat};
+
+    let config = ExtractionConfig {
+        images: Some(ImageExtractionConfig {
+            output_format: ImageOutputFormat::Webp { quality: 80 },
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    ```
+
+### SVG Sanitization (v5+)
+
+Enable or disable SVG security filtering:
+
+=== "Python"
+
+    ```python
+    from kreuzberg import ExtractionConfig, ImageExtractionConfig, ImageOutputFormat, SvgOptions
+
+    # Re-encode SVG with sanitization disabled
+    config = ExtractionConfig(
+        images=ImageExtractionConfig(
+            output_format=ImageOutputFormat.Svg,
+            svg=SvgOptions(sanitize=False, render_dpi=96.0)
+        )
+    )
+    ```
+
+=== "Rust"
+
+    ```rust
+    use kreuzberg::{ExtractionConfig, ImageExtractionConfig, ImageOutputFormat, SvgOptions};
+
+    let config = ExtractionConfig {
+        images: Some(ImageExtractionConfig {
+            output_format: ImageOutputFormat::Svg,
+            svg: Some(SvgOptions { sanitize: false, render_dpi: 96.0 }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    ```
 
 ---
 
