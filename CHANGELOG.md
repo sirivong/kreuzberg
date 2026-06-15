@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.0.0-rc.15] - 2026-06-15
+
+### Fixed
+
+- **`heic` is now part of the `formats` aggregate.** Previously `heic` was in no aggregate feature, so desktop builds via `full` (Linux/macOS) didn't expose `ImageOutputFormat::Heif` — breaking alef-generated binding crates that use `kreuzberg = { features = ["full"] }`, most visibly the Swift artifact bundle publish job (E0599 on `packages/swift/rust/src/lib.rs:13006`). HEIC is an image format and belongs in `formats` alongside `svg`; Mobile/iOS/Android/Windows continue to exclude HEIC via their own platform aggregates (`android-target`, `windows-target`) for libheif install reasons.
+- **Dart binding clippy `unexpected_cfgs` lint.** Bump alef pin 0.25.8 → 0.25.9. Dart codegen now emits a `check-cfg` allow-list in `packages/dart/rust/Cargo.toml` `[lints.rust]` covering every upstream feature name referenced by alef-emitted `#[cfg(feature = "X")]` arms in `From<CoreType>` impls. Previously every clippy run on `kreuzberg-dart` failed with 30 `unexpected_cfgs` errors, blocking CI Rust, CI Mobile, and CI Lint on rc.14 (run 27519131737). The From-impl arms remain — runtime safety is still handled by the existing `_ => unreachable!()` catch-all from alef 0.25.6.
+- **alef cargo-install fallback fixed.** alef 0.25.9 also deletes the dead `emit_variant_cfg_open` helper in `src/backends/dart/gen_rust_crate/mirror.rs` (orphaned by 0.25.8's mirror-enum cfg-strip), unblocking the `cargo install --git ... --tag` fallback path the CI e2e jobs hit when the GitHub release tarball is missing.
+
 ## [5.0.0-rc.14] - 2026-06-15
 
 ### Fixed
