@@ -4,15 +4,10 @@
 //! intentionally small and focused — the only job is "give me clean PCM or
 //! a clear error".
 
-// Real symphonia imports are present in the full decode implementation (next PR).
-// The stub below keeps the module compiling while we land the foundation.
-
 use crate::KreuzbergError;
 use crate::Result;
 
 /// The canonical PCM format that all transcription engines receive.
-// Fields read by the inference engine in the follow-up PR; stub only uses duration_ms.
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct PcmAudio {
     pub samples: Vec<f32>,
@@ -29,6 +24,15 @@ pub struct PcmAudio {
 /// `tokio::task::spawn_blocking` when on an async runtime.
 #[cfg(feature = "transcription")]
 pub fn decode_audio_to_pcm(bytes: &[u8], max_bytes: Option<u64>) -> Result<PcmAudio> {
+    use std::io::Cursor;
+    use symphonia::core::codecs::audio::AudioDecoderOptions;
+    use symphonia::core::errors::Error as SymphoniaError;
+    use symphonia::core::formats::probe::Hint;
+    use symphonia::core::formats::FormatOptions;
+    use symphonia::core::formats::TrackType;
+    use symphonia::core::io::MediaSourceStream;
+    use symphonia::core::meta::MetadataOptions;
+
     if let Some(limit) = max_bytes
         && (bytes.len() as u64) > limit
     {
@@ -39,22 +43,115 @@ pub fn decode_audio_to_pcm(bytes: &[u8], max_bytes: Option<u64>) -> Result<PcmAu
         )));
     }
 
-    // This is the pragmatic stub for the initial foundation PR.
-    // Full symphonia probing + decoding + proper resampling + all AudioBufferRef
-    // variants will be restored in the immediate follow-up (the match arms and
-    // type imports were causing non-exhaustive + visibility friction on 0.5.5).
-    //
-    // The stub still exercises:
-    // - size limit enforcement
-    // - duration limit (heuristic)
-    // - the full extractor + config path
-    // - tokio spawn_blocking call site
+    // Wrap bytes in a Cursor — io::Cursor<&[u8]> implements MediaSource.
+    let cursor = Cursor::new(bytes);
+    let mss = MediaSourceStream::new(Box::new(cursor), Default::default());
 
-    let estimated_duration_ms = (bytes.len() as u64 * 8) / 128; // very rough heuristic
-    let duration_ms = estimated_duration_ms.min(30 * 60 * 1000);
+    // No extension hint — let symphonia detect format from container magic bytes.
+    let hint = Hint::new();
+    let fmt_opts: FormatOptions = Default::default();
+    let meta_opts: MetadataOptions = Default::default();
 
-    // Synthetic 1-second 16 kHz mono PCM so downstream code has something to measure.
-    let samples = vec![0.0f32; 16_000];
+    let mut format = symphonia::default::get_probe()
+        .probe(&hint, mss, fmt_opts, meta_opts)
+        .map_err(|e| KreuzbergError::transcription(format!("symphonia probe failed: {e}")))?;
+
+    // Select the first decodeable audio track.
+    let track = format
+        .default_track(TrackType::Audio)
+        .ok_or_else(|| KreuzbergError::transcription("no audio track found in input"))?;
+
+    let track_id = track.id;
+
+    // Extract codec parameters before the mutable borrow of `format` below.
+    let audio_codec_params = track
+        .codec_params
+        .as_ref()
+        .and_then(|p| p.audio())
+        .cloned()
+        .ok_or_else(|| {
+            KreuzbergError::transcription("audio track has no decodable codec parameters")
+        })?;
+
+    let src_sample_rate = audio_codec_params.sample_rate.unwrap_or(44_100);
+    let src_channels = audio_codec_params
+        .channels
+        .as_ref()
+        .map(|c| c.count())
+        .unwrap_or(1);
+
+    let dec_opts: AudioDecoderOptions = Default::default();
+    let mut decoder = symphonia::default::get_codecs()
+        .make_audio_decoder(&audio_codec_params, &dec_opts)
+        .map_err(|e| {
+            KreuzbergError::transcription(format!("unsupported audio codec: {e}"))
+        })?;
+
+    // Decode all packets, collecting interleaved f32 samples.
+    let mut interleaved: Vec<f32> = Vec::new();
+
+    loop {
+        let packet = match format.next_packet() {
+            Ok(Some(pkt)) => pkt,
+            Ok(None) => break, // end of stream
+            Err(SymphoniaError::IoError(e))
+                if e.kind() == std::io::ErrorKind::UnexpectedEof =>
+            {
+                break;
+            }
+            Err(SymphoniaError::ResetRequired) => {
+                // Chained OGG streams: reset and continue.
+                decoder.reset();
+                continue;
+            }
+            Err(e) => {
+                return Err(KreuzbergError::transcription(format!(
+                    "error reading audio packet: {e}"
+                )));
+            }
+        };
+
+        if packet.track_id != track_id {
+            continue;
+        }
+
+        let audio_buf = match decoder.decode(&packet) {
+            Ok(buf) => buf,
+            // Soft errors: skip the packet.
+            Err(SymphoniaError::IoError(_)) | Err(SymphoniaError::DecodeError(_)) => continue,
+            Err(e) => {
+                return Err(KreuzbergError::transcription(format!(
+                    "audio decode error: {e}"
+                )));
+            }
+        };
+
+        let frame_count = audio_buf.frames();
+        if frame_count == 0 {
+            continue;
+        }
+
+        let total_samples = audio_buf.samples_interleaved();
+        let mut chunk = vec![0.0f32; total_samples];
+        audio_buf.copy_to_slice_interleaved(chunk.as_mut_slice());
+        interleaved.extend_from_slice(&chunk);
+    }
+
+    // Down-mix to mono if the source has more than one channel.
+    let mono = if src_channels <= 1 {
+        interleaved
+    } else {
+        down_mix_to_mono(&interleaved, src_channels)
+    };
+
+    // Resample to 16 kHz.
+    let samples = if src_sample_rate == 16_000 {
+        mono
+    } else {
+        resample_linear_to_16k(&mono, src_sample_rate)
+    };
+
+    let duration_ms = samples.len() as u64 * 1000 / 16_000;
 
     Ok(PcmAudio {
         samples,
@@ -62,6 +159,60 @@ pub fn decode_audio_to_pcm(bytes: &[u8], max_bytes: Option<u64>) -> Result<PcmAu
         channels: 1,
         duration_ms,
     })
+}
+
+/// Average `channels` interleaved planes down to mono.
+#[cfg(feature = "transcription")]
+fn down_mix_to_mono(interleaved: &[f32], channels: usize) -> Vec<f32> {
+    if channels == 0 {
+        return Vec::new();
+    }
+    let frames = interleaved.len() / channels;
+    let mut mono = Vec::with_capacity(frames);
+    let inv = 1.0_f32 / channels as f32;
+    for frame in 0..frames {
+        let mut sum = 0.0_f32;
+        for ch in 0..channels {
+            sum += interleaved[frame * channels + ch];
+        }
+        mono.push(sum * inv);
+    }
+    mono
+}
+
+/// Resample mono f32 PCM from `src_hz` to 16 000 Hz using linear interpolation.
+///
+/// Linear interpolation is sufficient for the Whisper pipeline at v1. If accuracy
+/// issues emerge for very low-bitrate sources (e.g. 8 kHz telephone audio), the
+/// caller can swap in a higher-quality resampler at the W2 inference layer.
+#[cfg(feature = "transcription")]
+fn resample_linear_to_16k(samples: &[f32], src_hz: u32) -> Vec<f32> {
+    const TARGET_HZ: u32 = 16_000;
+
+    if samples.is_empty() || src_hz == 0 {
+        return Vec::new();
+    }
+    if src_hz == TARGET_HZ {
+        return samples.to_vec();
+    }
+
+    let src_len = samples.len();
+    // Number of output frames: ceil(src_len * TARGET_HZ / src_hz).
+    let out_len = (src_len as u64 * TARGET_HZ as u64)
+        .div_ceil(src_hz as u64) as usize;
+
+    let mut out = Vec::with_capacity(out_len);
+    let ratio = src_hz as f64 / TARGET_HZ as f64;
+
+    for i in 0..out_len {
+        let src_pos = i as f64 * ratio;
+        let lo = src_pos as usize;
+        let hi = (lo + 1).min(src_len - 1);
+        let frac = (src_pos - lo as f64) as f32;
+        out.push(samples[lo] + (samples[hi] - samples[lo]) * frac);
+    }
+
+    out
 }
 
 /// Fallback no-op decode when the transcription feature is completely disabled
@@ -80,15 +231,6 @@ mod tests {
 
     #[cfg(feature = "transcription")]
     #[test]
-    fn test_zero_length_input_does_not_panic() {
-        let result = decode_audio_to_pcm(&[], None);
-        assert!(result.is_ok(), "zero-length input should return Ok (stub)");
-        let pcm = result.unwrap();
-        assert_eq!(pcm.duration_ms, 0);
-    }
-
-    #[cfg(feature = "transcription")]
-    #[test]
     fn test_size_limit_enforced() {
         let result = decode_audio_to_pcm(&[0u8; 20], Some(10));
         assert!(result.is_err());
@@ -98,11 +240,37 @@ mod tests {
 
     #[cfg(feature = "transcription")]
     #[test]
-    fn test_duration_heuristic_does_not_overflow_large_input() {
-        // bytes.len() * 8 must not overflow u64 for realistic inputs.
-        // 512 MiB = 536_870_912 bytes; * 8 = 4_294_967_296 < u64::MAX.
-        let large = vec![0u8; 512 * 1024 * 1024];
-        let result = decode_audio_to_pcm(&large, None);
-        assert!(result.is_ok());
+    fn test_empty_bytes_returns_error() {
+        // Empty input has no audio track — should return an error.
+        let result = decode_audio_to_pcm(&[], None);
+        assert!(result.is_err());
+    }
+
+    #[cfg(feature = "transcription")]
+    #[test]
+    fn test_down_mix_to_mono_stereo() {
+        // L=1.0, R=-1.0 → mono=0.0
+        let stereo = vec![1.0f32, -1.0, 0.5, 0.5];
+        let mono = down_mix_to_mono(&stereo, 2);
+        assert_eq!(mono.len(), 2);
+        assert!((mono[0]).abs() < 1e-6);
+        assert!((mono[1] - 0.5).abs() < 1e-6);
+    }
+
+    #[cfg(feature = "transcription")]
+    #[test]
+    fn test_resample_linear_passthrough_when_same_rate() {
+        let samples = vec![0.1f32, 0.2, 0.3];
+        let out = resample_linear_to_16k(&samples, 16_000);
+        assert_eq!(out, samples);
+    }
+
+    #[cfg(feature = "transcription")]
+    #[test]
+    fn test_resample_linear_halves_rate() {
+        // Source: 32 kHz, 2 samples → should produce 1 output sample at 16 kHz.
+        let samples = vec![0.0f32, 1.0];
+        let out = resample_linear_to_16k(&samples, 32_000);
+        assert_eq!(out.len(), 1);
     }
 }

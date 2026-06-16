@@ -133,7 +133,7 @@ pub mod pdf;
 
 // Transcription (audio/video STT) — decode + inference pipeline; config types live under core::config.
 #[cfg(feature = "transcription")]
-pub(crate) mod transcription;
+pub mod transcription;
 
 #[cfg(feature = "captioning")]
 pub mod captioning;

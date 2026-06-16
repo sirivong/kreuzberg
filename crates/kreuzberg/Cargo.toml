@@ -580,11 +580,13 @@ strum = { version = "0.28", features = ["derive"], optional = true }
 # Symphonia: pure-Rust audio decoder for mp3, wav, m4a/mp4, webm etc.
 # MPL-2.0 (file-scoped copyleft, safe for our use). Exception granted in deny.toml.
 symphonia = { version = "0.6", optional = true, default-features = false, features = [
-    "mp3",
-    "wav",
     "aac",
+    "adpcm",
     "isomp4",
     "mkv",
+    "mp3",
+    "pcm",
+    "wav",
 ] }
 tar = { version = "^0.4", optional = true }
 tempfile = { workspace = true, optional = true }
