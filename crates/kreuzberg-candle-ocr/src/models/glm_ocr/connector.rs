@@ -247,9 +247,12 @@ mod imp {
                 .apply(&self.post_projection_norm)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Merger post_projection_norm: {}", e)))?;
 
+            // Upstream `Glm4vVisionPatchMerger.act1 = nn.GELU()` defaults to
+            // `approximate='none'`, which is the exact erf-based GELU. Candle's
+            // `.gelu()` is tanh-approximate; use `.gelu_erf()` for the exact form.
             let x = x
-                .gelu()
-                .map_err(|e| CandleOcrError::InferenceFailed(format!("Merger post_projection_norm gelu: {}", e)))?;
+                .gelu_erf()
+                .map_err(|e| CandleOcrError::InferenceFailed(format!("Merger post_projection_norm gelu_erf: {}", e)))?;
 
             let gate = x
                 .apply(&self.gate_proj)
