@@ -63,6 +63,9 @@ pub enum KreuzbergPipeline {
     /// Candle PaddleOCR-VL: OCR with candle-based PaddleOCR-VL backend (end-to-end markdown)
     #[serde(rename = "candle-paddleocr-vl")]
     CandlePaddleocrVl,
+    /// Candle GLM-OCR: OCR with candle-based GLM-OCR vision-language backend
+    #[serde(rename = "candle-glm-ocr")]
+    CandleGlmOcr,
 }
 
 impl KreuzbergPipeline {
@@ -74,6 +77,7 @@ impl KreuzbergPipeline {
             KreuzbergPipeline::PaddleOcr => "paddle-ocr",
             KreuzbergPipeline::CandleTrocr => "candle-trocr",
             KreuzbergPipeline::CandlePaddleocrVl => "candle-paddleocr-vl",
+            KreuzbergPipeline::CandleGlmOcr => "candle-glm-ocr",
         }
     }
 }
@@ -94,8 +98,9 @@ impl FromStr for KreuzbergPipeline {
             "paddle-ocr" | "paddle_ocr" | "paddleocr" => Ok(KreuzbergPipeline::PaddleOcr),
             "candle-trocr" | "candle_trocr" | "trocr" => Ok(KreuzbergPipeline::CandleTrocr),
             "candle-paddleocr-vl" | "candle_paddleocr_vl" | "paddleocr-vl" => Ok(KreuzbergPipeline::CandlePaddleocrVl),
+            "candle-glm-ocr" | "candle_glm_ocr" | "glm-ocr" => Ok(KreuzbergPipeline::CandleGlmOcr),
             _ => Err(format!(
-                "unknown Kreuzberg pipeline: {}. Valid: baseline, layout, paddle-ocr, candle-trocr, candle-paddleocr-vl",
+                "unknown Kreuzberg pipeline: {}. Valid: baseline, layout, paddle-ocr, candle-trocr, candle-paddleocr-vl, candle-glm-ocr",
                 s
             )),
         }

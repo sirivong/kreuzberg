@@ -83,6 +83,8 @@ pub enum Pipeline {
     CandleTrocr,
     /// Candle-based PaddleOCR-VL (force_ocr, end-to-end markdown)
     CandlePaddleocrVl,
+    /// Candle-based GLM-OCR vision-language backend (force_ocr)
+    CandleGlmOcr,
 }
 
 impl Pipeline {
@@ -109,6 +111,7 @@ impl Pipeline {
             Pipeline::PdfOxideLayout => "pdf-oxide+layout",
             Pipeline::CandleTrocr => "candle-trocr",
             Pipeline::CandlePaddleocrVl => "candle-paddleocr-vl",
+            Pipeline::CandleGlmOcr => "candle-glm-ocr",
         }
     }
 
@@ -139,11 +142,18 @@ impl Pipeline {
             "pdf-oxide+layout" | "pdf-oxide-layout" | "oxide+layout" | "oxide-layout" => Some(Pipeline::PdfOxideLayout),
             "candle-trocr" | "candle_trocr" | "trocr" => Some(Pipeline::CandleTrocr),
             "candle-paddleocr-vl" | "candle_paddleocr_vl" | "paddleocr-vl" => Some(Pipeline::CandlePaddleocrVl),
+            "candle-glm-ocr" | "candle_glm_ocr" | "glm-ocr" => Some(Pipeline::CandleGlmOcr),
             _ => None,
         }
     }
 
     /// All pipelines that use kreuzberg in-process extraction.
+    ///
+    /// `CandleTrocr` and `CandlePaddleocrVl` are deliberately omitted: they need
+    /// large model downloads from HuggingFace and only build with their own
+    /// feature flags, so default cross-pipeline runs do not include them.
+    /// `CandleGlmOcr` is included because the new `glm-ocr-bench` feature gates
+    /// the entire harness build, making the inclusion safe.
     pub fn all_kreuzberg() -> Vec<Pipeline> {
         vec![
             Pipeline::Baseline,
@@ -156,6 +166,7 @@ impl Pipeline {
             Pipeline::PaddleServerLayout,
             Pipeline::PdfOxide,
             Pipeline::PdfOxideLayout,
+            Pipeline::CandleGlmOcr,
         ]
     }
 }
@@ -399,6 +410,15 @@ pub fn build_extraction_config(pipeline: Pipeline) -> kreuzberg::ExtractionConfi
             ocr: Some(kreuzberg::core::config::OcrConfig {
                 backend: "candle-paddleocr-vl".to_string(),
                 language: "eng".to_string(),
+                ..Default::default()
+            }),
+            ..base
+        },
+        Pipeline::CandleGlmOcr => kreuzberg::ExtractionConfig {
+            force_ocr: true,
+            ocr: Some(kreuzberg::core::config::OcrConfig {
+                backend: "candle-glm-ocr".to_string(),
+                language: "en".to_string(),
                 ..Default::default()
             }),
             ..base
@@ -1315,6 +1335,9 @@ mod tests {
             "layout+slanet-auto",
             "pdf-oxide",
             "pdf-oxide+layout",
+            "candle-trocr",
+            "candle-paddleocr-vl",
+            "candle-glm-ocr",
         ];
         for name in all_names {
             let pipeline = Pipeline::parse(name).unwrap_or_else(|| panic!("Failed to parse pipeline '{name}'"));

@@ -55,5 +55,34 @@ fn glm_ocr_smoke_ocr_on_fixture() {
         output.content
     );
 
+    // Degenerate-repeat detector: catches the "binder title of binder title of…"
+    // failure mode where nucleus sampling collapses into a repeating loop.
+    // A healthy OCR output over a small fixture should never repeat the same
+    // 3-gram more than 4 times consecutively.
+    fn longest_repeated_ngram_run(text: &str, n: usize) -> usize {
+        let tokens: Vec<&str> = text.split_whitespace().collect();
+        if tokens.len() < n * 2 {
+            return 0;
+        }
+        let mut max_run = 0usize;
+        for start in 0..tokens.len() - n + 1 {
+            let pattern = &tokens[start..start + n];
+            let mut run = 1usize;
+            let mut next = start + n;
+            while next + n <= tokens.len() && &tokens[next..next + n] == pattern {
+                run += 1;
+                next += n;
+            }
+            max_run = max_run.max(run);
+        }
+        max_run
+    }
+
+    assert!(
+        longest_repeated_ngram_run(&output.content, 3) < 5,
+        "Detected degenerate-repeat output: {}...",
+        &output.content[..200.min(output.content.len())]
+    );
+
     eprintln!("\n✓ Smoke test passed!");
 }
