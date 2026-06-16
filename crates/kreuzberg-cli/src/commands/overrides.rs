@@ -11,6 +11,17 @@ use kreuzberg::{
 
 use crate::ContentOutputFormatArg;
 
+/// Accepted values for `--ocr-backend`.
+const VALID_OCR_BACKENDS: &[&str] = &[
+    "tesseract",
+    "paddle-ocr",
+    "easyocr",
+    "vlm",
+    "candle-trocr",
+    "candle-paddleocr-vl",
+    "candle-glm-ocr",
+];
+
 /// Hardware acceleration provider for ONNX Runtime models.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
 pub enum AccelerationArg {
@@ -365,20 +376,12 @@ impl ExtractionOverrides {
 
         // OCR backend validation
         if let Some(ref backend) = self.ocr_backend
-            && ![
-                "tesseract",
-                "paddle-ocr",
-                "easyocr",
-                "vlm",
-                "candle-trocr",
-                "candle-paddleocr-vl",
-            ]
-            .contains(&backend.as_str())
+            && !VALID_OCR_BACKENDS.contains(&backend.as_str())
         {
             bail!(
-                "Invalid OCR backend '{}'. Valid backends: tesseract, paddle-ocr, easyocr, vlm, \
-                 candle-trocr, candle-paddleocr-vl",
-                backend
+                "Invalid OCR backend '{}'. Valid backends: {}",
+                backend,
+                VALID_OCR_BACKENDS.join(", ")
             );
         }
 
@@ -452,12 +455,13 @@ impl ExtractionOverrides {
                     Some("easyocr") => "easyocr",
                     Some("candle-trocr") => "candle-trocr",
                     Some("candle-paddleocr-vl") => "candle-paddleocr-vl",
+                    Some("candle-glm-ocr") => "candle-glm-ocr",
                     _ => "tesseract",
                 };
                 let language = match &self.ocr_language {
                     Some(lang) => lang.clone(),
                     None => match backend {
-                        "paddle-ocr" | "easyocr" | "candle-paddleocr-vl" => "en".to_string(),
+                        "paddle-ocr" | "easyocr" | "candle-paddleocr-vl" | "candle-glm-ocr" => "en".to_string(),
                         _ => "eng".to_string(),
                     },
                 };

@@ -67,6 +67,7 @@ mod imp {
         max_new_tokens: usize,
         eos_token_ids: &[u32],
     ) -> Result<Vec<u32>> {
+        decoder.clear_kv_cache();
         let mut output_ids = Vec::new();
 
         // Prefill: forward the whole vision-prefixed sequence with proper
@@ -143,6 +144,7 @@ mod imp {
         max_new_tokens: usize,
         eos_token_ids: &[u32],
     ) -> Result<Vec<u32>> {
+        decoder.clear_kv_cache();
         let mut output_ids = Vec::new();
         let prefix_len = input_embeds.dim(1)?;
 
@@ -205,12 +207,19 @@ mod imp {
 
     /// Apply repetition penalty to logits: reduce scores for tokens already in output.
     /// Penalty > 1 suppresses repetition; < 1 encourages it.
-    fn apply_repetition_penalty(logits: &Tensor, output_ids: &[u32], penalty: f32) -> candle_core::Result<Tensor> {
+    ///
+    // HF canonical form: positive logits shrink toward 0 (divide), negative logits push further
+    // negative (multiply). Both reduce the post-softmax probability.
+    pub(crate) fn apply_repetition_penalty(
+        logits: &Tensor,
+        output_ids: &[u32],
+        penalty: f32,
+    ) -> candle_core::Result<Tensor> {
         let mut logits_vec = logits.to_vec1::<f32>()?;
         for &token_id in output_ids {
             let idx = token_id as usize;
             if idx < logits_vec.len() {
-                if logits_vec[idx] > 0.0 {
+                if logits_vec[idx] >= 0.0 {
                     logits_vec[idx] /= penalty;
                 } else {
                     logits_vec[idx] *= penalty;
@@ -232,7 +241,12 @@ mod imp {
     }
 
     /// Nucleus (top-p) sampling with temperature scaling.
-    fn sample_nucleus(logits: &Tensor, top_p: f32, temperature: f32) -> Result<u32> {
+    pub(crate) fn sample_nucleus(logits: &Tensor, top_p: f32, temperature: f32) -> Result<u32> {
+        // Guard against invalid temperature.
+        if temperature <= 0.0 {
+            return sample_greedy(logits);
+        }
+
         // Temperature scaling.
         let scaled = if (temperature - 1.0).abs() > 1e-5 {
             logits
@@ -253,7 +267,13 @@ mod imp {
             .map_err(|e| CandleOcrError::InferenceFailed(format!("To vec: {}", e)))?;
 
         // Sort by probability (descending) and find top-p cutoff.
-        let mut indexed: Vec<(usize, f32)> = probs_vec.iter().enumerate().map(|(i, &p)| (i, p)).collect();
+        // Filter out NaN/inf values before sorting for numerical safety.
+        let mut indexed: Vec<(usize, f32)> = probs_vec
+            .iter()
+            .enumerate()
+            .filter(|&(_, &p)| p.is_finite())
+            .map(|(i, &p)| (i, p))
+            .collect();
         // NaN-safe sort: treat NaN as less than any number
         indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
@@ -307,3 +327,46 @@ mod imp {
 
 #[cfg(not(target_arch = "wasm32"))]
 pub use imp::{generate, generate_mrope};
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(test)]
+mod tests {
+    use super::imp::{apply_repetition_penalty, sample_nucleus};
+    use crate::error::Result;
+    use candle_core::{Device, Tensor};
+
+    #[test]
+    fn test_apply_repetition_penalty_reduces_both_signs() {
+        // Create a small logits tensor
+        let logits = vec![0.5f32, -0.3, 1.0, -0.8];
+        let device = Device::Cpu;
+        let logits_tensor = Tensor::from_vec(logits.clone(), (4,), &device).unwrap();
+
+        // Apply penalty of 1.1 to token 0 and 1
+        let output_ids = vec![0, 1];
+        let result = apply_repetition_penalty(&logits_tensor, &output_ids, 1.1).unwrap();
+        let result_vec = result.to_vec1::<f32>().unwrap();
+
+        // Token 0: 0.5 / 1.1 ≈ 0.454 (positive: shrinks toward 0)
+        assert!((result_vec[0] - 0.5 / 1.1).abs() < 0.01);
+        // Token 1: -0.3 * 1.1 = -0.33 (negative logits get more negative under penalty,
+        // reducing post-softmax probability)
+        assert!((result_vec[1] - (-0.3 * 1.1)).abs() < 0.01);
+        // Token 2, 3: unchanged
+        assert!((result_vec[2] - 1.0).abs() < 0.01);
+        assert!((result_vec[3] - (-0.8)).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_sample_nucleus_handles_nan() -> Result<()> {
+        // Create logits with a NaN and regular values
+        let logits = vec![0.5f32, f32::NAN, 1.0, -0.8];
+        let device = Device::Cpu;
+        let logits_tensor = Tensor::from_vec(logits, (4,), &device).unwrap();
+
+        // Should not panic and return a valid token ID
+        let result = sample_nucleus(&logits_tensor, 0.9, 1.0)?;
+        assert!(result < 4);
+        Ok(())
+    }
+}

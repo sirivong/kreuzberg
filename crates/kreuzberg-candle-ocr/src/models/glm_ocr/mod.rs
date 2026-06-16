@@ -168,6 +168,13 @@ mod engine {
         /// and safetensors from the GLM-OCR HuggingFace repo. Constructs the
         /// vision encoder, connector, and decoder modules.
         pub fn new(task: GlmOcrTask, device: Device, dtype: DType) -> Result<Self> {
+            // BF16 on Metal is unsupported in candle 0.10 (kernel gap).
+            if matches!(dtype, candle_core::DType::BF16) && device.is_metal() {
+                return Err(CandleOcrError::InferenceFailed(
+                    "BF16 on Metal is unsupported in candle 0.10 (kernel gap). Use DType::F32 instead.".into(),
+                ));
+            }
+
             // Initialize HuggingFace API for weight downloads
             let api = hf_hub::api::sync::Api::new()
                 .map_err(|e| CandleOcrError::ModelLoadFailed(format!("HF API init: {}", e)))?;
@@ -312,6 +319,14 @@ mod engine {
             })
         }
 
+        /// Run inference over a single image with a specified task and return the recognised content.
+        ///
+        /// This mirrors `process_image` but uses the supplied task for prompt construction
+        /// instead of `self.task`. Useful for overriding the engine's default task per invocation.
+        pub fn process_image_with_task(&self, image_bytes: &[u8], task: GlmOcrTask) -> Result<CandleOcrOutput> {
+            self.process_image_inner(image_bytes, task)
+        }
+
         /// Run inference over a single image and return the recognised content.
         ///
         /// Pipeline:
@@ -325,6 +340,10 @@ mod engine {
         /// 8. Run autoregressive generation with MTP decoding
         /// 9. Decode token sequence to markdown text
         pub fn process_image(&self, image_bytes: &[u8]) -> Result<CandleOcrOutput> {
+            self.process_image_inner(image_bytes, self.task)
+        }
+
+        fn process_image_inner(&self, image_bytes: &[u8], task: GlmOcrTask) -> Result<CandleOcrOutput> {
             // Load and preprocess image
             let preprocess_config = preprocess::PreprocessConfig::default();
             let (pixel_values, grid_thw) =
@@ -368,7 +387,7 @@ mod engine {
             let (input_ids, image_tokens_start) = tokenizer::build_input_ids(
                 &self.special,
                 &self.tokenizer,
-                self.task.prompt(),
+                task.prompt(),
                 num_image_tokens_after_merge,
             )?;
 
@@ -474,8 +493,8 @@ mod engine {
             let output_text = tokenizer::decode_output(&self.tokenizer, &output_ids)?;
 
             Ok(CandleOcrOutput {
-                content: output_text,
-                is_structured_markdown: true,
+                content: output_text.clone(),
+                is_structured_markdown: Self::detect_structured_markdown(&output_text),
                 confidence: None,
             })
         }
@@ -548,6 +567,72 @@ mod engine {
 
             Tensor::cat(&parts, 1).map_err(|e| CandleOcrError::InferenceFailed(format!("Cat embeddings: {}", e)))
         }
+
+        /// Detect structured markdown (heading, table, fenced code, LaTeX, bullet list) in output text.
+        ///
+        /// A bullet list requires at least two lines starting with `- ` to avoid
+        /// false positives on OCR-produced typography where a stray hyphen prefix
+        /// appears on a single line.
+        pub(crate) fn detect_structured_markdown(text: &str) -> bool {
+            let mut bullet_count: usize = 0;
+            for line in text.lines() {
+                let t = line.trim_start();
+                if t.starts_with("## ") || t.starts_with("# ") {
+                    return true;
+                }
+                if t.starts_with('|') && t.ends_with('|') && t.matches('|').count() >= 2 {
+                    return true;
+                }
+                if t.starts_with("```") || t.starts_with("$$") {
+                    return true;
+                }
+                if t.starts_with("- ") {
+                    bullet_count += 1;
+                    if bullet_count >= 2 {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(test)]
+mod tests {
+    use super::engine;
+
+    #[test]
+    fn detect_structured_markdown_recognises_table() {
+        let text = "| a | b |\n|---|---|\n| 1 | 2 |";
+        assert!(engine::GlmOcrEngine::detect_structured_markdown(text));
+    }
+
+    #[test]
+    fn detect_structured_markdown_recognises_heading() {
+        assert!(engine::GlmOcrEngine::detect_structured_markdown("## Hello"));
+    }
+
+    #[test]
+    fn detect_structured_markdown_rejects_plain_text() {
+        assert!(!engine::GlmOcrEngine::detect_structured_markdown(
+            "just a plain sentence"
+        ));
+    }
+
+    #[test]
+    fn detect_structured_markdown_rejects_single_dash() {
+        // A single line beginning with "- " is OCR typography noise, not a list.
+        assert!(!engine::GlmOcrEngine::detect_structured_markdown(
+            "- hyphen but not a list"
+        ));
+    }
+
+    #[test]
+    fn detect_structured_markdown_recognises_two_dash_lines() {
+        let text = "- first item\n- second item";
+        assert!(engine::GlmOcrEngine::detect_structured_markdown(text));
     }
 }
 

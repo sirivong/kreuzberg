@@ -59,13 +59,13 @@ fn get_or_init_engine(task: PaddleOcrVlTask, preference: DevicePreference) -> cr
     // Slow path: select the device and build the engine, then insert under write lock.
     let device = preference.select().map_err(|e| crate::KreuzbergError::Ocr {
         message: format!("Failed to select compute device: {e}"),
-        source: None,
+        source: Some(Box::new(e)),
     })?;
 
     tracing::info!(task = ?task, preference = ?preference, "Initialising PaddleOCR-VL engine (cold start)");
     let new_engine = PaddleOcrVlEngine::new(task, device, DType::F32).map_err(|e| crate::KreuzbergError::Ocr {
         message: format!("PaddleOCR-VL engine initialisation failed: {e}"),
-        source: None,
+        source: Some(Box::new(e)),
     })?;
     let new_engine = Arc::new(new_engine);
 
@@ -184,7 +184,7 @@ impl OcrBackend for PaddleOcrVlBackend {
                 .process_image(&image_bytes)
                 .map_err(|e| crate::KreuzbergError::Ocr {
                     message: format!("PaddleOCR-VL inference failed: {}", e),
-                    source: None,
+                    source: Some(Box::new(e)),
                 })?;
 
             Ok::<String, crate::KreuzbergError>(output.content)

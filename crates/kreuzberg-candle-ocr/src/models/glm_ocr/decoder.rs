@@ -158,6 +158,16 @@ mod imp {
             dtype: DType,
             dev: &Device,
         ) -> Result<Self> {
+            // Validate M-RoPE sections if non-empty.
+            if !mrope_sections.is_empty() {
+                let total: usize = mrope_sections.iter().map(|s| s * 2).sum();
+                if total != dim {
+                    return Err(CandleOcrError::InferenceFailed(format!(
+                        "M-RoPE sections sum (each × 2) must equal head_dim. Got sections {:?} (sum={}) but head_dim={}",
+                        mrope_sections, total, dim
+                    )));
+                }
+            }
             if mrope_sections.is_empty() {
                 // Standard 1-D RoPE
                 let inv_freq: Vec<f32> = (0..dim)
@@ -278,6 +288,11 @@ mod imp {
             let sin_bcast = sin_full.unsqueeze(1)?.unsqueeze(2)?;
 
             // rotate_half(x): cat([-x2, x1], -1) where x1/x2 are first/second halves.
+            if head_dim % 2 != 0 {
+                return Err(crate::error::CandleOcrError::Candle(candle_core::Error::Msg(format!(
+                    "head_dim must be even for rotate_half; got {head_dim}"
+                ))));
+            }
             let half = head_dim / 2;
             let x1 = xs.narrow(D::Minus1, 0, half)?;
             let x2 = xs.narrow(D::Minus1, half, head_dim - half)?;

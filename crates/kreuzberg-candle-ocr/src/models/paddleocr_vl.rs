@@ -122,7 +122,7 @@ impl PaddleOcrVlEngine {
         };
 
         tracing::debug!("Loading weights from {:?}", model_file);
-        // SAFETY: We're using mapped_safetensors with a valid file path. The file is read-only
+        // SAFETY: We're using mmaped_safetensors with a valid file path. The file is read-only
         // and the lifetime is scoped to this function, ensuring memory safety.
         #[allow(unsafe_code)]
         let vb = if model_file.extension().is_some_and(|ext| ext == "bin") {
@@ -130,7 +130,7 @@ impl PaddleOcrVlEngine {
                 .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Failed to load pth: {}", e)))?
         } else {
             unsafe {
-                VarBuilder::from_mapped_safetensors(&[&model_file], dtype, &device)
+                VarBuilder::from_mmaped_safetensors(&[&model_file], dtype, &device)
                     .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Failed to load safetensors: {}", e)))?
             }
         };

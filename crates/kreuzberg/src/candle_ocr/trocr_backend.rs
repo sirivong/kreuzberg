@@ -6,13 +6,73 @@
 use async_trait::async_trait;
 use std::borrow::Cow;
 use std::path::Path;
+use std::sync::{Arc, LazyLock};
+
+use ahash::AHashMap;
+use parking_lot::RwLock;
 
 use crate::Result;
 use crate::core::config::OcrConfig;
 use crate::plugins::{OcrBackend, OcrBackendType, Plugin};
 use crate::types::ExtractionResult;
 use kreuzberg_candle_ocr::DevicePreference;
-use kreuzberg_candle_ocr::models::TrocrVariant;
+use kreuzberg_candle_ocr::models::{TrocrEngine, TrocrVariant};
+
+/// `TrocrVariant` is `PartialEq + Eq + Copy` but does not derive `Hash`.
+/// We map it to a `u8` discriminant to form a hashable pool key.
+fn variant_discriminant(v: TrocrVariant) -> u8 {
+    match v {
+        TrocrVariant::BasePrinted => 0,
+        TrocrVariant::LargePrinted => 1,
+        TrocrVariant::BaseHandwritten => 2,
+        TrocrVariant::LargeHandwritten => 3,
+    }
+}
+
+/// Process-wide engine pool keyed by `(variant_discriminant, device_preference)`.
+///
+/// `TrocrEngine` initialisation downloads and parses safetensors weights from HF Hub
+/// and is expensive (~400 MB per variant). The pool ensures each
+/// `(variant, device)` combination is loaded at most once per process.
+static ENGINE_POOL: LazyLock<RwLock<AHashMap<(u8, DevicePreference), Arc<TrocrEngine>>>> =
+    LazyLock::new(|| RwLock::new(AHashMap::default()));
+
+/// Return a cached engine for `(variant, preference)`, initialising one on first use.
+///
+/// Uses a read → miss → write → double-check pattern so that two racing callers
+/// do not both pay the initialisation cost.
+fn get_or_init_engine(variant: TrocrVariant, preference: DevicePreference) -> crate::Result<Arc<TrocrEngine>> {
+    let key = (variant_discriminant(variant), preference);
+
+    // Fast path: engine already in pool.
+    {
+        let pool = ENGINE_POOL.read();
+        if let Some(engine) = pool.get(&key) {
+            return Ok(Arc::clone(engine));
+        }
+    }
+
+    // Slow path: select the device and build the engine, then insert under write lock.
+    let device = preference.select().map_err(|e| crate::KreuzbergError::Ocr {
+        message: format!("Failed to select compute device: {e}"),
+        source: Some(Box::new(e)),
+    })?;
+
+    tracing::info!(variant = ?variant, preference = ?preference, "Initialising TrOCR engine (cold start)");
+    let new_engine = TrocrEngine::new(variant, device).map_err(|e| crate::KreuzbergError::Ocr {
+        message: format!("TrOCR engine initialisation failed: {e}"),
+        source: Some(Box::new(e)),
+    })?;
+    let new_engine = Arc::new(new_engine);
+
+    let mut pool = ENGINE_POOL.write();
+    // Double-check: another thread may have inserted while we were building.
+    if let Some(existing) = pool.get(&key) {
+        return Ok(Arc::clone(existing));
+    }
+    pool.insert(key, Arc::clone(&new_engine));
+    Ok(new_engine)
+}
 
 /// TrOCR backend using candle transformers.
 ///
@@ -128,26 +188,17 @@ impl OcrBackend for TrocrBackend {
 
         // Run inference in a blocking task to avoid blocking the async runtime
         let content = tokio::task::spawn_blocking(move || {
-            // Select compute device
-            let candle_device = device.select().map_err(|e| crate::KreuzbergError::Ocr {
-                message: format!("Failed to select compute device: {}", e),
-                source: None,
-            })?;
-
-            // Load engine from HF Hub (weights are cached locally after first download)
-            let engine = kreuzberg_candle_ocr::models::TrocrEngine::new(variant, candle_device).map_err(|e| {
-                crate::KreuzbergError::Ocr {
-                    message: format!("TrOCR engine initialization failed: {}", e),
-                    source: None,
-                }
-            })?;
+            // Retrieve a cached engine or initialise one on first use.
+            // Device selection happens inside get_or_init_engine on first call;
+            // subsequent calls for the same (variant, device) reuse the pooled engine.
+            let engine = get_or_init_engine(variant, device)?;
 
             // Process image through encoder-decoder pipeline
             let output = engine
                 .process_image(&image_bytes)
                 .map_err(|e| crate::KreuzbergError::Ocr {
                     message: format!("TrOCR inference failed: {}", e),
-                    source: None,
+                    source: Some(Box::new(e)),
                 })?;
 
             Ok::<String, crate::KreuzbergError>(output.content)

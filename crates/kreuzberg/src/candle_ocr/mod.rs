@@ -12,6 +12,9 @@ pub mod trocr_backend;
 #[cfg(feature = "candle-paddleocr-vl")]
 pub mod paddleocr_vl_backend;
 
+#[cfg(all(feature = "candle-glm-ocr", not(target_arch = "wasm32")))]
+pub mod glm_ocr_backend;
+
 pub use config::{CandleModelId, CandleOcrConfig};
 
 #[cfg(feature = "candle-trocr")]
@@ -20,9 +23,12 @@ pub use trocr_backend::TrocrBackend;
 #[cfg(feature = "candle-paddleocr-vl")]
 pub use paddleocr_vl_backend::PaddleOcrVlBackend;
 
-#[cfg(any(feature = "candle-trocr", feature = "candle-paddleocr-vl"))]
+#[cfg(all(feature = "candle-glm-ocr", not(target_arch = "wasm32")))]
+pub use glm_ocr_backend::GlmOcrBackend;
+
+#[cfg(feature = "candle-ocr")]
 use crate::core::config::{AccelerationConfig, ExecutionProviderType, OcrConfig};
-#[cfg(any(feature = "candle-trocr", feature = "candle-paddleocr-vl"))]
+#[cfg(feature = "candle-ocr")]
 use kreuzberg_candle_ocr::DevicePreference;
 
 /// Resolve a candle [`DevicePreference`] from the centralised acceleration
@@ -42,7 +48,7 @@ use kreuzberg_candle_ocr::DevicePreference;
 /// - `Cuda`     -> `DevicePreference::Cuda`
 /// - `CoreMl`   -> `DevicePreference::Metal` (Apple Neural Engine + GPU runs on Metal in candle)
 /// - `TensorRt` -> `DevicePreference::Cuda` (TensorRT runs on CUDA hardware; candle has no separate TRT path)
-#[cfg(any(feature = "candle-trocr", feature = "candle-paddleocr-vl"))]
+#[cfg(feature = "candle-ocr")]
 pub(crate) fn resolve_device_preference(config: &OcrConfig) -> DevicePreference {
     // 1. Inline override via backend_options
     if let Some(opts) = &config.backend_options
@@ -70,7 +76,7 @@ pub(crate) fn resolve_device_preference(config: &OcrConfig) -> DevicePreference 
 ///
 /// Lifted out of `resolve_device_preference` so the mapping is independently
 /// testable and reusable from future candle backends.
-#[cfg(any(feature = "candle-trocr", feature = "candle-paddleocr-vl"))]
+#[cfg(feature = "candle-ocr")]
 fn device_preference_from_acceleration(accel: &AccelerationConfig) -> DevicePreference {
     match accel.provider {
         ExecutionProviderType::Auto => DevicePreference::Auto,

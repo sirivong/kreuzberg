@@ -153,6 +153,8 @@ candle-ocr = [
 candle-trocr = ["candle-ocr", "kreuzberg-candle-ocr/trocr"]
 # PaddleOCR-VL backend: aggregate feature enabling candle-ocr with paddleocr-vl sub-feature
 candle-paddleocr-vl = ["candle-ocr", "kreuzberg-candle-ocr/paddleocr-vl"]
+# GLM-OCR backend: aggregate feature enabling candle-ocr with glm-ocr sub-feature; requires layout-detection for paired dispatch
+candle-glm-ocr = ["candle-ocr", "kreuzberg-candle-ocr/glm-ocr", "layout-detection"]
 # Candle GPU acceleration pass-throughs. Enable alongside any candle-* backend
 # to compile the corresponding candle backend (CUDA / Metal / Accelerate /
 # MKL) — CPU decode of the larger VLM backends is impractically slow.

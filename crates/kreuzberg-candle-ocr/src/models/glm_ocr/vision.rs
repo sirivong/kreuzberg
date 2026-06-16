@@ -251,6 +251,11 @@ mod imp {
         fn new(config: &VisionConfig, vb: VarBuilder) -> CandleResult<Self> {
             let hidden = config.hidden_size;
             let head_dim = hidden / config.num_attention_heads;
+            if head_dim % 2 != 0 {
+                return Err(candle_core::Error::Msg(format!(
+                    "head_dim must be even for rotate_half; got {head_dim}"
+                )));
+            }
             let scale = 1.0 / (head_dim as f64).sqrt();
 
             let qkv = if config.attention_bias {

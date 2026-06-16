@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **candle-ocr**: PaddleOCR-VL image normalization is now vectorised via candle tensor ops (`broadcast_sub` + `broadcast_div`) instead of a per-pixel triple loop, ~10-50× faster on CPU.
 - **candle-ocr**: PaddleOCR-VL BOS/EOS token ids resolved once at engine load time and cached on the engine, rather than name-looked-up on every decode step. Upstream `paddleocr_vl::Config` does not carry these fields directly.
 - **candle-ocr**: Fixed a typo in `TrocrEngine` weight loading (`from_mapped_safetensors` → `from_mmaped_safetensors`) that prevented the engine from compiling at all under the `trocr` sub-feature.
+- **candle-ocr**: TrOCR backend now pools engine instances across calls instead of re-loading weights every invocation.
+- **candle-ocr**: TrOCR + PaddleOCR-VL backends propagate the underlying `CandleOcrError` as the `source` of `KreuzbergError::Ocr` instead of dropping it.
+- **candle-glm-ocr**: MTP repetition penalty no longer doubles down on already-negative logits.
+- **candle-glm-ocr**: Nucleus sampling rejects NaN/inf-tainted probability vectors instead of silently sampling against them.
+- **candle-glm-ocr**: Decoder KV cache reset at the start of each generation call to prevent cross-call contamination.
+- **layout-detection**: PP-DocLayout-V3 returns `Ok(vec![])` for empty batches instead of panicking.
 
 ### Added
 
@@ -27,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **benchmark-harness**: Candle OCR pipeline variants (`candle-trocr`, `candle-paddleocr-vl`) wired into benchmark harness for comparative evaluation against tesseract and paddle baselines.
 - **benchmark-harness**: Dataset loaders for public structured-extraction corpora (CORD, SROIE, FUNSD, DocILE, VRDU) with manifest-based discovery and JSON-Schema validation via `datasets` module.
 - **benchmark-harness**: JSON-extraction quality metrics (`json_quality` module) including schema validity rate, field-level precision/recall/F1, type correctness, numeric tolerance matching, and exact-match comparison.
+- **ocr**: `candle-glm-ocr` backend exposing zai-org/GLM-OCR through candle. Selectable via `--ocr-backend candle-glm-ocr`. Default layout mode is `paired` (uses PP-DocLayout-V3 for per-region dispatch); set `backend_options.layout_mode = "whole_page"` to disable.
 
 ## [5.0.0-rc.18] - 2026-06-16
 
