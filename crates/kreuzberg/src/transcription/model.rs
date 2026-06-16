@@ -59,6 +59,7 @@ pub struct WhisperModelPaths {
 /// Errors that can occur while resolving Whisper model paths.
 #[cfg(feature = "transcription")]
 #[derive(Debug, thiserror::Error)]
+#[cfg_attr(alef, alef(skip))]
 pub enum WhisperModelError {
     /// The model is not cached locally and `allow_network` is `false`.
     #[error("network access disabled and model not cached: {0}")]
