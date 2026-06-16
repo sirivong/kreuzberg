@@ -17,10 +17,14 @@
 /// `<|end_of_image|>`, and `<|image|>` come from upstream `config.json` (with
 /// runtime resolution against the tokenizer as a sanity check); `<|user|>` and
 /// `<|assistant|>` are resolved from the tokenizer.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct SpecialTokens {
     /// Primary EOS token (`<|endoftext|>` = 59246).
     pub eos: u32,
+    /// All EOS token IDs. The upstream `config.json` declares
+    /// `"eos_token_id": [59246, 59253]` where 59246 is `<|endoftext|>` and
+    /// 59253 is `<|user|>`. Generation stops on any token in this list.
+    pub eos_token_ids: Vec<u32>,
     /// `<|begin_of_image|>` = 59256.
     pub image_start: u32,
     /// `<|end_of_image|>` = 59257.
@@ -42,6 +46,13 @@ mod imp {
     /// Resolve the special-token IDs used by GLM-OCR. Hardcoded fallback IDs
     /// match the upstream `config.json` so the engine still works if the
     /// tokenizer's reverse-lookup fails (e.g. a fine-tune renames tokens).
+    ///
+    /// The upstream `config.json` declares `"eos_token_id": [59246, 59253]`:
+    /// - 59246 = `<|endoftext|>` — natural end-of-generation
+    /// - 59253 = `<|user|>` — turn boundary; generation must not cross it
+    ///
+    /// Both are collected into `eos_token_ids` so the generation loop stops on
+    /// either without running on to produce trailing repetition artefacts.
     pub fn resolve_special_tokens(tokenizer: &Tokenizer) -> Result<SpecialTokens> {
         let eos = tokenizer
             .token_to_id("<|endoftext|>")
@@ -56,8 +67,25 @@ mod imp {
             .token_to_id("<|image|>")
             .ok_or_else(|| CandleOcrError::Tokenizer("<|image|> not in vocab".to_string()))?;
 
+        // Collect all EOS tokens. Primary is <|endoftext|>; the secondary is
+        // <|user|> (= 59253 in upstream vocab), which marks a turn boundary the
+        // decoder must never cross during generation.
+        let mut eos_token_ids = vec![eos];
+        if let Some(user_token) = tokenizer.token_to_id("<|user|>") {
+            if !eos_token_ids.contains(&user_token) {
+                eos_token_ids.push(user_token);
+            }
+        } else {
+            // Hardcoded fallback matching upstream config.json eos_token_id list.
+            let fallback_user_token: u32 = 59253;
+            if !eos_token_ids.contains(&fallback_user_token) {
+                eos_token_ids.push(fallback_user_token);
+            }
+        }
+
         Ok(SpecialTokens {
             eos,
+            eos_token_ids,
             image_start,
             image_end,
             image_token,
@@ -74,7 +102,7 @@ mod imp {
     /// continues from there. No EOS is appended; that would tell the model
     /// generation is already complete.
     pub fn build_input_ids(
-        special: SpecialTokens,
+        special: &SpecialTokens,
         tokenizer: &Tokenizer,
         task_prompt: &str,
         num_image_tokens: usize,

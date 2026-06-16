@@ -366,7 +366,7 @@ mod engine {
             // Build input token IDs following the upstream chat template:
             // [gMASK]<sop><|user|>\n<|begin_of_image|><|image|>×N<|end_of_image|>{prompt}<|assistant|>\n
             let (input_ids, image_tokens_start) = tokenizer::build_input_ids(
-                self.special,
+                &self.special,
                 &self.tokenizer,
                 self.task.prompt(),
                 num_image_tokens_after_merge,
@@ -465,7 +465,7 @@ mod engine {
                     next_text_pos_start,
                     &self.config.mtp_config,
                     self.config.max_new_tokens,
-                    self.special.eos,
+                    &self.special.eos_token_ids,
                 )
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Generation: {}", e)))?
             };

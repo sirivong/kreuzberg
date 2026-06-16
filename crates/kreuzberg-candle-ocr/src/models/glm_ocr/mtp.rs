@@ -26,7 +26,7 @@ impl Default for MtpConfig {
             sample: false,
             top_p: 0.9,
             temperature: 0.1,
-            repetition_penalty: 1.0,
+            repetition_penalty: 1.1,
         }
     }
 }
@@ -65,7 +65,7 @@ mod imp {
         next_text_pos_start: u32,
         config: &MtpConfig,
         max_new_tokens: usize,
-        eos_token_id: u32,
+        eos_token_ids: &[u32],
     ) -> Result<Vec<u32>> {
         let mut output_ids = Vec::new();
 
@@ -99,7 +99,7 @@ mod imp {
 
             output_ids.push(token_id);
 
-            if token_id == eos_token_id {
+            if eos_token_ids.contains(&token_id) {
                 return Ok(output_ids);
             }
 
@@ -141,7 +141,7 @@ mod imp {
         input_embeds: &Tensor,
         config: &MtpConfig,
         max_new_tokens: usize,
-        eos_token_id: u32,
+        eos_token_ids: &[u32],
     ) -> Result<Vec<u32>> {
         let mut output_ids = Vec::new();
         let prefix_len = input_embeds.dim(1)?;
@@ -177,8 +177,8 @@ mod imp {
 
             output_ids.push(token_id);
 
-            // Stop on EOS.
-            if token_id == eos_token_id {
+            // Stop on any EOS token.
+            if eos_token_ids.contains(&token_id) {
                 return Ok(output_ids);
             }
 
