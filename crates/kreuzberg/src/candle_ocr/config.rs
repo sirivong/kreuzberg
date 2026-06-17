@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use kreuzberg_candle_ocr::DevicePreference;
 
 /// Identifier for which candle model is selected by [`CandleOcrConfig`].
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CandleModelId {
@@ -13,6 +14,7 @@ pub enum CandleModelId {
 }
 
 /// Configuration passed to candle OCR backends through `OcrConfig::backend_options`.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, rename_all = "kebab-case")]
 pub struct CandleOcrConfig {

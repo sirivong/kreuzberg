@@ -35,6 +35,7 @@ use kreuzberg_candle_ocr::models::GlmOcrTask;
 /// PP-DocLayout-V3 first, crops individual regions, and dispatches each crop to
 /// the task that best matches the detected layout class, merging results in
 /// reading order.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LayoutMode {
     /// Feed the whole page to the model with the backend's default task.
