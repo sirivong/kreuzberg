@@ -105,6 +105,9 @@ pub mod enrichment;
 #[cfg(feature = "heuristics")]
 pub mod heuristics;
 
+#[cfg(feature = "presets")]
+pub mod presets;
+
 #[cfg(any(feature = "ocr", feature = "ocr-wasm"))]
 pub mod ocr;
 
@@ -175,16 +178,24 @@ pub use core::extractor::{batch_extract_files_sync, extract_file_sync};
 
 // ── Extraction config types ───────────────────────────────────────────────────
 pub use core::config::{
-    AccelerationConfig, BatchBytesItem, BatchFileItem, CaptioningConfig, ChunkSizing, ChunkerType, ChunkingConfig,
-    ContentFilterConfig, EmailConfig, EmbeddingConfig, EmbeddingModelType, ExecutionProviderType, ExtractionConfig,
-    FileExtractionConfig, ImageExtractionConfig, LanguageDetectionConfig, LlmConfig, NerBackendKind, NerConfig,
-    OcrConfig, OutputFormat, PageClassificationConfig, PageConfig, PostProcessorConfig, RedactionConfig,
-    RedactionPattern, RedactionTerm, RerankerConfig, RerankerModelType, StructuredExtractionConfig,
+    AccelerationConfig, BatchBytesItem, BatchFileItem, CallMode, CaptioningConfig, ChunkSizing, ChunkerType,
+    ChunkingConfig, ContentFilterConfig, EmailConfig, EmbeddingConfig, EmbeddingModelType, ExecutionProviderType,
+    ExtractionConfig, FileExtractionConfig, ImageExtractionConfig, LanguageDetectionConfig, LlmConfig, MergeMode,
+    NerBackendKind, NerConfig, OcrConfig, OutputFormat, PageClassificationConfig, PageConfig, PostProcessorConfig,
+    RedactionConfig, RedactionPattern, RedactionTerm, RerankerConfig, RerankerModelType, StructuredExtractionConfig,
     SummarizationConfig, TokenReductionOptions, TranslationConfig,
 };
 #[cfg(feature = "transcription-types")]
 pub use core::config::{TranscriptionConfig, WhisperModel};
 pub use extractors::security::SecurityLimits;
+
+// ── Presets — format + registry + resolver ───────────────────────────────────
+#[cfg(feature = "presets")]
+pub use presets::{
+    resolve, LoadError, Preset, PresetCategory, PresetSample, PresetSummary, Registry, ResolvedPreset, ResolveError,
+};
+// `CallMode` and `MergeMode` are re-exported unconditionally from `core::config` above —
+// they live in `core::config::llm` (always compiled), not behind the `presets` feature.
 
 #[cfg(feature = "quality")]
 pub use text::{ReductionLevel, TokenReductionConfig};
