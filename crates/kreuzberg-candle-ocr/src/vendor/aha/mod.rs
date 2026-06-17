@@ -11,6 +11,7 @@
 
 pub mod image;
 pub mod modules;
+pub mod qwen2;
 pub mod rope;
 
 pub use modules::{

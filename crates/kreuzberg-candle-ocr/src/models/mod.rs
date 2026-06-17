@@ -19,3 +19,9 @@ pub mod glm_ocr;
 
 #[cfg(feature = "glm-ocr")]
 pub use glm_ocr::{GlmOcrConfig, GlmOcrEngine, GlmOcrTask};
+
+#[cfg(feature = "hunyuan-ocr")]
+pub mod hunyuan_ocr;
+
+#[cfg(feature = "hunyuan-ocr")]
+pub use hunyuan_ocr::{HunyuanOCREngine, HunyuanOCRGenerationConfig};

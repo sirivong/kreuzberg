@@ -288,7 +288,7 @@ mod imp {
             let sin_bcast = sin_full.unsqueeze(1)?.unsqueeze(2)?;
 
             // rotate_half(x): cat([-x2, x1], -1) where x1/x2 are first/second halves.
-            if head_dim % 2 != 0 {
+            if !head_dim.is_multiple_of(2) {
                 return Err(crate::error::CandleOcrError::Candle(candle_core::Error::Msg(format!(
                     "head_dim must be even for rotate_half; got {head_dim}"
                 ))));
