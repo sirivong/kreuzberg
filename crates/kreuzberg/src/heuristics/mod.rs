@@ -1,5 +1,5 @@
 //! Document-processing heuristics: chunking decisions, confidence scoring, multi-document
-//! boundary detection.
+//! boundary detection, and structured-extraction call-mode selection.
 //!
 //! Infrastructure only: the algorithms ship with generic, fully-overridable defaults.
 //! Tuned threshold/weight values belong to downstream consumers via config, not here.
@@ -15,6 +15,7 @@
 //! | [`analyzer`] | [`DocumentMetadata`], [`UserChunkConfig`], [`analyze_document`] |
 //! | [`multidoc`] | [`MultidocInput`], [`DocumentBoundary`], [`detect_boundaries`] |
 //! | [`confidence`] | [`ConfidenceSignals`], [`ExtractionConfidence`], [`score_confidence`] |
+//! | [`structured`] | [`StructuredCallMode`], [`StructuredInput`], [`StructuredThresholds`], [`choose_call_mode`] |
 
 pub mod analyzer;
 pub mod confidence;
@@ -22,6 +23,7 @@ pub mod config;
 pub mod decision;
 pub mod error;
 pub mod multidoc;
+pub mod structured;
 pub mod thresholds;
 
 // Convenience re-exports so callers can `use kreuzberg::heuristics::*` for the
@@ -36,4 +38,5 @@ pub use error::{HeuristicsError, Result};
 pub use multidoc::{
     BoundaryReason, DocumentBoundary, MultidocInput, MultidocThresholds, PageSignals, detect_boundaries,
 };
+pub use structured::{StructuredCallMode, StructuredInput, StructuredThresholds, choose_call_mode};
 pub use thresholds::{calculate_chunk_plan, calculate_plan_from_overrides};
