@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0-rc.20] - 2026-06-17
+
+### Fixed
+
+- **alef**: regenerate polyglot bindings against alef 0.25.27. Picks up the FFI-emitter `same-name fn dedup` fix that makes `kreuzberg_{embed,rerank}_texts_async{,_len}` C symbols emit under the OR-merged cfg rather than the stub's `not(feature = "X")` gate — closes the rc.19 e2e wave where 11/13 languages crashed with `EntryPointNotFoundException`.
+- **build**: drop Intel macOS (`macos-13`) from the Python wheel matrix. GH is deprecating macos-13 runners (multi-hour queue tax), and Apple killed Intel Macs. Now arm64-only macOS wheels on `macos-latest`, matching every other language in the publish matrix.
+- **fixtures**: remove three stale duplicate fixture IDs in `fixtures/embeddings/` (`embed_texts_async_{empty_input,happy,preset_switch}.json`) — the active versions live in `fixtures/embed_async_pending/` after the `b4242a0581` "isolate embed_texts_async pending category" move; the originals were never deleted and now cause `duplicate fixture ID` errors during e2e generation.
+
 ### Fixed
 
 - **deps**: Pin `alloc-stdlib` to `0.2.2` to unify the `alloc-no-stdlib` v2/v3 split that broke `brotli-decompressor` compilation under `cargo check --workspace`. Drop brotli HTTP encoding from `tower-http` (`compression-full` → `compression-gzip,compression-deflate,compression-zstd`); clients negotiating brotli will fall back to gzip. Unblocks the prek `cargo-clippy` hook.

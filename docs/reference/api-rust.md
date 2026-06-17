@@ -2,7 +2,7 @@
 title: "Rust API Reference"
 ---
 
-## Rust API Reference <span class="version-badge">v5.0.0-rc.19</span>
+## Rust API Reference <span class="version-badge">v5.0.0-rc.20</span>
 
 ### Functions
 
@@ -2528,13 +2528,13 @@ Trait for document extractor plugins.
 Implement this trait to add support for new document formats or to override
 built-in extraction behavior with custom logic.
 
-### Return Type
+##### Return Type
 
 Extractors return `InternalDocument`, a flat intermediate representation.
 The pipeline converts this into the public `ExtractionResult` via the
 derivation step.
 
-### Priority System
+##### Priority System
 
 When multiple extractors support the same MIME type, the registry selects
 the extractor with the highest priority value. Use this to:
@@ -2545,7 +2545,7 @@ the extractor with the highest priority value. Use this to:
 
 Default priority is 50.
 
-### Thread Safety
+##### Thread Safety
 
 Extractors must be thread-safe (`Send + Sync`) to support concurrent extraction.
 
@@ -2788,7 +2788,7 @@ A flat array of nodes with index-based parent/child references forming a tree.
 Root-level nodes have `parent: None`. Use `body_roots()` and `furniture_roots()`
 to iterate over top-level content by layer.
 
-### Validation
+##### Validation
 
 Call `validate()` after construction to verify all node indices are in bounds
 and parent-child relationships are bidirectionally consistent.
@@ -3078,14 +3078,14 @@ Host-language bridges (PyO3, napi-rs, Rustler, extendr, magnus, ext-php-rs,
 C FFI, etc.) wrap their synchronous host callables in `spawn_blocking` or the
 equivalent to satisfy the async signature.
 
-### Thread safety
+##### Thread safety
 
 Backends must be `Send + Sync + 'static`. They are stored in
 `Arc<dyn EmbeddingBackend>` and called concurrently from kreuzberg's chunking
 pipeline. If the backend's underlying model isn't thread-safe, the backend
 itself must serialize access internally (e.g. via `Mutex<Inner>`).
 
-### Contract
+##### Contract
 
 - `embed(texts)` MUST return exactly `texts.len()` vectors, each of length
   `self.dimensions()`. The dispatcher in `crate::embeddings::embed_texts`
@@ -3109,7 +3109,7 @@ itself must serialize access internally (e.g. via `Mutex<Inner>`).
   held via the `Arc<dyn EmbeddingBackend>` reference, and only releasing
   shared state that isn't needed by `embed`.
 
-### Runtime
+##### Runtime
 
 The synchronous `embed_texts` entry uses
 `tokio::task::block_in_place` to await the trait's async `embed`, which
@@ -3602,7 +3602,7 @@ This type is used with `batch_extract_files` and
 `batch_extract_bytes` to allow heterogeneous
 extraction settings within a single batch.
 
-### Excluded Fields
+##### Excluded Fields
 
 The following `ExtractionConfig` fields are batch-level only and
 cannot be overridden per file:
@@ -4371,7 +4371,7 @@ Implement this trait to add custom OCR capabilities. OCR backends can be:
 - FFI bridges to Python libraries (like EasyOCR, PaddleOCR)
 - Cloud-based OCR services (Google Vision, AWS Textract, etc.)
 
-### Thread Safety
+##### Thread Safety
 
 OCR backends must be thread-safe (`Send + Sync`) to support concurrent processing.
 
@@ -4564,6 +4564,29 @@ pub fn supports_document_processing(&self) -> bool
 
 ```rust
 let result = instance.supports_document_processing();
+```
+
+**Returns:** `bool`
+
+###### emits_structured_markdown()
+
+Declare that this backend emits structured markdown directly (tables, headings, lists)
+and downstream layout reconstruction should be skipped.
+
+Defaults to `false` — classical OCR backends (Tesseract, PaddleOCR classical) return
+plain text per detected region. End-to-end VLM backends (PaddleOCR-VL, GOT-OCR 2.0)
+emit markdown in one forward pass and should override this to `true`.
+
+**Signature:**
+
+```rust
+pub fn emits_structured_markdown(&self) -> bool
+```
+
+**Example:**
+
+```rust
+let result = instance.emits_structured_markdown();
 ```
 
 **Returns:** `bool`
@@ -5253,7 +5276,7 @@ Content for a single page/slide.
 When page extraction is enabled, documents are split into per-page content
 with associated tables and images mapped to each page.
 
-### Performance
+##### Performance
 
 Uses Arc-wrapped tables and images for memory efficiency:
 
@@ -5418,7 +5441,7 @@ Base trait that all plugins must implement.
 This trait provides common functionality for plugin lifecycle management,
 identification, and metadata.
 
-### Thread Safety
+##### Thread Safety
 
 All plugins must be `Send + Sync` to support concurrent usage across threads.
 
@@ -5630,7 +5653,7 @@ extraction is complete. They can:
 - Score quality
 - Apply custom transformations
 
-### Processing Order
+##### Processing Order
 
 Post-processors are executed in stage order:
 
@@ -5640,12 +5663,12 @@ Post-processors are executed in stage order:
 
 Within each stage, processors are executed in registration order.
 
-### Error Handling
+##### Error Handling
 
 Post-processor errors are non-fatal by default - they're captured in metadata
 and execution continues. To make errors fatal, return an error from `process()`.
 
-### Thread Safety
+##### Thread Safety
 
 Post-processors must be thread-safe (`Send + Sync`).
 
@@ -6224,7 +6247,7 @@ The format name is exposed via `Plugin::name`. For stateless renderers
 the `Plugin` lifecycle methods (`version`, `initialize`, `shutdown`) all
 take no-op defaults and need not be overridden.
 
-### Thread Safety
+##### Thread Safety
 
 Renderers must be `Send + Sync` (inherited from `Plugin`).
 
@@ -6296,14 +6319,14 @@ Async to match the convention used by `EmbeddingBackend`
 and other plugin traits. Host-language bridges wrap their synchronous
 host callables in `spawn_blocking` or the equivalent.
 
-### Thread safety
+##### Thread safety
 
 Backends must be `Send + Sync + 'static`. They are stored in
 `Arc<dyn RerankerBackend>` and may be called concurrently from kreuzberg's
 dispatcher. If the backend's underlying model is not thread-safe, the
 backend itself must serialize access internally (e.g. via `Mutex<Inner>`).
 
-### Contract
+##### Contract
 
 - `rerank(query, documents)` MUST return exactly `documents.len()` scores.
   The dispatcher validates this before sorting and returning to callers;
@@ -6322,7 +6345,7 @@ backend itself must serialize access internally (e.g. via `Mutex<Inner>`).
   tolerate this — letting in-flight calls finish via the `Arc` reference
   and only releasing shared state that isn't needed by `rerank`.
 
-### Runtime
+##### Runtime
 
 The synchronous `rerank` entry uses
 `tokio::task::block_in_place` to await the trait's async `rerank`, which
@@ -6492,7 +6515,7 @@ API server configuration.
 This struct holds all configuration options for the Kreuzberg API server,
 including host/port settings, CORS configuration, and upload limits.
 
-### Defaults
+##### Defaults
 
 - `host`: "127.0.0.1" (localhost only)
 - `port`: 8000
@@ -7104,7 +7127,7 @@ Configuration for tree-sitter language pack integration.
 
 Controls grammar download behavior and code analysis options.
 
-### Example (TOML)
+##### Example (TOML)
 
 ```toml
 [tree_sitter]
@@ -7191,7 +7214,7 @@ Validators check extraction results for quality, completeness, or correctness.
 Unlike post-processors, validator errors **fail fast** - if a validator returns
 an error, the extraction fails immediately.
 
-### Use Cases
+##### Use Cases
 
 - **Quality Gates**: Ensure extracted content meets minimum quality standards
 - **Compliance**: Verify content meets regulatory requirements
@@ -7199,14 +7222,14 @@ an error, the extraction fails immediately.
 - **Format Validation**: Verify extracted content structure
 - **Security Checks**: Scan for malicious content
 
-### Error Handling
+##### Error Handling
 
 Validator errors are **fatal** - they cause the extraction to fail and bubble up
 to the caller. Use validators for hard requirements that must be met.
 
 For non-fatal checks, use post-processors instead.
 
-### Thread Safety
+##### Thread Safety
 
 Validators must be thread-safe (`Send + Sync`).
 
@@ -7687,6 +7710,7 @@ OCR backend types.
 | `Tesseract` | Tesseract OCR (native Rust binding) |
 | `EasyOcr` | EasyOCR (Python-based, via FFI) |
 | `PaddleOcr` | PaddleOCR (Python-based, via FFI) |
+| `Candle` | Candle-based VLM OCR (TrOCR, PaddleOCR-VL). |
 | `Custom` | Custom/third-party OCR backend |
 
 ---

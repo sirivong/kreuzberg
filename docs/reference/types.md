@@ -3604,6 +3604,7 @@ OCR backend types.
 | `Tesseract` | Tesseract OCR (native Rust binding) |
 | `EasyOCR` | EasyOCR (Python-based, via FFI) |
 | `PaddleOCR` | PaddleOCR (Python-based, via FFI) |
+| `Candle` | Candle-based VLM OCR (TrOCR, PaddleOCR-VL). |
 | `Custom` | Custom/third-party OCR backend |
 
 ---
