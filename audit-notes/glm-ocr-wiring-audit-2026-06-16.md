@@ -413,3 +413,103 @@ support, `parse_options` variants, `initialize`/`shutdown`, and layout helpers b
 - **G2** (error source dropped): silent loss of root cause in device-select failure; violates `source: Some(Box::new(e))` contract stated in CLAUDE.md.
 - **G3** (backend_options unreachable via CLI `--ocr`): usability gap; workaround via `--config-json` exists.
 - **G4/G5/G6** (test coverage): coverage gaps, not runtime defects.
+
+---
+
+## Deferred follow-ups (G7–G10)
+
+The following gaps were identified during extended codebase scanning but are deferred (not gating release). Each requires cross-cutting changes and integration testing that is best handled in a dedicated follow-up task.
+
+### G7 — Chart routing (LayoutClass variant)
+
+**Files:** `crates/kreuzberg/src/layout/models/pp_doclayout_v3.rs` line 62, `crates/kreuzberg/src/candle_ocr/glm_ocr_backend.rs` lines 124–145
+
+**Current behavior:**
+
+- `pp_doclayout_v3.rs:62` maps class id 5 (Chart) to `LayoutClass::Picture`: `5 => Some(LayoutClass::Picture), // Chart → Picture`
+- `glm_ocr_backend.rs:129` routes `LayoutClass::Picture` to `GlmOcrTask::Caption` in `task_for_label()`
+- The `LayoutClass` enum (in `crates/kreuzberg/src/layout/types.rs`) lacks a `Chart` variant.
+- Docling, DocStructBench, and DocLayNet mappers all use the same enum, so Chart is folded to Picture across all layout models.
+
+**Proposed fix scope:**
+
+1. Add `LayoutClass::Chart` variant
+2. Update `pp_doclayout_v3.rs:62` to map class 5 to `LayoutClass::Chart`
+3. Update all layout-class-to-LayoutClass mapping functions (DocLayNet, Docling, DocStructBench)
+4. Update consumers: `task_for_label()` (route Chart to appropriate task), `heuristics.rs`, `extractors/image.rs`, `pdf/layout_hints.rs`
+
+**Rationale for deferral:**
+
+Chart extraction has no dedicated GLM-OCR task (no `GlmOcrTask::Chart`). Current design falls back to `Caption` (descriptive output). A real fix would require evaluating whether charts deserve a dedicated task or remain grouped with captions. This is a design decision that should be made alongside future chart-specific ML work, not in isolation.
+
+---
+
+### G8 — MTP next-N predict (speculative decoding)
+
+**File:** `crates/kreuzberg-candle-ocr/src/models/glm_ocr/mtp.rs` lines 1–40 (config struct), lines 35+ (generation loop)
+
+**Current behavior:**
+
+- `MtpConfig.num_tokens_per_step` is defined (default 4) but the generation loop runs **plain autoregressive decoding** — one token per forward pass
+- Speculative decoding (predicting multiple tokens per pass and verifying with a single autoregressive forward) is not implemented
+- Field is dead code
+
+**Proposed fix scope:**
+
+Implement multi-token speculative decoding in the generation loop:
+1. Run `num_tokens_per_step` forward passes on the decoder to predict a sequence
+2. Validate the sequence against a single autoregressive pass
+3. Accept/reject/adjust predictions based on confidence
+
+**Rationale for deferral:**
+
+Speculative decoding is a performance optimization. Correctness is unaffected; plain autoregressive is the fallback. Deferring allows the MVP to ship without speculative acceleration. The infrastructure (config field, test harness) is ready for a future performance sprint.
+
+---
+
+### G9 — TrOCR text-detection pairing
+
+**File:** `crates/kreuzberg/src/candle_ocr/trocr_backend.rs` lines 77–90 (backend documentation)
+
+**Current behavior:**
+
+- TrOCR backend documentation at line 82–89 explicitly states: **"TrOCR is trained to recognise a single line of text per image."**
+- Backend accepts full-page images but will produce nearly-empty output on uncroped pages
+- No paired text-detection → crop pipeline exists (unlike GLM-OCR's Paired mode with PP-DocLayout-V3)
+- Callers must manually pre-crop text regions before calling TrOCR
+
+**Proposed fix scope:**
+
+1. Add a paired-mode option (gated by `layout-detection`) similar to `LayoutMode::Paired` in GLM-OCR
+2. Detect text regions (e.g., PaddleOCR text detector or a lightweight line detector)
+3. Dispatch each crop to TrOCR
+4. Merge results in reading order
+
+**Rationale for deferral:**
+
+TrOCR works correctly for its documented use case (line-level crops). Adding a detection pairing would improve usability but is not a correctness gap. GLM-OCR already provides full-page VLM OCR; TrOCR's niche is fast, lightweight line recognition. Deferring allows users to continue using TrOCR for cropped input while future work improves full-page automation.
+
+---
+
+### G10 — Layout-detector pool (performance)
+
+**File:** `crates/kreuzberg/src/candle_ocr/glm_ocr_backend.rs` lines 368–396 (process_paired function)
+
+**Current behavior:**
+
+- In paired mode, `process_paired()` runs `PpDocLayoutV3Model::from_file()` on every call (line 391)
+- The layout detection model (~900 MB ONNX) is loaded, run inference, then discarded
+- Contrast: the GLM-OCR engine is pooled globally (`ENGINE_POOL`, lines 71–72) and reused across calls
+- TrOCR backend also pools its engine (`ENGINE_POOL`, `trocr_backend.rs:37`)
+
+**Proposed fix scope:**
+
+1. Add a global `LAYOUT_DETECTOR_POOL` (`LazyLock<RwLock<AHashMap<DevicePreference, Arc<PpDocLayoutV3Model>>>>`)
+2. Implement `get_or_init_layout_detector(preference)` with the double-check pattern
+3. Refactor `process_paired()` to use the pooled detector
+4. Apply same pooling to other layout models when added (e.g., DocLayNet)
+
+**Rationale for deferral:**
+
+This is a performance optimization that does not affect correctness. The MVP ships with on-demand layout detection loading. Pooling will improve throughput in batch scenarios (baseline: ~2× faster per call in paired mode). Deferring allows the release to ship without layout-detector pooling, with a clear performance roadmap for a follow-up sprint.
+
