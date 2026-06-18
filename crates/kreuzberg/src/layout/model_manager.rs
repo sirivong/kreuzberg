@@ -9,6 +9,43 @@ use std::path::{Path, PathBuf};
 use crate::layout::error::LayoutError;
 use crate::model_download;
 
+/// Monotonic counter giving each `atomic_publish` call a unique temp filename so concurrent
+/// publishes of the same model never collide on the staging path.
+static PUBLISH_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// Publish `src` to `dst` atomically.
+///
+/// Copies `src` into a per-call temp file inside `dst_dir` (same filesystem as `dst`),
+/// re-verifies the staged copy's checksum, then renames it into place. The rename is atomic,
+/// so concurrent callers — e.g. GLM-OCR paired mode rasterizing pages in parallel, each
+/// constructing its own [`LayoutModelManager`] — each stage to a private temp and atomically
+/// swap it in. Every observer sees either the old absent file or a complete, checksum-valid
+/// model, never a torn copy from interleaved writes to a shared destination.
+fn atomic_publish(src: &Path, dst: &Path, dst_dir: &Path, sha256: &str, label: &str) -> Result<(), String> {
+    let stem = dst.file_name().and_then(|n| n.to_str()).unwrap_or("model");
+    let tmp = dst_dir.join(format!(
+        ".{stem}.{}.{}.tmp",
+        std::process::id(),
+        PUBLISH_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+    ));
+
+    fs::copy(src, &tmp).map_err(|e| {
+        let _ = fs::remove_file(&tmp);
+        format!("Failed to stage model at {}: {e}", tmp.display())
+    })?;
+
+    // Re-verify the staged copy so a torn/partial copy is caught before it is published.
+    if let Err(e) = model_download::verify_sha256(&tmp, sha256, label) {
+        let _ = fs::remove_file(&tmp);
+        return Err(e);
+    }
+
+    fs::rename(&tmp, dst).map_err(|e| {
+        let _ = fs::remove_file(&tmp);
+        format!("Failed to publish model to {}: {e}", dst.display())
+    })
+}
+
 #[cfg(feature = "paddle-ocr")]
 use crate::paddle_ocr::ModelManifestEntry;
 
@@ -148,9 +185,14 @@ impl LayoutModelManager {
         model_download::verify_sha256(&cached_path, definition.sha256_checksum, model_type)
             .map_err(LayoutError::ModelDownload)?;
 
-        fs::copy(&cached_path, &model_file).map_err(|e| {
-            LayoutError::ModelDownload(format!("Failed to copy model to {}: {e}", model_file.display()))
-        })?;
+        atomic_publish(
+            &cached_path,
+            &model_file,
+            &model_dir,
+            definition.sha256_checksum,
+            model_type,
+        )
+        .map_err(LayoutError::ModelDownload)?;
 
         tracing::info!(path = %model_file.display(), model_type, "Layout model saved to cache");
         Ok(model_file)
@@ -248,6 +290,73 @@ impl LayoutModelManager {
 mod tests {
     use super::*;
     use tempfile::TempDir;
+
+    #[test]
+    fn atomic_publish_yields_complete_file_under_concurrency() {
+        use std::sync::Arc;
+
+        let dir = TempDir::new().unwrap();
+        let dst_dir = dir.path().to_path_buf();
+        let src = dst_dir.join("source.bin");
+        // ~1 MiB payload so an interleaved/torn copy would be detectable.
+        let payload: Vec<u8> = (0..1024 * 1024).map(|i| (i % 251) as u8).collect();
+        fs::write(&src, &payload).unwrap();
+        let sha = {
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            hasher.update(&payload);
+            hex::encode(hasher.finalize())
+        };
+
+        let src = Arc::new(src);
+        let dst = Arc::new(dst_dir.join("published.onnx"));
+        let dst_dir = Arc::new(dst_dir);
+        let sha = Arc::new(sha);
+
+        let handles: Vec<_> = (0..16)
+            .map(|_| {
+                let (src, dst, dst_dir, sha) = (src.clone(), dst.clone(), dst_dir.clone(), sha.clone());
+                std::thread::spawn(move || {
+                    atomic_publish(&src, &dst, &dst_dir, &sha, "test-model").expect("publish must succeed");
+                })
+            })
+            .collect();
+        for h in handles {
+            h.join().unwrap();
+        }
+
+        // The published file must be a complete, byte-identical copy — never torn.
+        assert_eq!(fs::read(&*dst).unwrap(), payload, "published file must equal source");
+
+        // No staging temp files may leak.
+        let leftovers: Vec<_> = fs::read_dir(&*dst_dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "no .tmp staging files should remain, found {leftovers:?}");
+    }
+
+    #[test]
+    fn atomic_publish_rejects_checksum_mismatch_and_leaves_no_partial() {
+        let dir = TempDir::new().unwrap();
+        let dst_dir = dir.path().to_path_buf();
+        let src = dst_dir.join("source.bin");
+        fs::write(&src, b"some model bytes").unwrap();
+        let dst = dst_dir.join("published.onnx");
+
+        let err = atomic_publish(&src, &dst, &dst_dir, &"0".repeat(64), "test-model")
+            .expect_err("mismatched checksum must fail");
+        assert!(err.contains("Checksum mismatch"), "unexpected error: {err}");
+        assert!(!dst.exists(), "no file may be published on checksum failure");
+
+        let leftovers: Vec<_> = fs::read_dir(&dst_dir)
+            .unwrap()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_name().to_string_lossy().ends_with(".tmp"))
+            .collect();
+        assert!(leftovers.is_empty(), "staging temp must be cleaned up on failure, found {leftovers:?}");
+    }
 
     #[test]
     fn test_layout_model_manager_creation() {
