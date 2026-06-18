@@ -204,6 +204,7 @@ Lightweight line-level text recognition using Microsoft's TrOCR model. **Trained
 | English | `eng` / `en` |
 
 **Variants:** Four model sizes are available:
+
 - `base-printed` (default) — Optimized for printed text, ~250 MB
 - `large-printed` — Higher accuracy, ~400 MB
 - `base-handwritten` — Trained on handwritten text
@@ -214,6 +215,7 @@ Lightweight line-level text recognition using Microsoft's TrOCR model. **Trained
 **Installation:** Enabled via `candle-ocr` or `full` feature in Cargo.
 
 **Selection:** Configure via backend options:
+
 ```json
 {
   "ocr": {
@@ -253,6 +255,7 @@ Multilingual vision-language model (0.9B) for full-page document parsing. Suppor
 **Selection:** Use `--ocr-backend candle-glm-ocr` and optionally set `--ocr-language` from the list above.
 
 **Configuration:**
+
 ```json
 {
   "ocr": {
@@ -294,6 +297,7 @@ Lightweight vision-language model for multilingual document parsing. Supports te
 **Selection:** Use `--ocr-backend candle-paddleocr-vl` with optional `--ocr-language`.
 
 **Configuration:** Requires a local model path:
+
 ```json
 {
   "ocr": {
@@ -335,6 +339,7 @@ Vision-language model combining SAM vision encoder, ViT/Qwen2, CLIP, and languag
 **Selection:** Use `--ocr-backend candle-deepseek-ocr` with optional `--ocr-language`.
 
 **Configuration:** Requires a local model path:
+
 ```json
 {
   "ocr": {
@@ -376,6 +381,7 @@ Vision-language model for comprehensive document parsing. Supports CJK (Chinese,
 **Selection:** Use `--ocr-backend candle-hunyuan-ocr` with optional `--ocr-language`.
 
 **Configuration:** Requires a local model path:
+
 ```json
 {
   "ocr": {
@@ -397,11 +403,13 @@ Language selection follows the configuration cascade (highest to lowest priority
 1. **CLI flag:** `--ocr-language eng` or `--ocr-language eng+deu`
 2. **Inline JSON config:** `--config-json '{"ocr": {"languages": ["eng", "deu"]}}'`
 3. **Config file:** `kreuzberg.toml` or `kreuzberg.yaml`:
+
    ```toml
    [ocr]
    backend = "tesseract"
    languages = ["eng", "deu", "fra"]
    ```
+
 4. **Default:** Uses backend's default language behavior (usually English or auto-detect)
 
 ### Code Format

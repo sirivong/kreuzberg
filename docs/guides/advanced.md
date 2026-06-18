@@ -531,7 +531,7 @@ Extracted fields appear in `result.form_fields` as a list of `PdfFormField` stru
 | `field_type` | enum | One of: `Text`, `Checkbox`, `Radio`, `Choice`, `Signature`, `Button`, `Unknown`. |
 | `value` | string | Current field value (if filled). |
 | `default_value` | string | Default value from the form template. |
-| `flags` | u32 | Bitmask: read-only, required, multiline, password, etc. |
+| `flags` | u32 | Bitmask: read-only, required, multiline, password, and so on. |
 | `page` | u32 | 1-indexed page number the field appears on. |
 | `bbox` | `BoundingBox` | Widget location on the page (x, y, width, height). |
 | `max_length` | u32 | Maximum input length (text fields only). |
@@ -559,12 +559,12 @@ extract_form_fields = false
 
     ```python
     from kreuzberg import extract_file, ExtractionConfig, PdfConfig
-    
+
     config = ExtractionConfig(
         pdf=PdfConfig(extract_form_fields=True)
     )
     result = extract_file("form.pdf", config=config)
-    
+
     for field in result.form_fields:
         print(f"Field: {field.full_name} = {field.value or '(empty)'}")
         print(f"  Type: {field.field_type}, Page: {field.page}")
@@ -574,12 +574,12 @@ extract_form_fields = false
 
     ```typescript
     import { extractFile, ExtractionConfig } from "kreuzberg";
-    
+
     const config: ExtractionConfig = {
       pdf: { extract_form_fields: true }
     };
     const result = await extractFile("form.pdf", config);
-    
+
     for (const field of result.form_fields) {
       console.log(`Field: ${field.full_name} = ${field.value || "(empty)"}`);
       console.log(`  Type: ${field.field_type}, Page: ${field.page}`);
@@ -590,7 +590,7 @@ extract_form_fields = false
 
     ```rust
     use kreuzberg::{extract_file, ExtractionConfig, PdfConfig};
-    
+
     let config = ExtractionConfig {
         pdf: Some(PdfConfig {
             extract_form_fields: true,
@@ -598,7 +598,7 @@ extract_form_fields = false
         }),
         ..Default::default()
     };
-    
+
     let result = extract_file("form.pdf", None, &config).await?;
     for field in &result.form_fields {
         println!("Field: {} = {}", field.full_name, field.value.as_deref().unwrap_or("(empty)"));
@@ -610,21 +610,21 @@ extract_form_fields = false
 
     ```go
     package main
-    
+
     import (
         "fmt"
         kreuzberg "github.com/kreuzberg-dev/kreuzberg/packages/go/v5"
     )
-    
+
     func main() {
         config := kreuzberg.NewExtractionConfig()
         config.Pdf.ExtractFormFields = true
-        
+
         result, err := kreuzberg.ExtractFile("form.pdf", config)
         if err != nil {
             panic(err)
         }
-        
+
         for _, field := range result.FormFields {
             value := ""
             if field.Value != nil {

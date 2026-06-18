@@ -140,6 +140,140 @@ fn project_spans_to_regions(spans: &[TextSpan], hints: &[LayoutHint]) -> Vec<Reg
     regions
 }
 
+/// Reorder segments (higher-level blocks) based on layout regions and column detection.
+///
+/// Similar to reorder_spans_by_layout but operates on PDF hierarchy SegmentData.
+/// Each segment has a bounding box (x, y, width, height) that maps onto layout regions.
+///
+/// Returns the reordered segments in reading order (column-major, top-to-bottom).
+#[cfg(feature = "layout-detection")]
+pub(crate) fn reorder_segments_by_layout(
+    segments: Vec<crate::pdf::hierarchy::SegmentData>,
+    hints: &[LayoutHint],
+) -> Vec<crate::pdf::hierarchy::SegmentData> {
+    if segments.is_empty() || hints.is_empty() {
+        return segments;
+    }
+
+    // Convert segments to simple (index, bbox) for projection onto regions
+    let seg_indices: Vec<(usize, f32, f32, f32, f32)> = segments
+        .iter()
+        .enumerate()
+        .map(|(i, seg)| {
+            let right = seg.x + seg.width;
+            let bottom = seg.y; // PDF coords: y=0 at bottom, so "bottom" is the y value
+            let top = seg.y + seg.height;
+            (i, seg.x, bottom, right, top)
+        })
+        .collect();
+
+    // Project indices onto regions using center-point containment
+    let mut regions: Vec<(RegionProjection, Vec<usize>)> = hints
+        .iter()
+        .map(|hint| {
+            (
+                RegionProjection {
+                    left: hint.left,
+                    bottom: hint.bottom,
+                    right: hint.right,
+                    top: hint.top,
+                    span_indices: Vec::new(),
+                },
+                Vec::new(),
+            )
+        })
+        .collect();
+
+    for (seg_idx, seg_left, seg_bottom, seg_right, seg_top) in &seg_indices {
+        let seg_center_x = seg_left + (seg_right - seg_left) / 2.0;
+        let seg_center_y = seg_bottom + (seg_top - seg_bottom) / 2.0;
+
+        // Find the best-matching region (smallest enclosing region)
+        let mut best_region = None;
+        let mut best_area = f32::INFINITY;
+
+        for (region_idx, (region, _)) in regions.iter().enumerate() {
+            if seg_center_x >= region.left
+                && seg_center_x <= region.right
+                && seg_center_y >= region.bottom
+                && seg_center_y <= region.top
+            {
+                let area = (region.right - region.left) * (region.top - region.bottom);
+                if area < best_area {
+                    best_region = Some(region_idx);
+                    best_area = area;
+                }
+            }
+        }
+
+        if let Some(region_idx) = best_region {
+            regions[region_idx].1.push(*seg_idx);
+        }
+    }
+
+    // Keep only regions that captured at least one segment, preserving the
+    // captured segment indices (the earlier per-region projection result).
+    let active: Vec<(RegionProjection, Vec<usize>)> =
+        regions.into_iter().filter(|(_, indices)| !indices.is_empty()).collect();
+
+    if active.is_empty() {
+        return segments;
+    }
+
+    // Detect columns from region x-centers: merge centers within the threshold.
+    let mut x_centers: Vec<f32> = active.iter().map(|(r, _)| (r.left + r.right) / 2.0).collect();
+    x_centers.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let mut unique_centers: Vec<f32> = Vec::new();
+    for &center in &x_centers {
+        match unique_centers.last() {
+            Some(&last) if (center - last).abs() <= COLUMN_MERGE_THRESHOLD_PTS => {}
+            _ => unique_centers.push(center),
+        }
+    }
+
+    // Tag each region with its nearest column, carrying its captured indices.
+    let mut ordered: Vec<(usize, f32, Vec<usize>)> = Vec::with_capacity(active.len());
+    for (region, indices) in active {
+        let center = (region.left + region.right) / 2.0;
+        let mut best_col = 0usize;
+        let mut best_dist = f32::INFINITY;
+        for (cand, &cluster_center) in unique_centers.iter().enumerate() {
+            let dist = (center - cluster_center).abs();
+            if dist < best_dist {
+                best_dist = dist;
+                best_col = cand;
+            }
+        }
+        ordered.push((best_col, region.top, indices));
+    }
+
+    // Column-major (left-to-right), then top-to-bottom (descending y in PDF coords).
+    ordered.sort_by(|a, b| match a.0.cmp(&b.0) {
+        std::cmp::Ordering::Equal => b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal),
+        other => other,
+    });
+
+    // Emit segments in sorted-region order (each at most once), then append any
+    // segments that projected to no region, in their original order.
+    let mut included = vec![false; segments.len()];
+    let mut reorder_map: Vec<usize> = Vec::with_capacity(segments.len());
+    for (_, _, indices) in &ordered {
+        for &idx in indices {
+            if idx < segments.len() && !included[idx] {
+                included[idx] = true;
+                reorder_map.push(idx);
+            }
+        }
+    }
+    for (idx, done) in included.iter().enumerate() {
+        if !*done {
+            reorder_map.push(idx);
+        }
+    }
+
+    reorder_map.into_iter().map(|idx| segments[idx].clone()).collect()
+}
+
 /// Reorder spans based on layout regions and column detection.
 ///
 /// Given a set of spans with bounding boxes and layout-detected regions:
@@ -149,10 +283,7 @@ fn project_spans_to_regions(spans: &[TextSpan], hints: &[LayoutHint]) -> Vec<Reg
 /// 4. Emit spans in the order of their sorted regions
 ///
 /// Returns a Vec of span indices in reading order.
-pub(crate) fn reorder_spans_by_layout(
-    spans: &[TextSpan],
-    hints: &[LayoutHint],
-) -> Vec<usize> {
+pub(crate) fn reorder_spans_by_layout(spans: &[TextSpan], hints: &[LayoutHint]) -> Vec<usize> {
     if spans.is_empty() || hints.is_empty() {
         // No reordering needed
         return (0..spans.len()).collect();
@@ -355,6 +486,68 @@ mod tests {
         assert_eq!(order[1], 1); // B from left column, bottom
         assert_eq!(order[2], 2); // C from right column, top
         assert_eq!(order[3], 3); // D from right column, bottom
+    }
+
+    /// Segment-level reorder must produce true column-major reading order from
+    /// interleaved input, independent of the layout-hint ordering. The hints
+    /// here are supplied right-column-first; a correct reorder still yields
+    /// A, B, C, D (left column top-to-bottom, then right column). A previous
+    /// implementation emitted segments in raw hint order and would yield
+    /// C, D, A, B here — this is the regression guard.
+    #[test]
+    fn test_reorder_segments_two_column_independent_of_hint_order() {
+        fn seg(text: &str, x: f32, y: f32) -> crate::pdf::hierarchy::SegmentData {
+            crate::pdf::hierarchy::SegmentData {
+                text: text.to_string(),
+                x,
+                y,
+                width: 10.0,
+                height: 12.0,
+                font_size: 10.0,
+                is_bold: false,
+                is_italic: false,
+                is_monospace: false,
+                baseline_y: y,
+                assigned_role: None,
+            }
+        }
+
+        // Interleaved input order across columns (as native extraction may emit).
+        let segments = vec![
+            seg("A", 110.0, 450.0), // left column, top
+            seg("C", 410.0, 450.0), // right column, top
+            seg("B", 110.0, 200.0), // left column, bottom
+            seg("D", 410.0, 200.0), // right column, bottom
+        ];
+
+        // Hints supplied right-column-first to prove the result is column-major,
+        // not hint-order-dependent.
+        let hints = vec![
+            LayoutHint {
+                class_name: crate::pdf::structure::types::LayoutHintClass::Text,
+                confidence: 0.95,
+                left: 400.0,
+                bottom: 100.0,
+                right: 500.0,
+                top: 500.0,
+            },
+            LayoutHint {
+                class_name: crate::pdf::structure::types::LayoutHintClass::Text,
+                confidence: 0.95,
+                left: 100.0,
+                bottom: 100.0,
+                right: 200.0,
+                top: 500.0,
+            },
+        ];
+
+        let reordered = reorder_segments_by_layout(segments, &hints);
+        let order: Vec<&str> = reordered.iter().map(|s| s.text.as_str()).collect();
+        assert_eq!(
+            order,
+            vec!["A", "B", "C", "D"],
+            "segments must be reordered column-major top-to-bottom regardless of hint order"
+        );
     }
 
     #[test]

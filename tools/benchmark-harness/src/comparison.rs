@@ -384,6 +384,9 @@ pub fn build_extraction_config(pipeline: Pipeline) -> kreuzberg::ExtractionConfi
         Pipeline::PdfOxideLayout => kreuzberg::ExtractionConfig {
             pdf_options: Some(kreuzberg::PdfConfig { ..Default::default() }),
             layout: Some(LayoutDetectionConfig::default()),
+            // Drive the layout-for-markdown path so the oxide extractor receives
+            // layout hints (heading/table/figure detection feeds the structure pipeline).
+            use_layout_for_markdown: true,
             ocr: Some(kreuzberg::core::config::OcrConfig {
                 backend: "tesseract".to_string(),
                 language: "eng".to_string(),
@@ -397,6 +400,9 @@ pub fn build_extraction_config(pipeline: Pipeline) -> kreuzberg::ExtractionConfi
                 ..Default::default()
             }),
             layout: Some(LayoutDetectionConfig::default()),
+            // Reading-order reordering requires layout hints; without this flag
+            // `maybe_run_layout_for_markdown` returns early and reading_order is a no-op.
+            use_layout_for_markdown: true,
             ocr: Some(kreuzberg::core::config::OcrConfig {
                 backend: "tesseract".to_string(),
                 language: "eng".to_string(),
