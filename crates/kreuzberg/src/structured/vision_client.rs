@@ -61,7 +61,7 @@ pub struct VisionResponse {
 ///
 /// Returns [`super::StructuredError::Vision`] for any transport failure, non-success
 /// HTTP status, missing/empty response content, or JSON parse errors.
-pub async fn call(
+pub(crate) async fn call(
     client: &liter_llm::client::DefaultClient,
     request: VisionRequest,
 ) -> Result<VisionResponse, super::StructuredError> {

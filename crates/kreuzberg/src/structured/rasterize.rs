@@ -25,7 +25,7 @@ use super::{PageImage, StructuredError, VisionConfig};
 /// Returns [`StructuredError::Rasterize`] if PDF rendering or image decode/encode
 /// fails, or [`StructuredError::UnsupportedMime`] when a vision mode is requested
 /// for an unsupported MIME type.
-pub async fn pages_for_call(
+pub(crate) async fn pages_for_call(
     bytes: &[u8],
     mime: &str,
     mode: StructuredCallMode,

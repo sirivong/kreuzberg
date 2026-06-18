@@ -24,7 +24,7 @@ use super::{CitationEnvelope, CitationSource, CitedField};
 /// The returned [`CitationEnvelope`] carries:
 /// - `structured_output` — the citation-annotated tree (leaves are [`CitedField`] objects).
 /// - `flat` — value-only projection (strips the citation envelope, keeping just `.value`).
-pub fn fuse(merged: Value, ocr_elements: &[crate::types::OcrElement], emit_citations: bool) -> CitationEnvelope {
+pub(crate) fn fuse(merged: Value, ocr_elements: &[crate::types::OcrElement], emit_citations: bool) -> CitationEnvelope {
     if !emit_citations {
         return CitationEnvelope {
             structured_output: merged.clone(),

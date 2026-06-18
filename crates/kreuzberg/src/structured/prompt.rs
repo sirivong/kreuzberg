@@ -104,7 +104,7 @@ pub struct BuiltPrompt {
 /// - `VisionOnly` yields `user_text = None`; the caller attaches page images.
 /// - `Skip` yields `user_text = None` (no content to send).
 /// - The excerpt is truncated to `max_excerpt_chars` before inclusion.
-pub fn build(
+pub(crate) fn build(
     preset: &Preset,
     context: &BTreeMap<String, String>,
     extracted_text_excerpt: &str,
@@ -156,7 +156,7 @@ pub fn build(
 ///
 /// The caller must attach the page images to the request separately; this
 /// function produces the text portion only.
-pub fn build_vision_fallback(
+pub(crate) fn build_vision_fallback(
     preset: &Preset,
     context: &BTreeMap<String, String>,
     extracted_text_excerpt: &str,

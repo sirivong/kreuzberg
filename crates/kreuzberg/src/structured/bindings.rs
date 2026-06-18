@@ -88,19 +88,20 @@ impl From<StructuredOptionsJson> for StructuredOptions {
 ///
 /// # Errors
 ///
-/// Returns [`StructuredError::InvalidJson`] when either JSON argument is
-/// malformed.  All other error variants come from the underlying
-/// [`super::extract_structured_sync`] call.
+/// Returns [`crate::KreuzbergError::Validation`] when either JSON argument is
+/// malformed.  All other failures from the underlying
+/// [`super::extract_structured_sync`] call are mapped onto [`crate::KreuzbergError`]
+/// via [`From<StructuredError>`](super::StructuredError).
 pub fn extract_structured_json(
     bytes: &[u8],
     mime: &str,
     preset_spec_json: &str,
     options_json: &str,
-) -> Result<String, StructuredError> {
+) -> crate::Result<String> {
     let spec = parse_preset_spec(preset_spec_json)?;
     let options = parse_options(options_json)?;
     let output = super::extract_structured_sync(bytes, mime, spec, options)?;
-    serde_json::to_string(&output).map_err(|e| StructuredError::InvalidJson(format!("failed to serialise output: {e}")))
+    Ok(serde_json::to_string(&output)?)
 }
 
 /// Split a multi-document PDF and extract structured JSON from each segment,
@@ -118,20 +119,20 @@ pub fn extract_structured_json(
 ///
 /// # Errors
 ///
-/// Returns [`StructuredError::InvalidJson`] when either JSON argument is
-/// malformed.  All other error variants come from the underlying
-/// [`super::split_and_extract_sync`] call.
+/// Returns [`crate::KreuzbergError::Validation`] when either JSON argument is
+/// malformed.  All other failures from the underlying
+/// [`super::split_and_extract_sync`] call are mapped onto [`crate::KreuzbergError`]
+/// via [`From<StructuredError>`](super::StructuredError).
 pub fn split_and_extract_json(
     bytes: &[u8],
     mime: &str,
     preset_spec_json: &str,
     options_json: &str,
-) -> Result<String, StructuredError> {
+) -> crate::Result<String> {
     let spec = parse_preset_spec(preset_spec_json)?;
     let options = parse_options(options_json)?;
     let outputs = super::split_and_extract_sync(bytes, mime, spec, options)?;
-    serde_json::to_string(&outputs)
-        .map_err(|e| StructuredError::InvalidJson(format!("failed to serialise output array: {e}")))
+    Ok(serde_json::to_string(&outputs)?)
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
@@ -281,8 +282,8 @@ mod tests {
             .expect_err("must fail on malformed preset_spec_json");
 
         assert!(
-            matches!(err, StructuredError::InvalidJson(_)),
-            "expected InvalidJson, got: {err:?}"
+            matches!(err, crate::KreuzbergError::Validation { .. }),
+            "expected Validation, got: {err:?}"
         );
         let msg = err.to_string();
         assert!(
@@ -302,8 +303,8 @@ mod tests {
             .expect_err("must fail on malformed options_json");
 
         assert!(
-            matches!(err, StructuredError::InvalidJson(_)),
-            "expected InvalidJson, got: {err:?}"
+            matches!(err, crate::KreuzbergError::Validation { .. }),
+            "expected Validation, got: {err:?}"
         );
         let msg = err.to_string();
         assert!(

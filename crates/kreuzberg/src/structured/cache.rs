@@ -9,6 +9,7 @@
 ///
 /// Two calls with equal keys are guaranteed to produce equivalent vision responses, so a cache hit
 /// can be returned without re-calling the model.
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CacheKey {
     /// Hash of the rendered page bytes covered by this call.
@@ -27,6 +28,7 @@ pub struct CacheKey {
 ///
 /// Implementations must be cheap to call and safe to share across threads. `get` returns the cached
 /// structured JSON value when present; `put` stores a freshly computed value.
+#[cfg_attr(alef, alef(skip))]
 pub trait VisionCallCache: Send + Sync + std::fmt::Debug {
     /// Look up a cached vision response.
     fn get(&self, key: &CacheKey) -> Option<serde_json::Value>;
@@ -58,6 +60,7 @@ const DEFAULT_CACHE_CAPACITY: u64 = 1_024;
 /// assert!(cache.get(&key).is_none());
 /// cache.put(key.clone(), serde_json::json!({"result": "ok"}));
 /// ```
+#[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct MokaVisionCache {
     inner: moka::sync::Cache<CacheKey, serde_json::Value>,

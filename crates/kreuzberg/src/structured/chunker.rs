@@ -44,7 +44,7 @@ pub struct Batch {
 ///
 /// If a single page exceeds the limit on its own it is still emitted as a
 /// one-page batch (never dropped).
-pub fn batch_pages(pages: Vec<PageImage>, user_text: Option<String>, config: &ChunkerConfig) -> Vec<Batch> {
+pub(crate) fn batch_pages(pages: Vec<PageImage>, user_text: Option<String>, config: &ChunkerConfig) -> Vec<Batch> {
     if pages.is_empty() {
         return vec![Batch {
             pages: vec![],

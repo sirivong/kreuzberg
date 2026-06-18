@@ -57,7 +57,7 @@ pub struct MergedOutput {
 /// 4. If no batch passes, returns `Outcome::SchemaInvalid` / `AllInvalid`.
 /// 5. The passing batches are merged with `merge_mode`.
 /// 6. `outcome` is `Success` when every batch passed, `PartialSuccess` otherwise.
-pub fn validate_and_merge(
+pub(crate) fn validate_and_merge(
     raw_responses: Vec<serde_json::Value>,
     schema: &serde_json::Value,
     merge_mode: MergeMode,

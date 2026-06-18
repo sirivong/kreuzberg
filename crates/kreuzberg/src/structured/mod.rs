@@ -78,6 +78,7 @@ pub struct PageImage {
 /// - `{"inline": { ...full Preset JSON... }}` → [`PresetSpec::Inline`]
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(alef, alef(skip))]
 pub enum PresetSpec {
     /// Look the preset up by id in the global [`crate::presets::Registry`].
     Named(String),
@@ -181,6 +182,7 @@ pub struct CitedField {
     /// 1-indexed source page, when known.
     pub page: Option<u32>,
     /// Bounding box `[x, y, width, height]` in page pixels, when known.
+    #[cfg_attr(alef, alef(skip))]
     pub bbox: Option<[f64; 4]>,
     /// Citation confidence in `0.0..=1.0`, when known.
     pub confidence: Option<f64>,
@@ -252,6 +254,25 @@ pub enum StructuredError {
     /// A JSON argument could not be parsed (bindings layer).
     #[error("invalid JSON argument: {0}")]
     InvalidJson(String),
+}
+
+/// Maps a [`StructuredError`] onto the canonical [`crate::KreuzbergError`] so the
+/// JSON-string binding entry points can surface a single, FFI-mappable error type
+/// across every language binding. The human-readable message (which already carries
+/// the variant context) is preserved verbatim.
+impl From<StructuredError> for crate::KreuzbergError {
+    fn from(err: StructuredError) -> Self {
+        match err {
+            StructuredError::PresetNotFound(_)
+            | StructuredError::Resolve(_)
+            | StructuredError::Schema(_)
+            | StructuredError::InvalidJson(_) => Self::validation(err.to_string()),
+            StructuredError::Extraction(_) => Self::parsing(err.to_string()),
+            StructuredError::Rasterize(_) => Self::image_processing(err.to_string()),
+            StructuredError::UnsupportedMime(msg) => Self::UnsupportedFormat(msg),
+            StructuredError::Vision(_) | StructuredError::AllBatchesFailed(_) => Self::Other(err.to_string()),
+        }
+    }
 }
 
 // ── Entry points ─────────────────────────────────────────────────────────────
