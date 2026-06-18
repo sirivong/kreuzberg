@@ -1,55 +1,48 @@
 {
-  "id": "code_shebang_detection",
-  "category": "code",
-  "description": "Test language detection from shebang line via bytes input",
-  "tags": [
-    "code",
-    "shebang",
-    "tree-sitter"
-  ],
-  "call": "extract_file_sync",
-  "input": {
-    "path": "code/script.sh",
-    "mime_type": "text/x-source-code"
-  },
-  "assertions": [
-    {
-      "type": "equals",
-      "field": "mime_type",
-      "value": "text/x-source-code"
-    },
-    {
-      "type": "min_length",
-      "field": "content",
-      "value": 10
-    },
-    {
-      "type": "contains_all",
-      "field": "content",
-      "values": [
-        "build",
-        "clean"
-      ]
-    }
-  ],
-  "skip": {
-    "languages": [
-      "java",
-      "typescript",
-      "python",
-      "ruby",
-      "php",
-      "go",
-      "csharp",
-      "elixir",
-      "r",
-      "dart",
-      "kotlin_android",
-      "swift",
-      "zig",
-      "c",
-      "wasm"
-    ],
-    "reason": "Code metadata variant is excluded from all language bindings (tree-sitter-specific; not part of polyglot API)"
-  }
+	"id": "code_shebang_detection",
+	"category": "code",
+	"description": "Test language detection from shebang line via bytes input",
+	"tags": ["code", "shebang", "tree-sitter"],
+	"call": "extract_file_sync",
+	"input": {
+		"path": "code/script.sh",
+		"mime_type": "text/x-source-code"
+	},
+	"assertions": [
+		{
+			"type": "equals",
+			"field": "mime_type",
+			"value": "text/x-source-code"
+		},
+		{
+			"type": "min_length",
+			"field": "content",
+			"value": 10
+		},
+		{
+			"type": "contains_all",
+			"field": "content",
+			"values": ["build", "clean"]
+		}
+	],
+	"skip": {
+		"languages": [
+			"java",
+			"typescript",
+			"python",
+			"ruby",
+			"php",
+			"go",
+			"csharp",
+			"elixir",
+			"r",
+			"dart",
+			"kotlin_android",
+			"swift",
+			"zig",
+			"c",
+			"wasm"
+		],
+		"reason": "Code metadata variant is excluded from all language bindings (tree-sitter-specific; not part of polyglot API)"
+	}
 }

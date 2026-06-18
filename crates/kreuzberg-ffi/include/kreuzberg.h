@@ -16386,6 +16386,32 @@ uintptr_t kreuzberg_extract_region_with_vlm_len(const uint8_t *_image_bytes,
                                                 const char *_custom_prompt);
 
 /**
+ * Rerank documents asynchronously.
+ *
+ * Async counterpart to `rerank`. Offloads blocking ONNX inference to a
+ * dedicated blocking thread pool via Tokio's `spawn_blocking`, keeping the
+ * async executor free.
+ *
+ * Since v5.0.0.
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+char *kreuzberg_rerank_async(const char *query,
+                             const char *documents,
+                             const KREUZBERGRerankerConfig *config);
+
+/**
+ * Return the byte length of the C string most recently returned by `kreuzberg_rerank_async` on this
+ * thread. Returns 0 when the primary call returned null or failed before producing a string. Enables
+ * safe slice construction in Zig and Java FFM Panama without a NUL-scan.
+ * \note SAFETY: Pointer arguments are ignored and are present only to keep the companion ABI aligned
+ * with `kreuzberg_rerank_async`.
+ */
+uintptr_t kreuzberg_rerank_async_len(const char *_query,
+                                     const char *_documents,
+                                     const KREUZBERGRerankerConfig *_config);
+
+/**
  * Extract keywords from text using the specified algorithm.
  *
  * This is the unified entry point for keyword extraction. The algorithm
@@ -16626,28 +16652,6 @@ char *kreuzberg_rerank(const char *query,
 uintptr_t kreuzberg_rerank_len(const char *_query,
                                const char *_documents,
                                const KREUZBERGRerankerConfig *_config);
-
-/**
- * Stub for builds without the `reranker` feature.
- *
- * Since v5.0.0.
- * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
- * freed with the appropriate free function.
- */
-char *kreuzberg_rerank_async(const char *_query,
-                             const char *_documents,
-                             const KREUZBERGRerankerConfig *_config);
-
-/**
- * Return the byte length of the C string most recently returned by `kreuzberg_rerank_async` on this
- * thread. Returns 0 when the primary call returned null or failed before producing a string. Enables
- * safe slice construction in Zig and Java FFM Panama without a NUL-scan.
- * \note SAFETY: Pointer arguments are ignored and are present only to keep the companion ABI aligned
- * with `kreuzberg_rerank_async`.
- */
-uintptr_t kreuzberg_rerank_async_len(const char *__query,
-                                     const char *__documents,
-                                     const KREUZBERGRerankerConfig *__config);
 
 /**
  * Get a reranker preset by name.

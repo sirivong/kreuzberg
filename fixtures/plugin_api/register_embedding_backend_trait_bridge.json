@@ -1,29 +1,27 @@
 {
-  "id": "register_embedding_backend_trait_bridge",
-  "category": "plugin_api",
-  "description": "register_embedding_backend: trait bridge",
-  "tags": [
-    "trait-bridge"
-  ],
-  "call": "register_embedding_backend",
-  "input": {
-    "backend": {
-      "type": "test",
-      "name": "test-embedding-backend",
-      "dimensions": 768
-    }
-  },
-  "args": [
-    {
-      "name": "backend",
-      "field": "backend",
-      "arg_type": "test_backend",
-      "trait": "EmbeddingBackend"
-    }
-  ],
-  "assertions": [
-    {
-      "type": "not_error"
-    }
-  ]
+	"id": "register_embedding_backend_trait_bridge",
+	"category": "plugin_api",
+	"description": "register_embedding_backend: trait bridge",
+	"tags": ["trait-bridge"],
+	"call": "register_embedding_backend",
+	"input": {
+		"backend": {
+			"type": "test",
+			"name": "test-embedding-backend",
+			"dimensions": 768
+		}
+	},
+	"args": [
+		{
+			"name": "backend",
+			"field": "backend",
+			"arg_type": "test_backend",
+			"trait": "EmbeddingBackend"
+		}
+	],
+	"assertions": [
+		{
+			"type": "not_error"
+		}
+	]
 }

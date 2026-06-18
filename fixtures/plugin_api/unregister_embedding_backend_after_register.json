@@ -1,18 +1,15 @@
 {
-  "id": "unregister_embedding_backend_after_register",
-  "category": "plugin_api",
-  "description": "unregister_embedding_backend",
-  "call": "unregister_embedding_backend",
-  "input": {
-    "name": "test-embedding-backend"
-  },
-  "assertions": [
-    {
-      "type": "not_error"
-    }
-  ],
-  "tags": [
-    "plugin-lifecycle",
-    "trait-bridge"
-  ]
+	"id": "unregister_embedding_backend_after_register",
+	"category": "plugin_api",
+	"description": "unregister_embedding_backend",
+	"call": "unregister_embedding_backend",
+	"input": {
+		"name": "test-embedding-backend"
+	},
+	"assertions": [
+		{
+			"type": "not_error"
+		}
+	],
+	"tags": ["plugin-lifecycle", "trait-bridge"]
 }

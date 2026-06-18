@@ -1,27 +1,27 @@
 {
-  "id": "smoke_txt_basic",
-  "category": "smoke",
-  "description": "Smoke test: Plain text file",
-  "tags": ["smoke", "text", "plaintext"],
-  "input": {
-    "path": "text/report.txt",
-    "mime_type": "text/plain",
-    "config": {}
-  },
-  "assertions": [
-    {
-      "type": "equals",
-      "field": "mime_type",
-      "value": "text/plain"
-    },
-    {
-      "type": "min_length",
-      "field": "content",
-      "value": 5
-    }
-  ],
-  "skip": {
-    "languages": ["wasm"],
-    "reason": "WASM cannot access filesystem; use extractBytes with file content instead"
-  }
+	"id": "smoke_txt_basic",
+	"category": "smoke",
+	"description": "Smoke test: Plain text file",
+	"tags": ["smoke", "text", "plaintext"],
+	"input": {
+		"path": "text/report.txt",
+		"mime_type": "text/plain",
+		"config": {}
+	},
+	"assertions": [
+		{
+			"type": "equals",
+			"field": "mime_type",
+			"value": "text/plain"
+		},
+		{
+			"type": "min_length",
+			"field": "content",
+			"value": 5
+		}
+	],
+	"skip": {
+		"languages": ["wasm"],
+		"reason": "WASM cannot access filesystem; use extractBytes with file content instead"
+	}
 }

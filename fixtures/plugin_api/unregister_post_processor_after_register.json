@@ -1,18 +1,15 @@
 {
-  "id": "unregister_post_processor_after_register",
-  "category": "plugin_api",
-  "description": "unregister_post_processor",
-  "call": "unregister_post_processor",
-  "input": {
-    "name": "test-processor"
-  },
-  "assertions": [
-    {
-      "type": "not_error"
-    }
-  ],
-  "tags": [
-    "plugin-lifecycle",
-    "trait-bridge"
-  ]
+	"id": "unregister_post_processor_after_register",
+	"category": "plugin_api",
+	"description": "unregister_post_processor",
+	"call": "unregister_post_processor",
+	"input": {
+		"name": "test-processor"
+	},
+	"assertions": [
+		{
+			"type": "not_error"
+		}
+	],
+	"tags": ["plugin-lifecycle", "trait-bridge"]
 }

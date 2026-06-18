@@ -1,28 +1,26 @@
 {
-  "id": "register_ocr_backend_trait_bridge",
-  "category": "plugin_api",
-  "description": "register_ocr_backend: trait bridge",
-  "tags": [
-    "trait-bridge"
-  ],
-  "call": "register_ocr_backend",
-  "input": {
-    "backend": {
-      "type": "test",
-      "name": "test-backend"
-    }
-  },
-  "args": [
-    {
-      "name": "backend",
-      "field": "backend",
-      "arg_type": "test_backend",
-      "trait": "OcrBackend"
-    }
-  ],
-  "assertions": [
-    {
-      "type": "not_error"
-    }
-  ]
+	"id": "register_ocr_backend_trait_bridge",
+	"category": "plugin_api",
+	"description": "register_ocr_backend: trait bridge",
+	"tags": ["trait-bridge"],
+	"call": "register_ocr_backend",
+	"input": {
+		"backend": {
+			"type": "test",
+			"name": "test-backend"
+		}
+	},
+	"args": [
+		{
+			"name": "backend",
+			"field": "backend",
+			"arg_type": "test_backend",
+			"trait": "OcrBackend"
+		}
+	],
+	"assertions": [
+		{
+			"type": "not_error"
+		}
+	]
 }

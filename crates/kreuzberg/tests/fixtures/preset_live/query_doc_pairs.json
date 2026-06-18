@@ -1,44 +1,44 @@
 {
-  "_description": "Ground-truth ranking pairs for live reranker integration tests. Each suite has a query + a list of candidate documents; `expected_top_index` is the document the reranker MUST rank first. Suites are language-stamped so we only run them against models that support the language.",
-  "suites": [
-    {
-      "id": "english_basic",
-      "languages": ["en"],
-      "query": "What is the capital of France?",
-      "documents": [
-        "The Eiffel Tower is in Paris, the capital city of France.",
-        "Cats are popular pets around the world.",
-        "Berlin is the capital of Germany.",
-        "The Pacific Ocean is the largest body of water on Earth."
-      ],
-      "expected_top_index": 0,
-      "expected_worst_index": 3
-    },
-    {
-      "id": "english_technical",
-      "languages": ["en"],
-      "query": "How does the Rust borrow checker prevent data races?",
-      "documents": [
-        "Rust's borrow checker enforces aliasing-XOR-mutability at compile time, eliminating data races between threads.",
-        "Python uses a global interpreter lock to serialise bytecode execution.",
-        "JavaScript runs on a single-threaded event loop with asynchronous callbacks.",
-        "C++ relies on the programmer to manually synchronise access to shared memory."
-      ],
-      "expected_top_index": 0,
-      "expected_worst_index": 2
-    },
-    {
-      "id": "multilingual_capitals",
-      "languages": ["en", "zh", "fr", "es", "de"],
-      "query": "What is the capital of Japan?",
-      "documents": [
-        "Tokyo is the capital and most populous city of Japan.",
-        "La capitale de la France est Paris.",
-        "El gato es un animal doméstico.",
-        "Die Hauptstadt von Deutschland ist Berlin."
-      ],
-      "expected_top_index": 0,
-      "expected_worst_index": 2
-    }
-  ]
+	"_description": "Ground-truth ranking pairs for live reranker integration tests. Each suite has a query + a list of candidate documents; `expected_top_index` is the document the reranker MUST rank first. Suites are language-stamped so we only run them against models that support the language.",
+	"suites": [
+		{
+			"id": "english_basic",
+			"languages": ["en"],
+			"query": "What is the capital of France?",
+			"documents": [
+				"The Eiffel Tower is in Paris, the capital city of France.",
+				"Cats are popular pets around the world.",
+				"Berlin is the capital of Germany.",
+				"The Pacific Ocean is the largest body of water on Earth."
+			],
+			"expected_top_index": 0,
+			"expected_worst_index": 3
+		},
+		{
+			"id": "english_technical",
+			"languages": ["en"],
+			"query": "How does the Rust borrow checker prevent data races?",
+			"documents": [
+				"Rust's borrow checker enforces aliasing-XOR-mutability at compile time, eliminating data races between threads.",
+				"Python uses a global interpreter lock to serialise bytecode execution.",
+				"JavaScript runs on a single-threaded event loop with asynchronous callbacks.",
+				"C++ relies on the programmer to manually synchronise access to shared memory."
+			],
+			"expected_top_index": 0,
+			"expected_worst_index": 2
+		},
+		{
+			"id": "multilingual_capitals",
+			"languages": ["en", "zh", "fr", "es", "de"],
+			"query": "What is the capital of Japan?",
+			"documents": [
+				"Tokyo is the capital and most populous city of Japan.",
+				"La capitale de la France est Paris.",
+				"El gato es un animal doméstico.",
+				"Die Hauptstadt von Deutschland ist Berlin."
+			],
+			"expected_top_index": 0,
+			"expected_worst_index": 2
+		}
+	]
 }

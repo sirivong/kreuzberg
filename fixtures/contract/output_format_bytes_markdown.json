@@ -1,30 +1,30 @@
 {
-  "id": "output_format_bytes_markdown",
-  "description": "Tests markdown output format via bytes extraction API",
-  "tags": ["contract", "output_format", "bytes"],
-  "call": "extract_bytes_sync",
-  "input": {
-    "data": "pdf/fake_memo.pdf",
-    "mime_type": "application/pdf",
-    "config": {
-      "output_format": "markdown"
-    }
-  },
-  "assertions": [
-    {
-      "type": "equals",
-      "field": "mime_type",
-      "value": "application/pdf"
-    },
-    {
-      "type": "min_length",
-      "field": "content",
-      "value": 10
-    },
-    {
-      "type": "equals",
-      "field": "metadata.output_format",
-      "value": "markdown"
-    }
-  ]
+	"id": "output_format_bytes_markdown",
+	"description": "Tests markdown output format via bytes extraction API",
+	"tags": ["contract", "output_format", "bytes"],
+	"call": "extract_bytes_sync",
+	"input": {
+		"data": "pdf/fake_memo.pdf",
+		"mime_type": "application/pdf",
+		"config": {
+			"output_format": "markdown"
+		}
+	},
+	"assertions": [
+		{
+			"type": "equals",
+			"field": "mime_type",
+			"value": "application/pdf"
+		},
+		{
+			"type": "min_length",
+			"field": "content",
+			"value": 10
+		},
+		{
+			"type": "equals",
+			"field": "metadata.output_format",
+			"value": "markdown"
+		}
+	]
 }

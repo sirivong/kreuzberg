@@ -1,9 +1,9 @@
 {
-  "id": "list_renderers",
-  "category": "registry",
-  "description": "List renderers",
-  "tags": ["registry"],
-  "call": "list_renderers",
-  "input": {},
-  "assertions": [{ "type": "not_error" }]
+	"id": "list_renderers",
+	"category": "registry",
+	"description": "List renderers",
+	"tags": ["registry"],
+	"call": "list_renderers",
+	"input": {},
+	"assertions": [{ "type": "not_error" }]
 }

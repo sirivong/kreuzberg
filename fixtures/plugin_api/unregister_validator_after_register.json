@@ -1,18 +1,15 @@
 {
-  "id": "unregister_validator_after_register",
-  "category": "plugin_api",
-  "description": "unregister_validator",
-  "call": "unregister_validator",
-  "input": {
-    "name": "test-validator"
-  },
-  "assertions": [
-    {
-      "type": "not_error"
-    }
-  ],
-  "tags": [
-    "plugin-lifecycle",
-    "trait-bridge"
-  ]
+	"id": "unregister_validator_after_register",
+	"category": "plugin_api",
+	"description": "unregister_validator",
+	"call": "unregister_validator",
+	"input": {
+		"name": "test-validator"
+	},
+	"assertions": [
+		{
+			"type": "not_error"
+		}
+	],
+	"tags": ["plugin-lifecycle", "trait-bridge"]
 }

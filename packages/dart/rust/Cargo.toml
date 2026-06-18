@@ -1,6 +1,6 @@
 [package]
 name = "kreuzberg-dart"
-version = "5.0.0-rc.20"
+version = "5.0.0-rc.21"
 edition = "2024"
 license = "Elastic-2.0"
 
@@ -12,7 +12,7 @@ ignored = ["kreuzberg"]
 [lib]
 crate-type = ["cdylib", "staticlib"]
 [features]
-default = ["api", "api-types", "auto-rotate-types", "captioning", "chunking-tokenizers", "classification", "diff", "embedding-presets", "embeddings", "html", "keywords-rake", "keywords-yake", "layout-types", "liter-llm", "ner-llm", "ner-onnx", "ocr", "ocr-wasm", "office", "paddle-ocr-types", "pdf", "quality", "redaction", "reranker", "reranker-presets", "svg", "tokio-runtime", "transcription-types", "tree-sitter", "xml"]
+default = ["api", "api-types", "auto-rotate-types", "captioning", "chunking-tokenizers", "classification", "diff", "embedding-presets", "embeddings", "html", "keywords-rake", "keywords-yake", "layout-types", "liter-llm", "ner-llm", "ocr", "ocr-wasm", "office", "paddle-ocr-types", "pdf", "quality", "redaction", "reranker", "reranker-presets", "svg", "tokio-runtime", "transcription-types", "tree-sitter", "xml"]
 api = ["kreuzberg/api"]
 api-types = ["kreuzberg/api-types"]
 auto-rotate-types = ["kreuzberg/auto-rotate-types"]
@@ -29,7 +29,6 @@ keywords-yake = ["kreuzberg/keywords-yake"]
 layout-types = ["kreuzberg/layout-types"]
 liter-llm = ["kreuzberg/liter-llm"]
 ner-llm = ["kreuzberg/ner-llm"]
-ner-onnx = ["kreuzberg/ner-onnx"]
 ocr = ["kreuzberg/ocr"]
 ocr-wasm = ["kreuzberg/ocr-wasm"]
 office = ["kreuzberg/office"]

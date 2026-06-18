@@ -1,28 +1,26 @@
 {
-  "id": "register_reranker_backend_trait_bridge",
-  "category": "plugin_api",
-  "description": "register_reranker_backend: trait bridge",
-  "tags": [
-    "trait-bridge"
-  ],
-  "call": "register_reranker_backend",
-  "input": {
-    "backend": {
-      "type": "test",
-      "name": "test-reranker-backend"
-    }
-  },
-  "args": [
-    {
-      "name": "backend",
-      "field": "backend",
-      "arg_type": "test_backend",
-      "trait": "RerankerBackend"
-    }
-  ],
-  "assertions": [
-    {
-      "type": "not_error"
-    }
-  ]
+	"id": "register_reranker_backend_trait_bridge",
+	"category": "plugin_api",
+	"description": "register_reranker_backend: trait bridge",
+	"tags": ["trait-bridge"],
+	"call": "register_reranker_backend",
+	"input": {
+		"backend": {
+			"type": "test",
+			"name": "test-reranker-backend"
+		}
+	},
+	"args": [
+		{
+			"name": "backend",
+			"field": "backend",
+			"arg_type": "test_backend",
+			"trait": "RerankerBackend"
+		}
+	],
+	"assertions": [
+		{
+			"type": "not_error"
+		}
+	]
 }

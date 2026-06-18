@@ -1,9 +1,9 @@
 {
-  "id": "list_embedding_backends",
-  "category": "registry",
-  "description": "List embedding backends",
-  "tags": ["registry"],
-  "call": "list_embedding_backends",
-  "input": {},
-  "assertions": [{ "type": "not_error" }]
+	"id": "list_embedding_backends",
+	"category": "registry",
+	"description": "List embedding backends",
+	"tags": ["registry"],
+	"call": "list_embedding_backends",
+	"input": {},
+	"assertions": [{ "type": "not_error" }]
 }
