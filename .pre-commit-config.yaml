@@ -33,7 +33,13 @@ repos:
       - --exclude=kreuzberg-wasm
       - --exclude=kreuzberg-dart
       - --exclude=kreuzberg-swift
-      - --all-features
+      # `full` is the comprehensive cross-platform feature set. `--all-features`
+      # force-enables the candle hardware-accelerator features (metal/cuda/mkl/
+      # accelerate), which pull Apple-only `objc2` (`compile_error!` on Linux)
+      # and require nvcc — breaking clippy on the Linux CI runner and on dev
+      # machines without CUDA. `full` excludes those accelerators (CPU paths
+      # still lint) while covering every format/OCR/ML surface.
+      - --features=full
       - --all-targets
       - --
       - -D

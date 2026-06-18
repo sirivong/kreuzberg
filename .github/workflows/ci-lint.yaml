@@ -51,6 +51,12 @@ jobs:
     env:
       CARGO_TERM_COLOR: always
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      # rustdoc-lint defaults to `--all-features`, which force-enables the candle
+      # hardware-accelerator features (metal → Apple-only objc2; cuda → nvcc),
+      # breaking `cargo doc` on the Linux runner. Pin it to the cross-platform
+      # `full` set (same rationale as the cargo-clippy hook). Single `--features=full`
+      # token because run.sh passes $RUSTDOC_FEATURES as one quoted argument.
+      RUSTDOC_FEATURES: "--features=full"
     steps:
       - uses: actions/checkout@v6
         with:
