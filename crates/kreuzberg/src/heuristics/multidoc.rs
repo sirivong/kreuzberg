@@ -24,6 +24,8 @@
 
 use std::collections::HashSet;
 
+use serde::{Deserialize, Serialize};
+
 // ── Named constants for signal-derivation heuristics ─────────────────────────
 
 /// Characters taken from the start of each page for `text_excerpt`.
@@ -73,7 +75,7 @@ const SIGNATURE_SHORT_LINE_MIN: usize = 3;
 const SIGNATURE_SHORT_LINE_MAX: usize = 80;
 
 /// Input signals for multi-document boundary detection.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MultidocInput {
     /// Total number of pages in the PDF.
     pub page_count: u32,
@@ -82,7 +84,7 @@ pub struct MultidocInput {
 }
 
 /// Per-page signals extracted from PDF content.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PageSignals {
     /// 1-indexed page number.
     pub page_number: u32,
@@ -101,7 +103,7 @@ pub struct PageSignals {
 }
 
 /// Detected document boundary within a PDF.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DocumentBoundary {
     /// 1-indexed start page (inclusive).
     pub start_page: u32,
@@ -114,7 +116,8 @@ pub struct DocumentBoundary {
 }
 
 /// Reason for boundary detection.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum BoundaryReason {
     /// Start of PDF.
     Start,
@@ -131,7 +134,7 @@ pub enum BoundaryReason {
 /// Thresholds for multi-document boundary detection.
 ///
 /// All fields are public; callers override any subset via struct-update syntax.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MultidocThresholds {
     /// Text density difference threshold for `DensityShift` detection.
     /// Default: 0.3.

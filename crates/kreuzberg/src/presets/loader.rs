@@ -15,6 +15,7 @@ pub enum LoadError {
         path: String,
         /// Underlying serde error.
         #[source]
+        #[cfg_attr(alef, alef(skip))]
         source: serde_json::Error,
     },
     /// The file parses as JSON but does not validate against the meta-schema.
@@ -32,6 +33,7 @@ pub enum LoadError {
         path: String,
         /// Underlying serde error.
         #[source]
+        #[cfg_attr(alef, alef(skip))]
         source: serde_json::Error,
     },
     /// The preset's declared `id` does not match its file-system location.
@@ -49,7 +51,11 @@ pub enum LoadError {
     BadMetaSchema(String),
     /// A filesystem I/O error occurred while reading a preset directory.
     #[error("I/O error reading preset directory: {0}")]
-    Io(#[from] std::io::Error),
+    Io(
+        #[from]
+        #[cfg_attr(alef, alef(skip))]
+        std::io::Error,
+    ),
 }
 
 /// Compiled meta-schema validator over `preset.schema.json`.
