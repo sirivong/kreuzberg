@@ -946,7 +946,6 @@ pub(crate) fn apply_llm_api_key(config: &mut ExtractionConfig, key: &str) {
 mod tests {
     use super::*;
     use kreuzberg::ExtractionConfig;
-    use serde_json::json;
 
     fn default_overrides() -> ExtractionOverrides {
         ExtractionOverrides::default()
