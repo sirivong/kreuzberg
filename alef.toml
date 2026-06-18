@@ -141,6 +141,8 @@ sources = [
   "crates/kreuzberg/src/rendering/mod.rs",
   "crates/kreuzberg/src/keywords/mod.rs",
   "crates/kreuzberg/src/chunking/mod.rs",
+  # RAG chunker composer (chunk_for_rag — re-exported from chunking/mod.rs)
+  "crates/kreuzberg/src/chunking/rag.rs",
   "crates/kreuzberg/src/embeddings/mod.rs",
   "crates/kreuzberg/src/language_detection/mod.rs",
   "crates/kreuzberg/src/cache/core.rs",
@@ -149,6 +151,10 @@ sources = [
   "crates/kreuzberg/src/presets/resolve.rs",
   # Heuristics structured analysis (re-exported as module from lib.rs)
   "crates/kreuzberg/src/heuristics/structured.rs",
+  # Structured-extraction JSON binding entry points (re-exported from lib.rs).
+  # Only the FFI-safe JSON-string bridge is exposed; the async engine,
+  # StructuredOptions (Arc<dyn VisionCallCache>) and liter-llm types stay internal.
+  "crates/kreuzberg/src/structured/bindings.rs",
   # Batch extraction functions (re-exported from lib.rs)
   "crates/kreuzberg/src/core/extractor/mod.rs",
   "crates/kreuzberg/src/core/extractor/sync.rs",
@@ -427,6 +433,11 @@ exclude_functions = [
   # Vec<&str> vs &[String] / texts_refs scope — codegen type mismatch
   "batch_reduce_tokens",
   "chunk_texts_batch",
+  # Structured-extraction engine requires native HTTP (liter-llm) + PDF
+  # rendering; the `structured` feature is excluded from `wasm-target`, so the
+  # JSON bridge entry points do not exist on wasm32.
+  "extract_structured_json",
+  "split_and_extract_json",
 ]
 features = ["wasm-target"]
 
@@ -986,6 +997,16 @@ functions = [
   # enrich() takes &EnrichmentConfig and returns EnrichedResult — both
   # excluded above pending NerBackend trait_bridge and serde derives.
   "enrich",
+
+  # Structured-extraction typed entry points take `PresetSpec` (a boxed-preset
+  # tuple enum) and `StructuredOptions` (carries `Arc<dyn VisionCallCache>`),
+  # neither of which crosses FFI. The binding surface is the JSON-string bridge
+  # (`extract_structured_json` / `split_and_extract_json`); the async variants
+  # are unbindable regardless.
+  "extract_structured",
+  "extract_structured_sync",
+  "split_and_extract",
+  "split_and_extract_sync",
 ]
 
 [crates.lint.python]
