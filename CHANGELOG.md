@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **images**: `ExtractedImage::data_base64` opt-in field and `ImageExtractionConfig::include_data_base64` flag. When enabled, a Base64-encoded copy of each image's raw bytes is attached to the result, letting JSON-only clients avoid the default integer-array serialization of `data`. Defaults to `false`; the field is omitted from JSON when unset, so existing payloads are unchanged (#1143).
 - **chunking**: `TableChunkingMode` enum and `ChunkingConfig::table_chunking` field. When set to `RepeatHeader`, the markdown chunker prepends the table header row and separator to every continuation chunk produced by splitting a large table, so each chunk is self-contained for extraction, search, and LLM consumption. Default is `Split` (previous behavior, no header injection). Only applies when `chunker_type` is `Markdown` (#1100).
 
 ### Fixed
