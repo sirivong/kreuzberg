@@ -70,7 +70,21 @@ pub(crate) fn resolve_thread_budget(config: Option<&ConcurrencyConfig>) -> usize
 pub(crate) fn init_thread_pools(budget: usize) {
     POOL_INIT.call_once(|| {
         #[cfg(not(target_arch = "wasm32"))]
-        rayon::ThreadPoolBuilder::new().num_threads(budget).build_global().ok();
+        if let Err(_err) = rayon::ThreadPoolBuilder::new().num_threads(budget).build_global() {
+            // The global Rayon pool is already initialized — typically because the host
+            // application (or another library) built it first, e.g. by calling
+            // `rayon::ThreadPoolBuilder::new()...build_global()` before invoking kreuzberg.
+            // In that case kreuzberg runs its parallel work on the existing (externally
+            // provided) pool rather than silently failing. We surface this at debug level
+            // instead of swallowing the error with `.ok()`. The configured `budget` only
+            // takes effect when kreuzberg wins the race and owns the global pool; a host
+            // that wants a specific pool size should build the global pool itself first.
+            tracing::debug!(
+                budget,
+                "global rayon pool already initialized; reusing the existing pool \
+                 (kreuzberg thread budget not applied)"
+            );
+        }
         #[cfg(target_arch = "wasm32")]
         let _ = budget;
     });
