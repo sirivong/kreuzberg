@@ -829,22 +829,33 @@ fn apply_page_content_format(
                 return page;
             };
 
-            // Only clone tables referenced by this page's elements and remap their
-            // indices into sub-doc space. Table cells (Vec<Vec<String>>) are not
+            // Only clone tables and images referenced by this page's elements and remap
+            // their indices into sub-doc space. Table cells (Vec<Vec<String>>) are not
             // Arc-backed, so cloning the full doc.tables slice per page is O(all cells
-            // × num_pages). Images use bytes::Bytes (reference-counted) so they are
-            // cheap to clone wholesale.
+            // × num_pages). ExtractedImage.data is bytes::Bytes (reference-counted) but
+            // its metadata fields (String, Option<String>, …) would still be cloned for
+            // every unreferenced image on every page, so we filter those too.
             let mut table_remap: ahash::AHashMap<u32, u32> = ahash::AHashMap::new();
             let mut sub_tables: Vec<Table> = Vec::new();
+            let mut image_remap: ahash::AHashMap<u32, u32> = ahash::AHashMap::new();
+            let mut sub_images: Vec<crate::types::ExtractedImage> = Vec::new();
             for &i in elem_indices {
-                if let ElementKind::Table { table_index } = doc.elements[i].kind
-                    && !table_remap.contains_key(&table_index)
-                {
-                    let new_idx = sub_tables.len() as u32;
-                    table_remap.insert(table_index, new_idx);
-                    if let Some(t) = doc.tables.get(table_index as usize) {
-                        sub_tables.push(t.clone());
+                match doc.elements[i].kind {
+                    ElementKind::Table { table_index } if !table_remap.contains_key(&table_index) => {
+                        let new_idx = sub_tables.len() as u32;
+                        table_remap.insert(table_index, new_idx);
+                        if let Some(t) = doc.tables.get(table_index as usize) {
+                            sub_tables.push(t.clone());
+                        }
                     }
+                    ElementKind::Image { image_index } if !image_remap.contains_key(&image_index) => {
+                        let new_idx = sub_images.len() as u32;
+                        image_remap.insert(image_index, new_idx);
+                        if let Some(img) = doc.images.get(image_index as usize) {
+                            sub_images.push(img.clone());
+                        }
+                    }
+                    _ => {}
                 }
             }
 
@@ -852,10 +863,18 @@ fn apply_page_content_format(
                 .iter()
                 .map(|&i| {
                     let mut elem = doc.elements[i].clone();
-                    if let ElementKind::Table { ref mut table_index } = elem.kind
-                        && let Some(&new_idx) = table_remap.get(table_index)
-                    {
-                        *table_index = new_idx;
+                    match elem.kind {
+                        ElementKind::Table { ref mut table_index } => {
+                            if let Some(&new_idx) = table_remap.get(table_index) {
+                                *table_index = new_idx;
+                            }
+                        }
+                        ElementKind::Image { ref mut image_index } => {
+                            if let Some(&new_idx) = image_remap.get(image_index) {
+                                *image_index = new_idx;
+                            }
+                        }
+                        _ => {}
                     }
                     elem
                 })
@@ -864,7 +883,7 @@ fn apply_page_content_format(
             let mut sub_doc = InternalDocument::new(&doc.source_format);
             sub_doc.elements = elements;
             sub_doc.tables = sub_tables;
-            sub_doc.images = doc.images.clone(); // bytes::Bytes: O(1) reference-counted clone
+            sub_doc.images = sub_images;
 
             let rendered = renderer(&sub_doc);
             if !rendered.is_empty() {
@@ -1396,8 +1415,8 @@ mod tests {
         assert_eq!(pages.len(), 1);
 
         assert!(
-            pages[0].content.contains("<h1") || pages[0].content.contains("Title"),
-            "html-format page content must contain heading markup or title text, got: {:?}",
+            pages[0].content.contains("<h1"),
+            "html-format page content must contain heading markup, got: {:?}",
             pages[0].content,
         );
         assert!(
