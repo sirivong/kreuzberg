@@ -213,25 +213,86 @@ fn split_with_config<'a, S: ChunkSizer>(
 fn inject_table_headers(chunks: &mut [crate::types::Chunk]) {
     // Extract the table header from a chunk: header row + separator row as a
     // standalone string. Returns None if the chunk contains no complete table header.
+    //
+    // The injected header uses the same line terminator as the chunk body so that
+    // CRLF input produces a CRLF-consistent header.
     fn extract_table_header(content: &str) -> Option<String> {
+        // Detect the body's line terminator: prefer \r\n if present, fall back to \n.
+        let line_ending = if content.contains("\r\n") { "\r\n" } else { "\n" };
+
         let mut lines = content.lines();
-        let first = lines.next()?.trim();
+        // `.lines()` strips the terminator; strip_line_terminator keeps interior
+        // whitespace intact while removing only the trailing \r\n or \n.
+        let first_raw = lines.next()?;
+        let first = strip_line_terminator(first_raw);
         if !first.starts_with('|') {
             return None;
         }
-        let second = lines.next()?.trim();
+        let second_raw = lines.next()?;
+        let second = strip_line_terminator(second_raw);
         if !is_table_separator(second) {
             return None;
         }
-        Some(format!("{first}\n{second}\n"))
+        Some(format!("{first}{line_ending}{second}{line_ending}"))
     }
 
-    // Return true if a line looks like a GFM table separator (`|---|`, `|:--|`, etc.)
+    // Strip only the trailing line terminator (\r\n or \n) from a line, leaving
+    // interior whitespace (cell padding, alignment) untouched.
+    fn strip_line_terminator(line: &str) -> &str {
+        line.strip_suffix("\r\n").or_else(|| line.strip_suffix('\n')).unwrap_or(line)
+    }
+
+    // Return true if `line` is a GFM table separator row.
+    //
+    // A valid separator row looks like `|:---|:---:|---:|---|`. It must:
+    //   - start with `|`
+    //   - when split on `|`, yield at least one non-empty cell
+    //   - have EVERY non-empty cell match `^\s*:?-+:?\s*$` (optional leading/trailing
+    //     colon, one-or-more dashes, optional surrounding whitespace)
+    //
+    // This rejects data rows whose cells happen to contain a single dash (e.g. `| - |`
+    // or `| :- |`) because those cells have fewer than one dash between the colons, or
+    // more precisely because `:` must be adjacent to dashes in the separator pattern.
+    //
+    // Implemented with char scanning to avoid a regex dependency.
     fn is_table_separator(line: &str) -> bool {
         if !line.starts_with('|') {
             return false;
         }
-        line.chars().all(|c| matches!(c, '|' | '-' | ':' | ' ' | '\t')) && line.contains('-')
+        // Split on `|`; the leading `|` produces a leading empty segment and the
+        // trailing `|` (if present) produces a trailing empty segment — skip both.
+        let cells: Vec<&str> = line.split('|').filter(|c| !c.is_empty()).collect();
+        if cells.is_empty() {
+            return false;
+        }
+        cells.iter().all(|cell| is_separator_cell(cell))
+    }
+
+    // Return true if `cell` matches the GFM separator-cell pattern:
+    //   optional leading whitespace, optional ':', two or more '-', optional ':', optional trailing whitespace.
+    //
+    // We require at least two dashes (not one) because a single dash (`-`) is
+    // indistinguishable from a data cell in common Markdown tables. Real GFM
+    // separator rows use `---` or longer. This prevents `| - |` from being
+    // misidentified as a separator row.
+    fn is_separator_cell(cell: &str) -> bool {
+        // Strip surrounding whitespace only; preserve colons and dashes.
+        let s = cell.trim_matches(|c: char| c == ' ' || c == '\t');
+        // Strip optional leading colon.
+        let s = s.strip_prefix(':').unwrap_or(s);
+        // Must start with at least one '-'.
+        if !s.starts_with('-') {
+            return false;
+        }
+        // Strip ALL leading dashes; count how many there were.
+        let after_dashes = s.trim_start_matches('-');
+        let dash_count = s.len() - after_dashes.len();
+        // Require at least two dashes to reject ambiguous single-dash data cells.
+        if dash_count < 2 {
+            return false;
+        }
+        // After the dashes, only an optional trailing colon (and nothing else) is allowed.
+        matches!(after_dashes, "" | ":")
     }
 
     // Return true if a chunk starts with table rows but has no header separator
@@ -1698,5 +1759,153 @@ mod tests {
         };
         let result = chunk_text(&markdown, &config, None).unwrap();
         assert!(!result.chunks.is_empty(), "must produce chunks even with oversized header");
+    }
+
+    // -----------------------------------------------------------------------
+    // is_table_separator false-positive fixes
+    // -----------------------------------------------------------------------
+
+    /// A data row whose cell contains a lone dash (`| - |`) must NOT be treated
+    /// as a separator row and must NOT trigger spurious header injection.
+    #[test]
+    fn table_repeat_header_single_dash_data_cell_not_misidentified_as_separator() {
+        // "| - |" in a data row is a literal dash value, not a GFM separator.
+        // The table below has a valid header + separator on lines 1-2, then data rows
+        // where one cell is literally " - ". None of the data rows should be
+        // mistaken for a separator, so no spurious header injection should occur.
+        let markdown =
+            "| Item | Status |\n|------|--------|\n| foo  | - |\n| bar  | done |\n| baz  | :- |\n";
+        let config = ChunkingConfig {
+            max_characters: 5000,
+            overlap: 0,
+            trim: true,
+            chunker_type: ChunkerType::Markdown,
+            table_chunking: TableChunkingMode::RepeatHeader,
+            ..Default::default()
+        };
+        let result = chunk_text(markdown, &config, None).unwrap();
+        // The whole table fits in one chunk — header must appear exactly once.
+        assert_eq!(result.chunks.len(), 1, "small table must fit in one chunk");
+        assert_eq!(
+            result.chunks[0].content.matches("|------|").count(),
+            1,
+            "separator must appear exactly once — no spurious injection from data rows with dashes:\n{:?}",
+            result.chunks[0].content,
+        );
+        // Data rows must be present and unmodified.
+        assert!(
+            result.chunks[0].content.contains("| foo  | - |"),
+            "data row with lone-dash cell must be preserved:\n{:?}",
+            result.chunks[0].content,
+        );
+        assert!(
+            result.chunks[0].content.contains("| baz  | :- |"),
+            "data row with colon-dash cell must be preserved:\n{:?}",
+            result.chunks[0].content,
+        );
+    }
+
+    /// A CRLF-input table whose rows are split across chunks must produce continuation
+    /// chunks where the injected header uses `\r\n` consistently with the body.
+    #[test]
+    fn table_repeat_header_crlf_input_header_uses_crlf_line_endings() {
+        // Build a CRLF table large enough to force a split.
+        let header = "| Name | Value |\r\n|------|-------|\r\n";
+        let data_rows: String = (0..40)
+            .map(|i| format!("| item{i:02} | {i:03} |\r\n"))
+            .collect();
+        let markdown = format!("{header}{data_rows}");
+
+        let config = ChunkingConfig {
+            max_characters: 200,
+            overlap: 0,
+            trim: true,
+            chunker_type: ChunkerType::Markdown,
+            table_chunking: TableChunkingMode::RepeatHeader,
+            ..Default::default()
+        };
+        let result = chunk_text(&markdown, &config, None).unwrap();
+        assert!(
+            result.chunks.len() > 1,
+            "CRLF table must split into multiple chunks"
+        );
+
+        // Every continuation chunk that starts with `|` must have its injected header
+        // terminated with \r\n, not \n, so that line endings are consistent with the body.
+        for (i, chunk) in result.chunks.iter().enumerate().skip(1) {
+            let trimmed = chunk.content.trim_start();
+            if !trimmed.starts_with('|') {
+                continue;
+            }
+            // The first line of the chunk (the injected header row) must end with \r\n.
+            // Find the position of the first line break in the content.
+            assert!(
+                chunk.content.contains("\r\n"),
+                "continuation chunk {} must contain \\r\\n line endings from injected header, but got:\n{:?}",
+                i,
+                chunk.content,
+            );
+            // The injected header's first line (`| Name | Value |`) must be \r\n
+            // terminated, proving the injected header uses CRLF consistently with
+            // the body rather than a bare \n.
+            assert!(
+                chunk.content.contains("| Name | Value |\r\n"),
+                "continuation chunk {} injected header row must end with \\r\\n, not \\n:\n{:?}",
+                i,
+                chunk.content,
+            );
+            // The injected separator row (`|------|-------|`) must also end with \r\n.
+            assert!(
+                chunk.content.contains("|-------|\r\n"),
+                "continuation chunk {} injected separator must end with \\r\\n, not \\n:\n{:?}",
+                i,
+                chunk.content,
+            );
+        }
+    }
+
+    /// Tables using GFM alignment separators (`:---`, `---:`, `:---:`) must still be
+    /// correctly detected and their headers injected into continuation chunks.
+    #[test]
+    fn table_repeat_header_alignment_separators_are_detected_correctly() {
+        // Use left-align, right-align, and center-align separator cells.
+        let header = "| Left | Right | Center |\n|:-----|------:|:------:|\n";
+        let data_rows: String = (0..40)
+            .map(|i| format!("| l{i:02} | r{i:02} | c{i:02} |\n"))
+            .collect();
+        let markdown = format!("{header}{data_rows}");
+
+        let config = ChunkingConfig {
+            max_characters: 200,
+            overlap: 0,
+            trim: true,
+            chunker_type: ChunkerType::Markdown,
+            table_chunking: TableChunkingMode::RepeatHeader,
+            ..Default::default()
+        };
+        let result = chunk_text(&markdown, &config, None).unwrap();
+        assert!(
+            result.chunks.len() > 1,
+            "alignment-separator table must split into multiple chunks"
+        );
+
+        // Every chunk starting with `|` must carry the header row.
+        for chunk in &result.chunks {
+            let trimmed = chunk.content.trim_start();
+            if !trimmed.starts_with('|') {
+                continue;
+            }
+            assert!(
+                chunk.content.contains("| Left | Right | Center |"),
+                "alignment-separator table chunk missing header row:\n{:?}",
+                chunk.content,
+            );
+            // The separator row with alignment markers must appear exactly once per chunk.
+            assert!(
+                chunk.content.contains("|:-----|------:|:------:|"),
+                "alignment-separator table chunk missing alignment separator row:\n{:?}",
+                chunk.content,
+            );
+        }
     }
 }
