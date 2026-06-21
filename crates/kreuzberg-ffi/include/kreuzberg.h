@@ -14552,6 +14552,8 @@ KREUZBERGStructuredThresholds *kreuzberg_structured_thresholds_default(void);
  */
 void kreuzberg_meta_schema_free(KREUZBERGMetaSchema *ptr);
 
+KREUZBERGMetaSchema *kreuzberg_meta_schema_compile(const char *meta_schema_json);
+
 /**
  * Validate `raw` against the meta-schema and deserialize into a `Preset`,
  * stamping the fingerprint over the canonical file bytes.
@@ -14569,6 +14571,8 @@ KREUZBERGPreset *kreuzberg_meta_schema_parse_preset(const KREUZBERGMetaSchema *t
  * Pointer must have been returned by this library, or be null.
  */
 void kreuzberg_registry_free(KREUZBERGRegistry *ptr);
+
+KREUZBERGRegistry *kreuzberg_registry_load_embedded(void);
 
 /**
  * Look up a preset by its identifier.
@@ -15621,7 +15625,7 @@ char *kreuzberg_captioning_enrichment_config_custom_prompt(const KREUZBERGCaptio
 int32_t kreuzberg_execution_provider_type_from_i32(int32_t value);
 
 /**
- * Convert a `ExecutionProviderType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ExecutionProviderType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15636,7 +15640,7 @@ int32_t kreuzberg_execution_provider_type_from_str(const char *name);
 int32_t kreuzberg_image_output_format_from_i32(int32_t value);
 
 /**
- * Convert a `ImageOutputFormat` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ImageOutputFormat` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15651,7 +15655,7 @@ int32_t kreuzberg_image_output_format_from_str(const char *name);
 int32_t kreuzberg_output_format_from_i32(int32_t value);
 
 /**
- * Convert a `OutputFormat` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `OutputFormat` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15666,7 +15670,7 @@ int32_t kreuzberg_output_format_from_str(const char *name);
 int32_t kreuzberg_html_theme_from_i32(int32_t value);
 
 /**
- * Convert a `HtmlTheme` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `HtmlTheme` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15681,7 +15685,7 @@ int32_t kreuzberg_html_theme_from_str(const char *name);
 int32_t kreuzberg_table_model_from_i32(int32_t value);
 
 /**
- * Convert a `TableModel` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `TableModel` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15696,7 +15700,7 @@ int32_t kreuzberg_table_model_from_str(const char *name);
 int32_t kreuzberg_call_mode_from_i32(int32_t value);
 
 /**
- * Convert a `CallMode` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `CallMode` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15711,7 +15715,7 @@ int32_t kreuzberg_call_mode_from_str(const char *name);
 int32_t kreuzberg_merge_mode_from_i32(int32_t value);
 
 /**
- * Convert a `MergeMode` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `MergeMode` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15726,7 +15730,7 @@ int32_t kreuzberg_merge_mode_from_str(const char *name);
 int32_t kreuzberg_ner_backend_kind_from_i32(int32_t value);
 
 /**
- * Convert a `NerBackendKind` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `NerBackendKind` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15741,7 +15745,7 @@ int32_t kreuzberg_ner_backend_kind_from_str(const char *name);
 int32_t kreuzberg_vlm_fallback_policy_from_i32(int32_t value);
 
 /**
- * Convert a `VlmFallbackPolicy` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `VlmFallbackPolicy` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15756,7 +15760,7 @@ int32_t kreuzberg_vlm_fallback_policy_from_str(const char *name);
 int32_t kreuzberg_table_chunking_mode_from_i32(int32_t value);
 
 /**
- * Convert a `TableChunkingMode` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `TableChunkingMode` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15771,7 +15775,7 @@ int32_t kreuzberg_table_chunking_mode_from_str(const char *name);
 int32_t kreuzberg_chunker_type_from_i32(int32_t value);
 
 /**
- * Convert a `ChunkerType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ChunkerType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15786,7 +15790,7 @@ int32_t kreuzberg_chunker_type_from_str(const char *name);
 int32_t kreuzberg_chunk_sizing_from_i32(int32_t value);
 
 /**
- * Convert a `ChunkSizing` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ChunkSizing` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15801,7 +15805,7 @@ int32_t kreuzberg_chunk_sizing_from_str(const char *name);
 int32_t kreuzberg_embedding_model_type_from_i32(int32_t value);
 
 /**
- * Convert a `EmbeddingModelType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `EmbeddingModelType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15816,7 +15820,7 @@ int32_t kreuzberg_embedding_model_type_from_str(const char *name);
 int32_t kreuzberg_reranker_model_type_from_i32(int32_t value);
 
 /**
- * Convert a `RerankerModelType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `RerankerModelType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15831,7 +15835,7 @@ int32_t kreuzberg_reranker_model_type_from_str(const char *name);
 int32_t kreuzberg_whisper_model_from_i32(int32_t value);
 
 /**
- * Convert a `WhisperModel` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `WhisperModel` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15846,7 +15850,7 @@ int32_t kreuzberg_whisper_model_from_str(const char *name);
 int32_t kreuzberg_code_content_mode_from_i32(int32_t value);
 
 /**
- * Convert a `CodeContentMode` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `CodeContentMode` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15861,7 +15865,7 @@ int32_t kreuzberg_code_content_mode_from_str(const char *name);
 int32_t kreuzberg_list_type_from_i32(int32_t value);
 
 /**
- * Convert a `ListType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ListType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15876,7 +15880,7 @@ int32_t kreuzberg_list_type_from_str(const char *name);
 int32_t kreuzberg_ocr_backend_type_from_i32(int32_t value);
 
 /**
- * Convert a `OcrBackendType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `OcrBackendType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15891,7 +15895,7 @@ int32_t kreuzberg_ocr_backend_type_from_str(const char *name);
 int32_t kreuzberg_processing_stage_from_i32(int32_t value);
 
 /**
- * Convert a `ProcessingStage` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ProcessingStage` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15906,7 +15910,7 @@ int32_t kreuzberg_processing_stage_from_str(const char *name);
 int32_t kreuzberg_reduction_level_from_i32(int32_t value);
 
 /**
- * Convert a `ReductionLevel` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ReductionLevel` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15921,7 +15925,7 @@ int32_t kreuzberg_reduction_level_from_str(const char *name);
 int32_t kreuzberg_pdf_annotation_type_from_i32(int32_t value);
 
 /**
- * Convert a `PdfAnnotationType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `PdfAnnotationType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15936,7 +15940,7 @@ int32_t kreuzberg_pdf_annotation_type_from_str(const char *name);
 int32_t kreuzberg_block_type_from_i32(int32_t value);
 
 /**
- * Convert a `BlockType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `BlockType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15951,7 +15955,7 @@ int32_t kreuzberg_block_type_from_str(const char *name);
 int32_t kreuzberg_inline_type_from_i32(int32_t value);
 
 /**
- * Convert a `InlineType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `InlineType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15966,7 +15970,7 @@ int32_t kreuzberg_inline_type_from_str(const char *name);
 int32_t kreuzberg_relationship_kind_from_i32(int32_t value);
 
 /**
- * Convert a `RelationshipKind` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `RelationshipKind` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15981,7 +15985,7 @@ int32_t kreuzberg_relationship_kind_from_str(const char *name);
 int32_t kreuzberg_content_layer_from_i32(int32_t value);
 
 /**
- * Convert a `ContentLayer` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ContentLayer` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -15996,7 +16000,7 @@ int32_t kreuzberg_content_layer_from_str(const char *name);
 int32_t kreuzberg_node_content_from_i32(int32_t value);
 
 /**
- * Convert a `NodeContent` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `NodeContent` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16011,7 +16015,7 @@ int32_t kreuzberg_node_content_from_str(const char *name);
 int32_t kreuzberg_annotation_kind_from_i32(int32_t value);
 
 /**
- * Convert a `AnnotationKind` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `AnnotationKind` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16026,7 +16030,7 @@ int32_t kreuzberg_annotation_kind_from_str(const char *name);
 int32_t kreuzberg_entity_category_from_i32(int32_t value);
 
 /**
- * Convert a `EntityCategory` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `EntityCategory` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16041,7 +16045,7 @@ int32_t kreuzberg_entity_category_from_str(const char *name);
 int32_t kreuzberg_extraction_method_from_i32(int32_t value);
 
 /**
- * Convert a `ExtractionMethod` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ExtractionMethod` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16056,7 +16060,7 @@ int32_t kreuzberg_extraction_method_from_str(const char *name);
 int32_t kreuzberg_chunk_type_from_i32(int32_t value);
 
 /**
- * Convert a `ChunkType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ChunkType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16071,7 +16075,7 @@ int32_t kreuzberg_chunk_type_from_str(const char *name);
 int32_t kreuzberg_image_kind_from_i32(int32_t value);
 
 /**
- * Convert a `ImageKind` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ImageKind` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16086,7 +16090,7 @@ int32_t kreuzberg_image_kind_from_str(const char *name);
 int32_t kreuzberg_result_format_from_i32(int32_t value);
 
 /**
- * Convert a `ResultFormat` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ResultFormat` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16101,7 +16105,7 @@ int32_t kreuzberg_result_format_from_str(const char *name);
 int32_t kreuzberg_element_type_from_i32(int32_t value);
 
 /**
- * Convert a `ElementType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ElementType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16116,7 +16120,7 @@ int32_t kreuzberg_element_type_from_str(const char *name);
 int32_t kreuzberg_form_field_type_from_i32(int32_t value);
 
 /**
- * Convert a `FormFieldType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `FormFieldType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16131,7 +16135,7 @@ int32_t kreuzberg_form_field_type_from_str(const char *name);
 int32_t kreuzberg_format_metadata_from_i32(int32_t value);
 
 /**
- * Convert a `FormatMetadata` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `FormatMetadata` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16146,7 +16150,7 @@ int32_t kreuzberg_format_metadata_from_str(const char *name);
 int32_t kreuzberg_text_direction_from_i32(int32_t value);
 
 /**
- * Convert a `TextDirection` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `TextDirection` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16161,7 +16165,7 @@ int32_t kreuzberg_text_direction_from_str(const char *name);
 int32_t kreuzberg_link_type_from_i32(int32_t value);
 
 /**
- * Convert a `LinkType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `LinkType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16176,7 +16180,7 @@ int32_t kreuzberg_link_type_from_str(const char *name);
 int32_t kreuzberg_image_type_from_i32(int32_t value);
 
 /**
- * Convert a `ImageType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ImageType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16191,7 +16195,7 @@ int32_t kreuzberg_image_type_from_str(const char *name);
 int32_t kreuzberg_structured_data_type_from_i32(int32_t value);
 
 /**
- * Convert a `StructuredDataType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `StructuredDataType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16206,7 +16210,7 @@ int32_t kreuzberg_structured_data_type_from_str(const char *name);
 int32_t kreuzberg_ocr_bounding_geometry_from_i32(int32_t value);
 
 /**
- * Convert a `OcrBoundingGeometry` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `OcrBoundingGeometry` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16221,7 +16225,7 @@ int32_t kreuzberg_ocr_bounding_geometry_from_str(const char *name);
 int32_t kreuzberg_ocr_element_level_from_i32(int32_t value);
 
 /**
- * Convert a `OcrElementLevel` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `OcrElementLevel` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16236,7 +16240,7 @@ int32_t kreuzberg_ocr_element_level_from_str(const char *name);
 int32_t kreuzberg_page_unit_type_from_i32(int32_t value);
 
 /**
- * Convert a `PageUnitType` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `PageUnitType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16251,7 +16255,7 @@ int32_t kreuzberg_page_unit_type_from_str(const char *name);
 int32_t kreuzberg_redaction_strategy_from_i32(int32_t value);
 
 /**
- * Convert a `RedactionStrategy` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `RedactionStrategy` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16266,7 +16270,7 @@ int32_t kreuzberg_redaction_strategy_from_str(const char *name);
 int32_t kreuzberg_pii_category_from_i32(int32_t value);
 
 /**
- * Convert a `PiiCategory` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `PiiCategory` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16281,7 +16285,7 @@ int32_t kreuzberg_pii_category_from_str(const char *name);
 int32_t kreuzberg_diff_line_from_i32(int32_t value);
 
 /**
- * Convert a `DiffLine` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `DiffLine` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16296,7 +16300,7 @@ int32_t kreuzberg_diff_line_from_str(const char *name);
 int32_t kreuzberg_revision_kind_from_i32(int32_t value);
 
 /**
- * Convert a `RevisionKind` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `RevisionKind` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16311,7 +16315,7 @@ int32_t kreuzberg_revision_kind_from_str(const char *name);
 int32_t kreuzberg_revision_anchor_from_i32(int32_t value);
 
 /**
- * Convert a `RevisionAnchor` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `RevisionAnchor` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16326,7 +16330,7 @@ int32_t kreuzberg_revision_anchor_from_str(const char *name);
 int32_t kreuzberg_summary_strategy_from_i32(int32_t value);
 
 /**
- * Convert a `SummaryStrategy` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `SummaryStrategy` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16341,7 +16345,7 @@ int32_t kreuzberg_summary_strategy_from_str(const char *name);
 int32_t kreuzberg_uri_kind_from_i32(int32_t value);
 
 /**
- * Convert a `UriKind` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `UriKind` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16356,7 +16360,7 @@ int32_t kreuzberg_uri_kind_from_str(const char *name);
 int32_t kreuzberg_region_kind_from_i32(int32_t value);
 
 /**
- * Convert a `RegionKind` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `RegionKind` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16371,7 +16375,7 @@ int32_t kreuzberg_region_kind_from_str(const char *name);
 int32_t kreuzberg_keyword_algorithm_from_i32(int32_t value);
 
 /**
- * Convert a `KeywordAlgorithm` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `KeywordAlgorithm` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16386,7 +16390,7 @@ int32_t kreuzberg_keyword_algorithm_from_str(const char *name);
 int32_t kreuzberg_enrich_status_from_i32(int32_t value);
 
 /**
- * Convert a `EnrichStatus` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `EnrichStatus` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16401,7 +16405,7 @@ int32_t kreuzberg_enrich_status_from_str(const char *name);
 int32_t kreuzberg_schema_compliance_from_i32(int32_t value);
 
 /**
- * Convert a `SchemaCompliance` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `SchemaCompliance` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16416,7 +16420,7 @@ int32_t kreuzberg_schema_compliance_from_str(const char *name);
 int32_t kreuzberg_chunking_decision_from_i32(int32_t value);
 
 /**
- * Convert a `ChunkingDecision` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ChunkingDecision` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16431,7 +16435,7 @@ int32_t kreuzberg_chunking_decision_from_str(const char *name);
 int32_t kreuzberg_no_chunking_reason_from_i32(int32_t value);
 
 /**
- * Convert a `NoChunkingReason` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `NoChunkingReason` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16446,7 +16450,7 @@ int32_t kreuzberg_no_chunking_reason_from_str(const char *name);
 int32_t kreuzberg_chunking_reason_from_i32(int32_t value);
 
 /**
- * Convert a `ChunkingReason` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `ChunkingReason` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16461,7 +16465,7 @@ int32_t kreuzberg_chunking_reason_from_str(const char *name);
 int32_t kreuzberg_boundary_reason_from_i32(int32_t value);
 
 /**
- * Convert a `BoundaryReason` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `BoundaryReason` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16476,7 +16480,7 @@ int32_t kreuzberg_boundary_reason_from_str(const char *name);
 int32_t kreuzberg_structured_call_mode_from_i32(int32_t value);
 
 /**
- * Convert a `StructuredCallMode` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `StructuredCallMode` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16491,7 +16495,7 @@ int32_t kreuzberg_structured_call_mode_from_str(const char *name);
 int32_t kreuzberg_preset_category_from_i32(int32_t value);
 
 /**
- * Convert a `PresetCategory` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `PresetCategory` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16506,7 +16510,7 @@ int32_t kreuzberg_preset_category_from_str(const char *name);
 int32_t kreuzberg_psm_mode_from_i32(int32_t value);
 
 /**
- * Convert a `PSMMode` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `PSMMode` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16521,7 +16525,7 @@ int32_t kreuzberg_psm_mode_from_str(const char *name);
 int32_t kreuzberg_paddle_language_from_i32(int32_t value);
 
 /**
- * Convert a `PaddleLanguage` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `PaddleLanguage` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
@@ -16536,7 +16540,7 @@ int32_t kreuzberg_paddle_language_from_str(const char *name);
 int32_t kreuzberg_layout_class_from_i32(int32_t value);
 
 /**
- * Convert a `LayoutClass` variant name (C string) to its integer value. Returns -1 on invalid input.
+ * Convert a `LayoutClass` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */

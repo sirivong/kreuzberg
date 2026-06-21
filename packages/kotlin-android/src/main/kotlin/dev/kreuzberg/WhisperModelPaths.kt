@@ -29,13 +29,13 @@ data class WhisperModelPaths(
     /** Encoder ONNX model: `onnx/encoder_model.onnx`. */
     val encoder: String,
     /**
-     * Decoder ONNX model (without KV-cache past): `onnx/decoder_model.onnx`.
-     * For sharded variants (Small+) this is the merged decoder.
+     * Decoder ONNX model (without KV-cache past): `onnx/decoder_model.onnx`. For sharded variants
+     * (Small+) this is the merged decoder.
      */
     val decoder: String,
     /**
-     * Decoder ONNX model with KV-cache past: `onnx/decoder_with_past_model.onnx`.
-     * For sharded variants (Small+) this points to the same merged decoder as `decoder`.
+     * Decoder ONNX model with KV-cache past: `onnx/decoder_with_past_model.onnx`. For sharded
+     * variants (Small+) this points to the same merged decoder as `decoder`.
      */
     val decoderWithPast: String,
     /** `tokenizer.json` — vocabulary + BPE rules. */
@@ -43,8 +43,8 @@ data class WhisperModelPaths(
     /** `config.json` — model hyper-parameters. */
     val config: String,
     /**
-     * Number of mel filter banks expected by this model's audio pre-processor.
-     * 80 for Tiny / Base / Small / Medium; 128 for LargeV3.
+     * Number of mel filter banks expected by this model's audio pre-processor. 80 for Tiny / Base /
+     * Small / Medium; 128 for LargeV3.
      */
     val nMels: Int,
 )

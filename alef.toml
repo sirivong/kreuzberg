@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.25.57"
+alef_version = "0.25.59"
 languages = [
   "python",
   "node",
@@ -241,6 +241,7 @@ exclude_types = [
 exclude_fields = ["FormatMetadata.Code"]
 exclude_functions = [
   "calculate_quality_score",
+  "count_tokens",
   "embed_texts",
 ]
 reexported_types = [
@@ -267,6 +268,7 @@ exclude_types = [
 ]
 exclude_functions = [
   "calculate_quality_score",
+  "count_tokens",
   "embed_texts",
 ]
 
@@ -286,6 +288,7 @@ default_features = false
 gem_name = "kreuzberg"
 exclude_functions = [
   "calculate_quality_score",
+  "count_tokens",
   "embed_texts",
 ]
 
@@ -321,16 +324,11 @@ exclude_types = [
 ]
 exclude_functions = [
   "calculate_quality_score",
+  "count_tokens",
   "embed_texts",
-  # ext-php-rs's `#[php_impl]` macro reads function signatures unconditionally
-  # — even when cfg-gated to a fallback-stub branch — and generates a class
-  # impl that references them. Alef emits these two fallback stubs with
-  # `not(feature = "embeddings"/"reranker")` gates, but the macro lookup
-  # still fires under default features and fails with E0599. Excluding the
-  # async variants keeps PHP at the sync surface (rerank, embed_texts via
-  # presets) until alef's PHP backend can suppress cfg-gated stub fns.
-  "embed_texts_async",
-  "rerank_async",
+  # embed_texts_async and rerank_async are now generated with always-true cfg
+  # conditions to work around ext-php-rs's #[php_impl] macro unconditional
+  # function resolution. See prepend_cfg_for_php in rust_bindings.rs.
 ]
 
 # Windows: libheif is not installed on the `windows-latest` runner image, so
@@ -344,6 +342,7 @@ default_features = false
 app_name = "kreuzberg"
 exclude_functions = [
   "calculate_quality_score",
+  "count_tokens",
   "embed_texts",
 ]
 exclude_types = [
@@ -442,6 +441,8 @@ exclude_functions = [
   # JSON bridge entry points do not exist on wasm32.
   "extract_structured_json",
   "split_and_extract_json",
+  # Rust-only utility — reuses the HF tokenizer cache; not generated into bindings
+  "count_tokens",
 ]
 features = ["wasm-target"]
 
@@ -461,6 +462,7 @@ visitor_callbacks = false
 plugin_error_constructor = "kreuzberg::KreuzbergError::Plugin { message: msg, plugin_name: String::new() }"
 exclude_functions = [
   "calculate_quality_score",
+  "count_tokens",
   "find_all",
   "scan_text",
   "embed_texts",
@@ -500,6 +502,7 @@ module = "github.com/kreuzberg-dev/kreuzberg/v5"
 package_name = "kreuzberg"
 exclude_functions = [
   "calculate_quality_score",
+  "count_tokens",
   "embed_texts",
 ]
 exclude_types = [
@@ -555,6 +558,7 @@ exclude_types = [
 ]
 exclude_functions = [
   "calculate_quality_score",
+  "count_tokens",
   "embed_texts",
 ]
 
@@ -626,6 +630,7 @@ features = [
 ]
 exclude_functions = [
   "calculate_quality_score",
+  "count_tokens",
   "embed_texts",
 ]
 
@@ -679,6 +684,7 @@ exclude_functions = [
   # Callers should use embedTextsAsync (suspend) from embed_texts instead.
   "embed_texts_async",
   "calculate_quality_score",
+  "count_tokens",
 ]
 
 # Windows: libheif is not installed on the `windows-latest` runner image, so
@@ -778,6 +784,7 @@ exclude_fields = [
 ]
 exclude_functions = [
   "calculate_quality_score",
+  "count_tokens",
   "embed_texts",
   # Pure Rust helper functions without swift-bridge extern declarations
   "find_all",
@@ -824,6 +831,7 @@ namespace = "Kreuzberg"
 project_file = "packages/csharp/Kreuzberg/Kreuzberg.csproj"
 exclude_functions = [
   "calculate_quality_score",
+  "count_tokens",
   "embed_texts",
 ]
 
@@ -835,6 +843,7 @@ extra_makevars_prelude = ["HEIF_LIBS = $(shell pkg-config --libs libheif 2>/dev/
 extra_pkg_libs = ["$(HEIF_LIBS)"]
 exclude_functions = [
   "calculate_quality_score",
+  "count_tokens",
   "embed_texts",
   # Vec<NamedStruct> return: extendr has no `From<Vec<T>> for Robj` for opaque struct
   # types. Excluded until alef emits a manual list-based From impl.
@@ -850,6 +859,7 @@ exclude_functions = [
 module_name = "kreuzberg"
 exclude_functions = [
   "calculate_quality_score",
+  "count_tokens",
   "embed_texts",
 ]
 
@@ -4018,7 +4028,7 @@ path = "../../packages/zig"
 # Placeholder until v5.0.0-rc.4 ships and the tarball SHA is known.
 # Update post-release with the real Zig multihash for
 # https://github.com/kreuzberg-dev/kreuzberg/releases/download/v{version}/kreuzberg-zig-v{version}.tar.gz
-hash = "kreuzberg-5.0.0-rc.26-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+hash = "kreuzberg-5.0.0-rc.27-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 
 # Point WASM e2e at the wasm-pack `nodejs` target. The default `pkg/` is the
 # bundler target whose JS glue uses `import * as foo from "env"` statements
@@ -4160,8 +4170,8 @@ snippets = { basic_extraction = "getting-started/basic_usage.md", async_extracti
 [crates.readme.languages.php]
 template = "language_package.md"
 name = "PHP"
-package_name = "kreuzberg/kreuzberg"
-badge_url = "https://img.shields.io/packagist/v/kreuzberg/kreuzberg?label=PHP&color=007ec6"
+package_name = "kreuzberg-dev/kreuzberg"
+badge_url = "https://img.shields.io/packagist/v/kreuzberg-dev/kreuzberg?label=PHP&color=007ec6"
 docs_url = "https://kreuzberg.dev/"
 description = "Extract text, tables, images, metadata, and code intelligence from 96 file formats and 306 programming languages including PDF, Office documents, images, and audio/video transcripts where native transcription is available. PHP bindings with modern PHP 8.2+ support and type-safe API."
 package_manager = ["composer"]

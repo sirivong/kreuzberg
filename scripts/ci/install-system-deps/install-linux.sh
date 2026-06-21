@@ -62,9 +62,20 @@ echo "::group::Building libheif from source (Noble ships 1.17.6, libheif-sys nee
 
 LIBHEIF_VERSION="${LIBHEIF_VERSION:-1.23.0}"
 LIBHEIF_PREFIX="${LIBHEIF_PREFIX:-/usr/local}"
+
+# Remove apt's older libheif to prevent shadowing our source build.
+# On aarch64, apt's libheif (1.17.6) installs to /usr/lib/aarch64-linux-gnu/,
+# and on x86_64 to /usr/lib/x86_64-linux-gnu/. This ensures we use the 1.23.0 build.
+echo "Removing apt's libheif to prevent shadowing..."
+if dpkg -l | grep -q "^ii.*libheif"; then
+  sudo apt-get remove -y libheif* || echo "::warning::Failed to remove apt libheif, continuing..."
+else
+  echo "✓ apt libheif not installed"
+fi
+
 LIBHEIF_MARKER="$LIBHEIF_PREFIX/lib/pkgconfig/libheif.pc"
 
-if [ -f "$LIBHEIF_MARKER" ] && pkg-config --modversion libheif | grep -q "^${LIBHEIF_VERSION}$"; then
+if [ -f "$LIBHEIF_MARKER" ] && pkg-config --modversion libheif 2>/dev/null | grep -q "^${LIBHEIF_VERSION}$"; then
   echo "✓ libheif ${LIBHEIF_VERSION} already installed (cached)"
 else
   echo "Building libheif ${LIBHEIF_VERSION} from source..."
@@ -99,8 +110,27 @@ fi
 # Always run ldconfig to update the dynamic linker cache, even if libheif was cached
 sudo ldconfig
 
+# Diagnostic: verify the correct libheif is in the cache and has the required symbol.
+# This helps debug future ARM linker issues.
+echo ""
+echo "libheif symbol verification:"
+if [ -f "$LIBHEIF_PREFIX/lib/libheif.so.1" ]; then
+  if nm -D "$LIBHEIF_PREFIX/lib/libheif.so.1" 2>/dev/null | grep -q "heif_image_get_plane_readonly2"; then
+    echo "✓ $LIBHEIF_PREFIX/lib/libheif.so.1 has heif_image_get_plane_readonly2"
+  else
+    echo "::warning::$LIBHEIF_PREFIX/lib/libheif.so.1 missing heif_image_get_plane_readonly2"
+  fi
+else
+  echo "::warning::$LIBHEIF_PREFIX/lib/libheif.so.1 not found"
+fi
+
+echo "ldconfig cache contains:"
+ldconfig -p | grep libheif || echo "(no libheif in ldconfig cache)"
+
 if [[ -n "${GITHUB_ENV:-}" ]]; then
   echo "PKG_CONFIG_PATH=$LIBHEIF_PREFIX/lib/pkgconfig:${PKG_CONFIG_PATH:-}" >>"$GITHUB_ENV"
+  # Ensure /usr/local/lib comes FIRST in LD_LIBRARY_PATH so source-built libheif 1.23.0 wins
+  # over any system (apt) libheif. This is critical on ARM where apt's old libheif may be present.
   echo "LD_LIBRARY_PATH=$LIBHEIF_PREFIX/lib:${LD_LIBRARY_PATH:-}" >>"$GITHUB_ENV"
 fi
 

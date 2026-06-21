@@ -258,7 +258,7 @@ Each snippet is designed to be self-contained and runnable. To test:
 1. Install dependencies:
 
    ```bash
-   composer require kreuzberg/kreuzberg
+   composer require kreuzberg-dev/kreuzberg
    ```
 
 2. Ensure the extension is loaded:

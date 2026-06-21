@@ -26,8 +26,8 @@
   <a href="https://www.nuget.org/packages/Kreuzberg/">
     <img src="https://img.shields.io/nuget/v/Kreuzberg?label=C%23&color=007ec6" alt="C#">
   </a>
-  <a href="https://packagist.org/packages/kreuzberg/kreuzberg">
-    <img src="https://img.shields.io/packagist/v/kreuzberg/kreuzberg?label=PHP&color=007ec6" alt="PHP">
+  <a href="https://packagist.org/packages/kreuzberg-dev/kreuzberg">
+    <img src="https://img.shields.io/packagist/v/kreuzberg-dev/kreuzberg?label=PHP&color=007ec6" alt="PHP">
   </a>
   <a href="https://rubygems.org/gems/kreuzberg">
     <img src="https://img.shields.io/gem/v/kreuzberg?label=Ruby&color=007ec6" alt="Ruby">
@@ -104,20 +104,20 @@ Add to your `pom.xml`:
 <dependency>
     <groupId>dev.kreuzberg</groupId>
     <artifactId>kreuzberg</artifactId>
-    <version>5.0.0-rc.26</version>
+    <version>5.0.0-rc.27</version>
 </dependency>
 ```
 
 Kotlin DSL (`build.gradle.kts`):
 
 ```kotlin
-implementation("dev.kreuzberg:kreuzberg:5.0.0-rc.26")
+implementation("dev.kreuzberg:kreuzberg:5.0.0-rc.27")
 ```
 
 Groovy DSL (`build.gradle`):
 
 ```groovy
-implementation 'dev.kreuzberg:kreuzberg:5.0.0-rc.26'
+implementation 'dev.kreuzberg:kreuzberg:5.0.0-rc.27'
 ```
 
 ### System Requirements

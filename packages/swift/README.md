@@ -26,8 +26,8 @@
   <a href="https://www.nuget.org/packages/Kreuzberg/">
     <img src="https://img.shields.io/nuget/v/Kreuzberg?label=C%23&color=007ec6" alt="C#">
   </a>
-  <a href="https://packagist.org/packages/kreuzberg/kreuzberg">
-    <img src="https://img.shields.io/packagist/v/kreuzberg/kreuzberg?label=PHP&color=007ec6" alt="PHP">
+  <a href="https://packagist.org/packages/kreuzberg-dev/kreuzberg">
+    <img src="https://img.shields.io/packagist/v/kreuzberg-dev/kreuzberg?label=PHP&color=007ec6" alt="PHP">
   </a>
   <a href="https://rubygems.org/gems/kreuzberg">
     <img src="https://img.shields.io/gem/v/kreuzberg?label=Ruby&color=007ec6" alt="Ruby">
@@ -101,7 +101,7 @@ Extract text, tables, images, metadata, and code intelligence from 96 file forma
 Add to your `Package.swift` dependencies:
 
 ```swift
-.package(url: "https://github.com/kreuzberg-dev/kreuzberg.git", from: "5.0.0-rc.26"),
+.package(url: "https://github.com/kreuzberg-dev/kreuzberg.git", from: "5.0.0-rc.27"),
 ```
 
 Then add the product to the relevant target:

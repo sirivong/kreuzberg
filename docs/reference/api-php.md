@@ -2,7 +2,7 @@
 title: "PHP API Reference"
 ---
 
-## PHP API Reference <span class="version-badge">v5.0.0-rc.26</span>
+## PHP API Reference <span class="version-badge">v5.0.0-rc.27</span>
 
 ### Functions
 
@@ -1592,6 +1592,42 @@ $result = extractRegionWithVlm("data", "value", new RegionKind(), new LlmConfig(
 
 ---
 
+#### rerankAsync()
+
+Rerank documents asynchronously.
+
+Async counterpart to `rerank`. Offloads blocking ONNX inference to a
+dedicated blocking thread pool via Tokio's `spawn_blocking`, keeping the
+async executor free.
+
+Since v5.0.
+
+**Signature:**
+
+```php
+public static function rerankAsync(string $query, array<string> $documents, RerankerConfig $config): array<RerankedDocument>
+```
+
+**Example:**
+
+```php
+$result = rerankAsync("value", [], new RerankerConfig());
+```
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `query` | `string` | Yes | The query |
+| `documents` | `array<string>` | Yes | The documents |
+| `config` | `RerankerConfig` | Yes | The configuration options |
+
+**Returns:** `array<RerankedDocument>`
+
+**Errors:** Throws `Error`.
+
+---
+
 #### extractKeywords()
 
 Extract keywords from text using the specified algorithm.
@@ -2283,6 +2319,33 @@ $result = detectMimeType("value", true);
 
 ---
 
+#### embedTextsAsync()
+
+**Signature:**
+
+```php
+public static function embedTextsAsync(array<string> $texts, EmbeddingConfig $config): array<array<float>>
+```
+
+**Example:**
+
+```php
+$result = embedTextsAsync([], new EmbeddingConfig());
+```
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `texts` | `array<string>` | Yes | The  texts |
+| `config` | `EmbeddingConfig` | Yes | The embedding config |
+
+**Returns:** `array<array<float>>`
+
+**Errors:** Throws `Error`.
+
+---
+
 #### getEmbeddingPreset()
 
 Get an embedding preset by name.
@@ -2454,6 +2517,38 @@ $result = rerank("value", [], new RerankerConfig());
 
 ---
 
+#### rerankAsync()
+
+Stub for builds without the `reranker` feature.
+
+Since v5.0.
+
+**Signature:**
+
+```php
+public static function rerankAsync(string $query, array<string> $documents, RerankerConfig $config): array<RerankedDocument>
+```
+
+**Example:**
+
+```php
+$result = rerankAsync("value", [], new RerankerConfig());
+```
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `query` | `string` | Yes | The  query |
+| `documents` | `array<string>` | Yes | The  documents |
+| `config` | `RerankerConfig` | Yes | The reranker config |
+
+**Returns:** `array<RerankedDocument>`
+
+**Errors:** Throws `Error`.
+
+---
+
 #### getRerankerPreset()
 
 Get a reranker preset by name.
@@ -2556,6 +2651,33 @@ $result = listRerankerPresets();
 ```
 
 **Returns:** `array<string>`
+
+---
+
+#### embedTextsAsync()
+
+**Signature:**
+
+```php
+public static function embedTextsAsync(array<string> $texts, EmbeddingConfig $config): array<array<float>>
+```
+
+**Example:**
+
+```php
+$result = embedTextsAsync([], new EmbeddingConfig());
+```
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|------|------|----------|-------------|
+| `texts` | `array<string>` | Yes | The  texts |
+| `config` | `EmbeddingConfig` | Yes | The embedding config |
+
+**Returns:** `array<array<float>>`
+
+**Errors:** Throws `Error`.
 
 ---
 

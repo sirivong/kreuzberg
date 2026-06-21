@@ -1042,6 +1042,9 @@ public func nerBackendKindFromJson<GenericIntoRustString: IntoRustString>(_ json
 public func vlmFallbackPolicyFromJson<GenericIntoRustString: IntoRustString>(_ json: GenericIntoRustString) throws -> VlmFallbackPolicy {
     try { let val = __swift_bridge__$vlm_fallback_policy_from_json({ let rustString = json.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); if val.is_ok { return VlmFallbackPolicy(ptr: val.ok_or_err!) } else { throw RustString(ptr: val.ok_or_err!) } }()
 }
+public func tableChunkingModeFromJson<GenericIntoRustString: IntoRustString>(_ json: GenericIntoRustString) throws -> TableChunkingMode {
+    try { let val = __swift_bridge__$table_chunking_mode_from_json({ let rustString = json.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); if val.is_ok { return TableChunkingMode(ptr: val.ok_or_err!) } else { throw RustString(ptr: val.ok_or_err!) } }()
+}
 public func chunkerTypeFromJson<GenericIntoRustString: IntoRustString>(_ json: GenericIntoRustString) throws -> ChunkerType {
     try { let val = __swift_bridge__$chunker_type_from_json({ let rustString = json.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); if val.is_ok { return ChunkerType(ptr: val.ok_or_err!) } else { throw RustString(ptr: val.ok_or_err!) } }()
 }
@@ -1569,6 +1572,9 @@ public func __alef_phantom_vec_ner_backend_kind() -> RustVec<NerBackendKind> {
 }
 public func __alef_phantom_vec_vlm_fallback_policy() -> RustVec<VlmFallbackPolicy> {
     RustVec(ptr: __swift_bridge__$__alef_phantom_vec_vlm_fallback_policy())
+}
+public func __alef_phantom_vec_table_chunking_mode() -> RustVec<TableChunkingMode> {
+    RustVec(ptr: __swift_bridge__$__alef_phantom_vec_table_chunking_mode())
 }
 public func __alef_phantom_vec_chunker_type() -> RustVec<ChunkerType> {
     RustVec(ptr: __swift_bridge__$__alef_phantom_vec_chunker_type())
@@ -3052,8 +3058,8 @@ public class ImageExtractionConfig: ImageExtractionConfigRefMut {
     }
 }
 extension ImageExtractionConfig {
-    public convenience init(_ extract_images: Bool, _ target_dpi: Int32, _ max_image_dimension: Int32, _ inject_placeholders: Bool, _ auto_adjust_dpi: Bool, _ min_dpi: Int32, _ max_dpi: Int32, _ max_images_per_page: Optional<UInt32>, _ classify: Bool, _ include_page_rasters: Bool, _ run_ocr_on_images: Bool, _ ocr_text_only: Bool, _ append_ocr_text: Bool, _ output_format: ImageOutputFormat, _ svg: SvgOptions) {
-        self.init(ptr: __swift_bridge__$ImageExtractionConfig$new(extract_images, target_dpi, max_image_dimension, inject_placeholders, auto_adjust_dpi, min_dpi, max_dpi, max_images_per_page.intoFfiRepr(), classify, include_page_rasters, run_ocr_on_images, ocr_text_only, append_ocr_text, {output_format.isOwned = false; return output_format.ptr;}(), {svg.isOwned = false; return svg.ptr;}()))
+    public convenience init(_ extract_images: Bool, _ target_dpi: Int32, _ max_image_dimension: Int32, _ inject_placeholders: Bool, _ auto_adjust_dpi: Bool, _ min_dpi: Int32, _ max_dpi: Int32, _ max_images_per_page: Optional<UInt32>, _ classify: Bool, _ include_page_rasters: Bool, _ run_ocr_on_images: Bool, _ ocr_text_only: Bool, _ append_ocr_text: Bool, _ output_format: ImageOutputFormat, _ svg: SvgOptions, _ include_data_base64: Bool) {
+        self.init(ptr: __swift_bridge__$ImageExtractionConfig$new(extract_images, target_dpi, max_image_dimension, inject_placeholders, auto_adjust_dpi, min_dpi, max_dpi, max_images_per_page.intoFfiRepr(), classify, include_page_rasters, run_ocr_on_images, ocr_text_only, append_ocr_text, {output_format.isOwned = false; return output_format.ptr;}(), {svg.isOwned = false; return svg.ptr;}(), include_data_base64))
     }
 }
 public class ImageExtractionConfigRefMut: ImageExtractionConfigRef {
@@ -3127,6 +3133,10 @@ extension ImageExtractionConfigRef {
 
     public func svg() -> SvgOptions {
         SvgOptions(ptr: __swift_bridge__$ImageExtractionConfig$svg(ptr))
+    }
+
+    public func includeDataBase64() -> Bool {
+        __swift_bridge__$ImageExtractionConfig$include_data_base64(ptr)
     }
 }
 extension ImageExtractionConfig: Vectorizable {
@@ -4052,8 +4062,8 @@ extension OcrPipelineStageRef {
         __swift_bridge__$OcrPipelineStage$priority(ptr)
     }
 
-    public func language() -> Optional<RustString> {
-        { let val = __swift_bridge__$OcrPipelineStage$language(ptr); if val != nil { return RustString(ptr: val!) } else { return nil } }()
+    public func language() -> Optional<RustVec<RustString>> {
+        { let val = __swift_bridge__$OcrPipelineStage$language(ptr); if val != nil { return RustVec(ptr: val!) } else { return nil } }()
     }
 
     public func tesseractConfig() -> Optional<TesseractConfig> {
@@ -4220,8 +4230,8 @@ public class OcrConfig: OcrConfigRefMut {
     }
 }
 extension OcrConfig {
-    public convenience init<GenericIntoRustString: IntoRustString>(_ enabled: Bool, _ backend: GenericIntoRustString, _ language: GenericIntoRustString, _ tesseract_config: Optional<TesseractConfig>, _ output_format: Optional<OutputFormat>, _ paddle_ocr_config: Optional<GenericIntoRustString>, _ backend_options: Optional<GenericIntoRustString>, _ element_config: Optional<OcrElementConfig>, _ quality_thresholds: Optional<OcrQualityThresholds>, _ pipeline: Optional<OcrPipelineConfig>, _ auto_rotate: Bool, _ vlm_fallback: VlmFallbackPolicy, _ vlm_config: Optional<LlmConfig>, _ vlm_prompt: Optional<GenericIntoRustString>, _ acceleration: Optional<AccelerationConfig>, _ tessdata_bytes: GenericIntoRustString) {
-        self.init(ptr: __swift_bridge__$OcrConfig$new(enabled, { let rustString = backend.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), { let rustString = language.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), { if let val = tesseract_config { val.isOwned = false; return val.ptr } else { return nil } }(), { if let val = output_format { val.isOwned = false; return val.ptr } else { return nil } }(), { if let rustString = optionalStringIntoRustString(paddle_ocr_config) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), { if let rustString = optionalStringIntoRustString(backend_options) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), { if let val = element_config { val.isOwned = false; return val.ptr } else { return nil } }(), { if let val = quality_thresholds { val.isOwned = false; return val.ptr } else { return nil } }(), { if let val = pipeline { val.isOwned = false; return val.ptr } else { return nil } }(), auto_rotate, {vlm_fallback.isOwned = false; return vlm_fallback.ptr;}(), { if let val = vlm_config { val.isOwned = false; return val.ptr } else { return nil } }(), { if let rustString = optionalStringIntoRustString(vlm_prompt) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), { if let val = acceleration { val.isOwned = false; return val.ptr } else { return nil } }(), { let rustString = tessdata_bytes.intoRustString(); rustString.isOwned = false; return rustString.ptr }()))
+    public convenience init<GenericIntoRustString: IntoRustString>(_ enabled: Bool, _ backend: GenericIntoRustString, _ language: RustVec<GenericIntoRustString>, _ tesseract_config: Optional<TesseractConfig>, _ output_format: Optional<OutputFormat>, _ paddle_ocr_config: Optional<GenericIntoRustString>, _ backend_options: Optional<GenericIntoRustString>, _ element_config: Optional<OcrElementConfig>, _ quality_thresholds: Optional<OcrQualityThresholds>, _ pipeline: Optional<OcrPipelineConfig>, _ auto_rotate: Bool, _ vlm_fallback: VlmFallbackPolicy, _ vlm_config: Optional<LlmConfig>, _ vlm_prompt: Optional<GenericIntoRustString>, _ acceleration: Optional<AccelerationConfig>, _ tessdata_bytes: GenericIntoRustString) {
+        self.init(ptr: __swift_bridge__$OcrConfig$new(enabled, { let rustString = backend.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), { let val = language; val.isOwned = false; return val.ptr }(), { if let val = tesseract_config { val.isOwned = false; return val.ptr } else { return nil } }(), { if let val = output_format { val.isOwned = false; return val.ptr } else { return nil } }(), { if let rustString = optionalStringIntoRustString(paddle_ocr_config) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), { if let rustString = optionalStringIntoRustString(backend_options) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), { if let val = element_config { val.isOwned = false; return val.ptr } else { return nil } }(), { if let val = quality_thresholds { val.isOwned = false; return val.ptr } else { return nil } }(), { if let val = pipeline { val.isOwned = false; return val.ptr } else { return nil } }(), auto_rotate, {vlm_fallback.isOwned = false; return vlm_fallback.ptr;}(), { if let val = vlm_config { val.isOwned = false; return val.ptr } else { return nil } }(), { if let rustString = optionalStringIntoRustString(vlm_prompt) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), { if let val = acceleration { val.isOwned = false; return val.ptr } else { return nil } }(), { let rustString = tessdata_bytes.intoRustString(); rustString.isOwned = false; return rustString.ptr }()))
     }
 }
 public class OcrConfigRefMut: OcrConfigRef {
@@ -4245,8 +4255,8 @@ extension OcrConfigRef {
         RustString(ptr: __swift_bridge__$OcrConfig$backend(ptr))
     }
 
-    public func language() -> RustString {
-        RustString(ptr: __swift_bridge__$OcrConfig$language(ptr))
+    public func language() -> RustVec<RustString> {
+        RustVec(ptr: __swift_bridge__$OcrConfig$language(ptr))
     }
 
     public func tesseractConfig() -> Optional<TesseractConfig> {
@@ -4785,8 +4795,8 @@ public class ChunkingConfig: ChunkingConfigRefMut {
     }
 }
 extension ChunkingConfig {
-    public convenience init<GenericIntoRustString: IntoRustString>(_ max_characters: UInt, _ overlap: UInt, _ trim: Bool, _ chunker_type: ChunkerType, _ embedding: Optional<EmbeddingConfig>, _ preset: Optional<GenericIntoRustString>, _ sizing: ChunkSizing, _ prepend_heading_context: Bool, _ topic_threshold: Optional<Float>) {
-        self.init(ptr: __swift_bridge__$ChunkingConfig$new(max_characters, overlap, trim, {chunker_type.isOwned = false; return chunker_type.ptr;}(), { if let val = embedding { val.isOwned = false; return val.ptr } else { return nil } }(), { if let rustString = optionalStringIntoRustString(preset) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), {sizing.isOwned = false; return sizing.ptr;}(), prepend_heading_context, topic_threshold.intoFfiRepr()))
+    public convenience init<GenericIntoRustString: IntoRustString>(_ max_characters: UInt, _ overlap: UInt, _ trim: Bool, _ chunker_type: ChunkerType, _ embedding: Optional<EmbeddingConfig>, _ preset: Optional<GenericIntoRustString>, _ sizing: ChunkSizing, _ prepend_heading_context: Bool, _ topic_threshold: Optional<Float>, _ table_chunking: TableChunkingMode) {
+        self.init(ptr: __swift_bridge__$ChunkingConfig$new(max_characters, overlap, trim, {chunker_type.isOwned = false; return chunker_type.ptr;}(), { if let val = embedding { val.isOwned = false; return val.ptr } else { return nil } }(), { if let rustString = optionalStringIntoRustString(preset) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), {sizing.isOwned = false; return sizing.ptr;}(), prepend_heading_context, topic_threshold.intoFfiRepr(), {table_chunking.isOwned = false; return table_chunking.ptr;}()))
     }
 }
 public class ChunkingConfigRefMut: ChunkingConfigRef {
@@ -4836,6 +4846,10 @@ extension ChunkingConfigRef {
 
     public func topicThreshold() -> Optional<Float> {
         __swift_bridge__$ChunkingConfig$topic_threshold(ptr).intoSwiftRepr()
+    }
+
+    public func tableChunking() -> RustString {
+        RustString(ptr: __swift_bridge__$ChunkingConfig$table_chunking(ptr))
     }
 }
 extension ChunkingConfig: Vectorizable {
@@ -9499,8 +9513,8 @@ public class ExtractedImage: ExtractedImageRefMut {
     }
 }
 extension ExtractedImage {
-    public convenience init<GenericIntoRustString: IntoRustString>(_ data: RustVec<UInt8>, _ format: GenericIntoRustString, _ image_index: UInt32, _ page_number: Optional<UInt32>, _ width: Optional<UInt32>, _ height: Optional<UInt32>, _ colorspace: Optional<GenericIntoRustString>, _ bits_per_component: Optional<UInt32>, _ is_mask: Bool, _ description: Optional<GenericIntoRustString>, _ ocr_result: Optional<ExtractionResult>, _ bounding_box: Optional<BoundingBox>, _ source_path: Optional<GenericIntoRustString>, _ image_kind: Optional<ImageKind>, _ kind_confidence: Optional<Float>, _ cluster_id: Optional<UInt32>, _ caption: Optional<GenericIntoRustString>, _ qr_codes: Optional<RustVec<QrCode>>) {
-        self.init(ptr: __swift_bridge__$ExtractedImage$new({ let val = data; val.isOwned = false; return val.ptr }(), { let rustString = format.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), image_index, page_number.intoFfiRepr(), width.intoFfiRepr(), height.intoFfiRepr(), { if let rustString = optionalStringIntoRustString(colorspace) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), bits_per_component.intoFfiRepr(), is_mask, { if let rustString = optionalStringIntoRustString(description) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), { if let val = ocr_result { val.isOwned = false; return val.ptr } else { return nil } }(), { if let val = bounding_box { val.isOwned = false; return val.ptr } else { return nil } }(), { if let rustString = optionalStringIntoRustString(source_path) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), { if let val = image_kind { val.isOwned = false; return val.ptr } else { return nil } }(), kind_confidence.intoFfiRepr(), cluster_id.intoFfiRepr(), { if let rustString = optionalStringIntoRustString(caption) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), { if let val = qr_codes { val.isOwned = false; return val.ptr } else { return nil } }()))
+    public convenience init<GenericIntoRustString: IntoRustString>(_ data: RustVec<UInt8>, _ format: GenericIntoRustString, _ image_index: UInt32, _ page_number: Optional<UInt32>, _ width: Optional<UInt32>, _ height: Optional<UInt32>, _ colorspace: Optional<GenericIntoRustString>, _ bits_per_component: Optional<UInt32>, _ is_mask: Bool, _ description: Optional<GenericIntoRustString>, _ ocr_result: Optional<ExtractionResult>, _ bounding_box: Optional<BoundingBox>, _ source_path: Optional<GenericIntoRustString>, _ image_kind: Optional<ImageKind>, _ kind_confidence: Optional<Float>, _ cluster_id: Optional<UInt32>, _ caption: Optional<GenericIntoRustString>, _ qr_codes: Optional<RustVec<QrCode>>, _ data_base64: Optional<GenericIntoRustString>) {
+        self.init(ptr: __swift_bridge__$ExtractedImage$new({ let val = data; val.isOwned = false; return val.ptr }(), { let rustString = format.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), image_index, page_number.intoFfiRepr(), width.intoFfiRepr(), height.intoFfiRepr(), { if let rustString = optionalStringIntoRustString(colorspace) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), bits_per_component.intoFfiRepr(), is_mask, { if let rustString = optionalStringIntoRustString(description) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), { if let val = ocr_result { val.isOwned = false; return val.ptr } else { return nil } }(), { if let val = bounding_box { val.isOwned = false; return val.ptr } else { return nil } }(), { if let rustString = optionalStringIntoRustString(source_path) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), { if let val = image_kind { val.isOwned = false; return val.ptr } else { return nil } }(), kind_confidence.intoFfiRepr(), cluster_id.intoFfiRepr(), { if let rustString = optionalStringIntoRustString(caption) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), { if let val = qr_codes { val.isOwned = false; return val.ptr } else { return nil } }(), { if let rustString = optionalStringIntoRustString(data_base64) { rustString.isOwned = false; return rustString.ptr } else { return nil } }()))
     }
 }
 public class ExtractedImageRefMut: ExtractedImageRef {
@@ -9586,6 +9600,10 @@ extension ExtractedImageRef {
 
     public func qrCodes() -> Optional<RustVec<QrCode>> {
         { let val = __swift_bridge__$ExtractedImage$qr_codes(ptr); if val != nil { return RustVec(ptr: val!) } else { return nil } }()
+    }
+
+    public func dataBase64() -> Optional<RustString> {
+        { let val = __swift_bridge__$ExtractedImage$data_base64(ptr); if val != nil { return RustString(ptr: val!) } else { return nil } }()
     }
 }
 extension ExtractedImage: Vectorizable {
@@ -11159,8 +11177,8 @@ public class TesseractConfig: TesseractConfigRefMut {
     }
 }
 extension TesseractConfig {
-    public convenience init<GenericIntoRustString: IntoRustString>(_ language: GenericIntoRustString, _ psm: Int32, _ output_format: GenericIntoRustString, _ oem: Int32, _ min_confidence: Double, _ preprocessing: Optional<ImagePreprocessingConfig>, _ enable_table_detection: Bool, _ table_min_confidence: Double, _ table_column_threshold: Int32, _ table_row_threshold_ratio: Double, _ use_cache: Bool, _ classify_use_pre_adapted_templates: Bool, _ language_model_ngram_on: Bool, _ tessedit_dont_blkrej_good_wds: Bool, _ tessedit_dont_rowrej_good_wds: Bool, _ tessedit_enable_dict_correction: Bool, _ tessedit_char_whitelist: GenericIntoRustString, _ tessedit_char_blacklist: GenericIntoRustString, _ tessedit_use_primary_params_model: Bool, _ textord_space_size_is_variable: Bool, _ thresholding_method: Bool) {
-        self.init(ptr: __swift_bridge__$TesseractConfig$new({ let rustString = language.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), psm, { let rustString = output_format.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), oem, min_confidence, { if let val = preprocessing { val.isOwned = false; return val.ptr } else { return nil } }(), enable_table_detection, table_min_confidence, table_column_threshold, table_row_threshold_ratio, use_cache, classify_use_pre_adapted_templates, language_model_ngram_on, tessedit_dont_blkrej_good_wds, tessedit_dont_rowrej_good_wds, tessedit_enable_dict_correction, { let rustString = tessedit_char_whitelist.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), { let rustString = tessedit_char_blacklist.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), tessedit_use_primary_params_model, textord_space_size_is_variable, thresholding_method))
+    public convenience init<GenericIntoRustString: IntoRustString>(_ language: RustVec<GenericIntoRustString>, _ psm: Int32, _ output_format: GenericIntoRustString, _ oem: Int32, _ min_confidence: Double, _ preprocessing: Optional<ImagePreprocessingConfig>, _ enable_table_detection: Bool, _ table_min_confidence: Double, _ table_column_threshold: Int32, _ table_row_threshold_ratio: Double, _ use_cache: Bool, _ classify_use_pre_adapted_templates: Bool, _ language_model_ngram_on: Bool, _ tessedit_dont_blkrej_good_wds: Bool, _ tessedit_dont_rowrej_good_wds: Bool, _ tessedit_enable_dict_correction: Bool, _ tessedit_char_whitelist: GenericIntoRustString, _ tessedit_char_blacklist: GenericIntoRustString, _ tessedit_use_primary_params_model: Bool, _ textord_space_size_is_variable: Bool, _ thresholding_method: Bool) {
+        self.init(ptr: __swift_bridge__$TesseractConfig$new({ let val = language; val.isOwned = false; return val.ptr }(), psm, { let rustString = output_format.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), oem, min_confidence, { if let val = preprocessing { val.isOwned = false; return val.ptr } else { return nil } }(), enable_table_detection, table_min_confidence, table_column_threshold, table_row_threshold_ratio, use_cache, classify_use_pre_adapted_templates, language_model_ngram_on, tessedit_dont_blkrej_good_wds, tessedit_dont_rowrej_good_wds, tessedit_enable_dict_correction, { let rustString = tessedit_char_whitelist.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), { let rustString = tessedit_char_blacklist.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), tessedit_use_primary_params_model, textord_space_size_is_variable, thresholding_method))
     }
 }
 public class TesseractConfigRefMut: TesseractConfigRef {
@@ -11176,8 +11194,8 @@ public class TesseractConfigRef {
     }
 }
 extension TesseractConfigRef {
-    public func language() -> RustString {
-        RustString(ptr: __swift_bridge__$TesseractConfig$language(ptr))
+    public func language() -> RustVec<RustString> {
+        RustVec(ptr: __swift_bridge__$TesseractConfig$language(ptr))
     }
 
     public func psm() -> Int32 {
@@ -19239,6 +19257,86 @@ extension VlmFallbackPolicy: Vectorizable {
 
     public static func vecOfSelfLen(vecPtr: UnsafeMutableRawPointer) -> UInt {
         __swift_bridge__$Vec_VlmFallbackPolicy$len(vecPtr)
+    }
+}
+
+
+public class TableChunkingMode: TableChunkingModeRefMut {
+    public var isOwned: Bool = true
+
+    public override init(ptr: UnsafeMutableRawPointer) {
+        super.init(ptr: ptr)
+    }
+
+    deinit {
+        if isOwned {
+            __swift_bridge__$TableChunkingMode$_free(ptr)
+        }
+    }
+}
+public class TableChunkingModeRefMut: TableChunkingModeRef {
+    public override init(ptr: UnsafeMutableRawPointer) {
+        super.init(ptr: ptr)
+    }
+}
+public class TableChunkingModeRef {
+    public var ptr: UnsafeMutableRawPointer
+
+    public init(ptr: UnsafeMutableRawPointer) {
+        self.ptr = ptr
+    }
+}
+extension TableChunkingModeRef {
+    public func to_string() -> RustString {
+        RustString(ptr: __swift_bridge__$TableChunkingMode$to_string(ptr))
+    }
+}
+extension TableChunkingMode: Vectorizable {
+    public static func vecOfSelfNew() -> UnsafeMutableRawPointer {
+        __swift_bridge__$Vec_TableChunkingMode$new()
+    }
+
+    public static func vecOfSelfFree(vecPtr: UnsafeMutableRawPointer) {
+        __swift_bridge__$Vec_TableChunkingMode$drop(vecPtr)
+    }
+
+    public static func vecOfSelfPush(vecPtr: UnsafeMutableRawPointer, value: TableChunkingMode) {
+        __swift_bridge__$Vec_TableChunkingMode$push(vecPtr, {value.isOwned = false; return value.ptr;}())
+    }
+
+    public static func vecOfSelfPop(vecPtr: UnsafeMutableRawPointer) -> Optional<Self> {
+        let pointer = __swift_bridge__$Vec_TableChunkingMode$pop(vecPtr)
+        if pointer == nil {
+            return nil
+        } else {
+            return (TableChunkingMode(ptr: pointer!) as! Self)
+        }
+    }
+
+    public static func vecOfSelfGet(vecPtr: UnsafeMutableRawPointer, index: UInt) -> Optional<TableChunkingModeRef> {
+        let pointer = __swift_bridge__$Vec_TableChunkingMode$get(vecPtr, index)
+        if pointer == nil {
+            return nil
+        } else {
+            return TableChunkingModeRef(ptr: pointer!)
+        }
+    }
+
+    public static func vecOfSelfGetMut(vecPtr: UnsafeMutableRawPointer, index: UInt) -> Optional<TableChunkingModeRefMut> {
+        let pointer = __swift_bridge__$Vec_TableChunkingMode$get_mut(vecPtr, index)
+        if pointer == nil {
+            return nil
+        } else {
+            return TableChunkingModeRefMut(ptr: pointer!)
+        }
+    }
+
+    public static func vecOfSelfAsPtr(vecPtr: UnsafeMutableRawPointer) -> UnsafePointer<TableChunkingModeRef> {
+        UnsafePointer<TableChunkingModeRef>(OpaquePointer(__swift_bridge__$Vec_TableChunkingMode$as_ptr(vecPtr)))
+    }
+
+    public static func vecOfSelfLen(vecPtr: UnsafeMutableRawPointer) -> UInt {
+        __swift_bridge__$Vec_TableChunkingMode$len(vecPtr)
     }
 }
 

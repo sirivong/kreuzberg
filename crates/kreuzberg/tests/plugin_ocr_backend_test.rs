@@ -443,7 +443,11 @@ fn test_ocr_backend_receives_correct_parameters() {
     assert!(result.is_ok());
 
     let last_lang = backend.last_language.lock().expect("Operation failed");
-    assert_eq!(*last_lang, vec!["deu".to_string()], "Language parameter not passed correctly");
+    assert_eq!(
+        *last_lang,
+        vec!["deu".to_string()],
+        "Language parameter not passed correctly"
+    );
 
     let extraction_result = result.expect("Operation failed");
     assert!(extraction_result.content.contains("(lang: deu)"));

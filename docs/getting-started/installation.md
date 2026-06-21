@@ -176,7 +176,7 @@ No SDK, no code — just your terminal.
   ***
 
   ```bash
-  composer require kreuzberg/kreuzberg
+  composer require kreuzberg-dev/kreuzberg
   ```
 
   [API Reference](../reference/api-php.md){ .install-api-link }

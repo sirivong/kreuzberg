@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0-rc.27] - 2026-06-21
+
+### Added
+
+- **chunking**: `count_tokens(text, model)` and `DEFAULT_COUNT_TOKENS_MODEL`, gated behind the `chunking-tokenizers` feature and exposed across every binding. Returns the tokenizer token count for a string using the same HuggingFace tokenizer cache as the chunker, so callers can size content against an LLM context window without running a full chunking pass.
+
 ### Fixed
 
 - **pdf**: Two-column layout headings in column 2 now appear in both markdown output AND `result.elements`. Previously, the hierarchy/elements extraction pipeline used physical (non-column-aware) span ordering while markdown extraction used column-aware reading order, causing column-2 headings to vanish from the elements array while remaining in markdown output. The fix: `pdf/oxide/hierarchy.rs` now calls `extract_page_text_with_options(..., ReadingOrder::ColumnAware)` instead of `extract_spans()`, matching the markdown path. Issue #1098: "3.4. Pharmacokinetics" heading on page 5 now surfaces correctly in elements.
@@ -20,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **ocr**: Multi-language OCR support via config. `OcrConfig.language` and `OcrPipelineStage.language` now accept both single language codes (`"eng"`) and lists (`["eng", "deu"]`) for deserialiation. Internally, languages are stored as `Vec<String>` and joined with `"+"` for Tesseract (e.g., `["eng", "deu"]` → `"eng+deu"`). Backward compatibility: old configs with single-string language codes deserialize correctly; Tesseract's `"+"` format is automatically split into a list. This fixes issue #1139 — multi-language OCR can now be set from config files and the Python API (#1139).
+- **alef**: bump `alef_version` to 0.25.59 and regenerate all bindings, FFI, e2e suites, and API docs. Completes the extendr (R) binding surface — slice `&[&str]` argument conversion, optional-only `Nullable<&T>` promotion, integer cast-back at call sites, and explicit `KreuzbergError → extendr_api::Error` conversion — so the generated `kreuzberg-r` crate now compiles, alongside the 0.25.58 long-signature parameter-type fix.
+- **php**: the Packagist package is now published as `kreuzberg-dev/kreuzberg`; READMEs, the root README badges, and `composer.json` reference the new coordinates.
 
 ## [5.0.0-rc.26] - 2026-06-20
 

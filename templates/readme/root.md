@@ -124,7 +124,7 @@ See [Ruby README](https://github.com/kreuzberg-dev/kreuzberg/tree/main/packages/
 <summary><strong>PHP</strong></summary>
 
 ```sh
-composer require kreuzberg/kreuzberg
+composer require kreuzberg-dev/kreuzberg
 ```
 
 See [PHP README](https://github.com/kreuzberg-dev/kreuzberg/tree/main/packages/php) for full documentation.

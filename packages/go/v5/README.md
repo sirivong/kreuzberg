@@ -26,8 +26,8 @@
   <a href="https://www.nuget.org/packages/Kreuzberg/">
     <img src="https://img.shields.io/nuget/v/Kreuzberg?label=C%23&color=007ec6" alt="C#">
   </a>
-  <a href="https://packagist.org/packages/kreuzberg/kreuzberg">
-    <img src="https://img.shields.io/packagist/v/kreuzberg/kreuzberg?label=PHP&color=007ec6" alt="PHP">
+  <a href="https://packagist.org/packages/kreuzberg-dev/kreuzberg">
+    <img src="https://img.shields.io/packagist/v/kreuzberg-dev/kreuzberg?label=PHP&color=007ec6" alt="PHP">
   </a>
   <a href="https://rubygems.org/gems/kreuzberg">
     <img src="https://img.shields.io/gem/v/kreuzberg?label=Ruby&color=007ec6" alt="Ruby">
@@ -86,7 +86,7 @@
 
 High-performance document intelligence for Go backed by the Rust core that powers every Kreuzberg binding.
 
-> **Version 5.0.0-rc.26**
+> **Version 5.0.0-rc.27**
 > Report issues at [github.com/kreuzberg-dev/kreuzberg](https://github.com/kreuzberg-dev/kreuzberg/issues).
 
 ## What This Package Provides
@@ -128,7 +128,7 @@ To use this package via `go get`:
 go get github.com/kreuzberg-dev/kreuzberg/v5@latest
 
 # Or a specific version
-go get github.com/kreuzberg-dev/kreuzberg/v5@v5.0.0-rc.26
+go get github.com/kreuzberg-dev/kreuzberg/v5@v5.0.0-rc.27
 ```
 
 You'll need to provide the static library at build time. See [Building with Static Libraries](#building-with-static-libraries) below.
@@ -143,7 +143,7 @@ Download the static library for your platform from [GitHub Releases](https://git
 
 ```bash
 # Example: Linux x86_64
-curl -LO https://github.com/kreuzberg-dev/kreuzberg/releases/download/v5.0.0-rc.26/go-ffi-linux-x86_64.tar.gz
+curl -LO https://github.com/kreuzberg-dev/kreuzberg/releases/download/v5.0.0-rc.27/go-ffi-linux-x86_64.tar.gz
 tar -xzf go-ffi-linux-x86_64.tar.gz
 
 # Copy to a permanent location

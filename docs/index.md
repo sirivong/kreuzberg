@@ -64,7 +64,7 @@ Document intelligence with a Rust core and polyglot SDKs. Extract text, tables, 
 | **Kotlin Android**      | Maven Central `dev.kreuzberg:kreuzberg-android` | [API Reference](reference/api-kotlin-android.md) |
 | **C#**                  | `dotnet add package Kreuzberg`                 | [API Reference](reference/api-csharp.md)     |
 | **Ruby**                | `gem install kreuzberg`                        | [API Reference](reference/api-ruby.md)       |
-| **PHP**                 | `composer require kreuzberg/kreuzberg`         | [API Reference](reference/api-php.md)        |
+| **PHP**                 | `composer require kreuzberg-dev/kreuzberg`         | [API Reference](reference/api-php.md)        |
 | **Elixir**              | `{:kreuzberg, "~> 5.0.0-rc.17"}`               | [API Reference](reference/api-elixir.md)     |
 | **R**                   | r-universe `kreuzberg`                         | [API Reference](reference/api-r.md)          |
 | **Dart / Flutter**      | `dart pub add kreuzberg`                       | [API Reference](reference/api-dart.md)       |
