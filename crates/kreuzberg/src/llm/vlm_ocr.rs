@@ -60,14 +60,7 @@ impl OcrBackend for VlmOcrBackend {
         // Use the first language from the list (primary language)
         let lang_str = config.language.first().map(|s| s.as_str()).unwrap_or("eng");
 
-        let (text, usage) = vlm_ocr(
-            image_bytes,
-            mime,
-            lang_str,
-            vlm_config,
-            config.vlm_prompt.as_deref(),
-        )
-        .await?;
+        let (text, usage) = vlm_ocr(image_bytes, mime, lang_str, vlm_config, config.vlm_prompt.as_deref()).await?;
 
         Ok(crate::ExtractionResult {
             content: text,

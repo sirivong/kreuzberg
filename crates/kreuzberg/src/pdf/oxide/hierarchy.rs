@@ -59,13 +59,16 @@ fn extract_segments_from_page_inner(
     // per column, left-to-right across columns, matching the reading order used
     // in markdown extraction. Without this, column-2 headings would be dropped
     // during the hierarchy/elements pipeline while remaining in the markdown output.
-    let page_text_data = match doc.doc.extract_page_text_with_options(
-        page_index,
-        pdf_oxide::document::ReadingOrder::ColumnAware,
-    ) {
+    let page_text_data = match doc
+        .doc
+        .extract_page_text_with_options(page_index, pdf_oxide::document::ReadingOrder::ColumnAware)
+    {
         Ok(data) => data,
         Err(e) => {
-            tracing::debug!(page = page_index, "pdf_oxide extract_page_text_with_options failed for hierarchy: {e}");
+            tracing::debug!(
+                page = page_index,
+                "pdf_oxide extract_page_text_with_options failed for hierarchy: {e}"
+            );
             return Ok(Vec::new());
         }
     };

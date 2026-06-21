@@ -83,9 +83,7 @@ where
                 .collect();
             langs.map(Some)
         }
-        Some(_) => Err(Error::custom(
-            "language must be a string or an array of strings",
-        )),
+        Some(_) => Err(Error::custom("language must be a string or an array of strings")),
     }
 }
 
@@ -246,7 +244,11 @@ pub struct OcrPipelineStage {
 
     /// Language override for this stage (None = use parent OcrConfig.language).
     /// Accepts either a single language code ("eng") or a list (["eng", "deu"]).
-    #[serde(default, skip_serializing_if = "Option::is_none", deserialize_with = "deserialize_optional_languages")]
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "deserialize_optional_languages"
+    )]
     pub language: Option<Vec<String>>,
 
     /// Tesseract-specific config override for this stage.
@@ -758,7 +760,10 @@ mod tests {
     fn test_language_deserialization_array() {
         let json = r#"{"language": ["eng", "deu", "fra"]}"#;
         let config: OcrConfig = serde_json::from_str(json).unwrap();
-        assert_eq!(config.language, vec!["eng".to_string(), "deu".to_string(), "fra".to_string()]);
+        assert_eq!(
+            config.language,
+            vec!["eng".to_string(), "deu".to_string(), "fra".to_string()]
+        );
     }
 
     #[test]
@@ -1489,5 +1494,4 @@ mod tests {
         assert_eq!(returned_opts["device"], "gpu");
         assert_eq!(returned_opts["batch"], 8);
     }
-
 }

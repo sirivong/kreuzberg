@@ -409,7 +409,7 @@ mod tests {
     #[test]
     fn test_tesseract_config_from_public_api() {
         let public_config = crate::types::TesseractConfig {
-            language: vec!["deu".to_string()],  // public API uses Vec<String>
+            language: vec!["deu".to_string()], // public API uses Vec<String>
             psm: 6,
             output_format: "text".to_string(),
             oem: 1,
