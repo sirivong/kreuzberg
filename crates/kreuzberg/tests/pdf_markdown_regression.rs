@@ -320,9 +320,13 @@ const PDFIUM_GROUND_TRUTH: &[(&str, f64)] = &[
 //   ("Extraction failures, near-empty output, and quality regressions
 //   on a calibrated 166-PDF set")
 //
-// Pending fix: pdf_oxide v0.3.46 (PR #491) is mergeable as of
-// 2026-05-10 and explicitly closes #484. Bump pdf_oxide once 0.3.46
-// is released, re-run this test, and remove docs that recover.
+// As of pdf_oxide 0.3.66, 9 of the originally-listed docs recovered and were
+// re-enabled (annotations*, pdfa_039, pr-136-example, table-curves-example,
+// nougat_026, pdfa_001). nics-background-checks also recovered but only to
+// 0.922 vs its 0.92 floor — kept skipped pending cross-platform confirmation.
+// After each pdf_oxide bump, re-measure every entry below and remove the ones
+// that clear all three gates. The entries that remain still fail at 0.3.66 —
+// tracked upstream at #484 and follow-ups.
 //
 // To re-enable a doc once the regression is fixed: remove from this
 // list. Do not lower the threshold — fix the regression at its source.
@@ -330,31 +334,23 @@ const PDFIUM_GROUND_TRUTH: &[(&str, f64)] = &[
 
 const PDFIUM_KNOWN_REGRESSIONS: &[&str] = &[
     // Hard extraction failures — pdf_oxide upstream:
-    "annotations",             // Invalid PDF: MediaBox not found or not an array
-    "annotations-rotated-180", // same
-    "annotations-rotated-270", // same
-    "annotations-rotated-90",  // same
-    "pdfa_039",                // Invalid PDF: MediaBox not found
-    "pr-138-example",          // requires pdf_oxide legacy-crypto feature (R=4 PDF)
-    // F1 quality regressions vs calibrated floor (md / plain F1 captured 2026-05-10):
-    "right_to_left_02",                       // md 0.424 < 0.43 (RTL drift)
+    "pr-138-example", // requires pdf_oxide legacy-crypto feature (R=4 PDF)
+    // F1 quality regressions vs calibrated floor (md / plain F1; recovered docs removed at pdf_oxide 0.3.66):
+    "right_to_left_02",                       // md 0.423 < 0.43 (RTL drift — pdf_oxide #484)
+    "right_to_left_03",                       // md 0.122 < 0.31 (RTL: pdf_oxide CID/Type0 decode drops ~92% of body; #484)
     "hello_structure",                        // md 0.778 < 0.93
     "issue-336-example",                      // md 0.522 < 0.74
     "issue-466-example",                      // md 0.833 / plain 0.806 < 0.93
     "issue-53-example",                       // md 0.843 / plain 0.694 < 0.90
     "issue-987-test",                         // md 0.400 / plain 0.000 < 0.93
     "la-precinct-bulletin-2014-p1",           // md 0.834 / plain 0.658 < 0.90
-    "pr-136-example",                         // md/plain 0.013 < 0.36 (extraction degraded)
     "pr-88-example",                          // md 0.793 < 0.85
-    "table-curves-example",                   // md 0.859 < 0.86
     "SPARSE-2024-INV-1234_borderless_table",  // md 0.874 < 0.89
     "WARN-Report-for-7-1-2015-to-03-25-2016", // plain 0.669 < 0.83
     "nougat_005",                             // plain 0.333 < 0.74
     "nougat_018",                             // md 0.740 < 0.84
-    "nougat_026",                             // md 0.863 < 0.92
     "nougat_039",                             // md 0.684 < 0.83
     "nougat_040",                             // md 0.765 < 0.81
-    "pdfa_001",                               // md 0.863 < 0.92
     "pdfa_014",                               // md 0.684 < 0.83
     "pdfa_015",                               // md 0.765 < 0.81
     "pdfa_036",                               // md 0.639 < 0.83
