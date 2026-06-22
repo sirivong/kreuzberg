@@ -92,11 +92,12 @@ WORKDIR /app
 # Download and install dependencies (Core version)
 ARG TARGETARCH
 
-# Install runtime dependencies and download binaries
+# Install runtime dependencies and init process for signal handling
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
+        tini \
         tesseract-ocr \
         tesseract-ocr-eng \
         tesseract-ocr-osd \
@@ -186,7 +187,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD ["/usr/local/bin/kreuzberg", "--version"]
 
-# Set kreuzberg as entrypoint for flexible command usage
-# Default: Start API server (can be overridden for CLI or MCP mode)
-ENTRYPOINT ["kreuzberg"]
-CMD ["serve", "--host", "0.0.0.0", "--port", "8000"]
+# Use tini as PID 1 to properly forward SIGTERM/SIGINT signals
+# This enables graceful shutdown: docker stop → SIGTERM → clean shutdown
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["kreuzberg", "serve", "--host", "0.0.0.0", "--port", "8000"]

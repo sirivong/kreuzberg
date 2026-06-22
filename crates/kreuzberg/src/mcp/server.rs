@@ -1217,6 +1217,51 @@ pub async fn start_mcp_server_with_config(
     Ok(())
 }
 
+/// Wait for a shutdown signal: SIGTERM on Unix platforms or Ctrl-C on all platforms.
+///
+/// The future resolves as soon as the first signal arrives, allowing axum's
+/// `with_graceful_shutdown` to drain in-flight connections before the process exits.
+#[cfg(feature = "mcp-http")]
+async fn mcp_shutdown_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+
+        let mut sigterm = match signal(SignalKind::terminate()) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("Failed to install SIGTERM handler: {}", e);
+                // Fall back to Ctrl-C only.
+                tokio::signal::ctrl_c()
+                    .await
+                    .unwrap_or_else(|e| tracing::warn!("Failed to listen for Ctrl-C: {}", e));
+                tracing::info!("MCP server shutting down gracefully on signal...");
+                return;
+            }
+        };
+
+        tokio::select! {
+            _ = sigterm.recv() => {
+                tracing::info!("MCP server shutting down gracefully on signal...");
+            }
+            result = tokio::signal::ctrl_c() => {
+                if let Err(e) = result {
+                    tracing::warn!("Failed to listen for Ctrl-C: {}", e);
+                }
+                tracing::info!("MCP server shutting down gracefully on signal...");
+            }
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        tokio::signal::ctrl_c()
+            .await
+            .unwrap_or_else(|e| tracing::warn!("Failed to listen for Ctrl-C: {}", e));
+        tracing::info!("MCP server shutting down gracefully on signal...");
+    }
+}
+
 /// Start MCP server with HTTP Stream transport.
 ///
 /// Uses rmcp's built-in StreamableHttpService for HTTP/SSE support per MCP spec.
@@ -1262,7 +1307,9 @@ pub async fn start_mcp_server_http(
     tracing::info!("Starting MCP HTTP server on http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, router).await?;
+    axum::serve(listener, router)
+        .with_graceful_shutdown(mcp_shutdown_signal())
+        .await?;
 
     Ok(())
 }
@@ -1317,7 +1364,9 @@ pub async fn start_mcp_server_http_with_config(
     tracing::info!("Starting MCP HTTP server on http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, router).await?;
+    axum::serve(listener, router)
+        .with_graceful_shutdown(mcp_shutdown_signal())
+        .await?;
 
     Ok(())
 }

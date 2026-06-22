@@ -380,6 +380,8 @@ api = [
     "dep:utoipa",
     "dep:uuid",
     "tokio-runtime",
+    # SIGTERM/SIGINT graceful shutdown for the api + mcp-http servers (#1147).
+    "tokio?/signal",
     "chunking",
 ]
 mcp = ["tower-service", "dep:rmcp", "tokio-runtime"]

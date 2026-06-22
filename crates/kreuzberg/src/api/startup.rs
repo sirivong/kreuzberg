@@ -8,6 +8,50 @@ use crate::{
 
 use super::{config::load_server_config, router::create_router_with_limits_and_server_config, types::ApiSizeLimits};
 
+/// Wait for a shutdown signal: SIGTERM on Unix platforms or Ctrl-C on all platforms.
+///
+/// The future resolves as soon as the first signal arrives, allowing axum's
+/// `with_graceful_shutdown` to drain in-flight connections before the process exits.
+async fn shutdown_signal() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+
+        let mut sigterm = match signal(SignalKind::terminate()) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::warn!("Failed to install SIGTERM handler: {}", e);
+                // Fall back to Ctrl-C only.
+                tokio::signal::ctrl_c()
+                    .await
+                    .unwrap_or_else(|e| tracing::warn!("Failed to listen for Ctrl-C: {}", e));
+                tracing::info!("Shutting down gracefully on signal...");
+                return;
+            }
+        };
+
+        tokio::select! {
+            _ = sigterm.recv() => {
+                tracing::info!("Shutting down gracefully on signal...");
+            }
+            result = tokio::signal::ctrl_c() => {
+                if let Err(e) = result {
+                    tracing::warn!("Failed to listen for Ctrl-C: {}", e);
+                }
+                tracing::info!("Shutting down gracefully on signal...");
+            }
+        }
+    }
+
+    #[cfg(not(unix))]
+    {
+        tokio::signal::ctrl_c()
+            .await
+            .unwrap_or_else(|e| tracing::warn!("Failed to listen for Ctrl-C: {}", e));
+        tracing::info!("Shutting down gracefully on signal...");
+    }
+}
+
 /// Start the API server with config file discovery.
 ///
 /// Searches for kreuzberg.toml/yaml/json in current and parent directories.
@@ -180,6 +224,7 @@ pub async fn serve_with_config_and_limits(
         .map_err(crate::KreuzbergError::from)?;
 
     axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .map_err(|e| crate::error::KreuzbergError::Other(e.to_string()))?;
 
@@ -247,6 +292,7 @@ pub async fn serve_with_server_config(extraction_config: ExtractionConfig, serve
         .map_err(crate::KreuzbergError::from)?;
 
     axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
         .await
         .map_err(|e| crate::error::KreuzbergError::Other(e.to_string()))?;
 
