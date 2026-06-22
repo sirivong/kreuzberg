@@ -1823,7 +1823,14 @@ jobs:
         with:
           pattern: rubygems-*
           path: dist
-          merge-multiple: true
+          # NOTE: do NOT merge-multiple here. Every matrix runner builds the
+          # source-platform gem (`ext.platform = "ruby"`), so all three artifacts
+          # carry the identical basename `kreuzberg-<version>.gem`. Merging them
+          # into one directory overwrites/truncates the file mid-extraction,
+          # producing a corrupt archive that fails `gem spec` with "invalid gem
+          # structure". Keeping each artifact in its own `dist/rubygems-<label>/`
+          # subdir avoids the collision; publish-rubygems globs recursively and
+          # dedupes identical gems via its already-published guard.
 
       - uses: ruby/setup-ruby@v1
         with:
