@@ -56,9 +56,13 @@ npm-debug.log*
 pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-# NAPI-RS generated files (index.d.ts is committed for TypeScript type resolution)
-crates/kreuzberg-node/index.js
+# NAPI-RS generated files (index.js and index.d.ts are committed for TypeScript type resolution)
 crates/kreuzberg-node/*.tgz
+# ORT dylibs are copied to crates/kreuzberg-node/ at build time and included in npm publish
+# despite the global *.dylib/*.so/*.dll rules below
+!crates/kreuzberg-node/*.dylib
+!crates/kreuzberg-node/*.so
+!crates/kreuzberg-node/*.dll
 .wrangler/
 .pnpm-store/
 
