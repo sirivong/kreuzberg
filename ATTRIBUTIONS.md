@@ -320,8 +320,8 @@ preserved verbatim at `crates/kreuzberg-libheif/LICENSE`.
 
 `libheif-rs` is a safe wrapper around the C library `libheif`, which in turn
 requires `libde265` (HEVC) and `libaom` (AV1). These must be available at build
-and runtime, or the `embedded-libheif` Cargo feature must be enabled. Pixel
-decoding is therefore native-only — the `heic` feature is excluded from
+and runtime. `libheif` is LGPL-licensed and is linked dynamically only (never
+statically vendored). Pixel decoding is therefore native-only — the `heic` feature is excluded from
 kreuzberg's `wasm-target` and `android-target` aggregate features. EXIF
 extraction via `nom-exif` is pure Rust and works on every target.
 

@@ -66,6 +66,16 @@ A map of what Kreuzberg can do. Each section links to the guide or reference pag
         every target via the pure-Rust `nom-exif` integration. See the
         [installation guide](getting-started/installation.md#heif--heic--avif-support).
 
+    !!! warning "libheif license (LGPL)"
+        `libheif` is licensed under the GNU **LGPL**. Kreuzberg links it
+        **dynamically** (via `pkg-config`/system shared library) and never
+        statically — the `heic` feature is optional and is omitted from the
+        standalone CLI release binaries. Container images redistribute the
+        unmodified upstream `libheif` as a separate shared object (`libheif.so`),
+        which you may replace with your own build to satisfy LGPL §6. See
+        [`THIRD_PARTY_LICENSES.md`](https://github.com/kreuzberg-dev/kreuzberg/blob/main/THIRD_PARTY_LICENSES.md)
+        for the full notice and source pointer.
+
 === "Audio and Video"
 
     <div class="format-chips">

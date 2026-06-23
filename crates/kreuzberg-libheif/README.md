@@ -1,7 +1,7 @@
 # kreuzberg-libheif
 
 Safe Rust bindings around `libheif-sys` for decoding HEIF / HEIC / AVIF
-containers — vendored into Kreuzberg from the original
+containers â vendored into Kreuzberg from the original
 [libheif-rs](https://github.com/Cykooz/libheif-rs) by
 [Kirill Kuzminykh (Cykooz)](https://github.com/Cykooz).
 
@@ -34,9 +34,8 @@ HEVC and AV1 codec backends (`libde265`, `libaom`):
 - **Debian/Ubuntu**: `apt install libheif-dev`
 - **Fedora**: `dnf install libheif-devel`
 
-Alternatively, enable the `embedded-libheif` feature to statically build
-libheif from source (you still need `libde265` and `libaom` available on
-the system).
+`libheif` is LGPL-licensed and is therefore linked **dynamically only** — it is
+never statically linked or vendored into Kreuzberg binaries.
 
 ## License
 
