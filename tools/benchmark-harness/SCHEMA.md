@@ -50,7 +50,7 @@ Examples:
 
 - `kreuzberg-markdown-baseline:single`
 - `kreuzberg-plaintext-paddle-ocr:batch`
-- `pdfplumber:plaintext:single`
+- `unstructured:plaintext:single`
 - `docling:markdown:single`
 
 Each entry contains:

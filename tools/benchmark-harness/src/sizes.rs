@@ -69,16 +69,10 @@ const FRAMEWORKS: &[(&str, &str, &str)] = &[
     // Third-party frameworks
     ("docling", "pip_package", "IBM Docling document processing"),
     ("markitdown", "pip_package", "Mark It Down markdown converter"),
-    ("pandoc", "binary_size", "Pandoc universal converter"),
     ("unstructured", "pip_package", "Unstructured document processing"),
     ("tika", "jar_size", "Apache Tika content analysis"),
     ("pymupdf4llm", "pip_package", "PyMuPDF for LLM"),
-    ("pdfplumber", "pip_package", "pdfplumber PDF extraction"),
     ("mineru", "pip_package", "MinerU document intelligence"),
-    ("pypdf", "pip_package", "pypdf pure-Python PDF library"),
-    ("pdfminer", "pip_package", "pdfminer.six PDF text extraction"),
-    ("pdftotext", "pip_package", "pdftotext poppler Python binding"),
-    ("playa-pdf", "pip_package", "playa-pdf PDF extraction"),
     ("liteparse", "binary_size", "LiteParse (run-llama) Rust PDF parser"),
 ];
 
@@ -93,18 +87,6 @@ const FRAMEWORKS: &[(&str, &str, &str)] = &[
 /// Values measured on Linux x86_64 (Ubuntu 22.04) in March 2026.
 /// Sources: pip-weigh --json, PyPI wheel sizes, HuggingFace model pages, apt show.
 const KNOWN_THIRD_PARTY_SIZES: &[(&str, u64, u64, u64, &str)] = &[
-    // pypdf: pure Python, zero dependencies.
-    // pip-weigh: 1.4 MB total.
-    ("pypdf", 1_400_000, 0, 0, "pypdf pure-Python PDF library"),
-    // pdfminer.six: 8.2 MB self + cryptography 20.5 MB + charset-normalizer + cffi.
-    // pip-weigh: 30.2 MB total.
-    ("pdfminer", 30_200_000, 0, 0, "pdfminer.six PDF text extraction"),
-    // pdftotext: 62 KB thin C wrapper. System: poppler-utils + libpoppler-cpp + rendering
-    // chain (fontconfig, freetype, cairo, libjpeg, libpng, libtiff, openjpeg, lcms2) ~80 MB.
-    ("pdftotext", 100_000, 80_000_000, 0, "pdftotext poppler Python binding"),
-    // pdfplumber: 237 KB self + pdfminer.six 30 MB + Pillow 8 MB + pypdfium2 10 MB.
-    // pip-weigh: 49.1 MB. System: imaging libs (libjpeg, libpng, libtiff, freetype) ~15 MB.
-    ("pdfplumber", 49_100_000, 15_000_000, 0, "pdfplumber PDF extraction"),
     // pymupdf4llm: 298 KB self + PyMuPDF 51.1 MB (bundles MuPDF natively).
     // pip-weigh: 51.5 MB total.
     ("pymupdf4llm", 51_500_000, 0, 0, "PyMuPDF for LLM"),
@@ -117,8 +99,6 @@ const KNOWN_THIRD_PARTY_SIZES: &[(&str, u64, u64, u64, &str)] = &[
         0,
         "Mark It Down markdown converter",
     ),
-    // pandoc: static binary ~199 MB (measured via `which pandoc` + file size).
-    ("pandoc", 199_000_000, 0, 0, "Pandoc universal converter"),
     // tika: tika-app JAR ~57 MB. System: default-jre-headless ~215 MB.
     ("tika", 57_000_000, 215_000_000, 0, "Apache Tika content analysis"),
     // docling (IBM): torch 916 MB + torchvision 7 MB + transformers 10 MB + docling-core +
@@ -149,9 +129,6 @@ const KNOWN_THIRD_PARTY_SIZES: &[(&str, u64, u64, u64, &str)] = &[
     // Models: DocLayout-YOLO ~100 MB + PaddleOCR det/rec/cls ~150 MB +
     // UniMERNet ~200 MB + TATR + PP-FormulaNet = ~650 MB.
     ("mineru", 2_000_000_000, 0, 650_000_000, "MinerU document intelligence"),
-    // playa-pdf: pure Python PDF library, very lightweight.
-    // pip-weigh: ~2.5 MB total (playa-pdf + pdfminer.six dependency).
-    ("playa-pdf", 2_500_000, 0, 0, "playa-pdf PDF extraction"),
     // liteparse (run-llama): Rust CLI installed via `cargo install liteparse`.
     // Binary is statically linked against pdfium-sys + tesseract-rs (default feature),
     // approx ~35 MB on Linux x86_64. No persistent model footprint at rest; tessdata
@@ -310,12 +287,7 @@ fn extract_package_name(framework: &str) -> &str {
         "markitdown" => "markitdown",
         "unstructured" => "unstructured",
         "pymupdf4llm" => "pymupdf4llm",
-        "pdfplumber" => "pdfplumber",
         "mineru" => "mineru",
-        "pypdf" => "pypdf",
-        "pdfminer" => "pdfminer.six",
-        "pdftotext" => "pdftotext",
-        "playa-pdf" => "playa-pdf",
         _ => name,
     }
 }
@@ -532,7 +504,6 @@ fn measure_npm_package(package: &str) -> Result<Option<u64>> {
 /// Measure binary size
 fn measure_binary(name: &str) -> Result<Option<u64>> {
     let binary_name = match name {
-        "pandoc" => "pandoc",
         "kreuzberg-rust" => "kreuzberg",
         s if s.starts_with("kreuzberg-go") => "kreuzberg-go",
         "kreuzberg-c" | "kreuzberg-r" | "kreuzberg-rust-paddle" => name,
@@ -970,8 +941,7 @@ fn measure_pip_package_via_python(package: &str) -> Option<u64> {
     if path.exists() {
         let size = dir_size(path);
         // Sanity check: reject truly empty/broken packages (< 10KB).
-        // Pure Python packages (pypdf, pdfminer.six, pdftotext) are legitimately
-        // small and should not be rejected.
+        // Pure Python packages may be legitimately small and should not be rejected.
         if size > 10_000 {
             return Some(size);
         }
@@ -1044,13 +1014,13 @@ mod tests {
         assert_eq!(extract_package_name("kreuzberg-python"), "kreuzberg");
         assert_eq!(extract_package_name("docling"), "docling");
         assert_eq!(extract_package_name("docling-batch"), "docling");
-        assert_eq!(extract_package_name("pdfplumber-batch"), "pdfplumber");
+        assert_eq!(extract_package_name("mineru-batch"), "mineru");
     }
 
     #[test]
     fn test_frameworks_list_complete() {
-        // 13 kreuzberg bindings + 13 third-party = 26 total
-        assert_eq!(FRAMEWORKS.len(), 26);
+        // 13 kreuzberg bindings + 7 third-party = 20 total
+        assert_eq!(FRAMEWORKS.len(), 20);
 
         // Check all kreuzberg bindings present
         let names: Vec<&str> = FRAMEWORKS.iter().map(|(n, _, _)| *n).collect();
@@ -1061,7 +1031,7 @@ mod tests {
         // Check third-party frameworks present
         assert!(names.contains(&"docling"));
         assert!(names.contains(&"tika"));
-        assert!(names.contains(&"pandoc"));
+        assert!(names.contains(&"unstructured"));
     }
 
     #[test]
@@ -1155,11 +1125,11 @@ mod tests {
 
     #[test]
     fn test_lookup_known_size_found() {
-        let size = lookup_known_size("pypdf").unwrap();
-        assert_eq!(size.package_bytes, 1_400_000);
+        let size = lookup_known_size("pymupdf4llm").unwrap();
+        assert_eq!(size.package_bytes, 51_500_000);
         assert_eq!(size.system_deps_bytes, 0);
         assert_eq!(size.model_bytes, 0);
-        assert_eq!(size.size_bytes, 1_400_000);
+        assert_eq!(size.size_bytes, 51_500_000);
         assert_eq!(size.method, "known_size");
     }
 

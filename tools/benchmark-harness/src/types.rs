@@ -140,7 +140,7 @@ pub enum OcrStatus {
 /// Categorizes the source of a benchmark error.
 ///
 /// This distinction is critical: framework errors are the framework's fault
-/// (e.g. pdfplumber can't parse a malformed PDF), while harness errors are
+/// (e.g. a framework can't parse a malformed PDF), while harness errors are
 /// our fault (e.g. timeout, process crash, invalid output format).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]

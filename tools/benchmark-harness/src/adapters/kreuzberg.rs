@@ -49,7 +49,10 @@ pub fn create_kreuzberg_adapter(
     // Add pipeline-specific flags
     match pipeline {
         KreuzbergPipeline::Baseline => {
-            // No additional flags for baseline
+            args.push("--ocr".to_string());
+            args.push("true".to_string());
+            args.push("--ocr-backend".to_string());
+            args.push("tesseract".to_string());
         }
         KreuzbergPipeline::Layout => {
             // `--layout` is Option<bool> with `num_args = 0..=1`, so `--layout true` parses.
@@ -60,6 +63,10 @@ pub fn create_kreuzberg_adapter(
             args.push("--layout".to_string());
             args.push("true".to_string());
             args.push("--use-layout-for-markdown".to_string());
+            args.push("--ocr".to_string());
+            args.push("true".to_string());
+            args.push("--ocr-backend".to_string());
+            args.push("tesseract".to_string());
         }
         KreuzbergPipeline::PaddleOcr => {
             args.push("--ocr".to_string());

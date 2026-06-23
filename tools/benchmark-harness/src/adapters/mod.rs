@@ -6,9 +6,7 @@ pub mod subprocess;
 
 pub use external::{
     create_docling_adapter, create_liteparse_adapter, create_markitdown_adapter, create_mineru_adapter,
-    create_pandoc_adapter, create_pdfminer_adapter, create_pdfplumber_adapter, create_pdftotext_adapter,
-    create_playa_pdf_adapter, create_pymupdf4llm_adapter, create_pypdf_adapter, create_tika_adapter,
-    create_unstructured_adapter,
+    create_pymupdf4llm_adapter, create_tika_adapter, create_unstructured_adapter,
 };
 pub use kreuzberg::create_kreuzberg_adapter;
 pub use subprocess::SubprocessAdapter;

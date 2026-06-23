@@ -482,30 +482,22 @@ async fn main() -> Result<()> {
             if !matches!(config.benchmark_mode, BenchmarkMode::Batch) {
                 use benchmark_harness::adapters::{
                     create_docling_adapter, create_liteparse_adapter, create_markitdown_adapter, create_mineru_adapter,
-                    create_pandoc_adapter, create_pdfminer_adapter, create_pdfplumber_adapter,
-                    create_pdftotext_adapter, create_playa_pdf_adapter, create_pymupdf4llm_adapter,
-                    create_pypdf_adapter, create_tika_adapter, create_unstructured_adapter,
+                    create_pymupdf4llm_adapter, create_tika_adapter, create_unstructured_adapter,
                 };
 
                 try_register!("docling", || create_docling_adapter(ocr), external_count);
                 try_register!("markitdown", || create_markitdown_adapter(ocr), external_count);
-                try_register!("pandoc", create_pandoc_adapter, external_count);
                 try_register!("unstructured", || create_unstructured_adapter(ocr), external_count);
                 try_register!("tika", || create_tika_adapter(ocr), external_count);
                 try_register!("pymupdf4llm", || create_pymupdf4llm_adapter(ocr), external_count);
-                try_register!("pdfplumber", || create_pdfplumber_adapter(ocr), external_count);
                 try_register!("mineru", || create_mineru_adapter(ocr), external_count);
-                try_register!("pypdf", || create_pypdf_adapter(ocr), external_count);
-                try_register!("pdfminer", || create_pdfminer_adapter(ocr), external_count);
-                try_register!("pdftotext", || create_pdftotext_adapter(ocr), external_count);
-                try_register!("playa-pdf", || create_playa_pdf_adapter(ocr), external_count);
                 try_register!("liteparse", || create_liteparse_adapter(ocr), external_count);
             } else {
                 eprintln!("[adapter] Batch mode: skipping third-party frameworks (no batch API support)");
             }
 
             eprintln!(
-                "[adapter] Open source extraction frameworks: {}/13 available",
+                "[adapter] Open source extraction frameworks: {}/7 available",
                 external_count
             );
             eprintln!(

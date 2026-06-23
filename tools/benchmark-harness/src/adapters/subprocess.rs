@@ -82,8 +82,7 @@ impl SubprocessAdapter {
     /// - pymupdf (supports OCR via tesseract)
     ///
     /// Frameworks without OCR support:
-    /// - pdfplumber
-    /// - pypdf
+    /// - liteparse
     /// - Other basic PDF parsers
     fn framework_supports_ocr(framework_name: &str) -> bool {
         let name_lower = framework_name.to_lowercase();

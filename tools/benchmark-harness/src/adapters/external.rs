@@ -27,40 +27,6 @@ const PYTHON_EXTRACTION_TIMEOUT_SECS: u64 = PERSISTENT_MAX_TIMEOUT_SECS - PYTHON
 /// Format lists are based on comprehensive research of each framework's actual capabilities.
 fn get_supported_formats(framework_name: &str) -> Vec<String> {
     match framework_name {
-        // Pandoc: 45+ input formats, but CANNOT read PDF (output only)
-        // See: pandoc --list-input-formats
-        // Only list formats that pandoc can auto-detect from file extension
-        // and reliably convert to plain text via --to=plain.
-        // Excluded: pptx, xlsx (return empty text), bib (needs explicit --from=biblatex),
-        //           ris (returns empty text), dbk (unreliable auto-detection)
-        "pandoc" => vec![
-            "docx", "odt", // Office documents
-            "md", "markdown", "rst", "org", "typst", // Markup languages
-            "html", "htm", // Web formats
-            "csv", "tsv", // Data formats
-            "tex", "latex", "ipynb", // Scientific/technical
-            "epub",  // E-books
-            "rtf", "txt", // Other documents
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect(),
-
-        // pdfplumber: PDF-only (built on pdfminer.six)
-        "pdfplumber" => vec!["pdf".to_string()],
-
-        // pypdf: PDF-only (pure Python PDF library)
-        "pypdf" => vec!["pdf".to_string()],
-
-        // playa-pdf: PDF-only (pure Python PDF library)
-        "playa-pdf" => vec!["pdf".to_string()],
-
-        // pdfminer.six: PDF-only (Python PDF text extraction)
-        "pdfminer" => vec!["pdf".to_string()],
-
-        // pdftotext: PDF-only (Python binding for poppler's pdftotext)
-        "pdftotext" => vec!["pdf".to_string()],
-
         // LiteParse (run-llama/liteparse): PDF-only Rust CLI (`lit parse`).
         "liteparse" => vec!["pdf".to_string()],
 
@@ -223,7 +189,7 @@ pub fn create_markitdown_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter>
 ///
 /// Requires the `lit` binary on PATH. Install with `cargo install liteparse`.
 /// Wrapper invokes `lit parse <file> --format text` per file — no persistent
-/// server, default options only, matching the fairness applied to pandoc.
+/// server, default options only.
 pub fn create_liteparse_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
     which::which("lit").map_err(|_| {
         crate::Error::Config("lit (liteparse) not found. Install with: cargo install liteparse".to_string())
@@ -238,25 +204,6 @@ pub fn create_liteparse_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> 
     Ok(
         SubprocessAdapter::new("liteparse", command, args, vec![], supported_formats)
             .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS)),
-    )
-}
-
-/// Creates a subprocess adapter for Pandoc (universal document converter)
-pub fn create_pandoc_adapter() -> Result<SubprocessAdapter> {
-    which::which("pandoc").map_err(|_| {
-        crate::Error::Config(
-            "pandoc not found. Install with: brew install pandoc (macOS) or apt install pandoc (Linux)".to_string(),
-        )
-    })?;
-
-    let script_path = get_script_path("pandoc_extract.sh")?;
-    let command = PathBuf::from("bash");
-    let args = vec![script_path.to_string_lossy().to_string()];
-
-    let supported_formats = get_supported_formats("pandoc");
-    Ok(
-        SubprocessAdapter::new("pandoc", command, args, vec![], supported_formats)
-            .with_max_timeout(Duration::from_secs(180)),
     )
 }
 
@@ -403,88 +350,6 @@ pub fn create_pymupdf4llm_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter
     )
 }
 
-/// Creates a subprocess adapter for pdfplumber
-pub fn create_pdfplumber_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
-    let script_path = get_script_path("pdfplumber_extract.py")?;
-    let (command, mut args) = find_python_with_framework("pdfplumber")?;
-    args.push(script_path.to_string_lossy().to_string());
-    args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
-    args.push(ocr_flag(ocr_enabled));
-    args.push("sync".to_string());
-
-    let supported_formats = get_supported_formats("pdfplumber");
-    Ok(
-        SubprocessAdapter::new("pdfplumber", command, args, vec![], supported_formats)
-            .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS)),
-    )
-}
-
-/// Creates a subprocess adapter for pypdf
-pub fn create_pypdf_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
-    let script_path = get_script_path("pypdf_extract.py")?;
-    let (command, mut args) = find_python_with_framework("pypdf")?;
-    args.push(script_path.to_string_lossy().to_string());
-    args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
-    args.push(ocr_flag(ocr_enabled));
-    args.push("sync".to_string());
-
-    let supported_formats = get_supported_formats("pypdf");
-    Ok(
-        SubprocessAdapter::new("pypdf", command, args, vec![], supported_formats)
-            .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS)),
-    )
-}
-
-/// Creates a subprocess adapter for playa-pdf
-pub fn create_playa_pdf_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
-    let script_path = get_script_path("playa_pdf_extract.py")?;
-    let (command, mut args) = find_python_with_framework("playa")?;
-    args.push(script_path.to_string_lossy().to_string());
-    args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
-    args.push(ocr_flag(ocr_enabled));
-    args.push("sync".to_string());
-
-    let supported_formats = get_supported_formats("playa-pdf");
-    Ok(
-        SubprocessAdapter::new("playa-pdf", command, args, vec![], supported_formats)
-            .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS)),
-    )
-}
-
-/// Creates a subprocess adapter for pdfminer.six
-pub fn create_pdfminer_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
-    let script_path = get_script_path("pdfminer_extract.py")?;
-    let (command, mut args) = find_python_with_framework("pdfminer")?;
-    args.push(script_path.to_string_lossy().to_string());
-    args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
-    args.push(ocr_flag(ocr_enabled));
-    args.push("sync".to_string());
-
-    let supported_formats = get_supported_formats("pdfminer");
-    Ok(
-        SubprocessAdapter::new("pdfminer", command, args, vec![], supported_formats)
-            .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS)),
-    )
-}
-
-/// Creates a subprocess adapter for pdftotext (persistent server mode)
-///
-/// Requires poppler-utils system package for the Python pdftotext binding.
-pub fn create_pdftotext_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
-    let script_path = get_script_path("pdftotext_extract.py")?;
-    let (command, mut args) = find_python_with_framework("pdftotext")?;
-    args.push(script_path.to_string_lossy().to_string());
-    args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
-    args.push(ocr_flag(ocr_enabled));
-    args.push("sync".to_string());
-
-    let supported_formats = get_supported_formats("pdftotext");
-    Ok(
-        SubprocessAdapter::new("pdftotext", command, args, vec![], supported_formats)
-            .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS)),
-    )
-}
-
 /// Creates a subprocess adapter for MinerU (persistent server mode)
 ///
 /// Uses wrapper script approach for extraction.
@@ -518,15 +383,9 @@ mod tests {
         let _ = create_docling_adapter(true);
         let _ = create_unstructured_adapter(true);
         let _ = create_markitdown_adapter(true);
-        let _ = create_pandoc_adapter();
         let _ = create_tika_adapter(true);
         let _ = create_pymupdf4llm_adapter(true);
-        let _ = create_pdfplumber_adapter(true);
         let _ = create_mineru_adapter(true);
-        let _ = create_pypdf_adapter(true);
-        let _ = create_pdfminer_adapter(true);
-        let _ = create_pdftotext_adapter(true);
-        let _ = create_playa_pdf_adapter(true);
         let _ = create_liteparse_adapter(true);
     }
 }

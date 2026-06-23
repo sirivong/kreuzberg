@@ -1,6 +1,6 @@
 # Benchmark Harness
 
-Rust CLI tool for comparative benchmarking of document extraction across 13 Kreuzberg language bindings and 12 reference frameworks. Measures performance (latency, throughput, memory) and quality (TF1, SF1) against ground truth.
+Rust CLI tool for comparative benchmarking of document extraction across 13 Kreuzberg language bindings and 7 reference frameworks. Measures performance (latency, throughput, memory) and quality (TF1, SF1) against ground truth.
 
 ## Overview
 
@@ -131,11 +131,11 @@ Each binding is benchmarked in both single-file (sequential, fair latency) and b
 
 Rust, Python, Node.js, Ruby, Go, Java, C#, PHP, Elixir, R, WASM, C, Rust+PaddleOCR
 
-### Reference Frameworks (12)
+### Reference Frameworks (7)
 
 External document extraction tools benchmarked in single-file mode:
 
-Docling, MarkItDown, Pandoc, Unstructured, Tika, PyMuPDF4LLM, PDFPlumber, MinerU, PyPDF, PDFMiner, PDFtoText, Playa-PDF
+Docling, MinerU, PyMuPDF4LLM, Unstructured, MarkItDown, LiteParse, Tika
 
 ## Extraction Pipelines
 
@@ -306,7 +306,7 @@ bench-{language} x {single-file, batch}     (13 Kreuzberg binding jobs)
 kreuzberg-gate                                (wait for all Kreuzberg benchmarks)
     |
     v
-bench-{external}                              (12 reference framework jobs, some sharded)
+bench-{external}                              (7 reference framework jobs, some sharded)
     |
     v
 aggregate-and-release                         (consolidate all results -> GitHub Release)

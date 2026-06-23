@@ -132,7 +132,7 @@ fn test_per_fixture_results_populated() {
 fn test_plaintext_has_no_layout_percentiles() {
     let results = vec![
         make_benchmark_result(
-            "pdfplumber",
+            "docling",
             OutputFormat::Plaintext,
             "fixture_1.pdf",
             false,
@@ -148,7 +148,7 @@ fn test_plaintext_has_no_layout_percentiles() {
             }),
         ),
         make_benchmark_result(
-            "pdfplumber",
+            "docling",
             OutputFormat::Plaintext,
             "fixture_2.pdf",
             false,
@@ -257,7 +257,7 @@ fn test_plaintext_frameworks_excluded_from_sf1_ranking() {
         ),
         // Plaintext-only framework
         make_benchmark_result(
-            "pdfplumber",
+            "docling",
             OutputFormat::Plaintext,
             "test.pdf",
             false,
@@ -278,7 +278,7 @@ fn test_plaintext_frameworks_excluded_from_sf1_ranking() {
 
     // plaintext frameworks should NOT appear in pdf_sf1_ranking_markdown
     for ranked in &aggregated.comparison.pdf_sf1_ranking_markdown {
-        assert!(!ranked.framework_mode.contains("pdfplumber"));
+        assert!(!ranked.framework_mode.contains("docling"));
     }
 
     // markdown frameworks SHOULD appear in pdf_sf1_ranking_markdown

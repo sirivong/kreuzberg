@@ -1170,8 +1170,8 @@ mod tests {
             "docling:markdown:single"
         );
         assert_eq!(
-            make_aggregate_key("pdfplumber", OutputFormat::Plaintext, "batch"),
-            "pdfplumber:plaintext:batch"
+            make_aggregate_key("unstructured", OutputFormat::Plaintext, "batch"),
+            "unstructured:plaintext:batch"
         );
     }
 

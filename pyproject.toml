@@ -24,12 +24,7 @@ dev = [
 bench-docling = [ "docling>=2.64.1" ]
 bench-markitdown = [ "markitdown[all]>=0.1.4" ]
 bench-mineru = [ "mineru[pipeline]>=2.6.7", "onnxruntime" ]
-bench-pdfminer = [ "pdfminer-six>=20231228" ]
-bench-pdfplumber = [ "pdfplumber>=0.11.4" ]
-bench-pdftotext = [ "pdftotext>=2.2.2" ]
-bench-playa-pdf = [ "playa-pdf>=0.6.0" ]
 bench-pymupdf4llm = [ "pillow>=10.0.0", "pymupdf-layout>=0.0.1", "pymupdf4llm>=0.0.17" ]
-bench-pypdf = [ "pypdf>=4.0.0" ]
 bench-unstructured = [ "unstructured[all-docs]>=0.18.21,<0.22" ]
 doc = [ "mkdocstrings>=1.0.4", "mkdocstrings-python>=2.0.3", "zensical" ]
 
@@ -50,12 +45,7 @@ conflicts = [
     { package = "kreuzberg", group = "bench-docling" },
     { package = "kreuzberg", group = "bench-markitdown" },
     { package = "kreuzberg", group = "bench-mineru" },
-    { package = "kreuzberg", group = "bench-pdfminer" },
-    { package = "kreuzberg", group = "bench-pdfplumber" },
-    { package = "kreuzberg", group = "bench-pdftotext" },
-    { package = "kreuzberg", group = "bench-playa-pdf" },
     { package = "kreuzberg", group = "bench-pymupdf4llm" },
-    { package = "kreuzberg", group = "bench-pypdf" },
     { package = "kreuzberg", group = "bench-unstructured" },
   ],
 ]

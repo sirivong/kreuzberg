@@ -4,8 +4,7 @@
 #
 # Calls `lit parse <file> --format text` for the same fairness as the other
 # competitor wrappers: default options only, no preloaded model server, no
-# OCR opt-out unless the caller explicitly asks. Matches the per-file
-# invocation pattern used by pandoc_extract.sh.
+# OCR opt-out unless the caller explicitly asks.
 
 set -euo pipefail
 
