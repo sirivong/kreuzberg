@@ -32,6 +32,9 @@ ignored = [
     "symphonia",
     # mel_spec is optional behind the `transcription` feature; same constraint.
     "mel_spec",
+    # native-tls is used transitively by ureq when openssl-vendored feature is enabled;
+    # cargo-machete cannot resolve through feature-conditional unification.
+    "native-tls",
 ]
 
 [lib]
@@ -507,6 +510,12 @@ mobile = ["formats", "analysis", "ocr", "tree-sitter", "api-types", "tokio-runti
 # WASM only: enables wasm-bindgen-rayon for multi-threaded WASM builds.
 # No #[cfg] gates — activates the wasm-bindgen-rayon dependency.
 wasm-threads = ["dep:wasm-bindgen-rayon"]
+
+# Cross-compilation feature: enables vendored OpenSSL for native-tls when cross-compiling with
+# cargo-zigbuild. When enabled, unifies with ureq's native-tls feature to make OpenSSL build
+# from source for the target architecture using the host's C compiler / Zig linker.
+# Used for Linux-aarch64/Linux-x86_64 Swift artifact bundle builds on macOS.
+openssl-vendored = ["dep:native-tls", "native-tls/vendored"]
 # --- Aggregate features ---
 
 # Document format extractors only — no infrastructure or text analysis.
@@ -648,6 +657,7 @@ memmap2 = { workspace = true }
 mime_guess = "2.0"
 minijinja = { workspace = true, optional = true }
 moka = { version = "0.12", features = ["sync"], optional = true }
+native-tls = { version = "0.2", optional = true }
 ndarray = { version = "0.17", optional = true }
 nom-exif = { workspace = true, optional = true }
 num_cpus = { workspace = true }
@@ -758,15 +768,6 @@ tokenizers = { version = "0.23", default-features = false, features = ["http", "
 hf-hub = { version = "0.5", default-features = false, features = ["ureq", "native-tls"], optional = true }
 ureq = { version = "3.3", default-features = false, features = ["native-tls", "json"], optional = true }
 
-# Android: native-tls would pull openssl-sys, which has no working NDK cross-compile (no target
-# sysroot). Feature-unification means a single native-tls ureq dep drags OpenSSL onto every ureq
-# consumer (including tree-sitter-language-pack's `download`). Use ring-backed rustls + webpki-roots
-# instead — it cross-compiles cleanly. Corporate-CA trust (#1146) is a desktop/server concern; mobile
-# apps ship their own trust configuration.
-[target.'cfg(target_os = "android")'.dependencies]
-hf-hub = { version = "0.5", default-features = false, features = ["ureq"], optional = true }
-ureq = { version = "3.3", default-features = false, features = ["rustls", "json"], optional = true }
-
 # Use native-tls on Windows to avoid aws-lc-sys CMake build issues with MinGW
 [target.'cfg(all(target_os = "windows", not(target_arch = "wasm32")))'.dependencies]
 # native-tls (schannel) so hf-hub's Agent trusts the Windows system certificate store (#1146).
@@ -809,6 +810,15 @@ tree-sitter-language-pack = { workspace = true, default-features = false, featur
     "serde",
 ], optional = true }
 wasm-bindgen-rayon = { version = "1.3", optional = true }
+
+# Android: native-tls would pull openssl-sys, which has no working NDK cross-compile (no target
+# sysroot). Feature-unification means a single native-tls ureq dep drags OpenSSL onto every ureq
+# consumer (including tree-sitter-language-pack's `download`). Use ring-backed rustls + webpki-roots
+# instead — it cross-compiles cleanly. Corporate-CA trust (#1146) is a desktop/server concern; mobile
+# apps ship their own trust configuration.
+[target.'cfg(target_os = "android")'.dependencies]
+hf-hub = { version = "0.5", default-features = false, features = ["ureq"], optional = true }
+ureq = { version = "3.3", default-features = false, features = ["rustls", "json"], optional = true }
 
 [build-dependencies]
 
