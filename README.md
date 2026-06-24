@@ -10,7 +10,7 @@
   <a href="https://pypi.org/project/kreuzberg/">
     <img src="https://img.shields.io/pypi/v/kreuzberg?label=Kreuzberg&color=007ec6" alt="Kreuzberg">
   </a>
-  <a href="https://github.com/kreuzberg-dev/llama-index-kreuzberg/blob/main/LICENSE">
+  <a href="https://github.com/xberg-io/llama-index-kreuzberg/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
   </a>
   <a href="https://docs.kreuzberg.dev">
@@ -26,7 +26,7 @@
   </a>
 </div>
 
-LlamaIndex integrations for [kreuzberg](https://github.com/kreuzberg-dev/kreuzberg) — a Rust-core document intelligence library supporting 91+ file formats with OCR, layout detection, element-based extraction, and code intelligence across 248 programming languages.
+LlamaIndex integrations for [kreuzberg](https://github.com/xberg-io/kreuzberg) — a Rust-core document intelligence library supporting 91+ file formats with OCR, layout detection, element-based extraction, and code intelligence across 248 programming languages.
 
 ## Packages
 
