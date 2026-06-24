@@ -17,9 +17,9 @@ interface EmbeddingBackend
      * Embedding vector dimension. Must be `> 0` and must match the length of
      *
 
-     * @return mixed Return value from the plugin method
+     * @return int Return value from the plugin method
      */
-    public function dimensions(): mixed;
+    public function dimensions(): int;
 
     /**
      * Embed a batch of texts, returning one vector per input in order.

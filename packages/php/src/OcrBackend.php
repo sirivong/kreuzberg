@@ -18,29 +18,29 @@ interface OcrBackend
      *
 
      * @param mixed $image_bytes
-     * @param mixed $config
-     * @return mixed Return value from the plugin method
+     * @param OcrConfig $config
+     * @return ExtractionResult Return value from the plugin method
      */
-    public function process_image(mixed $image_bytes, mixed $config): mixed;
+    public function process_image(mixed $image_bytes, OcrConfig $config): ExtractionResult;
 
     /**
      * Process a file and extract text via OCR.
      *
 
      * @param mixed $path
-     * @param mixed $config
-     * @return mixed Return value from the plugin method
+     * @param OcrConfig $config
+     * @return ExtractionResult Return value from the plugin method
      */
-    public function process_image_file(mixed $path, mixed $config): mixed;
+    public function process_image_file(mixed $path, OcrConfig $config): ExtractionResult;
 
     /**
      * Check if this backend supports a given language code.
      *
 
      * @param string $lang
-     * @return mixed Return value from the plugin method
+     * @return bool Return value from the plugin method
      */
-    public function supports_language(string $lang): mixed;
+    public function supports_language(string $lang): bool;
 
     /**
      * Get the backend type identifier.
@@ -62,34 +62,34 @@ interface OcrBackend
      * Optional: Check if the backend supports table detection.
      *
 
-     * @return mixed Return value from the plugin method
+     * @return bool Return value from the plugin method
      */
-    public function supports_table_detection(): mixed;
+    public function supports_table_detection(): bool;
 
     /**
      * Check if the backend supports direct document-level processing (e.g. for PDFs).
      *
 
-     * @return mixed Return value from the plugin method
+     * @return bool Return value from the plugin method
      */
-    public function supports_document_processing(): mixed;
+    public function supports_document_processing(): bool;
 
     /**
      * Declare that this backend emits structured markdown directly (tables, headings, lists)
      *
 
-     * @return mixed Return value from the plugin method
+     * @return bool Return value from the plugin method
      */
-    public function emits_structured_markdown(): mixed;
+    public function emits_structured_markdown(): bool;
 
     /**
      * Process a document file directly via OCR.
      *
 
      * @param mixed $_path
-     * @param mixed $_config
-     * @return mixed Return value from the plugin method
+     * @param OcrConfig $_config
+     * @return ExtractionResult Return value from the plugin method
      */
-    public function process_document(mixed $_path, mixed $_config): mixed;
+    public function process_document(mixed $_path, OcrConfig $_config): ExtractionResult;
 
 }

@@ -313,6 +313,9 @@ packages/r/src/*.o
 # basemind code-map index (local tooling)
 .basemind/
 
+.bench-rc32/
+build-output-musl-node/
+
 # BEGIN ai-rulez (DO NOT EDIT - managed by ai-rulez)
 .agents/
 .ai-rulez/.generated-manifest.json
@@ -322,5 +325,3 @@ packages/r/src/*.o
 .github/copilot-instructions.md
 .github/skills/
 # END ai-rulez
-.bench-rc32/
-build-output-musl-node/

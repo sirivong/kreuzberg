@@ -18,8 +18,8 @@ interface Renderer
      *
 
      * @param mixed $doc
-     * @return mixed Return value from the plugin method
+     * @return string Return value from the plugin method
      */
-    public function render(mixed $doc): mixed;
+    public function render(mixed $doc): string;
 
 }

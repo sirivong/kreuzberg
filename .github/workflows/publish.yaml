@@ -1586,7 +1586,6 @@ jobs:
           # after it), so bake the whole subcommand into BUILD_CMD.
           BUILD_CMD="cargo build"
           TARGET_ARG="$TARGET"
-          FEATURES_ARGS=()
           # Use zigbuild for linux-gnu targets to set glibc floor to 2.28
           if [[ "$TARGET" == *"-linux-gnu" ]]; then
             BUILD_CMD="cargo zigbuild"

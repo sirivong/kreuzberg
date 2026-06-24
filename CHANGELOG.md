@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0-rc.36] - 2026-06-24
+
 ### Removed
 
 - **OpenSSL entirely removed from build.** kreuzberg migrated all TLS to rustls + OS-native trust stores (ureq platform-verifier, ort tls-rustls), eliminating OpenSSL from every target. The `setup-openssl` GitHub action is no longer used. The `linux-features` input (which passed `kreuzberg/openssl-vendored` to enable OpenSSL vendoring on gnu zigbuild) has been removed from kreuzberg-dev/actions v1.8.89 and is no longer passed to any build action in publish.yaml. The musl Dockerfiles no longer install `openssl-dev`/`openssl-libs-static`. The python wheel build no longer installs `openssl-devel`. This eliminates the vendored-OpenSSL zigbuild workaround on all targets.

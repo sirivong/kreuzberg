@@ -36,7 +36,7 @@ def main() -> None:
     if bundled:
         import subprocess
 
-        completed = subprocess.run([bundled, *sys.argv[1:]], check=False)  # noqa: S603
+        completed = subprocess.run([bundled, *sys.argv[1:]], check=False)
         sys.exit(completed.returncode)
 
     # Fall back to the runtime download path (sdist / unknown platform).

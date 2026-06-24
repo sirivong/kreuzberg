@@ -226,6 +226,21 @@ detect_mime_type <- function(path, check_exists) .Call("wrap__detect_mime_type",
 #' Register an R-side plugin implementation. Pass a named list whose entries
 #' implement the trait's required methods (e.g. `list(name = function() "my", ...)`).
 #'
+#' The backend must implement the following methods (named entries in `r_backend`):
+#'   \item{ `process_image(image_bytes: raw, config: OcrConfig (native object)) -> ExtractionResult` }
+#'   \item{ `process_image_file(path: character, config: OcrConfig (native object)) -> ExtractionResult` }
+#'   \item{ `supports_language(lang: character) -> numeric` }
+#'   \item{ `backend_type() -> OcrBackendType` }
+#'   \item{ `supported_languages() -> list of character` }
+#'   \item{ `supports_table_detection() -> numeric` }
+#'   \item{ `supports_document_processing() -> numeric` }
+#'   \item{ `emits_structured_markdown() -> numeric` }
+#'   \item{ `process_document(path: character, config: OcrConfig (native object)) -> ExtractionResult` }
+#'
+#' Each method receiving a known struct argument is handed the native binding object
+#' (an external pointer with `$field` accessors), not a JSON string. Other arguments
+#' (enums, opaque handles) arrive as JSON strings; return values must be JSON strings.
+#'
 #' @param r_backend Named list of R closures implementing the trait surface.
 #'
 #' @return Invisible NULL on success; raises an R error on failure.
@@ -251,6 +266,17 @@ clear_ocr_backends <- function() .Call("wrap__clear_ocr_backends", PACKAGE = "kr
 #'
 #' Register an R-side plugin implementation. Pass a named list whose entries
 #' implement the trait's required methods (e.g. `list(name = function() "my", ...)`).
+#'
+#' The backend must implement the following methods (named entries in `r_backend`):
+#'   \item{ `process(result: ExtractionResult, config: ExtractionConfig (native object)) -> void` }
+#'   \item{ `processing_stage() -> ProcessingStage` }
+#'   \item{ `should_process(result: ExtractionResult, config: ExtractionConfig (native object)) -> numeric` }
+#'   \item{ `estimated_duration_ms(result: ExtractionResult) -> numeric` }
+#'   \item{ `priority() -> numeric` }
+#'
+#' Each method receiving a known struct argument is handed the native binding object
+#' (an external pointer with `$field` accessors), not a JSON string. Other arguments
+#' (enums, opaque handles) arrive as JSON strings; return values must be JSON strings.
 #'
 #' @param r_backend Named list of R closures implementing the trait surface.
 #'
@@ -278,6 +304,15 @@ clear_post_processors <- function() .Call("wrap__clear_post_processors", PACKAGE
 #' Register an R-side plugin implementation. Pass a named list whose entries
 #' implement the trait's required methods (e.g. `list(name = function() "my", ...)`).
 #'
+#' The backend must implement the following methods (named entries in `r_backend`):
+#'   \item{ `validate(result: ExtractionResult, config: ExtractionConfig (native object)) -> void` }
+#'   \item{ `should_validate(result: ExtractionResult, config: ExtractionConfig (native object)) -> numeric` }
+#'   \item{ `priority() -> numeric` }
+#'
+#' Each method receiving a known struct argument is handed the native binding object
+#' (an external pointer with `$field` accessors), not a JSON string. Other arguments
+#' (enums, opaque handles) arrive as JSON strings; return values must be JSON strings.
+#'
 #' @param r_backend Named list of R closures implementing the trait surface.
 #'
 #' @return Invisible NULL on success; raises an R error on failure.
@@ -303,6 +338,14 @@ clear_validators <- function() .Call("wrap__clear_validators", PACKAGE = "kreuzb
 #'
 #' Register an R-side plugin implementation. Pass a named list whose entries
 #' implement the trait's required methods (e.g. `list(name = function() "my", ...)`).
+#'
+#' The backend must implement the following methods (named entries in `r_backend`):
+#'   \item{ `dimensions() -> numeric` }
+#'   \item{ `embed(texts: list of character) -> list of list of numeric` }
+#'
+#' Each method receiving a known struct argument is handed the native binding object
+#' (an external pointer with `$field` accessors), not a JSON string. Other arguments
+#' (enums, opaque handles) arrive as JSON strings; return values must be JSON strings.
 #'
 #' @param r_backend Named list of R closures implementing the trait surface.
 #'
@@ -330,6 +373,17 @@ clear_embedding_backends <- function() .Call("wrap__clear_embedding_backends", P
 #' Register an R-side plugin implementation. Pass a named list whose entries
 #' implement the trait's required methods (e.g. `list(name = function() "my", ...)`).
 #'
+#' The backend must implement the following methods (named entries in `r_backend`):
+#'   \item{ `extract_bytes(content: raw, mime_type: character, config: ExtractionConfig (native object)) -> InternalDocument` }
+#'   \item{ `extract_file(path: character, mime_type: character, config: ExtractionConfig (native object)) -> InternalDocument` }
+#'   \item{ `supported_mime_types() -> list of character` }
+#'   \item{ `priority() -> numeric` }
+#'   \item{ `can_handle(path: character, mime_type: character) -> numeric` }
+#'
+#' Each method receiving a known struct argument is handed the native binding object
+#' (an external pointer with `$field` accessors), not a JSON string. Other arguments
+#' (enums, opaque handles) arrive as JSON strings; return values must be JSON strings.
+#'
 #' @param r_backend Named list of R closures implementing the trait surface.
 #'
 #' @return Invisible NULL on success; raises an R error on failure.
@@ -356,6 +410,13 @@ clear_document_extractors <- function() .Call("wrap__clear_document_extractors",
 #' Register an R-side plugin implementation. Pass a named list whose entries
 #' implement the trait's required methods (e.g. `list(name = function() "my", ...)`).
 #'
+#' The backend must implement the following methods (named entries in `r_backend`):
+#'   \item{ `render(doc: InternalDocument) -> character` }
+#'
+#' Each method receiving a known struct argument is handed the native binding object
+#' (an external pointer with `$field` accessors), not a JSON string. Other arguments
+#' (enums, opaque handles) arrive as JSON strings; return values must be JSON strings.
+#'
 #' @param r_backend Named list of R closures implementing the trait surface.
 #'
 #' @return Invisible NULL on success; raises an R error on failure.
@@ -381,6 +442,13 @@ clear_renderers <- function() .Call("wrap__clear_renderers", PACKAGE = "kreuzber
 #'
 #' Register an R-side plugin implementation. Pass a named list whose entries
 #' implement the trait's required methods (e.g. `list(name = function() "my", ...)`).
+#'
+#' The backend must implement the following methods (named entries in `r_backend`):
+#'   \item{ `rerank(query: character, documents: list of character) -> list of numeric` }
+#'
+#' Each method receiving a known struct argument is handed the native binding object
+#' (an external pointer with `$field` accessors), not a JSON string. Other arguments
+#' (enums, opaque handles) arrive as JSON strings; return values must be JSON strings.
 #'
 #' @param r_backend Named list of R closures implementing the trait surface.
 #'

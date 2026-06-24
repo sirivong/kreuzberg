@@ -353,7 +353,11 @@ fn ensure_tika_extract_compiled(java_path: &PathBuf, tika_jar_path: &PathBuf) ->
     std::fs::create_dir_all(&compile_dir)
         .map_err(|e| crate::Error::Config(format!("Failed to create compile directory: {}", e)))?;
 
-    let class_path = compile_dir.join("dev").join("kreuzberg").join("benchmark").join("TikaExtract.class");
+    let class_path = compile_dir
+        .join("dev")
+        .join("kreuzberg")
+        .join("benchmark")
+        .join("TikaExtract.class");
 
     // Only compile if the class file doesn't exist
     if !class_path.exists() {

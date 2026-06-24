@@ -17,28 +17,28 @@ interface Validator
      * Validate an extraction result.
      *
 
-     * @param mixed $result
-     * @param mixed $config
+     * @param ExtractionResult $result
+     * @param ExtractionConfig $config
      * @return mixed Return value from the plugin method
      */
-    public function validate(mixed $result, mixed $config): mixed;
+    public function validate(ExtractionResult $result, ExtractionConfig $config): mixed;
 
     /**
      * Optional: Check if this validator should run for a given result.
      *
 
-     * @param mixed $_result
-     * @param mixed $_config
-     * @return mixed Return value from the plugin method
+     * @param ExtractionResult $_result
+     * @param ExtractionConfig $_config
+     * @return bool Return value from the plugin method
      */
-    public function should_validate(mixed $_result, mixed $_config): mixed;
+    public function should_validate(ExtractionResult $_result, ExtractionConfig $_config): bool;
 
     /**
      * Optional: Get the validation priority.
      *
 
-     * @return mixed Return value from the plugin method
+     * @return int Return value from the plugin method
      */
-    public function priority(): mixed;
+    public function priority(): int;
 
 }
