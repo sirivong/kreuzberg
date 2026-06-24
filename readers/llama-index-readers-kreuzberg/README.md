@@ -10,8 +10,8 @@
   <a href="https://github.com/xberg-io/llama-index-kreuzberg/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
   </a>
-  <a href="https://docs.kreuzberg.dev">
-    <img src="https://img.shields.io/badge/docs-kreuzberg.dev-blue" alt="Documentation">
+  <a href="https://docs.xberg.io">
+    <img src="https://img.shields.io/badge/docs-xberg.io-blue" alt="Documentation">
   </a>
 </div>
 
@@ -35,7 +35,7 @@ Requires Python ≥3.10, `kreuzberg>=4.9.4`, and `llama-index-core>=0.13,<0.15`.
 
 ## Features
 
-- **91+ file formats** -- PDF, DOCX, PPTX, XLSX, HTML, images, emails, archives, and more ([full list](https://docs.kreuzberg.dev/reference/formats/))
+- **91+ file formats** -- PDF, DOCX, PPTX, XLSX, HTML, images, emails, archives, and more ([full list](https://docs.xberg.io/reference/formats/))
 - **Rich metadata** -- quality scores, language detection, keywords, annotations
 - **Element extraction** -- structural elements for structure-aware RAG pipelines
 - **Image extraction** -- base64-encoded image data with position, format, and OCR metadata

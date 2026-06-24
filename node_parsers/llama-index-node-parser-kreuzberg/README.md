@@ -10,8 +10,8 @@
   <a href="https://github.com/xberg-io/llama-index-kreuzberg/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
   </a>
-  <a href="https://docs.kreuzberg.dev">
-    <img src="https://img.shields.io/badge/docs-kreuzberg.dev-blue" alt="Documentation">
+  <a href="https://docs.xberg.io">
+    <img src="https://img.shields.io/badge/docs-xberg.io-blue" alt="Documentation">
   </a>
 </div>
 

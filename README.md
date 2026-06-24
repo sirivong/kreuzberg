@@ -13,8 +13,8 @@
   <a href="https://github.com/xberg-io/llama-index-kreuzberg/blob/main/LICENSE">
     <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License">
   </a>
-  <a href="https://docs.kreuzberg.dev">
-    <img src="https://img.shields.io/badge/docs-kreuzberg.dev-blue" alt="Documentation">
+  <a href="https://docs.xberg.io">
+    <img src="https://img.shields.io/badge/docs-xberg.io-blue" alt="Documentation">
   </a>
 </div>
 
@@ -94,7 +94,7 @@ For the full feature list, configuration options, metadata reference, and advanc
 - **Reader** — async, batch, raw-bytes input, OCR config, per-page splitting, image extraction, error tolerance, serialization, full metadata reference: [`readers/llama-index-readers-kreuzberg/README.md`](readers/llama-index-readers-kreuzberg/README.md)
 - **Node parser** — element-aware splitting, IngestionPipeline / VectorStoreIndex composition, async, behavior notes: [`node_parsers/llama-index-node-parser-kreuzberg/README.md`](node_parsers/llama-index-node-parser-kreuzberg/README.md)
 
-Upstream kreuzberg documentation: [docs.kreuzberg.dev](https://docs.kreuzberg.dev).
+Upstream kreuzberg documentation: [docs.xberg.io](https://docs.xberg.io).
 
 ## License
 
