@@ -113,10 +113,6 @@ jobs:
         if: steps.ffi-cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/install-system-deps
 
-      - name: Setup OpenSSL
-        if: steps.ffi-cache.outputs.cache-hit != 'true'
-        uses: kreuzberg-dev/actions/setup-openssl@v1
-
       - name: Build FFI library
         if: steps.ffi-cache.outputs.cache-hit != 'true'
         uses: kreuzberg-dev/actions/build-rust-ffi@v1
@@ -285,9 +281,6 @@ jobs:
           fi
           echo "LD_LIBRARY_PATH=$LD_LIBRARY_PATH"
           echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH"
-
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
 
       - name: Setup ONNX Runtime
         uses: ./.github/actions/setup-onnx-runtime

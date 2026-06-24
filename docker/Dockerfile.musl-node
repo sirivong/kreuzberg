@@ -35,7 +35,6 @@ RUN apk add --no-cache \
     apk add --no-cache \
         gcc g++ libstdc++ libstdc++-dev \
         nodejs npm \
-        openssl-dev openssl-libs-static \
         onnxruntime-dev libheif-dev libde265-dev aom-dev x265-dev dav1d-dev \
     --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community \
     --repository=https://dl-cdn.alpinelinux.org/alpine/edge/main

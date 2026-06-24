@@ -50,9 +50,6 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
-
       - name: Setup Rust
         uses: kreuzberg-dev/actions/setup-rust@v1
         with:
@@ -119,9 +116,6 @@ jobs:
 
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
-
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
 
       - name: Setup Rust toolchain
         uses: kreuzberg-dev/actions/setup-rust@v1
@@ -192,9 +186,6 @@ jobs:
 
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
-
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
 
       - name: Setup Rust toolchain
         uses: kreuzberg-dev/actions/setup-rust@v1
@@ -278,9 +269,6 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
-
       - name: Setup Rust toolchain
         uses: kreuzberg-dev/actions/setup-rust@v1
         with:
@@ -363,9 +351,6 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
-
       - name: Setup Rust toolchain
         uses: kreuzberg-dev/actions/setup-rust@v1
         with:
@@ -447,9 +432,6 @@ jobs:
 
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
-
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
 
       - name: Setup Rust toolchain
         uses: kreuzberg-dev/actions/setup-rust@v1
@@ -535,9 +517,6 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
-
       - name: Setup Rust toolchain
         uses: kreuzberg-dev/actions/setup-rust@v1
         with:
@@ -622,9 +601,6 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
-
       - name: Setup Rust toolchain
         uses: kreuzberg-dev/actions/setup-rust@v1
         with:
@@ -696,9 +672,6 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
-
       - name: Setup Rust toolchain
         uses: kreuzberg-dev/actions/setup-rust@v1
         with:
@@ -769,9 +742,6 @@ jobs:
 
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
-
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
 
       - name: Setup Rust toolchain
         uses: kreuzberg-dev/actions/setup-rust@v1
@@ -875,9 +845,6 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
-
       - name: Setup Rust toolchain
         uses: kreuzberg-dev/actions/setup-rust@v1
         with:
@@ -980,9 +947,6 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
-
       - name: Setup Rust toolchain
         uses: kreuzberg-dev/actions/setup-rust@v1
         with:
@@ -1069,9 +1033,6 @@ jobs:
 
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
-
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
 
       - name: Setup Rust toolchain
         uses: kreuzberg-dev/actions/setup-rust@v1
@@ -1160,9 +1121,6 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
-
       - name: Setup Rust toolchain
         uses: kreuzberg-dev/actions/setup-rust@v1
         with:
@@ -1248,9 +1206,6 @@ jobs:
 
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
-
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
 
       - name: Setup Rust toolchain
         uses: kreuzberg-dev/actions/setup-rust@v1

@@ -479,12 +479,11 @@ jobs:
           # ships 1.0.2k which openssl-sys 0.9.115+ rejects).
           manylinux-x86_64-image: "manylinux_2_28"
           manylinux-aarch64-image: "manylinux_2_28"
-          # manylinux_2_28 (AlmaLinux 8) ships OpenSSL 1.1.1 — manylinux2014 ships 1.0.2k
-          # which openssl-sys 0.9.115+ rejects. CARGO_TARGET_*_LINKER points cargo at the
-          # in-image gcc instead of looking for triple-prefixed binaries that aren't there.
+          # manylinux_2_28 (AlmaLinux 8) provides glibc 2.28 required for glibc floor.
+          # CARGO_TARGET_*_LINKER points cargo at the in-image gcc instead of looking
+          # for triple-prefixed binaries that aren't there.
           cibw-before-build-linux: |
             set -euo pipefail
-            dnf install -y openssl-devel pkgconfig
             pip install maturin uv
             source ~/.cargo/env
             # Prevent GCC 14+ from emitting C23-versioned glibc symbols (__isoc23_strtoll etc.)
@@ -904,9 +903,6 @@ jobs:
           # release target. Docker images already build with `--features all`.
           extra-cargo-args: --features mcp,mcp-http,api
           glibc-version: "2.28"
-          # zigcc misses the Debian multiarch OpenSSL headers, so vendor OpenSSL
-          # from source on the gnu-zigbuild path (no-op on macOS/Windows).
-          linux-features: kreuzberg/openssl-vendored
 
       - name: Package CLI artifact
         # Inline: archive layout (.tar.gz on Unix, .zip on Windows) varies per
@@ -1027,9 +1023,6 @@ jobs:
           archive-name: kreuzberg-go-${{ matrix.platform }}.tar.gz
           output-dir: dist/go-ffi
           glibc-version: "2.28"
-          # Vendor OpenSSL on the gnu-zigbuild path (zigcc misses multiarch headers).
-          linux-features: kreuzberg/openssl-vendored
-
       - uses: actions/upload-artifact@v7
         with:
           name: go-ffi-${{ matrix.platform }}
@@ -1078,7 +1071,6 @@ jobs:
           crate-name: kreuzberg-ffi
           target: ${{ matrix.target }}
           glibc-version: ${{ contains(matrix.target, '-linux-gnu') && '2.28' || '' }}
-          linux-features: ${{ contains(matrix.target, '-linux-gnu') && 'kreuzberg/openssl-vendored' || '' }}
 
       - name: Stage C FFI distribution
         # Inline: bundle library + header + LICENSE into a single tarball
@@ -1148,7 +1140,6 @@ jobs:
           lib-name: kreuzberg_ffi
           classifier: ${{ matrix.classifier }}
           glibc-version: ${{ contains(matrix.target, '-linux-gnu') && '2.28' || '' }}
-          linux-features: ${{ contains(matrix.target, '-linux-gnu') && 'kreuzberg/openssl-vendored' || '' }}
 
       - uses: actions/upload-artifact@v7
         with:
@@ -1280,7 +1271,6 @@ jobs:
           lib-name: kreuzberg_ffi
           rid: ${{ matrix.rid }}
           glibc-version: ${{ contains(matrix.target, '-linux-gnu') && '2.28' || '' }}
-          linux-features: ${{ contains(matrix.target, '-linux-gnu') && 'kreuzberg/openssl-vendored' || '' }}
 
       - uses: actions/upload-artifact@v7
         with:
@@ -1410,7 +1400,6 @@ jobs:
           nif-version: ${{ needs.prepare.outputs.version }}
           nif-api-version: ${{ matrix.nif }}
           glibc-version: ${{ contains(matrix.target, '-linux-gnu') && '2.28' || '' }}
-          linux-features: ${{ contains(matrix.target, '-linux-gnu') && 'kreuzberg/openssl-vendored' || '' }}
 
       - uses: actions/upload-artifact@v7
         with:
@@ -1605,12 +1594,9 @@ jobs:
           if [[ "$TARGET" == *"-linux-gnu" ]]; then
             BUILD_CMD="cargo zigbuild"
             TARGET_ARG="${TARGET}.2.28"
-            # zigcc misses the Debian multiarch OpenSSL headers, so vendor OpenSSL
-            # from source on the gnu-zigbuild path (sidesteps opensslconf.h not found).
-            FEATURES_ARGS=(--features kreuzberg/openssl-vendored)
             echo "[publish] glibc floor: 2.28 (target: ${TARGET_ARG})"
           fi
-          ${BUILD_CMD} --locked -p kreuzberg-dart --release --target "${TARGET_ARG}" "${FEATURES_ARGS[@]}"
+          ${BUILD_CMD} --locked -p kreuzberg-dart --release --target "${TARGET_ARG}"
       - name: Stage native library
         shell: bash
         env:
@@ -1677,9 +1663,6 @@ jobs:
           artifact-name: KreuzbergSwift
           include-macos-x86_64: "false"
           include-ios-x86_64: "false"
-          # Statically vendor OpenSSL for the Linux artifactbundle targets.
-          # (No longer hardcoded in the shared action — pass it explicitly.)
-          linux-features: kreuzberg/openssl-vendored
       - uses: actions/upload-artifact@v7
         with:
           name: swift-artifactbundle

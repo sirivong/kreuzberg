@@ -10,7 +10,7 @@ use std::path::Path;
 ///
 /// Attempts to download `{lang}.traineddata` from GitHub with fallback URLs
 /// for redundancy. Skips download if the file already exists. Uses `ureq`
-/// with native-tls for HTTPS connections (respects SSL_CERT_FILE).
+/// with rustls + platform-verifier for HTTPS (OS trust store; respects SSL_CERT_FILE).
 ///
 /// # Arguments
 ///

@@ -17,7 +17,6 @@ WORKDIR /build
 # so tesseract C++ compilation works without glibc conflicts.
 RUN apk add --no-cache \
     curl musl-dev cmake make pkgconf \
-    openssl-dev openssl-libs-static \
     perl linux-headers git file && \
     apk add --no-cache \
         gcc g++ libstdc++ libstdc++-dev \

@@ -32,9 +32,6 @@ ignored = [
     "symphonia",
     # mel_spec is optional behind the `transcription` feature; same constraint.
     "mel_spec",
-    # native-tls is used transitively by ureq when openssl-vendored feature is enabled;
-    # cargo-machete cannot resolve through feature-conditional unification.
-    "native-tls",
 ]
 
 [lib]
@@ -206,7 +203,7 @@ paddle-ocr = [
 ]
 # Bundle ORT binaries via the official Microsoft release (includes CoreML on macOS, CUDA on Linux).
 # When active, no system ORT library is required and ort_discovery is skipped.
-ort-bundled = ["ort/download-binaries", "ort/tls-native"]
+ort-bundled = ["ort/download-binaries", "ort/tls-rustls"]
 # Build-time only: configures ORT to load ONNX Runtime dynamically at runtime.
 # No #[cfg] gates — passed through to the `ort` crate.
 ort-dynamic = ["ort/load-dynamic"]
@@ -517,11 +514,6 @@ mobile = ["formats", "analysis", "ocr", "tree-sitter", "api-types", "tokio-runti
 # No #[cfg] gates — activates the wasm-bindgen-rayon dependency.
 wasm-threads = ["dep:wasm-bindgen-rayon"]
 
-# Cross-compilation feature: enables vendored OpenSSL for native-tls when cross-compiling with
-# cargo-zigbuild. When enabled, unifies with ureq's native-tls feature to make OpenSSL build
-# from source for the target architecture using the host's C compiler / Zig linker.
-# Used for Linux-aarch64/Linux-x86_64 Swift artifact bundle builds on macOS.
-openssl-vendored = ["dep:native-tls", "native-tls/vendored"]
 # --- Aggregate features ---
 
 # Document format extractors only — no infrastructure or text analysis.
@@ -663,7 +655,6 @@ memmap2 = { workspace = true }
 mime_guess = "2.0"
 minijinja = { workspace = true, optional = true }
 moka = { version = "0.12", features = ["sync"], optional = true }
-native-tls = { version = "0.2", optional = true }
 ndarray = { version = "0.17", optional = true }
 nom-exif = { workspace = true, optional = true }
 num_cpus = { workspace = true }
@@ -765,19 +756,19 @@ pprof = { version = "0.15.0", features = ["flamegraph"], optional = true }
 # Wasm builds get tokenizers without `http` to avoid hf-hub → ureq 2.12.1 → rustls 0.23 (wasm-incompat).
 tokenizers = { version = "0.23", default-features = false, features = ["http", "fancy-regex"], optional = true }
 
-# Desktop / server hosts (Linux + macOS, NOT Android): native-tls makes hf-hub's Agent use
-# TlsProvider::NativeTls and forces ureq (direct downloads + the tree-sitter-language-pack `download`
-# path) onto native-tls, so both trust the OS certificate store and honor SSL_CERT_FILE/SSL_CERT_DIR
-# (OpenSSL on Linux). This satisfies corporate TLS-MITM proxies (#1146). native-tls is excluded on
-# Android because openssl-sys cannot cross-compile in the NDK (see the Android block below).
+# Desktop / server hosts (Linux + macOS, NOT Android): ureq uses ring-backed rustls plus
+# `platform-verifier`, which trusts the OS certificate store (rustls-native-certs on Linux,
+# Security.framework on macOS) and honors SSL_CERT_FILE/SSL_CERT_DIR — satisfying corporate
+# TLS-MITM proxies (#1146) with ZERO openssl-sys (so gnu cross-compiles cleanly under zigcc).
+# hf-hub rides the same unified ureq provider via its `ureq` feature (no native-tls).
 [target.'cfg(all(not(target_os = "windows"), not(target_arch = "wasm32"), not(target_os = "android")))'.dependencies]
-hf-hub = { version = "0.5", default-features = false, features = ["ureq", "native-tls"], optional = true }
-ureq = { version = "3.3", default-features = false, features = ["native-tls", "json"], optional = true }
+hf-hub = { version = "0.5", default-features = false, features = ["ureq"], optional = true }
+ureq = { version = "3.3", default-features = false, features = ["rustls", "platform-verifier", "json"], optional = true }
 
-# Use native-tls on Windows to avoid aws-lc-sys CMake build issues with MinGW
+# Windows: ureq uses ring-backed rustls + `platform-verifier`, which trusts the Windows system
+# certificate store via WinCrypt (#1146) — pure-Rust, no openssl-sys, no aws-lc-sys/MinGW CMake.
 [target.'cfg(all(target_os = "windows", not(target_arch = "wasm32")))'.dependencies]
-# native-tls (schannel) so hf-hub's Agent trusts the Windows system certificate store (#1146).
-hf-hub = { version = "0.5", default-features = false, features = ["ureq", "native-tls"], optional = true }
+hf-hub = { version = "0.5", default-features = false, features = ["ureq"], optional = true }
 # Candle-based VLM OCR backends - pure-Rust transformer inference, not on WASM yet.
 kreuzberg-candle-ocr = { path = "../kreuzberg-candle-ocr", version = "5.0.0-rc.34", optional = true }
 # PaddleOCR via ONNX Runtime - not available on WASM (vendored from paddle-ocr-rs)
@@ -786,9 +777,10 @@ kreuzberg-paddle-ocr = { path = "../kreuzberg-paddle-ocr", version = "5.0.0-rc.3
 liter-llm = { workspace = true, optional = true, features = ["native-http"] }
 # Enable tokenizers `http` feature on Windows so model downloads work via hf-hub.
 tokenizers = { version = "0.23", default-features = false, features = ["http", "fancy-regex"], optional = true }
-# Force ureq (transitive dep via hf-hub) to use native-tls on Windows
+# ureq on Windows: ring-backed rustls + platform-verifier (WinCrypt OS trust store, no openssl).
 ureq = { version = "3.3", default-features = false, features = [
-    "native-tls",
+    "rustls",
+    "platform-verifier",
     "json",
 ], optional = true }
 
@@ -834,7 +826,9 @@ criterion = { workspace = true }
 dotenvy = "0.15"
 filetime = "0.2"
 image = { workspace = true, default-features = false, features = ["png"] }
-jsonschema = "0.46"
+# default-features=false drops jsonschema's `resolve-http` (reqwest→native-tls→openssl-sys);
+# tests validate local schemas only. Keeps the test build openssl-free.
+jsonschema = { version = "0.46", default-features = false }
 qrcode = { version = "0.14", default-features = false, features = ["image"] }
 serial_test = "3.5.0"
 tar = "^0.4"

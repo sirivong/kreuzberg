@@ -9,9 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- **OpenSSL entirely removed from build.** kreuzberg migrated all TLS to rustls + OS-native trust stores (ureq platform-verifier, ort tls-rustls), eliminating OpenSSL from every target. The `setup-openssl` GitHub action is no longer used. The `linux-features` input (which passed `kreuzberg/openssl-vendored` to enable OpenSSL vendoring on gnu zigbuild) has been removed from kreuzberg-dev/actions v1.8.89 and is no longer passed to any build action in publish.yaml. The musl Dockerfiles no longer install `openssl-dev`/`openssl-libs-static`. The python wheel build no longer installs `openssl-devel`. This eliminates the vendored-OpenSSL zigbuild workaround on all targets.
+
 ### Fixed
 
-- **build/linux-openssl**: the gnu Linux release artifacts (CLI, Go/Java/C#/Dart/C FFI, Elixir NIF) now **vendor OpenSSL from source** on the glibc-2.28 `cargo-zigbuild` path. With the 2.28 floor active, `openssl-sys` compiles under `zigcc` — invoked with only `-I /usr/include`, so it misses the Debian/Ubuntu multiarch header dir (`/usr/include/<triple>/openssl/opensslconf.h`) and failed every gnu zigbuild job after rc.32 with `fatal error: 'openssl/opensslconf.h' file not found`. The build actions gained a `linux-features` input (kreuzberg-dev/actions v1.8.88) that appends `--features kreuzberg/openssl-vendored` only on that path; the unified `openssl-sys` flips to its `vendored` feature, building OpenSSL from source with no system headers — also yielding a self-contained binary with no runtime `libssl` dependency. musl/macOS/Windows artifacts are unchanged. Reproduced and validated locally in an `ubuntu:22.04` container.
 - **build/node-musl**: the Alpine musl Node binding build sets `CC_/CXX_<target>=gcc/g++` so `cc-rs` (used by `ring`, tesseract) finds a compiler on napi-rs's cross path. It previously failed with `error occurred in cc-rs: failed to find tool "aarch64-linux-musl-gcc"` — the cargo `*_LINKER` vars were set but `cc-rs` resolves the *compiler* via its own per-target `CC_`/`CXX_` lookup. (`docker/Dockerfile.musl-node`)
 - **Ruby gem now ships precompiled platform binaries.** `ruby-gem` only ran `rake build`, emitting a
   source-only gem on every matrix leg, so `gem install kreuzberg` compiled the native extension from

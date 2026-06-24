@@ -80,9 +80,6 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
-
       - name: Setup ONNX Runtime
         uses: ./.github/actions/setup-onnx-runtime
         with:
@@ -136,9 +133,6 @@ jobs:
 
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
-
-      - name: Setup OpenSSL
-        uses: kreuzberg-dev/actions/setup-openssl@v1
 
       - name: Setup ONNX Runtime
         uses: ./.github/actions/setup-onnx-runtime
