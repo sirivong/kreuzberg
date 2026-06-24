@@ -3,9 +3,9 @@
 <div align="center" style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 20px 0;">
   <a href="https://pypi.org/project/kreuzberg-crewai/"><img src="https://img.shields.io/pypi/v/kreuzberg-crewai?label=kreuzberg-crewai&color=007ec6" alt="PyPI version"></a>
   <a href="https://pypi.org/project/kreuzberg-crewai/"><img src="https://img.shields.io/pypi/pyversions/kreuzberg-crewai?color=007ec6" alt="Python versions"></a>
-  <a href="https://github.com/kreuzberg-dev/kreuzberg-crewai/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
+  <a href="https://github.com/xberg-io/kreuzberg-crewai/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
   <a href="https://docs.kreuzberg.dev"><img src="https://img.shields.io/badge/docs-kreuzberg.dev-blue" alt="Docs"></a>
-  <a href="https://github.com/kreuzberg-dev/kreuzberg-crewai/actions/workflows/ci.yaml"><img src="https://github.com/kreuzberg-dev/kreuzberg-crewai/actions/workflows/ci.yaml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/xberg-io/kreuzberg-crewai/actions/workflows/ci.yaml"><img src="https://github.com/xberg-io/kreuzberg-crewai/actions/workflows/ci.yaml/badge.svg" alt="CI"></a>
 </div>
 
 <img width="3384" height="573" alt="Kreuzberg Banner" src="https://github.com/user-attachments/assets/1b6c6ad7-3b6d-4171-b1c9-f2026cc9deb8" />
@@ -16,7 +16,7 @@
   </a>
 </div>
 
-[Kreuzberg](https://github.com/kreuzberg-dev/kreuzberg) document extraction tools for [CrewAI](https://www.crewai.com/) agents.
+[Kreuzberg](https://github.com/xberg-io/kreuzberg) document extraction tools for [CrewAI](https://www.crewai.com/) agents.
 
 Extract text and metadata from 90+ document formats — PDF, DOCX, XLSX, HTML, images with OCR, and more — directly from your CrewAI agents.
 
