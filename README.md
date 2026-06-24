@@ -14,7 +14,7 @@
   </a>
 </div>
 
-A Spring AI `DocumentReader` integration for the [Kreuzberg](https://github.com/kreuzberg-dev/kreuzberg) document extraction engine. Extract text, metadata, tables, and structural elements from 100+ document formats with native OCR support in 80+ languages.
+A Spring AI `DocumentReader` integration for the [Kreuzberg](https://github.com/xberg-io/kreuzberg) document extraction engine. Extract text, metadata, tables, and structural elements from 100+ document formats with native OCR support in 80+ languages.
 
 ## Overview
 
