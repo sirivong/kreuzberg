@@ -605,10 +605,10 @@ jobs:
           cache-prefix: benchmark-mineru
           install-command: "uv sync --no-install-project --no-install-workspace --group dev --group bench-mineru"
 
-      - name: Install system dependencies
+      - name: Install system dependencies (libgl1 + libglib2.0-0 for mineru)
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgl1 libglib2.0-0
+          sudo apt-get install -y libgl1 libglib2.0-0 tesseract-ocr tesseract-ocr-eng
 
       - name: Run benchmark
         env:

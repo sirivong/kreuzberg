@@ -208,7 +208,9 @@ pub fn create_liteparse_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> 
 }
 
 /// Helper function to get the path to a wrapper script
+/// Handles both development (source tree) and CI (downloaded artifact) environments
 fn get_script_path(script_name: &str) -> Result<PathBuf> {
+    // Priority 1: Check if CARGO_MANIFEST_DIR is set (development build)
     if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
         let script_path = PathBuf::from(manifest_dir).join("scripts").join(script_name);
         if script_path.exists() {
@@ -216,13 +218,45 @@ fn get_script_path(script_name: &str) -> Result<PathBuf> {
         }
     }
 
+    // Priority 2: Check relative to current working directory (development)
     let script_path = PathBuf::from("tools/benchmark-harness/scripts").join(script_name);
     if script_path.exists() {
         return Ok(script_path);
     }
 
+    // Priority 3: Check relative to the running binary's parent directory (CI artifact)
+    // When the harness is downloaded as an artifact in CI, it's placed in target/release/
+    // but the scripts are still in the checkout at tools/benchmark-harness/scripts/
+    // Try to find the source tree by going up from the binary location
+    if let Ok(exe_path) = std::env::current_exe()
+        && let Some(exe_dir) = exe_path.parent()
+    {
+        // exe_dir is typically target/release, go up to find the root
+        // Try: exe_dir/../../scripts/ (relative to target/release/)
+        let script_path = exe_dir
+            .join("..")
+            .join("..")
+            .join("tools")
+            .join("benchmark-harness")
+            .join("scripts")
+            .join(script_name);
+        if script_path.exists() {
+            return Ok(script_path.canonicalize().unwrap_or(script_path));
+        }
+    }
+
+    // Priority 4: Check via BENCHMARK_HARNESS_SCRIPTS_DIR environment variable (CI override)
+    if let Ok(scripts_dir) = env::var("BENCHMARK_HARNESS_SCRIPTS_DIR") {
+        let script_path = PathBuf::from(scripts_dir).join(script_name);
+        if script_path.exists() {
+            return Ok(script_path);
+        }
+    }
+
     Err(crate::error::Error::Config(format!(
-        "Script not found: {}",
+        "Script not found: {}. Checked: CARGO_MANIFEST_DIR/scripts, \
+         tools/benchmark-harness/scripts, relative to binary, and BENCHMARK_HARNESS_SCRIPTS_DIR. \
+         Ensure the harness is run from the repository root or set BENCHMARK_HARNESS_SCRIPTS_DIR.",
         script_name
     )))
 }

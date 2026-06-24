@@ -25,7 +25,7 @@ bench-docling = [ "docling>=2.64.1" ]
 bench-markitdown = [ "markitdown[all]>=0.1.4" ]
 bench-mineru = [ "mineru[pipeline]>=2.6.7", "onnxruntime" ]
 bench-pymupdf4llm = [ "pillow>=10.0.0", "pymupdf-layout>=0.0.1", "pymupdf4llm>=0.0.17" ]
-bench-unstructured = [ "unstructured[all-docs]>=0.18.21,<0.22" ]
+bench-unstructured = [ "unstructured[all-docs]>=0.18.21" ]
 doc = [ "mkdocstrings>=1.0.4", "mkdocstrings-python>=2.0.3", "zensical" ]
 
 [tool.uv]
