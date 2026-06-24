@@ -104,20 +104,20 @@ Add to your `pom.xml`:
 <dependency>
     <groupId>dev.kreuzberg</groupId>
     <artifactId>kreuzberg</artifactId>
-    <version>5.0.0-rc.34</version>
+    <version>5.0.0-rc.35</version>
 </dependency>
 ```
 
 Kotlin DSL (`build.gradle.kts`):
 
 ```kotlin
-implementation("dev.kreuzberg:kreuzberg:5.0.0-rc.34")
+implementation("dev.kreuzberg:kreuzberg:5.0.0-rc.35")
 ```
 
 Groovy DSL (`build.gradle`):
 
 ```groovy
-implementation 'dev.kreuzberg:kreuzberg:5.0.0-rc.34'
+implementation 'dev.kreuzberg:kreuzberg:5.0.0-rc.35'
 ```
 
 ### System Requirements
