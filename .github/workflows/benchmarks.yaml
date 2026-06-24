@@ -729,6 +729,12 @@ jobs:
         with:
           cache-key-prefix: aggregate
 
+      # The Consolidate step builds/runs the harness binary, which links libheif;
+      # without this the aggregate job fails on `libheif.pc not found` (PKG_CONFIG_PATH),
+      # blocking ALL result aggregation even when per-framework benchmarks succeeded.
+      - name: Install system dependencies (libheif + native libs for harness binary)
+        uses: ./.github/actions/install-system-deps
+
       - name: Download all benchmark artifacts
         uses: actions/download-artifact@v8
         with:
