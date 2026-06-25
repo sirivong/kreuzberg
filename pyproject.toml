@@ -44,10 +44,10 @@ dependencies = [
   "crewai>=1",
   "kreuzberg>=4.4.6",
 ]
-urls.Changelog = "https://github.com/xberg-io/kreuzberg-crewai/blob/main/CHANGELOG.md"
-urls.Homepage = "https://github.com/xberg-io/kreuzberg-crewai"
+urls.Changelog = "https://github.com/xberg-io/xberg-crewai/blob/main/CHANGELOG.md"
+urls.Homepage = "https://github.com/xberg-io/xberg-crewai"
 urls.Kreuzberg = "https://github.com/xberg-io/kreuzberg"
-urls.Repository = "https://github.com/xberg-io/kreuzberg-crewai"
+urls.Repository = "https://github.com/xberg-io/xberg-crewai"
 
 [dependency-groups]
 dev = [
