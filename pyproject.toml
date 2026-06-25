@@ -67,10 +67,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/xberg-io/langchain-kreuzberg"
+Homepage = "https://github.com/xberg-io/langchain-xberg"
 Documentation = "https://docs.xberg.io"
-Repository = "https://github.com/xberg-io/langchain-kreuzberg"
-Issues = "https://github.com/xberg-io/langchain-kreuzberg/issues"
+Repository = "https://github.com/xberg-io/langchain-xberg"
+Issues = "https://github.com/xberg-io/langchain-xberg/issues"
 Kreuzberg = "https://github.com/xberg-io/kreuzberg"
 
 [tool.ruff]
