@@ -1,19 +1,19 @@
-package dev.kreuzberg.springai;
+package dev.xberg.springai;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
-import dev.kreuzberg.BoundingBox;
-import dev.kreuzberg.Chunk;
-import dev.kreuzberg.ChunkMetadata;
-import dev.kreuzberg.Element;
-import dev.kreuzberg.ElementMetadata;
-import dev.kreuzberg.ExtractionResult;
-import dev.kreuzberg.Kreuzberg;
-import dev.kreuzberg.KreuzbergException;
-import dev.kreuzberg.Metadata;
-import dev.kreuzberg.PageContent;
-import dev.kreuzberg.config.ExtractionConfig;
+import dev.xberg.BoundingBox;
+import dev.xberg.Chunk;
+import dev.xberg.ChunkMetadata;
+import dev.xberg.Element;
+import dev.xberg.ElementMetadata;
+import dev.xberg.ExtractionResult;
+import dev.xberg.Xberg;
+import dev.xberg.XbergException;
+import dev.xberg.Metadata;
+import dev.xberg.PageContent;
+import dev.xberg.config.ExtractionConfig;
 import java.io.IOException;
 import java.net.URLConnection;
 import java.util.LinkedHashMap;
@@ -25,7 +25,7 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
 /**
- * A Spring AI {@link DocumentReader} that uses Kreuzberg for document
+ * A Spring AI {@link DocumentReader} that uses Xberg for document
  * extraction.
  *
  * <p>
@@ -38,7 +38,7 @@ import org.springframework.core.io.Resource;
  * Use the {@link #builder()} to configure the reader:
  *
  * <pre>{@code
- * var reader = KreuzbergDocumentReader.builder().resource(new FileSystemResource("report.pdf")).build();
+ * var reader = XbergDocumentReader.builder().resource(new FileSystemResource("report.pdf")).build();
  * List<Document> docs = reader.get();
  * }</pre>
  *
@@ -47,11 +47,11 @@ import org.springframework.core.io.Resource;
  * provided:
  *
  * <pre>{@code
- * var reader = KreuzbergDocumentReader.builder().resource(new ByteArrayResource(bytes)).mimeType("application/pdf")
+ * var reader = XbergDocumentReader.builder().resource(new ByteArrayResource(bytes)).mimeType("application/pdf")
  * 		.build();
  * }</pre>
  */
-public final class KreuzbergDocumentReader implements DocumentReader {
+public final class XbergDocumentReader implements DocumentReader {
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().registerModule(new Jdk8Module());
 
@@ -60,7 +60,7 @@ public final class KreuzbergDocumentReader implements DocumentReader {
 	private final ExtractionConfig extractionConfig;
 	private final Map<String, Object> additionalMetadata;
 
-	private KreuzbergDocumentReader(Builder builder) {
+	private XbergDocumentReader(Builder builder) {
 		this.resource = builder.resource;
 		this.mimeType = builder.mimeType;
 		this.extractionConfig = builder.extractionConfig;
@@ -87,26 +87,26 @@ public final class KreuzbergDocumentReader implements DocumentReader {
 			return mapToDocuments(result);
 		} catch (IOException e) {
 			throw new RuntimeException("Failed to extract document", e);
-		} catch (KreuzbergException e) {
-			throw new RuntimeException("Kreuzberg extraction failed", e);
+		} catch (XbergException e) {
+			throw new RuntimeException("Xberg extraction failed", e);
 		}
 	}
 
 	/**
 	 * Returns a new {@link Builder} for constructing a
-	 * {@link KreuzbergDocumentReader}.
+	 * {@link XbergDocumentReader}.
 	 */
 	public static Builder builder() {
 		return new Builder();
 	}
 
 	/**
-	 * Builder for {@link KreuzbergDocumentReader}.
+	 * Builder for {@link XbergDocumentReader}.
 	 *
 	 * <p>
 	 * At minimum, a {@link Resource} must be provided. For resources without a
 	 * filename (e.g. {@code ByteArrayResource}), a MIME type is also required so
-	 * Kreuzberg knows how to parse the content.
+	 * Xberg knows how to parse the content.
 	 */
 	public static final class Builder {
 
@@ -135,7 +135,7 @@ public final class KreuzbergDocumentReader implements DocumentReader {
 		}
 
 		/**
-		 * Sets the Kreuzberg {@link ExtractionConfig} to control extraction behavior.
+		 * Sets the Xberg {@link ExtractionConfig} to control extraction behavior.
 		 */
 		public Builder extractionConfig(ExtractionConfig config) {
 			this.extractionConfig = config;
@@ -165,7 +165,7 @@ public final class KreuzbergDocumentReader implements DocumentReader {
 		 * @throws IllegalArgumentException
 		 *             if resource is null or MIME type cannot be determined
 		 */
-		public KreuzbergDocumentReader build() {
+		public XbergDocumentReader build() {
 			if (resource == null) {
 				throw new IllegalArgumentException("resource is required");
 			}
@@ -173,26 +173,26 @@ public final class KreuzbergDocumentReader implements DocumentReader {
 				throw new IllegalArgumentException(
 						"mimeType is required when resource has no filename (e.g. ByteArrayResource)");
 			}
-			return new KreuzbergDocumentReader(this);
+			return new XbergDocumentReader(this);
 		}
 	}
 
 	/**
-	 * Routes extraction to the appropriate Kreuzberg method based on resource type.
+	 * Routes extraction to the appropriate Xberg method based on resource type.
 	 * FileSystemResource uses file-path extraction; all others read bytes into
 	 * memory.
 	 */
-	private ExtractionResult extract() throws IOException, KreuzbergException {
+	private ExtractionResult extract() throws IOException, XbergException {
 		if (resource instanceof FileSystemResource) {
 			if (extractionConfig != null) {
-				return Kreuzberg.extractFile(resource.getFile().toPath(), extractionConfig);
+				return Xberg.extractFile(resource.getFile().toPath(), extractionConfig);
 			}
-			return Kreuzberg.extractFile(resource.getFile().toPath());
+			return Xberg.extractFile(resource.getFile().toPath());
 		}
 
 		byte[] bytes = resource.getInputStream().readAllBytes();
 		ExtractionConfig config = extractionConfig != null ? extractionConfig : ExtractionConfig.builder().build();
-		return Kreuzberg.extractBytes(bytes, resolveMimeType(), config);
+		return Xberg.extractBytes(bytes, resolveMimeType(), config);
 	}
 
 	private String resolveSource() {

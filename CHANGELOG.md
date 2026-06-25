@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of Kreuzberg Spring AI DocumentReader
-- Core `KreuzbergDocumentReader` implementation with fluent Builder API
+- Initial release of Xberg Spring AI DocumentReader
+- Core `XbergDocumentReader` implementation with fluent Builder API
 - Support for multiple input resource types:
   - `FileSystemResource` (optimized direct file extraction)
   - `ByteArrayResource` (in-memory content with explicit MIME type)
@@ -29,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive test suite:
   - 29 unit tests covering all code paths
   - 80%+ line coverage via JaCoCo
-  - Mocked Kreuzberg extraction for isolated testing
+  - Mocked Xberg extraction for isolated testing
   - Validation and error handling verification
 - Build tooling and quality gates:
   - Google Java Format via Spotless for code consistency
@@ -53,7 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Capabilities
 
-- **100+ document format support** via Kreuzberg:
+- **100+ document format support** via Xberg:
   - Office documents (PDF, DOCX, XLSX, PPTX, ODT, ODS, ODP)
   - Web formats (HTML, XML, XHTML)
   - Structured formats (JSON, YAML, CSV)
@@ -73,6 +73,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Notes
 
-- Requires Java 25 with `--enable-preview` flag due to Foreign Function & Memory API usage in Kreuzberg
+- Requires Java 25 with `--enable-preview` flag due to Foreign Function & Memory API usage in Xberg
 - Native libraries (~43 MB) are bundled in the JAR; zero additional Java dependencies beyond Jackson (included in Spring Boot)
-- All extraction APIs are pass-through for future Kreuzberg version compatibility
+- All extraction APIs are pass-through for future Xberg version compatibility

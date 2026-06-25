@@ -12,17 +12,17 @@ priority: medium
 
 ## Coordinates
 
-- Group: `dev.kreuzberg`, Artifact: `kreuzberg-spring-ai-document-reader`
-- Package: `dev.kreuzberg.springai`
+- Group: `dev.xberg`, Artifact: `xberg-spring-ai-document-reader`
+- Package: `dev.xberg.springai`
 
 ## Public API
 
-- Single class: `KreuzbergDocumentReader implements DocumentReader` (Spring AI)
+- Single class: `XbergDocumentReader implements DocumentReader` (Spring AI)
 - Builder pattern for configuration
 
 ## Key Dependencies
 
-- `dev.kreuzberg:kreuzberg` (Java binding, version property `kreuzberg.version`)
+- `dev.xberg:xberg` (Java binding, version property `xberg.version`)
 - `org.springframework.ai:spring-ai-commons`
 
 ## Quality Gates (`./mvnw verify`)

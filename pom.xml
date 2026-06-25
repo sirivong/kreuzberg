@@ -4,13 +4,13 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>dev.kreuzberg</groupId>
-    <artifactId>kreuzberg-spring-ai-document-reader</artifactId>
+    <groupId>dev.xberg</groupId>
+    <artifactId>xberg-spring-ai-document-reader</artifactId>
     <version>0.1.0</version>
     <packaging>jar</packaging>
 
-    <name>Kreuzberg Spring AI Document Reader</name>
-    <description>Spring AI DocumentReader integration for Kreuzberg document extraction engine</description>
+    <name>Xberg Spring AI Document Reader</name>
+    <description>Spring AI DocumentReader integration for Xberg document extraction engine</description>
     <url>https://github.com/xberg-io/xberg-spring-ai</url>
 
     <licenses>
@@ -31,13 +31,13 @@
         <developer>
             <name>Na'aman Hirschfeld</name>
             <email>naaman@xberg.io</email>
-            <organization>Kreuzberg</organization>
+            <organization>Xberg</organization>
             <organizationUrl>https://github.com/xberg-io</organizationUrl>
         </developer>
         <developer>
-            <name>Kreuzberg Contributors</name>
+            <name>Xberg Contributors</name>
             <email>contact@xberg.io</email>
-            <organization>Kreuzberg</organization>
+            <organization>Xberg</organization>
             <organizationUrl>https://github.com/xberg-io</organizationUrl>
         </developer>
     </developers>
@@ -45,7 +45,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>25</maven.compiler.release>
-        <kreuzberg.version>4.6.3</kreuzberg.version>
+        <xberg.version>1.0.0</xberg.version>
         <spring-ai.version>1.0.0</spring-ai.version>
         <junit.version>5.12.2</junit.version>
         <assertj.version>3.27.3</assertj.version>
@@ -76,9 +76,9 @@
 
     <dependencies>
         <dependency>
-            <groupId>dev.kreuzberg</groupId>
-            <artifactId>kreuzberg</artifactId>
-            <version>${kreuzberg.version}</version>
+            <groupId>dev.xberg</groupId>
+            <artifactId>xberg</artifactId>
+            <version>${xberg.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.ai</groupId>

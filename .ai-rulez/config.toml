@@ -2,14 +2,14 @@
 # Documentation: https://github.com/Goldziher/ai-rulez
 
 version = '4.0'
-name = 'kreuzberg-spring-ai'
-description = 'Spring AI DocumentReader integration for kreuzberg'
+name = 'xberg-spring-ai'
+description = 'Spring AI DocumentReader integration for xberg'
 gitignore = true
 presets = ['claude', 'codex', 'copilot', 'cursor', 'antigravity']
 builtins = ['java', 'default-commands']
 
 [[includes]]
-name = 'kreuzberg-core'
+name = 'xberg-core'
 source = 'https://github.com/xberg-io/ai-rulez.git'
 path = 'modules/core'
 merge_strategy = 'local-override'

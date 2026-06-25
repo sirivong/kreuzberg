@@ -1,4 +1,4 @@
-package dev.kreuzberg;
+package dev.xberg;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,7 +15,7 @@ import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
  * configured ObjectMapper (with Jdk8Module for Optional support).
  *
  * <p>
- * This bypasses the kreuzberg library's internal ResultParser which lacks
+ * This bypasses the xberg library's internal ResultParser which lacks
  * Jdk8Module registration and fails with Jackson 2.21+.
  */
 public final class ExtractionResultFactory {
@@ -42,7 +42,7 @@ public final class ExtractionResultFactory {
 			@JsonProperty("annotations") List<PdfAnnotation> annotations) {
 	}
 
-	public static ExtractionResult fromJson(String json) throws KreuzbergException {
+	public static ExtractionResult fromJson(String json) throws XbergException {
 		try {
 			Wire w = MAPPER.readValue(json, Wire.class);
 			return new ExtractionResult(Optional.ofNullable(w.content).orElse(""),
@@ -53,7 +53,7 @@ public final class ExtractionResultFactory {
 					w.djotContent, w.document, nullToEmpty(w.extractedKeywords), w.qualityScore,
 					nullToEmpty(w.processingWarnings), nullToEmpty(w.annotations));
 		} catch (Exception e) {
-			throw new KreuzbergException("Failed to parse result JSON", e);
+			throw new XbergException("Failed to parse result JSON", e);
 		}
 	}
 

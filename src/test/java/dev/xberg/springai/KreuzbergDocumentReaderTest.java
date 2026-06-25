@@ -1,15 +1,15 @@
-package dev.kreuzberg.springai;
+package dev.xberg.springai;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 
-import dev.kreuzberg.ExtractionResult;
-import dev.kreuzberg.ExtractionResultFactory;
-import dev.kreuzberg.Kreuzberg;
-import dev.kreuzberg.KreuzbergException;
-import dev.kreuzberg.config.ExtractionConfig;
+import dev.xberg.ExtractionResult;
+import dev.xberg.ExtractionResultFactory;
+import dev.xberg.Xberg;
+import dev.xberg.XbergException;
+import dev.xberg.config.ExtractionConfig;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
@@ -24,7 +24,7 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 
-class KreuzbergDocumentReaderTest {
+class XbergDocumentReaderTest {
 
 	private static ExtractionResult createResult(String json) throws Exception {
 		return ExtractionResultFactory.fromJson(json);
@@ -37,28 +37,28 @@ class KreuzbergDocumentReaderTest {
 
 		@Test
 		void shouldThrowWhenResourceIsNull() {
-			assertThatThrownBy(() -> KreuzbergDocumentReader.builder().build())
+			assertThatThrownBy(() -> XbergDocumentReader.builder().build())
 					.isInstanceOf(IllegalArgumentException.class).hasMessageContaining("resource is required");
 		}
 
 		@Test
 		void shouldThrowWhenByteArrayResourceWithoutMimeType() {
 			ByteArrayResource resource = new ByteArrayResource(new byte[]{1, 2, 3});
-			assertThatThrownBy(() -> KreuzbergDocumentReader.builder().resource(resource).build())
+			assertThatThrownBy(() -> XbergDocumentReader.builder().resource(resource).build())
 					.isInstanceOf(IllegalArgumentException.class).hasMessageContaining("mimeType is required");
 		}
 
 		@Test
 		void shouldBuildWithFileSystemResource() {
 			FileSystemResource resource = new FileSystemResource("src/test/resources/fixtures/sample.pdf");
-			KreuzbergDocumentReader reader = KreuzbergDocumentReader.builder().resource(resource).build();
+			XbergDocumentReader reader = XbergDocumentReader.builder().resource(resource).build();
 			assertThat(reader).isNotNull();
 		}
 
 		@Test
 		void shouldBuildWithByteArrayResourceAndMimeType() {
 			ByteArrayResource resource = new ByteArrayResource(new byte[]{1, 2, 3});
-			KreuzbergDocumentReader reader = KreuzbergDocumentReader.builder().resource(resource)
+			XbergDocumentReader reader = XbergDocumentReader.builder().resource(resource)
 					.mimeType("application/pdf").build();
 			assertThat(reader).isNotNull();
 		}
@@ -77,14 +77,14 @@ class KreuzbergDocumentReaderTest {
 					"tables":[],"detected_languages":["en"],"chunks":[],"images":[],\
 					"pages":[],"elements":[]}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				assertThat(docs).hasSize(1);
 				assertThat(docs.getFirst().getText()).isEqualTo("Hello");
-				mocked.verify(() -> Kreuzberg.extractFile(any(Path.class)));
+				mocked.verify(() -> Xberg.extractFile(any(Path.class)));
 			}
 		}
 
@@ -97,15 +97,15 @@ class KreuzbergDocumentReaderTest {
 					"tables":[],"detected_languages":[],"chunks":[],"images":[],\
 					"pages":[],"elements":[]}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class), any(ExtractionConfig.class)))
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class), any(ExtractionConfig.class)))
 						.thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).extractionConfig(config)
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).extractionConfig(config)
 						.build().get();
 
 				assertThat(docs).hasSize(1);
-				mocked.verify(() -> Kreuzberg.extractFile(any(Path.class), any(ExtractionConfig.class)));
+				mocked.verify(() -> Xberg.extractFile(any(Path.class), any(ExtractionConfig.class)));
 			}
 		}
 	}
@@ -124,17 +124,17 @@ class KreuzbergDocumentReaderTest {
 					"tables":[],"detected_languages":[],"chunks":[],"images":[],\
 					"pages":[],"elements":[]}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
 				mocked.when(
-						() -> Kreuzberg.extractBytes(any(byte[].class), any(String.class), any(ExtractionConfig.class)))
+						() -> Xberg.extractBytes(any(byte[].class), any(String.class), any(ExtractionConfig.class)))
 						.thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).mimeType("application/pdf")
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).mimeType("application/pdf")
 						.build().get();
 
 				assertThat(docs).hasSize(1);
 				assertThat(docs.getFirst().getText()).isEqualTo("Bytes content");
-				mocked.verify(() -> Kreuzberg.extractBytes(any(byte[].class), eq("application/pdf"),
+				mocked.verify(() -> Xberg.extractBytes(any(byte[].class), eq("application/pdf"),
 						any(ExtractionConfig.class)));
 			}
 		}
@@ -151,15 +151,15 @@ class KreuzbergDocumentReaderTest {
 
 			String docxMime = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
 				mocked.when(
-						() -> Kreuzberg.extractBytes(any(byte[].class), any(String.class), any(ExtractionConfig.class)))
+						() -> Xberg.extractBytes(any(byte[].class), any(String.class), any(ExtractionConfig.class)))
 						.thenReturn(result);
 
-				KreuzbergDocumentReader.builder().resource(resource).mimeType(docxMime).build().get();
+				XbergDocumentReader.builder().resource(resource).mimeType(docxMime).build().get();
 
 				mocked.verify(
-						() -> Kreuzberg.extractBytes(any(byte[].class), eq(docxMime), any(ExtractionConfig.class)));
+						() -> Xberg.extractBytes(any(byte[].class), eq(docxMime), any(ExtractionConfig.class)));
 			}
 		}
 	}
@@ -177,16 +177,16 @@ class KreuzbergDocumentReaderTest {
 					"tables":[],"detected_languages":[],"chunks":[],"images":[],\
 					"pages":[],"elements":[]}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
 				mocked.when(
-						() -> Kreuzberg.extractBytes(any(byte[].class), any(String.class), any(ExtractionConfig.class)))
+						() -> Xberg.extractBytes(any(byte[].class), any(String.class), any(ExtractionConfig.class)))
 						.thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				assertThat(docs).hasSize(1);
 				assertThat(docs.getFirst().getText()).isEqualTo("ClassPath content");
-				mocked.verify(() -> Kreuzberg.extractBytes(any(byte[].class), any(String.class),
+				mocked.verify(() -> Xberg.extractBytes(any(byte[].class), any(String.class),
 						any(ExtractionConfig.class)));
 			}
 		}
@@ -199,15 +199,15 @@ class KreuzbergDocumentReaderTest {
 					"tables":[],"detected_languages":[],"chunks":[],"images":[],\
 					"pages":[],"elements":[]}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
 				mocked.when(
-						() -> Kreuzberg.extractBytes(any(byte[].class), any(String.class), any(ExtractionConfig.class)))
+						() -> Xberg.extractBytes(any(byte[].class), any(String.class), any(ExtractionConfig.class)))
 						.thenReturn(result);
 
-				KreuzbergDocumentReader.builder().resource(resource).mimeType("text/plain").build().get();
+				XbergDocumentReader.builder().resource(resource).mimeType("text/plain").build().get();
 
 				mocked.verify(
-						() -> Kreuzberg.extractBytes(any(byte[].class), eq("text/plain"), any(ExtractionConfig.class)));
+						() -> Xberg.extractBytes(any(byte[].class), eq("text/plain"), any(ExtractionConfig.class)));
 			}
 		}
 	}
@@ -251,10 +251,10 @@ class KreuzbergDocumentReaderTest {
 					  "processing_warnings": [{"source": "ocr", "message": "Low confidence"}]
 					}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				Map<String, Object> metadata = docs.getFirst().getMetadata();
 				assertThat(metadata.get("source")).isEqualTo("sample.pdf");
@@ -290,10 +290,10 @@ class KreuzbergDocumentReaderTest {
 					"tables":[],"detected_languages":["en"],"chunks":[],"images":[],\
 					"pages":[],"elements":[]}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				Map<String, Object> metadata = docs.getFirst().getMetadata();
 				assertThat(metadata).containsKey("source");
@@ -327,10 +327,10 @@ class KreuzbergDocumentReaderTest {
 					  "elements": []
 					}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				Map<String, Object> metadata = docs.getFirst().getMetadata();
 				assertThat(metadata.get("authors")).isEqualTo("John, Jane");
@@ -356,10 +356,10 @@ class KreuzbergDocumentReaderTest {
 					  "elements": []
 					}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource)
+				List<Document> docs = XbergDocumentReader.builder().resource(resource)
 						.metadata("title", "User Title").metadata("custom_key", "custom_value").build().get();
 
 				Map<String, Object> metadata = docs.getFirst().getMetadata();
@@ -390,10 +390,10 @@ class KreuzbergDocumentReaderTest {
 					  "elements": []
 					}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				Map<String, Object> metadata = docs.getFirst().getMetadata();
 				assertThat(metadata.get("table_count")).isEqualTo(1);
@@ -423,10 +423,10 @@ class KreuzbergDocumentReaderTest {
 					  "elements": []
 					}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				Map<String, Object> metadata = docs.getFirst().getMetadata();
 				assertThat(metadata.get("pdf_version")).isEqualTo("1.7");
@@ -454,10 +454,10 @@ class KreuzbergDocumentReaderTest {
 					  "elements": []
 					}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				Map<String, Object> metadata = docs.getFirst().getMetadata();
 				assertThat(metadata.get("title")).isEqualTo("Typed Title");
@@ -496,10 +496,10 @@ class KreuzbergDocumentReaderTest {
 					  "elements": []
 					}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				assertThat(docs).hasSize(2);
 				assertThat(docs.get(0).getText()).isEqualTo("Chunk 1 text");
@@ -539,10 +539,10 @@ class KreuzbergDocumentReaderTest {
 					  "elements": []
 					}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				assertThat(docs).hasSize(1);
 				Map<String, Object> metadata = docs.getFirst().getMetadata();
@@ -591,10 +591,10 @@ class KreuzbergDocumentReaderTest {
 					  ]
 					}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				assertThat(docs).hasSize(2);
 				assertThat(docs.get(0).getText()).isEqualTo("Title text");
@@ -629,10 +629,10 @@ class KreuzbergDocumentReaderTest {
 					  ]
 					}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				assertThat(docs).hasSize(1);
 				Map<String, Object> metadata = docs.getFirst().getMetadata();
@@ -672,10 +672,10 @@ class KreuzbergDocumentReaderTest {
 					  "elements": []
 					}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				assertThat(docs).hasSize(2);
 				assertThat(docs.get(0).getText()).isEqualTo("Page 1 text");
@@ -714,10 +714,10 @@ class KreuzbergDocumentReaderTest {
 					  "elements": []
 					}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				assertThat(docs).hasSize(1);
 				assertThat(docs.getFirst().getText()).isEqualTo("Chunk content");
@@ -749,10 +749,10 @@ class KreuzbergDocumentReaderTest {
 					  ]
 					}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				assertThat(docs).hasSize(1);
 				assertThat(docs.getFirst().getText()).isEqualTo("Element content");
@@ -767,10 +767,10 @@ class KreuzbergDocumentReaderTest {
 					"tables":[],"detected_languages":[],"chunks":[],"images":[],\
 					"pages":[],"elements":[]}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				assertThat(docs).hasSize(1);
 				assertThat(docs.getFirst().getText()).isEqualTo("Single content");
@@ -791,10 +791,10 @@ class KreuzbergDocumentReaderTest {
 					"tables":[],"detected_languages":[],"chunks":[],"images":[],\
 					"pages":[],"elements":[]}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class))).thenReturn(result);
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class))).thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).build().get();
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).build().get();
 
 				assertThat(docs.getFirst().getMetadata().get("source")).isEqualTo("sample.pdf");
 			}
@@ -808,12 +808,12 @@ class KreuzbergDocumentReaderTest {
 					"tables":[],"detected_languages":[],"chunks":[],"images":[],\
 					"pages":[],"elements":[]}""");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
 				mocked.when(
-						() -> Kreuzberg.extractBytes(any(byte[].class), any(String.class), any(ExtractionConfig.class)))
+						() -> Xberg.extractBytes(any(byte[].class), any(String.class), any(ExtractionConfig.class)))
 						.thenReturn(result);
 
-				List<Document> docs = KreuzbergDocumentReader.builder().resource(resource).mimeType("application/pdf")
+				List<Document> docs = XbergDocumentReader.builder().resource(resource).mimeType("application/pdf")
 						.build().get();
 
 				assertThat(docs.getFirst().getMetadata().get("source")).isEqualTo("bytes://application/pdf");
@@ -827,18 +827,18 @@ class KreuzbergDocumentReaderTest {
 	class ErrorHandling {
 
 		@Test
-		void shouldWrapKreuzbergException() {
+		void shouldWrapXbergException() {
 			FileSystemResource resource = new FileSystemResource("src/test/resources/fixtures/sample.pdf");
 
-			try (MockedStatic<Kreuzberg> mocked = Mockito.mockStatic(Kreuzberg.class)) {
-				mocked.when(() -> Kreuzberg.extractFile(any(Path.class)))
-						.thenThrow(new KreuzbergException("extraction failed"));
+			try (MockedStatic<Xberg> mocked = Mockito.mockStatic(Xberg.class)) {
+				mocked.when(() -> Xberg.extractFile(any(Path.class)))
+						.thenThrow(new XbergException("extraction failed"));
 
-				KreuzbergDocumentReader reader = KreuzbergDocumentReader.builder().resource(resource).build();
+				XbergDocumentReader reader = XbergDocumentReader.builder().resource(resource).build();
 
 				assertThatThrownBy(reader::get).isInstanceOf(RuntimeException.class)
-						.hasMessageContaining("Kreuzberg extraction failed")
-						.hasCauseInstanceOf(KreuzbergException.class);
+						.hasMessageContaining("Xberg extraction failed")
+						.hasCauseInstanceOf(XbergException.class);
 			}
 		}
 
@@ -848,7 +848,7 @@ class KreuzbergDocumentReaderTest {
 			Mockito.when(mockResource.getFilename()).thenReturn("test.pdf");
 			Mockito.when(mockResource.getInputStream()).thenThrow(new IOException("read failed"));
 
-			KreuzbergDocumentReader reader = KreuzbergDocumentReader.builder().resource(mockResource).build();
+			XbergDocumentReader reader = XbergDocumentReader.builder().resource(mockResource).build();
 
 			assertThatThrownBy(reader::get).isInstanceOf(RuntimeException.class)
 					.hasMessageContaining("Failed to extract document").hasCauseInstanceOf(IOException.class);
