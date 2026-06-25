@@ -11,7 +11,7 @@
 
     <name>Kreuzberg Spring AI Document Reader</name>
     <description>Spring AI DocumentReader integration for Kreuzberg document extraction engine</description>
-    <url>https://github.com/xberg-io/kreuzberg-spring-ai</url>
+    <url>https://github.com/xberg-io/xberg-spring-ai</url>
 
     <licenses>
         <license>
@@ -22,9 +22,9 @@
     </licenses>
 
     <scm>
-        <connection>scm:git:git://github.com/xberg-io/kreuzberg-spring-ai.git</connection>
-        <developerConnection>scm:git:ssh://github.com:xberg-io/kreuzberg-spring-ai.git</developerConnection>
-        <url>https://github.com/xberg-io/kreuzberg-spring-ai</url>
+        <connection>scm:git:git://github.com/xberg-io/xberg-spring-ai.git</connection>
+        <developerConnection>scm:git:ssh://github.com:xberg-io/xberg-spring-ai.git</developerConnection>
+        <url>https://github.com/xberg-io/xberg-spring-ai</url>
     </scm>
 
     <developers>
