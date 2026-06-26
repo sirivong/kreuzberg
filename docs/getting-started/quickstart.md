@@ -280,7 +280,7 @@ Pass a list of `ExtractInput` values to `extract_batch`. Mix `kind = "uri"` and
 
 ## Read Document Metadata
 
-Every `ExtractionOutput` contains result metadata in `results`. Each
+Every `ExtractionOutput` contains document metadata in `results`. Each
 `ExtractionResult` includes format-specific metadata: page count for PDFs, sheet
 names for Excel, dimensions for images:
 
@@ -603,7 +603,7 @@ You've covered the core API. Go deeper:
 
 - **[Configuration Guide](../guides/configuration.md)** — OCR backends, chunking, language detection, config files
 - **[Extract from Bytes](../reference/api-python.md#extract)** — Use `ExtractInput(kind="bytes")`
-- **[OCR Setup](../guides/ocr.md)** — Tesseract, PaddleOCR, EasyOCR backends
+- **[OCR Setup](../guides/ocr.md)** — Tesseract, PaddleOCR, Candle, and VLM backends
 - **[Types Reference](../reference/types.md)** — Full metadata fields for every format
 - **[Docker Deployment](../guides/docker.md)** — Run Xberg in containers
 - **[API Reference](../reference/api-python.md)** — Complete API documentation

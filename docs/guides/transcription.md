@@ -67,12 +67,9 @@ Add the feature to `Cargo.toml`:
 xberg = { version = "5", features = ["transcription"] }
 ```
 
-### Async
-
 ```rust
-use xberg::extract;
-use xberg::core::config::ExtractionConfig;
 use xberg::core::config::transcription::{TranscriptionConfig, WhisperModel};
+use xberg::{extract, ExtractInput, ExtractionConfig};
 
 let config = ExtractionConfig {
     transcription: Some(TranscriptionConfig {
@@ -85,29 +82,11 @@ let config = ExtractionConfig {
 };
 
 let bytes = std::fs::read("recording.wav")?;
-let result = extract(&bytes, "audio/wav", &config).await?;
-println!("{}", result.content); // transcript
-```
-
-### Sync
-
-```rust
-use xberg::extract;
-use xberg::core::config::ExtractionConfig;
-use xberg::core::config::transcription::{TranscriptionConfig, WhisperModel};
-
-let config = ExtractionConfig {
-    transcription: Some(TranscriptionConfig {
-        enabled: true,
-        model: WhisperModel::Tiny,
-        ..Default::default()
-    }),
-    ..Default::default()
-};
-
-let bytes = std::fs::read("recording.mp3")?;
-let result = extract(&bytes, "audio/mpeg", &config)?;
-println!("{}", result.content);
+let output = extract(
+    ExtractInput::from_bytes(bytes, "audio/wav", Some("recording.wav".to_string())),
+    &config,
+).await?;
+println!("{}", output.results[0].content); // transcript
 ```
 
 ## Notes
@@ -120,4 +99,4 @@ println!("{}", result.content);
   sessions are loaded once and reused across calls.
 - Async inference calls are bounded by a semaphore sized to
   `resolve_thread_budget`, matching the same limit used by the embedding and
-  reranking pipelines. Sync calls run on the caller thread.
+  reranking pipelines.

@@ -91,7 +91,7 @@ flowchart LR
         Extraction["extraction/\nPDF · Excel · Email\nHTML · XML · Text"]
         OCR["ocr/\nTesseract\nTable detection"]
         Text["text/\nToken reduction\nQuality scoring"]
-        Types["types/\nExtractionResult\nMetadata · Chunk"]
+        Types["types/\nExtractionOutput · ExtractionResult\nMetadata · Chunk"]
         Error["error/\nXbergError"]
     end
 
@@ -112,13 +112,13 @@ flowchart LR
 
 | Module          | Responsibility                                                                                                                                                                                                          |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **core/**       | Main entry points (`extract`, `extract`), MIME detection, config loading, pipeline orchestration                                                                                                             |
+| **core/**       | Main entry points (`extract`, `extract_batch`), MIME detection, config loading, pipeline orchestration                                                                                                             |
 | **plugins/**    | Plugin trait definitions (`DocumentExtractor`, `OcrBackend`, `PostProcessor`, `Validator`, `Renderer`) and the registry system (ExtractorRegistry, OcrRegistry, ValidatorRegistry, ProcessorRegistry, RendererRegistry) |
 | **extractors/** | Maps MIME types to the correct extractor implementation and registers them with the plugin system                                                                                                                       |
 | **extraction/** | Format-specific extraction logic - PDF via pdf_oxide, Excel via calamine, email parsing, and so on.                                                                                                                     |
 | **ocr/**        | OCR orchestration - Tesseract bindings, HOCR parsing, table detection                                                                                                                                                   |
 | **text/**       | Text processing utilities - token reduction, quality scoring, string manipulation                                                                                                                                       |
-| **types/**      | Shared data structures: `ExtractionResult`, `Metadata`, `Chunk`, and friends                                                                                                                                            |
+| **types/**      | Shared data structures: `ExtractionOutput`, `ExtractionResult`, `Metadata`, `Chunk`, and friends                                                                                                                                            |
 | **error/**      | Centralized error handling with the `XbergError` enum                                                                                                                                                               |
 
 ---
@@ -132,8 +132,8 @@ output with full table, heading, and list support.
 
 ```mermaid
 flowchart LR
-    Extractor["Extractor"] --> ID["InternalDocument"]
-    ID --> RR["RendererRegistry"]
+    Extractor["Extractor"] --> Result["ExtractionResult"]
+    Result --> RR["RendererRegistry"]
     RR --> GFM["GFM Markdown"]
     RR --> HTML["HTML5"]
     RR --> Djot["Djot"]
