@@ -34,12 +34,12 @@ pub use acceleration::{AccelerationConfig, ExecutionProviderType};
 pub use concurrency::ConcurrencyConfig;
 pub use content_filter::ContentFilterConfig;
 pub use email::EmailConfig;
-pub use extraction::{
-    ExtractInput, ExtractInputKind, ExtractionConfig, ExtractionErrorItem, ExtractionOutput, ExtractionSummary,
-    FileExtractionConfig, ImageExtractionConfig, LanguageDetectionConfig, TokenReductionOptions, UrlExtractionConfig,
-    UrlExtractionMode,
-};
 pub(crate) use extraction::{BatchBytesItem, BatchFileItem};
+pub use extraction::{
+    CrawlExtractionSummary, ExtractInput, ExtractInputKind, ExtractionConfig, ExtractionErrorItem, ExtractionOutput,
+    ExtractionSummary, FileExtractionConfig, ImageExtractionConfig, LanguageDetectionConfig, TokenReductionOptions,
+    UrlExtractionConfig, UrlExtractionMode,
+};
 pub use formats::OutputFormat;
 #[cfg(feature = "html")]
 pub use html_output::{HtmlOutputConfig, HtmlTheme};

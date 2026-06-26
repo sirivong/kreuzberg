@@ -12,7 +12,8 @@ use crawlberg::{CrawlConfig, CrawlEngine, CrawlPageResult, DownloadedDocument, S
 #[cfg(feature = "url-ingestion")]
 use crate::core::config::UrlExtractionMode;
 use crate::core::config::{
-    ExtractInput, ExtractInputKind, ExtractionConfig, ExtractionErrorItem, ExtractionOutput, ExtractionSummary,
+    CrawlExtractionSummary, ExtractInput, ExtractInputKind, ExtractionConfig, ExtractionErrorItem, ExtractionOutput,
+    ExtractionSummary,
 };
 #[cfg(feature = "url-ingestion")]
 use crate::types::{ExtractedUri, Metadata};
@@ -56,6 +57,7 @@ pub async fn extract_batch(inputs: Vec<ExtractInput>, config: &ExtractionConfig)
                 output.summary.documents_downloaded += item_output.summary.documents_downloaded;
                 output.results.append(&mut item_output.results);
                 output.errors.append(&mut item_output.errors);
+                merge_crawl_summary(&mut output, item_output.crawl.take());
             }
             Err(error) => output.errors.push(error_item(index, source, &error)),
         }
@@ -252,9 +254,14 @@ async fn output_from_scrape(scrape: ScrapeResult, config: &ExtractionConfig, ind
         output.summary.pages_crawled = 1;
     }
 
-    output
-        .crawl
-        .insert("final_url".into(), serde_json::json!(scrape.final_url));
+    merge_crawl_summary(
+        &mut output,
+        Some(CrawlExtractionSummary {
+            final_urls: vec![scrape.final_url],
+            redirect_count: 0,
+            unique_normalized_urls: Vec::new(),
+        }),
+    );
     output.refresh_counts();
     Ok(output)
 }
@@ -303,16 +310,31 @@ async fn output_from_crawl(
         });
     }
 
-    output.crawl.insert("final_url".into(), serde_json::json!(final_url));
-    output
-        .crawl
-        .insert("redirect_count".into(), serde_json::json!(redirect_count));
-    output.crawl.insert(
-        "unique_normalized_urls".into(),
-        serde_json::json!(unique_normalized_urls),
+    merge_crawl_summary(
+        &mut output,
+        Some(CrawlExtractionSummary {
+            final_urls: vec![final_url],
+            redirect_count,
+            unique_normalized_urls,
+        }),
     );
     output.refresh_counts();
     Ok(output)
+}
+
+fn merge_crawl_summary(output: &mut ExtractionOutput, incoming: Option<CrawlExtractionSummary>) {
+    let Some(incoming) = incoming else {
+        return;
+    };
+
+    let summary = output.crawl.get_or_insert_with(CrawlExtractionSummary::default);
+    summary.redirect_count += incoming.redirect_count;
+    summary.final_urls.extend(incoming.final_urls);
+    for url in incoming.unique_normalized_urls {
+        if !summary.unique_normalized_urls.contains(&url) {
+            summary.unique_normalized_urls.push(url);
+        }
+    }
 }
 
 #[cfg(feature = "url-ingestion")]
@@ -738,12 +760,18 @@ mod tests {
     async fn extract_file_uri_accepts_localhost_host() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("doc.txt");
-        File::create(&path).unwrap().write_all(b"hello localhost file uri").unwrap();
+        File::create(&path)
+            .unwrap()
+            .write_all(b"hello localhost file uri")
+            .unwrap();
 
         let config = ExtractionConfig::default();
-        let output = extract(ExtractInput::uri(format!("file://localhost{}", path.display())), &config)
-            .await
-            .unwrap();
+        let output = extract(
+            ExtractInput::uri(format!("file://localhost{}", path.display())),
+            &config,
+        )
+        .await
+        .unwrap();
 
         assert_eq!(output.results.len(), 1);
         assert_eq!(output.results[0].content.trim(), "hello localhost file uri");

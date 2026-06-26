@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `.xberg/` → `.xberg/`.
   - **FFI:** symbol prefix `xberg_*` → `xberg_*`; header `xberg.h` → `xberg.h`; lib
     `xberg_ffi` → `xberg_ffi`.
-  - **Package coordinates:** PyPI `xberg`, npm `@xberg/*`, RubyGems/Hex/pub.dev `xberg`, Maven
+  - **Package coordinates:** PyPI `xberg`, npm `@xberg-io/*`, RubyGems/Hex/pub.dev `xberg`, Maven
     `io.xberg`, NuGet `Xberg`, Packagist `xberg-io/xberg`, Homebrew `xberg`.
   - **Go:** module `github.com/xberg-io/xberg` with **no `/vN` suffix** (v1); the binding now lives at
     `packages/go/` (the `packages/go/{v4,v5}` layout is removed).
@@ -407,7 +407,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Publish: unblock minimumReleaseAge supply-chain gate.** Sets `minimumReleaseAge: 0` in `pnpm-workspace.yaml` so first-party `@xberg/*` platform packages are no longer rejected by pnpm's default 24h supply-chain delay during the publish workflow's Build Node bindings stage. Replaces the per-rc `minimumReleaseAgeExclude` allowlist that was lagging behind every release. Matches the policy used by sibling liter-llm repo.
+- **Publish: unblock minimumReleaseAge supply-chain gate.** Sets `minimumReleaseAge: 0` in `pnpm-workspace.yaml` so first-party `@xberg-io/*` platform packages are no longer rejected by pnpm's default 24h supply-chain delay during the publish workflow's Build Node bindings stage. Replaces the per-rc `minimumReleaseAgeExclude` allowlist that was lagging behind every release. Matches the policy used by sibling liter-llm repo.
 - **Publish: version drift in root manifests.** Bumped `package.json` (root) and `crates/xberg-py/src/pyproject.toml` from rc.12 to rc.13/rc.14; previously missed by alef `sync-versions`. Filed alef issue for the PEP 440 PyPI manifest and root `package.json` coverage gap.
 - **Mobile/ARM build: dart binding crate now compiles when upstream variants are cfg-gated.** Bumps alef pin to v0.25.8 which (a) emits `_ => unreachable!(...)` catch-all arms in alef-generated `From<CoreType>` impls so non-exhaustive matches are exhaustive when binding crate doesn't enable upstream features (e.g. `svg`, `heic`), and (b) strips variant-level `#[cfg(...)]` attrs from the mirror enum body so flutter_rust_bridge's unconditional variant references in `frb_generated.rs` resolve correctly. Previously failed CI Mobile cargo check (4× Android/iOS targets) and Rust CI ubuntu-24.04-arm with `error[E0004]` and `error[E0599]` in `packages/dart/rust/src/lib.rs`.
 

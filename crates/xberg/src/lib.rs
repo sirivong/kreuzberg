@@ -202,12 +202,13 @@ pub use core::extractor::{extract_batch_sync, extract_sync};
 // ── Extraction config types ───────────────────────────────────────────────────
 pub use core::config::{
     AccelerationConfig, CallMode, CaptioningConfig, ChunkSizing, ChunkerType, ChunkingConfig, ContentFilterConfig,
-    EmailConfig, EmbeddingConfig, EmbeddingModelType, ExecutionProviderType, ExtractInput, ExtractInputKind,
-    ExtractionConfig, ExtractionErrorItem, ExtractionOutput, ExtractionSummary, FileExtractionConfig,
-    ImageExtractionConfig, LanguageDetectionConfig, LlmConfig, MergeMode, NerBackendKind, NerConfig, OcrConfig,
-    OutputFormat, PageClassificationConfig, PageConfig, PostProcessorConfig, RedactionConfig, RedactionPattern,
-    RedactionTerm, RerankerConfig, RerankerModelType, StructuredExtractionConfig, SummarizationConfig,
-    TableChunkingMode, TokenReductionOptions, TranslationConfig, UrlExtractionConfig, UrlExtractionMode,
+    CrawlExtractionSummary, EmailConfig, EmbeddingConfig, EmbeddingModelType, ExecutionProviderType, ExtractInput,
+    ExtractInputKind, ExtractionConfig, ExtractionErrorItem, ExtractionOutput, ExtractionSummary,
+    FileExtractionConfig, ImageExtractionConfig, LanguageDetectionConfig, LlmConfig, MergeMode, NerBackendKind,
+    NerConfig, OcrConfig, OutputFormat, PageClassificationConfig, PageConfig, PostProcessorConfig, RedactionConfig,
+    RedactionPattern, RedactionTerm, RerankerConfig, RerankerModelType, StructuredExtractionConfig,
+    SummarizationConfig, TableChunkingMode, TokenReductionOptions, TranslationConfig, UrlExtractionConfig,
+    UrlExtractionMode,
 };
 #[cfg(feature = "transcription-types")]
 pub use core::config::{TranscriptionConfig, WhisperModel};

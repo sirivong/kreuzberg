@@ -655,9 +655,8 @@ needs_image_processing.ExtractionConfig <- function(x, ...) x$needs_image_proces
 #' Per-file extraction configuration overrides for batch processing
 #'
 #' All fields are `Option<T>` — `None` means "use the batch-level default."
-#' This type is used with `batch_extract_files` and
-#' `batch_extract_bytes` to allow heterogeneous
-#' extraction settings within a single batch.
+#' This type is used by `config` and `extract_batch`
+#' to allow heterogeneous extraction settings within a single batch.
 #'
 #' # Excluded Fields
 #'
@@ -3941,7 +3940,7 @@ PresetSample <- new.env(parent = emptyenv())
 #' Each preset is a JSON file under `src/presets/library/<id>/v1.json` that
 #' validates against the meta-schema in `src/presets/preset.schema.json`.
 #'
-#' The curated catalog is downstream (xberg-enterprise) and injects presets via
+#' Downstream catalog consumers can inject presets via
 #' `extend_from_dir`. The embedded OSS library
 #' ships only the `generic_document` toy preset.
 #' @field id Stable, URL-safe preset identifier (lowercase snake_case).

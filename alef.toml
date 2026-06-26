@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.29.0"
+alef_version = "0.29.1"
 languages = [
   "python",
   "node",
@@ -156,8 +156,8 @@ sources = [
   # Only the FFI-safe JSON-string bridge is exposed; the async engine,
   # StructuredOptions (Arc<dyn VisionCallCache>) and liter-llm types stay internal.
   "crates/xberg/src/structured/bindings.rs",
-  # Batch extraction functions (re-exported from lib.rs)
-  "crates/xberg/src/core/extractor/mod.rs",
+  # Unified extraction functions (re-exported from lib.rs)
+  "crates/xberg/src/core/extractor/unified.rs",
   "crates/xberg/src/core/extractor/sync.rs",
   # PDF rendering (render_pdf_page_to_png — re-exported from lib.rs)
   "crates/xberg/src/pdf/render.rs",
@@ -369,8 +369,6 @@ exclude_types = [
   "OcrCacheStats",
   "TessdataManager",
   "PageLayoutResult",
-  # MCP parameter types not compatible with wasm-bindgen (Option<JsValue> fields)
-  "BatchExtractFilesParams",
 ]
 exclude_functions = [
   # paddle-ocr / layout-detection / embeddings / auto-rotate
@@ -971,6 +969,11 @@ types = [
   # public entry points.
   "ClassifyContext",
   "xberg::text::classification::page_classifier::ClassifyContext",
+
+  # Legacy extraction DTOs kept only for internal helpers. The v1 public
+  # extraction surface is ExtractInput plus extract/extract_batch.
+  "BatchBytesItem",
+  "BatchFileItem",
 ]
 methods = [
   # From<T> trait impls — auto-emitted by derive/trait-bridge
@@ -1050,6 +1053,17 @@ functions = [
   "extract_structured_sync",
   "split_and_extract",
   "split_and_extract_sync",
+
+  # Legacy extraction entry points kept only as internal implementation helpers.
+  # The v1 public extraction surface is ExtractInput plus extract/extract_batch.
+  "extract_bytes",
+  "extract_bytes_sync",
+  "extract_file",
+  "extract_file_sync",
+  "batch_extract_bytes",
+  "batch_extract_bytes_sync",
+  "batch_extract_files",
+  "batch_extract_files_sync",
 ]
 
 [crates.lint.python]

@@ -7,7 +7,6 @@
 //! - Batch extraction items
 
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use crate::types::ExtractionResult;
@@ -236,6 +235,21 @@ pub struct ExtractionSummary {
     pub documents_downloaded: usize,
 }
 
+/// Crawl and URL ingestion summary for an extraction call.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
+pub struct CrawlExtractionSummary {
+    /// Final URLs reached after redirects.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub final_urls: Vec<String>,
+    /// Total redirects followed while fetching or crawling URLs.
+    #[serde(default, skip_serializing_if = "crate::core::config::extraction::types::is_zero")]
+    pub redirect_count: usize,
+    /// Unique normalized URLs discovered by crawls.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unique_normalized_urls: Vec<String>,
+}
+
 /// Unified extraction output envelope.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
@@ -247,9 +261,9 @@ pub struct ExtractionOutput {
     pub errors: Vec<ExtractionErrorItem>,
     /// Aggregate counts for the operation.
     pub summary: ExtractionSummary,
-    /// Optional implementation-specific crawl metadata.
-    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    pub crawl: BTreeMap<String, serde_json::Value>,
+    /// Optional crawl and URL ingestion metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub crawl: Option<CrawlExtractionSummary>,
 }
 
 impl ExtractionOutput {
@@ -270,6 +284,10 @@ impl ExtractionOutput {
         self.summary.results = self.results.len();
         self.summary.errors = self.errors.len();
     }
+}
+
+pub(crate) fn is_zero(value: &usize) -> bool {
+    *value == 0
 }
 
 /// URL extraction mode.

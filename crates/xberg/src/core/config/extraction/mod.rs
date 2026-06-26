@@ -20,11 +20,11 @@ pub use self::core::ExtractionConfig;
 pub use self::file_config::FileExtractionConfig;
 #[cfg(feature = "svg")]
 pub use self::types::SvgOptions;
+pub(crate) use self::types::{BatchBytesItem, BatchFileItem};
 pub use self::types::{
     ExtractInput, ExtractInputKind, ExtractionErrorItem, ExtractionOutput, ExtractionSummary, ImageExtractionConfig,
     ImageOutputFormat, LanguageDetectionConfig, TokenReductionOptions, UrlExtractionConfig, UrlExtractionMode,
 };
-pub(crate) use self::types::{BatchBytesItem, BatchFileItem};
 
 #[cfg(test)]
 mod tests {

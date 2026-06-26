@@ -134,9 +134,8 @@ It can be loaded from TOML, YAML, or JSON files, or created programmatically.
 Per-file extraction configuration overrides for batch processing.
 
 All fields are `Option<T>` — `None` means "use the batch-level default."
-This type is used with `batch_extract_files` and
-`batch_extract_bytes` to allow heterogeneous
-extraction settings within a single batch.
+This type is used by `config` and `extract_batch`
+to allow heterogeneous extraction settings within a single batch.
 
 ## Excluded Fields
 

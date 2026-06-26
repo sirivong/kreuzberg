@@ -67,6 +67,7 @@ pub fn extract_batch_sync(inputs: Vec<ExtractInput>, config: &ExtractionConfig) 
 /// # Ok::<(), xberg::XbergError>(())
 /// ```
 #[cfg(feature = "tokio-runtime")]
+#[cfg_attr(alef, alef(skip))]
 pub(crate) fn extract_file_sync(
     path: impl AsRef<Path>,
     mime_type: Option<&str>,
@@ -96,6 +97,7 @@ pub(crate) fn extract_file_sync(
 /// # Ok::<(), xberg::XbergError>(())
 /// ```
 #[cfg(feature = "tokio-runtime")]
+#[cfg_attr(alef, alef(skip))]
 pub(crate) fn extract_bytes_sync(
     content: &[u8],
     mime_type: &str,
@@ -109,6 +111,7 @@ pub(crate) fn extract_bytes_sync(
 /// This is a truly synchronous implementation without tokio runtime dependency.
 /// It calls `extract_bytes_sync_impl()` to perform the extraction.
 #[cfg(not(feature = "tokio-runtime"))]
+#[cfg_attr(alef, alef(skip))]
 pub(crate) fn extract_bytes_sync(
     content: &[u8],
     mime_type: &str,
@@ -140,6 +143,7 @@ pub(crate) fn extract_bytes_sync(
 /// # Ok::<(), xberg::XbergError>(())
 /// ```
 #[cfg(feature = "tokio-runtime")]
+#[cfg_attr(alef, alef(skip))]
 pub(crate) fn batch_extract_files_sync(
     items: Vec<BatchFileItem>,
     config: &ExtractionConfig,
@@ -173,6 +177,7 @@ pub(crate) fn batch_extract_files_sync(
 /// # Ok::<(), xberg::XbergError>(())
 /// ```
 #[cfg(feature = "tokio-runtime")]
+#[cfg_attr(alef, alef(skip))]
 pub(crate) fn batch_extract_bytes_sync(
     items: Vec<BatchBytesItem>,
     config: &ExtractionConfig,
@@ -184,6 +189,7 @@ pub(crate) fn batch_extract_bytes_sync(
 ///
 /// Iterates through items sequentially, applying per-file config overrides.
 #[cfg(not(feature = "tokio-runtime"))]
+#[cfg_attr(alef, alef(skip))]
 pub(crate) fn batch_extract_bytes_sync(
     items: Vec<BatchBytesItem>,
     config: &ExtractionConfig,
