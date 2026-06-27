@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.29.3"
+alef_version = "0.29.5"
 languages = [
   "python",
   "node",
@@ -526,6 +526,11 @@ visitor_callbacks = false
 plugin_error_constructor = "xberg::XbergError::Plugin { message: msg, plugin_name: String::new() }"
 exclude_types = [
   "LlmBackend",
+  "EnrichOptions",
+  "EnrichResult",
+  "EnrichStatus",
+  "ChunkPlan",
+  "ChunkingDecision",
 ]
 exclude_functions = [
   "calculate_quality_score",
@@ -1266,6 +1271,16 @@ types = [
   # Standalone helper DTOs that remain Rust-only for v1 bindings. The
   # extraction pipeline exposes their effects through ExtractionResult and
   # ExtractionConfig, not through separate binding helper APIs.
+  "EnrichOptions",
+  "EnrichResult",
+  "EnrichStatus",
+  "xberg::enrichment::EnrichOptions",
+  "xberg::enrichment::EnrichResult",
+  "xberg::enrichment::EnrichStatus",
+  "ChunkPlan",
+  "ChunkingDecision",
+  "xberg::heuristics::decision::ChunkPlan",
+  "xberg::heuristics::decision::ChunkingDecision",
   "ChunkingResult",
   "ConfidenceSignals",
   "ConfidenceWeights",
@@ -1462,9 +1477,9 @@ format = "cd packages/ruby && bundle exec rubocop -a ."
 
 [crates.lint.php]
 precondition = "command -v composer >/dev/null 2>&1"
-before = "cd packages/php && composer install"
-format = "cd packages/php && vendor/bin/php-cs-fixer fix ."
-check = "cd packages/php && vendor/bin/phpstan --configuration=phpstan.neon --memory-limit=512M"
+before = "composer install"
+format = "composer format"
+check = "composer phpstan"
 
 [crates.lint.go]
 before = "cargo build --release -p xberg-ffi"
@@ -1836,6 +1851,7 @@ options_type = "Xberg::ExtractionConfig"
 # Elixir Rustler facades don't consistently use keyword opts (some use positional defaults),
 # so struct-literal generation causes mismatches. Use JSON strings instead for compatibility.
 # handle_struct_type = "ExtractionConfig"
+keyword_args = true
 
 [crates.e2e.call.overrides.wasm]
 options_type = "WasmExtractionConfig"

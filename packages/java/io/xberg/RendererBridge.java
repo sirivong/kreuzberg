@@ -165,8 +165,8 @@ public final class RendererBridge implements AutoCloseable {
         try {
             String result_json = result_in.reinterpret(Long.MAX_VALUE).getString(0);
             ExtractedDocument result = JSON.readValue(result_json, ExtractedDocument.class);
-            String result = impl.render_result(result);
-            MemorySegment jsonCs = arena.allocateFrom(result);
+            String callbackResult = impl.render_result(result);
+            MemorySegment jsonCs = arena.allocateFrom(callbackResult);
             outResult.set(ValueLayout.ADDRESS, 0, jsonCs);
             return 0;
         } catch (Throwable e) {

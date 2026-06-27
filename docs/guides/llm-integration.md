@@ -267,7 +267,10 @@ provider routing; point to your local server without needing an API key.
 
 ### Example: Ollama
 
-=== "CLI" ```Bash
+<!-- textlint-disable terminology -->
+
+=== "CLI"
+    ```bash
 
     # Start Ollama and pull a model
 
@@ -286,7 +289,9 @@ provider routing; point to your local server without needing an API key.
       --text "Hello world"
     ```
 
-=== "Python" ```python from xberg import extract, ExtractionConfig, StructuredExtractionConfig, LlmConfig
+=== "Python"
+    ```python
+    from xberg import ExtractInput, ExtractionConfig, LlmConfig, StructuredExtractionConfig, extract
 
     config = ExtractionConfig(
         structured_extraction=StructuredExtractionConfig(
@@ -294,17 +299,25 @@ provider routing; point to your local server without needing an API key.
             llm=LlmConfig(model="ollama/llama3.2"),  # No api_key needed
         ),
     )
-    result = await extract("doc.pdf", config=config)
+    result = await extract(ExtractInput.from_uri("doc.pdf"), config)
     ```
 
-=== "TOML Config" ```toml [structured_extraction.llm] model = "ollama/llama3.2"
+=== "TOML Config"
+    ```toml
+    [structured_extraction.llm]
+    model = "ollama/llama3.2"
 
     # No api_key needed for local providers
     ```
 
-!!! Tip "Custom Base URL" If your local server runs on a non-default port, use `base_url`:
-`python
-    LlmConfig(model="ollama/llama3.2", base_url="http://localhost:11435/v1")`
+<!-- textlint-enable terminology -->
+
+!!! Tip "Custom Base URL"
+    If your local server runs on a non-default port, use `base_url`:
+
+    ```python
+    LlmConfig(model="ollama/llama3.2", base_url="http://localhost:11435/v1")
+    ```
 
 ## LLM Usage Tracking
 

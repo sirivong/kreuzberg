@@ -97,13 +97,13 @@ Extract text, tables, images, metadata, and code intelligence from 96 file forma
 Install via NuGet:
 
 ```bash
-dotnet add package Xberg
+dotnet add package XbergIo.Xberg
 ```
 
 Or via NuGet Package Manager:
 
 ```
-Install-Package Xberg
+Install-Package XbergIo.Xberg
 ```
 
 ### System Requirements

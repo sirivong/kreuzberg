@@ -236,7 +236,11 @@ async function extractAsync(filePath: string, ocrEnabled: boolean): Promise<Benc
 	const mimeType = guessMimeType(filePath);
 	const start = performance.now();
 	const result = firstResult(
-		await withTimeout(extract({ kind: "uri", uri: filePath, mime_type: mimeType ?? undefined }, config), filePath, mimeType),
+		await withTimeout(
+			extract({ kind: "uri", uri: filePath, mime_type: mimeType ?? undefined }, config),
+			filePath,
+			mimeType,
+		),
 		filePath,
 	);
 	const durationMs = performance.now() - start;

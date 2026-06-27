@@ -174,8 +174,8 @@ public final class EmbeddingBackendBridge implements AutoCloseable {
 
     private int handleDimensions(MemorySegment userData, MemorySegment outResult, MemorySegment outError) {
         try {
-            long result = impl.dimensions();
-            String json = JSON.writeValueAsString(result);
+            long callbackResult = impl.dimensions();
+            String json = JSON.writeValueAsString(callbackResult);
             MemorySegment jsonCs = arena.allocateFrom(json);
             outResult.set(ValueLayout.ADDRESS, 0, jsonCs);
             return 0;
@@ -189,8 +189,8 @@ public final class EmbeddingBackendBridge implements AutoCloseable {
         try {
             String texts_json = texts_in.reinterpret(Long.MAX_VALUE).getString(0);
             List<String> texts = JSON.readValue(texts_json, new com.fasterxml.jackson.core.type.TypeReference<List<String>>() { });
-            List<List<Float>> result = impl.embed(texts);
-            String json = JSON.writeValueAsString(result);
+            List<List<Float>> callbackResult = impl.embed(texts);
+            String json = JSON.writeValueAsString(callbackResult);
             MemorySegment jsonCs = arena.allocateFrom(json);
             outResult.set(ValueLayout.ADDRESS, 0, jsonCs);
             return 0;

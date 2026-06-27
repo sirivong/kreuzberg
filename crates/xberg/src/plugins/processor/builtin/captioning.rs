@@ -1,11 +1,11 @@
 //! Built-in Middle-stage post-processor that captions every
-//! [`ExtractedImage`](crate::types::ExtractedImage) using a VLM.
+//! [`ExtractedImage`] using a VLM.
 //!
 //! Activates when [`ExtractionConfig::captioning`](crate::core::config::ExtractionConfig::captioning)
 //! is `Some`. The processor walks `result.images`, and for each image whose
 //! pixel area (`width * height`) is at least `min_image_area` it invokes
 //! [`crate::llm::region_extractor::extract_region_with_vlm_usage`] in
-//! [`RegionKind::Caption`](crate::llm::region_extractor::RegionKind::Caption)
+//! [`RegionKind::Caption`]
 //! mode. The caption is stored on [`ExtractedImage::caption`].
 //!
 //! Every VLM call's [`LlmUsage`](crate::types::LlmUsage) is appended to

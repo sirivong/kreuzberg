@@ -778,59 +778,6 @@ Metadata about a chunk's position in the original document.
 
 ---
 
-#### ChunkPlan
-
-Complete chunking plan for a document.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `TotalChunks` | `uint32` | `0` | Total number of chunks. |
-| `Chunks` | `\[\]ChunkInfo` | `nil` | Individual chunk information. |
-| `TotalEstimatedTimeMs` | `uint64` | `0` | Estimated total processing time in milliseconds. |
-| `UseDiskProcessing` | `bool` | `false` | Whether to use disk-based processing for large files. |
-| `Reason` | `ChunkingReason` | `ChunkingReason.LargeFile` | Reason for chunking. |
-
-##### Methods
-
-###### Default()
-
-An empty plan (no chunks). The `reason` is a placeholder since an empty plan
-has no chunking rationale; callers always overwrite it when a real plan is built.
-
-**Signature:**
-
-```go
-func (o *ChunkPlan) Default() ChunkPlan
-```
-
-**Example:**
-
-```go
-result := ChunkPlan.Default()
-```
-
-**Returns:** `ChunkPlan`
-
-###### TotalPages()
-
-Get the total number of pages across all chunks.
-
-**Signature:**
-
-```go
-func (o *ChunkPlan) TotalPages() uint32
-```
-
-**Example:**
-
-```go
-result := instance.TotalPages()
-```
-
-**Returns:** `uint32`
-
----
-
 #### ChunkingConfig
 
 Chunking configuration.
@@ -1790,34 +1737,6 @@ result := EmbeddingConfig.Default()
 ```
 
 **Returns:** `EmbeddingConfig`
-
----
-
-#### EnrichOptions
-
-Which enrichment passes to run on a piece of text.
-
-All fields default to `false` / empty so callers can opt in precisely.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `Keywords` | `bool` | — | Run keyword extraction on the input text. When `true`, the enrichment backend identifies the most salient terms and returns them in `EnrichResult.keywords`. |
-| `Entities` | `bool` | — | Run named-entity recognition (NER) on the input text. When `true`, the enrichment backend identifies named entities (persons, organisations, locations, etc.) and returns them in `EnrichResult.entities`. |
-| `Labels` | `\[\]string` | `nil` | Custom labels to pass through to the result without modification. These are caller-supplied tags that the enrichment pipeline propagates verbatim into `EnrichResult.labels`. Useful for attaching project- or document-level metadata to every enrichment result. |
-
----
-
-#### EnrichResult
-
-Structured output produced by a completed enrichment pass.
-
-Fields are populated only when the corresponding `EnrichOptions` flag was set.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `Keywords` | `\[\]string` | `nil` | Salient terms extracted from the text. Populated when `EnrichOptions.keywords` was `true`. The ordering is backend-defined (typically by descending relevance score). |
-| `Entities` | `\[\]Entity` | `nil` | Named entities found in the text. Populated when `EnrichOptions.entities` was `true`. Uses the shared OSS entity schema (`Entity` / `EntityCategory`) so consumers can pattern-match on entity categories without JSON gymnastics. |
-| `Labels` | `\[\]string` | `nil` | Caller-supplied labels echoed from `EnrichOptions.labels`. |
 
 ---
 
@@ -4242,7 +4161,7 @@ by avoiding redundant copies during serialization.
 |-------|------|---------|-------------|
 | `PageNumber` | `uint32` | — | Page number (1-indexed) |
 | `Content` | `string` | — | Text content for this page |
-| `Tables` | `\[\]Table` | `/* serde(default) */` | Tables found on this page (uses Arc for memory efficiency) Serializes as \[\]Table for JSON compatibility while maintaining shared in-memory ownership for zero-copy sharing. |
+| `Tables` | `\[\]Table` | `/* serde(default) */` | Tables found on this page (uses Arc for memory efficiency) Serializes as `\[\]Table` for JSON compatibility while maintaining shared in-memory ownership for zero-copy sharing. |
 | `ImageIndices` | `\[\]uint32` | `/* serde(default) */` | Indices into `ExtractedDocument.images` for images found on this page. Each value is a zero-based index into the top-level `images` collection. Only populated when `extract_images = true` in the extraction config. |
 | `Hierarchy` | `*PageHierarchy` | `nil` | Hierarchy information for the page (when hierarchy extraction is enabled) Contains text hierarchy levels (H1-H6) extracted from the page content. |
 | `IsBlank` | `*bool` | `nil` | Whether this page is blank (no meaningful text content) Determined during extraction based on text content analysis. A page is blank if it has fewer than 3 non-whitespace characters and contains no tables or images. |
@@ -5915,7 +5834,7 @@ result := instance.IsOriginAllowed("value")
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `Origin` | `string` | Yes | The origin to check (e.g., "<https://example.com">) |
+| `Origin` | `string` | Yes | The origin to check (e.g., "<https://example.com>") |
 
 **Returns:** `bool`
 
@@ -7691,31 +7610,6 @@ Keyword algorithm selection.
 
 ---
 
-#### EnrichStatus
-
-Async lifecycle status for an enrichment job.
-
-Intended for use with any polling or event-driven pipeline that needs
-to track whether enrichment has completed, succeeded, or failed.
-
-### Serialisation
-
-Uses an internally-tagged `"status"` field with `snake_case` variants:
-
-```json
-{ "status": "pending" }
-{ "status": "completed", "result": { ... } }
-{ "status": "failed", "error": "text too large" }
-```
-
-| Value | Description |
-|-------|-------------|
-| `Pending` | Job submitted; processing has not yet started or is in progress. |
-| `Completed` | Processing completed successfully. — Fields: `Result`: `EnrichResult` |
-| `Failed` | Processing failed. — Fields: `Error`: `string` |
-
----
-
 #### SchemaCompliance
 
 Schema-validation outcome surfaced as one of three buckets.
@@ -7728,18 +7622,6 @@ error types.
 | `AllValid` | Every batch validated against the schema. |
 | `PartialValid` | At least one batch validated; at least one did not. |
 | `AllInvalid` | No batch validated. |
-
----
-
-#### ChunkingDecision
-
-The chunking decision made by the analyzer.
-
-| Value | Description |
-|-------|-------------|
-| `NoChunking` | Process without chunking (small file, text layer detected, etc.) — Fields: `Reason`: `NoChunkingReason` |
-| `Chunk` | Chunk according to plan. — Fields: `0`: `ChunkPlan` |
-| `UseOverrides` | Use user-provided chunk overrides. — Fields: `UserChunks`: `\[\]PageRange` |
 
 ---
 

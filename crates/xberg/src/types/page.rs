@@ -145,7 +145,7 @@ pub struct PageContent {
 
     /// Tables found on this page (uses Arc for memory efficiency)
     ///
-    /// Serializes as Vec<Table> for JSON compatibility while maintaining
+    /// Serializes as `Vec<Table>` for JSON compatibility while maintaining
     /// Arc semantics in-memory for zero-copy sharing.
     #[serde(skip_serializing_if = "Vec::is_empty", default, with = "serde_vec_arc")]
     #[cfg_attr(feature = "api", schema(value_type = Vec<Table>))]

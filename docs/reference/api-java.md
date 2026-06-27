@@ -737,59 +737,6 @@ Metadata about a chunk's position in the original document.
 
 ---
 
-#### ChunkPlan
-
-Complete chunking plan for a document.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `totalChunks` | `int` | `0` | Total number of chunks. |
-| `chunks` | `List<ChunkInfo>` | `Collections.emptyList()` | Individual chunk information. |
-| `totalEstimatedTimeMs` | `long` | `0` | Estimated total processing time in milliseconds. |
-| `useDiskProcessing` | `boolean` | `false` | Whether to use disk-based processing for large files. |
-| `reason` | `ChunkingReason` | `ChunkingReason.LARGE_FILE` | Reason for chunking. |
-
-##### Methods
-
-###### defaultOptions()
-
-An empty plan (no chunks). The `reason` is a placeholder since an empty plan
-has no chunking rationale; callers always overwrite it when a real plan is built.
-
-**Signature:**
-
-```java
-public static ChunkPlan defaultOptions()
-```
-
-**Example:**
-
-```java
-var result = ChunkPlan.defaultOptions();
-```
-
-**Returns:** `ChunkPlan`
-
-###### totalPages()
-
-Get the total number of pages across all chunks.
-
-**Signature:**
-
-```java
-public int totalPages()
-```
-
-**Example:**
-
-```java
-var result = instance.totalPages();
-```
-
-**Returns:** `int`
-
----
-
 #### ChunkingConfig
 
 Chunking configuration.
@@ -1743,34 +1690,6 @@ var result = EmbeddingConfig.defaultOptions();
 ```
 
 **Returns:** `EmbeddingConfig`
-
----
-
-#### EnrichOptions
-
-Which enrichment passes to run on a piece of text.
-
-All fields default to `false` / empty so callers can opt in precisely.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `keywords` | `boolean` | — | Run keyword extraction on the input text. When `true`, the enrichment backend identifies the most salient terms and returns them in `EnrichResult.keywords`. |
-| `entities` | `boolean` | — | Run named-entity recognition (NER) on the input text. When `true`, the enrichment backend identifies named entities (persons, organisations, locations, etc.) and returns them in `EnrichResult.entities`. |
-| `labels` | `List<String>` | `Collections.emptyList()` | Custom labels to pass through to the result without modification. These are caller-supplied tags that the enrichment pipeline propagates verbatim into `EnrichResult.labels`. Useful for attaching project- or document-level metadata to every enrichment result. |
-
----
-
-#### EnrichResult
-
-Structured output produced by a completed enrichment pass.
-
-Fields are populated only when the corresponding `EnrichOptions` flag was set.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `keywords` | `List<String>` | `Collections.emptyList()` | Salient terms extracted from the text. Populated when `EnrichOptions.keywords` was `true`. The ordering is backend-defined (typically by descending relevance score). |
-| `entities` | `List<Entity>` | `Collections.emptyList()` | Named entities found in the text. Populated when `EnrichOptions.entities` was `true`. Uses the shared OSS entity schema (`Entity` / `EntityCategory`) so consumers can pattern-match on entity categories without JSON gymnastics. |
-| `labels` | `List<String>` | `Collections.emptyList()` | Caller-supplied labels echoed from `EnrichOptions.labels`. |
 
 ---
 
@@ -4178,7 +4097,7 @@ by avoiding redundant copies during serialization.
 |-------|------|---------|-------------|
 | `pageNumber` | `int` | — | Page number (1-indexed) |
 | `content` | `String` | — | Text content for this page |
-| `tables` | `List<Table>` | `/* serde(default) */` | Tables found on this page (uses Arc for memory efficiency) Serializes as List<Table> for JSON compatibility while maintaining shared in-memory ownership for zero-copy sharing. |
+| `tables` | `List<Table>` | `/* serde(default) */` | Tables found on this page (uses Arc for memory efficiency) Serializes as `List<Table>` for JSON compatibility while maintaining shared in-memory ownership for zero-copy sharing. |
 | `imageIndices` | `List<Integer>` | `/* serde(default) */` | Indices into `ExtractedDocument.images` for images found on this page. Each value is a zero-based index into the top-level `images` collection. Only populated when `extract_images = true` in the extraction config. |
 | `hierarchy` | `Optional<PageHierarchy>` | `null` | Hierarchy information for the page (when hierarchy extraction is enabled) Contains text hierarchy levels (H1-H6) extracted from the page content. |
 | `isBlank` | `Optional<Boolean>` | `null` | Whether this page is blank (no meaningful text content) Determined during extraction based on text content analysis. A page is blank if it has fewer than 3 non-whitespace characters and contains no tables or images. |
@@ -5831,7 +5750,7 @@ var result = instance.isOriginAllowed("value");
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `origin` | `String` | Yes | The origin to check (e.g., "<https://example.com">) |
+| `origin` | `String` | Yes | The origin to check (e.g., "<https://example.com>") |
 
 **Returns:** `boolean`
 
@@ -7577,31 +7496,6 @@ Keyword algorithm selection.
 
 ---
 
-#### EnrichStatus
-
-Async lifecycle status for an enrichment job.
-
-Intended for use with any polling or event-driven pipeline that needs
-to track whether enrichment has completed, succeeded, or failed.
-
-### Serialisation
-
-Uses an internally-tagged `"status"` field with `snake_case` variants:
-
-```json
-{ "status": "pending" }
-{ "status": "completed", "result": { ... } }
-{ "status": "failed", "error": "text too large" }
-```
-
-| Value | Description |
-|-------|-------------|
-| `PENDING` | Job submitted; processing has not yet started or is in progress. |
-| `COMPLETED` | Processing completed successfully. — Fields: `result`: `EnrichResult` |
-| `FAILED` | Processing failed. — Fields: `error`: `String` |
-
----
-
 #### SchemaCompliance
 
 Schema-validation outcome surfaced as one of three buckets.
@@ -7614,18 +7508,6 @@ error types.
 | `ALL_VALID` | Every batch validated against the schema. |
 | `PARTIAL_VALID` | At least one batch validated; at least one did not. |
 | `ALL_INVALID` | No batch validated. |
-
----
-
-#### ChunkingDecision
-
-The chunking decision made by the analyzer.
-
-| Value | Description |
-|-------|-------------|
-| `NO_CHUNKING` | Process without chunking (small file, text layer detected, etc.) — Fields: `reason`: `NoChunkingReason` |
-| `CHUNK` | Chunk according to plan. — Fields: `0`: `ChunkPlan` |
-| `USE_OVERRIDES` | Use user-provided chunk overrides. — Fields: `userChunks`: `List<PageRange>` |
 
 ---
 

@@ -8,20 +8,21 @@ use crate::plugins::ProcessingStage;
 use crate::types::{ExtractedDocument, ProcessingWarning};
 use crate::{Result, XbergError};
 use std::borrow::Cow;
+use std::sync::Arc;
 #[cfg(feature = "otel")]
 use std::time::Instant;
 #[cfg(feature = "otel")]
 use tracing::Instrument;
+
+type PostProcessorHandle = Arc<dyn crate::plugins::PostProcessor>;
+type ProcessorStage = (ProcessingStage, Arc<Vec<PostProcessorHandle>>);
 
 /// Execute registered post-processors for the supplied stages.
 pub(super) async fn execute_processor_stages(
     result: &mut ExtractedDocument,
     config: &ExtractionConfig,
     pp_config: &Option<&crate::core::config::PostProcessorConfig>,
-    stages: &[(
-        ProcessingStage,
-        std::sync::Arc<Vec<std::sync::Arc<dyn crate::plugins::PostProcessor>>>,
-    )],
+    stages: &[ProcessorStage],
 ) -> Result<()> {
     for (_stage, processors_arc) in stages {
         #[cfg(feature = "otel")]

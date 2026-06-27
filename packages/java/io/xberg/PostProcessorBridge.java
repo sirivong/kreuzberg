@@ -237,8 +237,8 @@ public final class PostProcessorBridge implements AutoCloseable {
 
     private int handleProcessingStage(MemorySegment userData, MemorySegment outResult, MemorySegment outError) {
         try {
-            String result = impl.processing_stage();
-            MemorySegment jsonCs = arena.allocateFrom(result);
+            String callbackResult = impl.processing_stage();
+            MemorySegment jsonCs = arena.allocateFrom(callbackResult);
             outResult.set(ValueLayout.ADDRESS, 0, jsonCs);
             return 0;
         } catch (Throwable e) {
@@ -259,8 +259,8 @@ public final class PostProcessorBridge implements AutoCloseable {
             ExtractedDocument _result = JSON.readValue(_result_json, ExtractedDocument.class);
             String _config_json = _config_in.reinterpret(Long.MAX_VALUE).getString(0);
             ExtractionConfig _config = JSON.readValue(_config_json, ExtractionConfig.class);
-            boolean result = impl.should_process(_result, _config);
-            String json = JSON.writeValueAsString(result);
+            boolean callbackResult = impl.should_process(_result, _config);
+            String json = JSON.writeValueAsString(callbackResult);
             MemorySegment jsonCs = arena.allocateFrom(json);
             outResult.set(ValueLayout.ADDRESS, 0, jsonCs);
             return 0;
@@ -279,8 +279,8 @@ public final class PostProcessorBridge implements AutoCloseable {
         try {
             String _result_json = _result_in.reinterpret(Long.MAX_VALUE).getString(0);
             ExtractedDocument _result = JSON.readValue(_result_json, ExtractedDocument.class);
-            long result = impl.estimated_duration_ms(_result);
-            String json = JSON.writeValueAsString(result);
+            long callbackResult = impl.estimated_duration_ms(_result);
+            String json = JSON.writeValueAsString(callbackResult);
             MemorySegment jsonCs = arena.allocateFrom(json);
             outResult.set(ValueLayout.ADDRESS, 0, jsonCs);
             return 0;
@@ -292,8 +292,8 @@ public final class PostProcessorBridge implements AutoCloseable {
 
     private int handlePriority(MemorySegment userData, MemorySegment outResult, MemorySegment outError) {
         try {
-            int result = impl.priority();
-            String json = JSON.writeValueAsString(result);
+            int callbackResult = impl.priority();
+            String json = JSON.writeValueAsString(callbackResult);
             MemorySegment jsonCs = arena.allocateFrom(json);
             outResult.set(ValueLayout.ADDRESS, 0, jsonCs);
             return 0;

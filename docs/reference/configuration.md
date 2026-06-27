@@ -1608,34 +1608,6 @@ Keyword extraction configuration.
 
 ---
 
-### EnrichOptions
-
-Which enrichment passes to run on a piece of text.
-
-All fields default to `False` / empty so callers can opt in precisely.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `keywords` | `bool` | — | Run keyword extraction on the input text. When `True`, the enrichment backend identifies the most salient terms and returns them in `EnrichResult.keywords`. |
-| `entities` | `bool` | — | Run named-entity recognition (NER) on the input text. When `True`, the enrichment backend identifies named entities (persons, organisations, locations, etc.) and returns them in `EnrichResult.entities`. |
-| `labels` | `list\[str\]` | `\[\]` | Custom labels to pass through to the result without modification. These are caller-supplied tags that the enrichment pipeline propagates verbatim into `EnrichResult.labels`. Useful for attaching project- or document-level metadata to every enrichment result. |
-
----
-
-### EnrichResult
-
-Structured output produced by a completed enrichment pass.
-
-Fields are populated only when the corresponding `EnrichOptions` flag was set.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `keywords` | `list\[str\]` | `\[\]` | Salient terms extracted from the text. Populated when `EnrichOptions.keywords` was `True`. The ordering is backend-defined (typically by descending relevance score). |
-| `entities` | `list\[Entity\]` | `\[\]` | Named entities found in the text. Populated when `EnrichOptions.entities` was `True`. Uses the shared OSS entity schema (`Entity` / `EntityCategory`) so consumers can pattern-match on entity categories without JSON gymnastics. |
-| `labels` | `list\[str\]` | `\[\]` | Caller-supplied labels echoed from `EnrichOptions.labels`. |
-
----
-
 ### UserChunkConfig
 
 User-provided chunk configuration.
@@ -1669,20 +1641,6 @@ struct-update syntax: `HeuristicsConfig { text_layer_threshold: 0.5, ..the defau
 | `max_xlsx_sheet_count` | `int` | `200` | Maximum sheet count allowed in an XLSX workbook. Workbooks beyond this are rejected pre-extraction to avoid OOM / abusive billing inflation. Default: 200. |
 | `max_xlsx_workbook_cells` | `int` | `5000000` | Maximum cell count (sheets × rows × columns approximation) in an XLSX workbook. Default: 5 000 000 (≈ 200 sheets × 25 k cells). |
 | `max_pptx_embedded_count` | `int` | `50` | Maximum number of OLE-embedded objects extractable from a single PPTX or DOCX. Protects against zip-bomb-style nested-document abuse. Default: 50. |
-
----
-
-### ChunkPlan
-
-Complete chunking plan for a document.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `total_chunks` | `int` | `0` | Total number of chunks. |
-| `chunks` | `list\[ChunkInfo\]` | `\[\]` | Individual chunk information. |
-| `total_estimated_time_ms` | `int` | `0` | Estimated total processing time in milliseconds. |
-| `use_disk_processing` | `bool` | `False` | Whether to use disk-based processing for large files. |
-| `reason` | `ChunkingReason` | `ChunkingReason.LARGE_FILE` | Reason for chunking. |
 
 ---
 
@@ -1785,19 +1743,6 @@ Type of text chunker to use.
 | `Markdown` | `markdown` | Markdown-aware splitter that preserves heading and code-block boundaries. |
 | `Yaml` | `yaml` | YAML-aware splitter that creates one chunk per top-level key. |
 | `Semantic` | `semantic` | Topic-aware chunker that splits at embedding-based topic shifts. |
-
----
-
-#### ChunkingReason
-
-Reason for chunking a document.
-
-| Variant | Description |
-|---------|-------------|
-| `LargeFile` | File exceeds size threshold. — Fields: `size_bytes`: `u64`, `threshold_bytes`: `u64` |
-| `ManyPages` | Document has many pages. — Fields: `page_count`: `u32`, `threshold`: `u32` |
-| `OcrRequired` | PDF requires OCR and is large. — Fields: `page_count`: `u32`, `force_ocr`: `bool` |
-| `LargeAndManyPages` | Both size and page count exceed thresholds. — Fields: `size_bytes`: `u64`, `page_count`: `u32` |
 
 ---
 

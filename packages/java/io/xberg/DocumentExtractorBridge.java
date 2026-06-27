@@ -226,8 +226,8 @@ public final class DocumentExtractorBridge implements AutoCloseable {
             ExtractInput input = JSON.readValue(input_json, ExtractInput.class);
             String config_json = config_in.reinterpret(Long.MAX_VALUE).getString(0);
             ExtractionConfig config = JSON.readValue(config_json, ExtractionConfig.class);
-            ExtractedDocument result = impl.extract(input, config);
-            String json = JSON.writeValueAsString(result);
+            ExtractedDocument callbackResult = impl.extract(input, config);
+            String json = JSON.writeValueAsString(callbackResult);
             MemorySegment jsonCs = arena.allocateFrom(json);
             outResult.set(ValueLayout.ADDRESS, 0, jsonCs);
             return 0;
@@ -239,8 +239,8 @@ public final class DocumentExtractorBridge implements AutoCloseable {
 
     private int handleSupportedMimeTypes(MemorySegment userData, MemorySegment outResult, MemorySegment outError) {
         try {
-            List<String> result = impl.supported_mime_types();
-            String json = JSON.writeValueAsString(result);
+            List<String> callbackResult = impl.supported_mime_types();
+            String json = JSON.writeValueAsString(callbackResult);
             MemorySegment jsonCs = arena.allocateFrom(json);
             outResult.set(ValueLayout.ADDRESS, 0, jsonCs);
             return 0;
@@ -252,8 +252,8 @@ public final class DocumentExtractorBridge implements AutoCloseable {
 
     private int handlePriority(MemorySegment userData, MemorySegment outResult, MemorySegment outError) {
         try {
-            int result = impl.priority();
-            String json = JSON.writeValueAsString(result);
+            int callbackResult = impl.priority();
+            String json = JSON.writeValueAsString(callbackResult);
             MemorySegment jsonCs = arena.allocateFrom(json);
             outResult.set(ValueLayout.ADDRESS, 0, jsonCs);
             return 0;
@@ -273,8 +273,8 @@ public final class DocumentExtractorBridge implements AutoCloseable {
         try {
             java.nio.file.Path _path = java.nio.file.Paths.get(_path_in.reinterpret(Long.MAX_VALUE).getString(0));
             String _mime_type = _mime_type_in.reinterpret(Long.MAX_VALUE).getString(0);
-            boolean result = impl.can_handle(_path, _mime_type);
-            String json = JSON.writeValueAsString(result);
+            boolean callbackResult = impl.can_handle(_path, _mime_type);
+            String json = JSON.writeValueAsString(callbackResult);
             MemorySegment jsonCs = arena.allocateFrom(json);
             outResult.set(ValueLayout.ADDRESS, 0, jsonCs);
             return 0;

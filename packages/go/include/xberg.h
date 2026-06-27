@@ -115,10 +115,6 @@ typedef struct XBERGChunkInfo XBERGChunkInfo;
  */
 typedef struct XBERGChunkMetadata XBERGChunkMetadata;
 /**
- * Complete chunking plan for a document.
- */
-typedef struct XBERGChunkPlan XBERGChunkPlan;
-/**
  * How chunk size is measured.
  *
  * Defaults to `Characters` (Unicode character count). When using token-based sizing,
@@ -169,10 +165,6 @@ typedef struct XBERGChunkerType XBERGChunkerType;
  * ```
  */
 typedef struct XBERGChunkingConfig XBERGChunkingConfig;
-/**
- * The chunking decision made by the analyzer.
- */
-typedef struct XBERGChunkingDecision XBERGChunkingDecision;
 /**
  * Reason for chunking a document.
  */
@@ -297,9 +289,6 @@ typedef struct XBERGDocumentBoundary XBERGDocumentBoundary;
  * built-in extraction behavior. Foreign-language bindings expose the
  * `DocumentExtractor.extract` method, which accepts `ExtractInput` and
  * returns an `ExtractedDocument`.
- *
- * Native Rust extractors can override the skipped internal byte/file methods
- * below to participate in the full pipeline representation.
  *
  * # Priority System
  *
@@ -512,67 +501,6 @@ typedef struct XBERGEmbeddingConfig XBERGEmbeddingConfig;
  * Embedding model types supported by Xberg.
  */
 typedef struct XBERGEmbeddingModelType XBERGEmbeddingModelType;
-/**
- * Which enrichment passes to run on a piece of text.
- *
- * All fields default to `false` / empty so callers can opt in precisely.
- * \code
- * use xberg::enrichment::EnrichOptions;
- *
- * let opts = EnrichOptions {
- *     keywords: true,
- *     ..Default::default()
- * };
- * assert!(opts.keywords);
- * assert!(!opts.entities);
- * assert!(opts.labels.is_empty());
- * \endcode
- */
-typedef struct XBERGEnrichOptions XBERGEnrichOptions;
-/**
- * Structured output produced by a completed enrichment pass.
- *
- * Fields are populated only when the corresponding `EnrichOptions` flag was set.
- * \code
- * use xberg::enrichment::EnrichResult;
- *
- * let result = EnrichResult::default();
- * assert!(result.keywords.is_empty());
- * assert!(result.entities.is_empty());
- * assert!(result.labels.is_empty());
- * \endcode
- */
-typedef struct XBERGEnrichResult XBERGEnrichResult;
-/**
- * Async lifecycle status for an enrichment job.
- *
- * Intended for use with any polling or event-driven pipeline that needs
- * to track whether enrichment has completed, succeeded, or failed.
- *
- * # Serialisation
- *
- * Uses an internally-tagged `"status"` field with `snake_case` variants:
- *
- * ```json
- * { "status": "pending" }
- * { "status": "completed", "result": { ... } }
- * { "status": "failed", "error": "text too large" }
- * ```
- *
- *
- * ```
- * use xberg::enrichment::{EnrichStatus, EnrichResult};
- *
- * let s = EnrichStatus::Pending;
- * let json = serde_json::to_value(&s).unwrap();
- * assert_eq!(json["status"], "pending");
- *
- * let s = EnrichStatus::Completed { result: EnrichResult::default() };
- * let json = serde_json::to_value(&s).unwrap();
- * assert_eq!(json["status"], "completed");
- * ```
- */
-typedef struct XBERGEnrichStatus XBERGEnrichStatus;
 /**
  * A single named entity detected in the extracted text.
  */
@@ -2712,9 +2640,8 @@ typedef struct XBERGXbergDocumentExtractorVTable {
   /**
    * Binding-safe extraction entry point for foreign-language plugin bridges.
    *
-   * This is the only document-extractor method generated into language
-   * bindings. It accepts the same unified input shape as the public
-   * extraction API and returns one extracted document result.
+   * Accepts the same unified input shape as the public extraction API and
+   * returns one extracted document result.
    */
   int32_t (*extract)(const void *user_data,
                      const char *input,
@@ -2877,9 +2804,7 @@ typedef struct XBERGXbergRendererVTable {
   /**
    * Binding-safe rendering entry point for foreign-language plugin bridges.
    *
-   * This is the only renderer method generated into language bindings.
-   * Native Rust renderers may override the skipped internal render method
-   * below when they need lower-level document structure.
+   * Accepts one public extraction result and returns the rendered output.
    */
   int32_t (*render_result)(const void *user_data,
                            const char *result,
@@ -6441,7 +6366,7 @@ int32_t xberg_server_config_cors_allows_all(const XBERGServerConfig *this_);
  * Returns `true` if:
  * - CORS allows all origins (empty origins list), or
  * - The given origin is in the allowed origins list
- * \param origin The origin to check (e.g., "https://example.com")
+ * \param origin The origin to check (e.g., "<https://example.com>")
  * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
  * freed with the appropriate free function.
  * \code
@@ -13764,94 +13689,6 @@ XBERGKeywordAlgorithm *xberg_keyword_algorithm(const XBERGKeyword *ptr);
 char *xberg_keyword_positions(const XBERGKeyword *ptr);
 
 /**
- * Create a `EnrichOptions` from a JSON string. Returns null on failure.
- * # Safety
- * JSON string must be valid UTF-8 and null-terminated.
- * Returned handle must be freed with `xberg_enrich_options_free`.
- */
-XBERGEnrichOptions *xberg_enrich_options_from_json(const char *json);
-
-/**
- * Serialize a `EnrichOptions` to a JSON string. Returns null on failure.
- * # Safety
- * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
- * The returned string must be freed with `xberg_free_string`.
- */
-char *xberg_enrich_options_to_json(const XBERGEnrichOptions *ptr);
-
-/**
- * Free a `EnrichOptions` handle.
- * # Safety
- * Pointer must have been returned by this library, or be null.
- */
-void xberg_enrich_options_free(XBERGEnrichOptions *ptr);
-
-/**
- * Get the `keywords` field from a `EnrichOptions`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-int32_t xberg_enrich_options_keywords(const XBERGEnrichOptions *ptr);
-
-/**
- * Get the `entities` field from a `EnrichOptions`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-int32_t xberg_enrich_options_entities(const XBERGEnrichOptions *ptr);
-
-/**
- * Get the `labels` field from a `EnrichOptions`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-char *xberg_enrich_options_labels(const XBERGEnrichOptions *ptr);
-
-/**
- * Create a `EnrichResult` from a JSON string. Returns null on failure.
- * # Safety
- * JSON string must be valid UTF-8 and null-terminated.
- * Returned handle must be freed with `xberg_enrich_result_free`.
- */
-XBERGEnrichResult *xberg_enrich_result_from_json(const char *json);
-
-/**
- * Serialize a `EnrichResult` to a JSON string. Returns null on failure.
- * # Safety
- * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
- * The returned string must be freed with `xberg_free_string`.
- */
-char *xberg_enrich_result_to_json(const XBERGEnrichResult *ptr);
-
-/**
- * Free a `EnrichResult` handle.
- * # Safety
- * Pointer must have been returned by this library, or be null.
- */
-void xberg_enrich_result_free(XBERGEnrichResult *ptr);
-
-/**
- * Get the `keywords` field from a `EnrichResult`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-char *xberg_enrich_result_keywords(const XBERGEnrichResult *ptr);
-
-/**
- * Get the `entities` field from a `EnrichResult`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-char *xberg_enrich_result_entities(const XBERGEnrichResult *ptr);
-
-/**
- * Get the `labels` field from a `EnrichResult`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-char *xberg_enrich_result_labels(const XBERGEnrichResult *ptr);
-
-/**
  * Create a `DocumentMetadata` from a JSON string. Returns null on failure.
  * # Safety
  * JSON string must be valid UTF-8 and null-terminated.
@@ -14134,79 +13971,6 @@ XBERGHeuristicsConfig *xberg_heuristics_config_default(void);
  * freed with the appropriate free function.
  */
 int32_t xberg_heuristics_config_validate(const XBERGHeuristicsConfig *this_);
-
-/**
- * Create a `ChunkPlan` from a JSON string. Returns null on failure.
- * # Safety
- * JSON string must be valid UTF-8 and null-terminated.
- * Returned handle must be freed with `xberg_chunk_plan_free`.
- */
-XBERGChunkPlan *xberg_chunk_plan_from_json(const char *json);
-
-/**
- * Serialize a `ChunkPlan` to a JSON string. Returns null on failure.
- * # Safety
- * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
- * The returned string must be freed with `xberg_free_string`.
- */
-char *xberg_chunk_plan_to_json(const XBERGChunkPlan *ptr);
-
-/**
- * Free a `ChunkPlan` handle.
- * # Safety
- * Pointer must have been returned by this library, or be null.
- */
-void xberg_chunk_plan_free(XBERGChunkPlan *ptr);
-
-/**
- * Get the `total_chunks` field from a `ChunkPlan`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-uint32_t xberg_chunk_plan_total_chunks(const XBERGChunkPlan *ptr);
-
-/**
- * Get the `chunks` field from a `ChunkPlan`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-char *xberg_chunk_plan_chunks(const XBERGChunkPlan *ptr);
-
-/**
- * Get the `total_estimated_time_ms` field from a `ChunkPlan`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-uint64_t xberg_chunk_plan_total_estimated_time_ms(const XBERGChunkPlan *ptr);
-
-/**
- * Get the `use_disk_processing` field from a `ChunkPlan`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-int32_t xberg_chunk_plan_use_disk_processing(const XBERGChunkPlan *ptr);
-
-/**
- * Get the `reason` field from a `ChunkPlan`.
- * # Safety
- * Pointer must be a valid handle returned by this library.
- */
-XBERGChunkingReason *xberg_chunk_plan_reason(const XBERGChunkPlan *ptr);
-
-/**
- * An empty plan (no chunks). The `reason` is a placeholder since an empty plan
- * has no chunking rationale; callers always overwrite it when a real plan is built.
- * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
- * freed with the appropriate free function.
- */
-XBERGChunkPlan *xberg_chunk_plan_default(void);
-
-/**
- * Get the total number of pages across all chunks.
- * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
- * freed with the appropriate free function.
- */
-uint32_t xberg_chunk_plan_total_pages(const XBERGChunkPlan *this_);
 
 /**
  * Create a `ChunkInfo` from a JSON string. Returns null on failure.
@@ -16342,21 +16106,6 @@ int32_t xberg_keyword_algorithm_from_i32(int32_t value);
 int32_t xberg_keyword_algorithm_from_str(const char *name);
 
 /**
- * Convert an integer to a `EnrichStatus` variant. Returns -1 on invalid input.
- * # Safety
- * Caller must ensure all pointer arguments are valid or null.
- * Returned pointers must be freed with the appropriate free function.
- */
-int32_t xberg_enrich_status_from_i32(int32_t value);
-
-/**
- * Convert a `EnrichStatus` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
- * # Safety
- * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
- */
-int32_t xberg_enrich_status_from_str(const char *name);
-
-/**
  * Convert an integer to a `SchemaCompliance` variant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure all pointer arguments are valid or null.
@@ -16370,21 +16119,6 @@ int32_t xberg_schema_compliance_from_i32(int32_t value);
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
 int32_t xberg_schema_compliance_from_str(const char *name);
-
-/**
- * Convert an integer to a `ChunkingDecision` variant. Returns -1 on invalid input.
- * # Safety
- * Caller must ensure all pointer arguments are valid or null.
- * Returned pointers must be freed with the appropriate free function.
- */
-int32_t xberg_chunking_decision_from_i32(int32_t value);
-
-/**
- * Convert a `ChunkingDecision` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
- * # Safety
- * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
- */
-int32_t xberg_chunking_decision_from_str(const char *name);
 
 /**
  * Convert an integer to a `NoChunkingReason` variant. Returns -1 on invalid input.
@@ -17715,31 +17449,6 @@ char *xberg_schema_compliance_to_json(const XBERGSchemaCompliance *ptr);
  * The returned string must be freed with `xberg_free_string`.
  */
 char *xberg_schema_compliance_to_string(const XBERGSchemaCompliance *ptr);
-
-/**
- * Free a heap-allocated `ChunkingReason` returned by a pointer-returning FFI function.
- * # Safety
- * Pointer must have been returned by this library, or be null.
- */
-void xberg_chunking_reason_free(XBERGChunkingReason *ptr);
-
-/**
- * Serialize a heap-allocated `ChunkingReason` to a JSON string.
- * # Safety
- * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
- * The returned string must be freed with `xberg_free_string`.
- */
-char *xberg_chunking_reason_to_json(const XBERGChunkingReason *ptr);
-
-/**
- * Render a heap-allocated `ChunkingReason` as its string representation
- * (the unit-variant name as serialized by serde — e.g. `"completed"`,
- * without surrounding JSON quotes).
- * # Safety
- * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
- * The returned string must be freed with `xberg_free_string`.
- */
-char *xberg_chunking_reason_to_string(const XBERGChunkingReason *ptr);
 
 /**
  * Free a heap-allocated `BoundaryReason` returned by a pointer-returning FFI function.

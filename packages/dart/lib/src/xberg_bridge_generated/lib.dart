@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'lib.freezed.dart';
 
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DocumentExtractorDartCallbacks`, `EmbeddingBackendDartCallbacks`, `OcrBackendDartCallbacks`, `PostProcessorDartCallbacks`, `RendererDartCallbacks`, `RerankerBackendDartCallbacks`, `ValidatorDartCallbacks`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `backend_type`, `can_handle`, `dimensions`, `embed`, `emits_structured_markdown`, `estimated_duration_ms`, `extract`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `name`, `name`, `name`, `name`, `name`, `name`, `name`, `priority`, `priority`, `priority`, `process_document`, `process_image_file`, `process_image`, `process`, `processing_stage`, `render_result`, `rerank`, `should_process`, `should_validate`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `supported_languages`, `supported_mime_types`, `supports_document_processing`, `supports_language`, `supports_table_detection`, `validate`, `version`, `version`, `version`, `version`, `version`, `version`, `version`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `backend_type`, `can_handle`, `dimensions`, `embed`, `emits_structured_markdown`, `estimated_duration_ms`, `extract`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `name`, `name`, `name`, `name`, `name`, `name`, `name`, `priority`, `priority`, `priority`, `process_document`, `process_image_file`, `process_image`, `process`, `processing_stage`, `render_result`, `rerank`, `should_process`, `should_validate`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `supported_languages`, `supported_mime_types`, `supports_document_processing`, `supports_language`, `supports_table_detection`, `validate`, `version`, `version`, `version`, `version`, `version`, `version`, `version`
 
 /// Extract content from a single bytes or URI input.
 Future<ExtractionResult> extract({
@@ -45,33 +45,6 @@ Future<List<SupportedFormat>> listSupportedFormats() =>
 Future<List<String>> listEmbeddingBackends() =>
     RustLib.instance.api.crateListEmbeddingBackends();
 
-/// Register a document extractor with the global registry.
-///
-/// The extractor is keyed by `name` and indexed for
-/// every MIME type returned by
-/// `supported_mime_types`.
-///
-/// **Errors:**
-///
-/// - `Validation` if the plugin name is empty or
-///   contains whitespace.
-///
-/// - Any error returned by the extractor's `initialize()` method.
-Future<void> registerDocumentExtractor({
-  required DocumentExtractor extractor,
-}) => RustLib.instance.api.crateRegisterDocumentExtractor(extractor: extractor);
-
-/// Unregister a document extractor by name.
-///
-/// Removes the extractor from the global registry and calls its `shutdown()`
-/// method. No-op if no extractor with that name is registered.
-///
-/// **Errors:**
-///
-/// - Any error returned by the extractor's `shutdown()` method.
-Future<void> unregisterDocumentExtractor({required String name}) =>
-    RustLib.instance.api.crateUnregisterDocumentExtractor(name: name);
-
 /// List names of all registered document extractors.
 Future<List<String>> listDocumentExtractors() =>
     RustLib.instance.api.crateListDocumentExtractors();
@@ -97,29 +70,6 @@ Future<List<String>> listOcrBackends() =>
 /// - `Err(...)` if the registry lock is poisoned
 Future<List<String>> listPostProcessors() =>
     RustLib.instance.api.crateListPostProcessors();
-
-/// Register a renderer plugin with the global registry.
-///
-/// The renderer's format name is taken from `Plugin.name`. Registering a
-/// renderer with a name that already exists replaces the previous renderer
-/// for that format.
-///
-/// # Note on `Result` return type
-///
-/// Returns `Result<()>` for cross-language API symmetry required by the alef
-/// trait-bridge codegen. The underlying `parking_lot.RwLock` cannot be
-/// poisoned (parking_lot provides no poisoning semantics), so this function
-/// never returns `Err` in practice.
-Future<void> registerRenderer({required Renderer renderer}) =>
-    RustLib.instance.api.crateRegisterRenderer(renderer: renderer);
-
-/// Unregister a renderer by format name.
-///
-/// **Errors:**
-///
-/// Returns an error if the registry lock is poisoned.
-Future<void> unregisterRenderer({required String name}) =>
-    RustLib.instance.api.crateUnregisterRenderer(name: name);
 
 /// List names of all registered renderers.
 ///
@@ -721,12 +671,6 @@ Future<KeywordConfig> createKeywordConfigFromJson({required String json}) =>
 Future<Keyword> createKeywordFromJson({required String json}) =>
     RustLib.instance.api.crateCreateKeywordFromJson(json: json);
 
-Future<EnrichOptions> createEnrichOptionsFromJson({required String json}) =>
-    RustLib.instance.api.crateCreateEnrichOptionsFromJson(json: json);
-
-Future<EnrichResult> createEnrichResultFromJson({required String json}) =>
-    RustLib.instance.api.crateCreateEnrichResultFromJson(json: json);
-
 Future<DocumentMetadata> createDocumentMetadataFromJson({
   required String json,
 }) => RustLib.instance.api.crateCreateDocumentMetadataFromJson(json: json);
@@ -741,9 +685,6 @@ Future<ExtractionConfidence> createExtractionConfidenceFromJson({
 Future<HeuristicsConfig> createHeuristicsConfigFromJson({
   required String json,
 }) => RustLib.instance.api.crateCreateHeuristicsConfigFromJson(json: json);
-
-Future<ChunkPlan> createChunkPlanFromJson({required String json}) =>
-    RustLib.instance.api.crateCreateChunkPlanFromJson(json: json);
 
 Future<ChunkInfo> createChunkInfoFromJson({required String json}) =>
     RustLib.instance.api.crateCreateChunkInfoFromJson(json: json);
@@ -971,6 +912,20 @@ Future<DocumentExtractorDartImpl> createDocumentExtractorDartImpl({
   canHandle: canHandle,
 );
 
+/// Register a Dart implementation as a `DocumentExtractor` plugin.
+///
+/// Forwards the `Arc<dyn DocumentExtractor>` wrapped by `DocumentExtractorDartImpl` to
+/// `xberg::plugins::registry::get_document_extractor_registry()`. Errors from the host registry are stringified
+/// for FRB transport.
+Future<void> registerDocumentExtractor({
+  required DocumentExtractorDartImpl impl,
+}) => RustLib.instance.api.crateRegisterDocumentExtractor(impl: impl);
+
+/// Unregister a previously-registered `DocumentExtractor` plugin by name.
+/// Removes the plugin from `xberg::plugins::registry::get_document_extractor_registry()` and stringifies any host error.
+Future<void> unregisterDocumentExtractor({required String name}) =>
+    RustLib.instance.api.crateUnregisterDocumentExtractor(name: name);
+
 /// Clear all registered `DocumentExtractor` plugins.
 /// Removes every plugin from `xberg::plugins::registry::get_document_extractor_registry()` and stringifies any host error.
 Future<void> clearDocumentExtractors() =>
@@ -1033,6 +988,19 @@ Future<RendererDartImpl> createRendererDartImpl({
   renderResult: renderResult,
 );
 
+/// Register a Dart implementation as a `Renderer` plugin.
+///
+/// Forwards the `Arc<dyn Renderer>` wrapped by `RendererDartImpl` to
+/// `xberg::plugins::registry::get_renderer_registry()`. Errors from the host registry are stringified
+/// for FRB transport.
+Future<void> registerRenderer({required RendererDartImpl impl}) =>
+    RustLib.instance.api.crateRegisterRenderer(impl: impl);
+
+/// Unregister a previously-registered `Renderer` plugin by name.
+/// Removes the plugin from `xberg::plugins::registry::get_renderer_registry()` and stringifies any host error.
+Future<void> unregisterRenderer({required String name}) =>
+    RustLib.instance.api.crateUnregisterRenderer(name: name);
+
 /// Clear all registered `Renderer` plugins.
 /// Removes every plugin from `xberg::plugins::registry::get_renderer_registry()` and stringifies any host error.
 Future<void> clearRenderers() => RustLib.instance.api.crateClearRenderers();
@@ -1093,9 +1061,6 @@ abstract class ArcRerankerBackend implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner< Arc < dyn Validator + Send + Sync >>>
 abstract class ArcValidator implements RustOpaqueInterface {}
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DocumentExtractor>>
-abstract class DocumentExtractor implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<DocumentExtractorDartImpl>>
 abstract class DocumentExtractorDartImpl implements RustOpaqueInterface {
@@ -1158,9 +1123,6 @@ abstract class Registry implements RustOpaqueInterface {
 
   Future<List<PresetSummary>> summaries();
 }
-
-// Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<Renderer>>
-abstract class Renderer implements RustOpaqueInterface {}
 
 // Rust type: RustOpaqueMoi<flutter_rust_bridge::for_generated::RustAutoOpaqueInner<RendererDartImpl>>
 abstract class RendererDartImpl implements RustOpaqueInterface {
@@ -1913,51 +1875,6 @@ class ChunkMetadata {
           imageIndices == other.imageIndices;
 }
 
-/// Complete chunking plan for a document.
-class ChunkPlan {
-  /// Total number of chunks.
-  final PlatformInt64 totalChunks;
-
-  /// Individual chunk information.
-  final List<ChunkInfo> chunks;
-
-  /// Estimated total processing time in milliseconds.
-  final PlatformInt64 totalEstimatedTimeMs;
-
-  /// Whether to use disk-based processing for large files.
-  final bool useDiskProcessing;
-
-  /// Reason for chunking.
-  final ChunkingReason reason;
-
-  const ChunkPlan({
-    required this.totalChunks,
-    required this.chunks,
-    required this.totalEstimatedTimeMs,
-    required this.useDiskProcessing,
-    required this.reason,
-  });
-
-  @override
-  int get hashCode =>
-      totalChunks.hashCode ^
-      chunks.hashCode ^
-      totalEstimatedTimeMs.hashCode ^
-      useDiskProcessing.hashCode ^
-      reason.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ChunkPlan &&
-          runtimeType == other.runtimeType &&
-          totalChunks == other.totalChunks &&
-          chunks == other.chunks &&
-          totalEstimatedTimeMs == other.totalEstimatedTimeMs &&
-          useDiskProcessing == other.useDiskProcessing &&
-          reason == other.reason;
-}
-
 @freezed
 sealed class ChunkSizing with _$ChunkSizing {
   const ChunkSizing._();
@@ -2170,27 +2087,6 @@ class ChunkingConfig {
           prependHeadingContext == other.prependHeadingContext &&
           topicThreshold == other.topicThreshold &&
           tableChunking == other.tableChunking;
-}
-
-@freezed
-sealed class ChunkingDecision with _$ChunkingDecision {
-  const ChunkingDecision._();
-
-  /// Process without chunking (small file, text layer detected, etc.)
-  const factory ChunkingDecision.noChunking({
-    /// Reason why chunking is not needed.
-    required NoChunkingReason reason,
-  }) = ChunkingDecision_NoChunking;
-
-  /// Chunk according to plan.
-  const factory ChunkingDecision.chunk({required ChunkPlan field0}) =
-      ChunkingDecision_Chunk;
-
-  /// Use user-provided chunk overrides.
-  const factory ChunkingDecision.useOverrides({
-    /// User-specified page ranges.
-    required List<PageRange> userChunks,
-  }) = ChunkingDecision_UseOverrides;
 }
 
 @freezed
@@ -4055,134 +3951,6 @@ sealed class EmbeddingModelType with _$EmbeddingModelType {
   }) = EmbeddingModelType_Plugin;
 }
 
-/// Which enrichment passes to run on a piece of text.
-///
-/// All fields default to `false` / empty so callers can opt in precisely.
-///
-/// # Examples
-///
-/// ```
-/// use xberg::enrichment::EnrichOptions;
-///
-/// let opts = EnrichOptions {
-///     keywords: true,
-///     ..Default::default()
-/// };
-/// assert!(opts.keywords);
-/// assert!(!opts.entities);
-/// assert!(opts.labels.is_empty());
-/// ```
-class EnrichOptions {
-  /// Run keyword extraction on the input text.
-  ///
-  /// When `true`, the enrichment backend identifies the most salient terms
-  /// and returns them in [`EnrichResult::keywords`].
-  final bool keywords;
-
-  /// Run named-entity recognition (NER) on the input text.
-  ///
-  /// When `true`, the enrichment backend identifies named entities
-  /// (persons, organisations, locations, etc.) and returns them in
-  /// [`EnrichResult::entities`].
-  final bool entities;
-
-  /// Custom labels to pass through to the result without modification.
-  ///
-  /// These are caller-supplied tags that the enrichment pipeline
-  /// propagates verbatim into [`EnrichResult::labels`]. Useful for
-  /// attaching project- or document-level metadata to every enrichment
-  /// result.
-  final List<String> labels;
-
-  const EnrichOptions({
-    required this.keywords,
-    required this.entities,
-    required this.labels,
-  });
-
-  @override
-  int get hashCode => keywords.hashCode ^ entities.hashCode ^ labels.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is EnrichOptions &&
-          runtimeType == other.runtimeType &&
-          keywords == other.keywords &&
-          entities == other.entities &&
-          labels == other.labels;
-}
-
-/// Structured output produced by a completed enrichment pass.
-///
-/// Fields are populated only when the corresponding [`EnrichOptions`] flag was set.
-///
-/// # Examples
-///
-/// ```
-/// use xberg::enrichment::EnrichResult;
-///
-/// let result = EnrichResult::default();
-/// assert!(result.keywords.is_empty());
-/// assert!(result.entities.is_empty());
-/// assert!(result.labels.is_empty());
-/// ```
-class EnrichResult {
-  /// Salient terms extracted from the text.
-  ///
-  /// Populated when [`EnrichOptions::keywords`] was `true`. The ordering is
-  /// backend-defined (typically by descending relevance score).
-  final List<String> keywords;
-
-  /// Named entities found in the text.
-  ///
-  /// Populated when [`EnrichOptions::entities`] was `true`. Uses the shared
-  /// OSS entity schema ([`Entity`] / [`EntityCategory`](crate::types::entity::EntityCategory))
-  /// so consumers can pattern-match on entity categories without JSON gymnastics.
-  final List<Entity> entities;
-
-  /// Caller-supplied labels echoed from [`EnrichOptions::labels`].
-  final List<String> labels;
-
-  const EnrichResult({
-    required this.keywords,
-    required this.entities,
-    required this.labels,
-  });
-
-  @override
-  int get hashCode => keywords.hashCode ^ entities.hashCode ^ labels.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is EnrichResult &&
-          runtimeType == other.runtimeType &&
-          keywords == other.keywords &&
-          entities == other.entities &&
-          labels == other.labels;
-}
-
-@freezed
-sealed class EnrichStatus with _$EnrichStatus {
-  const EnrichStatus._();
-
-  /// Job submitted; processing has not yet started or is in progress.
-  const factory EnrichStatus.pending() = EnrichStatus_Pending;
-
-  /// Processing completed successfully.
-  const factory EnrichStatus.completed({
-    /// The enrichment output.
-    required EnrichResult result,
-  }) = EnrichStatus_Completed;
-
-  /// Processing failed.
-  const factory EnrichStatus.failed({
-    /// Human-readable error message describing the failure reason.
-    required String error,
-  }) = EnrichStatus_Failed;
-}
-
 /// A single named entity detected in the extracted text.
 class Entity {
   /// Canonical category the entity belongs to (PERSON, ORG, LOCATION, etc.).
@@ -5167,8 +4935,6 @@ class ExtractionConfig {
   /// native text extraction without OCR fallback.
   ///
   /// Cannot be `true` simultaneously with `force_ocr`.
-  ///
-  /// *Added in v4.7.0.*
   final bool disableOcr;
 
   /// Text chunking configuration (None = chunking disabled)
@@ -9791,7 +9557,7 @@ class PageContent {
 
   /// Tables found on this page (uses Arc for memory efficiency)
   ///
-  /// Serializes as Vec<Table> for JSON compatibility while maintaining
+  /// Serializes as `Vec<Table>` for JSON compatibility while maintaining
   /// Arc semantics in-memory for zero-copy sharing.
   final List<Table> tables;
 

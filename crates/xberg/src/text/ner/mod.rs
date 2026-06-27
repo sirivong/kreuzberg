@@ -12,7 +12,7 @@
 //! - [`gline::GlineBackend`] under `#[cfg(feature = "ner-onnx")]` — local ONNX
 //!   inference via `xberg-gliner`. Models download lazily from the
 //!   `xberg-io/gliner-models` Hugging Face repository via
-//!   [`crate::model_download`].
+//!   `crate::model_download`.
 //! - [`llm::LlmBackend`] under `#[cfg(feature = "ner-llm")]` — liter-llm with a
 //!   structured-output schema. Used when categories outstrip the ONNX taxonomy.
 

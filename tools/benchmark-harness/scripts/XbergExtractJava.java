@@ -1,8 +1,8 @@
-import io.xberg.ExtractionResult;
-import io.xberg.ExtractedDocument;
 import io.xberg.ExtractInput;
 import io.xberg.ExtractInputKind;
+import io.xberg.ExtractedDocument;
 import io.xberg.ExtractionConfig;
+import io.xberg.ExtractionResult;
 import io.xberg.Metadata;
 import io.xberg.OcrConfig;
 import io.xberg.Xberg;
@@ -29,7 +29,10 @@ public final class XbergExtractJava {
   }
 
   private static ExtractInput inputFromPath(Path path) {
-    return ExtractInput.builder().withKind(ExtractInputKind.Uri).withUri(path.toString()).build();
+    return ExtractInput.builder()
+        .withKind(ExtractInputKind.Uri)
+        .withUri(path.toString())
+        .build();
   }
 
   private static ExtractedDocument firstResult(ExtractionResult output, Path path) {
@@ -182,7 +185,8 @@ public final class XbergExtractJava {
       long start = System.nanoTime();
       try {
         Path path = Path.of(filePath);
-        ExtractedDocument result = firstResult(Xberg.extract(inputFromPath(path), benchConfig), path);
+        ExtractedDocument result =
+            firstResult(Xberg.extract(inputFromPath(path), benchConfig), path);
         double elapsedMs = (System.nanoTime() - start) / NANOS_IN_MILLISECOND;
         String json = toJson(result, elapsedMs, useOcr);
         System.out.println(json);
@@ -341,7 +345,9 @@ public final class XbergExtractJava {
         .append("\"date\":")
         .append(nullableToJson(metadata != null ? metadata.modifiedAt() : null))
         .append(',');
-    builder.append("\"subject\":").append(nullableToJson(metadata != null ? metadata.subject() : null));
+    builder
+        .append("\"subject\":")
+        .append(nullableToJson(metadata != null ? metadata.subject() : null));
     builder.append("},\"_extraction_time_ms\":").append(String.format("%.3f", elapsedMs));
     builder.append(",\"_ocr_used\":").append(determineOcrUsed(result, ocrEnabled));
     builder.append('}');

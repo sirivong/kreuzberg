@@ -49,10 +49,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerArcdynValidatorSendSync;
 
   CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_DocumentExtractorPtr => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractor;
-
-  CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_DocumentExtractorDartImplPtr => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractorDartImpl;
 
@@ -75,10 +71,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_RegistryPtr => wire
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRegistry;
-
-  CrossPlatformFinalizerArg
-  get rust_arc_decrement_strong_count_RendererPtr => wire
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRenderer;
 
   CrossPlatformFinalizerArg
   get rust_arc_decrement_strong_count_RendererDartImplPtr => wire
@@ -142,12 +134,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  DocumentExtractor
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractor(
-    dynamic raw,
-  );
-
-  @protected
   DocumentExtractorDartImpl
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractorDartImpl(
     dynamic raw,
@@ -180,12 +166,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   Registry
   dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRegistry(
-    dynamic raw,
-  );
-
-  @protected
-  Renderer
-  dco_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRenderer(
     dynamic raw,
   );
 
@@ -463,12 +443,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  DocumentExtractor
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractor(
-    dynamic raw,
-  );
-
-  @protected
   DocumentExtractorDartImpl
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractorDartImpl(
     dynamic raw,
@@ -501,12 +475,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   Registry
   dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRegistry(
-    dynamic raw,
-  );
-
-  @protected
-  Renderer
-  dco_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRenderer(
     dynamic raw,
   );
 
@@ -592,9 +560,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CaptioningConfig dco_decode_box_autoadd_captioning_config(dynamic raw);
 
   @protected
-  ChunkPlan dco_decode_box_autoadd_chunk_plan(dynamic raw);
-
-  @protected
   ChunkingConfig dco_decode_box_autoadd_chunking_config(dynamic raw);
 
   @protected
@@ -635,9 +600,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EmbeddingConfig dco_decode_box_autoadd_embedding_config(dynamic raw);
-
-  @protected
-  EnrichResult dco_decode_box_autoadd_enrich_result(dynamic raw);
 
   @protected
   EpubMetadata dco_decode_box_autoadd_epub_metadata(dynamic raw);
@@ -735,9 +697,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NerConfig dco_decode_box_autoadd_ner_config(dynamic raw);
-
-  @protected
-  NoChunkingReason dco_decode_box_autoadd_no_chunking_reason(dynamic raw);
 
   @protected
   OcrConfig dco_decode_box_autoadd_ocr_config(dynamic raw);
@@ -896,9 +855,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChunkMetadata dco_decode_chunk_metadata(dynamic raw);
 
   @protected
-  ChunkPlan dco_decode_chunk_plan(dynamic raw);
-
-  @protected
   ChunkSizing dco_decode_chunk_sizing(dynamic raw);
 
   @protected
@@ -909,9 +865,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ChunkingConfig dco_decode_chunking_config(dynamic raw);
-
-  @protected
-  ChunkingDecision dco_decode_chunking_decision(dynamic raw);
 
   @protected
   ChunkingReason dco_decode_chunking_reason(dynamic raw);
@@ -1035,15 +988,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EmbeddingModelType dco_decode_embedding_model_type(dynamic raw);
-
-  @protected
-  EnrichOptions dco_decode_enrich_options(dynamic raw);
-
-  @protected
-  EnrichResult dco_decode_enrich_result(dynamic raw);
-
-  @protected
-  EnrichStatus dco_decode_enrich_status(dynamic raw);
 
   @protected
   Entity dco_decode_entity(dynamic raw);
@@ -1256,9 +1200,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<Chunk> dco_decode_list_chunk(dynamic raw);
-
-  @protected
-  List<ChunkInfo> dco_decode_list_chunk_info(dynamic raw);
 
   @protected
   List<ClassificationLabel> dco_decode_list_classification_label(dynamic raw);
@@ -2244,12 +2185,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  DocumentExtractor
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractor(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   DocumentExtractorDartImpl
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractorDartImpl(
     SseDeserializer deserializer,
@@ -2282,12 +2217,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   Registry
   sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRegistry(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  Renderer
-  sse_decode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRenderer(
     SseDeserializer deserializer,
   );
 
@@ -2483,12 +2412,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  DocumentExtractor
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractor(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   DocumentExtractorDartImpl
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractorDartImpl(
     SseDeserializer deserializer,
@@ -2521,12 +2444,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   Registry
   sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRegistry(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  Renderer
-  sse_decode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRenderer(
     SseDeserializer deserializer,
   );
 
@@ -2624,9 +2541,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  ChunkPlan sse_decode_box_autoadd_chunk_plan(SseDeserializer deserializer);
-
-  @protected
   ChunkingConfig sse_decode_box_autoadd_chunking_config(
     SseDeserializer deserializer,
   );
@@ -2685,11 +2599,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EmbeddingConfig sse_decode_box_autoadd_embedding_config(
-    SseDeserializer deserializer,
-  );
-
-  @protected
-  EnrichResult sse_decode_box_autoadd_enrich_result(
     SseDeserializer deserializer,
   );
 
@@ -2823,11 +2732,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   NerConfig sse_decode_box_autoadd_ner_config(SseDeserializer deserializer);
-
-  @protected
-  NoChunkingReason sse_decode_box_autoadd_no_chunking_reason(
-    SseDeserializer deserializer,
-  );
 
   @protected
   OcrConfig sse_decode_box_autoadd_ocr_config(SseDeserializer deserializer);
@@ -3034,9 +2938,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ChunkMetadata sse_decode_chunk_metadata(SseDeserializer deserializer);
 
   @protected
-  ChunkPlan sse_decode_chunk_plan(SseDeserializer deserializer);
-
-  @protected
   ChunkSizing sse_decode_chunk_sizing(SseDeserializer deserializer);
 
   @protected
@@ -3047,9 +2948,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ChunkingConfig sse_decode_chunking_config(SseDeserializer deserializer);
-
-  @protected
-  ChunkingDecision sse_decode_chunking_decision(SseDeserializer deserializer);
 
   @protected
   ChunkingReason sse_decode_chunking_reason(SseDeserializer deserializer);
@@ -3185,15 +3083,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   EmbeddingModelType sse_decode_embedding_model_type(
     SseDeserializer deserializer,
   );
-
-  @protected
-  EnrichOptions sse_decode_enrich_options(SseDeserializer deserializer);
-
-  @protected
-  EnrichResult sse_decode_enrich_result(SseDeserializer deserializer);
-
-  @protected
-  EnrichStatus sse_decode_enrich_status(SseDeserializer deserializer);
 
   @protected
   Entity sse_decode_entity(SseDeserializer deserializer);
@@ -3432,9 +3321,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<Chunk> sse_decode_list_chunk(SseDeserializer deserializer);
-
-  @protected
-  List<ChunkInfo> sse_decode_list_chunk_info(SseDeserializer deserializer);
 
   @protected
   List<ClassificationLabel> sse_decode_list_classification_label(
@@ -4691,13 +4577,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractor(
-    DocumentExtractor self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractorDartImpl(
     DocumentExtractorDartImpl self,
     SseSerializer serializer,
@@ -4735,13 +4614,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRegistry(
     Registry self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_Auto_Owned_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRenderer(
-    Renderer self,
     SseSerializer serializer,
   );
 
@@ -5074,13 +4946,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractor(
-    DocumentExtractor self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractorDartImpl(
     DocumentExtractorDartImpl self,
     SseSerializer serializer,
@@ -5118,13 +4983,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void
   sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRegistry(
     Registry self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void
-  sse_encode_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRenderer(
-    Renderer self,
     SseSerializer serializer,
   );
 
@@ -5247,12 +5105,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_box_autoadd_chunk_plan(
-    ChunkPlan self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_box_autoadd_chunking_config(
     ChunkingConfig self,
     SseSerializer serializer,
@@ -5333,12 +5185,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_embedding_config(
     EmbeddingConfig self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_box_autoadd_enrich_result(
-    EnrichResult self,
     SseSerializer serializer,
   );
 
@@ -5504,12 +5350,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_box_autoadd_ner_config(
     NerConfig self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_box_autoadd_no_chunking_reason(
-    NoChunkingReason self,
     SseSerializer serializer,
   );
 
@@ -5787,9 +5627,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_chunk_metadata(ChunkMetadata self, SseSerializer serializer);
 
   @protected
-  void sse_encode_chunk_plan(ChunkPlan self, SseSerializer serializer);
-
-  @protected
   void sse_encode_chunk_sizing(ChunkSizing self, SseSerializer serializer);
 
   @protected
@@ -5801,12 +5638,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_chunking_config(
     ChunkingConfig self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_chunking_decision(
-    ChunkingDecision self,
     SseSerializer serializer,
   );
 
@@ -5998,15 +5829,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
     EmbeddingModelType self,
     SseSerializer serializer,
   );
-
-  @protected
-  void sse_encode_enrich_options(EnrichOptions self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_enrich_result(EnrichResult self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_enrich_status(EnrichStatus self, SseSerializer serializer);
 
   @protected
   void sse_encode_entity(Entity self, SseSerializer serializer);
@@ -6328,12 +6150,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_chunk(List<Chunk> self, SseSerializer serializer);
-
-  @protected
-  void sse_encode_list_chunk_info(
-    List<ChunkInfo> self,
-    SseSerializer serializer,
-  );
 
   @protected
   void sse_encode_list_classification_label(
@@ -7969,22 +7785,6 @@ class RustLibWire implements BaseWire {
       );
 
   void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractor(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractor(
-        ptr,
-      );
-
-  void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractor(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractor(
-        ptr,
-      );
-
-  void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractorDartImpl(
     int ptr,
   ) => wasmModule
@@ -8077,22 +7877,6 @@ class RustLibWire implements BaseWire {
     int ptr,
   ) => wasmModule
       .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRegistry(
-        ptr,
-      );
-
-  void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRenderer(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRenderer(
-        ptr,
-      );
-
-  void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRenderer(
-    int ptr,
-  ) => wasmModule
-      .rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRenderer(
         ptr,
       );
 
@@ -8238,16 +8022,6 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
   );
 
   external void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractor(
-    int ptr,
-  );
-
-  external void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractor(
-    int ptr,
-  );
-
-  external void
   rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerDocumentExtractorDartImpl(
     int ptr,
   );
@@ -8304,16 +8078,6 @@ extension type RustLibWasmModule._(JSObject _) implements JSObject {
 
   external void
   rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRegistry(
-    int ptr,
-  );
-
-  external void
-  rust_arc_increment_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRenderer(
-    int ptr,
-  );
-
-  external void
-  rust_arc_decrement_strong_count_RustOpaque_flutter_rust_bridgefor_generatedRustAutoOpaqueInnerRenderer(
     int ptr,
   );
 

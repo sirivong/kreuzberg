@@ -15,6 +15,8 @@ Provide a JSON schema and an LLM model. Xberg first extracts the document, then
 sends the extracted content to the configured model and stores the parsed JSON
 result on the extracted document.
 
+<!-- textlint-disable terminology -->
+
 === "Rust"
     ```rust
     use serde_json::json;
@@ -145,6 +147,8 @@ result on the extracted document.
       console.log(structured);
     }
     ```
+
+<!-- textlint-enable terminology -->
 
 ## TOML
 

@@ -103,7 +103,7 @@ impl InternalRenderer for PlainRenderer {
 
 /// Registry for document renderer plugins.
 ///
-/// Manages renderers that convert [`InternalDocument`] to output format strings.
+/// Manages renderers that convert internal pipeline documents to output format strings.
 ///
 /// # Thread Safety
 ///

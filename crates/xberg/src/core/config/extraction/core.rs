@@ -883,8 +883,10 @@ mod tests {
             model: "test/model".to_string(),
             ..Default::default()
         };
-        let mut url = super::UrlExtractionConfig::default();
-        url.max_total_urls = Some(7);
+        let url = super::UrlExtractionConfig {
+            max_total_urls: Some(7),
+            ..Default::default()
+        };
 
         let overrides = FileExtractionConfig {
             url: Some(url),

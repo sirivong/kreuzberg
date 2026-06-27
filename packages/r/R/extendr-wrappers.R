@@ -3375,25 +3375,6 @@ Keyword <- new.env(parent = emptyenv())
 }
 #' @export
 `[[.Keyword` <- `$.Keyword`
-#' Which enrichment passes to run on a piece of text
-#'
-#' All fields default to `false` / empty so callers can opt in precisely.
-#' @field keywords Run keyword extraction on the input text.
-#' @field entities Run named-entity recognition (NER) on the input text.
-#' @field labels Custom labels to pass through to the result without modification.
-#' @export
-EnrichOptions <- new.env(parent = emptyenv())
-#' @export
-`$.EnrichOptions` <- function(self, name) {
-  func <- EnrichOptions[[name]]
-  if (identical(names(formals(func))[1], "self")) {
-    function(...) func(self, ...)
-  } else {
-    func
-  }
-}
-#' @export
-`[[.EnrichOptions` <- `$.EnrichOptions`
 #' Metadata about a document for analysis
 #' @field mime_type MIME type of the document.
 #' @field size_bytes File size in bytes.
@@ -4096,66 +4077,6 @@ DiffLine <- new.env(parent = emptyenv())
 }
 #' @export
 `[[.DiffLine` <- `$.DiffLine`
-#' Async lifecycle status for an enrichment job
-#'
-#' Intended for use with any polling or event-driven pipeline that needs
-#' to track whether enrichment has completed, succeeded, or failed.
-#'
-#' # Serialisation
-#'
-#' Uses an internally-tagged `"status"` field with `snake_case` variants:
-#'
-#' ```json
-#' { "status": "pending" }
-#' { "status": "completed", "result": { ... } }
-#' { "status": "failed", "error": "text too large" }
-#' ```
-#'
-#'
-#' ```
-#' use xberg::enrichment::{EnrichStatus, EnrichResult};
-#'
-#' let s = EnrichStatus::Pending;
-#' let json = serde_json::to_value(&s).unwrap();
-#' assert_eq!(json["status"], "pending");
-#'
-#' let s = EnrichStatus::Completed { result: EnrichResult::default() };
-#' let json = serde_json::to_value(&s).unwrap();
-#' assert_eq!(json["status"], "completed");
-#' ```
-#' @field Pending Job submitted; processing has not yet started or is in progress.
-#' @field Completed Processing completed successfully.
-#' @field Failed Processing failed.
-#' @export
-EnrichStatus <- new.env(parent = emptyenv())
-#' @export
-`$.EnrichStatus` <- function(self, name) {
-  func <- EnrichStatus[[name]]
-  if (identical(names(formals(func))[1], "self")) {
-    function(...) func(self, ...)
-  } else {
-    func
-  }
-}
-#' @export
-`[[.EnrichStatus` <- `$.EnrichStatus`
-#' The chunking decision made by the analyzer
-#' @field NoChunking Process without chunking (small file, text layer detected, etc.)
-#' @field Chunk Chunk according to plan.
-#' @field UseOverrides Use user-provided chunk overrides.
-#' @export
-ChunkingDecision <- new.env(parent = emptyenv())
-#' @export
-`$.ChunkingDecision` <- function(self, name) {
-  func <- ChunkingDecision[[name]]
-  if (identical(names(formals(func))[1], "self")) {
-    function(...) func(self, ...)
-  } else {
-    func
-  }
-}
-#' @export
-`[[.ChunkingDecision` <- `$.ChunkingDecision`
 #' Create a ExecutionProviderType enum value
 #'
 #' Returns the default ExecutionProviderType variant.

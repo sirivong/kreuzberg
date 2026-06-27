@@ -737,59 +737,6 @@ Metadata about a chunk's position in the original document.
 
 ---
 
-#### XbergChunkPlan
-
-Complete chunking plan for a document.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `total_chunks` | `uint32_t` | `0` | Total number of chunks. |
-| `chunks` | `XbergChunkInfo*` | `NULL` | Individual chunk information. |
-| `total_estimated_time_ms` | `uint64_t` | `0` | Estimated total processing time in milliseconds. |
-| `use_disk_processing` | `bool` | `false` | Whether to use disk-based processing for large files. |
-| `reason` | `XbergChunkingReason` | `XBERG_XBERG_LARGE_FILE` | Reason for chunking. |
-
-##### Methods
-
-###### xberg_default()
-
-An empty plan (no chunks). The `reason` is a placeholder since an empty plan
-has no chunking rationale; callers always overwrite it when a real plan is built.
-
-**Signature:**
-
-```c
-XbergChunkPlan xberg_default();
-```
-
-**Example:**
-
-```c
-XbergChunkPlan *result = xberg_default();
-```
-
-**Returns:** `XbergChunkPlan`
-
-###### xberg_total_pages()
-
-Get the total number of pages across all chunks.
-
-**Signature:**
-
-```c
-uint32_t xberg_total_pages();
-```
-
-**Example:**
-
-```c
-uint32_t result = xberg_total_pages(instance);
-```
-
-**Returns:** `uint32_t`
-
----
-
 #### XbergChunkingConfig
 
 Chunking configuration.
@@ -1743,34 +1690,6 @@ XbergEmbeddingConfig *result = xberg_default();
 ```
 
 **Returns:** `XbergEmbeddingConfig`
-
----
-
-#### XbergEnrichOptions
-
-Which enrichment passes to run on a piece of text.
-
-All fields default to `false` / empty so callers can opt in precisely.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `keywords` | `bool` | — | Run keyword extraction on the input text. When `true`, the enrichment backend identifies the most salient terms and returns them in `EnrichResult.keywords`. |
-| `entities` | `bool` | — | Run named-entity recognition (NER) on the input text. When `true`, the enrichment backend identifies named entities (persons, organisations, locations, etc.) and returns them in `EnrichResult.entities`. |
-| `labels` | `const char**` | `NULL` | Custom labels to pass through to the result without modification. These are caller-supplied tags that the enrichment pipeline propagates verbatim into `EnrichResult.labels`. Useful for attaching project- or document-level metadata to every enrichment result. |
-
----
-
-#### XbergEnrichResult
-
-Structured output produced by a completed enrichment pass.
-
-Fields are populated only when the corresponding `EnrichOptions` flag was set.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `keywords` | `const char**` | `NULL` | Salient terms extracted from the text. Populated when `EnrichOptions.keywords` was `true`. The ordering is backend-defined (typically by descending relevance score). |
-| `entities` | `XbergEntity*` | `NULL` | Named entities found in the text. Populated when `EnrichOptions.entities` was `true`. Uses the shared OSS entity schema (`Entity` / `EntityCategory`) so consumers can pattern-match on entity categories without JSON gymnastics. |
-| `labels` | `const char**` | `NULL` | Caller-supplied labels echoed from `EnrichOptions.labels`. |
 
 ---
 
@@ -4178,7 +4097,7 @@ by avoiding redundant copies during serialization.
 |-------|------|---------|-------------|
 | `page_number` | `uint32_t` | — | Page number (1-indexed) |
 | `content` | `const char*` | — | Text content for this page |
-| `tables` | `XbergTable*` | `/* serde(default) */` | Tables found on this page (uses Arc for memory efficiency) Serializes as const Table* for JSON compatibility while maintaining shared in-memory ownership for zero-copy sharing. |
+| `tables` | `XbergTable*` | `/* serde(default) */` | Tables found on this page (uses Arc for memory efficiency) Serializes as `const Table*` for JSON compatibility while maintaining shared in-memory ownership for zero-copy sharing. |
 | `image_indices` | `uint32_t*` | `/* serde(default) */` | Indices into `ExtractedDocument.images` for images found on this page. Each value is a zero-based index into the top-level `images` collection. Only populated when `extract_images = true` in the extraction config. |
 | `hierarchy` | `XbergPageHierarchy*` | `NULL` | Hierarchy information for the page (when hierarchy extraction is enabled) Contains text hierarchy levels (H1-H6) extracted from the page content. |
 | `is_blank` | `bool*` | `NULL` | Whether this page is blank (no meaningful text content) Determined during extraction based on text content analysis. A page is blank if it has fewer than 3 non-whitespace characters and contains no tables or images. |
@@ -5831,7 +5750,7 @@ bool result = xberg_is_origin_allowed(instance, "value");
 
 | Name | Type | Required | Description |
 |------|------|----------|-------------|
-| `origin` | `const char*` | Yes | The origin to check (e.g., "<https://example.com">) |
+| `origin` | `const char*` | Yes | The origin to check (e.g., "<https://example.com>") |
 
 **Returns:** `bool`
 
@@ -7605,31 +7524,6 @@ Keyword algorithm selection.
 
 ---
 
-#### XbergEnrichStatus
-
-Async lifecycle status for an enrichment job.
-
-Intended for use with any polling or event-driven pipeline that needs
-to track whether enrichment has completed, succeeded, or failed.
-
-### Serialisation
-
-Uses an internally-tagged `"status"` field with `snake_case` variants:
-
-```json
-{ "status": "pending" }
-{ "status": "completed", "result": { ... } }
-{ "status": "failed", "error": "text too large" }
-```
-
-| Value | Description |
-|-------|-------------|
-| `XBERG_PENDING` | Job submitted; processing has not yet started or is in progress. |
-| `XBERG_COMPLETED` | Processing completed successfully. — Fields: `result`: `XbergEnrichResult` |
-| `XBERG_FAILED` | Processing failed. — Fields: `error`: `const char*` |
-
----
-
 #### XbergSchemaCompliance
 
 Schema-validation outcome surfaced as one of three buckets.
@@ -7642,18 +7536,6 @@ error types.
 | `XBERG_ALL_VALID` | Every batch validated against the schema. |
 | `XBERG_PARTIAL_VALID` | At least one batch validated; at least one did not. |
 | `XBERG_ALL_INVALID` | No batch validated. |
-
----
-
-#### XbergChunkingDecision
-
-The chunking decision made by the analyzer.
-
-| Value | Description |
-|-------|-------------|
-| `XBERG_NO_CHUNKING` | Process without chunking (small file, text layer detected, etc.) — Fields: `reason`: `XbergNoChunkingReason` |
-| `XBERG_CHUNK` | Chunk according to plan. — Fields: `0`: `XbergChunkPlan` |
-| `XBERG_USE_OVERRIDES` | Use user-provided chunk overrides. — Fields: `user_chunks`: `XbergPageRange*` |
 
 ---
 

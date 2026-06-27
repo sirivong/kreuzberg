@@ -131,20 +131,6 @@ including recognized text and detected tables.
 
 ---
 
-#### EnrichResult
-
-Structured output produced by a completed enrichment pass.
-
-Fields are populated only when the corresponding `EnrichOptions` flag was set.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `keywords` | `Vec<String>` | `vec!\[\]` | Salient terms extracted from the text. Populated when `EnrichOptions::keywords` was `true`. The ordering is backend-defined (typically by descending relevance score). |
-| `entities` | `Vec<Entity>` | `vec!\[\]` | Named entities found in the text. Populated when `EnrichOptions::entities` was `true`. Uses the shared OSS entity schema (`Entity` / `EntityCategory`) so consumers can pattern-match on entity categories without JSON gymnastics. |
-| `labels` | `Vec<String>` | `vec!\[\]` | Caller-supplied labels echoed from `EnrichOptions::labels`. |
-
----
-
 #### OrientationResult
 
 Document orientation detection result.
@@ -1444,20 +1430,6 @@ Keyword extraction configuration.
 
 ---
 
-#### EnrichOptions
-
-Which enrichment passes to run on a piece of text.
-
-All fields default to `False` / empty so callers can opt in precisely.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `keywords` | `bool` | — | Run keyword extraction on the input text. When `true`, the enrichment backend identifies the most salient terms and returns them in `EnrichResult::keywords`. |
-| `entities` | `bool` | — | Run named-entity recognition (NER) on the input text. When `true`, the enrichment backend identifies named entities (persons, organisations, locations, etc.) and returns them in `EnrichResult::entities`. |
-| `labels` | `Vec<String>` | `vec!\[\]` | Custom labels to pass through to the result without modification. These are caller-supplied tags that the enrichment pipeline propagates verbatim into `EnrichResult::labels`. Useful for attaching project- or document-level metadata to every enrichment result. |
-
----
-
 #### UserChunkConfig
 
 User-provided chunk configuration.
@@ -1491,20 +1463,6 @@ struct-update syntax: `HeuristicsConfig { text_layer_threshold: 0.5, ..the defau
 | `max_xlsx_sheet_count` | `u32` | `200` | Maximum sheet count allowed in an XLSX workbook. Workbooks beyond this are rejected pre-extraction to avoid OOM / abusive billing inflation. Default: 200. |
 | `max_xlsx_workbook_cells` | `u64` | `5000000` | Maximum cell count (sheets × rows × columns approximation) in an XLSX workbook. Default: 5 000 000 (≈ 200 sheets × 25 k cells). |
 | `max_pptx_embedded_count` | `u32` | `50` | Maximum number of OLE-embedded objects extractable from a single PPTX or DOCX. Protects against zip-bomb-style nested-document abuse. Default: 50. |
-
----
-
-#### ChunkPlan
-
-Complete chunking plan for a document.
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `total_chunks` | `u32` | `0` | Total number of chunks. |
-| `chunks` | `Vec<ChunkInfo>` | `vec!\[\]` | Individual chunk information. |
-| `total_estimated_time_ms` | `u64` | `0` | Estimated total processing time in milliseconds. |
-| `use_disk_processing` | `bool` | `false` | Whether to use disk-based processing for large files. |
-| `reason` | `ChunkingReason` | `ChunkingReason::LargeFile` | Reason for chunking. |
 
 ---
 
@@ -2988,7 +2946,7 @@ by avoiding redundant copies during serialization.
 |-------|------|---------|-------------|
 | `page_number` | `u32` | — | Page number (1-indexed) |
 | `content` | `String` | — | Text content for this page |
-| `tables` | `Vec<Table>` | `/* serde(default) */` | Tables found on this page (uses Arc for memory efficiency) Serializes as Vec<Table> for JSON compatibility while maintaining Arc semantics in-memory for zero-copy sharing. |
+| `tables` | `Vec<Table>` | `/* serde(default) */` | Tables found on this page (uses Arc for memory efficiency) Serializes as `Vec<Table>` for JSON compatibility while maintaining Arc semantics in-memory for zero-copy sharing. |
 | `image_indices` | `Vec<u32>` | `/* serde(default) */` | Indices into `ExtractedDocument.images` for images found on this page. Each value is a zero-based index into the top-level `images` collection. Only populated when `extract_images = true` in the extraction config. |
 | `hierarchy` | `Option<PageHierarchy>` | `None` | Hierarchy information for the page (when hierarchy extraction is enabled) Contains text hierarchy levels (H1-H6) extracted from the page content. |
 | `is_blank` | `Option<bool>` | `None` | Whether this page is blank (no meaningful text content) Determined during extraction based on text content analysis. A page is blank if it has fewer than 3 non-whitespace characters and contains no tables or images. |
@@ -3606,18 +3564,6 @@ Type of text chunker to use.
 
 ---
 
-#### ChunkingDecision
-
-The chunking decision made by the analyzer.
-
-| Variant | Description |
-|---------|-------------|
-| `NoChunking` | Process without chunking (small file, text layer detected, etc.) — Fields: `reason`: `NoChunkingReason` |
-| `Chunk` | Chunk according to plan. — Fields: `_0`: `ChunkPlan` |
-| `UseOverrides` | Use user-provided chunk overrides. — Fields: `user_chunks`: `Vec<PageRange>` |
-
----
-
 #### ChunkingReason
 
 Reason for chunking a document.
@@ -3710,31 +3656,6 @@ Embedding model types supported by Xberg.
 | `Custom` | `custom` | Use a custom ONNX model from HuggingFace — Fields: `model_id`: `String`, `dimensions`: `usize` |
 | `Llm` | `llm` | Provider-hosted embedding model via liter-llm. Uses the model specified in the nested `LlmConfig` (e.g., `"openai/text-embedding-3-small"`). — Fields: `llm`: `LlmConfig` |
 | `Plugin` | `plugin` | In-process embedding backend registered via the plugin system. The caller registers an `EmbeddingBackend` once (e.g. a wrapper around an already-loaded `llama-cpp-python`, `sentence-transformers`, or tuned ONNX model), then references it by name in config. Xberg calls back into the registered backend during chunking and standalone embed requests — no HuggingFace download, no ONNX Runtime requirement, no HTTP sidecar. When this variant is selected, only the following `EmbeddingConfig` fields apply: `normalize` (post-call L2 normalization) and `max_embed_duration_secs` (dispatcher timeout). Model-loading fields (`batch_size`, `cache_dir`, `show_download_progress`, `acceleration`) are ignored — the host owns the model lifecycle. Semantic chunking falls back to `ChunkingConfig::max_characters` when this variant is used, since there is no preset to look a chunk-size ceiling up against — size your context window via `max_characters` directly. See `register_embedding_backend`. — Fields: `name`: `String` |
-
----
-
-#### EnrichStatus
-
-Async lifecycle status for an enrichment job.
-
-Intended for use with any polling or event-driven pipeline that needs
-to track whether enrichment has completed, succeeded, or failed.
-
-### Serialisation
-
-Uses an internally-tagged `"status"` field with `snake_case` variants:
-
-```json
-{ "status": "pending" }
-{ "status": "completed", "result": { ... } }
-{ "status": "failed", "error": "text too large" }
-```
-
-| Variant | Wire value | Description |
-|---------|------------|-------------|
-| `Pending` | `pending` | Job submitted; processing has not yet started or is in progress. |
-| `Completed` | `completed` | Processing completed successfully. — Fields: `result`: `EnrichResult` |
-| `Failed` | `failed` | Processing failed. — Fields: `error`: `String` |
 
 ---
 

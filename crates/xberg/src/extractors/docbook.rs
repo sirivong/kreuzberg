@@ -1,7 +1,7 @@
 //! DocBook document extractor supporting both 4.x and 5.x formats.
 //!
 //! This extractor handles DocBook XML documents in both traditional (4.x, no namespace)
-//! and modern (5.x, with http://docbook.org/ns/docbook namespace) formats.
+//! and modern (5.x, with <http://docbook.org/ns/docbook> namespace) formats.
 //!
 //! Single-pass architecture that extracts in one document traversal:
 //! - Document metadata (title, author, date, abstract)

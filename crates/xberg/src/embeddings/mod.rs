@@ -25,7 +25,7 @@
 //! - **Linux (Ubuntu/Debian)**: `apt install libonnxruntime libonnxruntime-dev`
 //! - **Linux (Fedora)**: `dnf install onnxruntime onnxruntime-devel`
 //! - **Linux (Arch)**: `pacman -S onnxruntime`
-//! - **Windows (MSVC)**: Download from https://github.com/microsoft/onnxruntime/releases and add to PATH
+//! - **Windows (MSVC)**: Download from <https://github.com/microsoft/onnxruntime/releases> and add to PATH
 //!
 //! Alternatively, set the `ORT_DYLIB_PATH` environment variable to the ONNX Runtime library path.
 //!
