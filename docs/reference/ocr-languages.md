@@ -450,17 +450,23 @@ Install missing language packs for Tesseract via your OS package manager before 
 Use the `language-detection` feature to auto-detect document language, then pass the detected language to OCR:
 
 ```python
-from xberg import Client
-
-client = Client()
-result = client.extract(
-    "document.pdf",
-    {
-        "language_detection": True,
-        "ocr": {"backend": "tesseract"}
-    }
+from xberg import (
+    ExtractInput,
+    ExtractionConfig,
+    LanguageDetectionConfig,
+    OcrConfig,
+    extract,
 )
-print(f"Detected language: {result.metadata.language}")
+
+config = ExtractionConfig(
+    language_detection=LanguageDetectionConfig(enabled=True),
+    ocr=OcrConfig(backend="tesseract", language=["eng"]),
+)
+
+output = await extract(ExtractInput(kind="uri", uri="document.pdf"), config)
+document = output.results[0]
+
+print(document.detected_languages)
 ```
 
 ## See Also
