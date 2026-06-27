@@ -7,6 +7,7 @@ if [ "$#" -eq 0 ]; then
 fi
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+export XBERG_TEST_DOCUMENTS_DIR="${XBERG_TEST_DOCUMENTS_DIR:-$repo_root/test_documents}"
 
 "$repo_root/scripts/e2e/build-mock-server.sh" e2e
 

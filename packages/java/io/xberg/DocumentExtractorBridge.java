@@ -78,7 +78,7 @@ public final class DocumentExtractorBridge implements AutoCloseable {
     private void initStubName(long offset) throws ReflectiveOperationException {
         var stubName = LINKER.upcallStub(LOOKUP.bind(this, "handleName",
             MethodType.methodType(int.class, MemorySegment.class, MemorySegment.class, MemorySegment.class)),
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
             arena);
         vtable.set(ValueLayout.ADDRESS, offset, stubName);
     }
@@ -86,7 +86,7 @@ public final class DocumentExtractorBridge implements AutoCloseable {
     private void initStubVersion(long offset) throws ReflectiveOperationException {
         var stubVersion = LINKER.upcallStub(LOOKUP.bind(this, "handleVersion",
             MethodType.methodType(int.class, MemorySegment.class, MemorySegment.class, MemorySegment.class)),
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
             arena);
         vtable.set(ValueLayout.ADDRESS, offset, stubVersion);
     }
@@ -94,7 +94,7 @@ public final class DocumentExtractorBridge implements AutoCloseable {
     private void initStubInitialize(long offset) throws ReflectiveOperationException {
         var stubInitialize = LINKER.upcallStub(LOOKUP.bind(this, "handleInitialize",
             MethodType.methodType(int.class, MemorySegment.class, MemorySegment.class)),
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
             arena);
         vtable.set(ValueLayout.ADDRESS, offset, stubInitialize);
     }
@@ -102,7 +102,7 @@ public final class DocumentExtractorBridge implements AutoCloseable {
     private void initStubShutdown(long offset) throws ReflectiveOperationException {
         var stubShutdown = LINKER.upcallStub(LOOKUP.bind(this, "handleShutdown",
             MethodType.methodType(int.class, MemorySegment.class, MemorySegment.class)),
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
             arena);
         vtable.set(ValueLayout.ADDRESS, offset, stubShutdown);
     }
@@ -118,7 +118,7 @@ public final class DocumentExtractorBridge implements AutoCloseable {
                 MemorySegment.class
             )),
             FunctionDescriptor.of(
-                ValueLayout.JAVA_LONG,
+                ValueLayout.JAVA_INT,
                 ValueLayout.ADDRESS,
                 ValueLayout.ADDRESS,
                 ValueLayout.ADDRESS,
@@ -132,15 +132,15 @@ public final class DocumentExtractorBridge implements AutoCloseable {
     private void initStubSupportedMimeTypes(long offset) throws ReflectiveOperationException {
         var stubSupportedMimeTypes = LINKER.upcallStub(LOOKUP.bind(this, "handleSupportedMimeTypes",
             MethodType.methodType(int.class, MemorySegment.class, MemorySegment.class, MemorySegment.class)),
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
             arena);
         vtable.set(ValueLayout.ADDRESS, offset, stubSupportedMimeTypes);
     }
 
     private void initStubPriority(long offset) throws ReflectiveOperationException {
         var stubPriority = LINKER.upcallStub(LOOKUP.bind(this, "handlePriority",
-            MethodType.methodType(int.class, MemorySegment.class, MemorySegment.class, MemorySegment.class)),
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
+            MethodType.methodType(int.class, MemorySegment.class)),
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS),
             arena);
         vtable.set(ValueLayout.ADDRESS, offset, stubPriority);
     }
@@ -151,14 +151,10 @@ public final class DocumentExtractorBridge implements AutoCloseable {
                 int.class,
                 MemorySegment.class,
                 MemorySegment.class,
-                MemorySegment.class,
-                MemorySegment.class,
                 MemorySegment.class
             )),
             FunctionDescriptor.of(
-                ValueLayout.JAVA_LONG,
-                ValueLayout.ADDRESS,
-                ValueLayout.ADDRESS,
+                ValueLayout.JAVA_INT,
                 ValueLayout.ADDRESS,
                 ValueLayout.ADDRESS,
                 ValueLayout.ADDRESS
@@ -250,38 +246,23 @@ public final class DocumentExtractorBridge implements AutoCloseable {
         }
     }
 
-    private int handlePriority(MemorySegment userData, MemorySegment outResult, MemorySegment outError) {
+    private int handlePriority(MemorySegment userData) {
         try {
-            int callbackResult = impl.priority();
-            String json = JSON.writeValueAsString(callbackResult);
-            MemorySegment jsonCs = arena.allocateFrom(json);
-            outResult.set(ValueLayout.ADDRESS, 0, jsonCs);
-            return 0;
-        } catch (Throwable e) {
-            writeError(outError, e);
-            return 1;
-        }
+            return impl.priority();
+        } catch (Throwable e) { return 0; }
     }
 
     private int handleCanHandle(
         MemorySegment userData,
         MemorySegment _path_in,
-        MemorySegment _mime_type_in,
-        MemorySegment outResult,
-        MemorySegment outError
+        MemorySegment _mime_type_in
     ) {
         try {
             java.nio.file.Path _path = java.nio.file.Paths.get(_path_in.reinterpret(Long.MAX_VALUE).getString(0));
             String _mime_type = _mime_type_in.reinterpret(Long.MAX_VALUE).getString(0);
             boolean callbackResult = impl.can_handle(_path, _mime_type);
-            String json = JSON.writeValueAsString(callbackResult);
-            MemorySegment jsonCs = arena.allocateFrom(json);
-            outResult.set(ValueLayout.ADDRESS, 0, jsonCs);
-            return 0;
-        } catch (Throwable e) {
-            writeError(outError, e);
-            return 1;
-        }
+            return callbackResult ? 1 : 0;
+        } catch (Throwable e) { return 0; }
     }
 
     private void writeError(MemorySegment outError, Throwable e) {
@@ -312,7 +293,7 @@ public final class DocumentExtractorBridge implements AutoCloseable {
             try (var nameArena = Arena.ofShared()) {
                 var nameCs = nameArena.allocateFrom(impl.name());
                 MemorySegment outErr = nameArena.allocate(ValueLayout.ADDRESS);
-                int rc = (int) (long) NativeLib.XBERG_REGISTER_DOCUMENT_EXTRACTOR.invoke(
+                int rc = (int) NativeLib.XBERG_REGISTER_DOCUMENT_EXTRACTOR.invoke(
                     nameCs,
                     bridge.vtableSegment(),
                     MemorySegment.NULL,
@@ -341,7 +322,7 @@ public final class DocumentExtractorBridge implements AutoCloseable {
             try (var nameArena = Arena.ofShared()) {
                 var nameCs = nameArena.allocateFrom(name);
                 MemorySegment outErr = nameArena.allocate(ValueLayout.ADDRESS);
-                int rc = (int) (long) NativeLib.XBERG_UNREGISTER_DOCUMENT_EXTRACTOR.invoke(nameCs, outErr);
+                int rc = (int) NativeLib.XBERG_UNREGISTER_DOCUMENT_EXTRACTOR.invoke(nameCs, outErr);
                 if (rc != 0) {
                     MemorySegment errPtr = outErr.get(ValueLayout.ADDRESS, 0);
                     String msg = errPtr.equals(MemorySegment.NULL)
@@ -365,7 +346,7 @@ public final class DocumentExtractorBridge implements AutoCloseable {
         try {
             try (var arena = Arena.ofShared()) {
                 MemorySegment outErr = arena.allocate(ValueLayout.ADDRESS);
-                int rc = (int) (long) NativeLib.XBERG_CLEAR_DOCUMENT_EXTRACTOR.invoke(outErr);
+                int rc = (int) NativeLib.XBERG_CLEAR_DOCUMENT_EXTRACTOR.invoke(outErr);
                 if (rc != 0) {
                     MemorySegment errPtr = outErr.get(ValueLayout.ADDRESS, 0);
                     String msg = errPtr.equals(MemorySegment.NULL)

@@ -801,7 +801,7 @@ final class NativeLib {
 
     static final MethodHandle XBERG_REGISTER_OCR_BACKEND = LIB
         .find("xberg_register_ocr_backend")
-        .map(s -> LINKER.downcallHandle(s, FunctionDescriptor.of(ValueLayout.JAVA_LONG,
+        .map(s -> LINKER.downcallHandle(s, FunctionDescriptor.of(ValueLayout.JAVA_INT,
             ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
         .orElse(null);
 
@@ -809,20 +809,20 @@ final class NativeLib {
     static final MethodHandle XBERG_UNREGISTER_OCR_BACKEND = LIB
         .find("xberg_unregister_ocr_backend")
         .map(s -> LINKER.downcallHandle(s,
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
         .orElse(null);
 
 
     static final MethodHandle XBERG_CLEAR_OCR_BACKEND = LIB
         .find("xberg_clear_ocr_backend")
         .map(s -> LINKER.downcallHandle(s,
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS)))
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS)))
         .orElse(null);
 
 
     static final MethodHandle XBERG_REGISTER_POST_PROCESSOR = LIB
         .find("xberg_register_post_processor")
-        .map(s -> LINKER.downcallHandle(s, FunctionDescriptor.of(ValueLayout.JAVA_LONG,
+        .map(s -> LINKER.downcallHandle(s, FunctionDescriptor.of(ValueLayout.JAVA_INT,
             ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
         .orElse(null);
 
@@ -830,20 +830,20 @@ final class NativeLib {
     static final MethodHandle XBERG_UNREGISTER_POST_PROCESSOR = LIB
         .find("xberg_unregister_post_processor")
         .map(s -> LINKER.downcallHandle(s,
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
         .orElse(null);
 
 
     static final MethodHandle XBERG_CLEAR_POST_PROCESSOR = LIB
         .find("xberg_clear_post_processor")
         .map(s -> LINKER.downcallHandle(s,
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS)))
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS)))
         .orElse(null);
 
 
     static final MethodHandle XBERG_REGISTER_VALIDATOR = LIB
         .find("xberg_register_validator")
-        .map(s -> LINKER.downcallHandle(s, FunctionDescriptor.of(ValueLayout.JAVA_LONG,
+        .map(s -> LINKER.downcallHandle(s, FunctionDescriptor.of(ValueLayout.JAVA_INT,
             ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
         .orElse(null);
 
@@ -851,20 +851,20 @@ final class NativeLib {
     static final MethodHandle XBERG_UNREGISTER_VALIDATOR = LIB
         .find("xberg_unregister_validator")
         .map(s -> LINKER.downcallHandle(s,
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
         .orElse(null);
 
 
     static final MethodHandle XBERG_CLEAR_VALIDATOR = LIB
         .find("xberg_clear_validator")
         .map(s -> LINKER.downcallHandle(s,
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS)))
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS)))
         .orElse(null);
 
 
     static final MethodHandle XBERG_REGISTER_DOCUMENT_EXTRACTOR = LIB
         .find("xberg_register_document_extractor")
-        .map(s -> LINKER.downcallHandle(s, FunctionDescriptor.of(ValueLayout.JAVA_LONG,
+        .map(s -> LINKER.downcallHandle(s, FunctionDescriptor.of(ValueLayout.JAVA_INT,
             ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
         .orElse(null);
 
@@ -872,20 +872,20 @@ final class NativeLib {
     static final MethodHandle XBERG_UNREGISTER_DOCUMENT_EXTRACTOR = LIB
         .find("xberg_unregister_document_extractor")
         .map(s -> LINKER.downcallHandle(s,
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
         .orElse(null);
 
 
     static final MethodHandle XBERG_CLEAR_DOCUMENT_EXTRACTOR = LIB
         .find("xberg_clear_document_extractor")
         .map(s -> LINKER.downcallHandle(s,
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS)))
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS)))
         .orElse(null);
 
 
     static final MethodHandle XBERG_REGISTER_EMBEDDING_BACKEND = LIB
         .find("xberg_register_embedding_backend")
-        .map(s -> LINKER.downcallHandle(s, FunctionDescriptor.of(ValueLayout.JAVA_LONG,
+        .map(s -> LINKER.downcallHandle(s, FunctionDescriptor.of(ValueLayout.JAVA_INT,
             ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
         .orElse(null);
 
@@ -893,20 +893,20 @@ final class NativeLib {
     static final MethodHandle XBERG_UNREGISTER_EMBEDDING_BACKEND = LIB
         .find("xberg_unregister_embedding_backend")
         .map(s -> LINKER.downcallHandle(s,
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
         .orElse(null);
 
 
     static final MethodHandle XBERG_CLEAR_EMBEDDING_BACKEND = LIB
         .find("xberg_clear_embedding_backend")
         .map(s -> LINKER.downcallHandle(s,
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS)))
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS)))
         .orElse(null);
 
 
     static final MethodHandle XBERG_REGISTER_RENDERER = LIB
         .find("xberg_register_renderer")
-        .map(s -> LINKER.downcallHandle(s, FunctionDescriptor.of(ValueLayout.JAVA_LONG,
+        .map(s -> LINKER.downcallHandle(s, FunctionDescriptor.of(ValueLayout.JAVA_INT,
             ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
         .orElse(null);
 
@@ -914,20 +914,20 @@ final class NativeLib {
     static final MethodHandle XBERG_UNREGISTER_RENDERER = LIB
         .find("xberg_unregister_renderer")
         .map(s -> LINKER.downcallHandle(s,
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
         .orElse(null);
 
 
     static final MethodHandle XBERG_CLEAR_RENDERER = LIB
         .find("xberg_clear_renderer")
         .map(s -> LINKER.downcallHandle(s,
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS)))
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS)))
         .orElse(null);
 
 
     static final MethodHandle XBERG_REGISTER_RERANKER_BACKEND = LIB
         .find("xberg_register_reranker_backend")
-        .map(s -> LINKER.downcallHandle(s, FunctionDescriptor.of(ValueLayout.JAVA_LONG,
+        .map(s -> LINKER.downcallHandle(s, FunctionDescriptor.of(ValueLayout.JAVA_INT,
             ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
         .orElse(null);
 
@@ -935,14 +935,14 @@ final class NativeLib {
     static final MethodHandle XBERG_UNREGISTER_RERANKER_BACKEND = LIB
         .find("xberg_unregister_reranker_backend")
         .map(s -> LINKER.downcallHandle(s,
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS)))
         .orElse(null);
 
 
     static final MethodHandle XBERG_CLEAR_RERANKER_BACKEND = LIB
         .find("xberg_clear_reranker_backend")
         .map(s -> LINKER.downcallHandle(s,
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS)))
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS)))
         .orElse(null);
 
 

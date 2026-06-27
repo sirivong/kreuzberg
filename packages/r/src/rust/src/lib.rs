@@ -258,6 +258,8 @@ pub struct ExtractionConfig {
     pub pages: Option<PageConfig>,
     /// Post-processor configuration (undefined = use defaults)
     pub postprocessor: Option<PostProcessorConfig>,
+    /// Keyword extraction configuration (undefined = no keyword extraction)
+    pub keywords: Option<KeywordConfig>,
     /// Default per-file timeout in seconds for batch extraction.
     ///
     /// When set, each file in a batch will be canceled after this duration
@@ -422,6 +424,8 @@ impl ExtractionConfig {
 
             postprocessor: self.postprocessor.clone().map(Into::into),
 
+            keywords: self.keywords.clone().map(Into::into),
+
             extraction_timeout_secs: self.extraction_timeout_secs.map(|v| v as u64),
 
             max_concurrent_extractions: self.max_concurrent_extractions.map(|v| v as usize),
@@ -501,6 +505,8 @@ impl ExtractionConfig {
             pages: self.pages.clone().map(Into::into),
 
             postprocessor: self.postprocessor.clone().map(Into::into),
+
+            keywords: self.keywords.clone().map(Into::into),
 
             extraction_timeout_secs: self.extraction_timeout_secs.map(|v| v as u64),
 
@@ -664,6 +670,8 @@ pub struct FileExtractionConfig {
     pub pages: Option<PageConfig>,
     /// Override post-processor for this file.
     pub postprocessor: Option<PostProcessorConfig>,
+    /// Override keyword extraction for this file.
+    pub keywords: Option<KeywordConfig>,
     /// Override result format for this file.
     pub result_format: Option<ResultFormat>,
     /// Override output content format for this file.
@@ -936,6 +944,8 @@ pub struct ExtractionResult {
 pub struct UrlExtractionConfig {
     /// URL extraction mode.
     pub mode: UrlExtractionMode,
+    /// Crawlberg crawl configuration used for HTTP(S) URL extraction.
+    pub crawl: Option<serde_json::Value>,
     /// Optional regex filter for document-discovered URLs.
     pub document_url_pattern: Option<String>,
     /// Maximum URLs to follow per extraction result.
@@ -959,6 +969,7 @@ impl UrlExtractionConfig {
 #[extendr]
 pub fn new_urlextractionconfig(
     mode: Option<String>,
+    crawl: Option<String>,
     document_url_pattern: Option<String>,
     max_document_urls_per_result: Option<i32>,
     max_total_urls: Option<i32>,
@@ -970,6 +981,9 @@ pub fn new_urlextractionconfig(
         if let Ok(parsed) = serde_json::from_str(&format!("\"{v}\"")) {
             __out.mode = parsed;
         }
+    }
+    if let Some(v) = crawl {
+        __out.crawl = serde_json::from_str(&v).ok();
     }
     if let Some(v) = document_url_pattern {
         __out.document_url_pattern = Some(v);
@@ -3829,6 +3843,8 @@ pub struct ExtractedDocument {
     ///
     /// Independent of `result_format` — can be combined with Unified or ElementBased.
     pub document: Option<DocumentStructure>,
+    /// Keywords extracted from document content.
+    pub extracted_keywords: Option<Vec<Keyword>>,
     /// Document quality score from quality analysis.
     ///
     /// A value between 0.0 and 1.0 indicating the overall text quality.
@@ -8941,6 +8957,7 @@ impl From<ExtractionConfig> for xberg::ExtractionConfig {
             language_detection: val.language_detection.map(Into::into),
             pages: val.pages.map(Into::into),
             postprocessor: val.postprocessor.map(Into::into),
+            keywords: val.keywords.map(Into::into),
             extraction_timeout_secs: val.extraction_timeout_secs.map(|v| v as u64),
             max_concurrent_extractions: val.max_concurrent_extractions.map(|v| v as usize),
             result_format: val.result_format.into(),
@@ -8988,6 +9005,7 @@ impl From<xberg::ExtractionConfig> for ExtractionConfig {
             language_detection: val.language_detection.map(Into::into),
             pages: val.pages.map(Into::into),
             postprocessor: val.postprocessor.map(Into::into),
+            keywords: val.keywords.map(Into::into),
             extraction_timeout_secs: val.extraction_timeout_secs.map(|v| v as f64),
             max_concurrent_extractions: val.max_concurrent_extractions.map(|v| v as f64),
             result_format: val.result_format.into(),
@@ -9031,6 +9049,7 @@ impl From<FileExtractionConfig> for xberg::FileExtractionConfig {
             language_detection: val.language_detection.map(Into::into),
             pages: val.pages.map(Into::into),
             postprocessor: val.postprocessor.map(Into::into),
+            keywords: val.keywords.map(Into::into),
             result_format: val.result_format.map(Into::into),
             output_format: val.output_format.map(Into::into),
             include_document_structure: val.include_document_structure,
@@ -9068,6 +9087,7 @@ impl From<xberg::FileExtractionConfig> for FileExtractionConfig {
             language_detection: val.language_detection.map(Into::into),
             pages: val.pages.map(Into::into),
             postprocessor: val.postprocessor.map(Into::into),
+            keywords: val.keywords.map(Into::into),
             result_format: val.result_format.map(Into::into),
             output_format: val.output_format.map(Into::into),
             include_document_structure: val.include_document_structure,
@@ -9108,15 +9128,35 @@ impl From<xberg::core::config::extraction::SvgOptions> for SvgOptions {
 #[allow(clippy::redundant_closure, clippy::useless_conversion)]
 impl From<ExtractInput> for xberg::ExtractInput {
     fn from(val: ExtractInput) -> Self {
-        Self {
+        resolve_e2e_fixture_uri(Self {
             kind: val.kind.into(),
             bytes: val.bytes.map(|v| v.to_vec().into()),
             uri: val.uri,
             mime_type: val.mime_type,
             filename: val.filename,
             config: val.config.map(Into::into),
-        }
+        })
     }
+}
+
+fn resolve_e2e_fixture_uri(mut input: xberg::ExtractInput) -> xberg::ExtractInput {
+    let Some(uri) = input.uri.as_deref() else {
+        return input;
+    };
+
+    if uri.contains("://") || std::path::Path::new(uri).is_absolute() || std::path::Path::new(uri).exists() {
+        return input;
+    }
+
+    let Ok(root) = std::env::var("XBERG_TEST_DOCUMENTS_DIR") else {
+        return input;
+    };
+    let candidate = std::path::Path::new(&root).join(uri);
+    if candidate.exists() {
+        input.uri = Some(candidate.to_string_lossy().into_owned());
+    }
+
+    input
 }
 
 #[allow(clippy::redundant_closure, clippy::useless_conversion)]
@@ -9219,7 +9259,7 @@ impl From<xberg::ExtractionResult> for ExtractionResult {
 #[allow(clippy::redundant_closure, clippy::useless_conversion)]
 impl From<UrlExtractionConfig> for xberg::UrlExtractionConfig {
     fn from(val: UrlExtractionConfig) -> Self {
-        Self {
+        let mut out = Self {
             mode: val.mode.into(),
             document_url_pattern: val.document_url_pattern,
             max_document_urls_per_result: val.max_document_urls_per_result.map(|v| v as u32),
@@ -9227,7 +9267,13 @@ impl From<UrlExtractionConfig> for xberg::UrlExtractionConfig {
             allow_local_file_inputs: val.allow_local_file_inputs,
             allow_file_uris: val.allow_file_uris,
             ..Default::default()
+        };
+        if let Some(crawl) = val.crawl {
+            if let Ok(crawl_config) = serde_json::from_value(crawl) {
+                out.crawl = crawl_config;
+            }
         }
+        out
     }
 }
 
@@ -9236,6 +9282,7 @@ impl From<xberg::UrlExtractionConfig> for UrlExtractionConfig {
     fn from(val: xberg::UrlExtractionConfig) -> Self {
         Self {
             mode: val.mode.into(),
+            crawl: serde_json::to_value(val.crawl).ok(),
             document_url_pattern: val.document_url_pattern.map(|v| v.to_string()),
             max_document_urls_per_result: val.max_document_urls_per_result.map(|v| v as i32),
             max_total_urls: val.max_total_urls.map(|v| v as i32),
@@ -10794,43 +10841,43 @@ impl From<xberg::Entity> for Entity {
 #[allow(clippy::redundant_closure, clippy::useless_conversion)]
 impl From<ExtractedDocument> for xberg::ExtractedDocument {
     fn from(val: ExtractedDocument) -> Self {
-        Self {
-            content: val.content,
-            mime_type: val.mime_type.into(),
-            metadata: val.metadata.into(),
-            extraction_method: val.extraction_method.map(Into::into),
-            tables: val.tables.into_iter().map(Into::into).collect(),
-            detected_languages: val.detected_languages.map(|v| v.into_iter().collect()),
-            chunks: val.chunks.map(|v| v.into_iter().map(Into::into).collect()),
-            images: val.images.map(|v| v.into_iter().map(Into::into).collect()),
-            pages: val.pages.map(|v| v.into_iter().map(Into::into).collect()),
-            elements: val.elements.map(|v| v.into_iter().map(Into::into).collect()),
-            djot_content: val.djot_content.map(Into::into),
-            ocr_elements: val.ocr_elements.map(|v| v.into_iter().map(Into::into).collect()),
-            document: val.document.map(Into::into),
-            quality_score: val.quality_score,
-            processing_warnings: val.processing_warnings.into_iter().map(Into::into).collect(),
-            annotations: val.annotations.map(|v| v.into_iter().map(Into::into).collect()),
-            children: val.children.map(|v| v.into_iter().map(Into::into).collect()),
-            uris: val.uris.map(|v| v.into_iter().map(Into::into).collect()),
-            revisions: val.revisions.map(|v| v.into_iter().map(Into::into).collect()),
-            structured_output: val
-                .structured_output
-                .as_ref()
-                .and_then(|s| serde_json::from_str(s).ok()),
-            llm_usage: val.llm_usage.map(|v| v.into_iter().map(Into::into).collect()),
-            entities: val.entities.map(|v| v.into_iter().map(Into::into).collect()),
-            summary: val.summary.map(Into::into),
-            translation: val.translation.map(Into::into),
-            page_classifications: val
-                .page_classifications
-                .map(|v| v.into_iter().map(Into::into).collect()),
-            redaction_report: val.redaction_report.map(Into::into),
-            formulas: val.formulas.into_iter().map(Into::into).collect(),
-            form_fields: val.form_fields.into_iter().map(Into::into).collect(),
-            formatted_content: val.formatted_content,
-            ..Default::default()
-        }
+        let mut __result = xberg::ExtractedDocument::default();
+        __result.content = val.content;
+        __result.mime_type = val.mime_type.into();
+        __result.metadata = val.metadata.into();
+        __result.extraction_method = val.extraction_method.map(Into::into);
+        __result.tables = val.tables.into_iter().map(Into::into).collect();
+        __result.detected_languages = val.detected_languages.map(|v| v.into_iter().collect());
+        __result.chunks = val.chunks.map(|v| v.into_iter().map(Into::into).collect());
+        __result.images = val.images.map(|v| v.into_iter().map(Into::into).collect());
+        __result.pages = val.pages.map(|v| v.into_iter().map(Into::into).collect());
+        __result.elements = val.elements.map(|v| v.into_iter().map(Into::into).collect());
+        __result.djot_content = val.djot_content.map(Into::into);
+        __result.ocr_elements = val.ocr_elements.map(|v| v.into_iter().map(Into::into).collect());
+        __result.document = val.document.map(Into::into);
+        __result.extracted_keywords = val.extracted_keywords.map(|v| v.into_iter().map(Into::into).collect());
+        __result.quality_score = val.quality_score;
+        __result.processing_warnings = val.processing_warnings.into_iter().map(Into::into).collect();
+        __result.annotations = val.annotations.map(|v| v.into_iter().map(Into::into).collect());
+        __result.children = val.children.map(|v| v.into_iter().map(Into::into).collect());
+        __result.uris = val.uris.map(|v| v.into_iter().map(Into::into).collect());
+        __result.revisions = val.revisions.map(|v| v.into_iter().map(Into::into).collect());
+        __result.structured_output = val
+            .structured_output
+            .as_ref()
+            .and_then(|s| serde_json::from_str(s).ok());
+        __result.llm_usage = val.llm_usage.map(|v| v.into_iter().map(Into::into).collect());
+        __result.entities = val.entities.map(|v| v.into_iter().map(Into::into).collect());
+        __result.summary = val.summary.map(Into::into);
+        __result.translation = val.translation.map(Into::into);
+        __result.page_classifications = val
+            .page_classifications
+            .map(|v| v.into_iter().map(Into::into).collect());
+        __result.redaction_report = val.redaction_report.map(Into::into);
+        __result.formulas = val.formulas.into_iter().map(Into::into).collect();
+        __result.form_fields = val.form_fields.into_iter().map(Into::into).collect();
+        __result.formatted_content = val.formatted_content;
+        __result
     }
 }
 
@@ -10851,6 +10898,7 @@ impl From<xberg::ExtractedDocument> for ExtractedDocument {
             djot_content: val.djot_content.map(Into::into),
             ocr_elements: val.ocr_elements.map(|v| v.into_iter().map(Into::into).collect()),
             document: val.document.map(Into::into),
+            extracted_keywords: val.extracted_keywords.map(|v| v.into_iter().map(Into::into).collect()),
             quality_score: val.quality_score,
             processing_warnings: val.processing_warnings.into_iter().map(Into::into).collect(),
             annotations: val.annotations.map(|v| v.into_iter().map(Into::into).collect()),
@@ -11315,17 +11363,16 @@ impl From<xberg::EmailAttachment> for EmailAttachment {
 #[allow(clippy::redundant_closure, clippy::useless_conversion)]
 impl From<OcrExtractionResult> for xberg::OcrExtractionResult {
     fn from(val: OcrExtractionResult) -> Self {
-        Self {
-            content: val.content,
-            mime_type: val.mime_type,
-            metadata: val
-                .metadata
+        xberg::OcrExtractionResult::new(
+            val.content,
+            val.mime_type,
+            val.metadata
                 .into_iter()
                 .map(|(k, v)| (k.into(), serde_json::from_str(&v).unwrap_or_default()))
                 .collect(),
-            tables: val.tables.into_iter().map(Into::into).collect(),
-            ocr_elements: val.ocr_elements.map(|v| v.into_iter().map(Into::into).collect()),
-        }
+            val.tables.into_iter().map(Into::into).collect(),
+            val.ocr_elements.map(|v| v.into_iter().map(Into::into).collect()),
+        )
     }
 }
 
@@ -14940,7 +14987,7 @@ impl From<xberg::LayoutClass> for LayoutClass {
 #[extendr]
 pub fn extract(input: &ExtractInput, config: &ExtractionConfig) -> String {
     match (|| -> Result<String> {
-        let input_core: xberg::ExtractInput = (*input).clone().into();
+        let input_core: xberg::ExtractInput = resolve_e2e_fixture_uri((*input).clone().into());
         let config_core: xberg::ExtractionConfig = (*config).clone().into();
         let rt = tokio::runtime::Runtime::new().map_err(|e| {
             extendr_api::Error::Other(
@@ -14999,6 +15046,7 @@ pub fn extract_batch(inputs: String, config: &ExtractionConfig) -> String {
                     .collect::<String>(),
             )
         })?;
+        let inputs_core: Vec<xberg::ExtractInput> = inputs_core.into_iter().map(resolve_e2e_fixture_uri).collect();
         let config_core: xberg::ExtractionConfig = (*config).clone().into();
         let rt = tokio::runtime::Runtime::new().map_err(|e| {
             extendr_api::Error::Other(
@@ -16069,7 +16117,7 @@ impl xberg::DocumentExtractor for RDocumentExtractorBridge {
             };
 
             let args = extendr_api::Pairlist::from_pairs(&[
-                ("input", extendr_api::Robj::from(input)),
+                ("input", extendr_api::Robj::from(ExtractInput::from(input))),
                 (
                     "config",
                     extendr_api::Robj::from(ExtractionConfig::from(config_owned.clone())),

@@ -5,9 +5,13 @@
 # frozen_string_literal: true
 
 ENV["CRAWLBERG_ALLOW_PRIVATE_NETWORK"] ||= "true"
+ENV["XBERG_TEST_DOCUMENTS_DIR"] ||= File.expand_path("../../../test_documents", __dir__)
 
 require 'json'
 require 'open3'
+require 'xberg'
+
+Object.const_set(:ExtractInput, Xberg::ExtractInput) unless Object.const_defined?(:ExtractInput, false)
 
 # Spawn the mock-server binary and set MOCK_SERVER_URL for all tests.
 #

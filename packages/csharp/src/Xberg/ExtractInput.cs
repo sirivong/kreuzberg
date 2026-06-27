@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -26,6 +27,7 @@ public sealed record ExtractInput
     /// Raw bytes for `kind = "bytes"`.
     /// </summary>
     [JsonPropertyName("bytes")]
+    [JsonConverter(typeof(ByteArrayToIntArrayConverter))]
     public byte[]? Bytes { get; init; } = null;
 
     /// <summary>
@@ -107,7 +109,12 @@ public sealed record ExtractInput
         var bytesHandle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
         try
         {
-            var nativeResult = NativeMethods.ExtractInputFromBytes(bytesHandle.AddrOfPinnedObject(), mimeType, filename!);
+            var nativeResult = NativeMethods.ExtractInputFromBytes(
+                bytesHandle.AddrOfPinnedObject(),
+                (UIntPtr)bytes.Length,
+                mimeType,
+                filename!
+            );
             var jsonPtr = NativeMethods.ExtractInputToJson(nativeResult);
             var json = global::System.Runtime.InteropServices.Marshal.PtrToStringUTF8(jsonPtr);
             NativeMethods.FreeString(jsonPtr);

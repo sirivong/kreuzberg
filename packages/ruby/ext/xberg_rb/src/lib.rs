@@ -19567,13 +19567,31 @@ unsafe impl IntoValueFromNative for LayoutClass {}
 unsafe impl TryConvertOwned for LayoutClass {}
 
 
+fn resolve_e2e_fixture_uri(mut input: xberg::ExtractInput) -> xberg::ExtractInput {
+    let Some(uri) = input.uri.as_deref() else {
+        return input;
+    };
+    let uri_path = std::path::Path::new(uri);
+    if uri.contains("://") || uri_path.is_absolute() || uri_path.exists() {
+        return input;
+    }
+    if let Ok(fixtures_dir) = std::env::var("XBERG_TEST_DOCUMENTS_DIR") {
+        let candidate = std::path::Path::new(&fixtures_dir).join(uri_path);
+        if candidate.exists() {
+            input.uri = Some(candidate.to_string_lossy().into_owned());
+        }
+    }
+    input
+}
+
+
 fn extract(args: &[magnus::Value]) -> Result<ExtractionResult, Error> {
     let args = magnus::scan_args::scan_args::<(magnus::Value,), (Option<magnus::Value>,), (), (), (), ()>(args)?;
     let (input,) = args.required;
 
     let (config,) = args.optional;
 
-    let input_core: xberg::ExtractInput = { let binding_val: ExtractInput = ExtractInput::try_convert(input).map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?; binding_val.into() };
+    let input_core: xberg::ExtractInput = resolve_e2e_fixture_uri({ let binding_val: ExtractInput = ExtractInput::try_convert(input).map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?; binding_val.into() });
     let config_core: xberg::ExtractionConfig = match config { Some(_v) if !_v.is_nil() => { let binding_val: ExtractionConfig = ExtractionConfig::try_convert(_v).map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?; binding_val.into() }, _ => Default::default() };
     let rt = tokio::runtime::Runtime::new().map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?;
 let result = rt.block_on(async { xberg::extract(input_core, &config_core).await }).map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?;Ok(result.into())
@@ -19587,7 +19605,7 @@ fn extract_async(args: &[magnus::Value]) -> Result<ExtractionResult, Error> {
 
     let (config,) = args.optional;
 
-    let input_core: xberg::ExtractInput = { let binding_val: ExtractInput = ExtractInput::try_convert(input).map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?; binding_val.into() };
+    let input_core: xberg::ExtractInput = resolve_e2e_fixture_uri({ let binding_val: ExtractInput = ExtractInput::try_convert(input).map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?; binding_val.into() });
     let config_core: xberg::ExtractionConfig = match config { Some(_v) if !_v.is_nil() => { let binding_val: ExtractionConfig = ExtractionConfig::try_convert(_v).map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?; binding_val.into() }, _ => Default::default() };
     let rt = tokio::runtime::Runtime::new().map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?;
 let result = rt.block_on(async { xberg::extract(input_core, &config_core).await }).map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?;Ok(result.into())
@@ -19601,7 +19619,7 @@ fn extract_batch(args: &[magnus::Value]) -> Result<ExtractionResult, Error> {
 
     let (config,) = args.optional;
 
-    let inputs_core: Vec<xberg::ExtractInput> = inputs.into_iter().map(Into::into).collect();
+    let inputs_core: Vec<xberg::ExtractInput> = inputs.into_iter().map(Into::into).map(resolve_e2e_fixture_uri).collect();
     let config_core: xberg::ExtractionConfig = match config { Some(_v) if !_v.is_nil() => { let binding_val: ExtractionConfig = ExtractionConfig::try_convert(_v).map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?; binding_val.into() }, _ => Default::default() };
     let rt = tokio::runtime::Runtime::new().map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?;
 let result = rt.block_on(async { xberg::extract_batch(inputs_core, &config_core).await }).map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?;Ok(result.into())
@@ -19615,7 +19633,7 @@ fn extract_batch_async(args: &[magnus::Value]) -> Result<ExtractionResult, Error
 
     let (config,) = args.optional;
 
-    let inputs_core: Vec<xberg::ExtractInput> = inputs.into_iter().map(Into::into).collect();
+    let inputs_core: Vec<xberg::ExtractInput> = inputs.into_iter().map(Into::into).map(resolve_e2e_fixture_uri).collect();
     let config_core: xberg::ExtractionConfig = match config { Some(_v) if !_v.is_nil() => { let binding_val: ExtractionConfig = ExtractionConfig::try_convert(_v).map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?; binding_val.into() }, _ => Default::default() };
     let rt = tokio::runtime::Runtime::new().map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?;
 let result = rt.block_on(async { xberg::extract_batch(inputs_core, &config_core).await }).map_err(|e| magnus::Error::new(unsafe { Ruby::get_unchecked() }.exception_runtime_error(), e.to_string()))?;Ok(result.into())
@@ -19799,7 +19817,8 @@ impl xberg::plugins::Plugin for RbOcrBackendBridge {
                     Ok(v) => v,
                     Err(e) => {                return Err(xberg::XbergError::Other(format!("Plugin '{}' method 'process_image' failed: {}", cached_name_for_blocking, e)));            }
                 };            // Native-object return: the binding struct's `TryConvert` accepts the host's native wrapped
-                    // object (and still a Hash/JSON via `to_json`); `From<ExtractedDocument>` yields core.            <ExtractedDocument as magnus::TryConvert>::try_convert(val)
+                    // object (and still a Hash/JSON via `to_json`); `From<ExtractedDocument>` yields core.
+                    <ExtractedDocument as magnus::TryConvert>::try_convert(val)
                         .map(Into::into)
                         .map_err(|e| xberg::XbergError::Other(format!("Failed to convert Ruby 'process_image' return value: {}", e)))    }).await;
 
@@ -20292,7 +20311,8 @@ impl xberg::plugins::Plugin for RbDocumentExtractorBridge {
                     Ok(v) => v,
                     Err(e) => {                return Err(xberg::XbergError::Other(format!("Plugin '{}' method 'extract' failed: {}", cached_name_for_blocking, e)));            }
                 };            // Native-object return: the binding struct's `TryConvert` accepts the host's native wrapped
-                    // object (and still a Hash/JSON via `to_json`); `From<ExtractedDocument>` yields core.            <ExtractedDocument as magnus::TryConvert>::try_convert(val)
+                    // object (and still a Hash/JSON via `to_json`); `From<ExtractedDocument>` yields core.
+                    <ExtractedDocument as magnus::TryConvert>::try_convert(val)
                         .map(Into::into)
                         .map_err(|e| xberg::XbergError::Other(format!("Failed to convert Ruby 'extract' return value: {}", e)))    }).await;
 
@@ -21564,7 +21584,7 @@ impl From<xberg::Entity> for Entity {
 
 #[allow(clippy::needless_update)]#[allow(clippy::redundant_closure, clippy::useless_conversion)]
 impl From<ExtractedDocument> for xberg::ExtractedDocument {
-    fn from(val: ExtractedDocument) -> Self {        Self {            content: val.content,            mime_type: val.mime_type.into(),            metadata: val.metadata.into(),            extraction_method: val.extraction_method.map(Into::into),            tables: val.tables.into_iter().map(Into::into).collect(),            detected_languages: val.detected_languages.map(|v| v.into_iter().collect()),            chunks: val.chunks.map(|v| v.into_iter().map(Into::into).collect()),            images: val.images.map(|v| v.into_iter().map(Into::into).collect()),            pages: val.pages.map(|v| v.into_iter().map(Into::into).collect()),            elements: val.elements.map(|v| v.into_iter().map(Into::into).collect()),            djot_content: val.djot_content.map(Into::into),            ocr_elements: val.ocr_elements.map(|v| v.into_iter().map(Into::into).collect()),            document: val.document.map(Into::into),            extracted_keywords: val.extracted_keywords.map(|v| v.into_iter().map(Into::into).collect()),            quality_score: val.quality_score,            processing_warnings: val.processing_warnings.into_iter().map(Into::into).collect(),            annotations: val.annotations.map(|v| v.into_iter().map(Into::into).collect()),            children: val.children.map(|v| v.into_iter().map(Into::into).collect()),            uris: val.uris.map(|v| v.into_iter().map(Into::into).collect()),            revisions: val.revisions.map(|v| v.into_iter().map(Into::into).collect()),            structured_output: val.structured_output.as_ref().and_then(|s| serde_json::from_str(s).ok()),            code_intelligence: val.code_intelligence.as_ref().and_then(|s| serde_json::from_str(s).ok()),            llm_usage: val.llm_usage.map(|v| v.into_iter().map(Into::into).collect()),            entities: val.entities.map(|v| v.into_iter().map(Into::into).collect()),            summary: val.summary.map(Into::into),            extraction_confidence: val.extraction_confidence.map(Into::into),            translation: val.translation.map(Into::into),            page_classifications: val.page_classifications.map(|v| v.into_iter().map(Into::into).collect()),            redaction_report: val.redaction_report.map(Into::into),            formulas: val.formulas.into_iter().map(Into::into).collect(),            form_fields: val.form_fields.into_iter().map(Into::into).collect(),            formatted_content: val.formatted_content,            ..Default::default()        }    }
+    fn from(val: ExtractedDocument) -> Self {        let mut __result = xberg::ExtractedDocument::default();        __result.content = val.content;        __result.mime_type = val.mime_type.into();        __result.metadata = val.metadata.into();        __result.extraction_method = val.extraction_method.map(Into::into);        __result.tables = val.tables.into_iter().map(Into::into).collect();        __result.detected_languages = val.detected_languages.map(|v| v.into_iter().collect());        __result.chunks = val.chunks.map(|v| v.into_iter().map(Into::into).collect());        __result.images = val.images.map(|v| v.into_iter().map(Into::into).collect());        __result.pages = val.pages.map(|v| v.into_iter().map(Into::into).collect());        __result.elements = val.elements.map(|v| v.into_iter().map(Into::into).collect());        __result.djot_content = val.djot_content.map(Into::into);        __result.ocr_elements = val.ocr_elements.map(|v| v.into_iter().map(Into::into).collect());        __result.document = val.document.map(Into::into);        __result.extracted_keywords = val.extracted_keywords.map(|v| v.into_iter().map(Into::into).collect());        __result.quality_score = val.quality_score;        __result.processing_warnings = val.processing_warnings.into_iter().map(Into::into).collect();        __result.annotations = val.annotations.map(|v| v.into_iter().map(Into::into).collect());        __result.children = val.children.map(|v| v.into_iter().map(Into::into).collect());        __result.uris = val.uris.map(|v| v.into_iter().map(Into::into).collect());        __result.revisions = val.revisions.map(|v| v.into_iter().map(Into::into).collect());        __result.structured_output = val.structured_output.as_ref().and_then(|s| serde_json::from_str(s).ok());        __result.code_intelligence = val.code_intelligence.as_ref().and_then(|s| serde_json::from_str(s).ok());        __result.llm_usage = val.llm_usage.map(|v| v.into_iter().map(Into::into).collect());        __result.entities = val.entities.map(|v| v.into_iter().map(Into::into).collect());        __result.summary = val.summary.map(Into::into);        __result.extraction_confidence = val.extraction_confidence.map(Into::into);        __result.translation = val.translation.map(Into::into);        __result.page_classifications = val.page_classifications.map(|v| v.into_iter().map(Into::into).collect());        __result.redaction_report = val.redaction_report.map(Into::into);        __result.formulas = val.formulas.into_iter().map(Into::into).collect();        __result.form_fields = val.form_fields.into_iter().map(Into::into).collect();        __result.formatted_content = val.formatted_content;        __result    }
 }
 
 
@@ -21762,7 +21782,7 @@ impl From<xberg::EmailAttachment> for EmailAttachment {
 
 #[allow(clippy::redundant_closure, clippy::useless_conversion)]
 impl From<OcrExtractionResult> for xberg::OcrExtractionResult {
-    fn from(val: OcrExtractionResult) -> Self {        Self {            content: val.content,            mime_type: val.mime_type,            metadata: val.metadata.into_iter().map(|(k, v)| (k.into(), serde_json::from_str(&v).unwrap_or_default())).collect(),            tables: val.tables.into_iter().map(Into::into).collect(),            ocr_elements: val.ocr_elements.map(|v| v.into_iter().map(Into::into).collect()),        }    }
+    fn from(val: OcrExtractionResult) -> Self {        xberg::OcrExtractionResult::new(            val.content,            val.mime_type,            val.metadata.into_iter().map(|(k, v)| (k.into(), serde_json::from_str(&v).unwrap_or_default())).collect(),            val.tables.into_iter().map(Into::into).collect(),            val.ocr_elements.map(|v| v.into_iter().map(Into::into).collect()),        )    }
 }
 
 

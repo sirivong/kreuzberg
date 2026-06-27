@@ -74,7 +74,7 @@ public final class EmbeddingBackendBridge implements AutoCloseable {
     private void initStubName(long offset) throws ReflectiveOperationException {
         var stubName = LINKER.upcallStub(LOOKUP.bind(this, "handleName",
             MethodType.methodType(int.class, MemorySegment.class, MemorySegment.class, MemorySegment.class)),
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
             arena);
         vtable.set(ValueLayout.ADDRESS, offset, stubName);
     }
@@ -82,7 +82,7 @@ public final class EmbeddingBackendBridge implements AutoCloseable {
     private void initStubVersion(long offset) throws ReflectiveOperationException {
         var stubVersion = LINKER.upcallStub(LOOKUP.bind(this, "handleVersion",
             MethodType.methodType(int.class, MemorySegment.class, MemorySegment.class, MemorySegment.class)),
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
             arena);
         vtable.set(ValueLayout.ADDRESS, offset, stubVersion);
     }
@@ -90,7 +90,7 @@ public final class EmbeddingBackendBridge implements AutoCloseable {
     private void initStubInitialize(long offset) throws ReflectiveOperationException {
         var stubInitialize = LINKER.upcallStub(LOOKUP.bind(this, "handleInitialize",
             MethodType.methodType(int.class, MemorySegment.class, MemorySegment.class)),
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
             arena);
         vtable.set(ValueLayout.ADDRESS, offset, stubInitialize);
     }
@@ -98,15 +98,15 @@ public final class EmbeddingBackendBridge implements AutoCloseable {
     private void initStubShutdown(long offset) throws ReflectiveOperationException {
         var stubShutdown = LINKER.upcallStub(LOOKUP.bind(this, "handleShutdown",
             MethodType.methodType(int.class, MemorySegment.class, MemorySegment.class)),
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
+            FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
             arena);
         vtable.set(ValueLayout.ADDRESS, offset, stubShutdown);
     }
 
     private void initStubDimensions(long offset) throws ReflectiveOperationException {
         var stubDimensions = LINKER.upcallStub(LOOKUP.bind(this, "handleDimensions",
-            MethodType.methodType(int.class, MemorySegment.class, MemorySegment.class, MemorySegment.class)),
-            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.ADDRESS),
+            MethodType.methodType(long.class, MemorySegment.class)),
+            FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS),
             arena);
         vtable.set(ValueLayout.ADDRESS, offset, stubDimensions);
     }
@@ -115,7 +115,7 @@ public final class EmbeddingBackendBridge implements AutoCloseable {
         var stubEmbed = LINKER.upcallStub(LOOKUP.bind(this, "handleEmbed",
             MethodType.methodType(int.class, MemorySegment.class, MemorySegment.class, MemorySegment.class, MemorySegment.class)),
             FunctionDescriptor.of(
-                ValueLayout.JAVA_LONG,
+                ValueLayout.JAVA_INT,
                 ValueLayout.ADDRESS,
                 ValueLayout.ADDRESS,
                 ValueLayout.ADDRESS,
@@ -172,17 +172,10 @@ public final class EmbeddingBackendBridge implements AutoCloseable {
         } catch (Throwable e) { return 1; }
     }
 
-    private int handleDimensions(MemorySegment userData, MemorySegment outResult, MemorySegment outError) {
+    private long handleDimensions(MemorySegment userData) {
         try {
-            long callbackResult = impl.dimensions();
-            String json = JSON.writeValueAsString(callbackResult);
-            MemorySegment jsonCs = arena.allocateFrom(json);
-            outResult.set(ValueLayout.ADDRESS, 0, jsonCs);
-            return 0;
-        } catch (Throwable e) {
-            writeError(outError, e);
-            return 1;
-        }
+            return impl.dimensions();
+        } catch (Throwable e) { return 0L; }
     }
 
     private int handleEmbed(MemorySegment userData, MemorySegment texts_in, MemorySegment outResult, MemorySegment outError) {
@@ -228,7 +221,7 @@ public final class EmbeddingBackendBridge implements AutoCloseable {
             try (var nameArena = Arena.ofShared()) {
                 var nameCs = nameArena.allocateFrom(impl.name());
                 MemorySegment outErr = nameArena.allocate(ValueLayout.ADDRESS);
-                int rc = (int) (long) NativeLib.XBERG_REGISTER_EMBEDDING_BACKEND.invoke(
+                int rc = (int) NativeLib.XBERG_REGISTER_EMBEDDING_BACKEND.invoke(
                     nameCs,
                     bridge.vtableSegment(),
                     MemorySegment.NULL,
@@ -257,7 +250,7 @@ public final class EmbeddingBackendBridge implements AutoCloseable {
             try (var nameArena = Arena.ofShared()) {
                 var nameCs = nameArena.allocateFrom(name);
                 MemorySegment outErr = nameArena.allocate(ValueLayout.ADDRESS);
-                int rc = (int) (long) NativeLib.XBERG_UNREGISTER_EMBEDDING_BACKEND.invoke(nameCs, outErr);
+                int rc = (int) NativeLib.XBERG_UNREGISTER_EMBEDDING_BACKEND.invoke(nameCs, outErr);
                 if (rc != 0) {
                     MemorySegment errPtr = outErr.get(ValueLayout.ADDRESS, 0);
                     String msg = errPtr.equals(MemorySegment.NULL)
@@ -281,7 +274,7 @@ public final class EmbeddingBackendBridge implements AutoCloseable {
         try {
             try (var arena = Arena.ofShared()) {
                 MemorySegment outErr = arena.allocate(ValueLayout.ADDRESS);
-                int rc = (int) (long) NativeLib.XBERG_CLEAR_EMBEDDING_BACKEND.invoke(outErr);
+                int rc = (int) NativeLib.XBERG_CLEAR_EMBEDDING_BACKEND.invoke(outErr);
                 if (rc != 0) {
                     MemorySegment errPtr = outErr.get(ValueLayout.ADDRESS, 0);
                     String msg = errPtr.equals(MemorySegment.NULL)
