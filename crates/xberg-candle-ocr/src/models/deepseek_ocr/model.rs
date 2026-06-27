@@ -565,7 +565,7 @@ impl CLIPVisionEmbeddings {
         let num_patches = (image_size / patch_size).pow(2);
         let num_positions = num_patches + 1;
         let position_embedding = embedding(num_positions, hidden_size, vb.pp("position_embedding"))?;
-        let position_ids = Tensor::arrange(0u32, num_positions as u32, vb.device())?;
+        let position_ids = Tensor::arange(0u32, num_positions as u32, vb.device())?;
         let pos_embeds = position_embedding.forward(&position_ids)?;
         Ok(Self {
             class_embedding,
@@ -751,7 +751,7 @@ impl NoTPTransformer {
 pub struct VitModel {
     embeddings: CLIPVisionEmbeddings,
     transformer: NoTPTransformer,
-    pre_layrnorm: LayerNorm,
+    pre_layernorm: LayerNorm,
 }
 
 impl VitModel {
@@ -785,7 +785,7 @@ impl VitModel {
         Ok(Self {
             embeddings,
             transformer,
-            pre_layrnorm,
+            pre_layernorm,
         })
     }
 
@@ -796,7 +796,7 @@ impl VitModel {
     /// Returns [`CandleOcrError`] if forward computation fails.
     pub fn forward(&self, xs: &Tensor, patch_embeds: Option<&Tensor>) -> Result<Tensor> {
         let x = self.embeddings.forward(xs, patch_embeds)?;
-        let hidden_states = self.pre_layrnorm.forward(&x)?;
+        let hidden_states = self.pre_layernorm.forward(&x)?;
         let output = self.transformer.forward(&hidden_states)?;
         Ok(output)
     }
