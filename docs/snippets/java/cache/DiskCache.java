@@ -1,5 +1,12 @@
 ```java title="DiskCache.java"
-import io.xberg.*;
+import io.xberg.CacheConfig;
+import io.xberg.CacheStats;
+import io.xberg.ExtractionConfig;
+import io.xberg.ExtractionResult;
+import io.xberg.ExtractInput;
+import io.xberg.ExtractInputKind;
+import io.xberg.ExtractedDocument;
+import io.xberg.Xberg;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
@@ -24,7 +31,7 @@ public final class DiskCache {
 
     System.out.println("First extraction (will be cached)...");
     ExtractionResult output1 = Xberg.extract(
-      ExtractInput.fromUri("document.pdf"),
+      ExtractInput.builder().withKind(ExtractInputKind.Uri).withUri("document.pdf").build(),
       config
     );
     ExtractedDocument result1 = output1.results().get(0);
@@ -33,7 +40,7 @@ public final class DiskCache {
 
     System.out.println("\nSecond extraction (from cache)...");
     ExtractionResult output2 = Xberg.extract(
-      ExtractInput.fromUri("document.pdf"),
+      ExtractInput.builder().withKind(ExtractInputKind.Uri).withUri("document.pdf").build(),
       config
     );
     ExtractedDocument result2 = output2.results().get(0);

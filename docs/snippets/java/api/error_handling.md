@@ -1,5 +1,6 @@
 ```java title="Java"
 import io.xberg.Xberg;
+import io.xberg.ExtractInputKind;
 import io.xberg.ExtractedDocument;
 import io.xberg.ExtractionConfig;
 import io.xberg.XbergRsException;

@@ -1,4 +1,5 @@
-Import io.xberg.\*;
+import io.xberg.*;
+import io.xberg.ExtractInputKind;
 
 var config = ExtractionConfig.builder()
 .pages(PageConfig.builder()

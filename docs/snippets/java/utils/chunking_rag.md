@@ -1,5 +1,6 @@
 ```java title="Java"
 import io.xberg.Xberg;
+import io.xberg.ExtractInputKind;
 import io.xberg.ExtractionResult;
 import io.xberg.ExtractedDocument;
 import io.xberg.ExtractionConfig;
@@ -13,14 +14,11 @@ ExtractionConfig config = ExtractionConfig.builder()
         .embedding("balanced")
         .build())
     .build();
-
 ExtractionResult output = Xberg.extract(
-    ExtractInput.fromUri("research_paper.pdf"),
+    ExtractInput.builder().withKind(ExtractInputKind.Uri).withUri("research_paper.pdf").build(),
     config
 );
-
 ExtractedDocument result = output.results().get(0);
-
-System.out.println("Content: " + result.getContent()
-    .substring(0, Math.min(100, result.getContent().length())) + "...");
+System.out.println("Content: " + result.content()
+    .substring(0, Math.min(100, result.content().length())) + "...");
 ```

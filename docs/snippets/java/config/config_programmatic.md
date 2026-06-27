@@ -1,5 +1,6 @@
 ```java title="Java"
 import io.xberg.Xberg;
+import io.xberg.ExtractInputKind;
 import io.xberg.ExtractionResult;
 import io.xberg.ExtractedDocument;
 import io.xberg.ChunkingConfig;
@@ -21,18 +22,15 @@ public final class ProgrammaticConfigExample {
             .chunking(ChunkingConfig.builder()
                 .maxChars(1000)
                 .maxOverlap(200)
-                .build())
             .useCache(true)
             .enableQualityProcessing(true)
             .build();
-
         ExtractionResult output = Xberg.extract(
-            ExtractInput.fromUri("document.pdf"),
+            ExtractInput.builder().withKind(ExtractInputKind.Uri).withUri("document.pdf").build(),
             config
         );
-
         ExtractedDocument result = output.results().get(0);
-        System.out.printf("Content length: %d%n", result.getContent().length());
+        System.out.printf("Content length: %d%n", result.content().length());
     }
 }
 ```

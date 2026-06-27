@@ -1,5 +1,6 @@
 ```java title="Java"
 import io.xberg.Xberg;
+import io.xberg.ExtractInputKind;
 import io.xberg.ExtractionResult;
 import io.xberg.ExtractedDocument;
 import io.xberg.XbergException;
@@ -17,27 +18,21 @@ public class Main {
                 .chunking(ChunkingConfig.builder()
                     .maxChars(1000)
                     .maxOverlap(100)
-                    .build())
                 .tokenReduction(TokenReductionConfig.builder()
                     .mode("moderate")
                     .preserveImportantWords(true)
-                    .build())
                 .languageDetection(LanguageDetectionConfig.builder()
                     .enabled(true)
-                    .build())
                 .useCache(true)
                 .enableQualityProcessing(true)
                 .build();
-
             ExtractionResult output = Xberg.extract(
-                ExtractInput.fromUri("document.pdf"),
+                ExtractInput.builder().withKind(ExtractInputKind.Uri).withUri("document.pdf").build(),
                 config
             );
-
             ExtractedDocument result = output.results().get(0);
-
-            if (!result.getDetectedLanguages().isEmpty()) {
-                System.out.println("Languages: " + result.getDetectedLanguages());
+            if (!result.detectedLanguages().isEmpty()) {
+                System.out.println("Languages: " + result.detectedLanguages());
             }
         } catch (IOException | XbergException e) {
             System.err.println("Extraction failed: " + e.getMessage());

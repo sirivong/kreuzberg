@@ -1,5 +1,6 @@
 ```java title="Java"
 import io.xberg.Xberg;
+import io.xberg.ExtractInputKind;
 import io.xberg.ExtractionConfig;
 import io.xberg.ChunkingConfig;
 import io.xberg.PageConfig;
@@ -13,9 +14,7 @@ ExtractionConfig config = ExtractionConfig.builder()
         .build()))
     .withPages(Optional.of(PageConfig.builder()
         .withExtractPages(true)
-        .build()))
     .build();
-
 var resultOutput = Xberg.extract(
     io.xberg.ExtractInput.builder()
         .withKind(io.xberg.ExtractInputKind.Uri)
@@ -24,7 +23,6 @@ var resultOutput = Xberg.extract(
     config
 );
 var result = resultOutput.results().get(0);
-
 if (result.chunks() != null) {
     for (var chunk : result.chunks()) {
         Long firstPage = chunk.metadata().firstPage();
@@ -33,7 +31,6 @@ if (result.chunks() != null) {
             String pageRange = firstPage.equals(lastPage)
                 ? "Page " + firstPage
                 : "Pages " + firstPage + "-" + lastPage;
-
             String content = chunk.content();
             String preview = content.substring(0, Math.min(50, content.length()));
             System.out.println("Chunk: " + preview + "... (" + pageRange + ")");

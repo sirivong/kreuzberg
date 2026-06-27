@@ -1,5 +1,6 @@
 ```java title="Java"
 import io.xberg.Xberg;
+import io.xberg.ExtractInputKind;
 import io.xberg.ExtractedDocument;
 import io.xberg.*;
 import java.nio.file.Paths;
@@ -13,10 +14,8 @@ ExtractionConfig config = ExtractionConfig.builder()
     .withChunking(Optional.of(ChunkingConfig.builder()
         .withMaxChars(Optional.of(512L))
         .withMaxOverlap(Optional.of(50L))
-        .build()))
     .withEnableQualityProcessing(true)
     .build();
-
 var resultOutput = Xberg.extract(
     io.xberg.ExtractInput.builder()
         .withKind(io.xberg.ExtractInputKind.Uri)
@@ -31,5 +30,4 @@ if (result.tables() != null) {
 }
 if (result.qualityScore() != null) {
     System.out.println("Quality: " + result.qualityScore());
-}
 ```

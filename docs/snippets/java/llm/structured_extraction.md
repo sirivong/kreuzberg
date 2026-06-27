@@ -1,5 +1,6 @@
 ```java title="Java"
 import io.xberg.ExtractInput;
+import io.xberg.ExtractInputKind;
 import io.xberg.ExtractionConfig;
 import io.xberg.ExtractionResult;
 import io.xberg.ExtractedDocument;
@@ -9,7 +10,6 @@ import io.xberg.StructuredExtractionConfig;
 
 import java.util.List;
 import java.util.Map;
-
 public class StructuredExtractionExample {
     public static void main(String[] args) throws Exception {
         Map<String, Object> schema = Map.of(
@@ -22,26 +22,18 @@ public class StructuredExtractionExample {
             "required", List.of("title", "authors", "date"),
             "additionalProperties", false
         );
-
         LlmConfig llm = LlmConfig.builder()
             .withModel("openai/gpt-4o-mini")
             .build();
-
         StructuredExtractionConfig structured = new StructuredExtractionConfig(
             schema,
             "PaperMetadata",
             null,
             true,
-            null,
             llm
-        );
-
         ExtractionConfig config = ExtractionConfig.builder()
             .withStructuredExtraction(java.util.Optional.of(structured))
-            .build();
-
-        ExtractionResult output = Xberg.extract(ExtractInput.fromUri("paper.pdf"), config);
-
+        ExtractionResult output = Xberg.extract(ExtractInput.builder().withKind(ExtractInputKind.Uri).withUri("paper.pdf").build(), config);
         ExtractedDocument result = output.results().get(0);
         System.out.println(result.structuredOutput());
     }

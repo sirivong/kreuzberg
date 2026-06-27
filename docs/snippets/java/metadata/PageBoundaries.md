@@ -1,4 +1,5 @@
-Import io.xberg.\*;
+import io.xberg.*;
+import io.xberg.ExtractInputKind;
 import java.nio.charset.StandardCharsets;
 
 var resultOutput = Xberg.extract(

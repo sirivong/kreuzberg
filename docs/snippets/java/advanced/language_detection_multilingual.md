@@ -1,5 +1,6 @@
 ```java title="Java"
 import io.xberg.Xberg;
+import io.xberg.ExtractInputKind;
 import io.xberg.ExtractionResult;
 import io.xberg.ExtractedDocument;
 import io.xberg.ExtractionConfig;
@@ -15,26 +16,22 @@ ExtractionConfig config = ExtractionConfig.builder()
         .detectMultiple(true)
         .build())
     .build();
-
 try {
     ExtractionResult output = Xberg.extract(
-        ExtractInput.fromUri("multilingual_document.pdf"),
+        ExtractInput.builder().withKind(ExtractInputKind.Uri).withUri("multilingual_document.pdf").build(),
         config
     );
     ExtractedDocument result = output.results().get(0);
-
-    List<String> languages = result.getDetectedLanguages() != null
-        ? result.getDetectedLanguages()
+    List<String> languages = result.detectedLanguages() != null
+        ? result.detectedLanguages()
         : List.of();
-
     if (!languages.isEmpty()) {
         System.out.println("Detected " + languages.size() + " language(s): " + String.join(", ", languages));
     } else {
         System.out.println("No languages detected");
     }
-
-    System.out.println("Total content: " + result.getContent().length() + " characters");
-    System.out.println("MIME type: " + result.getMimeType());
+    System.out.println("Total content: " + result.content().length() + " characters");
+    System.out.println("MIME type: " + result.mimeType());
 } catch (Exception ex) {
     System.err.println("Processing failed: " + ex.getMessage());
 }

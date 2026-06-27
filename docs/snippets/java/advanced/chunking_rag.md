@@ -1,5 +1,6 @@
 ```java title="Java"
 import io.xberg.Xberg;
+import io.xberg.ExtractInputKind;
 import io.xberg.ExtractionResult;
 import io.xberg.ExtractedDocument;
 import io.xberg.ExtractionConfig;
@@ -20,17 +21,14 @@ ExtractionConfig config = ExtractionConfig.builder()
             .build())
         .build())
     .build();
-
 try {
     ExtractionResult output = Xberg.extract(
-        ExtractInput.fromUri("research_paper.pdf"),
+        ExtractInput.builder().withKind(ExtractInputKind.Uri).withUri("research_paper.pdf").build(),
         config
     );
     ExtractedDocument result = output.results().get(0);
-
-    List<Object> chunks = result.getChunks() != null ? result.getChunks() : List.of();
+    List<Object> chunks = result.chunks() != null ? result.chunks() : List.of();
     System.out.println("Found " + chunks.size() + " chunks for RAG pipeline");
-
     for (int i = 0; i < Math.min(3, chunks.size()); i++) {
         Object chunk = chunks.get(i);
         System.out.println("Chunk " + i + ": " + chunk.toString().substring(0, Math.min(80, chunk.toString().length())) + "...");

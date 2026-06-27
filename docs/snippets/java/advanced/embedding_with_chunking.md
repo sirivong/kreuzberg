@@ -1,5 +1,6 @@
 ```java title="Java"
 import io.xberg.Xberg;
+import io.xberg.ExtractInputKind;
 import io.xberg.ExtractionResult;
 import io.xberg.ExtractedDocument;
 import io.xberg.ExtractionConfig;
@@ -21,20 +22,16 @@ ExtractionConfig config = ExtractionConfig.builder()
             .build())
         .build())
     .build();
-
 ExtractionResult output = Xberg.extract(
-    ExtractInput.fromUri("document.pdf"),
+    ExtractInput.builder().withKind(ExtractInputKind.Uri).withUri("document.pdf").build(),
     config
 );
-
 ExtractedDocument result = output.results().get(0);
-
-List<Object> chunks = result.getChunks() != null ? result.getChunks() : List.of();
+List<Object> chunks = result.chunks() != null ? result.chunks() : List.of();
 for (int index = 0; index < chunks.size(); index++) {
     Object chunk = chunks.get(index);
     String chunkId = "doc_chunk_" + index;
     System.out.println("Chunk " + chunkId + ": " + chunk.toString().substring(0, Math.min(50, chunk.toString().length())));
-
     if (chunk instanceof java.util.Map) {
         Object embedding = ((java.util.Map<String, Object>) chunk).get("embedding");
         if (embedding != null) {

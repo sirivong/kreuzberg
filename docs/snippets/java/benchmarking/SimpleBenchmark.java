@@ -1,5 +1,6 @@
 ```java title="SimpleBenchmark.java"
 import io.xberg.ExtractInput;
+import io.xberg.ExtractInputKind;
 import io.xberg.ExtractionConfig;
 import io.xberg.ExtractionResult;
 import io.xberg.Xberg;
@@ -17,7 +18,7 @@ public final class SimpleBenchmark {
       .build();
 
     String filePath = "document.pdf";
-    ExtractInput input = ExtractInput.fromUri(filePath);
+    ExtractInput input = ExtractInput.builder().withKind(ExtractInputKind.Uri).withUri(filePath).build();
     int numRuns = 10;
 
     System.out.println("Sequential extraction (" + numRuns + " runs):");

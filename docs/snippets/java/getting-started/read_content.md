@@ -1,5 +1,6 @@
 ```java title="Java"
 import io.xberg.Xberg;
+import io.xberg.ExtractInputKind;
 import io.xberg.ExtractionResult;
 import io.xberg.ExtractedDocument;
 import io.xberg.ExtractInput;
@@ -10,16 +11,14 @@ import java.util.Map;
 public class ReadContent {
     public static void main(String[] args) throws IOException {
         ExtractionResult output = Xberg.extract(
-            ExtractInput.fromUri("document.pdf"),
+            ExtractInput.builder().withKind(ExtractInputKind.Uri).withUri("document.pdf").build(),
             ExtractionConfig.builder().build()
         );
         ExtractedDocument result = output.results().get(0);
-
-        String content = result.getContent();
+        String content = result.content();
         var tables = result.getTables();
         var images = result.getImages();
         Map<String, Object> metadata = result.getMetadata();
-
         System.out.println("Content: " + content.length() + " characters");
         System.out.println("Tables: " + tables.size());
         System.out.println("Images: " + images.size());
