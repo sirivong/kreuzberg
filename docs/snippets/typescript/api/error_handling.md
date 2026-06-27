@@ -1,5 +1,5 @@
 ```typescript title="TypeScript"
-import { extract } from "xberg";
+import { extract } from "@xberg-io/xberg";
 
 try {
   const output = await extract({
