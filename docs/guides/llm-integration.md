@@ -286,7 +286,7 @@ provider routing; point to your local server without needing an API key.
       --text "Hello world"
     ```
 
-=== "Python" ```python from Xberg import extract, ExtractionConfig, StructuredExtractionConfig, LlmConfig
+=== "Python" ```python from xberg import extract, ExtractionConfig, StructuredExtractionConfig, LlmConfig
 
     config = ExtractionConfig(
         structured_extraction=StructuredExtractionConfig(

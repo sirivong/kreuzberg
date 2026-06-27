@@ -40,7 +40,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 use tokio::sync::Semaphore;
 
-use crate::core::config::{ExtractionConfig, LlmConfig, PageConfig};
+use crate::core::config::{ExtractInput, ExtractionConfig, LlmConfig, PageConfig};
 pub use crate::heuristics::StructuredThresholds;
 use crate::heuristics::{
     ConfidenceSignals, ConfidenceWeights, ExtractionConfidence, MultidocThresholds, StructuredCallMode,
@@ -48,7 +48,7 @@ use crate::heuristics::{
 };
 use crate::llm::client::create_client;
 use crate::presets::{Registry, resolve};
-use crate::types::LlmUsage;
+use crate::types::{ExtractedDocument, LlmUsage};
 
 use chunker::{Batch, ChunkerConfig, batch_pages};
 use citations::fuse;
@@ -318,6 +318,27 @@ pub(crate) async fn split_and_extract(
 
 // ── Core orchestration ────────────────────────────────────────────────────────
 
+async fn extract_structured_source(
+    bytes: &[u8],
+    mime: &str,
+    extraction_config: &ExtractionConfig,
+) -> Result<ExtractedDocument, StructuredError> {
+    let output = crate::core::extract::extract(
+        ExtractInput::from_bytes(bytes.to_vec(), mime.to_string(), None),
+        extraction_config,
+    )
+    .await
+    .map_err(|e| StructuredError::Extraction(e.to_string()))?;
+
+    output.results.into_iter().next().ok_or_else(|| {
+        let message = output.errors.first().map_or_else(
+            || "unified extraction returned no document".to_string(),
+            |error| error.message.clone(),
+        );
+        StructuredError::Extraction(message)
+    })
+}
+
 async fn orchestrate(
     bytes: &[u8],
     mime: &str,
@@ -336,9 +357,7 @@ async fn orchestrate(
         ..ExtractionConfig::default()
     };
 
-    let result = crate::core::extractor::extract_bytes(bytes, mime, &extraction_config)
-        .await
-        .map_err(|e| StructuredError::Extraction(e.to_string()))?;
+    let result = extract_structured_source(bytes, mime, &extraction_config).await?;
 
     // ── 3. Derive StructuredInput ────────────────────────────────────────────
     let page_count = result.pages.as_deref().map_or(1, |p| p.len().max(1)) as u32;
@@ -517,9 +536,7 @@ async fn split_and_orchestrate(
         ..ExtractionConfig::default()
     };
 
-    let result = crate::core::extractor::extract_bytes(bytes, mime, &extraction_config)
-        .await
-        .map_err(|e| StructuredError::Extraction(e.to_string()))?;
+    let result = extract_structured_source(bytes, mime, &extraction_config).await?;
 
     let boundaries = boundaries_from_extraction_result(&result, &MultidocThresholds::default());
 
