@@ -1,4 +1,4 @@
-use xberg::{extract, ExtractionConfig};
+use xberg::{extract, ExtractionConfig, ExtractInput};
 use xberg::keywords::{KeywordConfig, KeywordAlgorithm, YakeParams, RakeParams};
 
 // Example 1: Basic YAKE configuration
@@ -17,7 +17,7 @@ pub async fn basic_yake() -> xberg::Result<()> {
         ..Default::default()
     };
 
-    let output = extract("document.pdf", None::<&str>, &config).await?;
+    let output = extract(ExtractInput::from_uri("document.pdf"), &config).await?;
     let result = &output.results[0];
     println!("Keywords: {:?}", result.extracted_keywords);
     Ok(())
@@ -42,7 +42,7 @@ pub async fn advanced_yake() -> xberg::Result<()> {
         ..Default::default()
     };
 
-    let output = extract("document.pdf", None::<&str>, &config).await?;
+    let output = extract(ExtractInput::from_uri("document.pdf"), &config).await?;
     let result = &output.results[0];
     println!("Keywords: {:?}", result.extracted_keywords);
     Ok(())
@@ -68,7 +68,7 @@ pub async fn rake_config() -> xberg::Result<()> {
         ..Default::default()
     };
 
-    let output = extract("document.pdf", None::<&str>, &config).await?;
+    let output = extract(ExtractInput::from_uri("document.pdf"), &config).await?;
     let result = &output.results[0];
     println!("Keywords: {:?}", result.extracted_keywords);
     Ok(())

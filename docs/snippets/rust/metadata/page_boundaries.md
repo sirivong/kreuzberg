@@ -1,9 +1,11 @@
 ```rust title="Rust"
-use xberg::{extract, ExtractionConfig};
+use xberg::{extract, ExtractionConfig, ExtractInput};
 
-fn main() -> xberg::Result<()> {
+#[tokio::main]
+async fn main() -> xberg::Result<()> {
     let config = ExtractionConfig::default();
-    let result = extract("document.pdf", None, &config)?;
+    let output = extract(ExtractInput::from_uri("document.pdf"), &config).await?;
+    let result = &output.results[0];
 
     let Some(pages) = &result.metadata.pages else {
         return Ok(());

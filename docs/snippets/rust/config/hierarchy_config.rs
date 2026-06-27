@@ -20,8 +20,8 @@ let extraction_config_basic = ExtractionConfig {
     ..Default::default()
 };
 
-// Use with extract or extract
-// let result = extract("document.pdf", extraction_config_basic)?;
+// Use with extract:
+// let output = extract(ExtractInput::from_uri("document.pdf"), &extraction_config_basic).await?;
 
 
 // Example 2: Custom k_clusters for minimal structure

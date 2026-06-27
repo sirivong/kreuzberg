@@ -2,7 +2,7 @@
 
 > High-performance document intelligence library with a Rust core and polyglot SDKs. Extract text, metadata, and structured data from 96 file formats including PDF, DOCX, PPTX, XLSX, HTML, images (with OCR), email, archives, and more.
 
-Xberg provides async/sync APIs, text chunking, language detection, keyword extraction, and an extensible plugin system. It is 10-50x faster than pure-Python alternatives thanks to its Rust core.
+Xberg provides an async API, text chunking, language detection, keyword extraction, and an extensible plugin system, all on a Rust core with native bindings for 16 languages.
 
 ## Getting Started
 
@@ -45,7 +45,6 @@ Xberg provides async/sync APIs, text chunking, language detection, keyword extra
 - [API Server](https://docs.xberg.io/guides/api-server/): REST API server setup
 - [Creating Plugins](https://docs.xberg.io/guides/plugins/): Build custom extractor plugins
 - [AI Coding Assistants](https://docs.xberg.io/guides/agent-skills/): Install the plugin with `/plugin marketplace add xberg-io/plugins` then `/plugin install xberg@xberg` — ships agent skills plus an MCP server, works with Claude Code, Codex, Cursor, Gemini, Copilot, and opencode
-- [C# Bindings](https://docs.xberg.io/guides/csharp/): C# binding usage guide
 
 ## CLI
 

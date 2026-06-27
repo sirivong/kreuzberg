@@ -37,7 +37,7 @@ let input = ExtractInput::from_uri("report.pdf");
 let input = ExtractInput::from_bytes(bytes, "application/pdf", Some("report.pdf".into()));
 ```
 
-`ExtractInputKind` distinguishes the two variants (`Uri` / `Bytes`) if you need to inspect them.
+`ExtractInputKind` distinguishes the two variants (`Uri` / `Bytes`) to inspect them.
 
 ## Result Types
 
