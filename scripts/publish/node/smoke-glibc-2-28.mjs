@@ -53,11 +53,7 @@ check("module is an object", () => {
 	}
 });
 
-const required = [
-	"extract",
-	"extractBatch",
-	"listSupportedFormats",
-];
+const required = ["extract", "extractBatch", "listSupportedFormats"];
 for (const name of required) {
 	check(`export ${name} is function`, () => {
 		if (typeof native[name] !== "function") {
