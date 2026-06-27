@@ -5,7 +5,7 @@
 use crate::Result;
 use crate::core::config::{ExtractInput, ExtractInputKind, ExtractionConfig};
 use crate::plugins::Plugin;
-use crate::types::ExtractionResult;
+use crate::types::ExtractedDocument;
 use crate::types::internal::InternalDocument;
 use async_trait::async_trait;
 use std::path::Path;
@@ -18,7 +18,7 @@ use crate::XbergError;
 /// Implement this trait to add support for new document formats or override
 /// built-in extraction behavior. Foreign-language bindings expose the
 /// [`DocumentExtractor::extract`] method, which accepts [`ExtractInput`] and
-/// returns an [`ExtractionResult`].
+/// returns an [`ExtractedDocument`].
 ///
 /// # Priority System
 ///
@@ -38,7 +38,7 @@ use crate::XbergError;
 ///
 /// ```rust
 /// use xberg::plugins::{Plugin, DocumentExtractor};
-/// use xberg::{ExtractInput, ExtractionConfig, ExtractionResult, Result};
+/// use xberg::{ExtractInput, ExtractionConfig, ExtractedDocument, Result};
 /// use async_trait::async_trait;
 ///
 /// struct CustomTextExtractor;
@@ -53,9 +53,9 @@ use crate::XbergError;
 /// #[async_trait]
 /// impl DocumentExtractor for CustomTextExtractor {
 ///     async fn extract(&self, input: ExtractInput, _config: &ExtractionConfig)
-///         -> Result<ExtractionResult> {
+///         -> Result<ExtractedDocument> {
 ///         let bytes = input.bytes.unwrap_or_default();
-///         Ok(ExtractionResult {
+///         Ok(ExtractedDocument {
 ///             content: String::from_utf8_lossy(&bytes).to_string(),
 ///             mime_type: "text/plain".into(),
 ///             ..Default::default()
@@ -74,7 +74,7 @@ pub trait DocumentExtractor: Plugin {
     ///
     /// Accepts the same unified input shape as the public extraction API and
     /// returns one extracted document result.
-    async fn extract(&self, input: ExtractInput, config: &ExtractionConfig) -> Result<ExtractionResult>;
+    async fn extract(&self, input: ExtractInput, config: &ExtractionConfig) -> Result<ExtractedDocument>;
 
     /// Get the list of MIME types supported by this extractor.
     ///
@@ -188,7 +188,7 @@ impl<T> DocumentExtractor for T
 where
     T: InternalDocumentExtractor + ?Sized,
 {
-    async fn extract(&self, input: ExtractInput, config: &ExtractionConfig) -> Result<ExtractionResult> {
+    async fn extract(&self, input: ExtractInput, config: &ExtractionConfig) -> Result<ExtractedDocument> {
         let doc = match input.kind {
             ExtractInputKind::Bytes => {
                 let bytes = input.bytes.ok_or_else(|| {

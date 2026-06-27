@@ -16,7 +16,7 @@
 ///
 /// # Returns
 ///
-/// An `ExtractionResult` or a `XbergError`
+/// An `ExtractedDocument` or a `XbergError`
 ///
 /// # Implementation Notes
 ///
@@ -27,7 +27,7 @@ pub(super) fn extract_bytes_sync_impl(
     content: &[u8],
     mime_type: Option<&str>,
     config: Option<&crate::core::config::ExtractionConfig>,
-) -> crate::Result<crate::types::ExtractionResult> {
+) -> crate::Result<crate::types::ExtractedDocument> {
     use crate::XbergError;
     use crate::core::extractor::helpers::get_extractor;
     use crate::core::mime;

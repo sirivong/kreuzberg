@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crate::Result;
 use crate::plugins::Plugin;
-use crate::types::ExtractionResult;
+use crate::types::ExtractedDocument;
 use crate::types::internal::InternalDocument;
 
 /// Trait for document renderers that convert extraction results to output strings.
@@ -30,7 +30,7 @@ use crate::types::internal::InternalDocument;
 ///
 /// ```rust
 /// use xberg::plugins::{Plugin, Renderer};
-/// use xberg::{ExtractionResult, Result};
+/// use xberg::{ExtractedDocument, Result};
 ///
 /// struct CustomRenderer;
 ///
@@ -39,7 +39,7 @@ use crate::types::internal::InternalDocument;
 /// }
 ///
 /// impl Renderer for CustomRenderer {
-///     fn render_result(&self, result: &ExtractionResult) -> Result<String> {
+///     fn render_result(&self, result: &ExtractedDocument) -> Result<String> {
 ///         Ok(result.content.to_uppercase())
 ///     }
 /// }
@@ -48,7 +48,7 @@ pub trait Renderer: Plugin {
     /// Binding-safe rendering entry point for foreign-language plugin bridges.
     ///
     /// Accepts one public extraction result and returns the rendered output.
-    fn render_result(&self, result: &ExtractionResult) -> Result<String> {
+    fn render_result(&self, result: &ExtractedDocument) -> Result<String> {
         Ok(result.content.clone())
     }
 }
@@ -63,7 +63,7 @@ impl<T> Renderer for T
 where
     T: InternalRenderer + ?Sized,
 {
-    fn render_result(&self, result: &ExtractionResult) -> Result<String> {
+    fn render_result(&self, result: &ExtractedDocument) -> Result<String> {
         let doc = InternalDocument::from(result.clone());
         InternalRenderer::render(self, &doc)
     }

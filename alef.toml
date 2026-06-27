@@ -174,7 +174,7 @@ sources = [
   # OCR backend registry operations (register/unregister/list/clear)
   "crates/xberg/src/plugins/ocr.rs",
   # Document extractor trait bridge and registry operations.
-  # Bridge-facing trait methods use public ExtractionResult DTOs; InternalDocument
+  # Bridge-facing trait methods use public ExtractedDocument DTOs; InternalDocument
   # methods are skipped in source and remain Rust-only.
   "crates/xberg/src/plugins/extractor/trait.rs",
   "crates/xberg/src/plugins/extractor/mod.rs",
@@ -250,8 +250,8 @@ exclude_functions = [
   "embed_texts",
 ]
 reexported_types = [
-  "ExtractionOutput",
   "ExtractionResult",
+  "ExtractedDocument",
   "ExtractionDiff",
 ]
 
@@ -813,8 +813,8 @@ exclude_types = [
   "InternalDocument",
 ]
 exclude_fields = [
-  "ExtractionResult.ocr_internal_document",
-  "ExtractionResult.internal_document",
+  "ExtractedDocument.ocr_internal_document",
+  "ExtractedDocument.internal_document",
   "OcrExtractionResult.internal_document",
 ]
 exclude_functions = [
@@ -936,12 +936,12 @@ exclude_types = [
   "KeywordAlgorithm",
 ]
 exclude_fields = [
-  "ExtractionResult.ocr_internal_document",
-  "ExtractionResult.internal_document",
+  "ExtractedDocument.ocr_internal_document",
+  "ExtractedDocument.internal_document",
   "OcrExtractionResult.internal_document",
   "ExtractionConfig.keywords",
   "FileExtractionConfig.keywords",
-  "ExtractionResult.extracted_keywords",
+  "ExtractedDocument.extracted_keywords",
 ]
 exclude_functions = [
   "calculate_quality_score",
@@ -1599,7 +1599,7 @@ fields_array = [
 fields_enum = [
   "results[0].summary.strategy",
 ]
-# Xberg's public extraction calls return an `ExtractionOutput` envelope.
+# Xberg's public extraction calls return an `ExtractionResult` envelope.
 # The PHP and Rust e2e codegens use this both to validate assertion paths
 # and to derive the root return type — the unique TypeDef whose field names
 # are a superset of this list.
@@ -1612,8 +1612,8 @@ result_fields = [
   "crawl_unique_normalized_urls",
 ]
 
-# Xberg's `ExtractionResult` is the per-document DTO inside
-# `ExtractionOutput.results` and exposes every result field as a `pub <field>:`
+# Xberg's `ExtractedDocument` is the per-document DTO inside
+# `ExtractionResult.results` and exposes every result field as a `pub <field>:`
 # struct field. The Rust e2e renderer in alef uses `fields_method_calls` to
 # decide whether to append `()` after the accessor. Most paths stay as plain
 # field access (`result.content`, not `result.content()`); entries here are the
@@ -1713,7 +1713,7 @@ function = "extract"
 module = "xberg"
 async = true
 returns_result = true
-# xberg's `chunks` is a plain `Vec<TextChunk>` field on `ExtractionResult`,
+# xberg's `chunks` is a plain `Vec<TextChunk>` field on `ExtractedDocument`,
 # not a streaming channel. Without this opt-out, alef's streaming auto-detect
 # triggers on any assertion targeting `chunks` / `chunks.length` and emits
 # `range over stream` / `ChatCompletionChunk` codegen.

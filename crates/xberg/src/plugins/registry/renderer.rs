@@ -1,7 +1,7 @@
 //! Renderer registry.
 
 use crate::plugins::{InternalRenderer, Plugin, Renderer};
-use crate::types::ExtractionResult;
+use crate::types::ExtractedDocument;
 use crate::types::internal::InternalDocument;
 use crate::{Result, XbergError};
 use ahash::AHashMap;
@@ -36,7 +36,7 @@ impl RegisteredRenderer {
             return internal.render(doc);
         }
 
-        let result = ExtractionResult::from(doc.clone());
+        let result = ExtractedDocument::from(doc.clone());
         self.renderer.render_result(&result)
     }
 }

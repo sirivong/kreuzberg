@@ -10,12 +10,12 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "tokio-runtime")]
 use std::path::PathBuf;
 
-use crate::types::ExtractionResult;
+use crate::types::ExtractedDocument;
 
 /// Target format for re-encoding extracted images.
 ///
 /// Controls whether and how extracted images are normalised to a uniform
-/// container format before being returned in `ExtractionResult.images`.
+/// container format before being returned in `ExtractedDocument.images`.
 /// The default (`Native`) preserves the format produced by each extractor
 /// without any additional encode pass.
 ///
@@ -202,7 +202,7 @@ impl ExtractInput {
     }
 }
 
-/// Non-fatal per-input extraction error captured by [`ExtractionOutput`].
+/// Non-fatal per-input extraction error captured by [`ExtractionResult`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct ExtractionErrorItem {
@@ -239,9 +239,9 @@ pub struct ExtractionSummary {
 /// Unified extraction result envelope.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
-pub struct ExtractionOutput {
+pub struct ExtractionResult {
     /// Extracted documents in discovery order.
-    pub results: Vec<ExtractionResult>,
+    pub results: Vec<ExtractedDocument>,
     /// Non-fatal per-input errors.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub errors: Vec<ExtractionErrorItem>,
@@ -258,9 +258,9 @@ pub struct ExtractionOutput {
     pub crawl_unique_normalized_urls: Vec<String>,
 }
 
-impl ExtractionOutput {
+impl ExtractionResult {
     /// Build an output containing one successful result.
-    pub fn single(result: ExtractionResult) -> Self {
+    pub fn single(result: ExtractedDocument) -> Self {
         Self {
             results: vec![result],
             summary: ExtractionSummary {
@@ -427,12 +427,12 @@ pub struct ImageExtractionConfig {
     pub classify: bool,
 
     /// When `true`, full-page renders produced during OCR preprocessing are captured
-    /// and returned as `ImageKind::PageRaster` entries in `ExtractionResult.images`.
+    /// and returned as `ImageKind::PageRaster` entries in `ExtractedDocument.images`.
     ///
     /// **PDF + OCR only.** No rasters are captured for non-PDF inputs or when the
     /// document-level OCR bypass is active (whole-document backend). When OCR is
     /// enabled and this flag is set but the active backend skips per-page rendering,
-    /// a `ProcessingWarning` is emitted in `ExtractionResult.processing_warnings`.
+    /// a `ProcessingWarning` is emitted in `ExtractedDocument.processing_warnings`.
     ///
     /// Defaults to `false`. Enable when downstream consumers need page thumbnails
     /// (e.g. citation previews, visual grounding).

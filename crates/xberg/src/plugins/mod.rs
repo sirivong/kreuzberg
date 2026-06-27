@@ -29,7 +29,7 @@
 //! use std::sync::Arc;
 //!
 //! # struct MyExtractor;
-//! # use xberg::{ExtractInput, ExtractionConfig, ExtractionResult};
+//! # use xberg::{ExtractInput, ExtractionConfig, ExtractedDocument};
 //! # impl xberg::plugins::Plugin for MyExtractor {
 //! #     fn name(&self) -> &str { "my" }
 //! #     fn version(&self) -> String { "1.0.0".to_string() }
@@ -38,8 +38,8 @@
 //! # }
 //! # #[async_trait::async_trait]
 //! # impl DocumentExtractor for MyExtractor {
-//! #     async fn extract(&self, _: ExtractInput, _: &ExtractionConfig) -> xberg::Result<ExtractionResult> {
-//! #         Ok(ExtractionResult::default())
+//! #     async fn extract(&self, _: ExtractInput, _: &ExtractionConfig) -> xberg::Result<ExtractedDocument> {
+//! #         Ok(ExtractedDocument::default())
 //! #     }
 //! #     fn supported_mime_types(&self) -> &[&str] { &[] }
 //! #     fn priority(&self) -> i32 { 50 }
@@ -62,7 +62,7 @@
 //! ```rust
 //! use xberg::plugins::{Plugin, DocumentExtractor};
 //! use xberg::{ExtractInput, ExtractionConfig, Result};
-//! use xberg::types::{ExtractionResult, Metadata};
+//! use xberg::types::{ExtractedDocument, Metadata};
 //! use async_trait::async_trait;
 //!
 //! struct CustomJsonExtractor;
@@ -83,7 +83,7 @@
 //! #[async_trait]
 //! impl DocumentExtractor for CustomJsonExtractor {
 //!     async fn extract(&self, input: ExtractInput, _config: &ExtractionConfig)
-//!         -> Result<ExtractionResult> {
+//!         -> Result<ExtractedDocument> {
 //!         // Parse JSON and extract all string values
 //!         let content = input.bytes.unwrap_or_default();
 //!         let json: serde_json::Value = serde_json::from_slice(&content)?;
@@ -92,7 +92,7 @@
 //!         let mut metadata = Metadata::default();
 //!         metadata.additional.insert("extracted_fields".to_string().into(), serde_json::json!(true));
 //!
-//!         Ok(ExtractionResult {
+//!         Ok(ExtractedDocument {
 //!             content: extracted_text,
 //!             mime_type: std::borrow::Cow::Borrowed("application/json"),
 //!             metadata,
