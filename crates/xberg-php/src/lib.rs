@@ -18110,9 +18110,9 @@ impl xberg::OcrBackend for PhpOcrBackendBridge {
                         )
                     } {
                         Ok(val) => {
-                            if let Some(native) = <ExtractedDocument as ext_php_rs::convert::FromZval>::from_zval(&val)
+                            if let Some(native) = <&ExtractedDocument as ext_php_rs::convert::FromZval>::from_zval(&val)
                             {
-                                Ok(native.into())
+                                Ok(native.clone().into())
                             } else {
                                 let json_str = val.string().unwrap_or_default();
                                 serde_json::from_str(&json_str)
@@ -18145,8 +18145,8 @@ impl xberg::OcrBackend for PhpOcrBackendBridge {
                     )
                 } {
                     Ok(val) => {
-                        if let Some(native) = <ExtractedDocument as ext_php_rs::convert::FromZval>::from_zval(&val) {
-                            Ok(native.into())
+                        if let Some(native) = <&ExtractedDocument as ext_php_rs::convert::FromZval>::from_zval(&val) {
+                            Ok(native.clone().into())
                         } else {
                             let json_str = val.string().unwrap_or_default();
                             serde_json::from_str(&json_str)
@@ -18740,12 +18740,12 @@ impl xberg::DocumentExtractor for PhpDocumentExtractorBridge {
                             "extract",
                             [
                                 ext_php_rs::convert::IntoZval::into_zval(
-                                    ext_php_rs::types::ZendClassObject::new(ExtractInput::from((*input).clone())),
+                                    ext_php_rs::types::ZendClassObject::new(ExtractInput::from(input.clone())),
                                     false,
                                 )
                                 .unwrap_or_default(),
                                 ext_php_rs::convert::IntoZval::into_zval(
-                                    ext_php_rs::types::ZendClassObject::new(ExtractionConfig::from((*config).clone())),
+                                    ext_php_rs::types::ZendClassObject::new(ExtractionConfig::from(config.clone())),
                                     false,
                                 )
                                 .unwrap_or_default(),
@@ -18756,9 +18756,9 @@ impl xberg::DocumentExtractor for PhpDocumentExtractorBridge {
                         )
                     } {
                         Ok(val) => {
-                            if let Some(native) = <ExtractedDocument as ext_php_rs::convert::FromZval>::from_zval(&val)
+                            if let Some(native) = <&ExtractedDocument as ext_php_rs::convert::FromZval>::from_zval(&val)
                             {
-                                Ok(native.into())
+                                Ok(native.clone().into())
                             } else {
                                 let json_str = val.string().unwrap_or_default();
                                 serde_json::from_str(&json_str)
@@ -18779,12 +18779,12 @@ impl xberg::DocumentExtractor for PhpDocumentExtractorBridge {
                         "extract",
                         [
                             ext_php_rs::convert::IntoZval::into_zval(
-                                ext_php_rs::types::ZendClassObject::new(ExtractInput::from((*input).clone())),
+                                ext_php_rs::types::ZendClassObject::new(ExtractInput::from(input.clone())),
                                 false,
                             )
                             .unwrap_or_default(),
                             ext_php_rs::convert::IntoZval::into_zval(
-                                ext_php_rs::types::ZendClassObject::new(ExtractionConfig::from((*config).clone())),
+                                ext_php_rs::types::ZendClassObject::new(ExtractionConfig::from(config.clone())),
                                 false,
                             )
                             .unwrap_or_default(),
@@ -18795,8 +18795,8 @@ impl xberg::DocumentExtractor for PhpDocumentExtractorBridge {
                     )
                 } {
                     Ok(val) => {
-                        if let Some(native) = <ExtractedDocument as ext_php_rs::convert::FromZval>::from_zval(&val) {
-                            Ok(native.into())
+                        if let Some(native) = <&ExtractedDocument as ext_php_rs::convert::FromZval>::from_zval(&val) {
+                            Ok(native.clone().into())
                         } else {
                             let json_str = val.string().unwrap_or_default();
                             serde_json::from_str(&json_str)
@@ -21650,45 +21650,12 @@ impl From<xberg::Entity> for Entity {
 #[allow(clippy::useless_conversion)]
 impl From<ExtractedDocument> for xberg::ExtractedDocument {
     fn from(val: ExtractedDocument) -> Self {
-        Self {
-            content: val.content,
-            mime_type: val.mime_type.into(),
-            metadata: val.metadata.into(),
-            extraction_method: val.extraction_method.as_deref().map(|s| match s {
-                "native" => xberg::ExtractionMethod::Native,
-                "ocr" => xberg::ExtractionMethod::Ocr,
-                "mixed" => xberg::ExtractionMethod::Mixed,
-                _ => xberg::ExtractionMethod::Native,
-            }),
-            tables: val.tables.into_iter().map(Into::into).collect(),
-            detected_languages: val.detected_languages.map(|v| v.into_iter().collect()),
-            chunks: val.chunks.map(|v| v.into_iter().map(Into::into).collect()),
-            images: val.images.map(|v| v.into_iter().map(Into::into).collect()),
-            pages: val.pages.map(|v| v.into_iter().map(Into::into).collect()),
-            elements: val.elements.map(|v| v.into_iter().map(Into::into).collect()),
-            djot_content: val.djot_content.map(Into::into),
-            ocr_elements: val.ocr_elements.map(|v| v.into_iter().map(Into::into).collect()),
-            document: val.document.map(Into::into),
-            quality_score: val.quality_score,
-            processing_warnings: val.processing_warnings.into_iter().map(Into::into).collect(),
-            annotations: val.annotations.map(|v| v.into_iter().map(Into::into).collect()),
-            children: val.children.map(|v| v.into_iter().map(Into::into).collect()),
-            uris: val.uris.map(|v| v.into_iter().map(Into::into).collect()),
-            revisions: val.revisions.map(|v| v.into_iter().map(Into::into).collect()),
-            structured_output: val.structured_output,
-            llm_usage: val.llm_usage.map(|v| v.into_iter().map(Into::into).collect()),
-            entities: val.entities.map(|v| v.into_iter().map(Into::into).collect()),
-            summary: val.summary.map(Into::into),
-            translation: val.translation.map(Into::into),
-            page_classifications: val
-                .page_classifications
-                .map(|v| v.into_iter().map(Into::into).collect()),
-            redaction_report: val.redaction_report.map(Into::into),
-            formulas: val.formulas.into_iter().map(Into::into).collect(),
-            form_fields: val.form_fields.into_iter().map(Into::into).collect(),
-            formatted_content: val.formatted_content,
-            ..Default::default()
-        }
+        // Serialize to JSON and deserialize back: serde can access private fields via reflection.
+        // This roundtrip handles field type conversions (e.g. String -> Cow<'static, str>)
+        // and preserves all fields including private ones.
+        serde_json::to_value(&val)
+            .and_then(serde_json::from_value::<xberg::ExtractedDocument>)
+            .unwrap_or_default()
     }
 }
 
@@ -26036,13 +26003,13 @@ impl From<EmailAttachment> for xberg::EmailAttachment {
 #[allow(clippy::useless_conversion)]
 impl From<OcrExtractionResult> for xberg::OcrExtractionResult {
     fn from(val: OcrExtractionResult) -> Self {
-        Self {
-            content: val.content,
-            mime_type: val.mime_type,
-            metadata: val.metadata.into_iter().map(|(k, v)| (k.into(), v)).collect(),
-            tables: val.tables.into_iter().map(Into::into).collect(),
-            ocr_elements: val.ocr_elements.map(|v| v.into_iter().map(Into::into).collect()),
-        }
+        Self::new(
+            val.content,
+            val.mime_type,
+            val.metadata.into_iter().map(|(k, v)| (k.into(), v)).collect(),
+            val.tables.into_iter().map(Into::into).collect(),
+            val.ocr_elements.map(|v| v.into_iter().map(Into::into).collect()),
+        )
     }
 }
 
@@ -26999,8 +26966,8 @@ mod serde_defaults {
     pub fn crawl_config_save_browser_profile() -> bool {
         false
     }
-    pub fn crawl_config_ssrf() -> crawlberg::SsrfPolicy {
-        crawlberg::SsrfPolicy::from_env()
+    pub fn crawl_config_ssrf() -> crate::SsrfPolicy {
+        crawlberg::SsrfPolicy::from_env().into()
     }
     pub fn ssrf_policy_deny_private() -> bool {
         true
