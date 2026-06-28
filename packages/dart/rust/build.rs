@@ -365,14 +365,16 @@ fn copy_compiled_library() {
         .or_else(|_| {
             // Cargo doesn't set CARGO_TARGET_DIR in build scripts, but we can
             // infer it from OUT_DIR (which is typically target/profile/build/crate-hash/out)
-            out_dir.as_ref().map(|d| {
-                PathBuf::from(d)
-                    .parent()
-                    .and_then(|p| p.parent())
-                    .and_then(|p| p.parent())
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "target".to_string())
-            })
+            out_dir
+                .as_ref()
+                .and_then(|d| {
+                    PathBuf::from(d)
+                        .parent()
+                        .and_then(|p| p.parent())
+                        .and_then(|p| p.parent())
+                        .map(|p| p.to_string_lossy().to_string())
+                })
+                .ok_or_else(|| std::env::VarError::NotPresent)
         })
         .unwrap_or_else(|_| "target".to_string());
 
