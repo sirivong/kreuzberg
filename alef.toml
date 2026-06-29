@@ -1431,6 +1431,15 @@ types = [
   "BatchFileItem",
 
   "SyncExtractor",
+
+  # Rust-only extraction engine (crates/xberg/src/engine/). Not part of the
+  # binding surface: declared as a bare `pub mod engine;` in lib.rs and its
+  # files are not listed in `sources`. Listed here as belt-and-suspenders so a
+  # future codegen pass cannot re-emit them as transitive container fields.
+  "Engine",
+  "EngineBuilder",
+  "xberg::engine::Engine",
+  "xberg::engine::EngineBuilder",
 ]
 methods = [
   # From<T> trait impls — auto-emitted by derive/trait-bridge
