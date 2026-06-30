@@ -176,7 +176,7 @@ fn text_similarity(a: &str, b: &str) -> f64 {
         return 0.0;
     }
 
-    let max_len = a.len().max(b.len());
+    let max_len = a.chars().count().max(b.chars().count());
     let matching = a.chars().zip(b.chars()).filter(|(ca, cb)| ca == cb).count();
     matching as f64 / max_len as f64
 }
@@ -301,6 +301,35 @@ mod tests {
 
         assert_eq!(name.as_str(), Some("Alice"));
         assert_eq!(age.as_u64(), Some(30));
+    }
+
+    #[test]
+    fn text_similarity_identical_multibyte_strings_score_one() {
+        // Regression: byte-length denominator made identical CJK strings score
+        // chars/bytes (e.g. 2/6 = 0.33) instead of 1.0. Char-count denominator fixes it.
+        assert_eq!(text_similarity("世界", "世界"), 1.0);
+        assert_eq!(text_similarity("café", "café"), 1.0);
+    }
+
+    #[test]
+    fn scalar_with_matching_non_ascii_ocr_fuses() {
+        // Regression: before the char-count denominator fix, a non-ASCII value
+        // could never clear the > 0.8 similarity gate, so source stayed `None`.
+        let merged = serde_json::json!({"field": "世界"});
+        let ocr = serde_json::json!({
+            "text": "世界",
+            "page_number": 2,
+            "bbox": [11.0, 22.0, 110.0, 33.0]
+        });
+
+        let result = fuse(merged, &[ocr], &[], true);
+        let field = result.structured_output.get("field").unwrap();
+
+        let cited: CitedField = serde_json::from_value(field.clone()).expect("field should deserialize as CitedField");
+        assert_eq!(cited.source, CitationSource::Fused);
+        assert_eq!(cited.page, Some(2));
+        assert_eq!(cited.bbox, Some([11.0, 22.0, 110.0, 33.0]));
+        assert_eq!(cited.confidence, Some(0.95));
     }
 
     #[test]
