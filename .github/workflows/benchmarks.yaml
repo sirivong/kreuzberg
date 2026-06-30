@@ -713,6 +713,11 @@ jobs:
         bench-liteparse,
       ]
     runs-on: ubuntu-24.04-arm
+    # The App token (BOT_APP_*) is absent on workflow_dispatch, so GH_TOKEN falls
+    # back to the default GITHUB_TOKEN. Grant it contents: write so `gh release
+    # create` does not 403 ("Resource not accessible by integration").
+    permissions:
+      contents: write
     if: ${{ !cancelled() && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') }}
     steps:
       - name: Create GitHub App token (if credentials available)
