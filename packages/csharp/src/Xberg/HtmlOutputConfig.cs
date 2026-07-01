@@ -70,7 +70,7 @@ public sealed record HtmlOutputConfig
         try
         {
             return JsonSerializer.Deserialize<HtmlOutputConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse HtmlOutputConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse HtmlOutputConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

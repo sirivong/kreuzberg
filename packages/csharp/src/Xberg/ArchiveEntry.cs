@@ -47,7 +47,7 @@ public sealed record ArchiveEntry
         try
         {
             return JsonSerializer.Deserialize<ArchiveEntry>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ArchiveEntry from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ArchiveEntry from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -64,7 +64,7 @@ public sealed record OcrMetadata
         try
         {
             return JsonSerializer.Deserialize<OcrMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse OcrMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse OcrMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

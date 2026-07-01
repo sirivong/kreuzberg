@@ -52,7 +52,7 @@ public sealed record OcrTable
         try
         {
             return JsonSerializer.Deserialize<OcrTable>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse OcrTable from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse OcrTable from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

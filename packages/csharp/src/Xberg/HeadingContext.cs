@@ -35,7 +35,7 @@ public sealed record HeadingContext
         try
         {
             return JsonSerializer.Deserialize<HeadingContext>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse HeadingContext from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse HeadingContext from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

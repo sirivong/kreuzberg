@@ -125,7 +125,7 @@ public sealed record PageContent
         try
         {
             return JsonSerializer.Deserialize<PageContent>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PageContent from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PageContent from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

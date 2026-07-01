@@ -879,8 +879,16 @@ jobs:
           # GCC 14+ from emitting C23-versioned glibc symbols (__isoc23_strtoll etc.)
           # that require glibc ≥ 2.38, ensuring compatibility with Debian 12/Ubuntu 22.04/RHEL 8.
           # Older/Alpine systems are served by the static musl CLI below.
-          - { os: ubuntu-latest, target: x86_64-unknown-linux-gnu, container: quay.io/pypa/manylinux_2_28_x86_64:latest }
-          - { os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, container: quay.io/pypa/manylinux_2_28_aarch64:latest }
+          - {
+              os: ubuntu-latest,
+              target: x86_64-unknown-linux-gnu,
+              container: quay.io/pypa/manylinux_2_28_x86_64:latest,
+            }
+          - {
+              os: ubuntu-24.04-arm,
+              target: aarch64-unknown-linux-gnu,
+              container: quay.io/pypa/manylinux_2_28_aarch64:latest,
+            }
           - { os: macos-latest, target: aarch64-apple-darwin }
           - { os: windows-latest, target: x86_64-pc-windows-msvc }
     steps:

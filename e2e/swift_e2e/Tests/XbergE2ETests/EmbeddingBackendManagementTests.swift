@@ -14,24 +14,24 @@ import RustBridge
 
 /// E2e tests for category: embedding_backend_management.
 final class EmbeddingBackendManagementTests: XCTestCase {
-    override class func setUp() {
-        super.setUp()
-        _ = "true".withCString { val in
-            "CRAWLBERG_ALLOW_PRIVATE_NETWORK".withCString { key in
-                setenv(key, val, 0)
-            }
-        }
-        let _existing = ProcessInfo.processInfo.environment["SUT_URL"]
+  override class func setUp() {
+    super.setUp()
+    _ = "true".withCString { val in
+      "CRAWLBERG_ALLOW_PRIVATE_NETWORK".withCString { key in
+        setenv(key, val, 0)
+      }
     }
+    let _existing = ProcessInfo.processInfo.environment["SUT_URL"]
+  }
 
-    func testEmbeddingBackendsClear() throws {
-        // Clear all embedding backends and verify list is empty
-        let result = try Xberg.clearEmbeddingBackends()
-    }
+  func testEmbeddingBackendsClear() throws {
+    // Clear all embedding backends and verify list is empty
+    let result = try Xberg.clearEmbeddingBackends()
+  }
 
-    func testEmbeddingBackendsList() throws {
-        // List all registered embedding backends
-        let result = try Xberg.listEmbeddingBackends()
-    }
+  func testEmbeddingBackendsList() throws {
+    // List all registered embedding backends
+    let result = try Xberg.listEmbeddingBackends()
+  }
 
 }

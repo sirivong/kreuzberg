@@ -9,16 +9,72 @@ from typing import Any, TypeVar, cast, overload
 
 import xberg._xberg as _rust
 
-from ._xberg import DocumentExtractor, EmbeddingBackend, ExtractionResult, OcrBackend, PostProcessor, Renderer, RerankerBackend, SupportedFormat, Validator
-from .options import AccelerationConfig, BrowserConfig, ChunkingConfig, ContentConfig, ContentFilterConfig, CrawlConfig, EmailConfig, EmbeddingConfig, ExtractInput, ExtractionConfig, FileExtractionConfig, HierarchyConfig, HtmlOutputConfig, ImageExtractionConfig, ImagePreprocessingConfig, KeywordConfig, LanguageDetectionConfig, LayoutDetectionConfig, LlmConfig, NerConfig, OcrConfig, OcrElementConfig, OcrQualityThresholds, PageConfig, PdfConfig, PostProcessorConfig, ProxyConfig, RakeParams, RedactionConfig, SecurityLimits, SsrfPolicy, SummarizationConfig, SvgOptions, TesseractConfig, TokenReductionOptions, TranscriptionConfig, TreeSitterConfig, TreeSitterProcessConfig, UrlExtractionConfig, YakeParams
+from ._xberg import (
+    DocumentExtractor,
+    EmbeddingBackend,
+    ExtractionResult,
+    OcrBackend,
+    PostProcessor,
+    Renderer,
+    RerankerBackend,
+    SupportedFormat,
+    Validator,
+)
+from .options import (
+    AccelerationConfig,
+    BrowserConfig,
+    ChunkingConfig,
+    ContentConfig,
+    ContentFilterConfig,
+    CrawlConfig,
+    EmailConfig,
+    EmbeddingConfig,
+    ExtractInput,
+    ExtractionConfig,
+    FileExtractionConfig,
+    HierarchyConfig,
+    HtmlOutputConfig,
+    ImageExtractionConfig,
+    ImagePreprocessingConfig,
+    KeywordConfig,
+    LanguageDetectionConfig,
+    LayoutDetectionConfig,
+    LlmConfig,
+    NerConfig,
+    OcrConfig,
+    OcrElementConfig,
+    OcrQualityThresholds,
+    PageConfig,
+    PdfConfig,
+    PostProcessorConfig,
+    ProxyConfig,
+    RakeParams,
+    RedactionConfig,
+    SecurityLimits,
+    SsrfPolicy,
+    SummarizationConfig,
+    SvgOptions,
+    TesseractConfig,
+    TokenReductionOptions,
+    TranscriptionConfig,
+    TreeSitterConfig,
+    TreeSitterProcessConfig,
+    UrlExtractionConfig,
+    YakeParams,
+)
 
 _E = TypeVar("_E")
+
 
 def _pascal_to_snake(value: str) -> str:
     """Convert PascalCase/camelCase to snake_case (AtxClosed -> atx_closed)."""
     out_chars: list[str] = []
     for index, ch in enumerate(value):
-        if ch.isupper() and index > 0 and (value[index - 1].islower() or (index + 1 < len(value) and value[index + 1].islower())):
+        if (
+            ch.isupper()
+            and index > 0
+            and (value[index - 1].islower() or (index + 1 < len(value) and value[index + 1].islower()))
+        ):
             out_chars.append("_")
         out_chars.append(ch.lower())
     return "".join(out_chars)
@@ -55,7 +111,9 @@ def _to_rust_image_preprocessing_config(value: None) -> None: ...
 
 
 @overload
-def _to_rust_image_preprocessing_config(value: ImagePreprocessingConfig | dict[str, Any] | str) -> _rust.ImagePreprocessingConfig: ...
+def _to_rust_image_preprocessing_config(
+    value: ImagePreprocessingConfig | dict[str, Any] | str,
+) -> _rust.ImagePreprocessingConfig: ...
 def _to_rust_image_preprocessing_config(
     value: ImagePreprocessingConfig | dict[str, Any] | str | None,
 ) -> _rust.ImagePreprocessingConfig | None:
@@ -150,7 +208,9 @@ def _to_rust_ocr_quality_thresholds(value: None) -> None: ...
 
 
 @overload
-def _to_rust_ocr_quality_thresholds(value: OcrQualityThresholds | dict[str, Any] | str) -> _rust.OcrQualityThresholds: ...
+def _to_rust_ocr_quality_thresholds(
+    value: OcrQualityThresholds | dict[str, Any] | str,
+) -> _rust.OcrQualityThresholds: ...
 def _to_rust_ocr_quality_thresholds(
     value: OcrQualityThresholds | dict[str, Any] | str | None,
 ) -> _rust.OcrQualityThresholds | None:
@@ -228,7 +288,11 @@ def _to_rust_acceleration_config(
         return None
     value = cast(AccelerationConfig, value)
     return _rust.AccelerationConfig(
-        **({"provider": _coerce_enum(_rust.ExecutionProviderType, value.provider)} if value.provider is not None else {}),
+        **(
+            {"provider": _coerce_enum(_rust.ExecutionProviderType, value.provider)}
+            if value.provider is not None
+            else {}
+        ),
         device_id=value.device_id,
     )
 
@@ -253,6 +317,8 @@ def _coerce_dict_ocr_config(value: dict[str, Any]) -> OcrConfig:
         if _k in value and value[_k] is not None and not isinstance(value[_k], _data_cls):
             value[_k] = _data_cls(value[_k])
     return OcrConfig(**value)
+
+
 @overload
 def _to_rust_ocr_config(value: None) -> None: ...
 
@@ -273,14 +339,34 @@ def _to_rust_ocr_config(value: OcrConfig | dict[str, Any] | str | None) -> _rust
         backend=value.backend,
         language=value.language,
         tesseract_config=_to_rust_tesseract_config(value.tesseract_config),
-        output_format=(value.output_format if isinstance(value.output_format, _rust.OutputFormat) else _rust.OutputFormat(value.output_format)) if value.output_format is not None else None,
-        paddle_ocr_config=(json.dumps(value.paddle_ocr_config) if isinstance(value.paddle_ocr_config, (dict, list)) else value.paddle_ocr_config),
-        backend_options=(json.dumps(value.backend_options) if isinstance(value.backend_options, (dict, list)) else value.backend_options),
+        output_format=(
+            value.output_format
+            if isinstance(value.output_format, _rust.OutputFormat)
+            else _rust.OutputFormat(value.output_format)
+        )
+        if value.output_format is not None
+        else None,
+        paddle_ocr_config=(
+            json.dumps(value.paddle_ocr_config)
+            if isinstance(value.paddle_ocr_config, (dict, list))
+            else value.paddle_ocr_config
+        ),
+        backend_options=(
+            json.dumps(value.backend_options)
+            if isinstance(value.backend_options, (dict, list))
+            else value.backend_options
+        ),
         element_config=_to_rust_ocr_element_config(value.element_config),
         quality_thresholds=_to_rust_ocr_quality_thresholds(value.quality_thresholds),
         pipeline=value.pipeline,
         auto_rotate=value.auto_rotate,
-        vlm_fallback=(value.vlm_fallback if isinstance(value.vlm_fallback, _rust.VlmFallbackPolicy) else _rust.VlmFallbackPolicy(value.vlm_fallback)) if value.vlm_fallback is not None else None,
+        vlm_fallback=(
+            value.vlm_fallback
+            if isinstance(value.vlm_fallback, _rust.VlmFallbackPolicy)
+            else _rust.VlmFallbackPolicy(value.vlm_fallback)
+        )
+        if value.vlm_fallback is not None
+        else None,
         vlm_config=_to_rust_llm_config(value.vlm_config),
         vlm_prompt=value.vlm_prompt,
         acceleration=_to_rust_acceleration_config(value.acceleration),
@@ -309,7 +395,9 @@ def _to_rust_embedding_config(value: EmbeddingConfig | dict[str, Any] | str | No
         return None
     value = cast(EmbeddingConfig, value)
     return _rust.EmbeddingConfig(
-        model=value.model if isinstance(value.model, _rust.EmbeddingModelType) else _rust.EmbeddingModelType(value.model),
+        model=value.model
+        if isinstance(value.model, _rust.EmbeddingModelType)
+        else _rust.EmbeddingModelType(value.model),
         normalize=value.normalize,
         batch_size=value.batch_size,
         show_download_progress=value.show_download_progress,
@@ -354,10 +442,16 @@ def _to_rust_chunking_config(value: ChunkingConfig | dict[str, Any] | str | None
         chunker_type=_coerce_enum(_rust.ChunkerType, value.chunker_type),
         embedding=_to_rust_embedding_config(value.embedding),
         preset=value.preset,
-        sizing=(value.sizing if isinstance(value.sizing, _rust.ChunkSizing) else _rust.ChunkSizing(value.sizing)) if value.sizing is not None else None,
+        sizing=(value.sizing if isinstance(value.sizing, _rust.ChunkSizing) else _rust.ChunkSizing(value.sizing))
+        if value.sizing is not None
+        else None,
         prepend_heading_context=value.prepend_heading_context,
         topic_threshold=value.topic_threshold,
-        **({"table_chunking": _coerce_enum(_rust.TableChunkingMode, value.table_chunking)} if value.table_chunking is not None else {}),
+        **(
+            {"table_chunking": _coerce_enum(_rust.TableChunkingMode, value.table_chunking)}
+            if value.table_chunking is not None
+            else {}
+        ),
     )
 
 
@@ -412,7 +506,9 @@ def _to_rust_image_extraction_config(value: None) -> None: ...
 
 
 @overload
-def _to_rust_image_extraction_config(value: ImageExtractionConfig | dict[str, Any] | str) -> _rust.ImageExtractionConfig: ...
+def _to_rust_image_extraction_config(
+    value: ImageExtractionConfig | dict[str, Any] | str,
+) -> _rust.ImageExtractionConfig: ...
 def _to_rust_image_extraction_config(
     value: ImageExtractionConfig | dict[str, Any] | str | None,
 ) -> _rust.ImageExtractionConfig | None:
@@ -422,7 +518,11 @@ def _to_rust_image_extraction_config(
     if isinstance(value, dict):
         if "svg" in value and value["svg"] is not None:
             value["svg"] = _to_rust_svg_options(value["svg"])
-        if "output_format" in value and value["output_format"] is not None and not isinstance(value["output_format"], _rust.ImageOutputFormat):
+        if (
+            "output_format" in value
+            and value["output_format"] is not None
+            and not isinstance(value["output_format"], _rust.ImageOutputFormat)
+        ):
             value["output_format"] = _rust.ImageOutputFormat(value["output_format"])
         value = ImageExtractionConfig(**value)
     if value is None:
@@ -442,7 +542,13 @@ def _to_rust_image_extraction_config(
         run_ocr_on_images=value.run_ocr_on_images,
         ocr_text_only=value.ocr_text_only,
         append_ocr_text=value.append_ocr_text,
-        output_format=(value.output_format if isinstance(value.output_format, _rust.ImageOutputFormat) else _rust.ImageOutputFormat(value.output_format)) if value.output_format is not None else None,
+        output_format=(
+            value.output_format
+            if isinstance(value.output_format, _rust.ImageOutputFormat)
+            else _rust.ImageOutputFormat(value.output_format)
+        )
+        if value.output_format is not None
+        else None,
         include_data_base64=value.include_data_base64,
     )
 
@@ -508,7 +614,9 @@ def _to_rust_token_reduction_options(value: None) -> None: ...
 
 
 @overload
-def _to_rust_token_reduction_options(value: TokenReductionOptions | dict[str, Any] | str) -> _rust.TokenReductionOptions: ...
+def _to_rust_token_reduction_options(
+    value: TokenReductionOptions | dict[str, Any] | str,
+) -> _rust.TokenReductionOptions: ...
 def _to_rust_token_reduction_options(
     value: TokenReductionOptions | dict[str, Any] | str | None,
 ) -> _rust.TokenReductionOptions | None:
@@ -531,7 +639,9 @@ def _to_rust_language_detection_config(value: None) -> None: ...
 
 
 @overload
-def _to_rust_language_detection_config(value: LanguageDetectionConfig | dict[str, Any] | str) -> _rust.LanguageDetectionConfig: ...
+def _to_rust_language_detection_config(
+    value: LanguageDetectionConfig | dict[str, Any] | str,
+) -> _rust.LanguageDetectionConfig: ...
 def _to_rust_language_detection_config(
     value: LanguageDetectionConfig | dict[str, Any] | str | None,
 ) -> _rust.LanguageDetectionConfig | None:
@@ -699,7 +809,9 @@ def _to_rust_layout_detection_config(value: None) -> None: ...
 
 
 @overload
-def _to_rust_layout_detection_config(value: LayoutDetectionConfig | dict[str, Any] | str) -> _rust.LayoutDetectionConfig: ...
+def _to_rust_layout_detection_config(
+    value: LayoutDetectionConfig | dict[str, Any] | str,
+) -> _rust.LayoutDetectionConfig: ...
 def _to_rust_layout_detection_config(
     value: LayoutDetectionConfig | dict[str, Any] | str | None,
 ) -> _rust.LayoutDetectionConfig | None:
@@ -762,7 +874,9 @@ def _to_rust_tree_sitter_process_config(value: None) -> None: ...
 
 
 @overload
-def _to_rust_tree_sitter_process_config(value: TreeSitterProcessConfig | dict[str, Any] | str) -> _rust.TreeSitterProcessConfig: ...
+def _to_rust_tree_sitter_process_config(
+    value: TreeSitterProcessConfig | dict[str, Any] | str,
+) -> _rust.TreeSitterProcessConfig: ...
 def _to_rust_tree_sitter_process_config(
     value: TreeSitterProcessConfig | dict[str, Any] | str | None,
 ) -> _rust.TreeSitterProcessConfig | None:
@@ -785,7 +899,11 @@ def _to_rust_tree_sitter_process_config(
         symbols=value.symbols,
         diagnostics=value.diagnostics,
         chunk_max_size=value.chunk_max_size,
-        **({"content_mode": _coerce_enum(_rust.CodeContentMode, value.content_mode)} if value.content_mode is not None else {}),
+        **(
+            {"content_mode": _coerce_enum(_rust.CodeContentMode, value.content_mode)}
+            if value.content_mode is not None
+            else {}
+        ),
     )
 
 
@@ -972,7 +1090,9 @@ def _to_rust_crawl_config(value: CrawlConfig | dict[str, Any] | str | None) -> _
         retry_count=value.retry_count,
         retry_codes=value.retry_codes,
         cookies_enabled=value.cookies_enabled,
-        auth=(value.auth if isinstance(value.auth, _rust.AuthConfig) else _rust.AuthConfig(value.auth)) if value.auth is not None else None,
+        auth=(value.auth if isinstance(value.auth, _rust.AuthConfig) else _rust.AuthConfig(value.auth))
+        if value.auth is not None
+        else None,
         max_body_size=value.max_body_size,
         remove_tags=value.remove_tags,
         content=_to_rust_content_config(value.content),
@@ -1151,12 +1271,16 @@ def _coerce_dict_file_extraction_config(value: dict[str, Any]) -> FileExtraction
         if _k in value and value[_k] is not None and not isinstance(value[_k], _data_cls):
             value[_k] = _data_cls(value[_k])
     return FileExtractionConfig(**value)
+
+
 @overload
 def _to_rust_file_extraction_config(value: None) -> None: ...
 
 
 @overload
-def _to_rust_file_extraction_config(value: FileExtractionConfig | dict[str, Any] | str) -> _rust.FileExtractionConfig: ...
+def _to_rust_file_extraction_config(
+    value: FileExtractionConfig | dict[str, Any] | str,
+) -> _rust.FileExtractionConfig: ...
 def _to_rust_file_extraction_config(
     value: FileExtractionConfig | dict[str, Any] | str | None,
 ) -> _rust.FileExtractionConfig | None:
@@ -1181,8 +1305,18 @@ def _to_rust_file_extraction_config(
         language_detection=_to_rust_language_detection_config(value.language_detection),
         pages=_to_rust_page_config(value.pages),
         postprocessor=_to_rust_post_processor_config(value.postprocessor),
-        **({"result_format": _coerce_enum(_rust.ResultFormat, value.result_format)} if value.result_format is not None else {}),
-        output_format=(value.output_format if isinstance(value.output_format, _rust.OutputFormat) else _rust.OutputFormat(value.output_format)) if value.output_format is not None else None,
+        **(
+            {"result_format": _coerce_enum(_rust.ResultFormat, value.result_format)}
+            if value.result_format is not None
+            else {}
+        ),
+        output_format=(
+            value.output_format
+            if isinstance(value.output_format, _rust.OutputFormat)
+            else _rust.OutputFormat(value.output_format)
+        )
+        if value.output_format is not None
+        else None,
         include_document_structure=value.include_document_structure,
         timeout_secs=value.timeout_secs,
         structured_extraction=value.structured_extraction,
@@ -1315,6 +1449,8 @@ def _coerce_dict_extraction_config(value: dict[str, Any]) -> ExtractionConfig:
         if _k in value and value[_k] is not None and not isinstance(value[_k], _data_cls):
             value[_k] = _data_cls(value[_k])
     return cast("ExtractionConfig", value)
+
+
 @overload
 def _to_rust_extraction_config(value: None) -> None: ...
 
@@ -1442,42 +1578,68 @@ def verify_excerpt(excerpt: str, source_text: str) -> bool:
 def register_ocr_backend(backend: OcrBackend) -> None:
     """Register a register_ocr_backend backend."""
     return _rust.register_ocr_backend(backend=backend)
+
+
 def register_post_processor(backend: PostProcessor) -> None:
     """Register a register_post_processor backend."""
     return _rust.register_post_processor(backend=backend)
+
+
 def register_validator(backend: Validator) -> None:
     """Register a register_validator backend."""
     return _rust.register_validator(backend=backend)
+
+
 def register_document_extractor(backend: DocumentExtractor) -> None:
     """Register a register_document_extractor backend."""
     return _rust.register_document_extractor(backend=backend)
+
+
 def register_embedding_backend(backend: EmbeddingBackend) -> None:
     """Register a register_embedding_backend backend."""
     return _rust.register_embedding_backend(backend=backend)
+
+
 def register_renderer(backend: Renderer) -> None:
     """Register a register_renderer backend."""
     return _rust.register_renderer(backend=backend)
+
+
 def register_reranker_backend(backend: RerankerBackend) -> None:
     """Register a register_reranker_backend backend."""
     return _rust.register_reranker_backend(backend=backend)
+
+
 def unregister_ocr_backend(name: str) -> None:
     """Unregister the named unregister_ocr_backend backend."""
     return _rust.unregister_ocr_backend(name=name)
+
+
 def unregister_post_processor(name: str) -> None:
     """Unregister the named unregister_post_processor backend."""
     return _rust.unregister_post_processor(name=name)
+
+
 def unregister_validator(name: str) -> None:
     """Unregister the named unregister_validator backend."""
     return _rust.unregister_validator(name=name)
+
+
 def unregister_document_extractor(name: str) -> None:
     """Unregister the named unregister_document_extractor backend."""
     return _rust.unregister_document_extractor(name=name)
+
+
 def unregister_embedding_backend(name: str) -> None:
     """Unregister the named unregister_embedding_backend backend."""
     return _rust.unregister_embedding_backend(name=name)
+
+
 def unregister_renderer(name: str) -> None:
     """Unregister the named unregister_renderer backend."""
     return _rust.unregister_renderer(name=name)
+
+
 def unregister_reranker_backend(name: str) -> None:
     """Unregister the named unregister_reranker_backend backend."""
     return _rust.unregister_reranker_backend(name=name)

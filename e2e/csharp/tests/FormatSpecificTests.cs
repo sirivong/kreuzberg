@@ -20,7 +20,7 @@ namespace Xberg
     /// <summary>E2e tests for category: format_specific.</summary>
     public class FormatSpecificTests
     {
-            private static readonly JsonSerializerOptions ConfigOptions = new() { Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower) }, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault };
+        private static readonly JsonSerializerOptions ConfigOptions = new() { Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower) }, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault };
 
         [Fact]
         public async Task Test_FormatDocxStandalone()
@@ -29,7 +29,7 @@ namespace Xberg
             var Input_MockBaseUrl = Environment.GetEnvironmentVariable("MOCK_SERVER_FORMAT_DOCX_STANDALONE") ?? Environment.GetEnvironmentVariable("MOCK_SERVER_URL") + "/fixtures/format_docx_standalone";
             var Input_Json = "{\"filename\":\"fake.docx\",\"kind\":\"uri\",\"mime_type\":\"application/vnd.openxmlformats-officedocument.wordprocessingml.document\",\"uri\":\"$mock_url/docx/fake.docx\"}".Replace("$mock_url", Input_MockBaseUrl);
             var result = await XbergConverter.ExtractAsync(ExtractInput.FromJson(Input_Json), ExtractionConfig.FromJson("{}"));
-    Assert.True(result.Results[0].Content.Length >= 20, "expected length >= 20");
+            Assert.True(result.Results[0].Content.Length >= 20, "expected length >= 20");
 
         }
 
@@ -40,8 +40,8 @@ namespace Xberg
             var Input_MockBaseUrl = Environment.GetEnvironmentVariable("MOCK_SERVER_FORMAT_HWPX_STANDALONE") ?? Environment.GetEnvironmentVariable("MOCK_SERVER_URL") + "/fixtures/format_hwpx_standalone";
             var Input_Json = "{\"filename\":\"simple.hwpx\",\"kind\":\"uri\",\"mime_type\":\"application/haansofthwpx\",\"uri\":\"$mock_url/hwpx/simple.hwpx\"}".Replace("$mock_url", Input_MockBaseUrl);
             var result = await XbergConverter.ExtractAsync(ExtractInput.FromJson(Input_Json), ExtractionConfig.FromJson("{}"));
-    Assert.True(result.Results[0].Content.Length >= 20, "expected length >= 20");
-    Assert.Contains("hello from hwpx", result.Results[0].Content.ToString().ToLower());
+            Assert.True(result.Results[0].Content.Length >= 20, "expected length >= 20");
+            Assert.Contains("hello from hwpx", result.Results[0].Content.ToString().ToLower());
 
         }
 
@@ -52,8 +52,8 @@ namespace Xberg
             var Input_MockBaseUrl = Environment.GetEnvironmentVariable("MOCK_SERVER_FORMAT_PDF_TEXT") ?? Environment.GetEnvironmentVariable("MOCK_SERVER_URL") + "/fixtures/format_pdf_text";
             var Input_Json = "{\"filename\":\"fake_memo.pdf\",\"kind\":\"uri\",\"mime_type\":\"application/pdf\",\"uri\":\"$mock_url/pdf/fake_memo.pdf\"}".Replace("$mock_url", Input_MockBaseUrl);
             var result = await XbergConverter.ExtractAsync(ExtractInput.FromJson(Input_Json), ExtractionConfig.FromJson("{}"));
-    Assert.True(result.Results[0].Content.Length >= 50, "expected length >= 50");
-    Assert.True(result.Results[0].Content.ToString().Contains("Mallori") || result.Results[0].Content.ToString().Contains("May"), "expected to contain at least one of the specified values");
+            Assert.True(result.Results[0].Content.Length >= 50, "expected length >= 50");
+            Assert.True(result.Results[0].Content.ToString().Contains("Mallori") || result.Results[0].Content.ToString().Contains("May"), "expected to contain at least one of the specified values");
 
         }
 

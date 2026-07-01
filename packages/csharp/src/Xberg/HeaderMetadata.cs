@@ -56,7 +56,7 @@ public sealed record HeaderMetadata
         try
         {
             return JsonSerializer.Deserialize<HeaderMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse HeaderMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse HeaderMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

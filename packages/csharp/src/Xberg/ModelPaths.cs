@@ -50,7 +50,7 @@ public sealed record ModelPaths
         try
         {
             return JsonSerializer.Deserialize<ModelPaths>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ModelPaths from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ModelPaths from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -10,37 +10,37 @@ import RustBridge
 /// Wraps `any SwiftRendererBridge` and exposes `alef_*` FFI shim methods.
 /// swift-bridge @_cdecl shims call these methods directly.
 public final class SwiftRendererBox {
-    private let bridge: any SwiftRendererBridge
-    public init(_ bridge: any SwiftRendererBridge) { self.bridge = bridge }
-    // MARK: Plugin super-trait shims
+  private let bridge: any SwiftRendererBridge
+  public init(_ bridge: any SwiftRendererBridge) { self.bridge = bridge }
+  // MARK: Plugin super-trait shims
 
-    public func alef_name() -> RustString {
-        return RustString(bridge.name)
-    }
+  public func alef_name() -> RustString {
+    return RustString(bridge.name)
+  }
 
-    public func alef_version() -> RustString {
-        return RustString(bridge.version())
-    }
+  public func alef_version() -> RustString {
+    return RustString(bridge.version())
+  }
 
-    public func alef_initialize() -> String {
-        do {
-            try bridge.initialize()
-            return encodeOkVoidEnvelope()
-        } catch { return encodeErrEnvelope("\(error)") }
-    }
+  public func alef_initialize() -> String {
+    do {
+      try bridge.initialize()
+      return encodeOkVoidEnvelope()
+    } catch { return encodeErrEnvelope("\(error)") }
+  }
 
-    public func alef_shutdown() -> String {
-        do {
-            try bridge.shutdown()
-            return encodeOkVoidEnvelope()
-        } catch { return encodeErrEnvelope("\(error)") }
-    }
+  public func alef_shutdown() -> String {
+    do {
+      try bridge.shutdown()
+      return encodeOkVoidEnvelope()
+    } catch { return encodeErrEnvelope("\(error)") }
+  }
 
-    // MARK: Trait-specific shims
-    public func alef_render_result(result: RustString) -> String {
-        do {
-          let result = try bridge.renderResult(result: result.toString())
-          return encodeOkEnvelope(result)
-        } catch { return encodeErrEnvelope("\(error)") }
-    }
+  // MARK: Trait-specific shims
+  public func alef_render_result(result: RustString) -> String {
+    do {
+      let result = try bridge.renderResult(result: result.toString())
+      return encodeOkEnvelope(result)
+    } catch { return encodeErrEnvelope("\(error)") }
+  }
 }

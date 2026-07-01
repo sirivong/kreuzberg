@@ -46,7 +46,7 @@ public sealed record EmbeddedChanges
         try
         {
             return JsonSerializer.Deserialize<EmbeddedChanges>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse EmbeddedChanges from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse EmbeddedChanges from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

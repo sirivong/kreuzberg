@@ -59,7 +59,7 @@ public sealed record TextExtractionResult
         try
         {
             return JsonSerializer.Deserialize<TextExtractionResult>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse TextExtractionResult from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse TextExtractionResult from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

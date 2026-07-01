@@ -38,7 +38,7 @@ public sealed record RakeParams
         try
         {
             return JsonSerializer.Deserialize<RakeParams>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse RakeParams from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse RakeParams from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

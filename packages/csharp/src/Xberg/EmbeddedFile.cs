@@ -54,7 +54,7 @@ public sealed record EmbeddedFile
         try
         {
             return JsonSerializer.Deserialize<EmbeddedFile>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse EmbeddedFile from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse EmbeddedFile from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

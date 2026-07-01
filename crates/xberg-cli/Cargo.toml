@@ -85,18 +85,8 @@ serde_toon_format = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
-tree-sitter-language-pack = { workspace = true, features = [
-    "dynamic-loading",
-    "download",
-    "serde",
-], optional = true }
-xberg = { workspace = true, features = [
-    "formats",
-    "analysis",
-    "tokio-runtime",
-    "simd-utf8",
-    "cli",
-] }
+tree-sitter-language-pack = { workspace = true, features = ["dynamic-loading", "download", "serde"], optional = true }
+xberg = { workspace = true, features = ["formats", "analysis", "tokio-runtime", "simd-utf8", "cli"] }
 
 [dev-dependencies]
 bytes = { workspace = true }

@@ -44,7 +44,7 @@ public sealed record LanguageDetectionConfig
         try
         {
             return JsonSerializer.Deserialize<LanguageDetectionConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse LanguageDetectionConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse LanguageDetectionConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

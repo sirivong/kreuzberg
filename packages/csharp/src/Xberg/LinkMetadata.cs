@@ -56,7 +56,7 @@ public sealed record LinkMetadata
         try
         {
             return JsonSerializer.Deserialize<LinkMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse LinkMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse LinkMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

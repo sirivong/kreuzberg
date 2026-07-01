@@ -53,7 +53,7 @@ public sealed record ExtractionConfidence
         try
         {
             return JsonSerializer.Deserialize<ExtractionConfidence>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ExtractionConfidence from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ExtractionConfidence from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

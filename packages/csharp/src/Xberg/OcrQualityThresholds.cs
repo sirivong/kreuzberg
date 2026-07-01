@@ -127,7 +127,7 @@ public sealed record OcrQualityThresholds
         try
         {
             return JsonSerializer.Deserialize<OcrQualityThresholds>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse OcrQualityThresholds from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse OcrQualityThresholds from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

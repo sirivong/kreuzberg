@@ -64,7 +64,7 @@ public sealed record FormattedBlock
         try
         {
             return JsonSerializer.Deserialize<FormattedBlock>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse FormattedBlock from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse FormattedBlock from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

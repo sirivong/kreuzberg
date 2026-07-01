@@ -47,7 +47,7 @@ public sealed record XmlExtractionResult
         try
         {
             return JsonSerializer.Deserialize<XmlExtractionResult>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse XmlExtractionResult from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse XmlExtractionResult from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

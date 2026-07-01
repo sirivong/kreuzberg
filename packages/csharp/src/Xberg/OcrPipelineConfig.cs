@@ -42,7 +42,7 @@ public sealed record OcrPipelineConfig
         try
         {
             return JsonSerializer.Deserialize<OcrPipelineConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse OcrPipelineConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse OcrPipelineConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

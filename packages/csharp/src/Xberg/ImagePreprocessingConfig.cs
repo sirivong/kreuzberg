@@ -72,7 +72,7 @@ public sealed record ImagePreprocessingConfig
         try
         {
             return JsonSerializer.Deserialize<ImagePreprocessingConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ImagePreprocessingConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ImagePreprocessingConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

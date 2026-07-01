@@ -44,7 +44,7 @@ public sealed record ProxyConfig
         try
         {
             return JsonSerializer.Deserialize<ProxyConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ProxyConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ProxyConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

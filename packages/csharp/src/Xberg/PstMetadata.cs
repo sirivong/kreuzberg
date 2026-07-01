@@ -32,7 +32,7 @@ public sealed record PstMetadata
         try
         {
             return JsonSerializer.Deserialize<PstMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PstMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PstMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

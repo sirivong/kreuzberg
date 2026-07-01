@@ -62,7 +62,7 @@ public sealed record CitationMetadata
         try
         {
             return JsonSerializer.Deserialize<CitationMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse CitationMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse CitationMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -42,7 +42,7 @@ public sealed record ProcessingWarning
         try
         {
             return JsonSerializer.Deserialize<ProcessingWarning>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ProcessingWarning from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ProcessingWarning from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -38,7 +38,7 @@ public sealed record MultidocInput
         try
         {
             return JsonSerializer.Deserialize<MultidocInput>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse MultidocInput from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse MultidocInput from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -17,11 +17,11 @@ public final class JsonUtil {
 
     static {
         MAPPER = new ObjectMapper()
-            .registerModule(new Jdk8Module())
-            .findAndRegisterModules()
-            .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
-            .setSerializationInclusion(JsonInclude.Include.NON_NULL)
-            .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS, true);
+        .registerModule(new Jdk8Module())
+        .findAndRegisterModules()
+        .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
+        .setSerializationInclusion(JsonInclude.Include.NON_NULL)
+        .configure(MapperFeature.ACCEPT_CASE_INSENSITIVE_ENUMS, true);
     }
 
     private JsonUtil() {

@@ -21,7 +21,7 @@ public class ByteArraySerializer extends JsonSerializer<byte[]> {
 
     @Override
     public void serialize(final byte[] value, final JsonGenerator gen,
-            final SerializerProvider provider) throws java.io.IOException {
+        final SerializerProvider provider) throws java.io.IOException {
         gen.writeStartArray();
         for (byte b : value) {
             gen.writeNumber(b & 0xFF);

@@ -44,7 +44,7 @@ public sealed record YearRange
         try
         {
             return JsonSerializer.Deserialize<YearRange>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse YearRange from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse YearRange from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -39,7 +39,7 @@ public sealed record PageClassification
         try
         {
             return JsonSerializer.Deserialize<PageClassification>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PageClassification from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PageClassification from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

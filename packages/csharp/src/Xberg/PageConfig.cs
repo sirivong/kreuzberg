@@ -51,7 +51,7 @@ public sealed record PageConfig
         try
         {
             return JsonSerializer.Deserialize<PageConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PageConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PageConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

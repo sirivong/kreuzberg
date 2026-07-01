@@ -46,7 +46,7 @@ public sealed record CaptioningConfig
         try
         {
             return JsonSerializer.Deserialize<CaptioningConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse CaptioningConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse CaptioningConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -44,7 +44,7 @@ public sealed record DjotLink
         try
         {
             return JsonSerializer.Deserialize<DjotLink>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DjotLink from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DjotLink from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

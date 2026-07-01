@@ -17,14 +17,14 @@ import org.junit.jupiter.api.BeforeAll;
 public class BatchTest {
     @BeforeAll
     static void initEnv() {        if (System.getProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK") == null) {
-            System.setProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK", "true");
-        }    }
+        System.setProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK", "true");
+    }    }
 
     @Test
     void testExtractBatchBytesHappy() throws Exception {
         // extract_batch: happy path with mixed inputs
         var result = Xberg.extractBatch(java.util.Arrays.asList(JsonUtil.fromJson("{\"bytes\":[72,101,108,108,111,44,32,119,111,114,108,100,33],\"kind\":\"bytes\",\"mime_type\":\"text/plain\"}", ExtractInput.class), JsonUtil.fromJson("{\"bytes\":[60,104,116,109,108,62,60,98,111,100,121,62,84,101,115,116,60,47,98,111,100,121,62,60,47,104,116,109,108,62],\"kind\":\"bytes\",\"mime_type\":\"text/html\"}", ExtractInput.class)), ExtractionConfig.builder().build());
-assertTrue(result.results().size() >= 1, "expected at least 1 elements");
+        assertTrue(result.results().size() >= 1, "expected at least 1 elements");
 
     }
 
@@ -60,7 +60,7 @@ assertTrue(result.results().size() >= 1, "expected at least 1 elements");
     void testExtractBatchEmptyInputs() throws Exception {
         // extract_batch: empty batch
         var result = Xberg.extractBatch(java.util.List.of(), ExtractionConfig.builder().build());
-assertEquals(0, result.results().size(), "expected exactly 0 elements");
+        assertEquals(0, result.results().size(), "expected exactly 0 elements");
 
     }
 

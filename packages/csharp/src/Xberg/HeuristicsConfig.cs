@@ -123,7 +123,7 @@ public sealed record HeuristicsConfig
         try
         {
             return JsonSerializer.Deserialize<HeuristicsConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse HeuristicsConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse HeuristicsConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

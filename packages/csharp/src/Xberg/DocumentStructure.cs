@@ -72,7 +72,7 @@ public sealed record DocumentStructure
         try
         {
             return JsonSerializer.Deserialize<DocumentStructure>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DocumentStructure from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DocumentStructure from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

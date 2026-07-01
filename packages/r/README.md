@@ -102,6 +102,7 @@ install.packages("xberg",
 ```
 
 ### System Requirements
+
 - **R 4.1+** required (extendr bindings)
 - Optional: [Tesseract WASM](https://github.com/naptha/tesseract.js) for OCR functionality
 

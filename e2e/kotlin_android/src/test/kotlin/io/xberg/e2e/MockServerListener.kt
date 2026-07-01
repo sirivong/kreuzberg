@@ -48,7 +48,7 @@ class MockServerListener : LauncherSessionListener {
             return
         }
         val repoRoot = locateRepoRoot()
-            ?: error("MockServerListener: could not locate repo root (looked for fixtures/ in ancestors of ${System.getProperty("user.dir")})")
+        ?: error("MockServerListener: could not locate repo root (looked for fixtures/ in ancestors of ${System.getProperty("user.dir")})")
         val binName = if (System.getProperty("os.name", "").lowercase().contains("win")) "mock-server.exe" else "mock-server"
         val bin = repoRoot.resolve("e2e").resolve("rust").resolve("target").resolve("release").resolve(binName).toFile()
         val fixturesDir = repoRoot.resolve("fixtures").toFile()
@@ -56,7 +56,7 @@ class MockServerListener : LauncherSessionListener {
             "MockServerListener: mock-server binary not found at $bin — run: cargo build --manifest-path e2e/rust/Cargo.toml --bin mock-server --release"
         }
         val pb = ProcessBuilder(bin.absolutePath, fixturesDir.absolutePath)
-            .redirectErrorStream(false)
+        .redirectErrorStream(false)
         val server = try {
             pb.start()
         } catch (e: IOException) {

@@ -89,7 +89,7 @@ public sealed record RerankerConfig
         try
         {
             return JsonSerializer.Deserialize<RerankerConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse RerankerConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse RerankerConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

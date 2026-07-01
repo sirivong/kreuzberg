@@ -62,7 +62,7 @@ public sealed record EpubMetadata
         try
         {
             return JsonSerializer.Deserialize<EpubMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse EpubMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse EpubMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

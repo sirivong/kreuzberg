@@ -54,7 +54,7 @@ public sealed record CellChange
         try
         {
             return JsonSerializer.Deserialize<CellChange>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse CellChange from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse CellChange from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

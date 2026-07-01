@@ -44,7 +44,7 @@ public sealed record ChunkInfo
         try
         {
             return JsonSerializer.Deserialize<ChunkInfo>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ChunkInfo from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ChunkInfo from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

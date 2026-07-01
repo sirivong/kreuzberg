@@ -87,7 +87,7 @@ public sealed record EmbeddingConfig
         try
         {
             return JsonSerializer.Deserialize<EmbeddingConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse EmbeddingConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse EmbeddingConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

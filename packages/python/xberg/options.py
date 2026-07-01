@@ -599,6 +599,7 @@ class EmailConfig:
 
 class ExtractionConfig(TypedDict, total=False):
     """Main extraction configuration."""
+
     use_cache: bool
 
     """Enable caching of extraction results"""
@@ -722,6 +723,7 @@ class ExtractionConfig(TypedDict, total=False):
     qr_codes: bool | None
 
     """Enable QR-code detection in extracted images. When `true`, the QR post-processor runs at the Middle stage and populates `ExtractedImage::qr_codes`."""
+
 
 @dataclass(frozen=True, slots=True)
 class FileExtractionConfig:

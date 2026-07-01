@@ -66,7 +66,7 @@ public sealed record EmailAttachment
         try
         {
             return JsonSerializer.Deserialize<EmailAttachment>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse EmailAttachment from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse EmailAttachment from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -38,7 +38,7 @@ public sealed record PageRange
         try
         {
             return JsonSerializer.Deserialize<PageRange>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PageRange from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PageRange from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

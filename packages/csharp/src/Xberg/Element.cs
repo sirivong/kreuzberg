@@ -47,7 +47,7 @@ public sealed record Element
         try
         {
             return JsonSerializer.Deserialize<Element>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse Element from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse Element from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

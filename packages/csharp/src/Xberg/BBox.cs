@@ -50,7 +50,7 @@ public sealed record BBox
         try
         {
             return JsonSerializer.Deserialize<BBox>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse BBox from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse BBox from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

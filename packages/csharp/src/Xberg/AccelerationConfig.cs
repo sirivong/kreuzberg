@@ -41,7 +41,7 @@ public sealed record AccelerationConfig
         try
         {
             return JsonSerializer.Deserialize<AccelerationConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse AccelerationConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse AccelerationConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

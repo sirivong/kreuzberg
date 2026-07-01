@@ -57,7 +57,7 @@ public sealed record Entity
         try
         {
             return JsonSerializer.Deserialize<Entity>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse Entity from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse Entity from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

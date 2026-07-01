@@ -14,39 +14,39 @@ import RustBridge
 
 /// E2e tests for category: registry.
 final class RegistryTests: XCTestCase {
-    override class func setUp() {
-        super.setUp()
-        _ = "true".withCString { val in
-            "CRAWLBERG_ALLOW_PRIVATE_NETWORK".withCString { key in
-                setenv(key, val, 0)
-            }
-        }
-        let _existing = ProcessInfo.processInfo.environment["SUT_URL"]
+  override class func setUp() {
+    super.setUp()
+    _ = "true".withCString { val in
+      "CRAWLBERG_ALLOW_PRIVATE_NETWORK".withCString { key in
+        setenv(key, val, 0)
+      }
     }
+    let _existing = ProcessInfo.processInfo.environment["SUT_URL"]
+  }
 
-    func testListEmbeddingBackends() throws {
-        // List embedding backends
-        let result = try Xberg.listEmbeddingBackends()
-    }
+  func testListEmbeddingBackends() throws {
+    // List embedding backends
+    let result = try Xberg.listEmbeddingBackends()
+  }
 
-    func testListOcrBackends() throws {
-        // List OCR backends
-        let result = try Xberg.listOcrBackends()
-    }
+  func testListOcrBackends() throws {
+    // List OCR backends
+    let result = try Xberg.listOcrBackends()
+  }
 
-    func testListPostProcessors() throws {
-        // List post-processors
-        let result = try Xberg.listPostProcessors()
-    }
+  func testListPostProcessors() throws {
+    // List post-processors
+    let result = try Xberg.listPostProcessors()
+  }
 
-    func testListRenderers() throws {
-        // List renderers
-        let result = try Xberg.listRenderers()
-    }
+  func testListRenderers() throws {
+    // List renderers
+    let result = try Xberg.listRenderers()
+  }
 
-    func testListValidators() throws {
-        // List validators
-        let result = try Xberg.listValidators()
-    }
+  func testListValidators() throws {
+    // List validators
+    let result = try Xberg.listValidators()
+  }
 
 }

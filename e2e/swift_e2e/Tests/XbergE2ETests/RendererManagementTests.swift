@@ -14,24 +14,24 @@ import RustBridge
 
 /// E2e tests for category: renderer_management.
 final class RendererManagementTests: XCTestCase {
-    override class func setUp() {
-        super.setUp()
-        _ = "true".withCString { val in
-            "CRAWLBERG_ALLOW_PRIVATE_NETWORK".withCString { key in
-                setenv(key, val, 0)
-            }
-        }
-        let _existing = ProcessInfo.processInfo.environment["SUT_URL"]
+  override class func setUp() {
+    super.setUp()
+    _ = "true".withCString { val in
+      "CRAWLBERG_ALLOW_PRIVATE_NETWORK".withCString { key in
+        setenv(key, val, 0)
+      }
     }
+    let _existing = ProcessInfo.processInfo.environment["SUT_URL"]
+  }
 
-    func testRenderersClear() throws {
-        // Clear all renderers and verify list is empty
-        let result = try Xberg.clearRenderers()
-    }
+  func testRenderersClear() throws {
+    // Clear all renderers and verify list is empty
+    let result = try Xberg.clearRenderers()
+  }
 
-    func testRenderersList() throws {
-        // List all registered renderers
-        let result = try Xberg.listRenderers()
-    }
+  func testRenderersList() throws {
+    // List all registered renderers
+    let result = try Xberg.listRenderers()
+  }
 
 }

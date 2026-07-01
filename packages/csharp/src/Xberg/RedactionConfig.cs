@@ -78,7 +78,7 @@ public sealed record RedactionConfig
         try
         {
             return JsonSerializer.Deserialize<RedactionConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse RedactionConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse RedactionConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

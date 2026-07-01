@@ -17,8 +17,8 @@ import org.junit.jupiter.api.BeforeAll;
 public class SummarizationTest {
     @BeforeAll
     static void initEnv() {        if (System.getProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK") == null) {
-            System.setProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK", "true");
-        }    }
+        System.setProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK", "true");
+    }    }
 
     @Test
     void testSummarizationExtractiveSmoke() throws Exception {
@@ -29,7 +29,7 @@ public class SummarizationTest {
         var config = JsonUtil.fromJson("{\"summarization\":{\"max_tokens\":80,\"strategy\":\"extractive\"}}", ExtractionConfig.class);
 
         var result = Xberg.extract(input, config);
-assertEquals("text/plain", result.results().get(0).mimeType().trim());assertFalse(result.results().get(0).summary().text().isEmpty(), "expected non-empty value");assertEquals("extractive", result.results().get(0).summary().strategy().getValue().trim());
+        assertEquals("text/plain", result.results().get(0).mimeType().trim());assertFalse(result.results().get(0).summary().text().isEmpty(), "expected non-empty value");assertEquals("extractive", result.results().get(0).summary().strategy().getValue().trim());
 
     }
 

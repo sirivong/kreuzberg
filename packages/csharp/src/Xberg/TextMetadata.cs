@@ -53,7 +53,7 @@ public sealed record TextMetadata
         try
         {
             return JsonSerializer.Deserialize<TextMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse TextMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse TextMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

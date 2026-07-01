@@ -101,6 +101,7 @@ composer require xberg-io/xberg
 ```
 
 ### System Requirements
+
 - **PHP 8.2+** required
 - Optional: [ONNX Runtime](https://github.com/microsoft/onnxruntime/releases) version 1.24+ for ORT-dependent inference features
 - Optional: [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) for OCR functionality
@@ -148,7 +149,8 @@ if (count($result->tables) > 0) {
     }
 }
 ```
-```
+
+```text
 
 ### Common Use Cases
 
@@ -284,7 +286,8 @@ if ($avgCharsPerPage < 100) {
     echo "Pass: Moderate - Text extracted successfully\n";
 }
 ```
-```
+
+```text
 
 #### Table Extraction
 
@@ -324,7 +327,8 @@ foreach ($output->results as $result) {
     echo "MIME: {$result->mimeType}\n\n";
 }
 ```
-```
+
+```text
 
 ### Next Steps
 
@@ -559,7 +563,8 @@ if ($avgCharsPerPage < 100) {
     echo "Pass: Moderate - Text extracted successfully\n";
 }
 ```
-```
+
+```text
 
 ## Plugin System
 
@@ -609,7 +614,8 @@ foreach ($output->results as $result) {
     echo "MIME: {$result->mimeType}\n\n";
 }
 ```
-```
+
+```text
 
 ## Configuration
 

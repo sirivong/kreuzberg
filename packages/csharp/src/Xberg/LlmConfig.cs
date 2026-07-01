@@ -75,7 +75,7 @@ public sealed record LlmConfig
         try
         {
             return JsonSerializer.Deserialize<LlmConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse LlmConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse LlmConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

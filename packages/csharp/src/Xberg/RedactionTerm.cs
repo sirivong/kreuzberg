@@ -48,7 +48,7 @@ public sealed record RedactionTerm
         try
         {
             return JsonSerializer.Deserialize<RedactionTerm>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse RedactionTerm from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse RedactionTerm from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

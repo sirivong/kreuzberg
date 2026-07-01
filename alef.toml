@@ -1,22 +1,22 @@
 [workspace]
-alef_version = "0.30.1"
+alef_version = "0.30.2"
 languages = [
-  "python",
-  "node",
-  "ruby",
-  "php",
-  "ffi",
-  "go",
-  "java",
-  "csharp",
-  "elixir",
-  "wasm",
-  "r",
-  "dart",
-  "jni",
-  "kotlin_android",
-  "swift",
-  "zig",
+    "python",
+    "node",
+    "ruby",
+    "php",
+    "ffi",
+    "go",
+    "java",
+    "csharp",
+    "elixir",
+    "wasm",
+    "r",
+    "dart",
+    "jni",
+    "kotlin_android",
+    "swift",
+    "zig",
 ]
 
 # ---------------------------------------------------------------------------
@@ -103,14 +103,137 @@ enabled = false
 
 [workspace.sync]
 extra_paths = [
-  "packages/python/xberg/__init__.py",
-  "packages/ruby/lib/xberg/version.rb",
-  "packages/ruby/ext/xberg_rb/native/Cargo.toml",
-  "crates/xberg-node/package.json",
-  "crates/xberg-node/npm/*/package.json",
-  "packages/go/go.mod",
-  "Cargo.toml",
+    "packages/python/xberg/__init__.py",
+    "packages/ruby/lib/xberg/version.rb",
+    "packages/ruby/ext/xberg_rb/native/Cargo.toml",
+    "crates/xberg-node/package.json",
+    "crates/xberg-node/npm/*/package.json",
+    "packages/go/go.mod",
+    "Cargo.toml",
 ]
+
+# ---------------------------------------------------------------------------
+# Repo-specific poly suppressions merged into the generated poly.toml. poly's
+# native ruff/oxc engines read poly.toml, NOT root pyproject [tool.ruff] or
+# .oxlintrc.json, so hand-written-file suppressions live here.
+# ---------------------------------------------------------------------------
+[workspace.poly]
+# Ported from .oxlintrc.json ignorePatterns (injected/vendored/generated JS +
+# build output). docs/snippets, dist, node_modules, target are already excluded
+# by poly's default discovery set.
+exclude = ["**/_generated/**", "**/coverage/**", "**/pkg/**", "**/.next/**", "**/*.min.js"]
+
+[workspace.poly.per-file-ignores]
+# GENERATED-code emitter gaps in alef 0.30.2 (remove once alef's TEST_IGNORES /
+# options.py glob cover them in a future release): A001 — generated e2e tests
+# take an `input` param shadowing the builtin; N801 — generated plugin
+# trait-bridge stub class names aren't CapWords; I001 — generated options.py
+# import block is unsorted.
+"e2e/**/*.py" = ["A001", "N801"]
+"packages/python/xberg/options.py" = ["I001"]
+# Hand-written Python formerly extend-excluded / per-file-ignored by root
+# pyproject [tool.ruff] (poly's ruff engine now lints these paths).
+"scripts/**/*.py" = [
+    "B023",
+    "C901",
+    "D101",
+    "D102",
+    "D103",
+    "D415",
+    "E702",
+    "ERA001",
+    "PERF203",
+    "PERF401",
+    "PLC0415",
+    "PLR0912",
+    "PLR0915",
+    "PLW2901",
+    "PT018",
+    "PTH108",
+    "PTH123",
+    "S101",
+    "S108",
+    "S311",
+    "S607",
+    "SIM105",
+    "SIM115",
+    "T201",
+]
+"tools/benchmark-harness/python_baselines/*.py" = [
+    "ANN001",
+    "ANN201",
+    "ANN202",
+    "ARG001",
+    "BLE001",
+    "C901",
+    "D103",
+    "G004",
+    "INP001",
+    "PERF401",
+    "PLC0415",
+    "PLR0911",
+    "PLR0912",
+    "PLR0915",
+    "PLW2901",
+    "PTH123",
+    "S607",
+    "T201",
+]
+"tools/benchmark-harness/scripts/*.py" = [
+    "ANN001",
+    "ANN201",
+    "ANN202",
+    "ARG001",
+    "BLE001",
+    "C901",
+    "D103",
+    "E741",
+    "EXE001",
+    "EXE002",
+    "F841",
+    "INP001",
+    "N818",
+    "PERF203",
+    "PERF401",
+    "PIE810",
+    "PLC0206",
+    "PLC0415",
+    "PLR0911",
+    "PLR0912",
+    "PLR0915",
+    "PLR1714",
+    "PLW1510",
+    "PLW2901",
+    "PTH110",
+    "PTH112",
+    "PTH118",
+    "PTH119",
+    "PTH122",
+    "PTH123",
+    "RET504",
+    "S314",
+    "S607",
+    "SIM108",
+    "SIM115",
+    "T201",
+]
+"tools/perf/*.py" = ["D103", "T201"]
+"cli-proxy/pypi/**/*.py" = ["ANN001", "ANN202", "S310", "T201"]
+"packages/python/build.py" = ["INP001"]
+# Hand-written test-fixture generator tool (not alef-generated).
+"tools/generate_test_fixtures/**/*.py" = [
+    "D301",
+    "ERA001",
+    "PERF401",
+    "PLC0415",
+    "PT001",
+    "S101",
+    "SIM117",
+    "T201",
+    "TC003",
+]
+# Hand-written PHP benchmark driver (mago's unescaped-output on a CLI script).
+"tools/benchmark-harness/scripts/*.php" = ["no-unescaped-output"]
 
 [[crates]]
 name = "xberg"
@@ -120,151 +243,151 @@ error_constructor = "xberg::XbergError::Other({msg})"
 version_from = "Cargo.toml"
 workspace_root = "."
 sources = [
-  # Public API surface — only files with types/functions re-exported from lib.rs
-  "crates/xberg/src/lib.rs",
-  "crates/xberg/src/error.rs",
-  # Public types (re-exported via `pub use types::*`)
-  "crates/xberg/src/types/extraction.rs",
-  "crates/xberg/src/types/metadata.rs",
-  "crates/xberg/src/types/page.rs",
-  "crates/xberg/src/types/tables.rs",
-  "crates/xberg/src/types/annotations.rs",
-  "crates/xberg/src/types/document_structure.rs",
-  "crates/xberg/src/types/ocr_elements.rs",
-  "crates/xberg/src/types/formats.rs",
-  "crates/xberg/src/types/uri.rs",
-  "crates/xberg/src/types/djot.rs",
-  "crates/xberg/src/types/internal.rs",
-  "crates/xberg/src/types/form_field.rs",
-  "crates/xberg/src/types/formula.rs",
-  # Config types (re-exported via `pub use core::config::*`)
-  "crates/xberg/src/core/config/mod.rs",
-  "crates/xberg/src/core/config/extraction/types.rs",
-  "crates/xberg/src/core/config/extraction/core.rs",
-  "crates/xberg/src/core/config/extraction/file_config.rs",
-  "crates/xberg/src/core/config/ocr.rs",
-  "crates/xberg/src/core/config/page.rs",
-  "crates/xberg/src/core/config/pdf.rs",
-  "crates/xberg/src/core/config/html_output.rs",
-  "crates/xberg/src/core/config/layout.rs",
-  "crates/xberg/src/core/config/acceleration.rs",
-  "crates/xberg/src/core/config/llm.rs",
-  "crates/xberg/src/core/config/content_filter.rs",
-  "crates/xberg/src/core/config/tree_sitter.rs",
-  "crates/xberg/src/core/config/email.rs",
-  "crates/xberg/src/core/config/formats.rs",
-  # Public MIME/format detection functions
-  "crates/xberg/src/core/mime.rs",
-  "crates/xberg/src/core/formats.rs",
-  # Plugin trait (for trait bridges)
-  "crates/xberg/src/plugins/traits.rs",
-  "crates/xberg/src/plugins/embedding.rs",
-  "crates/xberg/src/plugins/reranker.rs",
-  "crates/xberg/src/plugins/registry/mod.rs",
-  "crates/xberg/src/plugins/registry/reranker.rs",
-  "crates/xberg/src/core/config/reranker.rs",
-  "crates/xberg/src/reranking/mod.rs",
-  # Public module APIs
-  "crates/xberg/src/rendering/mod.rs",
-  "crates/xberg/src/keywords/mod.rs",
-  "crates/xberg/src/chunking/mod.rs",
-  "crates/xberg/src/text/markdown_footnotes/mod.rs",
-  "crates/xberg/src/embeddings/mod.rs",
-  "crates/xberg/src/language_detection/mod.rs",
-  "crates/xberg/src/cache/core.rs",
-  # Preset types and resolver (re-exported from lib.rs)
-  "crates/xberg/src/presets/types.rs",
-  "crates/xberg/src/presets/resolve.rs",
-  # Heuristics structured analysis (re-exported as module from lib.rs)
-  "crates/xberg/src/heuristics/structured.rs",
-  # Unified extraction functions (re-exported from lib.rs)
-  "crates/xberg/src/core/extract/mod.rs",
-  # PDF rendering (render_pdf_page_to_png — re-exported from lib.rs)
-  "crates/xberg/src/pdf/render.rs",
-  # PdfMetadata — referenced in types/metadata.rs as Pdf(PdfMetadata) variant
-  "crates/xberg/src/pdf/metadata.rs",
-  # Office metadata types (used in metadata.rs)
-  "crates/xberg/src/extraction/office_metadata/mod.rs",
-  "crates/xberg/src/extraction/office_metadata/core_properties.rs",
-  "crates/xberg/src/extraction/office_metadata/app_properties.rs",
-  "crates/xberg/src/extraction/office_metadata/custom_properties.rs",
-  "crates/xberg/src/extraction/office_metadata/odt_properties.rs",
-  # OCR/PaddleOCR types (re-exported from lib.rs)
-  "crates/xberg/src/ocr/types.rs",
-  "crates/xberg/src/paddle_ocr/mod.rs",
-  # OCR backend registry operations (register/unregister/list/clear)
-  "crates/xberg/src/plugins/ocr.rs",
-  # Document extractor trait bridge and registry operations.
-  # Bridge-facing trait methods use public ExtractedDocument DTOs; InternalDocument
-  # methods are skipped in source and remain Rust-only.
-  "crates/xberg/src/plugins/extractor/trait.rs",
-  "crates/xberg/src/plugins/extractor/mod.rs",
-  # Renderer trait and registry operations
-  "crates/xberg/src/plugins/renderer.rs",
-  # Validator registry operations
-  "crates/xberg/src/plugins/validator/mod.rs",
-  # Post-processor trait and registry operations
-  "crates/xberg/src/plugins/processor/trait.rs",
-  "crates/xberg/src/plugins/processor/mod.rs",
+    # Public API surface — only files with types/functions re-exported from lib.rs
+    "crates/xberg/src/lib.rs",
+    "crates/xberg/src/error.rs",
+    # Public types (re-exported via `pub use types::*`)
+    "crates/xberg/src/types/extraction.rs",
+    "crates/xberg/src/types/metadata.rs",
+    "crates/xberg/src/types/page.rs",
+    "crates/xberg/src/types/tables.rs",
+    "crates/xberg/src/types/annotations.rs",
+    "crates/xberg/src/types/document_structure.rs",
+    "crates/xberg/src/types/ocr_elements.rs",
+    "crates/xberg/src/types/formats.rs",
+    "crates/xberg/src/types/uri.rs",
+    "crates/xberg/src/types/djot.rs",
+    "crates/xberg/src/types/internal.rs",
+    "crates/xberg/src/types/form_field.rs",
+    "crates/xberg/src/types/formula.rs",
+    # Config types (re-exported via `pub use core::config::*`)
+    "crates/xberg/src/core/config/mod.rs",
+    "crates/xberg/src/core/config/extraction/types.rs",
+    "crates/xberg/src/core/config/extraction/core.rs",
+    "crates/xberg/src/core/config/extraction/file_config.rs",
+    "crates/xberg/src/core/config/ocr.rs",
+    "crates/xberg/src/core/config/page.rs",
+    "crates/xberg/src/core/config/pdf.rs",
+    "crates/xberg/src/core/config/html_output.rs",
+    "crates/xberg/src/core/config/layout.rs",
+    "crates/xberg/src/core/config/acceleration.rs",
+    "crates/xberg/src/core/config/llm.rs",
+    "crates/xberg/src/core/config/content_filter.rs",
+    "crates/xberg/src/core/config/tree_sitter.rs",
+    "crates/xberg/src/core/config/email.rs",
+    "crates/xberg/src/core/config/formats.rs",
+    # Public MIME/format detection functions
+    "crates/xberg/src/core/mime.rs",
+    "crates/xberg/src/core/formats.rs",
+    # Plugin trait (for trait bridges)
+    "crates/xberg/src/plugins/traits.rs",
+    "crates/xberg/src/plugins/embedding.rs",
+    "crates/xberg/src/plugins/reranker.rs",
+    "crates/xberg/src/plugins/registry/mod.rs",
+    "crates/xberg/src/plugins/registry/reranker.rs",
+    "crates/xberg/src/core/config/reranker.rs",
+    "crates/xberg/src/reranking/mod.rs",
+    # Public module APIs
+    "crates/xberg/src/rendering/mod.rs",
+    "crates/xberg/src/keywords/mod.rs",
+    "crates/xberg/src/chunking/mod.rs",
+    "crates/xberg/src/text/markdown_footnotes/mod.rs",
+    "crates/xberg/src/embeddings/mod.rs",
+    "crates/xberg/src/language_detection/mod.rs",
+    "crates/xberg/src/cache/core.rs",
+    # Preset types and resolver (re-exported from lib.rs)
+    "crates/xberg/src/presets/types.rs",
+    "crates/xberg/src/presets/resolve.rs",
+    # Heuristics structured analysis (re-exported as module from lib.rs)
+    "crates/xberg/src/heuristics/structured.rs",
+    # Unified extraction functions (re-exported from lib.rs)
+    "crates/xberg/src/core/extract/mod.rs",
+    # PDF rendering (render_pdf_page_to_png — re-exported from lib.rs)
+    "crates/xberg/src/pdf/render.rs",
+    # PdfMetadata — referenced in types/metadata.rs as Pdf(PdfMetadata) variant
+    "crates/xberg/src/pdf/metadata.rs",
+    # Office metadata types (used in metadata.rs)
+    "crates/xberg/src/extraction/office_metadata/mod.rs",
+    "crates/xberg/src/extraction/office_metadata/core_properties.rs",
+    "crates/xberg/src/extraction/office_metadata/app_properties.rs",
+    "crates/xberg/src/extraction/office_metadata/custom_properties.rs",
+    "crates/xberg/src/extraction/office_metadata/odt_properties.rs",
+    # OCR/PaddleOCR types (re-exported from lib.rs)
+    "crates/xberg/src/ocr/types.rs",
+    "crates/xberg/src/paddle_ocr/mod.rs",
+    # OCR backend registry operations (register/unregister/list/clear)
+    "crates/xberg/src/plugins/ocr.rs",
+    # Document extractor trait bridge and registry operations.
+    # Bridge-facing trait methods use public ExtractedDocument DTOs; InternalDocument
+    # methods are skipped in source and remain Rust-only.
+    "crates/xberg/src/plugins/extractor/trait.rs",
+    "crates/xberg/src/plugins/extractor/mod.rs",
+    # Renderer trait and registry operations
+    "crates/xberg/src/plugins/renderer.rs",
+    # Validator registry operations
+    "crates/xberg/src/plugins/validator/mod.rs",
+    # Post-processor trait and registry operations
+    "crates/xberg/src/plugins/processor/trait.rs",
+    "crates/xberg/src/plugins/processor/mod.rs",
 ]
 
 features = [
-  "full",
-  "pdf",
-  "ocr",
-  "paddle-ocr",
-  "paddle-ocr-types",
-  "layout-detection",
-  "layout-types",
-  "embeddings",
-  "embedding-presets",
-  "reranker",
-  "reranker-presets",
-  "chunking",
-  "keywords-yake",
-  "keywords-rake",
-  "language-detection",
-  "html",
-  "tree-sitter",
-  "office",
-  "email",
-  "archives",
-  "stopwords",
-  "auto-rotate",
-  "auto-rotate-types",
-  "tokio-runtime",
-  "api",
-  "api-types",
-  "mcp",
-  "liter-llm",
-  "quality",
-  # Newer xberg core features that are activated via `full` in the desktop
-  # dep block but must be re-declared as binding-crate passthroughs so that
-  # alef-emitted `#[cfg(feature = "X")]` arms in binding lib.rs don't trip
-  # `unexpected cfg condition value` under `-D warnings`.
-  "svg",
-  "transcription",
-  "transcription-types",
-  "classification",
-  "captioning",
-  "ner-onnx",
-  "ner-llm",
-  "diff",
-  "markdown-footnotes",
-  "redaction",
-  "enrichment",
-  "heuristics",
-  "presets",
-  "structured",
-  "url-ingestion",
+    "full",
+    "pdf",
+    "ocr",
+    "paddle-ocr",
+    "paddle-ocr-types",
+    "layout-detection",
+    "layout-types",
+    "embeddings",
+    "embedding-presets",
+    "reranker",
+    "reranker-presets",
+    "chunking",
+    "keywords-yake",
+    "keywords-rake",
+    "language-detection",
+    "html",
+    "tree-sitter",
+    "office",
+    "email",
+    "archives",
+    "stopwords",
+    "auto-rotate",
+    "auto-rotate-types",
+    "tokio-runtime",
+    "api",
+    "api-types",
+    "mcp",
+    "liter-llm",
+    "quality",
+    # Newer xberg core features that are activated via `full` in the desktop
+    # dep block but must be re-declared as binding-crate passthroughs so that
+    # alef-emitted `#[cfg(feature = "X")]` arms in binding lib.rs don't trip
+    # `unexpected cfg condition value` under `-D warnings`.
+    "svg",
+    "transcription",
+    "transcription-types",
+    "classification",
+    "captioning",
+    "ner-onnx",
+    "ner-llm",
+    "diff",
+    "markdown-footnotes",
+    "redaction",
+    "enrichment",
+    "heuristics",
+    "presets",
+    "structured",
+    "url-ingestion",
 ]
 
 [[crates.source_crates]]
 name = "crawlberg"
 sources = [
-  "../crawlberg/crates/crawlberg/src/types/config.rs",
-  "../crawlberg/crates/crawlberg/src/types/discovery.rs",
-  "../crawlberg/crates/crawlberg/src/net/ssrf.rs",
+    "../crawlberg/crates/crawlberg/src/types/config.rs",
+    "../crawlberg/crates/crawlberg/src/types/discovery.rs",
+    "../crawlberg/crates/crawlberg/src/net/ssrf.rs",
 ]
 roots = ["crawlberg::CrawlConfig"]
 
@@ -280,36 +403,32 @@ crawlberg = { version = "1.0.1", default-features = false }
 [crates.python]
 module_name = "_xberg"
 exclude_types = [
-  # Arc<Mutex<T>> opaque types — codegen doesn't generate .lock() for methods
-  "PooledString",
+    # Arc<Mutex<T>> opaque types — codegen doesn't generate .lock() for methods
+    "PooledString",
 ]
 exclude_fields = ["FormatMetadata.Code"]
 exclude_functions = [
-  "calculate_quality_score",
-  "count_tokens",
-  "embed_texts",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
-  # Trait-bridge registration emits Python adapters for these plugin families.
-  # The raw Rust functions take Arc<dyn Trait> and duplicate the bridge names.
-  "register_document_extractor",
-  "register_renderer",
-  "unregister_document_extractor",
-  "unregister_renderer",
+    "calculate_quality_score",
+    "count_tokens",
+    "embed_texts",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
+    # Trait-bridge registration emits Python adapters for these plugin families.
+    # The raw Rust functions take Arc<dyn Trait> and duplicate the bridge names.
+    "register_document_extractor",
+    "register_renderer",
+    "unregister_document_extractor",
+    "unregister_renderer",
 ]
-reexported_types = [
-  "ExtractionResult",
-  "ExtractedDocument",
-  "ExtractionDiff",
-]
+reexported_types = ["ExtractionResult", "ExtractedDocument", "ExtractionDiff"]
 
 [crates.python.stubs]
 output = "packages/python/xberg/"
@@ -324,24 +443,24 @@ default_features = false
 [crates.node]
 package_name = "@xberg-io/xberg"
 exclude_types = [
-  # Opaque Arc<Mutex<T>> types — codegen doesn't generate .lock() calls for methods
-  "StreamReader",
-  "PooledString",
+    # Opaque Arc<Mutex<T>> types — codegen doesn't generate .lock() calls for methods
+    "StreamReader",
+    "PooledString",
 ]
 exclude_functions = [
-  "calculate_quality_score",
-  "count_tokens",
-  "embed_texts",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
+    "calculate_quality_score",
+    "count_tokens",
+    "embed_texts",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
 ]
 
 [crates.node.extra_dependencies]
@@ -359,19 +478,19 @@ default_features = false
 [crates.ruby]
 gem_name = "xberg"
 exclude_functions = [
-  "calculate_quality_score",
-  "count_tokens",
-  "embed_texts",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
+    "calculate_quality_score",
+    "count_tokens",
+    "embed_texts",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
 ]
 
 [crates.ruby.stubs]
@@ -387,40 +506,40 @@ default_features = false
 [crates.php]
 extension_name = "xberg"
 exclude_types = [
-  # Enum types that don't have From<String> implementation for PHP
-  "ChunkerType",
-  "OutputFormat",
-  "EmbeddingModelType",
-  "UriKind",
-  "ChunkType",
-  # PooledString has methods incompatible with ext-php-rs (buffer_mut, deref_mut, fmt(f))
-  # that trigger E0716/E0596/E0507 in the #[php_impl] macro expansion.
-  "PooledString",
-  # Tagged data enums whose flat-PHP-class From<core> impls call .into() on PathBuf,
-  # usize, TableGrid, Vec<(String,String)>, [(u32,u32);4] fields that don't have the
-  # required Into<String>/Into<i64> implementations. Tracked upstream in alef-backend-php.
-  "ChunkSizing",
-  "EmbeddingModelType",
-  "NodeContent",
-  "OcrBoundingGeometry",
+    # Enum types that don't have From<String> implementation for PHP
+    "ChunkerType",
+    "OutputFormat",
+    "EmbeddingModelType",
+    "UriKind",
+    "ChunkType",
+    # PooledString has methods incompatible with ext-php-rs (buffer_mut, deref_mut, fmt(f))
+    # that trigger E0716/E0596/E0507 in the #[php_impl] macro expansion.
+    "PooledString",
+    # Tagged data enums whose flat-PHP-class From<core> impls call .into() on PathBuf,
+    # usize, TableGrid, Vec<(String,String)>, [(u32,u32);4] fields that don't have the
+    # required Into<String>/Into<i64> implementations. Tracked upstream in alef-backend-php.
+    "ChunkSizing",
+    "EmbeddingModelType",
+    "NodeContent",
+    "OcrBoundingGeometry",
 ]
 exclude_functions = [
-  "calculate_quality_score",
-  "count_tokens",
-  "embed_texts",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
-  # embed_texts_async and rerank_async are now generated with always-true cfg
-  # conditions to work around ext-php-rs's #[php_impl] macro unconditional
-  # function resolution. See prepend_cfg_for_php in rust_bindings.rs.
+    "calculate_quality_score",
+    "count_tokens",
+    "embed_texts",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
+    # embed_texts_async and rerank_async are now generated with always-true cfg
+    # conditions to work around ext-php-rs's #[php_impl] macro unconditional
+    # function resolution. See prepend_cfg_for_php in rust_bindings.rs.
 ]
 
 # Windows: libheif is not installed on the `windows-latest` runner image, so
@@ -433,23 +552,23 @@ default_features = false
 [crates.elixir]
 app_name = "xberg"
 exclude_functions = [
-  "calculate_quality_score",
-  "count_tokens",
-  "embed_texts",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
+    "calculate_quality_score",
+    "count_tokens",
+    "embed_texts",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
 ]
 exclude_types = [
-  # Trait types cannot be FFI-bound
-  "Recyclable",
+    # Trait types cannot be FFI-bound
+    "Recyclable",
 ]
 
 # Windows: libheif is not installed on the `windows-latest` runner image, so
@@ -463,97 +582,97 @@ default_features = false
 package_name = "@xberg-io/xberg-wasm"
 features = ["wasm-target", "url-ingestion"]
 exclude_types = [
-  # ORT/runtime-only types not available in the wasm-target feature set
-  "OcrFallbackDecision",
-  "OcrProcessor",
-  "OcrCacheStats",
-  "TessdataManager",
-  "PageLayoutResult",
+    # ORT/runtime-only types not available in the wasm-target feature set
+    "OcrFallbackDecision",
+    "OcrProcessor",
+    "OcrCacheStats",
+    "TessdataManager",
+    "PageLayoutResult",
 ]
 exclude_functions = [
-  # paddle-ocr / layout-detection / embeddings / auto-rotate
-  "embed_texts",
-  "embed_text",
-  "detect_layout",
-  "detect_orientation",
-  "run_ocr_pipeline",
-  "process_ocr_element",
-  "layout_runner",
-  "record_success_on_current_span",
-  "record_error_on_current_span",
-  # ocr module (requires full ocr, not ocr-wasm)
-  "compute_hash",
-  "assemble_ocr_markdown",
-  "validate_tesseract_version",
-  # paddle_ocr module
-  "is_language_supported",
-  "language_to_script_family",
-  "map_language_code",
-  # embeddings module
-  "normalize",
-  "list_presets",
-  # image module (ort-dependent preprocessing)
-  "calculate_optimal_dpi",
-  "calculate_smart_dpi",
-  # ort_discovery
-  "ensure_ort_available",
-  # pdf layout_runner
-  "run_layout_for_page",
-  "run_layout_for_pdf",
-  # telemetry internals
-  "sanitize_path",
-  # layout detection
-  "config_from_extraction",
-  "detect_layout_for_images",
-  # Uses excluded types WasmDetectionResult/WasmRecognizedTable
-  "recognize_page_tables",
-  # Functions using excluded types/modules
-  "generate_embeddings_for_chunks",
-  "apply_heuristics",
-  "greedy_nms",
-  # docx extraction functions (internal, not public API)
-  "detect_page_breaks_from_docx",
-  "detect_table_page_numbers",
-  # ooxml embedded object extraction (internal, returns complex types)
-  "extract_ooxml_embedded_objects",
-  "extract_and_process_embedded_files",
-  # markdown utility functions (internal)
-  "cells_to_text",
-  "cells_to_markdown",
-  # Table processing stubs (internal, incomplete implementations)
-  "calculate_quality_score",
-  "reconstruct_table",
-  "table_to_markdown",
-  "build_cell_grid",
-  "post_process_table",
-  "is_well_formed_table",
-  "parse_jotdown_attributes",
-  "parse_jotdown_inline",
-  # Vec<bool> params not supported by wasm-bindgen
-  "merge_segments",
-  # MCP server functions (not available in WASM)
-  "start_mcp_server_http",
-  "start_mcp_server_http_with_config",
-  # Vec<&str> vs &[String] / texts_refs scope — codegen type mismatch
-  "batch_reduce_tokens",
-  "chunk_texts_batch",
-  # Structured-extraction engine requires native HTTP (liter-llm) + PDF
-  # rendering; the `structured` feature is excluded from `wasm-target`, so the
-  # JSON bridge entry points do not exist on wasm32.
-  "extract_structured_json",
-  "split_and_extract_json",
-  # Rust-only utility — reuses the HF tokenizer cache; not generated into bindings
-  "count_tokens",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
+    # paddle-ocr / layout-detection / embeddings / auto-rotate
+    "embed_texts",
+    "embed_text",
+    "detect_layout",
+    "detect_orientation",
+    "run_ocr_pipeline",
+    "process_ocr_element",
+    "layout_runner",
+    "record_success_on_current_span",
+    "record_error_on_current_span",
+    # ocr module (requires full ocr, not ocr-wasm)
+    "compute_hash",
+    "assemble_ocr_markdown",
+    "validate_tesseract_version",
+    # paddle_ocr module
+    "is_language_supported",
+    "language_to_script_family",
+    "map_language_code",
+    # embeddings module
+    "normalize",
+    "list_presets",
+    # image module (ort-dependent preprocessing)
+    "calculate_optimal_dpi",
+    "calculate_smart_dpi",
+    # ort_discovery
+    "ensure_ort_available",
+    # pdf layout_runner
+    "run_layout_for_page",
+    "run_layout_for_pdf",
+    # telemetry internals
+    "sanitize_path",
+    # layout detection
+    "config_from_extraction",
+    "detect_layout_for_images",
+    # Uses excluded types WasmDetectionResult/WasmRecognizedTable
+    "recognize_page_tables",
+    # Functions using excluded types/modules
+    "generate_embeddings_for_chunks",
+    "apply_heuristics",
+    "greedy_nms",
+    # docx extraction functions (internal, not public API)
+    "detect_page_breaks_from_docx",
+    "detect_table_page_numbers",
+    # ooxml embedded object extraction (internal, returns complex types)
+    "extract_ooxml_embedded_objects",
+    "extract_and_process_embedded_files",
+    # markdown utility functions (internal)
+    "cells_to_text",
+    "cells_to_markdown",
+    # Table processing stubs (internal, incomplete implementations)
+    "calculate_quality_score",
+    "reconstruct_table",
+    "table_to_markdown",
+    "build_cell_grid",
+    "post_process_table",
+    "is_well_formed_table",
+    "parse_jotdown_attributes",
+    "parse_jotdown_inline",
+    # Vec<bool> params not supported by wasm-bindgen
+    "merge_segments",
+    # MCP server functions (not available in WASM)
+    "start_mcp_server_http",
+    "start_mcp_server_http_with_config",
+    # Vec<&str> vs &[String] / texts_refs scope — codegen type mismatch
+    "batch_reduce_tokens",
+    "chunk_texts_batch",
+    # Structured-extraction engine requires native HTTP (liter-llm) + PDF
+    # rendering; the `structured` feature is excluded from `wasm-target`, so the
+    # JSON bridge entry points do not exist on wasm32.
+    "extract_structured_json",
+    "split_and_extract_json",
+    # Rust-only utility — reuses the HF tokenizer cache; not generated into bindings
+    "count_tokens",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
 ]
 
 [crates.wasm.extra_dependencies]
@@ -570,90 +689,83 @@ visitor_callbacks = false
 # variant with two fields and cannot be built via `From<String>`, so we
 # provide the literal here. The placeholder local `msg` carries the message.
 plugin_error_constructor = "xberg::XbergError::Plugin { message: msg, plugin_name: String::new() }"
-exclude_types = [
-  "LlmBackend",
-  "EnrichOptions",
-  "EnrichResult",
-  "EnrichStatus",
-  "ChunkPlan",
-  "ChunkingDecision",
-]
+exclude_types = ["LlmBackend", "EnrichOptions", "EnrichResult", "EnrichStatus", "ChunkPlan", "ChunkingDecision"]
 exclude_functions = [
-  "calculate_quality_score",
-  "count_tokens",
-  "find_all",
-  "scan_text",
-  "embed_texts",
-  "apply_strategy",
-  "analyze_document",
-  "analyze_with_user_chunks",
-  "boundaries_from_extraction_result",
-  "calculate_chunk_plan",
-  "calculate_plan_from_overrides",
-  "caption_image",
-  "caption_image_file",
-  "caption_images",
-  "check_format_limits",
-  "choose_call_mode",
-  "classify_document",
-  "classify_one",
-  "classify_pages",
-  "classify_text",
-  "chunk_for_rag",
-  "compare",
-  "default_model_name",
-  "detect_boundaries",
-  "detect_entities",
-  "detect_mime_type",
-  "detect_mime_type_from_bytes",
-  "detect_qr_codes",
-  "download_model",
-  "embed_texts_async",
-  "enrich",
-  "extract_keywords",
-  "extract_region_with_vlm",
-  "extract_region_with_vlm_usage",
-  "extract_structured",
-  "extract_structured_sync",
-  "extract_structured_json",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
-  "fingerprint",
-  "get_embedding_preset",
-  "get_extensions_for_mime",
-  "get_reranker_preset",
-  "known_models",
-  "list_embedding_presets",
-  "list_reranker_presets",
-  "parse_citations",
-  "parse_footnote_definitions",
-  "pdf_page_count",
-  "redact",
-  "register_document_extractor",
-  "register_builtin",
-  "render_pdf_page_to_png",
-  "register_renderer",
-  "rerank",
-  "rerank_async",
-  "resolve",
-  "score_confidence",
-  "split_and_extract",
-  "split_and_extract_sync",
-  "split_and_extract_json",
-  "summarize",
-  "summarize_with_llm",
-  "token_count",
-  "translate_result",
-  "unregister_document_extractor",
-  "unregister_renderer",
+    "calculate_quality_score",
+    "count_tokens",
+    "find_all",
+    "scan_text",
+    "embed_texts",
+    "apply_strategy",
+    "analyze_document",
+    "analyze_with_user_chunks",
+    "boundaries_from_extraction_result",
+    "calculate_chunk_plan",
+    "calculate_plan_from_overrides",
+    "caption_image",
+    "caption_image_file",
+    "caption_images",
+    "check_format_limits",
+    "choose_call_mode",
+    "classify_document",
+    "classify_one",
+    "classify_pages",
+    "classify_text",
+    "chunk_for_rag",
+    "compare",
+    "default_model_name",
+    "detect_boundaries",
+    "detect_entities",
+    "detect_mime_type",
+    "detect_mime_type_from_bytes",
+    "detect_qr_codes",
+    "download_model",
+    "embed_texts_async",
+    "enrich",
+    "extract_keywords",
+    "extract_region_with_vlm",
+    "extract_region_with_vlm_usage",
+    "extract_structured",
+    "extract_structured_sync",
+    "extract_structured_json",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
+    "fingerprint",
+    "get_embedding_preset",
+    "get_extensions_for_mime",
+    "get_reranker_preset",
+    "known_models",
+    "list_embedding_presets",
+    "list_reranker_presets",
+    "parse_citations",
+    "parse_footnote_definitions",
+    "pdf_page_count",
+    "redact",
+    "register_document_extractor",
+    "register_builtin",
+    "render_pdf_page_to_png",
+    "register_renderer",
+    "rerank",
+    "rerank_async",
+    "resolve",
+    "score_confidence",
+    "split_and_extract",
+    "split_and_extract_sync",
+    "split_and_extract_json",
+    "summarize",
+    "summarize_with_llm",
+    "token_count",
+    "translate_result",
+    "unregister_document_extractor",
+    "unregister_renderer",
 ]
 
 # Android (any arch). Cross-compiling libheif-sys + ORT to NDK targets is
@@ -689,146 +801,146 @@ default_features = false
 module = "github.com/xberg-io/xberg"
 package_name = "xberg"
 exclude_functions = [
-  "calculate_quality_score",
-  "count_tokens",
-  "embed_texts",
-  "apply_strategy",
-  "analyze_document",
-  "analyze_with_user_chunks",
-  "boundaries_from_extraction_result",
-  "calculate_chunk_plan",
-  "calculate_plan_from_overrides",
-  "caption_image",
-  "caption_image_file",
-  "caption_images",
-  "check_format_limits",
-  "choose_call_mode",
-  "classify_document",
-  "classify_one",
-  "classify_pages",
-  "classify_text",
-  "chunk_for_rag",
-  "compare",
-  "default_model_name",
-  "detect_boundaries",
-  "detect_entities",
-  "detect_mime_type",
-  "detect_mime_type_from_bytes",
-  "detect_qr_codes",
-  "download_model",
-  "embed_texts_async",
-  "enrich",
-  "extract_keywords",
-  "extract_region_with_vlm",
-  "extract_region_with_vlm_usage",
-  "extract_structured",
-  "extract_structured_sync",
-  "extract_structured_json",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
-  "fingerprint",
-  "get_embedding_preset",
-  "get_extensions_for_mime",
-  "get_reranker_preset",
-  "known_models",
-  "list_embedding_presets",
-  "list_reranker_presets",
-  "parse_citations",
-  "parse_footnote_definitions",
-  "pdf_page_count",
-  "redact",
-  "register_builtin",
-  "render_pdf_page_to_png",
-  "rerank",
-  "rerank_async",
-  "resolve",
-  "score_confidence",
-  "split_and_extract",
-  "split_and_extract_sync",
-  "split_and_extract_json",
-  "summarize",
-  "summarize_with_llm",
-  "token_count",
-  "translate_result",
-  "register_document_extractor",
-  "unregister_document_extractor",
-  "register_renderer",
-  "unregister_renderer",
+    "calculate_quality_score",
+    "count_tokens",
+    "embed_texts",
+    "apply_strategy",
+    "analyze_document",
+    "analyze_with_user_chunks",
+    "boundaries_from_extraction_result",
+    "calculate_chunk_plan",
+    "calculate_plan_from_overrides",
+    "caption_image",
+    "caption_image_file",
+    "caption_images",
+    "check_format_limits",
+    "choose_call_mode",
+    "classify_document",
+    "classify_one",
+    "classify_pages",
+    "classify_text",
+    "chunk_for_rag",
+    "compare",
+    "default_model_name",
+    "detect_boundaries",
+    "detect_entities",
+    "detect_mime_type",
+    "detect_mime_type_from_bytes",
+    "detect_qr_codes",
+    "download_model",
+    "embed_texts_async",
+    "enrich",
+    "extract_keywords",
+    "extract_region_with_vlm",
+    "extract_region_with_vlm_usage",
+    "extract_structured",
+    "extract_structured_sync",
+    "extract_structured_json",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
+    "fingerprint",
+    "get_embedding_preset",
+    "get_extensions_for_mime",
+    "get_reranker_preset",
+    "known_models",
+    "list_embedding_presets",
+    "list_reranker_presets",
+    "parse_citations",
+    "parse_footnote_definitions",
+    "pdf_page_count",
+    "redact",
+    "register_builtin",
+    "render_pdf_page_to_png",
+    "rerank",
+    "rerank_async",
+    "resolve",
+    "score_confidence",
+    "split_and_extract",
+    "split_and_extract_sync",
+    "split_and_extract_json",
+    "summarize",
+    "summarize_with_llm",
+    "token_count",
+    "translate_result",
+    "register_document_extractor",
+    "unregister_document_extractor",
+    "register_renderer",
+    "unregister_renderer",
 ]
 exclude_types = [
-  "LlmBackend",
-  # Internal DTO used only at the FFI boundary (JSON-marshalled). Generated
-  # Go bindings don't surface this type to consumers, so trait-bridge stubs
-  # must substitute it with json.RawMessage / []byte.
-  "InternalDocument",
-  # SyncExtractor is a Rust-only marker trait for selecting the sync
-  # extraction path; not exposed via the Go bindings — substitute with
-  # json.RawMessage in trait-bridge stubs.
-  "SyncExtractor",
+    "LlmBackend",
+    # Internal DTO used only at the FFI boundary (JSON-marshalled). Generated
+    # Go bindings don't surface this type to consumers, so trait-bridge stubs
+    # must substitute it with json.RawMessage / []byte.
+    "InternalDocument",
+    # SyncExtractor is a Rust-only marker trait for selecting the sync
+    # extraction path; not exposed via the Go bindings — substitute with
+    # json.RawMessage in trait-bridge stubs.
+    "SyncExtractor",
 ]
 
 [crates.java]
 package = "io.xberg"
 ffi_style = "panama"
 features = [
-  "full",
-  "pdf",
-  "ocr",
-  "paddle-ocr",
-  "paddle-ocr-types",
-  "layout-detection",
-  "layout-types",
-  "embeddings",
-  "embedding-presets",
-  "reranker",
-  "reranker-presets",
-  "chunking",
-  "keywords-yake",
-  "keywords-rake",
-  "language-detection",
-  "html",
-  "office",
-  "email",
-  "archives",
-  "stopwords",
-  "auto-rotate",
-  "auto-rotate-types",
-  "tree-sitter",
-  "tokio-runtime",
-  "api",
-  "mcp",
-  "liter-llm",
-  "quality",
+    "full",
+    "pdf",
+    "ocr",
+    "paddle-ocr",
+    "paddle-ocr-types",
+    "layout-detection",
+    "layout-types",
+    "embeddings",
+    "embedding-presets",
+    "reranker",
+    "reranker-presets",
+    "chunking",
+    "keywords-yake",
+    "keywords-rake",
+    "language-detection",
+    "html",
+    "office",
+    "email",
+    "archives",
+    "stopwords",
+    "auto-rotate",
+    "auto-rotate-types",
+    "tree-sitter",
+    "tokio-runtime",
+    "api",
+    "mcp",
+    "liter-llm",
+    "quality",
 ]
 exclude_types = [
-  # Trait-bridge opaque types serialized as JSON strings at FFI boundary
-  "InternalDocument",
-  "OcrBackendType",
-  "ProcessingStage",
-  "SyncExtractor",
+    # Trait-bridge opaque types serialized as JSON strings at FFI boundary
+    "InternalDocument",
+    "OcrBackendType",
+    "ProcessingStage",
+    "SyncExtractor",
 ]
 exclude_functions = [
-  "calculate_quality_score",
-  "count_tokens",
-  "embed_texts",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
+    "calculate_quality_score",
+    "count_tokens",
+    "embed_texts",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
 ]
 
 # Windows: libheif is not installed on the `windows-latest` runner image, so
@@ -858,64 +970,64 @@ style = "frb"
 # get them through the `cfg(not(android/ios/windows))` `features = ["full"]` dep.
 excluded_default_features = ["heic", "embeddings", "reranker"]
 features = [
-  "pdf",
-  "excel",
-  "office",
-  "hwp",
-  "hwpx",
-  "iwork",
-  "email",
-  "html",
-  "xml",
-  "archives",
-  "mdx",
-  "svg",
-  "language-detection",
-  "chunking",
-  "chunking-tokenizers",
-  "quality",
-  "keywords",
-  "diff",
-  "api",
-  "api-types",
-  "mcp",
-  "ocr",
-  "paddle-ocr",
-  "paddle-ocr-types",
-  "layout-detection",
-  "layout-types",
-  "embeddings",
-  "embedding-presets",
-  "reranker",
-  "reranker-presets",
-  "transcription-types",
-  "tree-sitter",
-  "liter-llm",
-  "tokio-runtime",
-  "ner-llm",
-  "ner-onnx",
-  "redaction",
-  "summarization",
-  "classification",
-  "captioning",
-  "qr-codes",
-  "auto-rotate-types",
-  "stopwords",
+    "pdf",
+    "excel",
+    "office",
+    "hwp",
+    "hwpx",
+    "iwork",
+    "email",
+    "html",
+    "xml",
+    "archives",
+    "mdx",
+    "svg",
+    "language-detection",
+    "chunking",
+    "chunking-tokenizers",
+    "quality",
+    "keywords",
+    "diff",
+    "api",
+    "api-types",
+    "mcp",
+    "ocr",
+    "paddle-ocr",
+    "paddle-ocr-types",
+    "layout-detection",
+    "layout-types",
+    "embeddings",
+    "embedding-presets",
+    "reranker",
+    "reranker-presets",
+    "transcription-types",
+    "tree-sitter",
+    "liter-llm",
+    "tokio-runtime",
+    "ner-llm",
+    "ner-onnx",
+    "redaction",
+    "summarization",
+    "classification",
+    "captioning",
+    "qr-codes",
+    "auto-rotate-types",
+    "stopwords",
 ]
 exclude_functions = [
-  "calculate_quality_score",
-  "count_tokens",
-  "embed_texts",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
+    "calculate_quality_score",
+    "count_tokens",
+    "embed_texts",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
 ]
 
 # Android (any arch) and iOS: libheif-sys + ORT do not cross-compile to mobile
@@ -959,31 +1071,31 @@ abis = ["arm64-v8a", "x86_64"]
 # generated `Java_*` shims fail to compile with mismatched-borrow errors.
 features = ["full"]
 exclude_types = [
-  # Internal DTO type used by plugin trait-bridges; marshalled as JSON strings at FFI boundary.
-  # Not exposed in the Kotlin Android interface — methods that would reference it use String instead.
-  "InternalDocument",
+    # Internal DTO type used by plugin trait-bridges; marshalled as JSON strings at FFI boundary.
+    # Not exposed in the Kotlin Android interface — methods that would reference it use String instead.
+    "InternalDocument",
 ]
 exclude_fields = [
-  "ExtractedDocument.ocr_internal_document",
-  "ExtractedDocument.internal_document",
-  "OcrExtractionResult.internal_document",
+    "ExtractedDocument.ocr_internal_document",
+    "ExtractedDocument.internal_document",
+    "OcrExtractionResult.internal_document",
 ]
 exclude_functions = [
-  # embed_texts_async creates naming conflict with suspend wrapper of embed_texts.
-  # Callers should use embedTextsAsync (suspend) from embed_texts instead.
-  "embed_texts_async",
-  "calculate_quality_score",
-  "count_tokens",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
+    # embed_texts_async creates naming conflict with suspend wrapper of embed_texts.
+    # Callers should use embedTextsAsync (suspend) from embed_texts instead.
+    "embed_texts_async",
+    "calculate_quality_score",
+    "count_tokens",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
 ]
 
 # Windows: libheif is not installed on the `windows-latest` runner image, so
@@ -1037,107 +1149,107 @@ package_name = "Xberg"
 # cross-compile). `heic` stays defined as an opt-in feature for desktop callers.
 excluded_default_features = ["heic"]
 features = [
-  "pdf",
-  "excel",
-  "office",
-  "hwp",
-  "hwpx",
-  "iwork",
-  "email",
-  "html",
-  "xml",
-  "archives",
-  "mdx",
-  "svg",
-  "language-detection",
-  "chunking",
-  "chunking-tokenizers",
-  "quality",
-  "keywords",
-  "diff",
-  "api",
-  "api-types",
-  "mcp",
-  "ocr",
-  "paddle-ocr",
-  "paddle-ocr-types",
-  "layout-detection",
-  "layout-types",
-  "embeddings",
-  "embedding-presets",
-  "reranker",
-  "reranker-presets",
-  "transcription-types",
-  "tree-sitter",
-  "liter-llm",
-  "tokio-runtime",
-  "ner-llm",
-  "ner-onnx",
-  "redaction",
-  "summarization",
-  "classification",
-  "captioning",
-  "qr-codes",
-  "auto-rotate-types",
-  "stopwords",
+    "pdf",
+    "excel",
+    "office",
+    "hwp",
+    "hwpx",
+    "iwork",
+    "email",
+    "html",
+    "xml",
+    "archives",
+    "mdx",
+    "svg",
+    "language-detection",
+    "chunking",
+    "chunking-tokenizers",
+    "quality",
+    "keywords",
+    "diff",
+    "api",
+    "api-types",
+    "mcp",
+    "ocr",
+    "paddle-ocr",
+    "paddle-ocr-types",
+    "layout-detection",
+    "layout-types",
+    "embeddings",
+    "embedding-presets",
+    "reranker",
+    "reranker-presets",
+    "transcription-types",
+    "tree-sitter",
+    "liter-llm",
+    "tokio-runtime",
+    "ner-llm",
+    "ner-onnx",
+    "redaction",
+    "summarization",
+    "classification",
+    "captioning",
+    "qr-codes",
+    "auto-rotate-types",
+    "stopwords",
 ]
 exclude_types = [
-  # Internal DTO type used by plugin trait-bridges; marshalled as JSON strings at FFI boundary
-  "InternalDocument",
-  "LlmBackend",
-  # alef 0.25.19 drops the `#[cfg(any(feature = "keywords-yake", feature = "keywords-rake"))]`
-  # extern blocks that declared `KeywordConfig`, `Keyword`, `YakeParams`, and `RakeParams`,
-  # but leaves the references to them in fields/getters intact. swift-bridge then fails to
-  # parse the bridge module with `UndeclaredType`. Exclude the types and their fields until
-  # the alef swift bridge type-collection is fixed.
-  "KeywordConfig",
-  "Keyword",
-  "YakeParams",
-  "RakeParams",
-  "KeywordAlgorithm",
+    # Internal DTO type used by plugin trait-bridges; marshalled as JSON strings at FFI boundary
+    "InternalDocument",
+    "LlmBackend",
+    # alef 0.25.19 drops the `#[cfg(any(feature = "keywords-yake", feature = "keywords-rake"))]`
+    # extern blocks that declared `KeywordConfig`, `Keyword`, `YakeParams`, and `RakeParams`,
+    # but leaves the references to them in fields/getters intact. swift-bridge then fails to
+    # parse the bridge module with `UndeclaredType`. Exclude the types and their fields until
+    # the alef swift bridge type-collection is fixed.
+    "KeywordConfig",
+    "Keyword",
+    "YakeParams",
+    "RakeParams",
+    "KeywordAlgorithm",
 ]
 exclude_fields = [
-  "ExtractedDocument.ocr_internal_document",
-  "ExtractedDocument.internal_document",
-  "OcrExtractionResult.internal_document",
-  "ExtractionConfig.keywords",
-  "FileExtractionConfig.keywords",
-  "ExtractedDocument.extracted_keywords",
+    "ExtractedDocument.ocr_internal_document",
+    "ExtractedDocument.internal_document",
+    "OcrExtractionResult.internal_document",
+    "ExtractionConfig.keywords",
+    "FileExtractionConfig.keywords",
+    "ExtractedDocument.extracted_keywords",
 ]
 exclude_functions = [
-  "calculate_quality_score",
-  "count_tokens",
-  "embed_texts",
-  # Pure Rust helper functions without swift-bridge extern declarations
-  "find_all",
-  "scan_text",
-  # FFI-wrapped function whose RustString return is not properly converted
-  "download_model",
-  # alef emits cfg-gated fallback stubs (`not(feature = "embeddings"/"reranker")`)
-  # that reference the real `xberg::*_async` functions via super::, but the
-  # swift_bridge module's extern blocks still expose the symbols unconditionally
-  # — same wrinkle as PHP's php_impl macro. Drop the async variants until the
-  # alef swift backend can suppress cfg-gated stub fns.
-  "embed_texts_async",
-  "rerank_async",
-  # Trait-bridge registration emits SwiftDocumentExtractorBox/SwiftRendererBox
-  # adapters. The raw Rust lifecycle fns take Arc<dyn Trait> wrappers that
-  # swift-bridge cannot declare as ordinary extern types and duplicate the
-  # bridge functions.
-  "register_document_extractor",
-  "unregister_document_extractor",
-  "register_renderer",
-  "unregister_renderer",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
+    "calculate_quality_score",
+    "count_tokens",
+    "embed_texts",
+    # Pure Rust helper functions without swift-bridge extern declarations
+    "find_all",
+    "scan_text",
+    # FFI-wrapped function whose RustString return is not properly converted
+    "download_model",
+    # alef emits cfg-gated fallback stubs (`not(feature = "embeddings"/"reranker")`)
+    # that reference the real `xberg::*_async` functions via super::, but the
+    # swift_bridge module's extern blocks still expose the symbols unconditionally
+    # — same wrinkle as PHP's php_impl macro. Drop the async variants until the
+    # alef swift backend can suppress cfg-gated stub fns.
+    "embed_texts_async",
+    "rerank_async",
+    # Trait-bridge registration emits SwiftDocumentExtractorBox/SwiftRendererBox
+    # adapters. The raw Rust lifecycle fns take Arc<dyn Trait> wrappers that
+    # swift-bridge cannot declare as ordinary extern types and duplicate the
+    # bridge functions.
+    "register_document_extractor",
+    "unregister_document_extractor",
+    "register_renderer",
+    "unregister_renderer",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
 ]
 
 # iOS: libheif-sys + ORT do not cross-compile to the iOS SDK, so the
@@ -1173,19 +1285,19 @@ package_id = "XbergIo.Xberg"
 # rather than the parent directory (which has no .sln or .csproj at its root).
 project_file = "packages/csharp/Xberg/Xberg.csproj"
 exclude_functions = [
-  "calculate_quality_score",
-  "count_tokens",
-  "embed_texts",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
+    "calculate_quality_score",
+    "count_tokens",
+    "embed_texts",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
 ]
 
 [crates.r]
@@ -1193,123 +1305,123 @@ package_name = "xberg"
 features = ["wasm-target", "url-ingestion"]
 default_features = false
 exclude_types = [
-  # ORT/runtime-only types not available in the wasm-target feature set
-  "OcrFallbackDecision",
-  "OcrProcessor",
-  "OcrCacheStats",
-  "TessdataManager",
-  "PageLayoutResult",
+    # ORT/runtime-only types not available in the wasm-target feature set
+    "OcrFallbackDecision",
+    "OcrProcessor",
+    "OcrCacheStats",
+    "TessdataManager",
+    "PageLayoutResult",
 ]
 exclude_functions = [
-  # paddle-ocr / layout-detection / embeddings / auto-rotate
-  "embed_texts",
-  "embed_text",
-  "detect_layout",
-  "detect_orientation",
-  "run_ocr_pipeline",
-  "process_ocr_element",
-  "layout_runner",
-  "record_success_on_current_span",
-  "record_error_on_current_span",
-  # ocr module (requires full ocr, not ocr-wasm)
-  "compute_hash",
-  "assemble_ocr_markdown",
-  "validate_tesseract_version",
-  # paddle_ocr module
-  "is_language_supported",
-  "language_to_script_family",
-  "map_language_code",
-  # embeddings module
-  "normalize",
-  "list_presets",
-  # image module (ort-dependent preprocessing)
-  "calculate_optimal_dpi",
-  "calculate_smart_dpi",
-  # ort_discovery
-  "ensure_ort_available",
-  # pdf layout_runner
-  "run_layout_for_page",
-  "run_layout_for_pdf",
-  # telemetry internals
-  "sanitize_path",
-  # layout detection
-  "config_from_extraction",
-  "detect_layout_for_images",
-  # Uses excluded types WasmDetectionResult/WasmRecognizedTable
-  "recognize_page_tables",
-  # Functions using excluded types/modules
-  "generate_embeddings_for_chunks",
-  "apply_heuristics",
-  "greedy_nms",
-  # docx extraction functions (internal, not public API)
-  "detect_page_breaks_from_docx",
-  "detect_table_page_numbers",
-  # ooxml embedded object extraction (internal, returns complex types)
-  "extract_ooxml_embedded_objects",
-  "extract_and_process_embedded_files",
-  # markdown utility functions (internal)
-  "cells_to_text",
-  "cells_to_markdown",
-  # Table processing stubs (internal, incomplete implementations)
-  "calculate_quality_score",
-  "reconstruct_table",
-  "table_to_markdown",
-  "build_cell_grid",
-  "post_process_table",
-  "is_well_formed_table",
-  "parse_jotdown_attributes",
-  "parse_jotdown_inline",
-  # Vec<bool> params not supported by wasm-bindgen
-  "merge_segments",
-  # MCP server functions (not available in WASM)
-  "start_mcp_server_http",
-  "start_mcp_server_http_with_config",
-  # Vec<&str> vs &[String] / texts_refs scope — codegen type mismatch
-  "batch_reduce_tokens",
-  "chunk_texts_batch",
-  # Structured-extraction engine requires native HTTP (liter-llm) + PDF
-  # rendering; the `structured` feature is excluded from `wasm-target`, so the
-  # JSON bridge entry points do not exist on wasm32.
-  "extract_structured_json",
-  "split_and_extract_json",
-  # Rust-only utility — reuses the HF tokenizer cache; not generated into bindings
-  "count_tokens",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
-  # Vec<NamedStruct> return: extendr has no `From<Vec<T>> for Robj` for opaque struct
-  # types. Excluded until alef emits a manual list-based From impl.
-  "detect_qr_codes",
-  "find_all",
-  # Vec<EnumVariant> param + Result<Vec<NamedStruct>> return: extendr cannot derive
-  # `TryFrom<&Robj> for Vec<E>` or `From<Result<Vec<S>>> for Robj`. Excluded until alef
-  # emits manual list-based conversions for these shapes.
-  "scan_text",
+    # paddle-ocr / layout-detection / embeddings / auto-rotate
+    "embed_texts",
+    "embed_text",
+    "detect_layout",
+    "detect_orientation",
+    "run_ocr_pipeline",
+    "process_ocr_element",
+    "layout_runner",
+    "record_success_on_current_span",
+    "record_error_on_current_span",
+    # ocr module (requires full ocr, not ocr-wasm)
+    "compute_hash",
+    "assemble_ocr_markdown",
+    "validate_tesseract_version",
+    # paddle_ocr module
+    "is_language_supported",
+    "language_to_script_family",
+    "map_language_code",
+    # embeddings module
+    "normalize",
+    "list_presets",
+    # image module (ort-dependent preprocessing)
+    "calculate_optimal_dpi",
+    "calculate_smart_dpi",
+    # ort_discovery
+    "ensure_ort_available",
+    # pdf layout_runner
+    "run_layout_for_page",
+    "run_layout_for_pdf",
+    # telemetry internals
+    "sanitize_path",
+    # layout detection
+    "config_from_extraction",
+    "detect_layout_for_images",
+    # Uses excluded types WasmDetectionResult/WasmRecognizedTable
+    "recognize_page_tables",
+    # Functions using excluded types/modules
+    "generate_embeddings_for_chunks",
+    "apply_heuristics",
+    "greedy_nms",
+    # docx extraction functions (internal, not public API)
+    "detect_page_breaks_from_docx",
+    "detect_table_page_numbers",
+    # ooxml embedded object extraction (internal, returns complex types)
+    "extract_ooxml_embedded_objects",
+    "extract_and_process_embedded_files",
+    # markdown utility functions (internal)
+    "cells_to_text",
+    "cells_to_markdown",
+    # Table processing stubs (internal, incomplete implementations)
+    "calculate_quality_score",
+    "reconstruct_table",
+    "table_to_markdown",
+    "build_cell_grid",
+    "post_process_table",
+    "is_well_formed_table",
+    "parse_jotdown_attributes",
+    "parse_jotdown_inline",
+    # Vec<bool> params not supported by wasm-bindgen
+    "merge_segments",
+    # MCP server functions (not available in WASM)
+    "start_mcp_server_http",
+    "start_mcp_server_http_with_config",
+    # Vec<&str> vs &[String] / texts_refs scope — codegen type mismatch
+    "batch_reduce_tokens",
+    "chunk_texts_batch",
+    # Structured-extraction engine requires native HTTP (liter-llm) + PDF
+    # rendering; the `structured` feature is excluded from `wasm-target`, so the
+    # JSON bridge entry points do not exist on wasm32.
+    "extract_structured_json",
+    "split_and_extract_json",
+    # Rust-only utility — reuses the HF tokenizer cache; not generated into bindings
+    "count_tokens",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
+    # Vec<NamedStruct> return: extendr has no `From<Vec<T>> for Robj` for opaque struct
+    # types. Excluded until alef emits a manual list-based From impl.
+    "detect_qr_codes",
+    "find_all",
+    # Vec<EnumVariant> param + Result<Vec<NamedStruct>> return: extendr cannot derive
+    # `TryFrom<&Robj> for Vec<E>` or `From<Result<Vec<S>>> for Robj`. Excluded until alef
+    # emits manual list-based conversions for these shapes.
+    "scan_text",
 ]
 
 [crates.zig]
 module_name = "xberg"
 exclude_functions = [
-  "calculate_quality_score",
-  "count_tokens",
-  "embed_texts",
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
+    "calculate_quality_score",
+    "count_tokens",
+    "embed_texts",
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
 ]
 
 [crates.output]
@@ -1332,348 +1444,348 @@ zig = "packages/zig/src/"
 
 [crates.exclude]
 types = [
-  # Generic types — alef(skip) source annotation not picked up for generic structs
-  # (alef-extract does not propagate cfg_attr through type-parameter bounds).
-  "Pool",
+    # Generic types — alef(skip) source annotation not picked up for generic structs
+    # (alef-extract does not propagate cfg_attr through type-parameter bounds).
+    "Pool",
 
-  # Internal docx/hwp parser types — kept hidden from bindings (still
-  # alef(skip)-annotated in source); serde derives added in Phase 1 but
-  # binding surface is unchanged. Listed here to defend against future
-  # codegen passes that might re-emit them as transitive container fields.
-  "xberg::extraction::docx::parser::Table",
-  "xberg::extraction::docx::parser::TableCell",
-  "xberg::extraction::docx::parser::TableRow",
-  "xberg::extraction::docx::parser::HeaderFooter",
-  "xberg::extraction::docx::parser::Note",
-  "xberg::extraction::hwp::model::Section",
+    # Internal docx/hwp parser types — kept hidden from bindings (still
+    # alef(skip)-annotated in source); serde derives added in Phase 1 but
+    # binding surface is unchanged. Listed here to defend against future
+    # codegen passes that might re-emit them as transitive container fields.
+    "xberg::extraction::docx::parser::Table",
+    "xberg::extraction::docx::parser::TableCell",
+    "xberg::extraction::docx::parser::TableRow",
+    "xberg::extraction::docx::parser::HeaderFooter",
+    "xberg::extraction::docx::parser::Note",
+    "xberg::extraction::hwp::model::Section",
 
-  # GlineBackend has a private Arc<Mutex<GLiNER<SpanMode>>> field and a pub
-  # fn new() constructor; alef v0.23.2 strict-construction validation cannot
-  # auto-generate From<JsGlineBackend>/From<GlineBackend> without all fields.
-  # The type is not a direct API parameter in any binding function — NER is
-  # invoked via detect_entities()/redact() which accept NerConfig/RedactionConfig.
-  "GlineBackend",
-  "LlmBackend",
-  "xberg::text::ner::llm::LlmBackend",
+    # GlineBackend has a private Arc<Mutex<GLiNER<SpanMode>>> field and a pub
+    # fn new() constructor; alef v0.23.2 strict-construction validation cannot
+    # auto-generate From<JsGlineBackend>/From<GlineBackend> without all fields.
+    # The type is not a direct API parameter in any binding function — NER is
+    # invoked via detect_entities()/redact() which accept NerConfig/RedactionConfig.
+    "GlineBackend",
+    "LlmBackend",
+    "xberg::text::ner::llm::LlmBackend",
 
-  # Segment<'a> is an internal semantic-chunking type with a lifetime-bound
-  # &'a str field. Alef cannot generate a From impl for lifetime-parameterised
-  # types without a matching static constructor. Not part of the public API.
-  "xberg::chunking::semantic::merge::Segment",
+    # Segment<'a> is an internal semantic-chunking type with a lifetime-bound
+    # &'a str field. Alef cannot generate a From impl for lifetime-parameterised
+    # types without a matching static constructor. Not part of the public API.
+    "xberg::chunking::semantic::merge::Segment",
 
-  # NerBackend is a pub trait without a corresponding plugin registry entry
-  # (no register_ner_backend/get_ner_backend_registry exists in xberg
-  # plugins). Treating it as a binding-visible type breaks swift-bridge
-  # (must be declared with `type NerBackend`) and dart frb codegen (needs
-  # `dyn NerBackend` in `RustAutoOpaqueInner<T>`). Until a proper trait_bridge
-  # entry is added, exclude the trait from the binding surface.
-  "NerBackend",
-  "xberg::text::ner::backend::NerBackend",
+    # NerBackend is a pub trait without a corresponding plugin registry entry
+    # (no register_ner_backend/get_ner_backend_registry exists in xberg
+    # plugins). Treating it as a binding-visible type breaks swift-bridge
+    # (must be declared with `type NerBackend`) and dart frb codegen (needs
+    # `dyn NerBackend` in `RustAutoOpaqueInner<T>`). Until a proper trait_bridge
+    # entry is added, exclude the trait from the binding surface.
+    "NerBackend",
+    "xberg::text::ner::backend::NerBackend",
 
-  # EnrichmentConfig + EnrichedResult sit on top of the (currently
-  # binding-excluded) NerBackend trait via `NerEnrichmentConfig.backend:
-  # Arc<dyn NerBackend>` and `EnrichedResult.ner: Option<Vec<EntityResult>>`.
-  # EnrichmentConfig lacks serde::{Serialize, Deserialize}; EnrichedResult
-  # lacks serde::Serialize and Default. Bindings that marshal via serde
-  # (JNI, NAPI, PyO3) cannot generate cross-FFI glue without those derives.
-  # Exclude until either (a) the NerBackend trait_bridge lands and the
-  # enrich types gain serde derives, or (b) a non-NER-only enrich subset is
-  # exposed.
-  "EnrichmentConfig",
-  "EnrichedResult",
-  "xberg::enrich::EnrichmentConfig",
-  "xberg::enrich::EnrichedResult",
-  "NerEnrichmentConfig",
-  "xberg::enrich::NerEnrichmentConfig",
-  "ClassificationEnrichmentConfig",
-  "xberg::enrich::ClassificationEnrichmentConfig",
-  "CaptioningEnrichmentConfig",
-  "xberg::enrich::CaptioningEnrichmentConfig",
+    # EnrichmentConfig + EnrichedResult sit on top of the (currently
+    # binding-excluded) NerBackend trait via `NerEnrichmentConfig.backend:
+    # Arc<dyn NerBackend>` and `EnrichedResult.ner: Option<Vec<EntityResult>>`.
+    # EnrichmentConfig lacks serde::{Serialize, Deserialize}; EnrichedResult
+    # lacks serde::Serialize and Default. Bindings that marshal via serde
+    # (JNI, NAPI, PyO3) cannot generate cross-FFI glue without those derives.
+    # Exclude until either (a) the NerBackend trait_bridge lands and the
+    # enrich types gain serde derives, or (b) a non-NER-only enrich subset is
+    # exposed.
+    "EnrichmentConfig",
+    "EnrichedResult",
+    "xberg::enrich::EnrichmentConfig",
+    "xberg::enrich::EnrichedResult",
+    "NerEnrichmentConfig",
+    "xberg::enrich::NerEnrichmentConfig",
+    "ClassificationEnrichmentConfig",
+    "xberg::enrich::ClassificationEnrichmentConfig",
+    "CaptioningEnrichmentConfig",
+    "xberg::enrich::CaptioningEnrichmentConfig",
 
-  # Standalone helper DTOs that remain Rust-only for v1 bindings. The
-  # extraction pipeline exposes their effects through ExtractionResult and
-  # ExtractionConfig, not through separate binding helper APIs.
-  "EnrichOptions",
-  "EnrichResult",
-  "EnrichStatus",
-  "xberg::enrichment::EnrichOptions",
-  "xberg::enrichment::EnrichResult",
-  "xberg::enrichment::EnrichStatus",
-  "ChunkPlan",
-  "ChunkingDecision",
-  "xberg::heuristics::decision::ChunkPlan",
-  "xberg::heuristics::decision::ChunkingDecision",
-  "ChunkingResult",
-  "ConfidenceSignals",
-  "ConfidenceWeights",
-  "EmbeddingPreset",
-  "RerankerPreset",
-  "StructuredInput",
-  "StructuredThresholds",
-  "StructuredCallMode",
-  "StructuredOptions",
-  "StructuredOutput",
-  "StructuredError",
-  "PresetSpec",
-  "VisionConfig",
+    # Standalone helper DTOs that remain Rust-only for v1 bindings. The
+    # extraction pipeline exposes their effects through ExtractionResult and
+    # ExtractionConfig, not through separate binding helper APIs.
+    "EnrichOptions",
+    "EnrichResult",
+    "EnrichStatus",
+    "xberg::enrichment::EnrichOptions",
+    "xberg::enrichment::EnrichResult",
+    "xberg::enrichment::EnrichStatus",
+    "ChunkPlan",
+    "ChunkingDecision",
+    "xberg::heuristics::decision::ChunkPlan",
+    "xberg::heuristics::decision::ChunkingDecision",
+    "ChunkingResult",
+    "ConfidenceSignals",
+    "ConfidenceWeights",
+    "EmbeddingPreset",
+    "RerankerPreset",
+    "StructuredInput",
+    "StructuredThresholds",
+    "StructuredCallMode",
+    "StructuredOptions",
+    "StructuredOutput",
+    "StructuredError",
+    "PresetSpec",
+    "VisionConfig",
 
-  # ClassifyContext<'a> has a lifetime-bound &'a str field plus a bare
-  # `Value` field that alef cannot prove is `serde_json::Value`. Internal
-  # type used only by the classify_one() helper; not part of the public
-  # binding surface. classify_pages/classify_text/classify_document are the
-  # public entry points.
-  "ClassifyContext",
-  "xberg::text::classification::page_classifier::ClassifyContext",
+    # ClassifyContext<'a> has a lifetime-bound &'a str field plus a bare
+    # `Value` field that alef cannot prove is `serde_json::Value`. Internal
+    # type used only by the classify_one() helper; not part of the public
+    # binding surface. classify_pages/classify_text/classify_document are the
+    # public entry points.
+    "ClassifyContext",
+    "xberg::text::classification::page_classifier::ClassifyContext",
 
-  # Legacy extraction DTOs kept only for internal helpers. The v1 public
-  # extraction surface is ExtractInput plus extract/extract_batch.
-  "BatchBytesItem",
-  "BatchFileItem",
+    # Legacy extraction DTOs kept only for internal helpers. The v1 public
+    # extraction surface is ExtractInput plus extract/extract_batch.
+    "BatchBytesItem",
+    "BatchFileItem",
 
-  "SyncExtractor",
+    "SyncExtractor",
 
-  # Rust-only extraction engine (crates/xberg/src/engine/). Not part of the
-  # binding surface: declared as a bare `pub mod engine;` in lib.rs and its
-  # files are not listed in `sources`. Listed here as belt-and-suspenders so a
-  # future codegen pass cannot re-emit them as transitive container fields.
-  "Engine",
-  "EngineBuilder",
-  "xberg::engine::Engine",
-  "xberg::engine::EngineBuilder",
+    # Rust-only extraction engine (crates/xberg/src/engine/). Not part of the
+    # binding surface: declared as a bare `pub mod engine;` in lib.rs and its
+    # files are not listed in `sources`. Listed here as belt-and-suspenders so a
+    # future codegen pass cannot re-emit them as transitive container fields.
+    "Engine",
+    "EngineBuilder",
+    "xberg::engine::Engine",
+    "xberg::engine::EngineBuilder",
 
-  # Rust-only engine extension seams (crates/xberg/src/engine/seams/). Same
-  # isolation as Engine/EngineBuilder above: traits + in-core defaults that live
-  # under the bare `pub mod engine;`, are not listed in `sources`, and are not
-  # re-exported from lib.rs. Listed here as belt-and-suspenders against a future
-  # codegen pass re-emitting them as transitive container fields.
-  "CacheBackend",
-  "NoopCache",
-  "ProgressSink",
-  "ProgressEvent",
-  "NoopProgressSink",
-  "StructuredPolicy",
-  "DefaultStructuredPolicy",
-  "PresetResolver",
-  "CorePresetResolver",
-  "LlmClient",
-  "LiterLlmClient",
-  "ModelProvider",
-  "DefaultModelProvider",
-  "ModelId",
-  "xberg::engine::seams::CacheBackend",
-  "xberg::engine::seams::NoopCache",
-  "xberg::engine::seams::ProgressSink",
-  "xberg::engine::seams::ProgressEvent",
-  "xberg::engine::seams::NoopProgressSink",
-  "xberg::engine::seams::StructuredPolicy",
-  "xberg::engine::seams::DefaultStructuredPolicy",
-  "xberg::engine::seams::PresetResolver",
-  "xberg::engine::seams::CorePresetResolver",
-  "xberg::engine::seams::LlmClient",
-  "xberg::engine::seams::LiterLlmClient",
-  "xberg::engine::seams::ModelProvider",
-  "xberg::engine::seams::DefaultModelProvider",
-  "xberg::engine::seams::ModelId",
+    # Rust-only engine extension seams (crates/xberg/src/engine/seams/). Same
+    # isolation as Engine/EngineBuilder above: traits + in-core defaults that live
+    # under the bare `pub mod engine;`, are not listed in `sources`, and are not
+    # re-exported from lib.rs. Listed here as belt-and-suspenders against a future
+    # codegen pass re-emitting them as transitive container fields.
+    "CacheBackend",
+    "NoopCache",
+    "ProgressSink",
+    "ProgressEvent",
+    "NoopProgressSink",
+    "StructuredPolicy",
+    "DefaultStructuredPolicy",
+    "PresetResolver",
+    "CorePresetResolver",
+    "LlmClient",
+    "LiterLlmClient",
+    "ModelProvider",
+    "DefaultModelProvider",
+    "ModelId",
+    "xberg::engine::seams::CacheBackend",
+    "xberg::engine::seams::NoopCache",
+    "xberg::engine::seams::ProgressSink",
+    "xberg::engine::seams::ProgressEvent",
+    "xberg::engine::seams::NoopProgressSink",
+    "xberg::engine::seams::StructuredPolicy",
+    "xberg::engine::seams::DefaultStructuredPolicy",
+    "xberg::engine::seams::PresetResolver",
+    "xberg::engine::seams::CorePresetResolver",
+    "xberg::engine::seams::LlmClient",
+    "xberg::engine::seams::LiterLlmClient",
+    "xberg::engine::seams::ModelProvider",
+    "xberg::engine::seams::DefaultModelProvider",
+    "xberg::engine::seams::ModelId",
 
-  # Rust-only structured-extraction mechanism (crates/xberg/src/engine/structured/).
-  # Same isolation as the seams above: generic mechanism types that live under the
-  # bare `pub mod engine;`, are not listed in `sources`, and are not re-exported
-  # from lib.rs. Listed here as belt-and-suspenders against a future codegen pass
-  # re-emitting them as transitive container fields.
-  "PageImage",
-  "RasterizeError",
-  "Batch",
-  "ChunkerConfig",
-  "Outcome",
-  "MergedOutput",
-  "CitationSource",
-  "CitedField",
-  "CitationOutput",
-  "BuiltPrompt",
-  "xberg::engine::structured::rasterize::PageImage",
-  "xberg::engine::structured::rasterize::RasterizeError",
-  "xberg::engine::structured::chunk::Batch",
-  "xberg::engine::structured::chunk::ChunkerConfig",
-  "xberg::engine::structured::schema::Outcome",
-  "xberg::engine::structured::schema::MergedOutput",
-  "xberg::engine::structured::citations::CitationSource",
-  "xberg::engine::structured::citations::CitedField",
-  "xberg::engine::structured::citations::CitationOutput",
-  "xberg::engine::structured::prompts::BuiltPrompt",
+    # Rust-only structured-extraction mechanism (crates/xberg/src/engine/structured/).
+    # Same isolation as the seams above: generic mechanism types that live under the
+    # bare `pub mod engine;`, are not listed in `sources`, and are not re-exported
+    # from lib.rs. Listed here as belt-and-suspenders against a future codegen pass
+    # re-emitting them as transitive container fields.
+    "PageImage",
+    "RasterizeError",
+    "Batch",
+    "ChunkerConfig",
+    "Outcome",
+    "MergedOutput",
+    "CitationSource",
+    "CitedField",
+    "CitationOutput",
+    "BuiltPrompt",
+    "xberg::engine::structured::rasterize::PageImage",
+    "xberg::engine::structured::rasterize::RasterizeError",
+    "xberg::engine::structured::chunk::Batch",
+    "xberg::engine::structured::chunk::ChunkerConfig",
+    "xberg::engine::structured::schema::Outcome",
+    "xberg::engine::structured::schema::MergedOutput",
+    "xberg::engine::structured::citations::CitationSource",
+    "xberg::engine::structured::citations::CitedField",
+    "xberg::engine::structured::citations::CitationOutput",
+    "xberg::engine::structured::prompts::BuiltPrompt",
 
-  # Rust-only single-operation parse memo (engine/parsed.rs). Same isolation as
-  # the engine/structured types above: lives under the bare `pub mod engine`,
-  # not in `sources`, not re-exported from lib.rs.
-  "ParsedDocument",
-  "xberg::engine::parsed::ParsedDocument",
+    # Rust-only single-operation parse memo (engine/parsed.rs). Same isolation as
+    # the engine/structured types above: lives under the bare `pub mod engine`,
+    # not in `sources`, not re-exported from lib.rs.
+    "ParsedDocument",
+    "xberg::engine::parsed::ParsedDocument",
 ]
 methods = [
-  # From<T> trait impls — auto-emitted by derive/trait-bridge
-  "ApiError.from",
+    # From<T> trait impls — auto-emitted by derive/trait-bridge
+    "ApiError.from",
 
-  # fmt trait impls — auto-emitted by derive, not callable from bindings
-  "BBox.fmt",
-  "LayoutDetection.fmt",
-  "PooledString.fmt",
+    # fmt trait impls — auto-emitted by derive, not callable from bindings
+    "BBox.fmt",
+    "LayoutDetection.fmt",
+    "PooledString.fmt",
 
-  # Deref/DerefMut impls for internal pooled types — not part of public API
-  "PooledString.deref",
-  "PooledString.deref_mut",
-  "PooledString.buffer_mut",
+    # Deref/DerefMut impls for internal pooled types — not part of public API
+    "PooledString.deref",
+    "PooledString.deref_mut",
+    "PooledString.buffer_mut",
 
-  # Internal methods that can't easily be source-annotated (trait impls or unusual patterns)
-  "BBox.center",
-  "TessdataManager.manifest",
+    # Internal methods that can't easily be source-annotated (trait impls or unusual patterns)
+    "BBox.center",
+    "TessdataManager.manifest",
 
-  # Deprecated Rust-only aliases — excluded from bindings
-  "LayoutDetection.class",
-  "LayoutRegion.class",
+    # Deprecated Rust-only aliases — excluded from bindings
+    "LayoutDetection.class",
+    "LayoutRegion.class",
 
-  # Generic impl methods — cannot be represented without monomorphization metadata
-  "ModelCache.new",
-  "MetricsLayer.layer",
-  "MultipartApi.from_request",
+    # Generic impl methods — cannot be represented without monomorphization metadata
+    "ModelCache.new",
+    "MetricsLayer.layer",
+    "MultipartApi.from_request",
 
-  # next_token takes &PiiCategory (a reference) and &mut self; alef v0.23.2
-  # strict-construction validation cannot auto-delegate methods with borrowed
-  # params that differ from the opaque-handle receiver. Callers use apply_strategy
-  # (a free function) to consume a TokenCounter, making this method internal.
-  "TokenCounter.next_token",
+    # next_token takes &PiiCategory (a reference) and &mut self; alef v0.23.2
+    # strict-construction validation cannot auto-delegate methods with borrowed
+    # params that differ from the opaque-handle receiver. Callers use apply_strategy
+    # (a free function) to consume a TokenCounter, making this method internal.
+    "TokenCounter.next_token",
 
 ]
 
 functions = [
-  # Rust-only structured-extraction mechanism free functions
-  # (crates/xberg/src/engine/structured/). Same isolation as the engine/structured
-  # types excluded above: they live under the bare `pub mod engine`, are not listed
-  # in `sources`, and are not re-exported from lib.rs. alef otherwise discovers them
-  # through the public module tree and trips lossy_sanitized_surface because their
-  # signatures reference the excluded mechanism types (PageImage, Batch, BuiltPrompt,
-  # CitationOutput, …). Exclude them so the Rust-only engine stays off the binding surface.
-  "fuse",
-  "build_prompt",
-  "build_vision_fallback_prompt",
-  "batch_pages",
-  "pages_for_call",
-  "validate_and_merge",
-  "xberg::engine::structured::citations::fuse",
-  "xberg::engine::structured::prompts::build_prompt",
-  "xberg::engine::structured::prompts::build_vision_fallback_prompt",
-  "xberg::engine::structured::chunk::batch_pages",
-  "xberg::engine::structured::rasterize::pages_for_call",
-  "xberg::engine::structured::schema::validate_and_merge",
+    # Rust-only structured-extraction mechanism free functions
+    # (crates/xberg/src/engine/structured/). Same isolation as the engine/structured
+    # types excluded above: they live under the bare `pub mod engine`, are not listed
+    # in `sources`, and are not re-exported from lib.rs. alef otherwise discovers them
+    # through the public module tree and trips lossy_sanitized_surface because their
+    # signatures reference the excluded mechanism types (PageImage, Batch, BuiltPrompt,
+    # CitationOutput, …). Exclude them so the Rust-only engine stays off the binding surface.
+    "fuse",
+    "build_prompt",
+    "build_vision_fallback_prompt",
+    "batch_pages",
+    "pages_for_call",
+    "validate_and_merge",
+    "xberg::engine::structured::citations::fuse",
+    "xberg::engine::structured::prompts::build_prompt",
+    "xberg::engine::structured::prompts::build_vision_fallback_prompt",
+    "xberg::engine::structured::chunk::batch_pages",
+    "xberg::engine::structured::rasterize::pages_for_call",
+    "xberg::engine::structured::schema::validate_and_merge",
 
-  # apply_strategy takes &mut TokenCounter; alef v0.23.2 wraps TokenCounter in
-  # Arc<Mutex<T>> in binding types and generates &counter.inner instead of
-  # &mut *counter.inner.lock().unwrap(). The higher-level redact() function
-  # covers all practical use cases. Also: the Swift backend emits
-  # &category.0 (newtype syntax) for PiiCategory mapped to String.
-  # Excluded globally until upstream fixes &mut-through-Arc delegation.
-  "apply_strategy",
+    # apply_strategy takes &mut TokenCounter; alef v0.23.2 wraps TokenCounter in
+    # Arc<Mutex<T>> in binding types and generates &counter.inner instead of
+    # &mut *counter.inner.lock().unwrap(). The higher-level redact() function
+    # covers all practical use cases. Also: the Swift backend emits
+    # &category.0 (newtype syntax) for PiiCategory mapped to String.
+    # Excluded globally until upstream fixes &mut-through-Arc delegation.
+    "apply_strategy",
 
-  # classify_one is an internal helper invoked by classify_pages/classify_text;
-  # takes a `&ClassifyContext<'_>` with a bare `Value` field that alef cannot
-  # prove is `serde_json::Value`. Public entry points are
-  # classify_pages/classify_text/classify_document.
-  "classify_one",
+    # classify_one is an internal helper invoked by classify_pages/classify_text;
+    # takes a `&ClassifyContext<'_>` with a bare `Value` field that alef cannot
+    # prove is `serde_json::Value`. Public entry points are
+    # classify_pages/classify_text/classify_document.
+    "classify_one",
 
-  # detect_entities takes `&dyn NerBackend` — the trait is excluded above and
-  # has no plugin registry yet, so the free function is unreachable from
-  # bindings. The Python binding exposes the higher-level redact()/detect_pii()
-  # pipeline; other languages will gain NER access once the trait_bridge
-  # entry lands.
-  "detect_entities",
+    # detect_entities takes `&dyn NerBackend` — the trait is excluded above and
+    # has no plugin registry yet, so the free function is unreachable from
+    # bindings. The Python binding exposes the higher-level redact()/detect_pii()
+    # pipeline; other languages will gain NER access once the trait_bridge
+    # entry lands.
+    "detect_entities",
 
-  # caption_images takes `&[&[u8]]` (slice of byte slices). Alef cannot
-  # automatically convert binding-side `Vec<Vec<u8>>` (or `Vec<Value>` for
-  # JNI) into a slice-of-slices reference; would require a per-binding
-  # adapter to call `iter().map(Vec::as_slice).collect::<Vec<_>>()` first.
-  # caption_image() (single image) covers the common case; multi-image
-  # callers can loop client-side until alef gains slice-of-slice conversion.
-  "caption_image",
-  "caption_image_file",
-  "caption_images",
+    # caption_images takes `&[&[u8]]` (slice of byte slices). Alef cannot
+    # automatically convert binding-side `Vec<Vec<u8>>` (or `Vec<Value>` for
+    # JNI) into a slice-of-slices reference; would require a per-binding
+    # adapter to call `iter().map(Vec::as_slice).collect::<Vec<_>>()` first.
+    # caption_image() (single image) covers the common case; multi-image
+    # callers can loop client-side until alef gains slice-of-slice conversion.
+    "caption_image",
+    "caption_image_file",
+    "caption_images",
 
-  # Capability helpers stay Rust-only while the v1 binding surface is narrowed
-  # to extract/extract_batch plus plugin trait bridges.
-  "classify_document",
-  "classify_pages",
-  "classify_text",
-  "chunk_for_rag",
-  "embed_texts",
-  "embed_texts_async",
-  "get_embedding_preset",
-  "list_embedding_presets",
-  "rerank",
-  "rerank_async",
-  "get_reranker_preset",
-  "list_reranker_presets",
+    # Capability helpers stay Rust-only while the v1 binding surface is narrowed
+    # to extract/extract_batch plus plugin trait bridges.
+    "classify_document",
+    "classify_pages",
+    "classify_text",
+    "chunk_for_rag",
+    "embed_texts",
+    "embed_texts_async",
+    "get_embedding_preset",
+    "list_embedding_presets",
+    "rerank",
+    "rerank_async",
+    "get_reranker_preset",
+    "list_reranker_presets",
 
-  # enrich() takes &EnrichmentConfig and returns EnrichedResult — both
-  # excluded above pending NerBackend trait_bridge and serde derives.
-  "enrich",
+    # enrich() takes &EnrichmentConfig and returns EnrichedResult — both
+    # excluded above pending NerBackend trait_bridge and serde derives.
+    "enrich",
 
-  # Structured-extraction typed and JSON helpers stay Rust-only while the v1
-  # binding surface is narrowed to ExtractInput plus extract/extract_batch.
-  "extract_structured",
-  "extract_structured_sync",
-  "extract_structured_json",
-  "split_and_extract",
-  "split_and_extract_sync",
-  "split_and_extract_json",
+    # Structured-extraction typed and JSON helpers stay Rust-only while the v1
+    # binding surface is narrowed to ExtractInput plus extract/extract_batch.
+    "extract_structured",
+    "extract_structured_sync",
+    "extract_structured_json",
+    "split_and_extract",
+    "split_and_extract_sync",
+    "split_and_extract_json",
 
-  # Standalone Rust-only utilities/capabilities. The binding surface exposes
-  # extraction through extract/extract_batch, while these remain available to
-  # Rust callers or internal pipeline stages.
-  "analyze_document",
-  "analyze_with_user_chunks",
-  "boundaries_from_extraction_result",
-  "calculate_chunk_plan",
-  "calculate_plan_from_overrides",
-  "check_format_limits",
-  "choose_call_mode",
-  "detect_boundaries",
-  "score_confidence",
-  "compare",
-  "detect_mime_type",
-  "detect_mime_type_from_bytes",
-  "get_extensions_for_mime",
-  "extract_keywords",
-  "extract_region_with_vlm",
-  "extract_region_with_vlm_usage",
-  "pdf_page_count",
-  "render_pdf_page_to_png",
-  "redact",
-  "summarize",
-  "summarize_with_llm",
-  "translate_result",
-  "find_footnote_anchors",
-  "find_inference_markers",
-  "parse_citations",
-  "parse_footnote_definitions",
-  "detect_qr_codes",
-  "download_model",
-  "find_all",
-  "scan_text",
-  "token_count",
-  "default_model_name",
-  "fingerprint",
-  "known_models",
-  "register_builtin",
-  "resolve",
+    # Standalone Rust-only utilities/capabilities. The binding surface exposes
+    # extraction through extract/extract_batch, while these remain available to
+    # Rust callers or internal pipeline stages.
+    "analyze_document",
+    "analyze_with_user_chunks",
+    "boundaries_from_extraction_result",
+    "calculate_chunk_plan",
+    "calculate_plan_from_overrides",
+    "check_format_limits",
+    "choose_call_mode",
+    "detect_boundaries",
+    "score_confidence",
+    "compare",
+    "detect_mime_type",
+    "detect_mime_type_from_bytes",
+    "get_extensions_for_mime",
+    "extract_keywords",
+    "extract_region_with_vlm",
+    "extract_region_with_vlm_usage",
+    "pdf_page_count",
+    "render_pdf_page_to_png",
+    "redact",
+    "summarize",
+    "summarize_with_llm",
+    "translate_result",
+    "find_footnote_anchors",
+    "find_inference_markers",
+    "parse_citations",
+    "parse_footnote_definitions",
+    "detect_qr_codes",
+    "download_model",
+    "find_all",
+    "scan_text",
+    "token_count",
+    "default_model_name",
+    "fingerprint",
+    "known_models",
+    "register_builtin",
+    "resolve",
 
-  # Legacy extraction entry points kept only as internal implementation helpers.
-  # The v1 public extraction surface is ExtractInput plus extract/extract_batch.
-  "extract_sync",
-  "extract_batch_sync",
-  "extract_bytes",
-  "extract_bytes_sync",
-  "extract_file",
-  "extract_file_sync",
-  "batch_extract_bytes",
-  "batch_extract_bytes_sync",
-  "batch_extract_files",
-  "batch_extract_files_sync",
+    # Legacy extraction entry points kept only as internal implementation helpers.
+    # The v1 public extraction surface is ExtractInput plus extract/extract_batch.
+    "extract_sync",
+    "extract_batch_sync",
+    "extract_bytes",
+    "extract_bytes_sync",
+    "extract_file",
+    "extract_file_sync",
+    "batch_extract_bytes",
+    "batch_extract_bytes_sync",
+    "batch_extract_files",
+    "batch_extract_files_sync",
 
 ]
 
@@ -1823,7 +1935,11 @@ e2e = "cd e2e/rust && cargo test"
 
 [crates.test.kotlin_android]
 precondition = "command -v gradle >/dev/null 2>&1"
-before = ["bash scripts/e2e/build-mock-server.sh", "cargo build --release -p xberg-ffi", "ln -sf libxberg_ffi.dylib target/release/libxberg_jni.dylib 2>/dev/null || ln -sf libxberg_ffi.so target/release/libxberg_jni.so 2>/dev/null || true"]
+before = [
+    "bash scripts/e2e/build-mock-server.sh",
+    "cargo build --release -p xberg-ffi",
+    "ln -sf libxberg_ffi.dylib target/release/libxberg_jni.dylib 2>/dev/null || ln -sf libxberg_ffi.so target/release/libxberg_jni.so 2>/dev/null || true",
+]
 command = "cd packages/kotlin-android && gradle test --no-daemon"
 e2e = "cd e2e/kotlin_android && gradle test --no-daemon"
 
@@ -1892,106 +2008,104 @@ cmake_config = true
 fixtures = "fixtures"
 output = "e2e"
 languages = [
-  "python",
-  "rust",
-  "node",
-  "go",
-  "ruby",
-  "elixir",
-  "wasm",
-  "java",
-  "csharp",
-  "php",
-  "r",
-  "dart",
-  "kotlin_android",
-  "swift",
-  "zig",
-  "homebrew",
+    "python",
+    "rust",
+    "node",
+    "go",
+    "ruby",
+    "elixir",
+    "wasm",
+    "java",
+    "csharp",
+    "php",
+    "r",
+    "dart",
+    "kotlin_android",
+    "swift",
+    "zig",
+    "homebrew",
 ]
 fields_optional = [
-  "results[0].metadata.format",
-  "results[0].metadata.format.excel",
-  "results[0].metadata.format.excel.sheet_count",
-  "results[0].metadata.format.excel.sheet_names",
-  "results[0].metadata.output_format",
-  "results[0].elements",
-  "results[0].document",
-  "results[0].extracted_keywords",
-  "results[0].quality_score",
-  "results[0].summary",
-  "metadata.format",
-  "metadata.format.excel",
-  "metadata.format.excel.sheet_count",
-  "metadata.title",
-  "metadata.subject",
-  "metadata.authors",
-  "metadata.keywords",
-  "metadata.language",
-  "metadata.created_at",
-  "metadata.modified_at",
-  "metadata.created_by",
-  "metadata.modified_by",
-  "metadata.output_format",
-  "metadata.category",
-  "metadata.tags",
-  "metadata.document_version",
-  "metadata.abstract_text",
-  "chunks",
-  "images",
-  "pages",
-  "elements",
-  "djot_content",
-  "ocr_elements",
-  "document",
-  "extraction_method",
-  "detected_languages",
-  "extracted_keywords",
-  "quality_score",
-  "annotations",
-  "translation",
-  "page_classifications",
-  "redaction_report",
-  "formatted_content",
+    "results[0].metadata.format",
+    "results[0].metadata.format.excel",
+    "results[0].metadata.format.excel.sheet_count",
+    "results[0].metadata.format.excel.sheet_names",
+    "results[0].metadata.output_format",
+    "results[0].elements",
+    "results[0].document",
+    "results[0].extracted_keywords",
+    "results[0].quality_score",
+    "results[0].summary",
+    "metadata.format",
+    "metadata.format.excel",
+    "metadata.format.excel.sheet_count",
+    "metadata.title",
+    "metadata.subject",
+    "metadata.authors",
+    "metadata.keywords",
+    "metadata.language",
+    "metadata.created_at",
+    "metadata.modified_at",
+    "metadata.created_by",
+    "metadata.modified_by",
+    "metadata.output_format",
+    "metadata.category",
+    "metadata.tags",
+    "metadata.document_version",
+    "metadata.abstract_text",
+    "chunks",
+    "images",
+    "pages",
+    "elements",
+    "djot_content",
+    "ocr_elements",
+    "document",
+    "extraction_method",
+    "detected_languages",
+    "extracted_keywords",
+    "quality_score",
+    "annotations",
+    "translation",
+    "page_classifications",
+    "redaction_report",
+    "formatted_content",
 ]
 fields_array = [
-  "results",
-  "tables",
-  "results[0].elements",
-  "results[0].document.nodes",
-  "results[0].extracted_keywords",
-  "chunks",
-  "images",
-  "pages",
-  "elements",
-  "ocr_elements",
-  "detected_languages",
-  "extracted_keywords",
-  "annotations",
-  "processing_warnings",
-  "metadata.sheet_names",
-  "results[0].metadata.format.excel.sheet_names",
-  "metadata.format.excel.sheet_names",
-  "document.node_types",
+    "results",
+    "tables",
+    "results[0].elements",
+    "results[0].document.nodes",
+    "results[0].extracted_keywords",
+    "chunks",
+    "images",
+    "pages",
+    "elements",
+    "ocr_elements",
+    "detected_languages",
+    "extracted_keywords",
+    "annotations",
+    "processing_warnings",
+    "metadata.sheet_names",
+    "results[0].metadata.format.excel.sheet_names",
+    "metadata.format.excel.sheet_names",
+    "document.node_types",
 ]
 # Enum-typed fields on the result tree. Typed bindings (C#, Java, Kotlin,
 # Elixir atoms, etc.) emit enum variants for these, so the e2e codegen must
 # avoid string-only assertion helpers (e.g. `.Trim()`, `String.trim/1`) and
 # compare against the serde-wire string form instead.
-fields_enum = [
-  "results[0].summary.strategy",
-]
+fields_enum = ["results[0].summary.strategy"]
 # Xberg's public extraction calls return an `ExtractionResult` envelope.
 # The PHP and Rust e2e codegens use this both to validate assertion paths
 # and to derive the root return type — the unique TypeDef whose field names
 # are a superset of this list.
 result_fields = [
-  "results",
-  "errors",
-  "summary",
-  "crawl_final_urls",
-  "crawl_redirect_count",
-  "crawl_unique_normalized_urls",
+    "results",
+    "errors",
+    "summary",
+    "crawl_final_urls",
+    "crawl_redirect_count",
+    "crawl_unique_normalized_urls",
 ]
 
 # Xberg's `ExtractedDocument` is the per-document DTO inside
@@ -2003,10 +2117,7 @@ result_fields = [
 # `&self` and return `Option<&Variant>`. Java/Kotlin/Swift/Csharp generate
 # their own accessor shape via per-language backend conventions and do not
 # consult this set.
-fields_method_calls = [
-  "results[0].metadata.format.excel",
-  "metadata.format.excel",
-]
+fields_method_calls = ["results[0].metadata.format.excel", "metadata.format.excel"]
 
 [crates.e2e.call]
 function = "extract"
@@ -2015,8 +2126,8 @@ result_var = "result"
 async = true
 returns_result = true
 args = [
-  { name = "input", field = "input", type = "json_object", owned = true, go_type = "ExtractInput", element_type = "ExtractInput" },
-  { name = "config", field = "config", type = "json_object", optional = true },
+    { name = "input", field = "input", type = "json_object", owned = true, go_type = "ExtractInput", element_type = "ExtractInput" },
+    { name = "config", field = "config", type = "json_object", optional = true },
 ]
 
 [crates.e2e.call.overrides.rust]
@@ -2102,8 +2213,8 @@ returns_result = true
 # `range over stream` / `ChatCompletionChunk` codegen.
 streaming = false
 args = [
-  { name = "input", field = "input", type = "json_object", owned = true, go_type = "ExtractInput", element_type = "ExtractInput" },
-  { name = "config", field = "config", type = "json_object", optional = true },
+    { name = "input", field = "input", type = "json_object", owned = true, go_type = "ExtractInput", element_type = "ExtractInput" },
+    { name = "config", field = "config", type = "json_object", optional = true },
 ]
 
 [crates.e2e.calls.extract.overrides.dart]
@@ -2143,8 +2254,8 @@ module = "xberg"
 async = true
 returns_result = true
 args = [
-  { name = "inputs", field = "input.inputs", type = "json_object", owned = true, go_type = "ExtractInput", element_type = "ExtractInput" },
-  { name = "config", field = "config", type = "json_object", optional = true },
+    { name = "inputs", field = "input.inputs", type = "json_object", owned = true, go_type = "ExtractInput", element_type = "ExtractInput" },
+    { name = "config", field = "config", type = "json_object", optional = true },
 ]
 
 [crates.e2e.calls.extract_batch.overrides.node]
@@ -3741,12 +3852,7 @@ description = "Extract text, tables, images, metadata, and code intelligence fro
 package_manager = ["pnpm"]
 features = { ocr = true, async = true, plugin_system = true, embeddings = true, config_discovery = true, code_intelligence = true }
 ocr_backends = ["tesseract", "paddleocr"]
-optional_sections = [
-  "native_vs_wasm_comparison",
-  "ocr_support",
-  "performance",
-  "napi_implementation",
-]
+optional_sections = ["native_vs_wasm_comparison", "ocr_support", "performance", "napi_implementation"]
 snippets = { basic_extraction = "getting-started/basic_usage.md", async_extraction = "getting-started/extract.md", batch_processing = "getting-started/extract_batch.md", ocr_configuration = "config/config_ocr.md", table_extraction = "api/tables.md", config_discovery = "config/config_discovery.md" }
 
 [crates.readme.languages.go]

@@ -50,7 +50,7 @@ public sealed record DocumentBoundary
         try
         {
             return JsonSerializer.Deserialize<DocumentBoundary>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DocumentBoundary from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DocumentBoundary from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -61,7 +61,7 @@ public sealed record OcrElementConfig
         try
         {
             return JsonSerializer.Deserialize<OcrElementConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse OcrElementConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse OcrElementConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -23,21 +23,21 @@ import RustBridge
 // Swift 6 to silence the retroactive-conformance warning. swift-bridge does
 // not give `RustString` a `description` of its own, so there is no conflict.
 extension RustString: @retroactive CustomStringConvertible {
-    public var description: String { self.toString() }
+  public var description: String { self.toString() }
 }
 
 // URLSession delegate that does not follow redirects, so tests can assert on 3xx status codes
 // and Location headers instead of transparently chasing them to the final response.
 final class AlefE2ENoRedirectDelegate: NSObject, URLSessionTaskDelegate {
-    func urlSession(
-        _ session: URLSession,
-        task: URLSessionTask,
-        willPerformHTTPRedirection response: HTTPURLResponse,
-        newRequest request: URLRequest,
-        completionHandler: @escaping (URLRequest?) -> Void
-    ) {
-        completionHandler(nil)
-    }
+  func urlSession(
+    _ session: URLSession,
+    task: URLSessionTask,
+    willPerformHTTPRedirection response: HTTPURLResponse,
+    newRequest request: URLRequest,
+    completionHandler: @escaping (URLRequest?) -> Void
+  ) {
+    completionHandler(nil)
+  }
 }
 
 // Mock server base URL accessor used by the generated test bodies.
@@ -47,8 +47,8 @@ final class AlefE2ENoRedirectDelegate: NSObject, URLSessionTaskDelegate {
 // time so misconfigured runs surface a clear error instead of silently hitting
 // production endpoints.
 enum AlefE2EMockServer {
-    static var baseURL: String {
-        ProcessInfo.processInfo.environment["MOCK_SERVER_URL"]
-            ?? "http://127.0.0.1:0"
-    }
+  static var baseURL: String {
+    ProcessInfo.processInfo.environment["MOCK_SERVER_URL"]
+    ?? "http://127.0.0.1:0"
+  }
 }

@@ -46,7 +46,7 @@ public sealed record OcrConfidence
         try
         {
             return JsonSerializer.Deserialize<OcrConfidence>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse OcrConfidence from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse OcrConfidence from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

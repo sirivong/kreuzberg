@@ -49,7 +49,7 @@ public sealed record RecognizedTable
         try
         {
             return JsonSerializer.Deserialize<RecognizedTable>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse RecognizedTable from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse RecognizedTable from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

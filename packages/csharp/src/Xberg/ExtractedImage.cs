@@ -164,7 +164,7 @@ public sealed record ExtractedImage
         try
         {
             return JsonSerializer.Deserialize<ExtractedImage>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ExtractedImage from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ExtractedImage from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

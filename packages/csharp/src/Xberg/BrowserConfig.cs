@@ -115,7 +115,7 @@ public sealed record BrowserConfig
         try
         {
             return JsonSerializer.Deserialize<BrowserConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse BrowserConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse BrowserConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

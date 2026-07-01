@@ -62,7 +62,7 @@ public sealed record ExtractionSummary
         try
         {
             return JsonSerializer.Deserialize<ExtractionSummary>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ExtractionSummary from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ExtractionSummary from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

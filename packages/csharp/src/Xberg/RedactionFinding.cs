@@ -57,7 +57,7 @@ public sealed record RedactionFinding
         try
         {
             return JsonSerializer.Deserialize<RedactionFinding>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse RedactionFinding from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse RedactionFinding from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

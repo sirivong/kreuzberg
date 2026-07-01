@@ -20,7 +20,7 @@ namespace Xberg
     /// <summary>E2e tests for category: summarization.</summary>
     public class SummarizationTests
     {
-            private static readonly JsonSerializerOptions ConfigOptions = new() { Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower) }, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault };
+        private static readonly JsonSerializerOptions ConfigOptions = new() { Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower) }, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault };
 
         [Fact]
         public async Task Test_SummarizationExtractiveSmoke()
@@ -29,8 +29,8 @@ namespace Xberg
             var Input_MockBaseUrl = Environment.GetEnvironmentVariable("MOCK_SERVER_SUMMARIZATION_EXTRACTIVE_SMOKE") ?? Environment.GetEnvironmentVariable("MOCK_SERVER_URL") + "/fixtures/summarization_extractive_smoke";
             var Input_Json = "{\"kind\":\"uri\",\"uri\":\"$mock_url/text/book_war_and_peace_1p.txt\"}".Replace("$mock_url", Input_MockBaseUrl);
             var result = await XbergConverter.ExtractAsync(ExtractInput.FromJson(Input_Json), ExtractionConfig.FromJson("{\"summarization\":{\"max_tokens\":80,\"strategy\":\"extractive\"}}"));
-    Assert.Equal("text/plain", result.Results[0].MimeType!.Trim());
-    Assert.False(string.IsNullOrEmpty(result.Results[0].Summary.Text?.ToString()));
+            Assert.Equal("text/plain", result.Results[0].MimeType!.Trim());
+            Assert.False(string.IsNullOrEmpty(result.Results[0].Summary.Text?.ToString()));
             Assert.Equal("extractive", result.Results[0].Summary.Strategy == null ? null : JsonNamingPolicy.SnakeCaseLower.ConvertName(result.Results[0].Summary.Strategy.ToString()!));
 
         }

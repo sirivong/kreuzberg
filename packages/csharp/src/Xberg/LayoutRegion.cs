@@ -54,7 +54,7 @@ public sealed record LayoutRegion
         try
         {
             return JsonSerializer.Deserialize<LayoutRegion>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse LayoutRegion from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse LayoutRegion from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

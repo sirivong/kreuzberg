@@ -64,7 +64,7 @@ public sealed record PageSignals
         try
         {
             return JsonSerializer.Deserialize<PageSignals>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PageSignals from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PageSignals from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

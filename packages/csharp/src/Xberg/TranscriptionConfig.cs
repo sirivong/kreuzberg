@@ -131,7 +131,7 @@ public sealed record TranscriptionConfig
         try
         {
             return JsonSerializer.Deserialize<TranscriptionConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse TranscriptionConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse TranscriptionConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

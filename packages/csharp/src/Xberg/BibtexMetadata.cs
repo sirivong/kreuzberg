@@ -56,7 +56,7 @@ public sealed record BibtexMetadata
         try
         {
             return JsonSerializer.Deserialize<BibtexMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse BibtexMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse BibtexMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

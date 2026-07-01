@@ -68,7 +68,7 @@ public sealed record GridCell
         try
         {
             return JsonSerializer.Deserialize<GridCell>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse GridCell from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse GridCell from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -44,7 +44,7 @@ public sealed record DbfMetadata
         try
         {
             return JsonSerializer.Deserialize<DbfMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DbfMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DbfMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

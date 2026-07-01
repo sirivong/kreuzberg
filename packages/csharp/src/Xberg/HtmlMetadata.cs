@@ -123,7 +123,7 @@ public sealed record HtmlMetadata
         try
         {
             return JsonSerializer.Deserialize<HtmlMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse HtmlMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse HtmlMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

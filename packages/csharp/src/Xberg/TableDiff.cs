@@ -44,7 +44,7 @@ public sealed record TableDiff
         try
         {
             return JsonSerializer.Deserialize<TableDiff>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse TableDiff from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse TableDiff from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

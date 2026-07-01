@@ -220,11 +220,7 @@ def generate_vendor_cargo_toml(
     deps_str = "\n".join(deps_lines)
 
     # Build members list based on actually copied crates
-    members = [
-        name
-        for name in ["xberg", "xberg-ffi", "xberg-tesseract", "xberg-paddle-ocr"]
-        if name in copied_crates
-    ]
+    members = [name for name in ["xberg", "xberg-ffi", "xberg-tesseract", "xberg-paddle-ocr"] if name in copied_crates]
     members_str = ", ".join(f'"{m}"' for m in members)
 
     vendor_toml = f"""[workspace]
@@ -352,9 +348,7 @@ def main() -> None:
             if "xberg" in copied_crates:
                 # Replace xberg workspace references with path dependency
                 # Handle cases with path, version, or neither
-                content = re.sub(
-                    r'(xberg = \{) (?:(?:path|version) = "[^"]*", )?', r'\1 path = "../xberg", ', content
-                )
+                content = re.sub(r'(xberg = \{) (?:(?:path|version) = "[^"]*", )?', r'\1 path = "../xberg", ', content)
 
             with open(ffi_toml, "w") as f:
                 f.write(content)
@@ -404,9 +398,7 @@ def main() -> None:
         # From: path = "../../../../crates/xberg"
         # To: path = "../../vendor/xberg"
         content = re.sub(r'path = "\.\./\.\./\.\./\.\./crates/xberg"', 'path = "../../vendor/xberg"', content)
-        content = re.sub(
-            r'path = "\.\./\.\./\.\./\.\./crates/xberg-ffi"', 'path = "../../vendor/xberg-ffi"', content
-        )
+        content = re.sub(r'path = "\.\./\.\./\.\./\.\./crates/xberg-ffi"', 'path = "../../vendor/xberg-ffi"', content)
 
         with open(r_toml, "w") as f:
             f.write(content)

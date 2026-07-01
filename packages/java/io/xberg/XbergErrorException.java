@@ -24,14 +24,14 @@ package io.xberg;
  * - `Other` - Catch-all for uncommon errors
  */
 public class XbergErrorException extends Exception {
-  private static final long serialVersionUID = 1L;
-  /** Creates a new XbergErrorException with the given message. */
-  public XbergErrorException(final String message) {
-    super(message);
-  }
+    private static final long serialVersionUID = 1L;
+    /** Creates a new XbergErrorException with the given message. */
+    public XbergErrorException(final String message) {
+        super(message);
+    }
 
-  /** Creates a new XbergErrorException with the given message and cause. */
-  public XbergErrorException(final String message, final Throwable cause) {
-    super(message, cause);
-  }
+    /** Creates a new XbergErrorException with the given message and cause. */
+    public XbergErrorException(final String message, final Throwable cause) {
+        super(message, cause);
+    }
 }

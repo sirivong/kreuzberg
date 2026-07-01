@@ -50,7 +50,7 @@ public sealed record StructuredDataResult
         try
         {
             return JsonSerializer.Deserialize<StructuredDataResult>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse StructuredDataResult from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse StructuredDataResult from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -96,7 +96,7 @@ public sealed record PdfFormField
         try
         {
             return JsonSerializer.Deserialize<PdfFormField>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PdfFormField from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PdfFormField from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

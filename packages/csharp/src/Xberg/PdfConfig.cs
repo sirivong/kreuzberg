@@ -127,7 +127,7 @@ public sealed record PdfConfig
         try
         {
             return JsonSerializer.Deserialize<PdfConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PdfConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PdfConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -46,7 +46,7 @@ public sealed record FootnoteDefinition
         try
         {
             return JsonSerializer.Deserialize<FootnoteDefinition>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse FootnoteDefinition from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse FootnoteDefinition from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

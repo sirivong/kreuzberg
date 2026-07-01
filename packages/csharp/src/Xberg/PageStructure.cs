@@ -56,7 +56,7 @@ public sealed record PageStructure
         try
         {
             return JsonSerializer.Deserialize<PageStructure>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PageStructure from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PageStructure from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

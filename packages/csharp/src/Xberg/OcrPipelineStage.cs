@@ -80,7 +80,7 @@ public sealed record OcrPipelineStage
         try
         {
             return JsonSerializer.Deserialize<OcrPipelineStage>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse OcrPipelineStage from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse OcrPipelineStage from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

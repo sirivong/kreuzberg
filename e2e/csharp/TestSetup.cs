@@ -124,7 +124,7 @@ internal static class TestSetup
             UseShellExecute = false,
         };
         _mockServer = Process.Start(psi)
-            ?? throw new InvalidOperationException("TestSetup: failed to start mock-server");
+        ?? throw new InvalidOperationException("TestSetup: failed to start mock-server");
         // The mock-server prints MOCK_SERVER_URL=<url>, then optionally
         // MOCK_SERVERS={...} for host-root fixtures. Read up to 16 lines.
         string? url = null;
@@ -188,13 +188,13 @@ internal static class TestSetup
         // Drain stdout/stderr so the child does not block on a full pipe.
         var server = _mockServer;
         var stdoutThread = new System.Threading.Thread(() =>
-        {
-            try { server.StandardOutput.ReadToEnd(); } catch { }
+            {
+                try { server.StandardOutput.ReadToEnd(); } catch { }
         }) { IsBackground = true };
         stdoutThread.Start();
         var stderrThread = new System.Threading.Thread(() =>
-        {
-            try { server.StandardError.ReadToEnd(); } catch { }
+            {
+                try { server.StandardError.ReadToEnd(); } catch { }
         }) { IsBackground = true };
         stderrThread.Start();
         // Tear the child down on assembly unload / process exit by closing

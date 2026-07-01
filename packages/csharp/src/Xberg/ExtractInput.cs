@@ -64,7 +64,7 @@ public sealed record ExtractInput
         try
         {
             return JsonSerializer.Deserialize<ExtractInput>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ExtractInput from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ExtractInput from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -48,7 +48,7 @@ public sealed record QrCode
         try
         {
             return JsonSerializer.Deserialize<QrCode>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse QrCode from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse QrCode from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

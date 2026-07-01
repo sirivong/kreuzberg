@@ -42,7 +42,7 @@ public sealed record MultidocThresholds
         try
         {
             return JsonSerializer.Deserialize<MultidocThresholds>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse MultidocThresholds from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse MultidocThresholds from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

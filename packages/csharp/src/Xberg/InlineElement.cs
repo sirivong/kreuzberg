@@ -46,7 +46,7 @@ public sealed record InlineElement
         try
         {
             return JsonSerializer.Deserialize<InlineElement>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse InlineElement from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse InlineElement from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

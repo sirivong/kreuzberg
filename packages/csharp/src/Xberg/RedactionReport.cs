@@ -43,7 +43,7 @@ public sealed record RedactionReport
         try
         {
             return JsonSerializer.Deserialize<RedactionReport>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse RedactionReport from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse RedactionReport from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

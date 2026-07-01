@@ -47,7 +47,7 @@ public sealed record DiffOptions
         try
         {
             return JsonSerializer.Deserialize<DiffOptions>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DiffOptions from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DiffOptions from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -49,7 +49,7 @@ public sealed record RerankedDocument
         try
         {
             return JsonSerializer.Deserialize<RerankedDocument>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse RerankedDocument from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse RerankedDocument from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

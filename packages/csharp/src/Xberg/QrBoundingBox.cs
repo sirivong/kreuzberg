@@ -50,7 +50,7 @@ public sealed record QrBoundingBox
         try
         {
             return JsonSerializer.Deserialize<QrBoundingBox>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse QrBoundingBox from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse QrBoundingBox from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

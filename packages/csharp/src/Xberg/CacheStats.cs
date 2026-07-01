@@ -56,7 +56,7 @@ public sealed record CacheStats
         try
         {
             return JsonSerializer.Deserialize<CacheStats>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse CacheStats from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse CacheStats from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -44,7 +44,7 @@ public sealed record DocumentSummary
         try
         {
             return JsonSerializer.Deserialize<DocumentSummary>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DocumentSummary from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DocumentSummary from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

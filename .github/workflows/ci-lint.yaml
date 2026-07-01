@@ -127,11 +127,12 @@ jobs:
       - name: Install alef CLI
         uses: xberg-io/actions/install-alef@v1
 
-      - name: Run all prek hooks
-        uses: j178/prek-action@v2
-        with:
-          cache: false
-          extra-args: --all-files
+      - name: Install poly
+        uses: Goldziher/polylint@v0
+      - name: Check formatting
+        run: poly fmt --check .
+      - name: Lint
+        run: poly lint .
 
       - name: Validate C header
         shell: bash

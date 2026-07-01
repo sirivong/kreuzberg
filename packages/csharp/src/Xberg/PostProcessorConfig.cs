@@ -56,7 +56,7 @@ public sealed record PostProcessorConfig
         try
         {
             return JsonSerializer.Deserialize<PostProcessorConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PostProcessorConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PostProcessorConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

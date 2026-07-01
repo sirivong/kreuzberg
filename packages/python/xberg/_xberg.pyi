@@ -3156,10 +3156,12 @@ class SsrfPolicy:
 class TokenCounter:
     @staticmethod
     def new() -> TokenCounter: ...
+
 class MetaSchema:
     def parse_preset(self, path: str, raw: bytes) -> Preset: ...
     @staticmethod
     def compile(meta_schema_json: str) -> MetaSchema: ...
+
 class Registry:
     def get(
         self,
@@ -3211,13 +3213,10 @@ class ImageOutputFormat:
     type: str
     @staticmethod
     def jpeg(quality: int) -> ImageOutputFormat: ...
-
     @staticmethod
     def webp(quality: int) -> ImageOutputFormat: ...
-
     @staticmethod
     def heif(quality: int) -> ImageOutputFormat: ...
-
     def __init__(self, value: dict[str, Any] | str | None = None, **kwargs: Any) -> None: ...
     def __str__(self) -> str: ...  # noqa: PYI029
     def __repr__(self) -> str: ...  # noqa: PYI029
@@ -3309,7 +3308,6 @@ class VlmFallbackPolicy:
     mode: str
     @staticmethod
     def on_low_quality(quality_threshold: float) -> VlmFallbackPolicy: ...
-
     def __init__(self, value: dict[str, Any] | str | None = None, **kwargs: Any) -> None: ...
     def __str__(self) -> str: ...  # noqa: PYI029
     def __repr__(self) -> str: ...  # noqa: PYI029
@@ -3338,7 +3336,6 @@ class ChunkSizing:
     type: str
     @staticmethod
     def tokenizer(model: str, cache_dir: str | None = None) -> ChunkSizing: ...
-
     def __init__(self, value: dict[str, Any] | str | None = None, **kwargs: Any) -> None: ...
     def __str__(self) -> str: ...  # noqa: PYI029
     def __repr__(self) -> str: ...  # noqa: PYI029
@@ -3364,16 +3361,12 @@ class EmbeddingModelType:
     type: str
     @staticmethod
     def preset(name: str) -> EmbeddingModelType: ...
-
     @staticmethod
     def custom(model_id: str, dimensions: int) -> EmbeddingModelType: ...
-
     @staticmethod
     def llm(llm: options.LlmConfig | dict[str, Any]) -> EmbeddingModelType: ...
-
     @staticmethod
     def plugin(name: str) -> EmbeddingModelType: ...
-
     def __init__(self, value: dict[str, Any] | str | None = None, **kwargs: Any) -> None: ...
     def __str__(self) -> str: ...  # noqa: PYI029
     def __repr__(self) -> str: ...  # noqa: PYI029
@@ -3401,16 +3394,17 @@ class RerankerModelType:
     type: str
     @staticmethod
     def preset(name: str) -> RerankerModelType: ...
-
     @staticmethod
-    def custom(model_id: str, model_file: str | None = None, additional_files: list[str] | None = None, max_length: int | None = None) -> RerankerModelType: ...
-
+    def custom(
+        model_id: str,
+        model_file: str | None = None,
+        additional_files: list[str] | None = None,
+        max_length: int | None = None,
+    ) -> RerankerModelType: ...
     @staticmethod
     def llm(llm: options.LlmConfig | dict[str, Any]) -> RerankerModelType: ...
-
     @staticmethod
     def plugin(name: str) -> RerankerModelType: ...
-
     def __init__(self, value: dict[str, Any] | str | None = None, **kwargs: Any) -> None: ...
     def __str__(self) -> str: ...  # noqa: PYI029
     def __repr__(self) -> str: ...  # noqa: PYI029
@@ -3614,52 +3608,40 @@ class NodeContent:
     node_type: str
     @staticmethod
     def title(text: str) -> NodeContent: ...
-
     @staticmethod
     def heading(level: int, text: str) -> NodeContent: ...
-
     @staticmethod
     def paragraph(text: str) -> NodeContent: ...
-
     @staticmethod
     def list(ordered: bool) -> NodeContent: ...
-
     @staticmethod
     def list_item(text: str) -> NodeContent: ...
-
     @staticmethod
     def table(grid: options.TableGrid | dict[str, Any]) -> NodeContent: ...
-
     @staticmethod
-    def image(description: str | None = None, image_index: int | None = None, src: str | None = None) -> NodeContent: ...
-
+    def image(
+        description: str | None = None, image_index: int | None = None, src: str | None = None
+    ) -> NodeContent: ...
     @staticmethod
     def code(text: str, language: str | None = None) -> NodeContent: ...
-
     @staticmethod
     def formula(text: str) -> NodeContent: ...
-
     @staticmethod
     def footnote(text: str) -> NodeContent: ...
-
     @staticmethod
-    def group(label: str | None = None, heading_level: int | None = None, heading_text: str | None = None) -> NodeContent: ...
-
+    def group(
+        label: str | None = None, heading_level: int | None = None, heading_text: str | None = None
+    ) -> NodeContent: ...
     @staticmethod
     def slide(number: int, title: str | None = None) -> NodeContent: ...
-
     @staticmethod
     def definition_item(term: str, definition: str) -> NodeContent: ...
-
     @staticmethod
     def citation(key: str, text: str) -> NodeContent: ...
-
     @staticmethod
     def admonition(kind: str, title: str | None = None) -> NodeContent: ...
-
     @staticmethod
     def raw_block(format: str, content: str) -> NodeContent: ...
-
     def __str__(self) -> str: ...  # noqa: PYI029
     def __repr__(self) -> str: ...  # noqa: PYI029
 
@@ -3709,16 +3691,12 @@ class AnnotationKind:
     annotation_type: str
     @staticmethod
     def link(url: str, title: str | None = None) -> AnnotationKind: ...
-
     @staticmethod
     def color(value: str) -> AnnotationKind: ...
-
     @staticmethod
     def font_size(value: str) -> AnnotationKind: ...
-
     @staticmethod
     def custom(name: str, value: str | None = None) -> AnnotationKind: ...
-
     def __init__(self, value: dict[str, Any] | str | None = None, **kwargs: Any) -> None: ...
     def __str__(self) -> str: ...  # noqa: PYI029
     def __repr__(self) -> str: ...  # noqa: PYI029
@@ -3961,7 +3939,6 @@ class OcrBoundingGeometry:
     type: str
     @staticmethod
     def rectangle(left: int, top: int, width: int, height: int) -> OcrBoundingGeometry: ...
-
     def __str__(self) -> str: ...  # noqa: PYI029
     def __repr__(self) -> str: ...  # noqa: PYI029
 
@@ -4083,19 +4060,14 @@ class RevisionAnchor:
     type: str
     @staticmethod
     def paragraph(index: int) -> RevisionAnchor: ...
-
     @staticmethod
     def table_cell(row: int, col: int, table_index: int) -> RevisionAnchor: ...
-
     @staticmethod
     def page(index: int) -> RevisionAnchor: ...
-
     @staticmethod
     def slide(index: int) -> RevisionAnchor: ...
-
     @staticmethod
     def sheet(index: int, name: str | None = None) -> RevisionAnchor: ...
-
     def __init__(self, value: dict[str, Any] | str | None = None, **kwargs: Any) -> None: ...
     def __str__(self) -> str: ...  # noqa: PYI029
     def __repr__(self) -> str: ...  # noqa: PYI029
@@ -4161,16 +4133,12 @@ class NoChunkingReason:
     type: str
     @staticmethod
     def small_file(size_bytes: int, threshold_bytes: int) -> NoChunkingReason: ...
-
     @staticmethod
     def few_pages(page_count: int, threshold: int) -> NoChunkingReason: ...
-
     @staticmethod
     def text_layer_detected(text_coverage: float, avg_chars_per_page: int) -> NoChunkingReason: ...
-
     @staticmethod
     def format_not_chunkable(mime_type: str) -> NoChunkingReason: ...
-
     def __init__(self, value: dict[str, Any] | str | None = None, **kwargs: Any) -> None: ...
     def __str__(self) -> str: ...  # noqa: PYI029
     def __repr__(self) -> str: ...  # noqa: PYI029
@@ -4199,16 +4167,12 @@ class ChunkingReason:
     type: str
     @staticmethod
     def large_file(size_bytes: int, threshold_bytes: int) -> ChunkingReason: ...
-
     @staticmethod
     def many_pages(page_count: int, threshold: int) -> ChunkingReason: ...
-
     @staticmethod
     def ocr_required(page_count: int, force_ocr: bool) -> ChunkingReason: ...
-
     @staticmethod
     def large_and_many_pages(size_bytes: int, page_count: int) -> ChunkingReason: ...
-
     def __init__(self, value: dict[str, Any] | str | None = None, **kwargs: Any) -> None: ...
     def __str__(self) -> str: ...  # noqa: PYI029
     def __repr__(self) -> str: ...  # noqa: PYI029
@@ -4321,13 +4285,10 @@ class AuthConfig:
     type: str
     @staticmethod
     def basic(username: str, password: str) -> AuthConfig: ...
-
     @staticmethod
     def bearer(token: str) -> AuthConfig: ...
-
     @staticmethod
     def header(name: str, value: str) -> AuthConfig: ...
-
     def __init__(self, value: dict[str, Any] | str | None = None, **kwargs: Any) -> None: ...
     def __str__(self) -> str: ...  # noqa: PYI029
     def __repr__(self) -> str: ...  # noqa: PYI029
@@ -4380,12 +4341,10 @@ async def extract(
     input: ExtractInput,  # noqa: A002
     config: ExtractionConfig,
 ) -> ExtractionResult: ...
-
 async def extract_batch(
     inputs: list[ExtractInput],
     config: ExtractionConfig,
 ) -> ExtractionResult: ...
-
 def list_supported_formats() -> list[SupportedFormat]: ...
 def clear_embedding_backends() -> None: ...
 def list_embedding_backends() -> list[str]: ...

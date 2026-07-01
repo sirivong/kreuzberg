@@ -118,7 +118,7 @@ public sealed record PptxAppProperties
         try
         {
             return JsonSerializer.Deserialize<PptxAppProperties>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PptxAppProperties from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PptxAppProperties from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

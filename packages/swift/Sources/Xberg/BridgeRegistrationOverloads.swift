@@ -9,46 +9,46 @@ import RustBridge
 // MARK: - Unregister name: label overloads
 
 public func unregisterOcrBackend(name: String) throws {
-    try RustBridge.unregisterOcrBackend(name)
+  try RustBridge.unregisterOcrBackend(name)
 }
 public func unregisterPostProcessor(name: String) throws {
-    try RustBridge.unregisterPostProcessor(name)
+  try RustBridge.unregisterPostProcessor(name)
 }
 public func unregisterValidator(name: String) throws {
-    try RustBridge.unregisterValidator(name)
+  try RustBridge.unregisterValidator(name)
 }
 public func unregisterDocumentExtractor(name: String) throws {
-    try RustBridge.unregisterDocumentExtractor(name)
+  try RustBridge.unregisterDocumentExtractor(name)
 }
 public func unregisterEmbeddingBackend(name: String) throws {
-    try RustBridge.unregisterEmbeddingBackend(name)
+  try RustBridge.unregisterEmbeddingBackend(name)
 }
 public func unregisterRenderer(name: String) throws {
-    try RustBridge.unregisterRenderer(name)
+  try RustBridge.unregisterRenderer(name)
 }
 public func unregisterRerankerBackend(name: String) throws {
-    try RustBridge.unregisterRerankerBackend(name)
+  try RustBridge.unregisterRerankerBackend(name)
 }
 // MARK: - Bridge → Box register overloads
 
 public func registerOcrBackend(_ bridge: any SwiftOcrBackendBridge) throws {
-    try registerOcrBackend(SwiftOcrBackendBox(bridge))
+  try registerOcrBackend(SwiftOcrBackendBox(bridge))
 }
 public func registerPostProcessor(_ bridge: any SwiftPostProcessorBridge) throws {
-    try registerPostProcessor(SwiftPostProcessorBox(bridge))
+  try registerPostProcessor(SwiftPostProcessorBox(bridge))
 }
 public func registerValidator(_ bridge: any SwiftValidatorBridge) throws {
-    try registerValidator(SwiftValidatorBox(bridge))
+  try registerValidator(SwiftValidatorBox(bridge))
 }
 public func registerDocumentExtractor(_ bridge: any SwiftDocumentExtractorBridge) throws {
-    try registerDocumentExtractor(SwiftDocumentExtractorBox(bridge))
+  try registerDocumentExtractor(SwiftDocumentExtractorBox(bridge))
 }
 public func registerEmbeddingBackend(_ bridge: any SwiftEmbeddingBackendBridge) throws {
-    try registerEmbeddingBackend(SwiftEmbeddingBackendBox(bridge))
+  try registerEmbeddingBackend(SwiftEmbeddingBackendBox(bridge))
 }
 public func registerRenderer(_ bridge: any SwiftRendererBridge) throws {
-    try registerRenderer(SwiftRendererBox(bridge))
+  try registerRenderer(SwiftRendererBox(bridge))
 }
 public func registerRerankerBackend(_ bridge: any SwiftRerankerBackendBridge) throws {
-    try registerRerankerBackend(SwiftRerankerBackendBox(bridge))
+  try registerRerankerBackend(SwiftRerankerBackendBox(bridge))
 }

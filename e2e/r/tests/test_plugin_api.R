@@ -5,7 +5,7 @@
 # E2e tests for category: plugin_api
 
 test_that("register_embedding_backend_trait_bridge: register_embedding_backend: trait bridge", {
-    r_backend_register_embedding_backend_trait_bridge <- list(
+  r_backend_register_embedding_backend_trait_bridge <- list(
     name = "test-embedding-backend",
     initialize = function() invisible(NULL),
     shutdown = function() invisible(NULL),
@@ -18,7 +18,7 @@ test_that("register_embedding_backend_trait_bridge: register_embedding_backend: 
 })
 
 test_that("register_ocr_backend_trait_bridge: register_ocr_backend: trait bridge", {
-    r_backend_register_ocr_backend_trait_bridge <- list(
+  r_backend_register_ocr_backend_trait_bridge <- list(
     name = "test-backend",
     initialize = function() invisible(NULL),
     shutdown = function() invisible(NULL),
@@ -32,7 +32,7 @@ test_that("register_ocr_backend_trait_bridge: register_ocr_backend: trait bridge
 })
 
 test_that("register_post_processor_trait_bridge: register_post_processor: trait bridge", {
-    r_backend_register_post_processor_trait_bridge <- list(
+  r_backend_register_post_processor_trait_bridge <- list(
     name = "test-processor",
     initialize = function() invisible(NULL),
     shutdown = function() invisible(NULL),
@@ -45,7 +45,7 @@ test_that("register_post_processor_trait_bridge: register_post_processor: trait 
 })
 
 test_that("register_reranker_backend_trait_bridge: register_reranker_backend: trait bridge", {
-    r_backend_register_reranker_backend_trait_bridge <- list(
+  r_backend_register_reranker_backend_trait_bridge <- list(
     name = "test-reranker-backend",
     initialize = function() invisible(NULL),
     shutdown = function() invisible(NULL),
@@ -57,7 +57,7 @@ test_that("register_reranker_backend_trait_bridge: register_reranker_backend: tr
 })
 
 test_that("register_validator_trait_bridge: register_validator: trait bridge", {
-    r_backend_register_validator_trait_bridge <- list(
+  r_backend_register_validator_trait_bridge <- list(
     name = "test-validator",
     initialize = function() invisible(NULL),
     shutdown = function() invisible(NULL),

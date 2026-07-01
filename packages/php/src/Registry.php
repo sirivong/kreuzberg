@@ -20,6 +20,7 @@ final class Registry
     {
         throw new \RuntimeException('Not implemented — provided by the native extension.');
     }
+
     /**
      * Materialize a `PresetSummary` list for the public registry endpoint.
      * @return array<PresetSummary>
@@ -28,6 +29,7 @@ final class Registry
     {
         throw new \RuntimeException('Not implemented — provided by the native extension.');
     }
+
     /**
      * Number of presets currently loaded.
      */
@@ -35,6 +37,7 @@ final class Registry
     {
         throw new \RuntimeException('Not implemented — provided by the native extension.');
     }
+
     /**
      * Whether the registry contains zero presets.
      */
@@ -42,6 +45,7 @@ final class Registry
     {
         throw new \RuntimeException('Not implemented — provided by the native extension.');
     }
+
     /**
      * Read raw sample bytes for `<preset_id>` from
      */
@@ -49,6 +53,7 @@ final class Registry
     {
         throw new \RuntimeException('Not implemented — provided by the native extension.');
     }
+
     /**
      * Load additional preset files from a runtime directory and insert them
      */
@@ -56,6 +61,7 @@ final class Registry
     {
         throw new \RuntimeException('Not implemented — provided by the native extension.');
     }
+
     /**
      * Build the registry from preset files embedded at compile time under
      */
@@ -63,6 +69,7 @@ final class Registry
     {
         throw new \RuntimeException('Not implemented — provided by the native extension.');
     }
+
     /**
      * Return the global registry, loading it on first access.
      */

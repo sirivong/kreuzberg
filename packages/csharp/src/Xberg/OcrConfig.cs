@@ -198,7 +198,7 @@ public sealed record OcrConfig
         try
         {
             return JsonSerializer.Deserialize<OcrConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse OcrConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse OcrConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

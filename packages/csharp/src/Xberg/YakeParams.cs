@@ -34,7 +34,7 @@ public sealed record YakeParams
         try
         {
             return JsonSerializer.Deserialize<YakeParams>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse YakeParams from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse YakeParams from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

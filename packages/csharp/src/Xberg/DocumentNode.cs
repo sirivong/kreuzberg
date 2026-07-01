@@ -93,7 +93,7 @@ public sealed record DocumentNode
         try
         {
             return JsonSerializer.Deserialize<DocumentNode>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DocumentNode from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DocumentNode from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

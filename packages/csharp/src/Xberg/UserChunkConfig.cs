@@ -50,7 +50,7 @@ public sealed record UserChunkConfig
         try
         {
             return JsonSerializer.Deserialize<UserChunkConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse UserChunkConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse UserChunkConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

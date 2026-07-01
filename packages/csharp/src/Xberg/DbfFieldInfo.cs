@@ -38,7 +38,7 @@ public sealed record DbfFieldInfo
         try
         {
             return JsonSerializer.Deserialize<DbfFieldInfo>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DbfFieldInfo from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DbfFieldInfo from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

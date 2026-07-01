@@ -20,14 +20,14 @@ namespace Xberg
     /// <summary>E2e tests for category: batch.</summary>
     public class BatchTests
     {
-            private static readonly JsonSerializerOptions ConfigOptions = new() { Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower) }, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault };
+        private static readonly JsonSerializerOptions ConfigOptions = new() { Converters = { new JsonStringEnumConverter(JsonNamingPolicy.SnakeCaseLower) }, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault };
 
         [Fact]
         public async Task Test_ExtractBatchBytesHappy()
         {
             // extract_batch: happy path with mixed inputs
             var result = await XbergConverter.ExtractBatchAsync(new List<ExtractInput>() { JsonSerializer.Deserialize<ExtractInput>("{\"bytes\":[72,101,108,108,111,44,32,119,111,114,108,100,33],\"kind\":\"bytes\",\"mime_type\":\"text/plain\"}", ConfigOptions)!, JsonSerializer.Deserialize<ExtractInput>("{\"bytes\":[60,104,116,109,108,62,60,98,111,100,121,62,84,101,115,116,60,47,98,111,100,121,62,60,47,104,116,109,108,62],\"kind\":\"bytes\",\"mime_type\":\"text/html\"}", ConfigOptions)! }, new ExtractionConfig());
-    Assert.True(result.Results.Count >= 1, "expected at least 1 elements");
+            Assert.True(result.Results.Count >= 1, "expected at least 1 elements");
 
         }
 
@@ -60,7 +60,7 @@ namespace Xberg
         {
             // extract_batch: empty batch
             var result = await XbergConverter.ExtractBatchAsync(new List<ExtractInput>() {  }, new ExtractionConfig());
-    Assert.Empty(result.Results);
+            Assert.Empty(result.Results);
 
         }
 

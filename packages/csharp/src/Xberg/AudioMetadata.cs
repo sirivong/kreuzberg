@@ -65,7 +65,7 @@ public sealed record AudioMetadata
         try
         {
             return JsonSerializer.Deserialize<AudioMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse AudioMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse AudioMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

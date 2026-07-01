@@ -67,7 +67,7 @@ public sealed record KeywordConfig
         try
         {
             return JsonSerializer.Deserialize<KeywordConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse KeywordConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse KeywordConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

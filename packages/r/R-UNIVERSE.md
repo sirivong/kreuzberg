@@ -1,6 +1,6 @@
 # Building the `xberg` R package on r-universe
 
-The org universe lives at **https://xberg-io.r-universe.dev**, driven by the
+The org universe lives at **<https://xberg-io.r-universe.dev**>, driven by the
 registry repo **`xberg-io/xberg-io.r-universe.dev`** (`packages.json` lists the
 `xberg` and `htmltomarkdown` R packages, each at `subdir: packages/r`, branch
 `main`).

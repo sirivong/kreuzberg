@@ -45,7 +45,7 @@ public sealed record SummarizationConfig
         try
         {
             return JsonSerializer.Deserialize<SummarizationConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse SummarizationConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse SummarizationConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

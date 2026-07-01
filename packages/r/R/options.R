@@ -12,7 +12,11 @@ conversion_options <- function(
   device_id = NULL
 ) {
   opts <- list()
-  if (!is.null(provider)) opts$provider <- provider
-  if (!is.null(device_id)) opts$device_id <- as.integer(device_id)
+  if (!is.null(provider)) {
+    opts$provider <- provider
+  }
+  if (!is.null(device_id)) {
+    opts$device_id <- as.integer(device_id)
+  }
   opts
 }

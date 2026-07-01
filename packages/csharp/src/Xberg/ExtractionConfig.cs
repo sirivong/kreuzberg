@@ -402,7 +402,7 @@ public sealed record ExtractionConfig
         try
         {
             return JsonSerializer.Deserialize<ExtractionConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ExtractionConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ExtractionConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -54,7 +54,7 @@ public sealed record ExtractedUri
         try
         {
             return JsonSerializer.Deserialize<ExtractedUri>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ExtractedUri from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ExtractedUri from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

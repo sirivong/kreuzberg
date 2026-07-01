@@ -56,7 +56,7 @@ public sealed record DiffHunk
         try
         {
             return JsonSerializer.Deserialize<DiffHunk>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DiffHunk from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DiffHunk from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

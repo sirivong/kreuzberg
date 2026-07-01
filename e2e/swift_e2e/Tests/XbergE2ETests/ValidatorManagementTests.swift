@@ -14,24 +14,24 @@ import RustBridge
 
 /// E2e tests for category: validator_management.
 final class ValidatorManagementTests: XCTestCase {
-    override class func setUp() {
-        super.setUp()
-        _ = "true".withCString { val in
-            "CRAWLBERG_ALLOW_PRIVATE_NETWORK".withCString { key in
-                setenv(key, val, 0)
-            }
-        }
-        let _existing = ProcessInfo.processInfo.environment["SUT_URL"]
+  override class func setUp() {
+    super.setUp()
+    _ = "true".withCString { val in
+      "CRAWLBERG_ALLOW_PRIVATE_NETWORK".withCString { key in
+        setenv(key, val, 0)
+      }
     }
+    let _existing = ProcessInfo.processInfo.environment["SUT_URL"]
+  }
 
-    func testValidatorsClear() throws {
-        // Clear all validators and verify list is empty
-        let result = try Xberg.clearValidators()
-    }
+  func testValidatorsClear() throws {
+    // Clear all validators and verify list is empty
+    let result = try Xberg.clearValidators()
+  }
 
-    func testValidatorsList() throws {
-        // List all registered validators
-        let result = try Xberg.listValidators()
-    }
+  func testValidatorsList() throws {
+    // List all registered validators
+    let result = try Xberg.listValidators()
+  }
 
 }

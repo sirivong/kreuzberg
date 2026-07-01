@@ -58,7 +58,7 @@ public sealed record ArchiveMetadata
         try
         {
             return JsonSerializer.Deserialize<ArchiveMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ArchiveMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ArchiveMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

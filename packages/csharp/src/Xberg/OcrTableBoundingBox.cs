@@ -50,7 +50,7 @@ public sealed record OcrTableBoundingBox
         try
         {
             return JsonSerializer.Deserialize<OcrTableBoundingBox>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse OcrTableBoundingBox from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse OcrTableBoundingBox from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

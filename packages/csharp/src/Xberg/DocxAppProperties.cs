@@ -124,7 +124,7 @@ public sealed record DocxAppProperties
         try
         {
             return JsonSerializer.Deserialize<DocxAppProperties>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DocxAppProperties from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DocxAppProperties from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

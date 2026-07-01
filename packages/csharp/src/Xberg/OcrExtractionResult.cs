@@ -60,7 +60,7 @@ public sealed record OcrExtractionResult
         try
         {
             return JsonSerializer.Deserialize<OcrExtractionResult>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse OcrExtractionResult from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse OcrExtractionResult from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -67,7 +67,7 @@ public sealed record NerConfig
         try
         {
             return JsonSerializer.Deserialize<NerConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse NerConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse NerConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

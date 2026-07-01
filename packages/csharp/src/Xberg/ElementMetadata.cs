@@ -56,7 +56,7 @@ public sealed record ElementMetadata
         try
         {
             return JsonSerializer.Deserialize<ElementMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ElementMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ElementMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

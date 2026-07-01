@@ -76,7 +76,7 @@ public sealed record TreeSitterConfig
         try
         {
             return JsonSerializer.Deserialize<TreeSitterConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse TreeSitterConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse TreeSitterConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

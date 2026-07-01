@@ -177,7 +177,7 @@ public sealed record Metadata
         try
         {
             return JsonSerializer.Deserialize<Metadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse Metadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse Metadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -71,7 +71,7 @@ public sealed record ServerConfig
         try
         {
             return JsonSerializer.Deserialize<ServerConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ServerConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ServerConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

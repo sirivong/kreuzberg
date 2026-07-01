@@ -113,7 +113,7 @@ public sealed record ContentConfig
         try
         {
             return JsonSerializer.Deserialize<ContentConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ContentConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ContentConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

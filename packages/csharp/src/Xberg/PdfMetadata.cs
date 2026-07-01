@@ -66,7 +66,7 @@ public sealed record PdfMetadata
         try
         {
             return JsonSerializer.Deserialize<PdfMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PdfMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PdfMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

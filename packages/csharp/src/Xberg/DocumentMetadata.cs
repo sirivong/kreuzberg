@@ -62,7 +62,7 @@ public sealed record DocumentMetadata
         try
         {
             return JsonSerializer.Deserialize<DocumentMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DocumentMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DocumentMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

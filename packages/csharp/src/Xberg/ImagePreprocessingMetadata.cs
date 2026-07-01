@@ -83,7 +83,7 @@ public sealed record ImagePreprocessingMetadata
         try
         {
             return JsonSerializer.Deserialize<ImagePreprocessingMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ImagePreprocessingMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ImagePreprocessingMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

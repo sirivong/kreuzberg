@@ -72,7 +72,7 @@ public sealed record ExtractionDiff
         try
         {
             return JsonSerializer.Deserialize<ExtractionDiff>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ExtractionDiff from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ExtractionDiff from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

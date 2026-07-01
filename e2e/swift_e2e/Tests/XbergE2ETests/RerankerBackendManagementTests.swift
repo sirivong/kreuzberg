@@ -14,24 +14,24 @@ import RustBridge
 
 /// E2e tests for category: reranker_backend_management.
 final class RerankerBackendManagementTests: XCTestCase {
-    override class func setUp() {
-        super.setUp()
-        _ = "true".withCString { val in
-            "CRAWLBERG_ALLOW_PRIVATE_NETWORK".withCString { key in
-                setenv(key, val, 0)
-            }
-        }
-        let _existing = ProcessInfo.processInfo.environment["SUT_URL"]
+  override class func setUp() {
+    super.setUp()
+    _ = "true".withCString { val in
+      "CRAWLBERG_ALLOW_PRIVATE_NETWORK".withCString { key in
+        setenv(key, val, 0)
+      }
     }
+    let _existing = ProcessInfo.processInfo.environment["SUT_URL"]
+  }
 
-    func testClearRerankerBackends() throws {
-        // Clear all reranker backends and verify list is empty
-        let result = try Xberg.clearRerankerBackends()
-    }
+  func testClearRerankerBackends() throws {
+    // Clear all reranker backends and verify list is empty
+    let result = try Xberg.clearRerankerBackends()
+  }
 
-    func testListRerankerBackends() throws {
-        // List all registered reranker backends
-        let result = try Xberg.listRerankerBackends()
-    }
+  func testListRerankerBackends() throws {
+    // List all registered reranker backends
+    let result = try Xberg.listRerankerBackends()
+  }
 
 }

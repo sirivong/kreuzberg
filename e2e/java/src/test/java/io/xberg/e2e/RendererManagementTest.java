@@ -16,8 +16,8 @@ import org.junit.jupiter.api.BeforeAll;
 public class RendererManagementTest {
     @BeforeAll
     static void initEnv() {        if (System.getProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK") == null) {
-            System.setProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK", "true");
-        }    }
+        System.setProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK", "true");
+    }    }
 
     @Test
     void testRenderersClear() throws Exception {

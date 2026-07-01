@@ -173,7 +173,7 @@ public sealed record TesseractConfig
         try
         {
             return JsonSerializer.Deserialize<TesseractConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse TesseractConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse TesseractConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -70,7 +70,7 @@ public sealed record EmailMetadata
         try
         {
             return JsonSerializer.Deserialize<EmailMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse EmailMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse EmailMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

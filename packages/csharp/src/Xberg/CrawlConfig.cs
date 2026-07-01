@@ -277,7 +277,7 @@ public sealed record CrawlConfig
         try
         {
             return JsonSerializer.Deserialize<CrawlConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse CrawlConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse CrawlConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

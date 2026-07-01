@@ -39,7 +39,7 @@ public sealed record ClassificationLabel
         try
         {
             return JsonSerializer.Deserialize<ClassificationLabel>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ClassificationLabel from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ClassificationLabel from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

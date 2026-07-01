@@ -78,7 +78,7 @@ public sealed record DjotContent
         try
         {
             return JsonSerializer.Deserialize<DjotContent>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DjotContent from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DjotContent from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

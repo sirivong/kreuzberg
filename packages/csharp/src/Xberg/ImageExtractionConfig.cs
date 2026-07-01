@@ -167,7 +167,7 @@ public sealed record ImageExtractionConfig
         try
         {
             return JsonSerializer.Deserialize<ImageExtractionConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ImageExtractionConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ImageExtractionConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

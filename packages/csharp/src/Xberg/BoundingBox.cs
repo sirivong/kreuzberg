@@ -50,7 +50,7 @@ public sealed record BoundingBox
         try
         {
             return JsonSerializer.Deserialize<BoundingBox>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse BoundingBox from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse BoundingBox from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

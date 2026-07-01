@@ -19,32 +19,34 @@ debug_log <- function(message) {
 }
 
 peak_memory_bytes <- function() {
-  tryCatch({
-    # Try /proc/self/status first (Linux)
-    if (file.exists('/proc/self/status')) {
-      content <- readLines('/proc/self/status')
-      vmrss_line <- grep('^VmRSS:', content, value = TRUE)
-      if (length(vmrss_line) > 0) {
-        kb <- as.numeric(sub('^VmRSS:\\s+(\\d+).*', '\\1', vmrss_line[1]))
-        return(kb * 1024)
+  tryCatch(
+    {
+      # Try /proc/self/status first (Linux)
+      if (file.exists('/proc/self/status')) {
+        content <- readLines('/proc/self/status')
+        vmrss_line <- grep('^VmRSS:', content, value = TRUE)
+        if (length(vmrss_line) > 0) {
+          kb <- as.numeric(sub('^VmRSS:\\s+(\\d+).*', '\\1', vmrss_line[1]))
+          return(kb * 1024)
+        }
       }
-    }
 
-    # Fall back to ps command
-    pid <- Sys.getpid()
-    result <- system(sprintf("ps -o rss= -p %d", pid), intern = TRUE)
-    if (length(result) > 0 && !is.na(as.numeric(result[1]))) {
-      return(as.numeric(result[1]) * 1024)
-    }
+      # Fall back to ps command
+      pid <- Sys.getpid()
+      result <- system(sprintf("ps -o rss= -p %d", pid), intern = TRUE)
+      if (length(result) > 0 && !is.na(as.numeric(result[1]))) {
+        return(as.numeric(result[1]) * 1024)
+      }
 
-    # Fallback using gc()
-    gc_result <- gc()
-    return(gc_result[2, 2] * 1024 * 1024)
-  },
-  error = function(e) {
-    debug_log(sprintf("Error getting peak memory: %s", e$message))
-    return(0)
-  })
+      # Fallback using gc()
+      gc_result <- gc()
+      return(gc_result[2, 2] * 1024 * 1024)
+    },
+    error = function(e) {
+      debug_log(sprintf("Error getting peak memory: %s", e$message))
+      return(0)
+    }
+  )
 }
 
 determine_ocr_used <- function(metadata, ocr_enabled) {
@@ -72,17 +74,19 @@ parse_request <- function(line) {
   stripped <- trimws(line)
 
   # Try to parse as JSON first
-  tryCatch({
-    if (startsWith(stripped, '{')) {
-      req <- fromJSON(stripped)
-      path <- req$path %||% ''
-      force_ocr <- req$force_ocr %||% FALSE
-      return(list(path = path, force_ocr = force_ocr))
+  tryCatch(
+    {
+      if (startsWith(stripped, '{')) {
+        req <- fromJSON(stripped)
+        path <- req$path %||% ''
+        force_ocr <- req$force_ocr %||% FALSE
+        return(list(path = path, force_ocr = force_ocr))
+      }
+    },
+    error = function(e) {
+      # Fall through to plain path
     }
-  },
-  error = function(e) {
-    # Fall through to plain path
-  })
+  )
 
   # Return as plain path
   list(path = stripped, force_ocr = FALSE)
@@ -100,18 +104,20 @@ extract_sync <- function(file_path, config = NULL) {
   start_monotonic <- Sys.time()
   debug_log(sprintf("Timing start: %s", format(start_monotonic, "%Y-%m-%d %H:%M:%OS6")))
 
-  result <- tryCatch({
-    if (is.null(config)) {
-      extract(ExtractInput$from_uri(file_path), ExtractionConfig$default())
-    } else {
-      extract(ExtractInput$from_uri(file_path), config = config)
+  result <- tryCatch(
+    {
+      if (is.null(config)) {
+        extract(ExtractInput$from_uri(file_path), ExtractionConfig$default())
+      } else {
+        extract(ExtractInput$from_uri(file_path), config = config)
+      }
+    },
+    error = function(e) {
+      debug_log(sprintf("ERROR during extraction: %s", e$message))
+      debug_log(sprintf("Backtrace:\n%s", paste(e$call, collapse = "\n")))
+      stop(e)
     }
-  },
-  error = function(e) {
-    debug_log(sprintf("ERROR during extraction: %s", e$message))
-    debug_log(sprintf("Backtrace:\n%s", paste(e$call, collapse = "\n")))
-    stop(e)
-  })
+  )
   result <- result$results[[1]]
 
   end_monotonic <- Sys.time()
@@ -162,19 +168,21 @@ extract_batch <- function(file_paths, config = NULL) {
   start_monotonic <- Sys.time()
   debug_log(sprintf("Timing start: %s", format(start_monotonic, "%Y-%m-%d %H:%M:%OS6")))
 
-  results <- tryCatch({
-    inputs <- lapply(file_paths, ExtractInput$from_uri)
-    if (is.null(config)) {
-      extract_batch(inputs, ExtractionConfig$default())
-    } else {
-      extract_batch(inputs, config = config)
+  results <- tryCatch(
+    {
+      inputs <- lapply(file_paths, ExtractInput$from_uri)
+      if (is.null(config)) {
+        extract_batch(inputs, ExtractionConfig$default())
+      } else {
+        extract_batch(inputs, config = config)
+      }
+    },
+    error = function(e) {
+      debug_log(sprintf("ERROR during batch extraction: %s", e$message))
+      debug_log(sprintf("Backtrace:\n%s", paste(e$call, collapse = "\n")))
+      stop(e)
     }
-  },
-  error = function(e) {
-    debug_log(sprintf("ERROR during batch extraction: %s", e$message))
-    debug_log(sprintf("Backtrace:\n%s", paste(e$call, collapse = "\n")))
-    stop(e)
-  })
+  )
   results <- results$results
 
   end_monotonic <- Sys.time()
@@ -196,10 +204,12 @@ extract_batch <- function(file_paths, config = NULL) {
     result <- results[[idx]]
     metadata <- result$metadata %||% list()
 
-    debug_log(sprintf("  Result[%d] - content length: %s, has metadata: %s",
-                      idx - 1,
-                      if (!is.null(result$content)) nchar(result$content) else 'nil',
-                      !is.null(result$metadata)))
+    debug_log(sprintf(
+      "  Result[%d] - content length: %s, has metadata: %s",
+      idx - 1,
+      if (!is.null(result$content)) nchar(result$content) else 'nil',
+      !is.null(result$metadata)
+    ))
 
     list(
       content = result$content,
@@ -243,39 +253,41 @@ extract_server <- function(ocr_enabled) {
 
     debug_log(sprintf("Processing file: %s, force_ocr: %s", file_path, force_ocr))
 
-    tryCatch({
-      config_json <- list(use_cache = FALSE)
-      if (ocr_enabled || force_ocr) {
-        config_json$ocr <- list(backend = "tesseract")
+    tryCatch(
+      {
+        config_json <- list(use_cache = FALSE)
+        if (ocr_enabled || force_ocr) {
+          config_json$ocr <- list(backend = "tesseract")
+        }
+        config <- ExtractionConfig$from_json(toJSON(config_json, auto_unbox = TRUE))
+
+        start <- Sys.time()
+        result <- extract(ExtractInput$from_uri(file_path), config = config)
+        result <- result$results[[1]]
+        duration_ms <- as.numeric(Sys.time() - start) * 1000.0
+
+        metadata <- result$metadata %||% list()
+        payload <- list(
+          content = result$content,
+          metadata = metadata,
+          `_extraction_time_ms` = duration_ms,
+          `_ocr_used` = determine_ocr_used(metadata, (ocr_enabled || force_ocr)),
+          `_peak_memory_bytes` = peak_memory_bytes()
+        )
+
+        cat(toJSON(payload, auto_unbox = TRUE), "\n", sep = "")
+        flush(stdout())
+      },
+      error = function(e) {
+        error_payload <- list(
+          error = e$message,
+          `_extraction_time_ms` = 0,
+          `_ocr_used` = FALSE
+        )
+        cat(toJSON(error_payload, auto_unbox = TRUE), "\n", sep = "")
+        flush(stdout())
       }
-      config <- ExtractionConfig$from_json(toJSON(config_json, auto_unbox = TRUE))
-
-      start <- Sys.time()
-      result <- extract(ExtractInput$from_uri(file_path), config = config)
-      result <- result$results[[1]]
-      duration_ms <- as.numeric(Sys.time() - start) * 1000.0
-
-      metadata <- result$metadata %||% list()
-      payload <- list(
-        content = result$content,
-        metadata = metadata,
-        `_extraction_time_ms` = duration_ms,
-        `_ocr_used` = determine_ocr_used(metadata, (ocr_enabled || force_ocr)),
-        `_peak_memory_bytes` = peak_memory_bytes()
-      )
-
-      cat(toJSON(payload, auto_unbox = TRUE), "\n", sep = "")
-      flush(stdout())
-    },
-    error = function(e) {
-      error_payload <- list(
-        error = e$message,
-        `_extraction_time_ms` = 0,
-        `_ocr_used` = FALSE
-      )
-      cat(toJSON(error_payload, auto_unbox = TRUE), "\n", sep = "")
-      flush(stdout())
-    })
+    )
   }
 
   close(con)
@@ -317,71 +329,70 @@ main <- function() {
   debug_log(sprintf("OCR enabled: %s", ocr_enabled))
   debug_log(sprintf("File paths (%d): %s", length(file_paths), paste(file_paths, collapse = ", ")))
 
-  tryCatch({
-    if (mode == 'server') {
-      debug_log("Executing server mode")
-      extract_server(ocr_enabled)
-
-    } else if (mode == 'sync') {
-      if (length(file_paths) != 1) {
-        cat("Error: sync mode requires exactly one file\n", file = stderr())
-        quit(status = 1)
-      }
-      debug_log(sprintf("Executing sync mode with file: %s", file_paths[1]))
-
-      config_json <- list(use_cache = FALSE)
-      if (ocr_enabled) {
-        config_json$ocr <- list(backend = "tesseract")
-      }
-      config <- ExtractionConfig$from_json(toJSON(config_json, auto_unbox = TRUE))
-
-      payload <- extract_sync(file_paths[1], config)
-      output <- toJSON(payload, auto_unbox = TRUE)
-      debug_log(sprintf("Output JSON: %s", output))
-      cat(output, "\n", sep = "")
-
-    } else if (mode == 'batch') {
-      if (length(file_paths) == 0) {
-        cat("Error: batch mode requires at least one file\n", file = stderr())
-        quit(status = 1)
-      }
-      debug_log(sprintf("Executing batch mode with %d files", length(file_paths)))
-
-      config_json <- list(use_cache = FALSE)
-      if (ocr_enabled) {
-        config_json$ocr <- list(backend = "tesseract")
-      }
-      config <- ExtractionConfig$from_json(toJSON(config_json, auto_unbox = TRUE))
-
-      results <- extract_batch(file_paths, config)
-
-      if (length(file_paths) == 1) {
-        output <- toJSON(results[[1]], auto_unbox = TRUE)
-        debug_log(sprintf("Output JSON (single file): %s", output))
-        cat(output, "\n", sep = "")
-      } else {
-        output <- toJSON(results, auto_unbox = TRUE)
-        if (nchar(output) > 200) {
-          debug_log(sprintf("Output JSON (multiple files): %s...", substr(output, 1, 200)))
-        } else {
-          debug_log(sprintf("Output JSON (multiple files): %s", output))
+  tryCatch(
+    {
+      if (mode == 'server') {
+        debug_log("Executing server mode")
+        extract_server(ocr_enabled)
+      } else if (mode == 'sync') {
+        if (length(file_paths) != 1) {
+          cat("Error: sync mode requires exactly one file\n", file = stderr())
+          quit(status = 1)
         }
+        debug_log(sprintf("Executing sync mode with file: %s", file_paths[1]))
+
+        config_json <- list(use_cache = FALSE)
+        if (ocr_enabled) {
+          config_json$ocr <- list(backend = "tesseract")
+        }
+        config <- ExtractionConfig$from_json(toJSON(config_json, auto_unbox = TRUE))
+
+        payload <- extract_sync(file_paths[1], config)
+        output <- toJSON(payload, auto_unbox = TRUE)
+        debug_log(sprintf("Output JSON: %s", output))
         cat(output, "\n", sep = "")
+      } else if (mode == 'batch') {
+        if (length(file_paths) == 0) {
+          cat("Error: batch mode requires at least one file\n", file = stderr())
+          quit(status = 1)
+        }
+        debug_log(sprintf("Executing batch mode with %d files", length(file_paths)))
+
+        config_json <- list(use_cache = FALSE)
+        if (ocr_enabled) {
+          config_json$ocr <- list(backend = "tesseract")
+        }
+        config <- ExtractionConfig$from_json(toJSON(config_json, auto_unbox = TRUE))
+
+        results <- extract_batch(file_paths, config)
+
+        if (length(file_paths) == 1) {
+          output <- toJSON(results[[1]], auto_unbox = TRUE)
+          debug_log(sprintf("Output JSON (single file): %s", output))
+          cat(output, "\n", sep = "")
+        } else {
+          output <- toJSON(results, auto_unbox = TRUE)
+          if (nchar(output) > 200) {
+            debug_log(sprintf("Output JSON (multiple files): %s...", substr(output, 1, 200)))
+          } else {
+            debug_log(sprintf("Output JSON (multiple files): %s", output))
+          }
+          cat(output, "\n", sep = "")
+        }
+      } else {
+        cat(sprintf("Error: Unknown mode '%s'. Use sync, batch, or server\n", mode), file = stderr())
+        quit(status = 1)
       }
 
-    } else {
-      cat(sprintf("Error: Unknown mode '%s'. Use sync, batch, or server\n", mode), file = stderr())
+      debug_log("Script completed successfully")
+    },
+    error = function(e) {
+      debug_log(sprintf("FATAL ERROR: %s", e$message))
+      debug_log(sprintf("Backtrace:\n%s", paste(e$call, collapse = "\n")))
+      cat(sprintf("Error extracting with Xberg: %s\n", e$message), file = stderr())
       quit(status = 1)
     }
-
-    debug_log("Script completed successfully")
-  },
-  error = function(e) {
-    debug_log(sprintf("FATAL ERROR: %s", e$message))
-    debug_log(sprintf("Backtrace:\n%s", paste(e$call, collapse = "\n")))
-    cat(sprintf("Error extracting with Xberg: %s\n", e$message), file = stderr())
-    quit(status = 1)
-  })
+  )
 }
 
 invisible(main())

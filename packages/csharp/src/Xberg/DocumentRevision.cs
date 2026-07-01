@@ -80,7 +80,7 @@ public sealed record DocumentRevision
         try
         {
             return JsonSerializer.Deserialize<DocumentRevision>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DocumentRevision from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DocumentRevision from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -51,7 +51,7 @@ public sealed record ImageMetadataType
         try
         {
             return JsonSerializer.Deserialize<ImageMetadataType>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ImageMetadataType from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ImageMetadataType from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

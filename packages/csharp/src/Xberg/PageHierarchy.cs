@@ -41,7 +41,7 @@ public sealed record PageHierarchy
         try
         {
             return JsonSerializer.Deserialize<PageHierarchy>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PageHierarchy from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PageHierarchy from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

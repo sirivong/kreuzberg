@@ -14,24 +14,24 @@ import RustBridge
 
 /// E2e tests for category: post_processor_management.
 final class PostProcessorManagementTests: XCTestCase {
-    override class func setUp() {
-        super.setUp()
-        _ = "true".withCString { val in
-            "CRAWLBERG_ALLOW_PRIVATE_NETWORK".withCString { key in
-                setenv(key, val, 0)
-            }
-        }
-        let _existing = ProcessInfo.processInfo.environment["SUT_URL"]
+  override class func setUp() {
+    super.setUp()
+    _ = "true".withCString { val in
+      "CRAWLBERG_ALLOW_PRIVATE_NETWORK".withCString { key in
+        setenv(key, val, 0)
+      }
     }
+    let _existing = ProcessInfo.processInfo.environment["SUT_URL"]
+  }
 
-    func testPostProcessorsClear() throws {
-        // Clear all post-processors and verify list is empty
-        let result = try Xberg.clearPostProcessors()
-    }
+  func testPostProcessorsClear() throws {
+    // Clear all post-processors and verify list is empty
+    let result = try Xberg.clearPostProcessors()
+  }
 
-    func testPostProcessorsList() throws {
-        // List all registered post-processors
-        let result = try Xberg.listPostProcessors()
-    }
+  func testPostProcessorsList() throws {
+    // List all registered post-processors
+    let result = try Xberg.listPostProcessors()
+  }
 
 }

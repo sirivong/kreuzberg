@@ -52,8 +52,8 @@ String _camelToSnake(String camel) {
 void _setEnv(String key, String value) {
   final libc = DynamicLibrary.process();
   final setenv = libc.lookupFunction<
-      Int32 Function(Pointer<Utf8>, Pointer<Utf8>, Int32),
-      int Function(Pointer<Utf8>, Pointer<Utf8>, int)>('setenv');
+  Int32 Function(Pointer<Utf8>, Pointer<Utf8>, Int32),
+  int Function(Pointer<Utf8>, Pointer<Utf8>, int)>('setenv');
   final keyPtr = key.toNativeUtf8();
   final valuePtr = value.toNativeUtf8();
   try {

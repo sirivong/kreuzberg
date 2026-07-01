@@ -126,7 +126,7 @@ public sealed record ChunkingConfig
         try
         {
             return JsonSerializer.Deserialize<ChunkingConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ChunkingConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ChunkingConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

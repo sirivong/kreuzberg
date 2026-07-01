@@ -56,7 +56,7 @@ public sealed record Translation
         try
         {
             return JsonSerializer.Deserialize<Translation>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse Translation from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse Translation from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

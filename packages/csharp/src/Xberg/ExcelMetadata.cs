@@ -41,7 +41,7 @@ public sealed record ExcelMetadata
         try
         {
             return JsonSerializer.Deserialize<ExcelMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ExcelMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ExcelMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

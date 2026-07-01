@@ -60,7 +60,7 @@ public sealed record Formula
         try
         {
             return JsonSerializer.Deserialize<Formula>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse Formula from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse Formula from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

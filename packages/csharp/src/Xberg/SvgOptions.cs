@@ -47,7 +47,7 @@ public sealed record SvgOptions
         try
         {
             return JsonSerializer.Deserialize<SvgOptions>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse SvgOptions from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse SvgOptions from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

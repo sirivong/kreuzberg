@@ -44,7 +44,7 @@ public sealed record FictionBookMetadata
         try
         {
             return JsonSerializer.Deserialize<FictionBookMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse FictionBookMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse FictionBookMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

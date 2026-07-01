@@ -17,8 +17,8 @@ import org.junit.jupiter.api.BeforeAll;
 public class UrlTest {
     @BeforeAll
     static void initEnv() {        if (System.getProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK") == null) {
-            System.setProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK", "true");
-        }    }
+        System.setProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK", "true");
+    }    }
 
     @Test
     void testUrlBatchMixedInputs() throws Exception {
@@ -29,7 +29,7 @@ public class UrlTest {
         String inputsJson0 = "{\"kind\":\"uri\",\"uri\":\"$mock_url\"}".replace("$mock_url", inputsMockBaseUrl);
         String inputsJson1 = "{\"bytes\":[66,97,116,99,104,32,98,121,116,101,115,32,99,111,110,116,101,110,116],\"filename\":\"inline.txt\",\"kind\":\"bytes\",\"mime_type\":\"text/plain\"}".replace("$mock_url", inputsMockBaseUrl);
         var result = Xberg.extractBatch(java.util.Arrays.asList(JsonUtil.fromJson(inputsJson0, ExtractInput.class), JsonUtil.fromJson(inputsJson1, ExtractInput.class)), config);
-assertTrue(result.results().size() >= 2, "expected at least 2 elements");assertTrue(result.results().get(0).content().contains("Batch URL document content"), "expected to contain: " + "Batch URL document content");assertTrue(result.results().get(1).content().contains("Batch bytes content"), "expected to contain: " + "Batch bytes content");
+        assertTrue(result.results().size() >= 2, "expected at least 2 elements");assertTrue(result.results().get(0).content().contains("Batch URL document content"), "expected to contain: " + "Batch URL document content");assertTrue(result.results().get(1).content().contains("Batch bytes content"), "expected to contain: " + "Batch bytes content");
 
     }
 
@@ -43,7 +43,7 @@ assertTrue(result.results().size() >= 2, "expected at least 2 elements");assertT
         var config = JsonUtil.fromJson("{\"url\":{\"crawl\":{\"max_depth\":1,\"max_pages\":4,\"respect_robots_txt\":false},\"mode\":\"crawl\"}}", ExtractionConfig.class);
 
         var result = Xberg.extract(input, config);
-assertTrue(result.summary().pagesCrawled() >= 2, "expected >= 2");assertTrue(result.results().get(1).content().contains("About crawl target"), "expected to contain: " + "About crawl target");
+        assertTrue(result.summary().pagesCrawled() >= 2, "expected >= 2");assertTrue(result.results().get(1).content().contains("About crawl target"), "expected to contain: " + "About crawl target");
 
     }
 
@@ -57,7 +57,7 @@ assertTrue(result.summary().pagesCrawled() >= 2, "expected >= 2");assertTrue(res
         var config = JsonUtil.fromJson("{\"url\":{\"mode\":\"document\"}}", ExtractionConfig.class);
 
         var result = Xberg.extract(input, config);
-assertTrue(result.results().get(0).content().contains("Xberg URL Page"), "expected to contain: " + "Xberg URL Page");assertTrue(result.results().size() >= 1, "expected at least 1 elements");
+        assertTrue(result.results().get(0).content().contains("Xberg URL Page"), "expected to contain: " + "Xberg URL Page");assertTrue(result.results().size() >= 1, "expected at least 1 elements");
 
     }
 
@@ -71,7 +71,7 @@ assertTrue(result.results().get(0).content().contains("Xberg URL Page"), "expect
         var config = JsonUtil.fromJson("{\"url\":{\"crawl\":{\"document_url_depth\":1,\"follow_document_urls\":true,\"respect_robots_txt\":false},\"mode\":\"document\"}}", ExtractionConfig.class);
 
         var result = Xberg.extract(input, config);
-assertTrue(result.results().size() >= 2, "expected at least 2 elements");assertTrue(result.results().get(1).content().contains("Recursive document target"), "expected to contain: " + "Recursive document target");
+        assertTrue(result.results().size() >= 2, "expected at least 2 elements");assertTrue(result.results().get(1).content().contains("Recursive document target"), "expected to contain: " + "Recursive document target");
 
     }
 
@@ -85,7 +85,7 @@ assertTrue(result.results().size() >= 2, "expected at least 2 elements");assertT
         var config = JsonUtil.fromJson("{\"url\":{\"mode\":\"document\"}}", ExtractionConfig.class);
 
         var result = Xberg.extract(input, config);
-assertTrue(result.results().get(0).content().contains("Remote document hello"), "expected to contain: " + "Remote document hello");assertEquals(1, result.summary().remoteUrls());
+        assertTrue(result.results().get(0).content().contains("Remote document hello"), "expected to contain: " + "Remote document hello");assertEquals(1, result.summary().remoteUrls());
 
     }
 

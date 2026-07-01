@@ -54,7 +54,7 @@ public sealed record ExcelWorkbook
         try
         {
             return JsonSerializer.Deserialize<ExcelWorkbook>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ExcelWorkbook from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ExcelWorkbook from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

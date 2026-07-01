@@ -2,6 +2,7 @@
 target/
 build/
 dist/
+.polylint/
 # Ad-hoc PDF/image debug binaries
 /check_pdf_oxide
 /check_*

@@ -38,7 +38,7 @@ public sealed record DetectResponse
         try
         {
             return JsonSerializer.Deserialize<DetectResponse>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DetectResponse from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DetectResponse from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

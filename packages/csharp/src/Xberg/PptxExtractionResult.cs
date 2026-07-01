@@ -102,7 +102,7 @@ public sealed record PptxExtractionResult
         try
         {
             return JsonSerializer.Deserialize<PptxExtractionResult>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PptxExtractionResult from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PptxExtractionResult from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

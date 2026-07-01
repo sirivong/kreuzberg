@@ -73,7 +73,7 @@ public sealed record LlmUsage
         try
         {
             return JsonSerializer.Deserialize<LlmUsage>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse LlmUsage from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse LlmUsage from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

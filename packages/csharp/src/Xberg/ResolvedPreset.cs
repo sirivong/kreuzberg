@@ -81,7 +81,7 @@ public sealed record ResolvedPreset
         try
         {
             return JsonSerializer.Deserialize<ResolvedPreset>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ResolvedPreset from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ResolvedPreset from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

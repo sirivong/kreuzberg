@@ -357,7 +357,7 @@ public sealed record ExtractedDocument
         try
         {
             return JsonSerializer.Deserialize<ExtractedDocument>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ExtractedDocument from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ExtractedDocument from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

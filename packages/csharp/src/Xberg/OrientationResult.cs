@@ -38,7 +38,7 @@ public sealed record OrientationResult
         try
         {
             return JsonSerializer.Deserialize<OrientationResult>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse OrientationResult from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse OrientationResult from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

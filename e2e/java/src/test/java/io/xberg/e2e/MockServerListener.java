@@ -77,7 +77,7 @@ public class MockServerListener implements LauncherSessionListener {
             throw new IllegalStateException("MockServerListener: mock-server binary not found at " + bin + " — run: cargo build --manifest-path e2e/rust/Cargo.toml --bin mock-server --release");
         }
         ProcessBuilder pb = new ProcessBuilder(bin.getAbsolutePath(), fixturesDir.getAbsolutePath())
-            .redirectErrorStream(false);
+        .redirectErrorStream(false);
         try {
             mockServer = pb.start();
         } catch (IOException e) {

@@ -81,7 +81,7 @@ public sealed record PresetSummary
         try
         {
             return JsonSerializer.Deserialize<PresetSummary>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PresetSummary from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PresetSummary from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

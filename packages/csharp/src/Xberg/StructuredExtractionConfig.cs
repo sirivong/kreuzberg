@@ -71,7 +71,7 @@ public sealed record StructuredExtractionConfig
         try
         {
             return JsonSerializer.Deserialize<StructuredExtractionConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse StructuredExtractionConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse StructuredExtractionConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

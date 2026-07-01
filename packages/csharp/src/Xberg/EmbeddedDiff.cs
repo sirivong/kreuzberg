@@ -38,7 +38,7 @@ public sealed record EmbeddedDiff
         try
         {
             return JsonSerializer.Deserialize<EmbeddedDiff>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse EmbeddedDiff from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse EmbeddedDiff from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -71,7 +71,7 @@ public sealed record LayoutDetectionConfig
         try
         {
             return JsonSerializer.Deserialize<LayoutDetectionConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse LayoutDetectionConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse LayoutDetectionConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

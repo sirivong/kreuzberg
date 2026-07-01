@@ -40,7 +40,7 @@ public sealed record XmlMetadata
         try
         {
             return JsonSerializer.Deserialize<XmlMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse XmlMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse XmlMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

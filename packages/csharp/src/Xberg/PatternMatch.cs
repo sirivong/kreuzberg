@@ -51,7 +51,7 @@ public sealed record PatternMatch
         try
         {
             return JsonSerializer.Deserialize<PatternMatch>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PatternMatch from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PatternMatch from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

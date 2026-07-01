@@ -43,7 +43,7 @@ public sealed record RevisionDelta
         try
         {
             return JsonSerializer.Deserialize<RevisionDelta>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse RevisionDelta from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse RevisionDelta from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -38,7 +38,7 @@ public sealed record HeadingLevel
         try
         {
             return JsonSerializer.Deserialize<HeadingLevel>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse HeadingLevel from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse HeadingLevel from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

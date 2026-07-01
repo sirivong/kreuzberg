@@ -79,7 +79,7 @@ public sealed record OcrElement
         try
         {
             return JsonSerializer.Deserialize<OcrElement>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse OcrElement from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse OcrElement from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

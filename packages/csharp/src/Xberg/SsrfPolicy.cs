@@ -38,7 +38,7 @@ public sealed record SsrfPolicy
         try
         {
             return JsonSerializer.Deserialize<SsrfPolicy>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse SsrfPolicy from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse SsrfPolicy from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

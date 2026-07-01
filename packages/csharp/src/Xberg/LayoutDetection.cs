@@ -44,7 +44,7 @@ public sealed record LayoutDetection
         try
         {
             return JsonSerializer.Deserialize<LayoutDetection>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse LayoutDetection from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse LayoutDetection from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

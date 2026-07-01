@@ -48,7 +48,7 @@ public sealed record RedactionPattern
         try
         {
             return JsonSerializer.Deserialize<RedactionPattern>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse RedactionPattern from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse RedactionPattern from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

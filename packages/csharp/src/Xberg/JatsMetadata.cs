@@ -50,7 +50,7 @@ public sealed record JatsMetadata
         try
         {
             return JsonSerializer.Deserialize<JatsMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse JatsMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse JatsMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -113,7 +113,7 @@ public sealed record PaddleOcrConfig
         try
         {
             return JsonSerializer.Deserialize<PaddleOcrConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PaddleOcrConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PaddleOcrConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

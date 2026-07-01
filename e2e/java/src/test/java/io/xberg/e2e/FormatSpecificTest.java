@@ -17,8 +17,8 @@ import org.junit.jupiter.api.BeforeAll;
 public class FormatSpecificTest {
     @BeforeAll
     static void initEnv() {        if (System.getProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK") == null) {
-            System.setProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK", "true");
-        }    }
+        System.setProperty("CRAWLBERG_ALLOW_PRIVATE_NETWORK", "true");
+    }    }
 
     @Test
     void testFormatDocxStandalone() throws Exception {
@@ -28,7 +28,7 @@ public class FormatSpecificTest {
         var input = JsonUtil.fromJson(inputJson, ExtractInput.class);
 
         var result = Xberg.extract(input, ExtractionConfig.builder().build());
-assertTrue(result.results().get(0).content().length() >= 20, "expected length >= 20");
+        assertTrue(result.results().get(0).content().length() >= 20, "expected length >= 20");
 
     }
 
@@ -41,7 +41,7 @@ assertTrue(result.results().get(0).content().length() >= 20, "expected length >=
         var input = JsonUtil.fromJson(inputJson, ExtractInput.class);
 
         var result = Xberg.extract(input, ExtractionConfig.builder().build());
-assertTrue(result.results().get(0).content().length() >= 20, "expected length >= 20");assertTrue(result.results().get(0).content().contains("Hello from HWPX"), "expected to contain: " + "Hello from HWPX");
+        assertTrue(result.results().get(0).content().length() >= 20, "expected length >= 20");assertTrue(result.results().get(0).content().contains("Hello from HWPX"), "expected to contain: " + "Hello from HWPX");
 
     }
 
@@ -54,7 +54,7 @@ assertTrue(result.results().get(0).content().length() >= 20, "expected length >=
         var input = JsonUtil.fromJson(inputJson, ExtractInput.class);
 
         var result = Xberg.extract(input, ExtractionConfig.builder().build());
-assertTrue(result.results().get(0).content().length() >= 50, "expected length >= 50");assertTrue(result.results().get(0).content().contains("Mallori") || result.results().get(0).content().contains("May"), "expected to contain at least one of the specified values");
+        assertTrue(result.results().get(0).content().length() >= 50, "expected length >= 50");assertTrue(result.results().get(0).content().contains("Mallori") || result.results().get(0).content().contains("May"), "expected to contain at least one of the specified values");
 
     }
 

@@ -56,7 +56,7 @@ public sealed record CsvMetadata
         try
         {
             return JsonSerializer.Deserialize<CsvMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse CsvMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse CsvMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

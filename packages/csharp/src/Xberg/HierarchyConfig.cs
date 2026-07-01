@@ -61,7 +61,7 @@ public sealed record HierarchyConfig
         try
         {
             return JsonSerializer.Deserialize<HierarchyConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse HierarchyConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse HierarchyConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -44,7 +44,7 @@ public sealed record DjotImage
         try
         {
             return JsonSerializer.Deserialize<DjotImage>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DjotImage from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DjotImage from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

@@ -52,7 +52,7 @@ public sealed record TableCell
         try
         {
             return JsonSerializer.Deserialize<TableCell>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse TableCell from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse TableCell from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

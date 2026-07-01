@@ -51,7 +51,7 @@ public sealed record TranslationConfig
         try
         {
             return JsonSerializer.Deserialize<TranslationConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse TranslationConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse TranslationConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

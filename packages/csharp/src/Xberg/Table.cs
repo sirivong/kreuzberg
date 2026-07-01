@@ -54,7 +54,7 @@ public sealed record Table
         try
         {
             return JsonSerializer.Deserialize<Table>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse Table from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse Table from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

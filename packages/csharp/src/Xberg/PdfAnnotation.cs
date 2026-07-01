@@ -50,7 +50,7 @@ public sealed record PdfAnnotation
         try
         {
             return JsonSerializer.Deserialize<PdfAnnotation>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PdfAnnotation from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PdfAnnotation from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

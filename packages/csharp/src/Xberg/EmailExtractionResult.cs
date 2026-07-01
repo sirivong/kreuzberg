@@ -101,7 +101,7 @@ public sealed record EmailExtractionResult
         try
         {
             return JsonSerializer.Deserialize<EmailExtractionResult>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse EmailExtractionResult from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse EmailExtractionResult from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

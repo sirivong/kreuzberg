@@ -47,7 +47,7 @@ public sealed record TextAnnotation
         try
         {
             return JsonSerializer.Deserialize<TextAnnotation>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse TextAnnotation from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse TextAnnotation from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

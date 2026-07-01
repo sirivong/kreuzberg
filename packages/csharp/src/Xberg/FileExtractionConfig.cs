@@ -233,7 +233,7 @@ public sealed record FileExtractionConfig
         try
         {
             return JsonSerializer.Deserialize<FileExtractionConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse FileExtractionConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse FileExtractionConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

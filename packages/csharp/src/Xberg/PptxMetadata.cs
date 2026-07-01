@@ -52,7 +52,7 @@ public sealed record PptxMetadata
         try
         {
             return JsonSerializer.Deserialize<PptxMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse PptxMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse PptxMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

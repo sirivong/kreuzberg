@@ -52,7 +52,7 @@ public sealed record ImageMetadata
         try
         {
             return JsonSerializer.Deserialize<ImageMetadata>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ImageMetadata from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ImageMetadata from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

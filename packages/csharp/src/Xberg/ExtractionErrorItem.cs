@@ -56,7 +56,7 @@ public sealed record ExtractionErrorItem
         try
         {
             return JsonSerializer.Deserialize<ExtractionErrorItem>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ExtractionErrorItem from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ExtractionErrorItem from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

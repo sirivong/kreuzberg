@@ -49,7 +49,7 @@ public sealed record EmailConfig
         try
         {
             return JsonSerializer.Deserialize<EmailConfig>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse EmailConfig from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse EmailConfig from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

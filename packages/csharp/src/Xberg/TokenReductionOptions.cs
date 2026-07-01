@@ -38,7 +38,7 @@ public sealed record TokenReductionOptions
         try
         {
             return JsonSerializer.Deserialize<TokenReductionOptions>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse TokenReductionOptions from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse TokenReductionOptions from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

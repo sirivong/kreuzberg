@@ -50,7 +50,7 @@ public sealed record Keyword
         try
         {
             return JsonSerializer.Deserialize<Keyword>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse Keyword from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse Keyword from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

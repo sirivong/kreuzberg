@@ -38,7 +38,7 @@ public sealed record ContributorRole
         try
         {
             return JsonSerializer.Deserialize<ContributorRole>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse ContributorRole from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse ContributorRole from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

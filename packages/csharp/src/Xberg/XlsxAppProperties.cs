@@ -82,7 +82,7 @@ public sealed record XlsxAppProperties
         try
         {
             return JsonSerializer.Deserialize<XlsxAppProperties>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse XlsxAppProperties from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse XlsxAppProperties from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

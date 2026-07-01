@@ -38,7 +38,7 @@ public sealed record OcrRotation
         try
         {
             return JsonSerializer.Deserialize<OcrRotation>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse OcrRotation from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse OcrRotation from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

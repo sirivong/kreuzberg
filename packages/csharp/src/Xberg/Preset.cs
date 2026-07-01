@@ -121,7 +121,7 @@ public sealed record Preset
         try
         {
             return JsonSerializer.Deserialize<Preset>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse Preset from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse Preset from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

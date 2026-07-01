@@ -53,7 +53,7 @@ public sealed record Citation
         try
         {
             return JsonSerializer.Deserialize<Citation>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse Citation from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse Citation from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

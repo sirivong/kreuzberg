@@ -44,7 +44,7 @@ public sealed record DocumentRelationship
         try
         {
             return JsonSerializer.Deserialize<DocumentRelationship>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse DocumentRelationship from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse DocumentRelationship from JSON: deserializer returned null");
         }
         catch (XbergException)
         {

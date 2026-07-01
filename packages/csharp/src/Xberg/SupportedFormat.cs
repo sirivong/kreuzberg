@@ -40,7 +40,7 @@ public sealed record SupportedFormat
         try
         {
             return JsonSerializer.Deserialize<SupportedFormat>(json, JsonOptions)
-                ?? throw new XbergException($"Failed to parse SupportedFormat from JSON: deserializer returned null");
+            ?? throw new XbergException($"Failed to parse SupportedFormat from JSON: deserializer returned null");
         }
         catch (XbergException)
         {
