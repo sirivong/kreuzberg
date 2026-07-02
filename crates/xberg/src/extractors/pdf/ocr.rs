@@ -2143,10 +2143,8 @@ mod tests {
         // Need >= min_words_for_repeat_check (default 50) words for ratio to be calculated
         // Use short words to keep content sparse: 50 words * 2 chars = 100 chars + spacing = ~150 chars
         // This is right at the boundary of min_avg_non_whitespace_to_trust (150)
-        let mut words = Vec::new();
-        for _ in 0..50 {
-            words.push("x"); // 1 char word, 50 words total = ~100 non-ws chars
-        }
+        // 1 char word, 50 words total = ~100 non-ws chars
+        let words = vec!["x"; 50];
         let text = words.join(" ");
         let stats = NativeTextStats::compute(&text, &thresholds);
 

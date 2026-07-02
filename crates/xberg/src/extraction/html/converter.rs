@@ -773,8 +773,10 @@ mod tests {
   </body>
 </html>"#;
 
-        let mut options = ConversionOptions::default();
-        options.extract_metadata = false;
+        let options = ConversionOptions {
+            extract_metadata: false,
+            ..Default::default()
+        };
 
         let (content, metadata, _, _) = convert_html_to_markdown_with_tables(html, Some(options), None).unwrap();
 
@@ -805,8 +807,10 @@ mod tests {
   </body>
 </html>"#;
 
-        let mut options = ConversionOptions::default();
-        options.extract_metadata = true;
+        let options = ConversionOptions {
+            extract_metadata: true,
+            ..Default::default()
+        };
 
         let (content, metadata, _, _) = convert_html_to_markdown_with_tables(html, Some(options), None).unwrap();
 
