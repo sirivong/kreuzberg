@@ -798,30 +798,35 @@ impl FrameworkAdapter for SubprocessAdapter {
             0.0 // Below minimum threshold - will be filtered in aggregation
         };
 
-        // Prefer self-reported memory from the extraction script over external monitoring.
-        // External monitoring via ResourceMonitor often misses subprocess memory for fast
-        // extractions (<10ms) because the subprocess exits before the sampler captures it.
-        // Scripts report _peak_memory_bytes via resource.getrusage or equivalent.
+        // Choose the memory source that captured the larger peak.
+        //
+        // The extraction script self-reports `_peak_memory_bytes` (RUSAGE_SELF), which is
+        // reliable for fast extractions (<10ms) where the external sampler may miss the
+        // subprocess entirely. BUT RUSAGE_SELF only covers the script process itself — a
+        // framework that offloads work to a worker/model process (e.g. mineru) self-reports a
+        // near-empty wrapper (~12 MB) while the real footprint lives in a descendant. The
+        // ResourceMonitor samples the whole process tree and captures that. Taking the max of
+        // the two keeps the self-report's advantage for fast paths while no longer discarding
+        // worker-process memory when the tree monitor saw more.
         let self_reported_memory = parsed.get("_peak_memory_bytes").and_then(|v| v.as_u64());
 
-        let metrics = if let Some(reported_mem) = self_reported_memory {
-            PerformanceMetrics {
+        let metrics = match self_reported_memory {
+            Some(reported_mem) if reported_mem >= resource_stats.peak_memory_bytes => PerformanceMetrics {
                 peak_memory_bytes: reported_mem,
                 avg_cpu_percent: resource_stats.avg_cpu_percent,
                 throughput_bytes_per_sec: throughput,
                 p50_memory_bytes: reported_mem,
                 p95_memory_bytes: reported_mem,
                 p99_memory_bytes: reported_mem,
-            }
-        } else {
-            PerformanceMetrics {
+            },
+            _ => PerformanceMetrics {
                 peak_memory_bytes: resource_stats.peak_memory_bytes,
                 avg_cpu_percent: resource_stats.avg_cpu_percent,
                 throughput_bytes_per_sec: throughput,
                 p50_memory_bytes: resource_stats.p50_memory_bytes,
                 p95_memory_bytes: resource_stats.p95_memory_bytes,
                 p99_memory_bytes: resource_stats.p99_memory_bytes,
-            }
+            },
         };
 
         // Check if subprocess reported OCR usage
