@@ -3,8 +3,8 @@
 from pathlib import Path
 
 import pytest
-from xberg import ExtractionConfig, PageConfig
 from llama_index.readers.xberg import XbergReader
+from xberg import ExtractionConfig, PageConfig
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

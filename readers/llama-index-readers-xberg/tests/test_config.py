@@ -2,6 +2,7 @@
 
 import json
 
+from llama_index.readers.xberg._config import dict_to_config
 from xberg import (
     ExtractionConfig,
     HierarchyConfig,
@@ -12,7 +13,6 @@ from xberg import (
     TesseractConfig,
     config_to_json,
 )
-from llama_index.readers.xberg._config import dict_to_config
 
 # --- dict_to_config reconstruction ---
 

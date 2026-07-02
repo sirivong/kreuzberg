@@ -5,11 +5,11 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from xberg import ExtractionConfig, OcrConfig, PageConfig
 from llama_index.core.readers.base import BasePydanticReader
 from llama_index.readers.xberg import XbergReader
 from llama_index.readers.xberg._utils import build_metadata, generate_doc_id
 from pydantic import ValidationError
+from xberg import ExtractionConfig, OcrConfig, PageConfig
 
 from tests.conftest import make_extraction_result, make_page_content
 

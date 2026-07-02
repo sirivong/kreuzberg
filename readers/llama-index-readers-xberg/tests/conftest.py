@@ -2,8 +2,8 @@
 
 from unittest.mock import MagicMock
 
-from xberg import ExtractedImage, ExtractedTable, ExtractionResult, Metadata
 from llama_index.readers.xberg._types import Annotation, Keyword, PageContent, ProcessingWarning
+from xberg import ExtractedImage, ExtractedTable, ExtractionResult, Metadata
 
 
 def make_extraction_result(
