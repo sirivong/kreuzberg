@@ -575,6 +575,22 @@ pub(crate) fn is_well_formed_table(grid: &[Vec<String>]) -> bool {
         return false;
     }
 
+    // --- Check 0: Cell density ---
+    // Real tables have dense, aligned content. Form-like label/value text that
+    // leaked through the column-gap heuristic produces a sparse grid (e.g. a
+    // tender-metadata block splitting into a 4-column grid with 55% empty
+    // cells). Reject grids where more than this fraction of cells is empty.
+    const MAX_EMPTY_CELL_FRACTION_PERCENT: usize = 40;
+    let max_cols = grid.iter().map(|r| r.len()).max().unwrap_or(0);
+    let total_cells = grid.len() * max_cols;
+    if total_cells > 0 {
+        let empty_cells = grid.len() * max_cols
+            - grid.iter().flat_map(|row| row.iter()).filter(|cell| !cell.trim().is_empty()).count();
+        if empty_cells * 100 > total_cells * MAX_EMPTY_CELL_FRACTION_PERCENT {
+            return false;
+        }
+    }
+
     // --- Check 1: Row coherence (prose detection) ---
     // For each data row, concatenate all cells left-to-right. If the result
     // reads like a coherent sentence fragment (>30 chars, last cell ends without
@@ -1374,6 +1390,23 @@ mod tests {
         assert!(
             is_well_formed_table(&grid),
             "Real table with varied columns should be accepted"
+        );
+    }
+
+    #[test]
+    fn test_well_formed_rejects_sparse_form_grid() {
+        // Form-like label/value block leaking through the column-gap heuristic
+        // (nougat_024: tender metadata split into a 4-column grid, 55% empty).
+        let grid: Vec<Vec<String>> = vec![
+            vec!["".into(), "Tender".into(), "No.".into(), "".into()],
+            vec!["41(01)/2019/PROM".into(), "".into(), "".into(), "".into()],
+            vec!["Dated:".into(), "".into(), "11/09/2020".into(), "".into()],
+            vec!["CPP".into(), "Portal".into(), "Tender".into(), "ID:".into()],
+            vec!["2020_TBI_582964_1".into(), "".into(), "".into(), "".into()],
+        ];
+        assert!(
+            !is_well_formed_table(&grid),
+            "Sparse form-like grid (>40% empty cells) should be rejected"
         );
     }
 
