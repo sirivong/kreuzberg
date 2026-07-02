@@ -2,6 +2,7 @@
 
 use crate::Result;
 use crate::error::XbergError;
+use lopdf::{Document, ObjectId};
 
 /// Reasonable max pixel dimension (on either axis) for a rendered page before we
 /// force a lower DPI. This prevents Pixmap allocation failures or OOM for
@@ -41,6 +42,91 @@ fn get_page_dimensions_pt(doc: &pdf_oxide::PdfDocument, page_index: usize) -> (f
     doc.get_page_media_box(page_index)
         .map(|(llx, lly, urx, ury)| ((urx - llx).abs(), (ury - lly).abs()))
         .unwrap_or((612.0, 792.0))
+}
+
+/// Maximum /Parent hops when resolving an inherited /Rotate attribute.
+/// Bounds the walk so a malformed PDF with a parent cycle cannot loop forever.
+const MAX_ROTATE_INHERITANCE_DEPTH: usize = 32;
+
+/// Resolve a page's effective /Rotate value, following /Parent inheritance
+/// per the PDF spec (a page without its own /Rotate inherits from its Pages
+/// ancestors). Returns `None` when no ancestor defines it.
+fn resolve_inherited_rotation(doc: &Document, page_id: ObjectId) -> Option<i64> {
+    let mut dict = doc.get_object(page_id).ok()?.as_dict().ok()?;
+    for _ in 0..MAX_ROTATE_INHERITANCE_DEPTH {
+        if let Ok(rotate_obj) = dict.get(b"Rotate") {
+            return rotate_obj.as_i64().ok();
+        }
+        let parent_id = dict.get(b"Parent").ok()?.as_reference().ok()?;
+        dict = doc.get_object(parent_id).ok()?.as_dict().ok()?;
+    }
+    None
+}
+
+/// Read per-page /Rotate values for a whole document, normalized to
+/// 0/90/180/270 (negative multiples of 90 are folded via `rem_euclid`).
+///
+/// Parses the PDF once with lopdf; a parse failure or missing attribute
+/// yields 0 (no rotation) for the affected pages. lopdf's `get_pages()`
+/// map is keyed by 1-based page number, which is the authoritative page
+/// order (object IDs are not ordered by page).
+pub(crate) fn get_page_rotations(pdf_bytes: &[u8], page_count: usize) -> Vec<u32> {
+    let mut rotations = vec![0u32; page_count];
+    let Ok(doc) = Document::load_mem(pdf_bytes) else {
+        return rotations;
+    };
+    for (page_number, page_id) in doc.get_pages() {
+        let index = (page_number as usize).saturating_sub(1);
+        if index >= page_count {
+            continue;
+        }
+        if let Some(rotate_int) = resolve_inherited_rotation(&doc, page_id) {
+            rotations[index] = rotate_int.rem_euclid(360) as u32;
+        }
+    }
+    rotations
+}
+
+/// Rotate a decoded page image per the page's normalized /Rotate value.
+/// No-op for 0 or non-quarter-turn values.
+pub(crate) fn rotate_dynamic_image(img: image::DynamicImage, rotation_degrees: u32) -> image::DynamicImage {
+    match rotation_degrees % 360 {
+        90 => img.rotate90(),
+        180 => img.rotate180(),
+        270 => img.rotate270(),
+        _ => img,
+    }
+}
+
+/// Rotate PNG-encoded page bytes per the page's /Rotate value.
+///
+/// Fast path: rotation 0 returns the input unchanged (no decode). Rotated
+/// pages pay one decode + re-encode, which only happens for documents that
+/// actually carry /Rotate. Returns the (possibly new) PNG bytes with the
+/// post-rotation width and height.
+pub(crate) fn rotate_png_page_if_needed(
+    png_data: Vec<u8>,
+    width: u32,
+    height: u32,
+    rotation_degrees: u32,
+) -> Result<(Vec<u8>, u32, u32)> {
+    if rotation_degrees % 360 == 0 {
+        return Ok((png_data, width, height));
+    }
+    let img = image::load_from_memory(&png_data).map_err(|e| XbergError::Parsing {
+        message: format!("failed to decode rendered page for rotation correction: {e}"),
+        source: None,
+    })?;
+    let rotated = rotate_dynamic_image(img, rotation_degrees);
+    let (w, h) = (rotated.width(), rotated.height());
+    let mut buf = Vec::new();
+    rotated
+        .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+        .map_err(|e| XbergError::Parsing {
+            message: format!("failed to re-encode rotated page: {e}"),
+            source: None,
+        })?;
+    Ok((buf, w, h))
 }
 
 /// Render a page using safeguards for extreme dimensions (wide vector diagrams,
@@ -292,5 +378,44 @@ mod tests {
             matches!(err, XbergError::Parsing { .. }),
             "expected a Parsing error, got: {err:?}"
         );
+    }
+
+    #[test]
+    fn test_rotate_dynamic_image_0_degrees_is_noop() {
+        let img = image::DynamicImage::new_rgb8(100, 150);
+        let rotated = rotate_dynamic_image(img, 0);
+        assert_eq!((rotated.width(), rotated.height()), (100, 150));
+    }
+
+    #[test]
+    fn test_rotate_dynamic_image_90_degrees_swaps_dimensions() {
+        let img = image::DynamicImage::new_rgb8(100, 150);
+        let rotated = rotate_dynamic_image(img, 90);
+        assert_eq!((rotated.width(), rotated.height()), (150, 100));
+    }
+
+    #[test]
+    fn test_rotate_dynamic_image_180_degrees_keeps_dimensions() {
+        let img = image::DynamicImage::new_rgb8(100, 150);
+        let rotated = rotate_dynamic_image(img, 180);
+        assert_eq!((rotated.width(), rotated.height()), (100, 150));
+    }
+
+    #[test]
+    fn test_rotate_dynamic_image_270_degrees_swaps_dimensions() {
+        let img = image::DynamicImage::new_rgb8(100, 150);
+        let rotated = rotate_dynamic_image(img, 270);
+        assert_eq!((rotated.width(), rotated.height()), (150, 100));
+    }
+
+    #[test]
+    fn test_get_page_rotations_no_rotate_attribute_yields_zeroes() {
+        let pdf = build_minimal_pdf_with_mediabox(612.0, 792.0);
+        assert_eq!(get_page_rotations(&pdf, 1), vec![0]);
+    }
+
+    #[test]
+    fn test_get_page_rotations_unparsable_bytes_yield_zeroes() {
+        assert_eq!(get_page_rotations(b"not a pdf", 3), vec![0, 0, 0]);
     }
 }

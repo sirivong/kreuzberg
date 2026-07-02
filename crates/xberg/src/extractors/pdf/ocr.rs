@@ -404,6 +404,10 @@ pub(crate) fn render_selected_pages_for_ocr(
         source: None,
     })?;
 
+    // pdf_oxide's renderer ignores /Rotate; correct each page so OCR sees
+    // upright text. Rotations are parsed once for the whole document.
+    let page_rotations = crate::pdf::render::get_page_rotations(content, page_count);
+
     // Use safeguarded render (handles very wide / extreme-aspect pages that previously
     // caused PdfiumLibraryInternalError or equivalent "Failed to create pixmap" inside
     // the rasterizer). This is the core of the fix for #1078.
@@ -430,6 +434,8 @@ pub(crate) fn render_selected_pages_for_ocr(
             message: format!("Failed to decode rendered page {}: {}", idx + 1, e),
             source: None,
         })?;
+        let rotation = page_rotations.get(idx).copied().unwrap_or(0);
+        let img = crate::pdf::render::rotate_dynamic_image(img, rotation);
         images.push((idx, img));
     }
 
@@ -931,6 +937,11 @@ pub(crate) async fn extract_with_ocr(
                         message: format!("Failed to open PDF for OCR batch rendering: {:?}", e),
                         source: None,
                     })?;
+                // pdf_oxide's renderer ignores /Rotate; correct rotated pages so
+                // OCR sees upright text (no-op decode-free path for rotation 0).
+                let page_count = doc.page_count().unwrap_or(0);
+                let page_rotations = crate::pdf::render::get_page_rotations(pdf_bytes, page_count);
+
                 // Use the safeguarded renderer (see render.rs). This prevents hard
                 // failures on the exact class of inputs reported in #1078 (single-page
                 // very wide vector-heavy PDFs) when force_ocr + VLM (or other ocr-pipeline
@@ -944,9 +955,14 @@ pub(crate) async fn extract_with_ocr(
                             source: None,
                         }
                     })?;
-                    // rendered.data is PNG-encoded; width and height are available directly.
-                    batch_encoded.push((i, Arc::new(rendered.data), rendered.width, rendered.height));
-                    // `rendered` is dropped here after extracting the fields.
+                    let rotation = page_rotations.get(i).copied().unwrap_or(0);
+                    let (data, width, height) = crate::pdf::render::rotate_png_page_if_needed(
+                        rendered.data,
+                        rendered.width,
+                        rendered.height,
+                        rotation,
+                    )?;
+                    batch_encoded.push((i, Arc::new(data), width, height));
                 }
                 batch_encoded
             };
