@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2026-04-14
 
 ### Added
+
 - `XbergPipeline` class — a plain callable that turns document paths into
   `list[dict]` with `content` and `metadata` fields (source, MIME type, title,
   page count).
