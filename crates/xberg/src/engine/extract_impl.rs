@@ -163,7 +163,7 @@ async fn extract_batch_concurrent(
         let semaphore = Arc::clone(&semaphore);
         let base_config = Arc::clone(&base_config);
         tasks.spawn(async move {
-            let resolved_config = resolve_input_config(&input, &base_config);
+            let resolved_config = resolve_input_config_arc(&input, &base_config);
             let timeout_secs = resolved_config.extraction_timeout_secs;
             let cancel_token = resolved_config.cancel_token.clone();
             run_batch_item(index, source, semaphore, timeout_secs, cancel_token, || async move {
@@ -500,6 +500,17 @@ fn resolve_input_config(input: &ExtractInput, base_config: &ExtractionConfig) ->
         .as_ref()
         .map(|overrides| base_config.with_file_overrides(overrides))
         .unwrap_or_else(|| base_config.clone())
+}
+
+/// Resolve config for batch items, taking Arc<ExtractionConfig> to avoid unnecessary clones.
+/// When there are no per-item overrides, this returns Arc::clone (cheap reference increment)
+/// rather than cloning the inner ExtractionConfig.
+#[cfg(feature = "tokio-runtime")]
+fn resolve_input_config_arc(input: &ExtractInput, base_config: &Arc<ExtractionConfig>) -> Arc<ExtractionConfig> {
+    match input.config.as_ref() {
+        Some(overrides) => Arc::new(base_config.with_file_overrides(overrides)),
+        None => Arc::clone(base_config),
+    }
 }
 
 async fn extract_one_resolved(
