@@ -46,14 +46,6 @@ fn extract_segments_from_page_inner(
     page_index: usize,
     mcid_roles: &HashMap<u32, Option<u8>>,
 ) -> Result<Vec<SegmentData>> {
-    // Get page height for coordinate conversion
-    let page_height = doc
-        .doc
-        .get_page_media_box(page_index)
-        .ok()
-        .map(|(_, lly, _, ury)| (ury - lly).abs())
-        .unwrap_or(792.0); // Letter size fallback
-
     // Extract spans using column-aware reading order (same as markdown path).
     // This ensures that in multi-column layouts, elements are read top-to-bottom
     // per column, left-to-right across columns, matching the reading order used
@@ -87,10 +79,10 @@ fn extract_segments_from_page_inner(
             let is_bold = span.font_weight == pdf_oxide::layout::text_block::FontWeight::Bold;
             let bbox = &span.bbox;
 
-            // Convert from screen coords (y=0 at top) to PDF coords (y=0 at bottom)
-            let screen_bottom = bbox.y + bbox.height;
-            let pdf_baseline_y = page_height - screen_bottom;
-            let pdf_y = page_height - bbox.y - bbox.height;
+            // pdf_oxide bbox is already in PDF coordinates (y=0 at bottom, larger = higher on page).
+            // Store directly — no conversion needed.
+            let pdf_baseline_y = bbox.y;
+            let pdf_y = bbox.y;
 
             // Look up structure-tree heading role via MCID
             let assigned_role = span.mcid.and_then(|mcid| mcid_roles.get(&mcid).copied()).flatten();

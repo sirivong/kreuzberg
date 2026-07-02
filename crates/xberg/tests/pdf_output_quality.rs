@@ -199,3 +199,35 @@ fn test_multipage_no_noise() {
         "multipage.pdf should have no arXiv identifiers"
     );
 }
+
+// ── Reading order: PDF coordinate system ─────────────────────────────
+
+/// Regression test for reading-order inversion caused by coordinate system mismatch.
+///
+/// pdf_oxide returns bounding boxes in PDF coordinates (y=0 at bottom of page, y increases
+/// upward). Storing these directly in SegmentData.baseline_y and then sorting descending
+/// in `assemble_page_elements_with_tables` produces correct top-to-bottom reading order.
+///
+/// The bug was an erroneous conversion `page_height - bbox.y - bbox.height` that turned
+/// PDF coordinates into screen coordinates (y=0 at top). The descending sort then placed
+/// bottom-of-page content first, completely reversing the output.
+#[test]
+fn test_pdf_structure_reading_order() {
+    if !test_documents_available() {
+        return;
+    }
+    let content = extract_markdown("vendored/pdfplumber/pdf/pdf_structure.pdf");
+
+    // "Titre du document" is the page title near the top (PDF y ≈ 700 on a 792pt page).
+    // "Tableau" is a section heading near the bottom (PDF y ≈ 305).
+    // Correct descending sort on PDF coordinates places the title first.
+    let title_pos = content.find("Titre du document").expect("title not found in output");
+    let tableau_pos = content.find("Tableau").expect("'Tableau' section not found in output");
+    assert!(
+        title_pos < tableau_pos,
+        "'Titre du document' (top of page) must appear before 'Tableau' (bottom of page); \
+         got title at byte {title_pos}, Tableau at byte {tableau_pos}. \
+         This indicates a reading-order inversion — check PDF coordinate handling in \
+         crates/xberg/src/pdf/oxide/hierarchy.rs"
+    );
+}
