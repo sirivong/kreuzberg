@@ -324,9 +324,9 @@ pub fn build_extraction_config(pipeline: Pipeline) -> xberg::ExtractionConfig {
         Pipeline::Baseline => base,
         Pipeline::Layout => xberg::ExtractionConfig {
             layout: Some(LayoutDetectionConfig::default()),
-            // Drive the new layout-for-markdown path: layout regions inform
+            // Drive the layout-for-markdown path: layout regions inform
             // heading / table / list / figure detection in the structure
-            // pipeline, which dramatically improves SF1 on PDFs.
+            // pipeline.
             use_layout_for_markdown: true,
             // Enable OCR fallback for pages with no native text (image-only pages).
             // With force_ocr=false (default), xberg auto-detects empty pages
@@ -334,8 +334,10 @@ pub fn build_extraction_config(pipeline: Pipeline) -> xberg::ExtractionConfig {
             ocr: Some(xberg::core::config::OcrConfig {
                 backend: "tesseract".to_string(),
                 language: vec!["eng".to_string()],
-                // Content-based orientation rescue (Tesseract OSD) for pages that
-                // are still rotated after /Rotate metadata correction.
+                // Content-based orientation rescue (ONNX PP-LCNet classifier) for
+                // pages that are still rotated after /Rotate metadata correction.
+                // Tesseract OSD is NOT used: it corrupts engine memory in the
+                // vendored build (uncatchable SIGABRT/SIGSEGV).
                 auto_rotate: true,
                 ..Default::default()
             }),
