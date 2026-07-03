@@ -8,15 +8,15 @@ import Foundation
 /// Base protocol that all trait bridges must conform to.
 /// Declares the four Plugin trait super-methods for lifecycle management.
 public protocol SwiftPluginBridge: AnyObject {
-    /// Returns the unique name/identifier for this plugin.
-    var name: String { get }
+  /// Returns the unique name/identifier for this plugin.
+  var name: String { get }
 
-    /// Returns the semantic version of this plugin.
-    func version() -> String
+  /// Returns the semantic version of this plugin.
+  func version() -> String
 
-    /// Initialize the plugin.
-    func initialize() throws
+  /// Initialize the plugin.
+  func initialize() throws
 
-    /// Shutdown the plugin.
-    func shutdown() throws
+  /// Shutdown the plugin.
+  func shutdown() throws
 }

@@ -21,8 +21,8 @@ enum InboundEnvelope<T: Encodable>: Encodable {
   func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
     switch self {
-    case .ok(let value): try container.encode(value, forKey: .ok)
-    case .err(let message): try container.encode(message, forKey: .err)
+      case .ok(let value): try container.encode(value, forKey: .ok)
+      case .err(let message): try container.encode(message, forKey: .err)
     }
   }
 }

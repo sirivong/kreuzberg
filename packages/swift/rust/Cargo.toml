@@ -30,7 +30,36 @@ doctest = false
 bench = false
 
 [features]
-default = ["api", "api-types", "auto-rotate-types", "chunking-tokenizers", "diff", "heuristics", "html", "keywords-rake", "keywords-yake", "layout-types", "liter-llm", "markdown-footnotes", "ocr", "ocr-wasm", "office", "paddle-ocr-types", "pdf", "presets", "quality", "redaction", "reranker", "reranker-presets", "svg", "transcription-types", "tree-sitter", "url-config-types", "url-ingestion", "xml"]
+default = [
+    "api",
+    "api-types",
+    "auto-rotate-types",
+    "chunking-tokenizers",
+    "diff",
+    "heuristics",
+    "html",
+    "keywords-rake",
+    "keywords-yake",
+    "layout-types",
+    "liter-llm",
+    "markdown-footnotes",
+    "ocr",
+    "ocr-wasm",
+    "office",
+    "paddle-ocr-types",
+    "pdf",
+    "presets",
+    "quality",
+    "redaction",
+    "reranker",
+    "reranker-presets",
+    "svg",
+    "transcription-types",
+    "tree-sitter",
+    "url-config-types",
+    "url-ingestion",
+    "xml",
+]
 api = ["xberg/api"]
 api-types = ["xberg/api-types"]
 auto-rotate-types = ["xberg/auto-rotate-types"]
@@ -120,16 +149,24 @@ xberg = { version = "1.0.0-rc.5", path = "../../../crates/xberg", features = [
 ] }
 
 [target.'cfg(target_os = "ios")'.dependencies]
-xberg = { version = "1.0.0-rc.5", path = "../../../crates/xberg", features = ["android-target"], default-features = false }
+xberg = { version = "1.0.0-rc.5", path = "../../../crates/xberg", features = [
+    "android-target",
+], default-features = false }
 
 [target.'cfg(target_os = "android")'.dependencies]
-xberg = { version = "1.0.0-rc.5", path = "../../../crates/xberg", features = ["android-target"], default-features = false }
+xberg = { version = "1.0.0-rc.5", path = "../../../crates/xberg", features = [
+    "android-target",
+], default-features = false }
 
 [target.'cfg(target_os = "windows")'.dependencies]
-xberg = { version = "1.0.0-rc.5", path = "../../../crates/xberg", features = ["windows-target"], default-features = false }
+xberg = { version = "1.0.0-rc.5", path = "../../../crates/xberg", features = [
+    "windows-target",
+], default-features = false }
 
 [target.'cfg(all(target_os = "macos", target_arch = "x86_64"))'.dependencies]
-xberg = { version = "1.0.0-rc.5", path = "../../../crates/xberg", features = ["macos-intel-target"], default-features = false }
+xberg = { version = "1.0.0-rc.5", path = "../../../crates/xberg", features = [
+    "macos-intel-target",
+], default-features = false }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }
