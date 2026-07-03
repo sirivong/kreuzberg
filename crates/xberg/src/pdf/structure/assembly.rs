@@ -4,6 +4,7 @@
 //! interleaved at their correct reading-order positions.
 
 use super::lines::needs_space_between;
+use super::text_repair::finalize_hyphens;
 use super::types::{LayoutHintClass, PdfParagraph};
 use crate::types::document_structure::{AnnotationKind, ContentLayer, TextAnnotation};
 use crate::types::extraction::BoundingBox;
@@ -296,12 +297,15 @@ fn push_paragraph_element(builder: &mut InternalDocumentBuilder, para: &PdfParag
     );
 
     // Get text: prefer para.text (full-text path) over segment joining.
+    // Hyphen finalization runs post-join: the spaced-hyphen artifact only
+    // exists once separate hyphen text runs are joined with spaces.
     let get_text = |para: &PdfParagraph| -> String {
-        if !para.text.is_empty() {
+        let text = if !para.text.is_empty() {
             para.text.clone()
         } else {
             join_line_texts_plain(&para.lines)
-        }
+        };
+        finalize_hyphens(&text).into_owned()
     };
 
     if let Some(level) = para.heading_level {

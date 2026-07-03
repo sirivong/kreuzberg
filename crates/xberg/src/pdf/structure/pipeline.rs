@@ -16,8 +16,9 @@ use super::constants::{FULL_LINE_FRACTION, MIN_HEADING_FONT_GAP, MIN_HEADING_FON
 use super::lines::is_cjk_char;
 use super::paragraphs::{merge_continuation_paragraphs, split_embedded_list_items};
 use super::text_repair::{
-    apply_to_all_segments, clean_duplicate_punctuation, expand_ligatures_with_space_absorption,
-    normalize_text_encoding, normalize_unicode_text, repair_contextual_ligatures, repair_ligature_spaces,
+    apply_to_all_segments, clean_duplicate_punctuation, collapse_spaced_hyphens,
+    expand_ligatures_with_space_absorption, normalize_text_encoding, normalize_unicode_text,
+    repair_contextual_ligatures, repair_ligature_spaces,
 };
 use super::types::{LayoutHint, PdfParagraph};
 
@@ -1557,10 +1558,14 @@ fn fused_text_repairs(text: &str) -> Cow<'_, str> {
     let t1 = normalize_text_encoding(text);
     let t2 = repair_ligature_spaces(&t1);
     let t3 = expand_ligatures_with_space_absorption(&t2);
-    let t4 = normalize_unicode_text(&t3);
+    // Spaced-hyphen collapse must precede normalize_unicode_text, which maps
+    // U+2010/U+2011 to ASCII '-' and would make the artifact indistinguishable
+    // from a legitimate spaced minus/range.
+    let t3b = collapse_spaced_hyphens(&t3);
+    let t4 = normalize_unicode_text(&t3b);
     let t5 = clean_duplicate_punctuation(&t4);
-    match (&t1, &t2, &t3, &t4, &t5) {
-        (Cow::Borrowed(_), Cow::Borrowed(_), Cow::Borrowed(_), Cow::Borrowed(_), Cow::Borrowed(_)) => {
+    match (&t1, &t2, &t3, &t3b, &t4, &t5) {
+        (Cow::Borrowed(_), Cow::Borrowed(_), Cow::Borrowed(_), Cow::Borrowed(_), Cow::Borrowed(_), Cow::Borrowed(_)) => {
             Cow::Borrowed(text)
         }
         _ => Cow::Owned(t5.into_owned()),
