@@ -822,6 +822,11 @@ jobs:
     timeout-minutes: 60
     strategy:
       fail-fast: false
+      # 4 PHP versions x 5 platforms = 20 jobs, 8 of them on the scarce macOS
+      # runner pool. Cap concurrency so this single matrix cannot monopolize the
+      # pool and starve the other languages' macOS legs (jobs queued 2h+ and
+      # never ran on rc.4). Coverage is unchanged — only the fan-out rate is.
+      max-parallel: 4
       matrix:
         php: ["8.2", "8.3", "8.4", "8.5"]
         platform:
@@ -893,8 +898,8 @@ jobs:
           # that reference GNU libstdc++ `__cxx11` symbols. CFLAGS/CXXFLAGS prevent
           # GCC 14+ from emitting C23-versioned glibc symbols (__isoc23_strtoll etc.)
           # that require glibc ≥ 2.38, ensuring compatibility with Debian 12/Ubuntu 22.04/RHEL 8.
-          # HEIF support (heic feature) is deliberately omitted from release binaries
-          # (see extra-cargo-args below for the explicit feature set).
+          # HEIF/HEIC is built in (the CLI's xberg `formats` feature includes `heic`);
+          # libheif is provisioned from source in the system-deps step below.
           # Older/Alpine systems are served by the static musl CLI below.
           - {
               os: ubuntu-latest,
@@ -954,8 +959,10 @@ jobs:
         run: |
           set -euxo pipefail
           # manylinux_2_28 is AlmaLinux 8. EPEL + CRB/PowerTools provide free codecs
-          # (libaom/libdav1d for AV1). HEVC codecs (libde265/libx265) are not in EPEL
-          # (patent concerns) and not needed for this build (heic feature is omitted).
+          # (libaom/libdav1d for AV1). HEVC codecs (libde265/x265) are not in EPEL
+          # (patent concerns), so they are installed best-effort below and libheif
+          # is built from source — the CLI enables `heic` via the xberg `formats`
+          # feature, so libheif-sys needs libheif.pc on PKG_CONFIG_PATH.
           yum install -y epel-release || dnf install -y epel-release || true
           yum install -y dnf-plugins-core yum-utils || true
           dnf config-manager --set-enabled powertools 2>/dev/null \
@@ -966,6 +973,28 @@ jobs:
             openssl-devel file-devel libuv-devel \
             libaom-devel libdav1d-devel \
             tesseract-devel
+          # HEVC codecs (best-effort; libheif builds without them, dropping HEIC
+          # HEVC decode but keeping AVIF/AV1).
+          for codec in libde265-devel x265-devel; do
+            yum install -y "$codec" || dnf install -y "$codec" || true
+          done
+          # Build libheif 1.23.0 from source into /usr/local — mirrors the
+          # install-system-deps composite used by the non-manylinux legs. The
+          # non-manylinux CLI targets get libheif from that action; manylinux
+          # (AlmaLinux, no apt) provisions it here so both paths match.
+          curl -fsSL -o /tmp/libheif.tar.gz \
+            https://github.com/strukturag/libheif/releases/download/v1.23.0/libheif-1.23.0.tar.gz
+          tar -xzf /tmp/libheif.tar.gz -C /tmp
+          mkdir -p /tmp/libheif-1.23.0/build
+          cd /tmp/libheif-1.23.0/build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
+            -DCMAKE_INSTALL_LIBDIR=lib -DWITH_EXAMPLES=OFF -DWITH_GDK_PIXBUF=OFF \
+            -DBUILD_TESTING=OFF
+          make -j"$(nproc)"
+          make install
+          ldconfig
+          cd -
+          rm -rf /tmp/libheif*
           # Apply the C23-symbol-prevention flags (#588) to THIS glibc-gnu build
           # only — written to GITHUB_ENV inside the linux-gnu-gated step so they
           # never reach the macOS (clang) or Windows (MSVC) matrix entries.
@@ -992,10 +1021,10 @@ jobs:
           # Ship the server surface in prebuilt binaries so `xberg mcp` /
           # `xberg mcp --transport http` / `xberg api` work from
           # install.sh + Homebrew (the CLI `default` features omit these). `heic`
-          # is deliberately excluded — it needs vcpkg libheif on the Windows
-          # release target. Docker images already build with `--features all`.
-          # Intel macOS overrides this (matrix.extra_cargo_args) to add
-          # ort-dynamic in place of the missing static prebuilt.
+          # is already on via the CLI's xberg `formats` feature; libheif is
+          # provisioned by the system-deps steps (from source on Linux/macOS,
+          # vcpkg on Windows). Intel macOS overrides this (matrix.extra_cargo_args)
+          # to add ort-dynamic in place of the missing static prebuilt.
           extra-cargo-args: ${{ matrix.extra_cargo_args || '--features mcp,mcp-http,api' }}
 
       - name: Vendor ONNX Runtime dylib (Intel macOS)
@@ -3287,3 +3316,36 @@ jobs:
           package-dir: cli-proxy/npm
           access: public
           provenance: "true"
+
+  trigger-docker-publish:
+    name: Trigger Docker image publish
+    # publish-docker.yaml normally fires on `release: published`, but the release
+    # is created as a draft and only un-drafted by finalize-github-release, which
+    # needs every binding upload to succeed — so a single binding failure means
+    # the release never publishes and Docker never builds. Fire the docker
+    # pipeline explicitly via repository_dispatch, decoupled from the scripting
+    # bindings: images build from source and only need a sane core. GITHUB_TOKEN
+    # cannot trigger a workflow from a workflow, so use the BOT app token.
+    needs: [prepare, publish-crates]
+    if: ${{ needs.prepare.outputs.is_tag == 'true' && needs.prepare.outputs.dry_run != 'true' && needs.prepare.outputs.release_any == 'true' && !cancelled() && needs.publish-crates.result != 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          owner: xberg-io
+
+      - name: Dispatch publish-docker
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          REF: ${{ needs.prepare.outputs.checkout_ref }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${GITHUB_REPOSITORY}/dispatches" \
+            -f event_type=publish-docker \
+            -f "client_payload[tag]=${TAG}" \
+            -f "client_payload[ref]=${REF}"
+          echo "Dispatched publish-docker for ${TAG}" >> "$GITHUB_STEP_SUMMARY"
