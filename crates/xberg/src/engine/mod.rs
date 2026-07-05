@@ -58,7 +58,7 @@ struct EngineInner {
     /// Single-slot, fingerprinted memo of the last-built crawl engine. The slot
     /// is reused when the incoming [`crawlberg::CrawlConfig`] fingerprint
     /// matches, otherwise a fresh engine is built and stored.
-    #[cfg(feature = "url-ingestion")]
+    #[cfg(all(feature = "url-ingestion", feature = "tokio-runtime"))]
     crawl: parking_lot::Mutex<Option<crawl_handle::CrawlHandleMemo>>,
 
     /// Content-addressed byte cache. Default: [`NoopCache`].
@@ -212,7 +212,7 @@ impl EngineBuilder {
     /// its in-core default.
     pub fn build(self) -> Engine {
         let inner = EngineInner {
-            #[cfg(feature = "url-ingestion")]
+            #[cfg(all(feature = "url-ingestion", feature = "tokio-runtime"))]
             crawl: parking_lot::Mutex::new(None),
             cache: self.cache.unwrap_or_else(|| Arc::new(NoopCache)),
             progress: self.progress.unwrap_or_else(|| Arc::new(NoopProgressSink)),
