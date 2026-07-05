@@ -642,13 +642,16 @@ jobs:
     name: Build Node bindings (linux-musl-${{ matrix.arch }})
     needs: [prepare, check-npm]
     if: ${{ needs.prepare.outputs.release_node == 'true' && (needs.check-npm.outputs.node_exists != 'true' || needs.prepare.outputs.force_republish == 'true') }}
-    runs-on: ubuntu-latest
+    # aarch64 builds on a native arm64 runner so Docker pulls the arm64 Alpine
+    # base and cross-assembly of aarch64 asm (e.g. aws-lc-sys `aesimc`) by the
+    # x86_64 host assembler is avoided — mirrors the musl-ffi / musl-rustler jobs.
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { arch: x86_64, target: x86_64-unknown-linux-musl }
-          - { arch: aarch64, target: aarch64-unknown-linux-musl }
+          - { os: ubuntu-latest, arch: x86_64, target: x86_64-unknown-linux-musl }
+          - { os: ubuntu-24.04-arm, arch: aarch64, target: aarch64-unknown-linux-musl }
     steps:
       - uses: actions/checkout@v6
         with:
@@ -1006,8 +1009,6 @@ jobs:
             echo "CPPFLAGS=-std=gnu11"
             echo "CMAKE_C_FLAGS=-std=gnu11"
             echo "CMAKE_CXX_FLAGS=-std=gnu++17"
-            echo "CC=gcc -std=gnu11"
-            echo "CXX=g++ -std=gnu++17"
             echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=gcc"
             echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=gcc"
             echo "CC_x86_64_unknown_linux_gnu=gcc"
