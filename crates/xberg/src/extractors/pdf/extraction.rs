@@ -94,26 +94,43 @@ pub(crate) fn extract_all_from_oxide_document(
         .pdf_options
         .as_ref()
         .is_some_and(|o| o.allow_single_column_tables);
+    // pdf_oxide's tategaki reading-order strategy can panic on a total-order
+    // violation while extracting words for table detection (#1198). Contain the
+    // whole table phase: a panic falls back to no tables + a warn, preserving the
+    // already-extracted page text rather than aborting the document.
     let tables = if extract_tables_flag {
-        let mut combined = crate::pdf::oxide::table::extract_tables_native(&mut doc).unwrap_or_else(|e| {
-            tracing::warn!("pdf_oxide native table extraction failed, skipping tables: {e}");
-            Vec::new()
-        });
-        let native_pages: std::collections::HashSet<u32> = combined.iter().map(|t| t.page_number).collect();
-        let bordered = crate::pdf::oxide::table::extract_tables_bordered(&mut doc, &native_pages).unwrap_or_else(|e| {
-            tracing::warn!("pdf_oxide bordered table extraction failed, skipping tables: {e}");
-            Vec::new()
-        });
-        combined.extend(bordered);
-        let covered_pages: std::collections::HashSet<u32> = combined.iter().map(|t| t.page_number).collect();
-        let heuristic =
-            crate::pdf::oxide::table::extract_tables_heuristic(&mut doc, allow_single_column, &covered_pages)
-                .unwrap_or_else(|e| {
-                    tracing::warn!("pdf_oxide heuristic table extraction failed, skipping tables: {e}");
+        crate::pdf::oxide::guard_oxide_panic(
+            || -> Result<Vec<Table>> {
+                let mut combined = crate::pdf::oxide::table::extract_tables_native(&mut doc).unwrap_or_else(|e| {
+                    tracing::warn!("pdf_oxide native table extraction failed, skipping tables: {e}");
                     Vec::new()
                 });
-        combined.extend(heuristic);
-        combined
+                let native_pages: std::collections::HashSet<u32> = combined.iter().map(|t| t.page_number).collect();
+                let bordered = crate::pdf::oxide::table::extract_tables_bordered(&mut doc, &native_pages)
+                    .unwrap_or_else(|e| {
+                        tracing::warn!("pdf_oxide bordered table extraction failed, skipping tables: {e}");
+                        Vec::new()
+                    });
+                combined.extend(bordered);
+                let covered_pages: std::collections::HashSet<u32> = combined.iter().map(|t| t.page_number).collect();
+                let heuristic =
+                    crate::pdf::oxide::table::extract_tables_heuristic(&mut doc, allow_single_column, &covered_pages)
+                        .unwrap_or_else(|e| {
+                            tracing::warn!("pdf_oxide heuristic table extraction failed, skipping tables: {e}");
+                            Vec::new()
+                        });
+                combined.extend(heuristic);
+                Ok(combined)
+            },
+            |panic| crate::error::XbergError::Parsing {
+                message: format!("pdf_oxide panicked during table extraction: {panic}"),
+                source: None,
+            },
+        )
+        .unwrap_or_else(|e| {
+            tracing::warn!("pdf_oxide table extraction panicked, skipping tables: {e}");
+            Vec::new()
+        })
     } else {
         Vec::new()
     };
