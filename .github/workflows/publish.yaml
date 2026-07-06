@@ -997,6 +997,14 @@ jobs:
       - uses: xberg-io/actions/setup-rust@v1
         with:
           target: ${{ matrix.target }}
+          # Dedicated cache namespace for the CLI builds. These gnu legs now build
+          # NATIVELY (ubuntu-24.04-arm, glibc 2.39) with libstdc++, but the default
+          # `rust-build` prefix shares a loose restore-key with the old zigbuild
+          # (libc++) legs — so the native aarch64 build restored a stale libc++
+          # `target/` and the tesseract C++ objects failed to link against libstdc++
+          # (undefined `std::__1::` refs). A distinct, versioned prefix isolates the
+          # native CLI cache and busts the poisoned one.
+          cache-key-prefix: cli-native-v1
 
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
