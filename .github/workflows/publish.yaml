@@ -827,16 +827,19 @@ jobs:
     needs: [prepare, check-packagist, publish-crates]
     if: ${{ !cancelled() && needs.publish-crates.result != 'failure' && needs.prepare.outputs.release_php == 'true' && (needs.check-packagist.outputs.exists != 'true' || needs.prepare.outputs.force_republish == 'true') }}
     runs-on: ${{ matrix.platform.os }}
-    timeout-minutes: 60
+    # Windows PHP builds run ~55-60 min; the old 60 min cap killed the slower legs
+    # mid-link — rc.9 cancelled php8.2/8.3/8.4 windows at exactly 60 min while
+    # php8.5 (52 min) passed. 90 min gives headroom.
+    timeout-minutes: 90
     strategy:
       fail-fast: false
-      # 4 PHP versions x 5 platforms = 20 jobs, 8 of them on the scarce macOS
-      # runner pool. Cap concurrency so this single matrix cannot monopolize the
-      # pool and starve the other languages' macOS legs (jobs queued 2h+ and
-      # never ran on rc.4). Coverage is unchanged — only the fan-out rate is.
-      max-parallel: 4
+      # One build per PHP minor: ext-php-rs is ABI-locked to ZEND_MODULE_API_NO,
+      # so an 8.3 .so will not load on 8.4/8.5 — each supported minor needs its own
+      # build. 3 versions x 5 platforms = 15 independent jobs, run fully parallel.
+      # (Dropped the max-parallel:4 throttle that serialized these into 5 waves and
+      # pushed the run past 6h; dropped 8.2, security-only until Dec 2026.)
       matrix:
-        php: ["8.2", "8.3", "8.4", "8.5"]
+        php: ["8.3", "8.4", "8.5"]
         platform:
           - { os: ubuntu-latest, label: linux-x86_64, target: x86_64-unknown-linux-gnu }
           - { os: ubuntu-24.04-arm, label: linux-arm64, target: aarch64-unknown-linux-gnu }
