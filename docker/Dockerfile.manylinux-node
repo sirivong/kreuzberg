@@ -34,24 +34,31 @@ WORKDIR /build
 
 # manylinux_2_28 is AlmaLinux 8. It ships a gcc-toolset (modern gcc/g++ with
 # full C11/C++17 headers) already on PATH via the image's default profile, plus
-# dnf/AppStream. Enable EPEL for the HEIF decode codecs (libde265 for HEVC,
-# dav1d for AVIF); encoders (x265/aom) are intentionally omitted — xberg only
-# DECODES HEIC/AVIF, and x265 is not reliably packaged on EL8. Node.js comes
-# from the AppStream nodejs:20 module (needed to run the napi CLI).
+# dnf/AppStream. Node.js comes from the AppStream nodejs:20 module (needed to run
+# the napi CLI). EPEL supplies the HEIF decode codecs when available.
+#
+# Codecs are installed best-effort (`|| true`) with their EL8 package names
+# (`libdav1d-devel`, not `dav1d-devel`) — mirroring the proven build-python-wheels
+# provisioning. EL8 EPEL no longer reliably ships these -devel packages, so a hard
+# require would fail the build (it did, on both arches, for rc.10). libheif's cmake
+# then auto-detects whichever decoders installed and builds without the rest; the
+# x265/aom encoders stay off since xberg only DECODES HEIC/AVIF.
 RUN dnf -y install epel-release || \
     dnf -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm
 RUN dnf -y module enable nodejs:20 && \
     dnf -y install \
         cmake make pkgconfig git file curl \
         openssl-devel \
-        libde265-devel dav1d-devel \
         libpng-devel libjpeg-turbo-devel libtiff-devel zlib-devel \
         nodejs npm && \
+    for codec in libdav1d-devel libde265-devel; do dnf -y install "$codec" || true; done && \
     dnf clean all
 
 # Source-build libheif 1.23.0 (libheif-sys 5.3 needs >= 1.21; EL8 ships older).
-# DECODE-ONLY: enable the libde265 (HEVC) and dav1d (AVIF) decoders, disable the
-# x265/aom encoders so the build needs no encoder -devel packages on EL8.
+# DECODE-ONLY: auto-detect whichever of libde265 (HEVC) / dav1d (AVIF) the codec
+# step installed, disable the x265/aom encoders so the build needs no encoder
+# -devel packages on EL8. Codec decoders are NOT forced ON — a hard require fails
+# cmake when EL8 EPEL lacks the -devel package (matches build-python-wheels).
 RUN cd /tmp && \
     curl -fsSL -o libheif.tar.gz https://github.com/strukturag/libheif/releases/download/v1.23.0/libheif-1.23.0.tar.gz && \
     tar -xzf libheif.tar.gz && \
@@ -59,8 +66,7 @@ RUN cd /tmp && \
     cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local \
         -DCMAKE_INSTALL_LIBDIR=lib -DWITH_EXAMPLES=OFF -DWITH_GDK_PIXBUF=OFF \
         -DBUILD_TESTING=OFF \
-        -DWITH_X265=OFF -DWITH_AOM_ENCODER=OFF -DWITH_AOM_DECODER=OFF \
-        -DWITH_LIBDE265=ON -DWITH_DAV1D=ON && \
+        -DWITH_X265=OFF -DWITH_AOM_ENCODER=OFF -DWITH_AOM_DECODER=OFF && \
     cmake --build build -j"$(nproc)" && \
     cmake --install build && \
     ldconfig && \
