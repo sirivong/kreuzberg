@@ -1,6 +1,6 @@
 # Audio and Video Transcription
 
-Turn audio and video into searchable, model-ready transcripts. Whisper-based speech-to-text with automatic language detection and multi-language support, automatic sample-rate and channel handling, chunking for files over 30 seconds, and configurable model sizes from tiny (10 MB) to large.
+Turn audio and video into searchable, model-ready transcripts. Whisper-based speech-to-text with multi-language support, automatic sample-rate and channel handling, chunking for files over 30 seconds, and configurable model sizes from tiny (10 MB) to large. Select the language explicitly via `TranscriptionConfig.language`; the engine forces the given (or default English) language and does not auto-detect it. Each result also carries audio metadata read from the source file.
 
 See the [TranscriptionConfig reference](../reference/configuration.md#transcriptionconfig) for all configuration options.
 
@@ -91,6 +91,19 @@ let output = extract(
 ).await?;
 println!("{}", output.results[0].content); // transcript
 ```
+
+## Output metadata
+
+Each result carries the transcript as its content plus metadata read from the
+source file:
+
+- Common metadata: `title`, `authors` (from the artist tag), `created_at` (from
+  the release year), and `language` (the file's own ISO-639 language tag when
+  present — distinct from the `TranscriptionConfig.language` used for inference).
+- Audio format metadata (`FormatMetadata::Audio`): `duration_ms`, `codec`,
+  `container`, `sample_rate_hz`, `channels`, and `bitrate`. Duration, sample
+  rate, and channels fall back to the decoded PCM stream when the source file
+  carries no matching tag.
 
 ## Notes
 

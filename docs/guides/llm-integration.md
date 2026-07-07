@@ -29,7 +29,7 @@ Use vision-language models as an OCR backend by rendering document pages as imag
 === "Rust"
 
     ```rust title="Rust"
-    use xberg::{extract, ExtractionConfig, OcrConfig, LlmConfig};
+    use xberg::{extract, ExtractInput, ExtractionConfig, OcrConfig, LlmConfig};
 
     let config = ExtractionConfig {
         force_ocr: true,
@@ -43,7 +43,7 @@ Use vision-language models as an OCR backend by rendering document pages as imag
         }),
         ..Default::default()
     };
-    let result = extract("scan.pdf", None, &config).await?;
+    let result = extract(ExtractInput::from_uri("scan.pdf"), &config).await?;
     ```
 
 === "CLI"
@@ -228,7 +228,7 @@ Use provider-hosted embedding models when you need to match your vector database
         normalize: true,
         ..Default::default()
     };
-    let embeddings = embed_texts(&["Hello world"], &config)?;
+    let embeddings = embed_texts(vec!["Hello world".to_string()], &config)?;
     ```
 
 === "CLI"
@@ -368,11 +368,14 @@ The `source` field indicates which pipeline stage triggered the call: `"vlm_ocr"
 
 ## API Key Configuration
 
-API keys can be set via (in order of precedence):
+This guide is the canonical reference for LLM API-key precedence.
 
-1. `api_key` field in `LlmConfig` — highest priority, per-request
-2. Provider standard env vars (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, etc.)
-3. Xberg-specific env var (`XBERG_LLM_API_KEY`) — used as fallback for any provider
+When Xberg builds an LLM client, the key is resolved in this order (highest priority first):
+
+1. `api_key` field on the feature's `LlmConfig` (VLM OCR `vlm_config`, `structured_extraction.llm`, or the embedding `LlmConfig`). If set, it is used verbatim.
+2. Provider standard env var (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, etc.), resolved by liter-llm when `api_key` is unset.
+
+The `XBERG_LLM_API_KEY` env var is not a general per-provider fallback. It is read only during CLI/server config loading and populates `structured_extraction.llm.api_key` (structured extraction only — it does not affect VLM OCR or embeddings). Because it fills the `api_key` field, it overrides a config-file value and takes precedence over the provider standard env var for structured extraction. For VLM OCR and embeddings there is no Xberg-specific key env var; set `api_key` directly or rely on the provider standard env var.
 
 !!! Note "Local providers skip API key lookup" Local inference engines (Ollama, LM Studio, vLLM, llama.cpp, LocalAI, llamafile) do not require an API key. If you use a local provider prefix (for example, `ollama/`), the API key fields are ignored.
 

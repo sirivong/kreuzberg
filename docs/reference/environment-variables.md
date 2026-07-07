@@ -137,6 +137,20 @@ export XBERG_MAX_MULTIPART_FIELD_BYTES=524288000
 export XBERG_MAX_MULTIPART_FIELD_BYTES=1073741824
 ```
 
+### XBERG_API_ALLOW_LOCAL_URI_INPUTS
+
+**Type**: `Boolean` (`1`, `true`, or `yes` to enable; case-insensitive)
+**Default**: Disabled (unset)
+
+Allow the API server to accept local file paths and `file://` URIs as extraction inputs. When unset, the server rejects local file and `file://` inputs and only accepts remote (`http`/`https`) URIs.
+
+```bash title="Allow Local File Inputs"
+# Permit local file and file:// URI inputs (server only)
+export XBERG_API_ALLOW_LOCAL_URI_INPUTS=1
+```
+
+**Security Warning**: Enabling this lets API clients read files from the server's local filesystem. Leave disabled unless the server is trusted and isolated.
+
 ## Extraction Configuration
 
 These variables control document extraction behavior, including OCR, text chunking, and caching.
@@ -197,6 +211,21 @@ export XBERG_OCR_BACKEND=paddleocr
 - **tesseract**: Fastest, best for English and Latin scripts
 - **paddleocr**: Fast with good accuracy for many languages
 
+### XBERG_DISABLE_OCR
+
+**Type**: `Boolean` (`true`/`1` or `false`/`0`, case-insensitive)
+**Default**: `false`
+
+Disable OCR entirely. When enabled, scanned or image-only documents are not passed through any OCR backend.
+
+```bash title="Disable OCR"
+# Turn off OCR for all extractions
+export XBERG_DISABLE_OCR=true
+
+# Re-enable OCR (default)
+export XBERG_DISABLE_OCR=false
+```
+
 ### XBERG_CHUNKING_MAX_CHARS
 
 **Type**: `usize` (positive integer)
@@ -248,6 +277,34 @@ export XBERG_CHUNKING_MAX_OVERLAP=500
 ```text
 Chunking overlap (500) cannot be greater than or equal to max_chars (1000)
 ```
+
+### XBERG_CHUNKING_TOKENIZER
+
+**Type**: `String` (tokenizer model identifier)
+**Default**: unset (character-based chunk sizing)
+
+Switch chunk sizing from characters to tokens using the named tokenizer model. When set, chunk boundaries are measured in tokens rather than characters.
+
+```bash title="Token-Based Chunk Sizing"
+# Size chunks by a tokenizer model
+export XBERG_CHUNKING_TOKENIZER=bert-base-uncased
+```
+
+**Note**: Requires the `chunking-tokenizers` build feature. Must not be empty.
+
+### XBERG_LAYOUT_PRESET
+
+**Type**: `String`
+**Default**: unset (layout detection off)
+**Valid Values**: `fast`, `accurate`
+
+Enable layout detection. Setting this variable turns on layout detection; the preset value is accepted for backward compatibility but currently ignored, since only the RT-DETR model is available.
+
+```bash title="Enable Layout Detection"
+export XBERG_LAYOUT_PRESET=accurate
+```
+
+**Note**: Requires the `layout-detection` build feature.
 
 ### XBERG_CACHE_ENABLED
 
@@ -568,6 +625,19 @@ export XBERG_VLM_EMBEDDING_MODEL=cohere/embed-english-v3.0
 
 **Note**: When `api_key` is not set in config, liter-llm falls back to provider-standard environment variables (for example, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`).
 
+### XBERG_EMBEDDING_PLUGIN_NAME
+
+**Type**: `String`
+**Default**: unset
+
+Select an already-registered in-process embedding backend by name. Use this to route embedding generation through a custom registered plugin instead of a local ONNX model or a provider-hosted model.
+
+```bash title="Embedding Plugin Selection"
+export XBERG_EMBEDDING_PLUGIN_NAME=my-embedder
+```
+
+**Note**: Mutually exclusive with `XBERG_VLM_EMBEDDING_MODEL` — setting both is rejected. Must not be empty.
+
 | Variable                        | Description                                        | Example                         |
 | ------------------------------- | -------------------------------------------------- | ------------------------------- |
 | `XBERG_LLM_MODEL`           | Default LLM model for structured extraction        | `openai/gpt-4o-mini`            |
@@ -575,6 +645,7 @@ export XBERG_VLM_EMBEDDING_MODEL=cohere/embed-english-v3.0
 | `XBERG_LLM_BASE_URL`        | Custom base URL for structured extraction provider | `https://api.example.com`       |
 | `XBERG_VLM_OCR_MODEL`       | VLM model for vision-based OCR                     | `openai/gpt-4o`                 |
 | `XBERG_VLM_EMBEDDING_MODEL` | LLM model for provider-hosted embeddings           | `openai/text-embedding-3-small` |
+| `XBERG_EMBEDDING_PLUGIN_NAME` | Registered in-process embedding backend name     | `my-embedder`                   |
 
 ---
 
@@ -781,6 +852,49 @@ set ORT_DYLIB_PATH=C:\path\to\onnxruntime.dll
 ```
 
 When not set, Xberg auto-discovers system-installed ONNX Runtime on common paths. If no system library is found, the bundled CPU-only version is used.
+
+### XBERG_ORT_EP
+
+**Type**: `String`
+**Default**: unset (uses the configured or auto-selected provider)
+**Valid Values**: `cpu`, `coreml`, `cuda`, `tensorrt`, `auto`
+
+Force the ONNX Runtime execution provider across every ORT subsystem (layout detection, embeddings, PaddleOCR, reranker, auto-rotate, transcription). Overrides the configured provider, so operators can switch or A/B an EP without a recompile.
+
+```bash title="Force Execution Provider"
+# Force CPU
+export XBERG_ORT_EP=cpu
+
+# Force CoreML (macOS)
+export XBERG_ORT_EP=coreml
+```
+
+Non-CPU providers require an ONNX Runtime build that includes the provider (see `ORT_DYLIB_PATH`).
+
+### XBERG_COREML_FORMAT
+
+**Type**: `String`
+**Default**: unset (ORT default, `neuralnetwork`)
+**Valid Values**: `mlprogram`, `neuralnetwork` (`nn`)
+
+Select the CoreML model format when the CoreML execution provider is active. Unknown values are ignored with a warning.
+
+```bash title="CoreML Model Format"
+export XBERG_COREML_FORMAT=mlprogram
+```
+
+### XBERG_COREML_UNITS
+
+**Type**: `String`
+**Default**: unset (ORT default, `all`)
+**Valid Values**: `all`, `cpu_and_ne`, `cpu_and_gpu`, `cpu_only`
+
+Select the CoreML compute units when the CoreML execution provider is active. Unknown values are ignored with a warning.
+
+```bash title="CoreML Compute Units"
+# CPU and Neural Engine only
+export XBERG_COREML_UNITS=cpu_and_ne
+```
 
 ## See Also
 

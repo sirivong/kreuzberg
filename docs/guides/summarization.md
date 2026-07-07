@@ -49,14 +49,14 @@ Switch the strategy and attach an `LlmConfig`:
 
     --8<-- "snippets/python/summarization/abstractive.md"
 
-The model receives the extracted content and returns the summary verbatim. Token usage records in `ExtractedDocument.llm_usage` with `source = "summarization"`.
+The model receives the extracted content and returns the summary verbatim. Token usage records in `ExtractedDocument.llm_usage` with `source = "summarisation_abstractive"`.
 
 ## `max_tokens` Semantics
 
 | Strategy | What `max_tokens` caps |
 |---|---|
 | `Extractive` | Loose whitespace tokens in the output summary. The TextRank selector stops appending sentences once it would exceed the cap. |
-| `Abstractive` | The LLM provider's `max_tokens` request parameter. Counted in provider tokens. |
+| `Abstractive` | A prompt hint asking the model for approximately this many tokens — not a provider hard cap. The provider's request limit comes separately from `SummarizationConfig.llm.max_tokens`. |
 
 Leave `None` to let the backend pick a sensible default.
 

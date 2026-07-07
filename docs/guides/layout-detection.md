@@ -8,7 +8,7 @@ See the [LayoutDetectionConfig reference](../reference/configuration.md#layoutde
 
 ## Model
 
-Layout detection uses the **RT-DETR v2** model, an ONNX-based deep learning model that detects 17 layout element classes: text blocks, tables, figures, headers, footers, captions, code, lists, sections, formulas, footnotes, page headers/footers, titles, checkboxes, key-value regions, and document indices.
+Layout detection uses the **RT-DETR v2** model, an ONNX-based deep learning model that detects document layout regions. Regions are labeled with one of 18 `LayoutClass` categories: text blocks, tables, figures, charts, headers, footers, captions, code, lists, sections, formulas, footnotes, page headers/footers, titles, checkboxes, key-value regions, and document indices.
 
 Layout detection now populates `ExtractedDocument.formulas` for formula regions and supports chart understanding via
 `enable_chart_understanding`.
@@ -106,6 +106,12 @@ _171-document PDF corpus, CPU only. GPU acceleration significantly reduces the t
 
 See [LayoutDetectionConfig](../reference/configuration.md#layoutdetectionconfig) for all fields.
 
+### Layout-Informed Markdown
+
+`use_layout_for_markdown` feeds detected regions into the non-OCR PDF markdown pipeline to drive heading, table, list, and figure detection that would otherwise rely on font-clustering heuristics alone. It is a top-level `ExtractionConfig` field — set it alongside `layout`, not inside `LayoutDetectionConfig`.
+
+Enabling it improves structural F1 at the cost of inference latency (~150-300 ms/page CPU, ~20-50 ms/page GPU). Default: `false`. Requires the `layout-detection` feature and a set `layout` config; it is skipped when `force_ocr` is enabled. On the CLI, pass `--use-layout-for-markdown`.
+
 ## Table Structure Models
 
 When layout detection identifies a table region, a table structure model analyzes rows, columns, headers, and spanning cells. Set `LayoutDetectionConfig.table_model` to one of:
@@ -145,9 +151,9 @@ See [AccelerationConfig reference](../reference/configuration.md#accelerationcon
 
 ## Layout Classes
 
-The RT-DETR v2 model detects 17 classes. Each `LayoutRegion.class_name` is one of:
+The `LayoutClass` taxonomy defines 18 classes. Each `LayoutRegion.class_name` is one of:
 
-`caption`, `footnote`, `formula`, `list_item`, `page_footer`, `page_header`, `picture`, `section_header`, `table`, `text`, `title`, `document_index`, `code`, `checkbox_selected`, `checkbox_unselected`, `form`, `key_value_region`.
+`caption`, `chart`, `footnote`, `formula`, `list_item`, `page_footer`, `page_header`, `picture`, `section_header`, `table`, `text`, `title`, `document_index`, `code`, `checkbox_selected`, `checkbox_unselected`, `form`, `key_value_region`.
 
 See [`LayoutRegion`](../reference/types.md) in the types reference for the full field shape.
 

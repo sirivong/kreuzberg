@@ -14,9 +14,9 @@ curl -X POST "https://api.unstructured.io/general/v0/general" \
 **Xberg API**:
 
 ```bash
-curl -X POST "http://localhost:8080/extract" \
+curl -X POST "http://localhost:8000/extract" \
   -F 'files=@document.pdf' \
-  -F 'output_format=element_based'
+  -F 'config={"result_format":"element_based"}'
 ```
 
 ## Output Format Comparison
@@ -49,7 +49,7 @@ Xberg's default output provides richer metadata than Unstructured:
 
 ### Element-Based Output
 
-**Xberg** (when `output_format=element_based`):
+**Xberg** (when `result_format=element_based`):
 
 ```json
 {
@@ -149,25 +149,36 @@ for element in elements:
 **Xberg**:
 
 ```python
+import asyncio
+
 from xberg import ExtractInput, ExtractionConfig, extract
 
-# Option 1: Element-based output
-config = ExtractionConfig(result_format="element_based")
-output = extract(ExtractInput(kind="bytes", bytes=pdf_bytes, mime_type="application/pdf"), config)
-result = output.results[0]
 
-for element in result.elements:
-    print(f"{element.element_type}: {element.text}")
-    if element.metadata.page_number:
-        print(f"  Page: {element.metadata.page_number}")
+async def main(pdf_bytes: bytes) -> None:
+    # Option 1: Element-based output
+    config = ExtractionConfig(result_format="element_based")
+    output = await extract(
+        ExtractInput(kind="bytes", bytes=pdf_bytes, mime_type="application/pdf"), config
+    )
+    result = output.results[0]
 
-# Option 2: Unified output (default, richer metadata)
-output = extract(ExtractInput(kind="bytes", bytes=pdf_bytes, mime_type="application/pdf"))
-result = output.results[0]
-print(result.content)  # Full text
-print(result.metadata.title)  # Document metadata
-for page in result.pages:
-    print(f"Page {page.page_number}: {page.content[:100]}")
+    for element in result.elements:
+        print(f"{element.element_type}: {element.text}")
+        if element.metadata.page_number:
+            print(f"  Page: {element.metadata.page_number}")
+
+    # Option 2: Unified output (default, richer metadata)
+    output = await extract(
+        ExtractInput(kind="bytes", bytes=pdf_bytes, mime_type="application/pdf")
+    )
+    result = output.results[0]
+    print(result.content)  # Full text
+    print(result.metadata.title)  # Document metadata
+    for page in result.pages:
+        print(f"Page {page.page_number}: {page.content[:100]}")
+
+
+asyncio.run(main(pdf_bytes))
 ```
 
 ### TypeScript
@@ -198,12 +209,12 @@ const elementOutput = await extract(
     mimeType: "application/pdf",
     filename: "document.pdf",
   },
-  { outputFormat: "element_based" },
+  { resultFormat: "element_based" },
 );
 const elementResult = elementOutput.results[0];
 
 for (const element of elementResult.elements) {
-  console.log(`${element.element_type}: ${element.text}`);
+  console.log(`${element.elementType}: ${element.text}`);
 }
 
 // Option 2: Unified output with pages
@@ -219,7 +230,7 @@ const pageOutput = await extract(
 const pageResult = pageOutput.results[0];
 
 for (const page of pageResult.pages) {
-  console.log(`Page ${page.page_number}:`, page.content);
+  console.log(`Page ${page.pageNumber}:`, page.content);
 }
 ```
 
@@ -238,14 +249,14 @@ curl -X POST "https://api.unstructured.io/general/v0/general" \
 
 ```bash
 # Element-based output
-curl -X POST "http://localhost:8080/extract" \
+curl -X POST "http://localhost:8000/extract" \
   -F 'files=@document.pdf' \
-  -F 'output_format=element_based'
+  -F 'config={"result_format":"element_based"}'
 
 # With configuration JSON
-curl -X POST "http://localhost:8080/extract" \
+curl -X POST "http://localhost:8000/extract" \
   -F 'files=@document.pdf' \
-  -F 'config={"output_format":"element_based","pages":{"extract_pages":true}}'
+  -F 'config={"result_format":"element_based","pages":{"extract_pages":true}}'
 ```
 
 ## Feature Comparison
@@ -256,7 +267,7 @@ curl -X POST "http://localhost:8080/extract" \
 2. **Native Per-Page**: `PageContent` with byte offsets, hierarchy, tables, images per page
 3. **96 Formats**: vs Unstructured's ~30 formats
 4. **Performance**: Rust-based native implementation (vs Python-based)
-5. **10 Language Bindings**: Python, TypeScript, Ruby, PHP, Go, Java, C#, Elixir, Rust, WASM
+5. **15 Language Bindings**: Rust, Python, TypeScript/Node, Ruby, PHP, Go, Java, C#, Elixir, Dart, Kotlin Android, Swift, Zig, WASM, C FFI
 6. **Built-in Embeddings**: ONNX models via `/embed` endpoint (no external API)
 7. **Smart Hierarchy**: PDF font-size clustering for h1-h6 detection
 8. **Bounding Boxes**: Preserved from PDF source in element coordinates
@@ -282,7 +293,7 @@ curl -X POST "http://localhost:8080/extract" \
 ## Migration Checklist
 
 - [ ] Update API endpoint URLs (Unstructured → Xberg)
-- [ ] Add `output_format=element_based` if using element-based workflow
+- [ ] Add `result_format=element_based` (in the `config` JSON) if using element-based workflow
 - [ ] Update element type references (`Title` → `title`, camelCase → snake_case)
 - [ ] Update metadata field references (Xberg has richer metadata structure)
 - [ ] Test with sample documents to verify output equivalence
@@ -295,39 +306,48 @@ curl -X POST "http://localhost:8080/extract" \
 You can use **both formats** simultaneously:
 
 ```python
+import asyncio
+
 from xberg import ExtractInput, ExtractionConfig, PageConfig, extract
 
-config = ExtractionConfig(
-    result_format="element_based",  # Get elements
-    pages=PageConfig(extract_pages=True),  # Also get per-page content
-)
-output = extract(ExtractInput(kind="bytes", bytes=pdf_bytes, mime_type="application/pdf"), config)
-result = output.results[0]
 
-# Element-based processing
-for element in result.elements:
-    if element.element_type == "title":
-        index_heading(element.text)
+async def main(pdf_bytes: bytes) -> None:
+    config = ExtractionConfig(
+        result_format="element_based",  # Get elements
+        pages=PageConfig(extract_pages=True),  # Also get per-page content
+    )
+    output = await extract(
+        ExtractInput(kind="bytes", bytes=pdf_bytes, mime_type="application/pdf"), config
+    )
+    result = output.results[0]
 
-# Page-based processing
-for page in result.pages:
-    if page.hierarchy:
-        for block in page.hierarchy.blocks:
-            if block.level == "h1":
-                process_section(block.text)
+    # Element-based processing
+    for element in result.elements:
+        if element.element_type == "title":
+            index_heading(element.text)
+
+    # Page-based processing
+    for page in result.pages:
+        if page.hierarchy:
+            for block in page.hierarchy.blocks:
+                if block.level == "h1":
+                    process_section(block.text)
+
+
+asyncio.run(main(pdf_bytes))
 ```
 
 ## Performance Tips
 
 1. **Enable Caching**: `use_cache: true` (default) for repeated extractions
-2. **Disable OCR**: If documents are searchable PDFs, set `force_ocr: false`
+2. **Disable OCR**: For native text only (no OCR fallback, even on images), set `disable_ocr: true`. Searchable PDFs already skip OCR by default (`force_ocr: false`)
 3. **Limit Page Extraction**: Only enable `pages` if you need per-page content
 4. **Batch Processing**: Send multiple files in single request (up to 10MB total)
 5. **Use Embeddings Wisely**: Enable only for chunked content destined for vector DB
 
 ## Getting Help
 
-- **Documentation**: <https://github.com/xberg-io/Xberg>
+- **Documentation**: <https://github.com/xberg-io/xberg>
 - **Issues**: <https://github.com/xberg-io/xberg/issues>
 - **API Reference**: See `docs/api/` for endpoint documentation
 

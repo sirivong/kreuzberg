@@ -22,10 +22,10 @@ Decode QR codes embedded in extracted images. Detection runs over every `Extract
 === "Python"
 
     ```python title="Python"
-    from xberg import extract, ExtractionConfig
+    from xberg import extract, ExtractInput, ExtractionConfig
 
     config = ExtractionConfig(qr_codes=True)
-    result = await extract("ticket.pdf", config=config)
+    result = await extract(ExtractInput.from_uri("ticket.pdf"), config)
     for image in result.images or []:
         for qr in image.qr_codes or []:
             print(qr.payload)
@@ -51,13 +51,13 @@ Decode QR codes embedded in extracted images. Detection runs over every `Extract
 === "Rust"
 
     ```rust title="Rust"
-    use xberg::{extract, ExtractionConfig};
+    use xberg::{extract, ExtractInput, ExtractionConfig};
 
     let config = ExtractionConfig {
         qr_codes: Some(true),
         ..Default::default()
     };
-    let result = extract("ticket.pdf", None, &config).await?;
+    let result = extract(ExtractInput::from_uri("ticket.pdf"), &config).await?;
     for image in &result.images {
         if let Some(qrs) = &image.qr_codes {
             for qr in qrs {
@@ -81,7 +81,6 @@ Decode QR codes embedded in extracted images. Detection runs over every `Extract
 {
   "images": [
     {
-      "image_kind": "qr_code",
       "qr_codes": [
         {
           "payload": "https://example.com/order/4f2a",

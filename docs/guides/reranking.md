@@ -141,10 +141,10 @@ Use the `fast` preset to rerank three documents against a query.
 
 | Preset | When to use |
 |--------|-------------|
-| `fast` | Latency-critical retrieval, English-only. 22M parameters, ~50ms on CPU for 10 docs. |
-| `balanced` | Production English/Chinese RAG. 278M parameters, the recommended default. |
-| `quality` | Complex queries where accuracy matters more than latency. 560M parameters. |
-| `multilingual` | International documents or long context (up to 8192 tokens). 100+ languages. |
+| `fast` | Latency-critical retrieval, English-only. ~37M parameters, 8192-token context. |
+| `balanced` | Production English/Chinese RAG. ~278M parameters, 512-token context, the recommended default. |
+| `quality` | Complex queries where accuracy matters more than latency. 568M parameters, 100+ languages, 8192-token context. |
+| `multilingual` | International documents, balanced latency/quality. ~278M parameters, 1024-token context, 100+ languages. |
 
 All four download lazily from HuggingFace on first use and cache under `~/.cache/xberg/rerankers/`.
 
@@ -227,7 +227,13 @@ config = RerankerConfig(model=RerankerModelType(type="plugin", name="my-reranker
 results = rerank_sync("query text", ["doc1", "doc2"], config)
 ```
 
-The Plugin variant works on every target (including WASM) because no native ONNX Runtime is loaded.
+The Plugin variant loads no ONNX Runtime model, but the rerank dispatch is still gated behind the `reranker` feature. On no-ORT targets — WebAssembly and the Android x86_64 emulator — `rerank` and `rerank_async` compile to stubs that return an error, so the Plugin variant is not available there.
+
+## Async execution and Tokio runtimes
+
+`rerank_async` is the async counterpart to `rerank`. For the Preset and Custom (ONNX) paths it offloads the blocking inference to Tokio's blocking thread pool via `spawn_blocking`, keeping the async executor free; for the Llm and Plugin backends it awaits the backend directly.
+
+The synchronous `rerank` entry point drives Llm and Plugin backends by blocking on their async work. It cannot run inside a **current-thread** Tokio runtime — doing so returns an error telling you to call `rerank_async` or build a multi-thread runtime. The Preset and Custom (ONNX) paths carry no such restriction and run on any runtime or none.
 
 ## Performance notes
 

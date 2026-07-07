@@ -81,19 +81,55 @@ curl -F "files=@scanned.pdf" \
 }
 ```
 
+#### POST /extract-async
+
+Queue an extraction job and return immediately. Accepts the same multipart form
+data or JSON body as `/extract`. Returns `202 Accepted` with a job identifier.
+Returns `429 Too Many Requests` when the concurrent job limit is reached.
+
+```bash title="Terminal"
+curl -F "files=@document.pdf" http://localhost:8000/extract-async
+```
+
+```json title="Response (202)"
+{ "job_id": "550e8400-e29b-41d4-a716-446655440000" }
+```
+
+#### GET /jobs/{job_id}
+
+Poll the status of an async job. `state` is one of `pending`, `running`,
+`completed`, or `failed`. The `result` field is present only when
+`state == completed`; the `error` field only when `state == failed`. Jobs
+expire after 5 minutes and return `404` once evicted.
+
+```bash title="Terminal"
+curl http://localhost:8000/jobs/550e8400-e29b-41d4-a716-446655440000
+```
+
+```json title="Response"
+{
+  "job_id": "550e8400-e29b-41d4-a716-446655440000",
+  "state": "completed",
+  "created_at": "2026-07-07T12:00:00Z",
+  "updated_at": "2026-07-07T12:00:03Z",
+  "result": { "results": [], "errors": [], "summary": {} }
+}
+```
+
 #### Other Endpoints
 
 | Endpoint          | Method | Description                                                               |
 | ----------------- | ------ | ------------------------------------------------------------------------- |
-| `/health`         | GET    | `{"status":"healthy","version":"4.6.3"}`                                  |
-| `/version`        | GET    | `{"version":"4.6.3"}`                                                     |
+| `/health`         | GET    | `{"status":"healthy","version":"1.0.0-rc.12"}`                            |
+| `/version`        | GET    | `{"version":"1.0.0-rc.12"}`                                               |
 | `/detect`         | POST   | MIME type detection (multipart)                                           |
+| `/formats`        | GET    | List supported formats                                                   |
 | `/cache/stats`    | GET    | Cache statistics                                                          |
 | `/cache/warm`     | POST   | Pre-download models                                                       |
 | `/cache/manifest` | GET    | Model manifest with checksums                                             |
 | `/cache/clear`    | DELETE | Clear all cached files                                                    |
 | `/info`           | GET    | `{"version":"...","rust_backend":true}`                                   |
-| `/openapi.json`   | GET    | OpenAPI 3.0 schema                                                        |
+| `/openapi.json`   | GET    | OpenAPI 3.1 schema                                                        |
 
 ### Client Examples
 
@@ -173,10 +209,11 @@ curl -F "files=@scanned.pdf" \
 
 The server discovers `xberg.toml` in the current and parent directories. Pass `--config path/to/file` to use a different file.
 
-| Variable                       | Default | Description                     |
-| ------------------------------ | ------- | ------------------------------- |
-| `XBERG_MAX_UPLOAD_SIZE_MB` | `100`   | Max upload size in MB           |
-| `XBERG_CORS_ORIGINS`       | `*`     | Comma-separated allowed origins |
+| Variable                          | Default     | Description                        |
+| --------------------------------- | ----------- | ---------------------------------- |
+| `XBERG_MAX_REQUEST_BODY_BYTES`    | `104857600` | Max request body size in bytes     |
+| `XBERG_MAX_MULTIPART_FIELD_BYTES` | `104857600` | Max multipart field size in bytes  |
+| `XBERG_CORS_ORIGINS`              | `*`         | Comma-separated allowed origins    |
 
 !!! Warning Default CORS allows all origins. Set `XBERG_CORS_ORIGINS` explicitly in production.
 
@@ -223,17 +260,7 @@ xberg mcp --config xberg.toml
 
 ### Tools
 
-| Tool                  | Key parameters                                                                                                                                    | Description                                                               |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| `extract`             | `input`                                                                                                                                           | Extract one `ExtractInput`                                                |
-| `extract_batch`       | `inputs`                                                                                                                                          | Extract multiple URI or byte inputs                                       |
-| `detect_mime_type`    | `path`                                                                                                                                            | Detect file format                                                        |
-| `list_formats`        | —                                                                                                                                                 | List supported formats                                                    |
-| `get_version`         | —                                                                                                                                                 | Library version                                                           |
-| `cache_stats`         | —                                                                                                                                                 | Cache usage                                                               |
-| `cache_clear`         | —                                                                                                                                                 | Remove cached files                                                       |
-| `cache_manifest`      | —                                                                                                                                                 | Model checksums                                                           |
-| `cache_warm`          | —                                                                                                                                                 | Pre-download models                                                       |
+The MCP server exposes `extract`, `extract_batch`, `detect_mime_type`, `list_formats`, `get_version`, and the `cache_*` tools. See the [MCP Reference](../reference/mcp.md) for the full tool list, parameters, and schemas.
 
 All extraction tools accept an optional `config` object. URI and byte payload details live in `ExtractInput` as `kind = "uri"` or `kind = "bytes"`.
 

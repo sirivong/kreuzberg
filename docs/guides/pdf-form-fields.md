@@ -7,7 +7,7 @@ Pull the filled values out of AcroForm/XFA PDFs as structured fields you can for
 Fillable PDFs store form structure in two ways:
 
 - **AcroForm** — Static form specification with field metadata. Fully supported.
-- **XFA** — XML-based dynamic forms. Currently returns empty results (use AcroForm as workaround).
+- **XFA** — XML-based dynamic forms. Fully supported. When a document carries both layers, AcroForm fields are extracted first and XFA-only fields are appended.
 
 Extracted fields appear in `result.form_fields` as a list of `PdfFormField` structs, each carrying:
 
@@ -19,7 +19,7 @@ Extracted fields appear in `result.form_fields` as a list of `PdfFormField` stru
 | `value` | string | Current field value (if filled). |
 | `default_value` | string | Default value from the form template. |
 | `flags` | u32 | Bitmask: read-only, required, multiline, password, and so on. |
-| `page` | u32 | 1-indexed page number the field appears on. |
+| `page` | `Option<u32>` | 1-indexed page number the field appears on. Currently always `None` — page assignment is not yet wired up. |
 | `bbox` | `BoundingBox` | Widget location on the page (x, y, width, height). |
 | `max_length` | u32 | Maximum input length (text fields only). |
 | `tooltip` | string | Hover text or field description. |
@@ -154,7 +154,7 @@ form_data = {f.full_name: f.value for f in result.form_fields if f.value}
 Check required fields and validate data before processing:
 
 ```python
-required_fields = {f for f in result.form_fields if f.flags & 0x01}  # Check required bit
+required_fields = {f for f in result.form_fields if f.flags & 0x02}  # Check required bit (0x01 is read-only)
 unfilled = {f.full_name for f in required_fields if not f.value}
 if unfilled:
     print(f"Missing required fields: {unfilled}")
@@ -178,7 +178,7 @@ form_json = {
 
 ## Limitations
 
-- **XFA forms** — Dynamic XML-based forms are not yet supported; `form_fields` will be empty. Use AcroForm-based templates instead.
+- **Page numbers** — The `page` field is currently always `None`; page assignment via spatial analysis is not yet wired up. Use `bbox` for on-page positioning.
 - **Flattened PDFs** — If form content is rendered into the PDF content stream (vs. stored as field metadata), the form structure is lost. Only editable/unfilled forms preserve field metadata.
 - **Appearance streams** — Custom visual styling (button backgrounds, text colors) is not extracted; field values and types only.
 
@@ -186,7 +186,7 @@ form_json = {
 
 1. **Check field types** — Use `field_type` to handle different input types (text vs. checkbox vs. dropdown).
 2. **Validate input** — Check `max_length` and format requirements before use.
-3. **Preserve layout** — Use `bbox` and `page` to reconstruct form layout programmatically.
+3. **Preserve layout** — Use `bbox` to reconstruct form layout programmatically (`page` is not yet populated).
 4. **Default values** — When a field has no `value`, consider using `default_value` as fallback.
 5. **Test on real forms** — Form structures vary; test your extraction logic on representative PDFs from your sources.
 

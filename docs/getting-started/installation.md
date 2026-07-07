@@ -264,7 +264,7 @@ Pixel decoding for Apple HEIC photos, HEIF still images, AVIF, HEIC sequences
 Enable the feature when building from source:
 
 ```toml
-xberg = { version = "5", features = ["heic", "ocr"] }
+xberg = { version = "1", features = ["heic", "ocr"] }
 ```
 
 `heic` is included in the `full` aggregate feature. HEIC pixel decoding is
@@ -448,7 +448,7 @@ Enable features selectively in `Cargo.toml`:
 
 ```toml title="Cargo.toml"
 [dependencies]
-xberg = { version = "5", features = ["pdf", "ocr", "chunking"] }
+xberg = { version = "1", features = ["pdf", "ocr", "chunking"] }
 # Default features are tokio-runtime + simd-utf8; format and analysis features are opt-in.
 ```
 

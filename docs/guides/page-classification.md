@@ -90,11 +90,7 @@ The output is JSON-schema-enforced: the response must be a JSON array of strings
 
 Pick any liter-llm provider. The provider matrix from [LLM Integration](llm-integration.md#supported-providers) applies here. For high-volume classification, `gpt-4o-mini`, `claude-3-5-haiku`, and `google/gemini-2.0-flash` give good cost/accuracy trade-offs.
 
-API-key precedence chain:
-
-1. `PageClassificationConfig.llm.api_key`
-2. `XBERG_LLM_API_KEY`
-3. Per-provider env var (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, …)
+Set `PageClassificationConfig.llm.api_key` explicitly, or leave it unset to fall back to the provider's standard env var (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, …). See [LLM Integration](llm-integration.md#api-key-configuration) for the full precedence chain.
 
 ## Related
 

@@ -760,6 +760,364 @@ Higher DPI improves accuracy but increases processing time and memory.
 
     --8<-- "snippets/ruby/config/ocr_dpi_config.md"
 
+## Advanced OCR Configuration
+
+Beyond backend and DPI selection, `OcrConfig` and `ExtractionConfig` expose finer control over when OCR runs, page orientation correction, the native-text-to-OCR fallback decision, multi-backend fallback, and structured element output. See the [OcrConfig reference](../reference/configuration.md#ocrconfig) for every field.
+
+### Force OCR on Specific Pages
+
+Set `force_ocr_pages` on `ExtractionConfig` to OCR only the listed pages (1-indexed). Unlisted pages use native text extraction. PDF only. Ignored when `force_ocr` is `true`; duplicates are deduplicated. Provide an `ocr` config for backend and language selection — defaults are used if absent.
+
+=== "Python"
+
+    ```python title="force_ocr_pages.py"
+    from xberg import ExtractInput, ExtractionConfig, extract
+
+    config = ExtractionConfig(force_ocr_pages=[1, 3, 5])
+    output = await extract(ExtractInput(kind="uri", uri="document.pdf"), config=config)
+    result = output.results[0]
+    ```
+
+=== "TypeScript"
+
+    ```typescript title="force_ocr_pages.ts"
+    import { ExtractInputKind, extract } from '@xberg-io/xberg';
+
+    const output = await extract(
+      { kind: ExtractInputKind.Uri, uri: 'document.pdf' },
+      { forceOcrPages: [1, 3, 5] },
+    );
+    const result = output.results[0];
+    ```
+
+=== "Rust"
+
+    ```rust title="force_ocr_pages.rs"
+    use xberg::{extract, ExtractInput, ExtractionConfig};
+
+    let config = ExtractionConfig {
+        force_ocr_pages: Some(vec![1, 3, 5]),
+        ..Default::default()
+    };
+    let output = extract(ExtractInput::from_uri("document.pdf"), &config).await?;
+    let result = &output.results[0];
+    ```
+
+=== "TOML"
+
+    ```toml title="xberg.toml"
+    force_ocr_pages = [1, 3, 5]
+    ```
+
+### Auto-Rotate Pages
+
+Set `auto_rotate` on `OcrConfig` to detect page orientation (0/90/180/270 degrees) with Tesseract's orientation-and-script detection before recognition. Pages rotated with high confidence are corrected before OCR — important for rotated scans. Defaults to `false`.
+
+=== "Python"
+
+    ```python title="auto_rotate.py"
+    from xberg import ExtractInput, ExtractionConfig, OcrConfig, extract
+
+    config = ExtractionConfig(
+        force_ocr=True,
+        ocr=OcrConfig(backend="tesseract", auto_rotate=True),
+    )
+    output = await extract(ExtractInput(kind="uri", uri="rotated_scan.pdf"), config=config)
+    result = output.results[0]
+    ```
+
+=== "TypeScript"
+
+    ```typescript title="auto_rotate.ts"
+    import { ExtractInputKind, extract } from '@xberg-io/xberg';
+
+    const output = await extract(
+      { kind: ExtractInputKind.Uri, uri: 'rotated_scan.pdf' },
+      { forceOcr: true, ocr: { backend: 'tesseract', autoRotate: true } },
+    );
+    const result = output.results[0];
+    ```
+
+=== "Rust"
+
+    ```rust title="auto_rotate.rs"
+    use xberg::{extract, ExtractInput, ExtractionConfig, OcrConfig};
+
+    let config = ExtractionConfig {
+        force_ocr: true,
+        ocr: Some(OcrConfig {
+            backend: "tesseract".into(),
+            auto_rotate: true,
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let output = extract(ExtractInput::from_uri("rotated_scan.pdf"), &config).await?;
+    let result = &output.results[0];
+    ```
+
+=== "TOML"
+
+    ```toml title="xberg.toml"
+    [ocr]
+    backend = "tesseract"
+    auto_rotate = true
+    ```
+
+### Quality Thresholds
+
+The native-text-to-OCR fallback decision (should a PDF page with an embedded text layer be re-OCR'd?) and multi-backend stage acceptance are governed by `quality_thresholds` (`OcrQualityThresholds`) on `OcrConfig`. When unset, compiled defaults apply. Frequently tuned fields:
+
+| Field                            | Default | Purpose                                                                                       |
+| -------------------------------- | ------- | --------------------------------------------------------------------------------------------- |
+| `pipeline_min_quality`           | `0.5`   | Minimum quality score (0.0-1.0) for a pipeline stage result to be accepted; below this, the next backend runs. |
+| `min_meaningful_words`           | `3`     | Minimum count of meaningful words before native text is accepted instead of OCR.              |
+| `min_alnum_ratio`                | `0.3`   | Minimum alphanumeric ratio of non-whitespace characters.                                      |
+| `critical_fragmented_word_ratio` | `0.80`  | Fraction of 1-2 character words that forces OCR regardless of other signals.                  |
+
+=== "Python"
+
+    ```python title="quality_thresholds.py"
+    from xberg import ExtractionConfig, OcrConfig, OcrQualityThresholds, extract
+
+    config = ExtractionConfig(
+        ocr=OcrConfig(
+            quality_thresholds=OcrQualityThresholds(pipeline_min_quality=0.6),
+        ),
+    )
+    ```
+
+=== "Rust"
+
+    ```rust title="quality_thresholds.rs"
+    use xberg::{ExtractionConfig, OcrConfig, OcrQualityThresholds};
+
+    let config = ExtractionConfig {
+        ocr: Some(OcrConfig {
+            quality_thresholds: Some(OcrQualityThresholds {
+                pipeline_min_quality: 0.6,
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    ```
+
+=== "TOML"
+
+    ```toml title="xberg.toml"
+    [ocr.quality_thresholds]
+    pipeline_min_quality = 0.6
+    ```
+
+### Multi-Backend Pipeline
+
+Set `pipeline` (`OcrPipelineConfig`) to try several backends in priority order (highest first) with quality-based fallback. Each stage's output is scored; if it meets `pipeline_min_quality`, it is accepted, otherwise the next stage runs. Each stage (`OcrPipelineStage`) has a `backend` and `priority` (default `100`), plus optional `language`, `tesseract_config`, `paddle_ocr_config`, `vlm_config`, and `backend_options`.
+
+When `pipeline` is set, the top-level `backend`, `vlm_fallback`, and `backend_options` are ignored — configure each stage directly instead.
+
+!!! Info "Automatic paddle-ocr pipeline"
+    When the `paddle-ocr` feature is compiled in and `backend` is the default (`tesseract`), xberg auto-constructs a `[tesseract @ 100, paddleocr @ 50]` pipeline. An explicitly chosen non-default backend is honored as-is with no silent fallback.
+
+=== "Python"
+
+    ```python title="ocr_pipeline.py"
+    from xberg import OcrConfig, OcrPipelineConfig, OcrPipelineStage, OcrQualityThresholds
+
+    ocr = OcrConfig(
+        pipeline=OcrPipelineConfig(
+            stages=[
+                OcrPipelineStage(backend="tesseract", priority=100),
+                OcrPipelineStage(backend="paddleocr", priority=50),
+            ],
+            quality_thresholds=OcrQualityThresholds(pipeline_min_quality=0.6),
+        ),
+    )
+    ```
+
+=== "Rust"
+
+    ```rust title="ocr_pipeline.rs"
+    use xberg::{OcrConfig, OcrPipelineConfig, OcrPipelineStage, OcrQualityThresholds};
+
+    let ocr = OcrConfig {
+        pipeline: Some(OcrPipelineConfig {
+            stages: vec![
+                OcrPipelineStage {
+                    backend: "tesseract".into(),
+                    priority: 100,
+                    language: None,
+                    tesseract_config: None,
+                    paddle_ocr_config: None,
+                    vlm_config: None,
+                    backend_options: None,
+                },
+                OcrPipelineStage {
+                    backend: "paddleocr".into(),
+                    priority: 50,
+                    language: None,
+                    tesseract_config: None,
+                    paddle_ocr_config: None,
+                    vlm_config: None,
+                    backend_options: None,
+                },
+            ],
+            quality_thresholds: OcrQualityThresholds {
+                pipeline_min_quality: 0.6,
+                ..Default::default()
+            },
+        }),
+        ..Default::default()
+    };
+    ```
+
+=== "TOML"
+
+    ```toml title="xberg.toml"
+    [[ocr.pipeline.stages]]
+    backend = "tesseract"
+    priority = 100
+
+    [[ocr.pipeline.stages]]
+    backend = "paddleocr"
+    priority = 50
+
+    [ocr.pipeline.quality_thresholds]
+    pipeline_min_quality = 0.6
+    ```
+
+### VLM Fallback
+
+`vlm_fallback` (`VlmFallbackPolicy`) is ergonomic sugar over an explicit `pipeline`. When set and `pipeline` is `None`, an equivalent pipeline is synthesised automatically. It requires `vlm_config` to be set. When `pipeline` is explicitly set, `vlm_fallback` is ignored.
+
+- `disabled` (default) — single-backend mode.
+- `on_low_quality` — run the classical backend first; if the result scores below `quality_threshold`, retry the page with the VLM.
+- `always` — skip the classical backend; send every page to the VLM.
+
+=== "Python"
+
+    ```python title="vlm_fallback.py"
+    from xberg import LlmConfig, OcrConfig, VlmFallbackPolicy
+
+    ocr = OcrConfig(
+        vlm_fallback=VlmFallbackPolicy.on_low_quality(0.6),
+        vlm_config=LlmConfig(model="openai/gpt-4o-mini"),
+    )
+    ```
+
+=== "Rust"
+
+    ```rust title="vlm_fallback.rs"
+    use xberg::{LlmConfig, OcrConfig, VlmFallbackPolicy};
+
+    let ocr = OcrConfig {
+        vlm_fallback: VlmFallbackPolicy::OnLowQuality { quality_threshold: 0.6 },
+        vlm_config: Some(LlmConfig {
+            model: "openai/gpt-4o-mini".into(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    ```
+
+=== "TOML"
+
+    ```toml title="xberg.toml"
+    [ocr.vlm_fallback]
+    mode = "on_low_quality"
+    quality_threshold = 0.6
+
+    [ocr.vlm_config]
+    model = "openai/gpt-4o-mini"
+    ```
+
+### OCR Elements and Word-Level Bounding Boxes
+
+Set `element_config` (`OcrElementConfig`) on `OcrConfig` to emit structured OCR elements with spatial and confidence data. When `include_elements` is `true`, the result's `ocr_elements` field is populated with `OcrElement` entries — each carries `text`, `geometry` (a `rectangle` with `left`/`top`/`width`/`height` in pixels, or a 4-point `quadrilateral` for rotated text), `confidence` (`detection` and `recognition`, 0.0-1.0), `level`, optional `rotation`, and a 1-indexed `page_number`.
+
+- `include_elements` — populate `ocr_elements`. Defaults to `false`.
+- `min_level` — minimum hierarchy level to include: `word`, `line` (default), `block`, or `page`. Elements below this level are dropped.
+- `min_confidence` — drop elements with recognition confidence below this (0.0-1.0).
+- `build_hierarchy` — populate `parent_id` from spatial containment (Tesseract only).
+
+=== "Python"
+
+    ```python title="ocr_elements.py"
+    from xberg import (
+        ExtractInput,
+        ExtractionConfig,
+        OcrConfig,
+        OcrElementConfig,
+        OcrElementLevel,
+        extract,
+    )
+
+    config = ExtractionConfig(
+        force_ocr=True,
+        ocr=OcrConfig(
+            element_config=OcrElementConfig(
+                include_elements=True,
+                min_level=OcrElementLevel.WORD,
+                min_confidence=0.5,
+            ),
+        ),
+    )
+    output = await extract(ExtractInput(kind="uri", uri="scan.png"), config=config)
+    result = output.results[0]
+    for element in result.ocr_elements or []:
+        print(element.text, element.confidence.recognition, element.page_number)
+    ```
+
+=== "TypeScript"
+
+    ```typescript title="ocr_elements.ts"
+    import { ExtractInputKind, OcrElementLevel, extract } from '@xberg-io/xberg';
+
+    const output = await extract(
+      { kind: ExtractInputKind.Uri, uri: 'scan.png' },
+      {
+        forceOcr: true,
+        ocr: {
+          elementConfig: {
+            includeElements: true,
+            minLevel: OcrElementLevel.Word,
+            minConfidence: 0.5,
+          },
+        },
+      },
+    );
+    const result = output.results[0];
+    for (const element of result.ocrElements ?? []) {
+      console.log(element.text, element.confidence?.recognition, element.pageNumber);
+    }
+    ```
+
+=== "Rust"
+
+    ```rust title="ocr_elements.rs"
+    use xberg::{extract, ExtractInput, ExtractionConfig, OcrConfig, OcrElementConfig, OcrElementLevel};
+
+    let config = ExtractionConfig {
+        force_ocr: true,
+        ocr: Some(OcrConfig {
+            element_config: Some(OcrElementConfig {
+                include_elements: true,
+                min_level: OcrElementLevel::Word,
+                min_confidence: 0.5,
+                build_hierarchy: false,
+            }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let output = extract(ExtractInput::from_uri("scan.png"), &config).await?;
+    let result = &output.results[0];
+    for element in result.ocr_elements.iter().flatten() {
+        println!("{} {} p{}", element.text, element.confidence.recognition, element.page_number);
+    }
+    ```
+
 ## PaddleOCR Script Families
 
 80+ languages across 11 script families (PP-OCRv5). Recognition models are downloaded on demand from HuggingFace:

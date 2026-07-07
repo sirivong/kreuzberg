@@ -51,7 +51,7 @@ Full content intelligence from one engine. Turn documents, URLs, code, and media
 
   Vectorize with local ONNX models or provider-hosted embeddings. Enrich with named entity recognition, keyword extraction (YAKE/RAKE), image captions, and token reduction.
 
-- :material-translate:{ .lg .middle } **16-Language Native SDKs**
+- :material-translate:{ .lg .middle } **15-Language Native SDKs**
 
   Python, TypeScript, Rust, Go, Java, C#, Ruby, PHP, Elixir, Dart, Swift, Zig, C FFI—plus CLI, REST API, MCP server, Docker, and WASM.
 

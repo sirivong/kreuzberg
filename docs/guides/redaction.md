@@ -49,7 +49,7 @@ Strip PII from extracted documents before they leave your system—emails, phone
 | `IpAddress` | Pattern | IPv4 + IPv6. |
 | `Iban` | Pattern | ISO country code + length + checksum. |
 | `SwiftBic` | Pattern | See "Known limitations" — current regex over-matches plain English words. |
-| `DateOfBirth` | Pattern | DOB heuristics. |
+| `DateOfBirth` | — | Not yet implemented. Accepted in config but never fires — see "Known limitations". |
 | `Person` | NER | Requires `RedactionConfig.ner = Some(NerConfig)`. |
 | `Organization` | NER | Same. |
 | `Location` | NER | Same. |
@@ -60,7 +60,7 @@ Strip PII from extracted documents before they leave your system—emails, phone
 | `RedactionStrategy` | Output | Use when |
 |---|---|---|
 | `Mask` (default) | `[REDACTED]` | You only need PII gone. |
-| `Hash` | SHA-256 truncated to 16 hex chars | You need equality joins downstream without recovering the source. |
+| `Hash` | `[HASH:<16hex>]` — SHA-256 truncated to 16 hex chars, wrapped | You need equality joins downstream without recovering the source. |
 | `TokenReplace` | `[PERSON_1]`, `[PERSON_2]`, … per category | You need to preserve co-reference inside the document. |
 | `Drop` | empty string | You need the span gone with no marker. |
 
@@ -122,10 +122,31 @@ The redaction post-processor:
 
 The NER backend, when enabled, follows whichever backend you configure — see [NER](ner.md) for the network-call surface of `ner-llm`.
 
+### Redaction blast radius
+
+Redaction does not stop at `content`. It rewrites every text-bearing field on the result in place, so a caller cannot recover PII by reading a secondary surface the primary content no longer exposes. Beyond `content`, the following are masked with the same strategy and category set:
+
+- `formatted_content`, and per-chunk `content`
+- `summary` text, and `translation` content plus its formatted markup
+- NER `entities` text and page-classification labels
+- `tables` — cell values and markdown — including per-page tables
+- Per-page `content`, `elements`, and `ocr_elements` text
+- `djot_content` plain text
+- `images` — captions, descriptions, and nested OCR sub-documents (recursively)
+- `uris` — URL and label (so an always-on `Email` match cannot leak via a `mailto:` link)
+- `annotations` (PDF comment text)
+- `form_fields` — name, value, default value, and tooltip
+- `extracted_keywords` (with `keywords-yake` / `keywords-rake`)
+- `metadata` — title, subject, authors, keywords
+- `structured_output`, and `code_intelligence` (with `tree-sitter`) — string values in the JSON tree; object keys are left alone
+
+The secondary surfaces are re-scanned by the pattern engine (and custom terms/patterns), not the NER backend — NER runs once, over `content`. `redaction_report.total_redacted` and `findings` count only the `content` pass; secondary surfaces are still rewritten but do not add to the report totals.
+
 ## Known Limitations
 
 - **SWIFT/BIC over-matches plain English words.** The current regex (`[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}(?:[A-Z0-9]{3})?`) accepts arbitrary 8/11-letter all-caps tokens after the engine uppercases the input. Until a country-allowlist lands, scope `RedactionConfig.categories` to the subset you actually need rather than redacting everything.
 - **PERSON / ORGANIZATION / LOCATION require NER.** Without `RedactionConfig.ner`, those categories are silently skipped.
+- **`DateOfBirth` is not yet implemented.** The pattern engine has no DOB detector — the category is accepted in config for forward compatibility but never produces a match. Do not rely on it to remove dates of birth.
 
 ## Related
 
