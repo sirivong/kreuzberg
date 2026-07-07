@@ -35,6 +35,42 @@ The changelog starts fresh at `1.0.0-rc.1`. For the Kreuzberg v1–v4 history, s
 
 ### Fixed
 
+- **Concurrent model downloads no longer race the Hugging Face cache lock.** When two
+  threads needed the same cold model at once — e.g. parallel-page OCR workers, or two
+  GPU tests sharing a layout model — hf-hub errored one of them with `Lock acquisition
+  failed` instead of waiting. Downloads of the same file now serialize above hf-hub, so
+  the first populates the cache and the rest get the warm copy; different files still
+  download in parallel.
+- **Hunyuan-OCR auto-downloads its weights instead of requiring a local `model_path`.**
+  The docs said the model downloads on first use, but the backend errored unless
+  `backend_options.model_path` pointed at a pre-staged directory — and the checkpoint's
+  Hugging Face repo was pulled upstream, so there was nowhere obvious to stage it from.
+  The backend now fetches the weights on first use from Tencent's official ModelScope
+  release, verifies every file against a checked-in sha256 manifest, and caches them
+  under the xberg cache directory. An explicit `model_path` still takes precedence for
+  offline or custom weights.
+- **PaddleOCR-VL crashed on non-square pages.** The multimodal rope index built the
+  vision-block position tensors with a transposed height/width layout and dropped the
+  temporal row, so any image whose patch grid wasn't square failed inference with
+  `cannot broadcast [1, N] to [N, M]`. Position ids now follow the reference
+  Qwen2-VL layout (t constant per frame, h per grid row, w per grid column).
+- **PaddleOCR-VL generation never decoded a token.** The greedy loop read the argmax
+  as a rank-1 tensor where the model returns `[1, 1]`, re-fed the full sequence every
+  step while the attention KV cache kept appending (duplicating keys), and the
+  position-continuation branch for cached decode steps was missing, failing with a
+  dtype mismatch. The loop now prefills once and feeds each new token through the
+  cached decode path at its absolute position, like the other Candle OCR engines,
+  and returns only newly generated tokens so the prompt is never echoed into the
+  OCR output.
+- **PaddleOCR-VL prefill attended bidirectionally, degenerating generation.** The
+  ERNIE decoder ran the multi-token prefill without a causal mask, so every prompt
+  token attended to future positions, the KV cache was built from contaminated
+  hidden states, and generation collapsed into repeating a single token. The prefill
+  now applies the standard additive causal mask, like the other Candle OCR decoders.
+- **Hunyuan-OCR failed to load checkpoints whose `config.json` omits
+  `tie_word_embeddings`.** Later revisions of the released checkpoint drop the field
+  (transformers defaults it to `true`); the config parser now does the same instead
+  of rejecting the whole model.
 - **PDF/OCR worker-stack overflow.** The deep per-page OCR extraction futures are now
   boxed (`Box::pin`) so their large state lives on the heap instead of inflating the
   worker-thread stack frame. Together with the stack the binding runtimes provision for

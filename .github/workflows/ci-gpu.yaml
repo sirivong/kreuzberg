@@ -241,7 +241,14 @@ jobs:
           - name: hunyuan-ocr
             feature: candle-hunyuan-ocr
             test: candle_hunyuan_ocr_e2e_extraction
-            hf_repo: tencent/HunyuanOCR
+            # tencent/HunyuanOCR was pulled from the HF Hub on 2026-07-06 (401 even
+            # authenticated). Stage the weights from Tencent's official ModelScope
+            # release instead, verified against the same checked-in sha256 manifest
+            # the runtime staging path uses (single source of truth) — an upstream
+            # change fails loudly instead of silently altering what CI tests.
+            hf_repo: ""
+            ms_repo: Tencent-Hunyuan/HunyuanOCR
+            manifest: crates/xberg/src/candle_ocr/hunyuan-ocr.sha256
             env_var: XBERG_HUNYUAN_OCR_MODEL_PATH
             debug_env: XBERG_HUNYUAN_DEBUG
           - name: deepseek-ocr
@@ -318,15 +325,18 @@ jobs:
         with:
           ort-version: ${{ env.ORT_VERSION }}
 
-      - name: Cache model weights
-        if: matrix.model.hf_repo != ''
+      - name: Restore cached model weights
+        if: matrix.model.hf_repo != '' || matrix.model.ms_repo != ''
         id: model-cache
-        uses: actions/cache@v5
+        uses: actions/cache/restore@v5
         with:
           path: ${{ github.workspace }}/models/${{ matrix.model.name }}
-          key: hf-weights-${{ matrix.model.name }}-v1
+          # Manifest-verified entries key on the manifest content, so changing
+          # the expected bytes can never be satisfied by a stale snapshot.
+          key: hf-weights-${{ matrix.model.name }}-${{ matrix.model.manifest != '' && hashFiles(matrix.model.manifest) || 'v1' }}
 
-      - name: Download model weights
+      - name: Download model weights (Hugging Face)
+        id: download-hf
         if: matrix.model.hf_repo != '' && steps.model-cache.outputs.cache-hit != 'true'
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
@@ -343,6 +353,30 @@ jobs:
           "$RUNNER_TEMP/hfvenv/bin/hf" download \
             "${{ matrix.model.hf_repo }}" \
             --local-dir "${{ github.workspace }}/models/${{ matrix.model.name }}"
+
+      - name: Download model weights (ModelScope, checksum-verified)
+        id: download-ms
+        if: matrix.model.ms_repo != '' && steps.model-cache.outputs.cache-hit != 'true'
+        run: |
+          set -euo pipefail
+          # Stage each file named in the manifest from the publisher's official
+          # ModelScope repo, then verify every byte against the checked-in
+          # sha256 manifest. Trust attaches to the hashes, not the host: a
+          # changed or tampered upstream file fails the job instead of silently
+          # altering what CI tests.
+          dest="${{ github.workspace }}/models/${{ matrix.model.name }}"
+          mkdir -p "$dest"
+          while read -r _hash file; do
+            # Skip blank lines and '#' comments in the sha256sum-format manifest.
+            case "${_hash}" in ''|'#'*) continue ;; esac
+            [ -n "$file" ] || continue
+            echo "downloading $file"
+            curl -fSL --retry 5 --retry-delay 10 --retry-all-errors \
+              "https://modelscope.cn/models/${{ matrix.model.ms_repo }}/resolve/master/$file" \
+              -o "$dest/$file"
+          done < "${{ matrix.model.manifest }}"
+          # sha256sum -c ignores '#' comment lines; --strict fails on malformed ones.
+          (cd "$dest" && sha256sum --check --strict "${{ github.workspace }}/${{ matrix.model.manifest }}")
 
       - name: Download candle test binary
         uses: actions/download-artifact@v8
@@ -371,3 +405,17 @@ jobs:
           # Run the binary compiled in build-candle (no recompile on the GPU runner).
           chmod +x "candle-test-${{ matrix.model.name }}"
           "./candle-test-${{ matrix.model.name }}" "${{ matrix.model.test }}" --ignored --nocapture
+
+      - name: Save model weights cache
+        # actions/cache's built-in post-save is skipped when the job fails, so a
+        # red run re-downloads multi-GB weights on every iteration. Save
+        # explicitly whenever a download step succeeded — even if inference
+        # failed — but never after a failed download, so a partial directory
+        # cannot poison the cache.
+        if: >-
+          always() && steps.model-cache.outputs.cache-hit != 'true' &&
+          (steps.download-hf.outcome == 'success' || steps.download-ms.outcome == 'success')
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ github.workspace }}/models/${{ matrix.model.name }}
+          key: hf-weights-${{ matrix.model.name }}-${{ matrix.model.manifest != '' && hashFiles(matrix.model.manifest) || 'v1' }}

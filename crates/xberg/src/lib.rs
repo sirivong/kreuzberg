@@ -142,7 +142,10 @@ pub mod ort_discovery;
     feature = "paddle-ocr",
     feature = "layout-detection",
     feature = "auto-rotate",
-    feature = "ner-onnx"
+    feature = "ner-onnx",
+    // Only Hunyuan-OCR stages weights through model_download; other candle
+    // backends fetch via hf-hub directly or take a local model_path.
+    feature = "candle-hunyuan-ocr"
 ))]
 pub(crate) mod model_download;
 

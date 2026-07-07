@@ -39,6 +39,22 @@ fn get_vision_next_indices(input_ids: &Tensor, vision_start_token_id: u32) -> Re
         .map_err(|e| CandleOcrError::InferenceFailed(format!("create tensor: {}", e)))
 }
 
+/// Additive causal attention mask: 0 for visible positions, `-inf` for future
+/// ones, shaped `(batch, 1, seq, seq)` so it broadcasts over attention heads
+/// when `eager_attention_forward` adds it to the raw attention scores.
+fn prepare_causal_attention_mask(batch_size: usize, seq_len: usize, device: &candle_core::Device) -> Result<Tensor> {
+    let mut mask_data = vec![0f32; seq_len * seq_len];
+    for i in 0..seq_len {
+        for j in (i + 1)..seq_len {
+            mask_data[i * seq_len + j] = f32::NEG_INFINITY;
+        }
+    }
+    Tensor::from_vec(mask_data, (1, 1, seq_len, seq_len), device)
+        .map_err(|e| CandleOcrError::InferenceFailed(format!("Create mask: {}", e)))?
+        .expand((batch_size, 1, seq_len, seq_len))
+        .map_err(|e| CandleOcrError::InferenceFailed(format!("Expand mask: {}", e)))
+}
+
 /// Spatial merge projector for vision embeddings.
 pub struct Projector {
     merge_size: usize,
@@ -575,9 +591,17 @@ impl Ernie4_5Model {
 
         let mut xs = inputs_embeds.clone();
 
+        // Causal mask for the multi-token prefill; single-token decode steps
+        // attend over the whole KV cache, which is exactly the visible past.
+        let attention_mask: Option<Tensor> = if seq_len <= 1 {
+            None
+        } else {
+            Some(prepare_causal_attention_mask(b_size, seq_len, inputs_embeds.device())?)
+        };
+
         for layer in self.layers.iter_mut() {
             xs = layer
-                .forward(&xs, &cos, &sin, None)
+                .forward(&xs, &cos, &sin, attention_mask.as_ref())
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Layer forward: {}", e)))?;
         }
 
@@ -700,8 +724,9 @@ impl PaddleOCRVLModel {
                                     return Err(CandleOcrError::InferenceFailed("grid_thw len != 3".to_string()));
                                 }
 
-                                let [_t, h, w] = [grid_row[0], grid_row[1], grid_row[2]];
+                                let [t, h, w] = [grid_row[0], grid_row[1], grid_row[2]];
                                 text_end = j;
+                                let llm_grid_t = t;
                                 let llm_grid_h = h / spatial_merge_size as u32;
                                 let llm_grid_w = w / spatial_merge_size as u32;
                                 let text_len = text_end - text_start;
@@ -726,16 +751,23 @@ impl PaddleOCRVLModel {
 
                                 llm_pos_ids_list.push(pos_ids);
 
-                                // Vision patch position IDs
+                                // Vision patch position IDs (t, h, w) — the mrope layout the
+                                // decoder splits by rope_scaling.mrope_section. Images carry a
+                                // single frame with no temporal stride, so every patch shares the
+                                // frame position start_idx + text_len.
+                                let grid_numel = (llm_grid_t as usize) * (llm_grid_h as usize) * (llm_grid_w as usize);
+                                let t_index = Tensor::full(start_idx + text_len, grid_numel, input_ids_i.device())
+                                    .map_err(|e| CandleOcrError::InferenceFailed(format!("T full: {}", e)))?;
+
                                 let h_index = Tensor::arange(
                                     start_idx + text_len,
                                     start_idx + text_len + llm_grid_h,
                                     input_ids_i.device(),
                                 )
                                 .map_err(|e| CandleOcrError::InferenceFailed(format!("H arrange: {}", e)))?
-                                .unsqueeze(0)
-                                .map_err(|e| CandleOcrError::InferenceFailed(format!("H unsqueeze: {}", e)))?
-                                .broadcast_as((llm_grid_h as usize, llm_grid_w as usize))
+                                .reshape((1, llm_grid_h as usize, 1))
+                                .map_err(|e| CandleOcrError::InferenceFailed(format!("H reshape: {}", e)))?
+                                .broadcast_as((llm_grid_t as usize, llm_grid_h as usize, llm_grid_w as usize))
                                 .map_err(|e| CandleOcrError::InferenceFailed(format!("H broadcast: {}", e)))?
                                 .flatten_all()
                                 .map_err(|e| CandleOcrError::InferenceFailed(format!("H flatten: {}", e)))?;
@@ -746,18 +778,18 @@ impl PaddleOCRVLModel {
                                     input_ids_i.device(),
                                 )
                                 .map_err(|e| CandleOcrError::InferenceFailed(format!("W arrange: {}", e)))?
-                                .unsqueeze(0)
-                                .map_err(|e| CandleOcrError::InferenceFailed(format!("W unsqueeze: {}", e)))?
-                                .broadcast_as((llm_grid_h as usize, llm_grid_w as usize))
+                                .reshape((1, 1, llm_grid_w as usize))
+                                .map_err(|e| CandleOcrError::InferenceFailed(format!("W reshape: {}", e)))?
+                                .broadcast_as((llm_grid_t as usize, llm_grid_h as usize, llm_grid_w as usize))
                                 .map_err(|e| CandleOcrError::InferenceFailed(format!("W broadcast: {}", e)))?
                                 .flatten_all()
                                 .map_err(|e| CandleOcrError::InferenceFailed(format!("W flatten: {}", e)))?;
 
-                                let thw_index = Tensor::stack(&[h_index, w_index], 0)
+                                let thw_index = Tensor::stack(&[t_index, h_index, w_index], 0)
                                     .map_err(|e| CandleOcrError::InferenceFailed(format!("Stack: {}", e)))?;
 
                                 llm_pos_ids_list.push(thw_index);
-                                text_start = text_end + llm_grid_h * llm_grid_w;
+                                text_start = text_end + llm_grid_t * llm_grid_h * llm_grid_w;
                                 image_index += 1;
                             }
                         }
@@ -1002,6 +1034,22 @@ impl PaddleOCRVLModel {
 
             let delta = if let (Some(cache_position), Some(rope_deltas)) = (cache_position, self.rope_deltas.as_ref()) {
                 cache_position
+                    .i(0)
+                    .map_err(|e| CandleOcrError::InferenceFailed(format!("Index: {}", e)))?
+                    .to_dtype(rope_deltas.dtype())
+                    .map_err(|e| CandleOcrError::InferenceFailed(format!("Dtype: {}", e)))?
+                    .broadcast_add(rope_deltas)
+                    .map_err(|e| CandleOcrError::InferenceFailed(format!("Add: {}", e)))?
+                    .contiguous()
+                    .map_err(|e| CandleOcrError::InferenceFailed(format!("Contiguous: {}", e)))?
+                    .to_dtype(candle_core::DType::U32)
+                    .map_err(|e| CandleOcrError::InferenceFailed(format!("U32: {}", e)))?
+            } else if let Some(rope_deltas) = self.rope_deltas.as_ref() {
+                // Decode steps arrive without an explicit cache_position (the
+                // InferenceModel::forward_step path); the token's absolute position
+                // is seqlen_offset, so continue the mrope positions from there.
+                Tensor::from_vec(vec![seqlen_offset as u32], 1, inputs_embeds.device())
+                    .map_err(|e| CandleOcrError::InferenceFailed(format!("Offset tensor: {}", e)))?
                     .i(0)
                     .map_err(|e| CandleOcrError::InferenceFailed(format!("Index: {}", e)))?
                     .to_dtype(rope_deltas.dtype())
@@ -1322,6 +1370,174 @@ mod tests {
             first_row, expected,
             "text-only rope position ids should be [0..seq_len)"
         );
+        Ok(())
+    }
+
+    /// `get_rope_index` (image path) handles a non-square vision grid and produces the
+    /// Qwen2-VL-style mrope layout: three rows (t, h, w), where t is constant across the
+    /// image block, h increments per grid row, and w increments per grid column.
+    ///
+    /// Regression test for the GPU CI failure "H broadcast: cannot broadcast [1, 8] to
+    /// [8, 26]": the h/w index tensors were broadcast with a transposed shape and the t
+    /// row was missing entirely, so any real (non-square) page crashed the forward pass.
+    #[test]
+    fn get_rope_index_image_path_nonsquare_grid_positions() -> crate::error::Result<()> {
+        let dev = Device::Cpu;
+        let cfg = tiny_model_config();
+        let vb = VarBuilder::zeros(DType::F32, &dev);
+
+        let model = PaddleOCRVLModel::new(cfg.clone(), vb, vec![2])?;
+
+        // tiny_vision_config has spatial_merge_size = 1, so grid (1, 8, 26) yields an
+        // 8 × 26 LLM grid — the exact non-square shape from the CI failure.
+        let (grid_t, grid_h, grid_w) = (1u32, 8u32, 26u32);
+        let num_image_tokens = (grid_t * grid_h * grid_w) as usize;
+
+        // Layout: 3 text tokens, vision_start, 208 image tokens, 2 trailing text tokens.
+        let mut tokens: Vec<u32> = vec![1, 2, 3, cfg.vision_start_token_id];
+        tokens.extend(std::iter::repeat_n(cfg.image_token_id, num_image_tokens));
+        tokens.extend([5, 6]);
+        let seq_len = tokens.len();
+
+        let input_ids = Tensor::new(tokens.as_slice(), &dev)
+            .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?
+            .reshape((1, seq_len))
+            .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?;
+        let image_grid_thw = Tensor::new(&[[grid_t, grid_h, grid_w]], &dev)
+            .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?;
+
+        let (position_ids, mrope_deltas) = model.get_rope_index(&input_ids, Some(&image_grid_thw), None, None, None)?;
+
+        assert_eq!(
+            position_ids.dims(),
+            &[3, 1, seq_len],
+            "image-path rope index should be (3, batch, seq_len)"
+        );
+
+        let rows: Vec<Vec<u32>> = (0..3usize)
+            .map(|r| {
+                position_ids
+                    .i((r, 0usize, ..))
+                    .and_then(|t| t.to_vec1::<u32>())
+                    .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))
+            })
+            .collect::<crate::error::Result<_>>()?;
+
+        // Text prefix (3 text tokens + vision_start): sequential 0..4 on every row.
+        for row in &rows {
+            assert_eq!(&row[..4], &[0, 1, 2, 3], "text prefix should be sequential on all rows");
+        }
+
+        // Image block starts at position 4. t stays constant; h increments per grid row
+        // (each value spanning grid_w tokens); w increments per column (cycling per row).
+        let st = 4u32;
+        for idx in 0..num_image_tokens {
+            let (r, c) = (idx as u32 / grid_w, idx as u32 % grid_w);
+            assert_eq!(rows[0][4 + idx], st, "t row should be constant for a single frame");
+            assert_eq!(rows[1][4 + idx], st + r, "h row should increment per grid row");
+            assert_eq!(rows[2][4 + idx], st + c, "w row should increment per grid column");
+        }
+
+        // Trailing text resumes after the image block's max position (st + grid_w - 1).
+        let trail_start = st + grid_w;
+        for row in &rows {
+            assert_eq!(
+                &row[4 + num_image_tokens..],
+                &[trail_start, trail_start + 1],
+                "trailing text should resume after the image block max"
+            );
+        }
+
+        // Delta = (max position + 1) - seq_len.
+        let delta = mrope_deltas
+            .i((0usize, 0usize))
+            .and_then(|t| t.to_scalar::<i64>())
+            .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?;
+        assert_eq!(
+            delta,
+            i64::from(trail_start) + 2 - seq_len as i64,
+            "mrope delta should be max position + 1 - seq_len"
+        );
+        Ok(())
+    }
+
+    /// A cached decode step (single new token, no cache_position, nonzero
+    /// seqlen_offset) succeeds after a prefill has populated `rope_deltas`.
+    ///
+    /// Regression test for the GPU CI failure in `PaddleOcrVlEngine::generate`:
+    /// the position-continuation branch for cache_position-less decode steps was
+    /// dropped during vendoring, so the fallback built the position delta as an
+    /// F32 zeros tensor and adding it to the U32 position range failed every
+    /// decode step with a dtype mismatch.
+    #[test]
+    fn forward_decode_step_after_prefill_continues_positions() -> crate::error::Result<()> {
+        let dev = Device::Cpu;
+        let cfg = tiny_model_config();
+        let vb = VarBuilder::zeros(DType::F32, &dev);
+
+        let mut model = PaddleOCRVLModel::new(cfg.clone(), vb, vec![2])?;
+
+        // Text-only prefill with cache_position starting at 0: computes the rope
+        // index and caches rope_deltas.
+        let prompt_len = 5usize;
+        let input_ids = Tensor::arange(1u32, 1 + prompt_len as u32, &dev)
+            .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?
+            .reshape((1, prompt_len))
+            .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?;
+        let cache_position = Tensor::arange(0u32, prompt_len as u32, &dev)
+            .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?;
+
+        let logits = model.forward(&input_ids, None, None, None, Some(&cache_position), 0)?;
+        assert_eq!(
+            logits.dims(),
+            &[1, 1, cfg.vocab_size],
+            "prefill should return last-position logits"
+        );
+
+        // Decode step: one new token, no cache_position — the token's absolute
+        // position is carried by seqlen_offset alone.
+        let next_input = Tensor::new(&[7u32], &dev)
+            .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?
+            .reshape((1, 1))
+            .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?;
+
+        let logits = model.forward(&next_input, None, None, None, None, prompt_len)?;
+        assert_eq!(
+            logits.dims(),
+            &[1, 1, cfg.vocab_size],
+            "decode step should return last-position logits"
+        );
+        Ok(())
+    }
+
+    /// The prefill causal mask hides future positions (-inf) and keeps the
+    /// visible past at 0, broadcast-ready over attention heads.
+    ///
+    /// Regression test for the GPU CI degenerate-output failure: the vendored
+    /// ERNIE decoder dropped the causal mask upstream aha passes during the
+    /// multi-token prefill, so prompt tokens attended bidirectionally, the KV
+    /// cache was built from contaminated hidden states, and generation
+    /// collapsed into repeating a single token.
+    #[test]
+    fn prepare_causal_attention_mask_hides_future_positions() -> crate::error::Result<()> {
+        let dev = Device::Cpu;
+        let mask = prepare_causal_attention_mask(1, 4, &dev)?;
+        assert_eq!(mask.dims(), &[1, 1, 4, 4], "mask should be (batch, 1, seq, seq)");
+
+        let rows = mask
+            .squeeze(0)
+            .and_then(|m| m.squeeze(0))
+            .and_then(|m| m.to_vec2::<f32>())
+            .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?;
+        for (i, row) in rows.iter().enumerate() {
+            for (j, &v) in row.iter().enumerate() {
+                if j > i {
+                    assert!(v == f32::NEG_INFINITY, "future position ({i},{j}) should be masked");
+                } else {
+                    assert_eq!(v, 0.0, "visible position ({i},{j}) should be unmasked");
+                }
+            }
+        }
         Ok(())
     }
 
