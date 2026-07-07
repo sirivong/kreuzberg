@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # Client wrapper with comprehensive configuration
 # Demonstrates advanced extraction patterns with OCR, chunking, and validation
 
@@ -254,4 +253,3 @@ use_cache: true
   {:error, reason} ->
   IO.puts("Error: #{reason}")
 end
-```

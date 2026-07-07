@@ -1,4 +1,3 @@
-```csharp title="basic_cli.cs"
 using System;
 using System.CommandLine;
 using System.CommandLine.Invocation;
@@ -43,4 +42,3 @@ extractCommand.SetHandler(async (path, format) =>
 rootCommand.AddCommand(extractCommand);
 
 return await rootCommand.InvokeAsync(args);
-```

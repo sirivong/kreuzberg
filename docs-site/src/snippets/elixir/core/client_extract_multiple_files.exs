@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # Client wrapper for batch file extraction
 # Provides error handling, logging, and result aggregation
 
@@ -163,4 +162,3 @@ case BatchDocumentClient.extract_and_transform(["doc1.pdf", "doc2.pdf"], transfo
   {:error, reason} ->
   IO.puts("Error: #{reason}")
 end
-```

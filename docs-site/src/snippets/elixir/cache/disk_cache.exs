@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # Disk Caching - Implement persistent disk caching for extraction results
 # Demonstrates advanced caching strategies for document extraction
 
@@ -433,4 +432,3 @@ Enum.each(cached_files, fn file -> IO.puts("  - #{file}") end)
 IO.puts("\nCache stats:")
 stats = XbergDiskCache.manage_cache(cache_dir, :stats)
 IO.inspect(stats, pretty: true)
-```

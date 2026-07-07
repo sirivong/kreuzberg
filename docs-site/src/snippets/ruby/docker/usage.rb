@@ -1,4 +1,3 @@
-```ruby title="usage.rb"
 require 'open3'
 require 'net/http'
 require 'json'
@@ -60,4 +59,3 @@ begin
 ensure
   docker_client.stop_container
 end
-```

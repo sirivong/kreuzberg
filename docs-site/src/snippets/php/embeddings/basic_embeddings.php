@@ -1,4 +1,3 @@
-```php title="basic_embeddings.php"
 <?php
 
 declare(strict_types=1);
@@ -212,4 +211,3 @@ foreach ($result->chunks ?? [] as $chunk) {
 
 file_put_contents('embeddings_export.json', json_encode($exportData));
 echo "\nExported " . count($exportData) . " embeddings to embeddings_export.json\n";
-```

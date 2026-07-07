@@ -1,4 +1,3 @@
-```php title="page_tracking_basic.php"
 <?php
 
 declare(strict_types=1);
@@ -32,4 +31,3 @@ if (!empty($result->pages)) {
         echo "  Images: " . count($page->images) . "\n\n";
     }
 }
-```

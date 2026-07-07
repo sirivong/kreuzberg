@@ -1,4 +1,3 @@
-```php title="semantic_search.php"
 <?php
 
 declare(strict_types=1);
@@ -218,4 +217,3 @@ foreach ($results as $index => $result) {
     echo "   Average similarity: " . number_format($result['avg_similarity'], 4) . "\n";
     echo "   " . substr($result['content'], 0, 150) . "...\n";
 }
-```

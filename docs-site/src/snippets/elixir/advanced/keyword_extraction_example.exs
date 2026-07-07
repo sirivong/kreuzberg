@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Extract keywords from document
@@ -28,4 +27,3 @@ case Xberg.extract(input: %Xberg.ExtractInput{kind: :uri, uri: "article.pdf"}, c
   IO.puts("Extraction failed!")
   IO.puts("Error: #{inspect(reason)}")
 end
-```

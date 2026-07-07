@@ -1,4 +1,3 @@
-```python title="simple_benchmark.py"
 import asyncio
 import time
 
@@ -48,4 +47,3 @@ async def benchmark_extractions():
 
 if __name__ == "__main__":
     asyncio.run(benchmark_extractions())
-```

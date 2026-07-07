@@ -1,4 +1,3 @@
-```php title="embedding_with_chunking.php"
 <?php
 
 declare(strict_types=1);
@@ -77,4 +76,3 @@ if (!empty($result->chunks)) {
 
     echo "Average chunk size: " . round($avgChunkSize) . " characters\n";
 }
-```

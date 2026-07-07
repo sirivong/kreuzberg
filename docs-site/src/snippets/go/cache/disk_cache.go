@@ -1,4 +1,3 @@
-```go title="disk_cache.go"
 package main
 
 import (
@@ -43,4 +42,3 @@ func main() {
 		fmt.Printf("\nResults are identical: %v\n", result1.Results[0].Content == result2.Results[0].Content)
 	}
 }
-```

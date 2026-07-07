@@ -1,4 +1,3 @@
-```java title="Usage.java"
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -84,4 +83,3 @@ public final class Usage {
         }
     }
 }
-```

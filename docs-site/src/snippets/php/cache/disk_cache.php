@@ -1,4 +1,3 @@
-```php title="disk_cache.php"
 <?php
 
 declare(strict_types=1);
@@ -225,4 +224,3 @@ function cleanupCache(DiskCache $cache, int $maxAge = 7 * 86400): int
 
 $deleted = cleanupCache($cache, 7 * 86400);
 echo "\nCleaned up $deleted old cache entries\n";
-```

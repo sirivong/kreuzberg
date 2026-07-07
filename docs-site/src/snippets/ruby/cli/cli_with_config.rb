@@ -1,4 +1,3 @@
-```ruby title="cli_with_config.rb"
 require 'json'
 require 'open3'
 
@@ -24,4 +23,3 @@ result = extract_with_config(document, config_file)
 puts "Content length: #{result['content'].length}"
 puts "Format: #{result['format']}"
 puts "Languages: #{result['languages'].join(', ')}"
-```

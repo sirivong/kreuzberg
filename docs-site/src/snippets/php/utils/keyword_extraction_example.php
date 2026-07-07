@@ -1,4 +1,3 @@
-```php title="keyword_extraction_example.php"
 <?php
 
 declare(strict_types=1);
@@ -137,4 +136,3 @@ foreach ($documents as $document) {
 
     echo "\n";
 }
-```

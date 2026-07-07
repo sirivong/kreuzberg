@@ -1,4 +1,3 @@
-```php title="chunking_config.php"
 <?php
 
 declare(strict_types=1);
@@ -203,4 +202,3 @@ echo "- Enable respectSentences for better coherence\n";
 echo "- Use markdown chunker for structured documents with headings\n";
 echo "- Use token-based sizing for LLM token budgets\n";
 echo "- Enable prependHeadingContext to embed heading breadcrumbs in chunk content\n";
-```

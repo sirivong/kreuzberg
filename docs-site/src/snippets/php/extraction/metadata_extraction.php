@@ -1,4 +1,3 @@
-```php title="metadata_extraction.php"
 <?php
 
 declare(strict_types=1);
@@ -193,4 +192,3 @@ foreach ($metadataCollection as $meta) {
 }
 
 echo "\nIncomplete metadata: $incomplete/" . count($metadataCollection) . " documents\n";
-```

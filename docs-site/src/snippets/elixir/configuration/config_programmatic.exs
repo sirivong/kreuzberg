@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Build configuration dynamically based on runtime conditions
@@ -42,4 +41,3 @@ config = ConfigBuilder.build_config(:pdf, true)
 result = List.first(output.results)
 IO.puts("Dynamic configuration applied")
 IO.puts("Content: #{String.slice(result.content, 0..100)}")
-```

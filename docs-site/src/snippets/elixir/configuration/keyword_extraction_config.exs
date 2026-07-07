@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Configure keyword extraction
@@ -21,4 +20,3 @@ if result.extracted_keywords do
     IO.puts("#{keyword["text"]}: #{keyword["score"]}")
   end)
 end
-```

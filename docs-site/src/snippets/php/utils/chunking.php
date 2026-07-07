@@ -1,4 +1,3 @@
-```php title="chunking.php"
 <?php
 
 declare(strict_types=1);
@@ -44,4 +43,3 @@ foreach ($result->chunks ?? [] as $index => $chunk) {
 
     echo "\n";
 }
-```

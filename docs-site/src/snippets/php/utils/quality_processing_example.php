@@ -1,4 +1,3 @@
-```php title="quality_processing_example.php"
 <?php
 
 declare(strict_types=1);
@@ -199,4 +198,3 @@ foreach ($qualityResults as $doc => $data) {
 
     echo "\n";
 }
-```

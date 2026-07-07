@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Load configuration from file
@@ -24,4 +23,3 @@ result = List.first(output.results)
 IO.puts("Document extraction complete")
 IO.puts("Content length: #{byte_size(result.content)} bytes")
 IO.puts("Languages detected: #{inspect(result.detected_languages)}")
-```

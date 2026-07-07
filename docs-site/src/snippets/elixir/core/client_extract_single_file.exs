@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # Reusable client pattern for single file extraction
 # Encapsulates extraction logic with consistent error handling
 
@@ -111,4 +110,3 @@ case DocumentClient.extract_with_stats("document.pdf") do
   {:error, reason} ->
   IO.puts("Error: #{reason}")
 end
-```

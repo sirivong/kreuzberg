@@ -1,4 +1,3 @@
-```php title="error_handling_extract.php"
 <?php
 
 declare(strict_types=1);
@@ -157,4 +156,3 @@ $resultWithRetry = extractWithRetry('document.pdf', 'http://localhost:8000/extra
 if ($resultWithRetry !== null) {
     echo "\nSuccessfully extracted with retry mechanism\n";
 }
-```

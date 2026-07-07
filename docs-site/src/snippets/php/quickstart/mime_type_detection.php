@@ -1,4 +1,3 @@
-```php title="mime_type_detection.php"
 <?php
 
 declare(strict_types=1);
@@ -43,4 +42,3 @@ if (file_exists($fileToCheck)) {
         echo "File extension .$extension is not allowed\n";
     }
 }
-```

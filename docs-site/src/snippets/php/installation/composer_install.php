@@ -1,4 +1,3 @@
-```php title="composer_install.php"
 <?php
 
 declare(strict_types=1);
@@ -25,4 +24,3 @@ echo "Xberg extension is loaded successfully!\n";
 echo "Version: " . Xberg::version() . "\n";
 
 echo "Xberg client initialized successfully!\n";
-```

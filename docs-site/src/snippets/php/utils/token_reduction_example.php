@@ -1,4 +1,3 @@
-```php title="token_reduction_example.php"
 <?php
 
 declare(strict_types=1);
@@ -218,4 +217,3 @@ if ($totalOriginal > 0 && $totalReduced > 0) {
     echo "  Documents per day: $documentsPerDay\n";
     echo "  Annual savings: $" . number_format($annualSavings, 2) . "\n";
 }
-```

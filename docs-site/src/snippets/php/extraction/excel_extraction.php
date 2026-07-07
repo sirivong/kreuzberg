@@ -1,4 +1,3 @@
-```php title="excel_extraction.php"
 <?php
 
 declare(strict_types=1);
@@ -289,4 +288,3 @@ echo "5. First row is often headers - handle accordingly\n";
 echo "6. Check for numeric columns to perform calculations\n";
 echo "7. Export to CSV/JSON for database import\n";
 echo "8. Use batch processing for multiple Excel files\n";
-```

@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Configure quality processing settings
@@ -28,4 +27,3 @@ IO.puts("Content quality score: #{result.quality_score}")
 IO.puts("Noise removed: true")
 IO.puts("Content length: #{byte_size(result.content)} bytes")
 IO.puts("Processing complete: #{inspect(result)}")
-```

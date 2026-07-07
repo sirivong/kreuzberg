@@ -1,4 +1,3 @@
-```php title="image_extraction_config.php"
 <?php
 
 declare(strict_types=1);
@@ -273,4 +272,3 @@ echo "1. Extract photos from reports: minWidth=800, minHeight=600\n";
 echo "2. Extract all graphics: minWidth=100, minHeight=100\n";
 echo "3. OCR on images: performOcr=true + OcrConfig\n";
 echo "4. Extract logos/icons: minWidth=50, minHeight=50\n";
-```

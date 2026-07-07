@@ -1,4 +1,3 @@
-```php title="embedding_config.php"
 <?php
 
 declare(strict_types=1);
@@ -196,4 +195,3 @@ echo "all-MiniLM-L6-v2         | 384        | Fast     | General purpose, QA\n";
 echo "all-mpnet-base-v2        | 768        | Medium   | Better semantic search\n";
 echo "paraphrase-MiniLM-L6-v2  | 384        | Fast     | Paraphrase detection\n";
 echo "paraphrase-mpnet-base-v2 | 768        | Medium   | High-quality paraphrase\n";
-```

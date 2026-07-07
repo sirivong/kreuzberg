@@ -1,4 +1,3 @@
-```rust title="basic_cli.rs"
 use std::process::Command;
 use anyhow::Result;
 
@@ -27,4 +26,3 @@ fn main() -> Result<()> {
 
     Ok(())
 }
-```

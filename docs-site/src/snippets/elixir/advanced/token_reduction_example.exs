@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Reduce token count for LLM
@@ -40,4 +39,3 @@ case Xberg.extract(input: %Xberg.ExtractInput{kind: :uri, uri: "document.pdf"}, 
   IO.puts("Extraction failed!")
   IO.puts("Error: #{inspect(reason)}")
 end
-```

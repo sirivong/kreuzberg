@@ -1,4 +1,3 @@
-```php title="basic_extraction_oop.php"
 <?php
 
 declare(strict_types=1);
@@ -35,4 +34,3 @@ if (count($result->tables) > 0) {
         echo $table->markdown . "\n";
     }
 }
-```

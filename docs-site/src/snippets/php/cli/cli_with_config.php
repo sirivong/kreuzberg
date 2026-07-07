@@ -1,4 +1,3 @@
-```php title="cli_with_config.php"
 <?php
 
 declare(strict_types=1);
@@ -130,4 +129,3 @@ $result = $output->results[0];
     fwrite(STDERR, "Error: " . $e->getMessage() . "\n");
     exit(1);
 }
-```

@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Configure OCR-specific settings
@@ -26,4 +25,3 @@ IO.puts("Backend: tesseract")
 IO.puts("Language: eng")
 IO.puts("Content extracted: #{byte_size(result.content)} bytes")
 IO.puts("Metadata: #{inspect(result.metadata)}")
-```

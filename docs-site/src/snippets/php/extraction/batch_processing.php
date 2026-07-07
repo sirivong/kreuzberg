@@ -1,4 +1,3 @@
-```php title="batch_processing.php"
 <?php
 
 declare(strict_types=1);
@@ -28,4 +27,3 @@ foreach ($output->results as $result) {
     echo "Tables: " . count($result->tables) . "\n";
     echo "MIME: {$result->mimeType}\n\n";
 }
-```

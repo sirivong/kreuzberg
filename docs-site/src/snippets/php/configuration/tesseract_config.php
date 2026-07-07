@@ -1,4 +1,3 @@
-```php title="tesseract_config.php"
 <?php
 
 declare(strict_types=1);
@@ -309,4 +308,3 @@ echo "4. Use character whitelists for constrained input\n";
 echo "5. Use blacklists to exclude problem characters\n";
 echo "6. Test different PSM values if accuracy is poor\n";
 echo "7. Combine with image preprocessing for better results\n";
-```

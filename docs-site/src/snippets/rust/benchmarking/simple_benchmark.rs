@@ -1,4 +1,3 @@
-```rust title="simple_benchmark.rs"
 use std::time::Instant;
 use xberg::{extract, ExtractInput, ExtractionConfig};
 
@@ -59,4 +58,3 @@ async fn main() -> xberg::Result<()> {
 
     Ok(())
 }
-```

@@ -1,4 +1,3 @@
-```go title="simple_benchmark.go"
 package main
 
 import (
@@ -82,4 +81,3 @@ func main() {
 	fmt.Printf("  - Time: %.3fs\n", cachedDuration)
 	fmt.Printf("  - Cache speedup: %.1fx\n", firstDuration/cachedDuration)
 }
-```

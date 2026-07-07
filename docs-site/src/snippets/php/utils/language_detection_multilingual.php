@@ -1,4 +1,3 @@
-```php title="language_detection_multilingual.php"
 <?php
 
 declare(strict_types=1);
@@ -233,4 +232,3 @@ foreach ($translationPairs as $code => $name) {
 }
 
 echo "\nUse these configurations for translation document processing.\n";
-```

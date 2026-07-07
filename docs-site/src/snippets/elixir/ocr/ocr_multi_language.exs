@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Perform OCR extraction with multiple languages
@@ -37,4 +36,3 @@ metadata = result.metadata || %{}
 IO.puts("\nMetadata:")
 IO.puts("Pages: #{metadata["pages"] || "Unknown"}")
 IO.puts("Format: #{metadata["format"] || "Unknown"}")
-```

@@ -1,4 +1,3 @@
-```php title="performance_tuning.php"
 <?php
 
 declare(strict_types=1);
@@ -282,4 +281,3 @@ echo "5. Implement caching for frequently accessed documents\n";
 echo "6. Monitor memory usage and clear results when done\n";
 echo "7. Consider using worker processes for high throughput\n";
 echo "8. Increase PHP memory_limit for large documents\n";
-```

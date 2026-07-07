@@ -1,4 +1,3 @@
-```php title="advanced_ocr.php"
 <?php
 
 declare(strict_types=1);
@@ -191,4 +190,3 @@ $result = $output->results[0];
 echo "High-accuracy OCR:\n";
 echo "Characters: " . strlen($result->content) . "\n";
 echo "Tables: " . count($result->tables) . "\n";
-```

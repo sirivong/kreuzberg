@@ -1,4 +1,3 @@
-```php title="pdf_config.php"
 <?php
 
 declare(strict_types=1);
@@ -66,4 +65,3 @@ $elapsed = microtime(true) - $start;
 
 echo "\nFast extraction completed in " . number_format($elapsed, 3) . " seconds\n";
 echo "Content length: " . strlen($result->content) . " characters\n";
-```

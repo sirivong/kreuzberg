@@ -1,4 +1,3 @@
-```python title="basic_cli.py"
 import subprocess
 import json
 import sys
@@ -25,4 +24,3 @@ print(f"Extracted: {len(text_output)} characters")
 
 json_output = extract_with_cli(document, "json")
 print(f"Format: {json_output.get('format', 'unknown')}")
-```

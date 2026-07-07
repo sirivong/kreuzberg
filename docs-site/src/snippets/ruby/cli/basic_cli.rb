@@ -1,4 +1,3 @@
-```ruby title="basic_cli.rb"
 require 'json'
 require 'open3'
 
@@ -23,4 +22,3 @@ puts "Extracted: #{text_output.length} characters"
 
 json_output = extract_with_cli(document, 'json')
 puts "Format: #{json_output['format']}"
-```

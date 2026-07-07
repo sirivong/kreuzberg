@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.Plugin
 
 # PDF-Only Post-Processor Plugin
@@ -94,4 +93,3 @@ case MyApp.Plugins.PdfOnlyProcessor.process(non_pdf_result, %{}) do
   {:error, reason} ->
   IO.puts("Processing failed: #{reason}")
 end
-```

@@ -1,4 +1,3 @@
-```go title="usage.go"
 package main
 
 import (
@@ -115,4 +114,3 @@ func main() {
 		panic(err)
 	}
 }
-```

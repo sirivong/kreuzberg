@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.Plugin
 
 # Word Count Post-Processor Plugin
@@ -74,4 +73,3 @@ end
 # List all registered post-processors
 {:ok, processors} = Plugin.list_post_processors()
 IO.inspect(processors, label: "Registered Post-Processors")
-```

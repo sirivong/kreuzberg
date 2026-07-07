@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # Track which pages content originated from during extraction
 # Useful for cross-referencing extracted content back to source documents
 
@@ -69,4 +68,3 @@ Enum.with_index(images, 1) |> Enum.each(fn {image, idx} ->
     IO.puts("  Page: #{image["page"]}")
   end
 end)
-```

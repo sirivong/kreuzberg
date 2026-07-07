@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.Plugin
 
 # Quality Score Validator Plugin
@@ -72,4 +71,3 @@ end
 # List all registered validators
 {:ok, validators} = Plugin.list_validators()
 IO.inspect(validators, label: "Registered Validators")
-```

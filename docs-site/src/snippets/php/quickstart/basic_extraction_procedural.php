@@ -1,4 +1,3 @@
-```php title="basic_extraction_procedural.php"
 <?php
 
 declare(strict_types=1);
@@ -32,4 +31,3 @@ $word_count = str_word_count($result->content);
 printf("\nStatistics:\n");
 printf("Characters: %d\n", $char_count);
 printf("Words:      %d\n", $word_count);
-```

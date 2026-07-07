@@ -1,4 +1,3 @@
-```php title="language_detection.php"
 <?php
 
 declare(strict_types=1);
@@ -193,4 +192,3 @@ if (!empty($detectedLanguages)) {
     $queue = routeDocumentByLanguage('document.pdf', $detectedLanguages);
     echo "Document routed to: $queue\n";
 }
-```

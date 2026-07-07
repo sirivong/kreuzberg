@@ -1,4 +1,3 @@
-```typescript title="simple_benchmark.ts"
 /* oxlint-disable */
 import { extract, type ExtractionConfig } from "@xberg-io/xberg";
 

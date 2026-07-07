@@ -1,4 +1,3 @@
-```csharp title="usage.cs"
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -93,4 +92,3 @@ class DockerXbergLib
         Console.WriteLine("Container stopped and removed");
     }
 }
-```

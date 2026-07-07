@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Configure Tesseract OCR settings
@@ -27,4 +26,3 @@ IO.puts("OEM (OCR Engine Mode): 3")
 IO.puts("DPI: 300")
 IO.puts("Content extracted: #{byte_size(result.content)} bytes")
 IO.puts("Metadata: #{inspect(result.metadata)}")
-```

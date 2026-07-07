@@ -1,4 +1,3 @@
-```php title="powerpoint_extraction.php"
 <?php
 
 declare(strict_types=1);
@@ -191,4 +190,3 @@ echo "4. Use metadata for presentation information\n";
 echo "5. Convert to Markdown for documentation\n";
 echo "6. Search across slides for specific content\n";
 echo "7. Generate summaries for presentation overviews\n";
-```

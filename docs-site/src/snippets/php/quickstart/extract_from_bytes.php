@@ -1,4 +1,3 @@
-```php title="extract_from_bytes.php"
 <?php
 
 declare(strict_types=1);
@@ -43,4 +42,3 @@ if (file_exists($uploadedFile['tmp_name'])) {
     echo "Size: " . strlen($data) . " bytes\n";
     echo "Content length: " . strlen($result->content) . " characters\n";
 }
-```

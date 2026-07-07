@@ -1,4 +1,3 @@
-```php title="chunking_rag.php"
 <?php
 
 declare(strict_types=1);
@@ -76,4 +75,3 @@ $vectorDbRecords = array_map(
 
 echo "Prepared " . count($vectorDbRecords) . " records for vector database\n";
 echo "Each record contains: id, content, embedding, and metadata\n";
-```

@@ -1,4 +1,3 @@
-```csharp title="extract_keywords.cs"
 using Xberg;
 using System;
 using System.Collections.Generic;
@@ -61,4 +60,3 @@ Console.WriteLine($"\nKeyword Extraction Summary:");
 Console.WriteLine($"  - Algorithm: YAKE");
 Console.WriteLine($"  - Total Keywords: {result.ExtractedKeywords?.Count ?? 0}");
 Console.WriteLine($"  - Top Keyword: {result.ExtractedKeywords?.FirstOrDefault()?.Text}");
-```

@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # Extract images from documents for further processing
 # Images are returned as base64-encoded data with format and size information
 
@@ -131,4 +130,3 @@ end
 {:error, reason} ->
 IO.puts("Error extracting images: #{reason}")
 end
-```

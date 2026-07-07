@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Example 1: Basic character-based chunking for RAG applications
@@ -78,4 +77,3 @@ if result3.chunks do
     IO.puts("\nChunk preview: #{String.slice(chunk["content"], 0..80)}...")
   end)
 end
-```

@@ -1,4 +1,3 @@
-```rust title="disk_cache.rs"
 use xberg::{extract, ExtractionConfig, ExtractInput};
 
 #[tokio::main]
@@ -26,4 +25,3 @@ async fn main() -> xberg::Result<()> {
 
     Ok(())
 }
-```

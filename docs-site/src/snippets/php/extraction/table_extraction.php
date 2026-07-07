@@ -1,4 +1,3 @@
-```php title="table_extraction.php"
 <?php
 
 declare(strict_types=1);
@@ -214,4 +213,3 @@ if (!empty($reportTables)) {
     echo "\nMerged " . count($reportTables) . " tables\n";
     echo "Total rows: " . count($merged['data']) . "\n";
 }
-```

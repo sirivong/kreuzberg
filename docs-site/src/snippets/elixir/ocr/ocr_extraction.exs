@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Extract text from a scanned PDF using OCR
@@ -32,4 +31,3 @@ IO.puts("Detected languages: #{inspect(result.detected_languages)}")
 IO.puts("Creation date: #{metadata["creation_date"] || "N/A"}")
 IO.puts("\nFirst 200 characters of extracted text:")
 IO.puts(String.slice(content, 0..199))
-```

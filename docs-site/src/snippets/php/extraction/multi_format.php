@@ -1,4 +1,3 @@
-```php title="multi_format.php"
 <?php
 
 declare(strict_types=1);
@@ -273,4 +272,3 @@ foreach ($mixedFiles as $file) {
     print_r(array_filter($data, fn($k) => $k !== 'content', ARRAY_FILTER_USE_KEY));
     echo "\n";
 }
-```

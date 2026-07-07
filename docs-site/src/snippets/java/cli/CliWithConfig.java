@@ -1,4 +1,3 @@
-```java title="CliWithConfig.java"
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
@@ -53,4 +52,3 @@ public final class CliWithConfig {
         System.out.println("Languages: " + result.get("languages").toString());
     }
 }
-```

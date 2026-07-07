@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # Preprocess images before OCR for improved text extraction
 # Image preprocessing can enhance OCR accuracy on poor quality scans
 
@@ -175,4 +174,3 @@ rescue
   error ->
   IO.puts("Comparison completed with notice: #{inspect(error)}")
 end
-```

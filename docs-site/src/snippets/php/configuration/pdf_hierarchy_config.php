@@ -1,4 +1,3 @@
-```php title="pdf_hierarchy_config.php"
 <?php
 
 declare(strict_types=1);
@@ -67,4 +66,3 @@ $output = \Xberg\XbergApi::extract(\Xberg\ExtractInput::fromUri('simple_document
 $result = $output->results[0];
 
 echo "Fast extraction without hierarchy detection\n";
-```

@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # MCP Custom Client - Connect to Xberg MCP servers
 # Demonstrates creating a reusable MCP client for document extraction
 
@@ -309,4 +308,3 @@ case XbergMCPClient.extract_batch(config, documents) do
   {:error, reason} ->
   IO.puts("Batch extraction failed: #{reason}")
 end
-```

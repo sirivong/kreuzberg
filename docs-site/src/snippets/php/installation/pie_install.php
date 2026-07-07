@@ -1,4 +1,3 @@
-```php title="pie_install.php"
 <?php
 
 declare(strict_types=1);
@@ -81,4 +80,3 @@ echo "2. Install optional dependencies:\n";
 echo "   - Tesseract OCR: brew install tesseract (macOS) or apt install tesseract-ocr (Linux)\n";
 echo "   - ONNX Runtime: brew install onnxruntime (macOS) or apt install libonnxruntime (Linux)\n";
 echo "3. Start extracting documents!\n";
-```

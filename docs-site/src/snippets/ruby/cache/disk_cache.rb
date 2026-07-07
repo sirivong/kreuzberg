@@ -1,4 +1,3 @@
-```ruby title="disk_cache.rb"
 require 'xberg'
 require 'fileutils'
 
@@ -36,4 +35,3 @@ puts "\nCache Statistics:"
 puts "  - Total entries: #{cache_stats['total_entries']}"
 puts "  - Cache size: #{(cache_stats['cache_size_bytes'] / 1024.0 / 1024.0).round(1)} MB"
 puts "  - Hit rate: #{(cache_stats['hit_rate'] * 100).round(1)}%"
-```

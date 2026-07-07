@@ -1,4 +1,3 @@
-```php title="page_boundaries.php"
 <?php
 
 declare(strict_types=1);
@@ -34,4 +33,3 @@ if (isset($result->metadata->pages->boundaries) && !empty($result->metadata->pag
         echo "  Preview: " . mb_substr($pageContent, 0, 100) . "...\n\n";
     }
 }
-```

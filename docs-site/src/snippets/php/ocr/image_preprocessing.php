@@ -1,4 +1,3 @@
-```php title="image_preprocessing.php"
 <?php
 
 declare(strict_types=1);
@@ -217,4 +216,3 @@ $result = $output->results[0];
     echo "Adaptive preprocessing applied\n";
     echo "Result: " . strlen($result->content) . " characters extracted\n";
 }
-```

@@ -1,4 +1,3 @@
-```go title="cli_with_config.go"
 package main
 
 import (
@@ -51,4 +50,3 @@ func main() {
 	fmt.Printf("Format: %s\n", result.Format)
 	fmt.Printf("Languages: %v\n", result.Languages)
 }
-```

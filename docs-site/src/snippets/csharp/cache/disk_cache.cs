@@ -1,4 +1,3 @@
-```csharp title="disk_cache.cs"
 using Xberg;
 using System;
 using System.IO;
@@ -39,4 +38,3 @@ Console.WriteLine($"\nCache Statistics:");
 Console.WriteLine($"  - Total entries: {cacheStats.TotalEntries}");
 Console.WriteLine($"  - Cache size: {cacheStats.CacheSizeBytes / 1024 / 1024} MB");
 Console.WriteLine($"  - Hit rate: {cacheStats.HitRate:P}");
-```

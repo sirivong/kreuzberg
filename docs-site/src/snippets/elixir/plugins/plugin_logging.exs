@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.Plugin
 require Logger
 
@@ -122,4 +121,3 @@ case MyApp.Plugins.LoggingProcessor.process(invalid_result, %{}) do
   {:error, reason} ->
   IO.puts("Processing failed as expected: #{reason}")
 end
-```

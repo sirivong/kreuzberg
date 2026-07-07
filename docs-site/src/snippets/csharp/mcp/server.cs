@@ -1,4 +1,3 @@
-```csharp title="server.cs"
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -47,4 +46,3 @@ class McpServerProgram
         await server.StartAsync();
     }
 }
-```

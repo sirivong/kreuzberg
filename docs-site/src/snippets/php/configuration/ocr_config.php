@@ -1,4 +1,3 @@
-```php title="ocr_config.php"
 <?php
 
 declare(strict_types=1);
@@ -201,4 +200,3 @@ echo "- Enable table detection for structured documents\n";
 echo "- Use character whitelists for forms/invoices\n";
 echo "- Combine multiple languages with '+' separator\n";
 echo "- Preprocess images for better accuracy (see image_preprocessing.php)\n";
-```

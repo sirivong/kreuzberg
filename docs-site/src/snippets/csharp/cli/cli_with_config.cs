@@ -1,4 +1,3 @@
-```csharp title="cli_with_config.cs"
 using System;
 using System.CommandLine;
 using System.Text.Json;
@@ -72,4 +71,3 @@ extractCommand.SetHandler(async (path, config, ocr, cache) =>
 rootCommand.AddCommand(extractCommand);
 
 return await rootCommand.InvokeAsync(args);
-```

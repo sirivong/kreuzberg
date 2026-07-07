@@ -1,4 +1,3 @@
-```java title="DiskCache.java"
 import io.xberg.CacheConfig;
 import io.xberg.CacheStats;
 import io.xberg.ExtractionConfig;
@@ -56,4 +55,3 @@ public final class DiskCache {
         System.out.println("  - Hit rate: " + String.format("%.1f", cacheStats.hitRate() * 100) + "%");
     }
 }
-```

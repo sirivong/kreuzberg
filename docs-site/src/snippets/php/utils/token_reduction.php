@@ -1,4 +1,3 @@
-```php title="token_reduction.php"
 <?php
 
 declare(strict_types=1);
@@ -165,4 +164,3 @@ echo "Recommended mode: $recommendedMode\n";
 echo "Reason: " . ($documentTokens > $maxTokenLimit
     ? "Document exceeds limit by " . number_format($documentTokens - $maxTokenLimit) . " tokens"
     : "Document within limits") . "\n";
-```

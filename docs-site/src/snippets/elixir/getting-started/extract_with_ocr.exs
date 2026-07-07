@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # Extract scanned documents with OCR
 # Configure Tesseract for OCR processing
 
@@ -17,4 +16,3 @@ result = List.first(output.results)
 IO.puts("Extracted text from scanned document:")
 IO.puts(result.content)
 IO.puts("Used OCR backend: tesseract")
-```

@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # Extract and process comprehensive PDF metadata
 # Useful for document indexing, cataloging, and metadata-driven workflows
 
@@ -106,4 +105,3 @@ case PDFMetadataExtractor.extract_metadata(file_path) do
   {:error, reason} ->
   IO.puts("Error extracting metadata: #{reason}")
 end
-```

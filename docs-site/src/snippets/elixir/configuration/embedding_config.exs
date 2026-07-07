@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Configure embeddings for vector search
@@ -18,4 +17,3 @@ embeddings: %{
 
 result = List.first(output.results)
 IO.puts("Extracted chunks with embeddings: #{length(result.chunks || [])}")
-```

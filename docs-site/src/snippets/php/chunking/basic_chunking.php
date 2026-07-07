@@ -1,4 +1,3 @@
-```php title="basic_chunking.php"
 <?php
 
 declare(strict_types=1);
@@ -147,4 +146,3 @@ file_put_contents(
     json_encode($chunksForDb, JSON_PRETTY_PRINT)
 );
 echo "Saved chunks to: chunks.json\n";
-```

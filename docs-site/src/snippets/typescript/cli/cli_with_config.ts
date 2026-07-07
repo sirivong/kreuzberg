@@ -1,4 +1,3 @@
-```typescript title="cli_with_config.ts"
 /* oxlint-disable */
 import { spawn } from "child_process";
 

@@ -1,4 +1,3 @@
-```php title="pdf_metadata_extractor.php"
 <?php
 
 declare(strict_types=1);
@@ -110,4 +109,3 @@ readonly class PdfMetadataExtractor implements PostProcessorInterface
 
 $processor = new PdfMetadataExtractor();
 Xberg::registerPostProcessor($processor);
-```

@@ -1,4 +1,3 @@
-```php title="vector_database_integration.php"
 <?php
 
 declare(strict_types=1);
@@ -280,4 +279,3 @@ function exportVectorRecordsToJson(array $records, string $filename): void
 if (!empty($allVectorRecords)) {
     exportVectorRecordsToJson($allVectorRecords, 'vector_records.json');
 }
-```

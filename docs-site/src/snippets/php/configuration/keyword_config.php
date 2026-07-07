@@ -1,4 +1,3 @@
-```php title="keyword_config.php"
 <?php
 
 declare(strict_types=1);
@@ -88,4 +87,3 @@ foreach ($allKeywords as $keyword => $frequency) {
     }
     echo sprintf("  %2d. %-30s (appears in %d documents)\n", $rank, $keyword, $frequency);
 }
-```

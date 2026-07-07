@@ -1,4 +1,3 @@
-```php title="language_detection_config.php"
 <?php
 
 declare(strict_types=1);
@@ -94,4 +93,3 @@ echo "\nDocuments grouped by language:\n";
 foreach ($languageMap as $lang => $docs) {
     echo "$lang: " . implode(', ', $docs) . "\n";
 }
-```

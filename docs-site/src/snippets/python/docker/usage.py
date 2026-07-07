@@ -1,4 +1,3 @@
-```python title="usage.py"
 import asyncio
 import subprocess
 import httpx
@@ -58,4 +57,3 @@ if __name__ == "__main__":
     import asyncio
 from xberg import extract, ExtractInput, ExtractionConfig
     asyncio.run(main())
-```

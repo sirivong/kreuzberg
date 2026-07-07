@@ -1,4 +1,3 @@
-```php title="page_config.php"
 <?php
 
 declare(strict_types=1);
@@ -78,4 +77,3 @@ echo "\nSelected pages 10-20:\n";
 foreach ($selectedPages as $page) {
     echo "Page {$page->pageNumber}: " . strlen($page->content) . " chars\n";
 }
-```

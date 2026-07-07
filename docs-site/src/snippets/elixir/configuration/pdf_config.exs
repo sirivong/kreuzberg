@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Configure PDF-specific extraction options
@@ -23,4 +22,3 @@ IO.puts("PDF Extraction Complete:")
 IO.puts("Content length: #{byte_size(result.content)} bytes")
 IO.puts("Metadata: #{inspect(result.metadata)}")
 IO.puts("Annotations present: #{map_size(result.metadata["annotations"] || %{}) > 0}")
-```

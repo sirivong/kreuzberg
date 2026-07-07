@@ -1,4 +1,3 @@
-```php title="pdf_extraction.php"
 <?php
 
 declare(strict_types=1);
@@ -111,4 +110,3 @@ echo "\nDocument sections:\n";
 foreach ($sections as $title => $content) {
     echo "  - $title (" . strlen($content) . " chars)\n";
 }
-```

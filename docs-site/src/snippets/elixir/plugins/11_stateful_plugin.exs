@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # Define a stateful post-processor plugin using an Agent
 defmodule MyApp.Plugins.StatefulTextProcessor do
   @behaviour Xberg.Plugin.PostProcessor
@@ -107,4 +106,3 @@ IO.inspect(processors, label: "Registered processors")
 # Cleanup
 :ok = MyApp.Plugins.StatefulTextProcessor.shutdown()
 :ok = Xberg.Plugin.unregister_post_processor(:stateful)
-```

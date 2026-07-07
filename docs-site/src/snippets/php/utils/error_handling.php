@@ -1,4 +1,3 @@
-```php title="error_handling.php"
 <?php
 
 declare(strict_types=1);
@@ -112,4 +111,3 @@ $result = extractWithRetry($xberg, 'difficult_scan.pdf');
 if ($result !== null) {
     echo "Successfully extracted with retry: " . strlen($result->content) . " chars\n";
 }
-```

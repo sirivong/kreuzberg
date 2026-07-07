@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Configure language detection for multilingual documents
@@ -21,4 +20,3 @@ result = List.first(output.results)
 IO.puts("Detected Languages:")
 IO.inspect(result.detected_languages)
 IO.puts("Content: #{String.slice(result.content, 0..100)}")
-```

@@ -1,4 +1,3 @@
-```php title="image_preprocessing.php"
 <?php
 
 declare(strict_types=1);
@@ -183,4 +182,3 @@ echo "Recommended preprocessing for old documents:\n";
 $recommended = recommendPreprocessingSettings('old_document');
 echo "  Target DPI: {$recommended->targetDpi}\n";
 echo "  Binarization: {$recommended->binarizationMethod}\n";
-```

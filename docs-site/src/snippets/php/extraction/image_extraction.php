@@ -1,4 +1,3 @@
-```php title="image_extraction.php"
 <?php
 
 declare(strict_types=1);
@@ -156,4 +155,3 @@ if (extension_loaded('gd')) {
         }
     }
 }
-```

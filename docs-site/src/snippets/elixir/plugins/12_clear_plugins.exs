@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # Clear all plugins from the registry - useful for testing or resetting state
 
 # Define multiple example plugins for demonstration
@@ -186,4 +185,3 @@ Xberg.Plugin.clear_ocr_backends()
 {:ok, clean_backends} = Xberg.Plugin.list_ocr_backends()
 
 IO.puts("Test teardown complete: #{length(clean_procs)} processors, #{length(clean_vals)} validators, #{length(clean_backends)} backends")
-```

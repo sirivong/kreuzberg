@@ -1,4 +1,3 @@
-```typescript title="usage.ts"
 import { exec } from "child_process";
 import { promisify } from "util";
 import axios from "axios";
@@ -63,4 +62,3 @@ class DockerXbergClient {
     await dockerClient.stopContainer();
   }
 })()
-```

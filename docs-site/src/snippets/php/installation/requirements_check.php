@@ -1,4 +1,3 @@
-```php title="requirements_check.php"
 <?php
 
 declare(strict_types=1);
@@ -78,4 +77,3 @@ function return_bytes(string $val): int
 
     return $val;
 }
-```

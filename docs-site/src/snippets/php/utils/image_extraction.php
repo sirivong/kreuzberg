@@ -1,4 +1,3 @@
-```php title="image_extraction.php"
 <?php
 
 declare(strict_types=1);
@@ -130,4 +129,3 @@ foreach ($result->images ?? [] as $index => $image) {
         echo "  Image " . ($index + 1) . ": $thumbInfo\n";
     }
 }
-```

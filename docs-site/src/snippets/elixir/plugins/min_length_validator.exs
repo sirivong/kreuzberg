@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 defmodule MinLengthValidator do
   @behaviour Xberg.Plugin.Validator
 
@@ -34,4 +33,3 @@ case result do
   IO.puts("Extraction successful")
   IO.puts("Content length: #{String.length(result.content)}")
 end
-```

@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # Basic CLI Tool - Simple command-line interface for Xberg
 # Demonstrates how to build a CLI for document extraction
 
@@ -305,4 +304,3 @@ def main(args) do
     :error -> 1
   end
 end
-```

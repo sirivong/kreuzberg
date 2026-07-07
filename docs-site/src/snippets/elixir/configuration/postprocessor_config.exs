@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Configure post-processing pipeline
@@ -27,4 +26,3 @@ IO.puts("Fix Encoding: true")
 IO.puts("Original content length: #{byte_size(result.content)} bytes")
 IO.puts("Processed content: #{String.slice(result.content, 0..100)}...")
 IO.puts("Metadata: #{inspect(result.metadata)}")
-```

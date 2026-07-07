@@ -1,4 +1,3 @@
-```python title="disk_cache.py"
 from pathlib import Path
 from xberg import ExtractInput, Xberg, ExtractionConfig, CacheConfig
 
@@ -34,4 +33,3 @@ print(f"\nCache Statistics:")
 print(f"  - Total entries: {cache_stats.get('total_entries', 0)}")
 print(f"  - Cache size: {cache_stats.get('cache_size_bytes', 0) / 1024 / 1024:.1f} MB")
 print(f"  - Hit rate: {cache_stats.get('hit_rate', 0):.1%}")
-```

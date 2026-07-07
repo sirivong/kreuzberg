@@ -1,4 +1,3 @@
-```php title="image_preprocessing_config.php"
 <?php
 
 declare(strict_types=1);
@@ -298,4 +297,3 @@ echo "Fastest:  DPI=150, AutoRotate=No,  Denoise=No\n";
 echo "Balanced: DPI=300, AutoRotate=Yes, Denoise=No  (RECOMMENDED)\n";
 echo "Quality:  DPI=400, AutoRotate=Yes, Denoise=Yes\n";
 echo "Maximum:  DPI=600, AutoRotate=Yes, Denoise=Yes\n";
-```

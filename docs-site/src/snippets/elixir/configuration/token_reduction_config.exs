@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Configure token reduction for LLM context windows
@@ -26,4 +25,3 @@ IO.puts("Strategy: truncate")
 IO.puts("Content extracted: #{byte_size(result.content)} bytes")
 IO.puts("Tokens reduced: #{inspect(result.metadata[:token_reduction_applied])}")
 IO.puts("Final metadata: #{inspect(result.metadata)}")
-```

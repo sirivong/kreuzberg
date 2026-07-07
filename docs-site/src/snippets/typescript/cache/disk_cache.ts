@@ -1,4 +1,3 @@
-```typescript title="disk_cache.ts"
 /* oxlint-disable */
 import { extract, type ExtractionConfig } from "@xberg-io/xberg";
 

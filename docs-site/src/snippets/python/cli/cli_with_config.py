@@ -1,4 +1,3 @@
-```python title="cli_with_config.py"
 import subprocess
 import json
 import sys
@@ -26,4 +25,3 @@ result = extract_with_config(str(document), str(config_file))
 print(f"Content length: {len(result.get('content', ''))}")
 print(f"Format: {result.get('format')}")
 print(f"Languages: {result.get('languages')}")
-```

@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Process document with quality filtering
@@ -37,4 +36,3 @@ defp quality_status(score) when score >= 0.9, do: "Excellent"
 defp quality_status(score) when score >= 0.8, do: "Good"
 defp quality_status(score) when score >= 0.7, do: "Fair"
 defp quality_status(_score), do: "Poor"
-```

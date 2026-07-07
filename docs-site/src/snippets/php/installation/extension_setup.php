@@ -1,4 +1,3 @@
-```php title="extension_setup.php"
 <?php
 
 declare(strict_types=1);
@@ -47,4 +46,3 @@ if (!$onnx_available) {
     echo "  macOS: brew install onnxruntime\n";
     echo "  Ubuntu/Debian: sudo apt install libonnxruntime\n";
 }
-```

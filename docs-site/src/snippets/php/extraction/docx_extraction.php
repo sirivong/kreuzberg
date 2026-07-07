@@ -1,4 +1,3 @@
-```php title="docx_extraction.php"
 <?php
 
 declare(strict_types=1);
@@ -119,4 +118,3 @@ echo str_repeat('=', 60) . "\n";
 foreach ($stats as $metric => $value) {
     echo ucfirst($metric) . ": " . number_format($value) . "\n";
 }
-```

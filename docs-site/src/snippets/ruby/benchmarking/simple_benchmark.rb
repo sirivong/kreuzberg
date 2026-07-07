@@ -1,4 +1,3 @@
-```ruby title="simple_benchmark.rb"
 require 'xberg'
 require 'benchmark'
 
@@ -43,4 +42,3 @@ cached_time = Benchmark.realtime do
 end
 puts "  - Time: #{cached_time.round(3)}s"
 puts "  - Cache speedup: #{(first_time / cached_time).round(1)}x"
-```

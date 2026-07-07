@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # Unregister individual plugins from the registry
 
 defmodule MyApp.Plugins.UnregisterExample do
@@ -355,4 +354,3 @@ IO.puts("After cleanup:")
 IO.puts("  Post-processors: #{length(final_clean_procs)}")
 IO.puts("  Validators: #{length(final_clean_vals)}")
 IO.puts("  OCR backends: #{length(final_clean_backends)}")
-```

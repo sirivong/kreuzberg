@@ -1,4 +1,3 @@
-```php title="usage.php"
 <?php
 
 declare(strict_types=1);
@@ -136,4 +135,3 @@ try {
 } finally {
     $dockerClient->stopContainer();
 }
-```

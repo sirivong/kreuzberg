@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # Force OCR processing on all pages of a document
 # By default, OCR is only applied when needed (scanned content detected)
 # Use force_all_pages to ensure OCR runs on every page regardless
@@ -94,4 +93,3 @@ case Xberg.extract(input: %Xberg.ExtractInput{kind: :uri, uri: "mixed_document.p
   IO.puts("OCR extraction failed after #{elapsed_ms}ms")
   IO.puts("Error: #{inspect(reason)}")
 end
-```

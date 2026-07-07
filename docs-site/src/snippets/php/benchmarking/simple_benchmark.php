@@ -1,4 +1,3 @@
-```php title="simple_benchmark.php"
 <?php
 
 declare(strict_types=1);
@@ -225,4 +224,3 @@ gc_collect_cycles();
 
 $afterCleanup = memory_get_usage();
 echo "After cleanup: " . number_format($afterCleanup / 1024 / 1024, 2) . " MB\n";
-```

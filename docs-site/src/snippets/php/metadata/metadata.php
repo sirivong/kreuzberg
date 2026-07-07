@@ -1,4 +1,3 @@
-```php title="metadata.php"
 <?php
 
 declare(strict_types=1);
@@ -30,4 +29,3 @@ if (isset($htmlResult->metadata->html)) {
     echo "Title: " . ($htmlMeta['title'] ?? 'N/A') . "\n";
     echo "Description: " . ($htmlMeta['description'] ?? 'N/A') . "\n";
 }
-```

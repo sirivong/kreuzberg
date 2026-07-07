@@ -1,4 +1,3 @@
-```rust title="usage.rs"
 use std::process::Command;
 use anyhow::Result;
 use reqwest::multipart;
@@ -83,4 +82,3 @@ async fn main() -> Result<()> {
     docker_client.stop_container()?;
     Ok(())
 }
-```

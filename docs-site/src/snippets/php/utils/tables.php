@@ -1,4 +1,3 @@
-```php title="tables.php"
 <?php
 
 declare(strict_types=1);
@@ -233,4 +232,3 @@ if (!empty($result->tables)) {
         echo "... and " . (count($associativeData) - 3) . " more records\n";
     }
 }
-```

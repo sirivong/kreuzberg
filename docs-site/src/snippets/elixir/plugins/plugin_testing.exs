@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.Plugin
 
 # Plugin Testing Example
@@ -154,4 +153,3 @@ IO.puts("Registered Post-Processors:")
 Enum.each(processors, fn {name, module} ->
   IO.puts("  - #{name}: #{module}")
 end)
-```

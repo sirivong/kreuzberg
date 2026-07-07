@@ -1,4 +1,3 @@
-```csharp title="detect_language.cs"
 using Xberg;
 using System;
 using System.Collections.Generic;
@@ -43,4 +42,3 @@ Console.WriteLine($"\nLanguage Detection Summary:");
 Console.WriteLine($"  - Content: {multiResult.Content.Substring(0, 100)}...");
 Console.WriteLine($"  - Languages: {string.Join(", ", multiResult.DetectedLanguages)}");
 Console.WriteLine($"  - Quality Score: {multiResult.Metadata.QualityScore}");
-```

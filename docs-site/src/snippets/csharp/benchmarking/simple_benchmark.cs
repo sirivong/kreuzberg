@@ -1,4 +1,3 @@
-```csharp title="simple_benchmark.cs"
 using BenchmarkDotNet.Attributes;
 using BenchmarkDotNet.Running;
 using Xberg;
@@ -99,4 +98,3 @@ public class ManualBenchmark
         var summary = BenchmarkRunner.Run<XbergBenchmark>();
     }
 }
-```

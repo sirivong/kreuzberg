@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 defmodule MyApp.MetadataEnricher do
   @behaviour Xberg.Plugin.PostProcessor
 
@@ -58,4 +57,3 @@ Xberg.Plugin.register_post_processor(:link_extractor, MyApp.LinkExtractor)
 Xberg.Plugin.register_validator(MyApp.QualityValidator)
 
 IO.puts("Plugins registered successfully")
-```

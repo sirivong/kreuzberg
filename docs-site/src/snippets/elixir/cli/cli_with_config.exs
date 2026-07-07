@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # CLI with Configuration - Advanced CLI with config file support
 # Demonstrates managing complex extraction configurations via CLI
 
@@ -453,4 +452,3 @@ case XbergAdvancedCLI.main(System.argv()) do
   :ok -> IO.puts("\nDone.")
   :error -> exit(1)
 end
-```

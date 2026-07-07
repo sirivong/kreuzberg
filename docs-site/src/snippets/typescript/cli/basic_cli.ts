@@ -1,4 +1,3 @@
-```typescript title="basic_cli.ts"
 /* oxlint-disable */
 import { spawn } from "child_process";
 
@@ -48,4 +47,3 @@ console.log(`Extracted: ${(textOutput as string).length} characters`);
 
 const jsonOutput = (await extractWithCli(document, "json")) as ExtractionResult;
 console.log(`Format: ${jsonOutput.format}`);
-```

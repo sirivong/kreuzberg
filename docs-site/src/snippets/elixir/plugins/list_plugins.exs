@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # List all registered plugins
 {:ok, post_processors} = Xberg.Plugin.list_post_processors()
 {:ok, validators} = Xberg.Plugin.list_validators()
@@ -20,4 +19,3 @@ Enum.each(ocr_backends, fn module ->
 end)
 
 IO.puts("\nTotal: #{length(post_processors)} post-processors, #{length(validators)} validators, #{length(ocr_backends)} OCR backends")
-```

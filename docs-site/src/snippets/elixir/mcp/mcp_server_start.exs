@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 # MCP Server Integration - Start a Xberg MCP server
 # Demonstrates how to set up and manage an MCP server for remote document extraction
 
@@ -299,4 +298,3 @@ case XbergMCPServer.start_server(port: 8080) do
   {:error, reason} ->
   IO.puts("Failed to start server: #{inspect(reason)}")
 end
-```

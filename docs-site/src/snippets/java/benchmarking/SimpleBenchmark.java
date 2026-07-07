@@ -1,4 +1,3 @@
-```java title="SimpleBenchmark.java"
 import io.xberg.ExtractInput;
 import io.xberg.ExtractInputKind;
 import io.xberg.ExtractionConfig;
@@ -62,4 +61,3 @@ public final class SimpleBenchmark {
         System.out.println("  - Cache speedup: " + String.format("%.1f", firstDuration / cachedDuration) + "x");
     }
 }
-```

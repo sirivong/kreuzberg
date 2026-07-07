@@ -1,4 +1,3 @@
-```go title="basic_cli.go"
 package main
 
 import (
@@ -32,4 +31,3 @@ func main() {
 	}
 	fmt.Printf("JSON output received: %d bytes\n", len(jsonOutput))
 }
-```

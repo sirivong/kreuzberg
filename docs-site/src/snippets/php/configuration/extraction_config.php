@@ -1,4 +1,3 @@
-```php title="extraction_config.php"
 <?php
 
 declare(strict_types=1);
@@ -60,4 +59,3 @@ $result2 = \Xberg\XbergApi::extract(\Xberg\ExtractInput::fromUri('doc2.pdf'), $o
 
 echo "\nDoc1 tables: " . count($result1->tables) . "\n";
 echo "Doc2 tables: " . count($result2->tables) . "\n";
-```

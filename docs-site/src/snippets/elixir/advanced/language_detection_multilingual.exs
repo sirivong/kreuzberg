@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 alias Xberg.ExtractionConfig
 
 # Detect all languages in multilingual document
@@ -30,4 +29,3 @@ case Xberg.extract(input: %Xberg.ExtractInput{kind: :uri, uri: "multilingual.pdf
   IO.puts("Extraction failed!")
   IO.puts("Error: #{inspect(reason)}")
 end
-```

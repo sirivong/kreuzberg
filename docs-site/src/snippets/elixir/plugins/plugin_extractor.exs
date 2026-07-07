@@ -1,4 +1,3 @@
-```elixir title="Elixir"
 defmodule MyApp.WordCountProcessor do
   @behaviour Xberg.Plugin.PostProcessor
 
@@ -31,4 +30,3 @@ input = %Xberg.ExtractInput{kind: :uri, uri: "document.pdf"}
 result = List.first(output.results)
 
 IO.puts("Word count: #{result.metadata["word_count"]}")
-```
