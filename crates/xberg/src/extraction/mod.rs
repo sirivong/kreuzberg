@@ -1,6 +1,10 @@
 #[cfg(any(feature = "pdf", feature = "office", feature = "ocr"))]
 pub mod blank_detection;
 pub mod derive;
+// Span-aware table-grid flattening is only consumed by the HTML and email
+// extractors; gate it to those features so a build without them (e.g. the
+// reranker-only CI job) does not see it as dead code under `-D warnings`.
+#[cfg(any(feature = "html", feature = "email"))]
 pub(crate) mod grid_flatten;
 pub mod image_kind;
 pub mod structured;
