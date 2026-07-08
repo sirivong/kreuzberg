@@ -753,6 +753,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LlmConfig dco_decode_box_autoadd_llm_config(dynamic raw);
 
   @protected
+  MultiVectorEmbedding dco_decode_box_autoadd_multi_vector_embedding(
+    dynamic raw,
+  );
+
+  @protected
   NerConfig dco_decode_box_autoadd_ner_config(dynamic raw);
 
   @protected
@@ -1256,6 +1261,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LanguageDetectionConfig dco_decode_language_detection_config(dynamic raw);
 
   @protected
+  LateInteractionConfig dco_decode_late_interaction_config(dynamic raw);
+
+  @protected
+  LateInteractionMatch dco_decode_late_interaction_match(dynamic raw);
+
+  @protected
+  LateInteractionModelType dco_decode_late_interaction_model_type(dynamic raw);
+
+  @protected
+  LateInteractionPreset dco_decode_late_interaction_preset(dynamic raw);
+
+  @protected
   LayoutClass dco_decode_layout_class(dynamic raw);
 
   @protected
@@ -1382,6 +1399,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<Keyword> dco_decode_list_keyword(dynamic raw);
 
   @protected
+  List<LateInteractionMatch> dco_decode_list_late_interaction_match(
+    dynamic raw,
+  );
+
+  @protected
   List<LayoutDetection> dco_decode_list_layout_detection(dynamic raw);
 
   @protected
@@ -1398,6 +1420,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<LlmUsage> dco_decode_list_llm_usage(dynamic raw);
+
+  @protected
+  List<MultiVectorEmbedding> dco_decode_list_multi_vector_embedding(
+    dynamic raw,
+  );
 
   @protected
   List<OcrElement> dco_decode_list_ocr_element(dynamic raw);
@@ -1522,6 +1549,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ModelPaths dco_decode_model_paths(dynamic raw);
+
+  @protected
+  MultiVectorEmbedding dco_decode_multi_vector_embedding(dynamic raw);
 
   @protected
   MultidocInput dco_decode_multidoc_input(dynamic raw);
@@ -2087,6 +2117,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RerankerConfig dco_decode_reranker_config(dynamic raw);
 
   @protected
+  RerankerHead dco_decode_reranker_head(dynamic raw);
+
+  @protected
   RerankerModelType dco_decode_reranker_model_type(dynamic raw);
 
   @protected
@@ -2118,6 +2151,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SitemapUrl dco_decode_sitemap_url(dynamic raw);
+
+  @protected
+  SparseEmbedding dco_decode_sparse_embedding(dynamic raw);
+
+  @protected
+  SparseEmbeddingConfig dco_decode_sparse_embedding_config(dynamic raw);
+
+  @protected
+  SparseEmbeddingModelType dco_decode_sparse_embedding_model_type(dynamic raw);
+
+  @protected
+  SparseEmbeddingPreset dco_decode_sparse_embedding_preset(dynamic raw);
 
   @protected
   SsrfPolicy dco_decode_ssrf_policy(dynamic raw);
@@ -2887,6 +2932,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   LlmConfig sse_decode_box_autoadd_llm_config(SseDeserializer deserializer);
 
   @protected
+  MultiVectorEmbedding sse_decode_box_autoadd_multi_vector_embedding(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   NerConfig sse_decode_box_autoadd_ner_config(SseDeserializer deserializer);
 
   @protected
@@ -3474,6 +3524,26 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  LateInteractionConfig sse_decode_late_interaction_config(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  LateInteractionMatch sse_decode_late_interaction_match(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  LateInteractionModelType sse_decode_late_interaction_model_type(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  LateInteractionPreset sse_decode_late_interaction_preset(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   LayoutClass sse_decode_layout_class(SseDeserializer deserializer);
 
   @protected
@@ -3646,6 +3716,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<Keyword> sse_decode_list_keyword(SseDeserializer deserializer);
 
   @protected
+  List<LateInteractionMatch> sse_decode_list_late_interaction_match(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   List<LayoutDetection> sse_decode_list_layout_detection(
     SseDeserializer deserializer,
   );
@@ -3670,6 +3745,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<LlmUsage> sse_decode_list_llm_usage(SseDeserializer deserializer);
+
+  @protected
+  List<MultiVectorEmbedding> sse_decode_list_multi_vector_embedding(
+    SseDeserializer deserializer,
+  );
 
   @protected
   List<OcrElement> sse_decode_list_ocr_element(SseDeserializer deserializer);
@@ -3824,6 +3904,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   ModelPaths sse_decode_model_paths(SseDeserializer deserializer);
+
+  @protected
+  MultiVectorEmbedding sse_decode_multi_vector_embedding(
+    SseDeserializer deserializer,
+  );
 
   @protected
   MultidocInput sse_decode_multidoc_input(SseDeserializer deserializer);
@@ -4545,6 +4630,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RerankerConfig sse_decode_reranker_config(SseDeserializer deserializer);
 
   @protected
+  RerankerHead sse_decode_reranker_head(SseDeserializer deserializer);
+
+  @protected
   RerankerModelType sse_decode_reranker_model_type(
     SseDeserializer deserializer,
   );
@@ -4578,6 +4666,24 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SitemapUrl sse_decode_sitemap_url(SseDeserializer deserializer);
+
+  @protected
+  SparseEmbedding sse_decode_sparse_embedding(SseDeserializer deserializer);
+
+  @protected
+  SparseEmbeddingConfig sse_decode_sparse_embedding_config(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SparseEmbeddingModelType sse_decode_sparse_embedding_model_type(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  SparseEmbeddingPreset sse_decode_sparse_embedding_preset(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SsrfPolicy sse_decode_ssrf_policy(SseDeserializer deserializer);
@@ -5628,6 +5734,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_multi_vector_embedding(
+    MultiVectorEmbedding self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_ner_config(
     NerConfig self,
     SseSerializer serializer,
@@ -6429,6 +6541,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_late_interaction_config(
+    LateInteractionConfig self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_late_interaction_match(
+    LateInteractionMatch self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_late_interaction_model_type(
+    LateInteractionModelType self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_late_interaction_preset(
+    LateInteractionPreset self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_layout_class(LayoutClass self, SseSerializer serializer);
 
   @protected
@@ -6636,6 +6772,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_list_keyword(List<Keyword> self, SseSerializer serializer);
 
   @protected
+  void sse_encode_list_late_interaction_match(
+    List<LateInteractionMatch> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_list_layout_detection(
     List<LayoutDetection> self,
     SseSerializer serializer,
@@ -6667,6 +6809,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_list_llm_usage(List<LlmUsage> self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_list_multi_vector_embedding(
+    List<MultiVectorEmbedding> self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_ocr_element(
@@ -6868,6 +7016,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_model_paths(ModelPaths self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_multi_vector_embedding(
+    MultiVectorEmbedding self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_multidoc_input(MultidocInput self, SseSerializer serializer);
@@ -7779,6 +7933,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_reranker_head(RerankerHead self, SseSerializer serializer);
+
+  @protected
   void sse_encode_reranker_model_type(
     RerankerModelType self,
     SseSerializer serializer,
@@ -7825,6 +7982,30 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_sitemap_url(SitemapUrl self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_sparse_embedding(
+    SparseEmbedding self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sparse_embedding_config(
+    SparseEmbeddingConfig self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sparse_embedding_model_type(
+    SparseEmbeddingModelType self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_sparse_embedding_preset(
+    SparseEmbeddingPreset self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_ssrf_policy(SsrfPolicy self, SseSerializer serializer);

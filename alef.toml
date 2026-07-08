@@ -458,6 +458,10 @@ features = [
     "embedding-presets",
     "reranker",
     "reranker-presets",
+    "sparse-embeddings",
+    "sparse-embedding-presets",
+    "late-interaction",
+    "late-interaction-presets",
     "chunking",
     "keywords-yake",
     "keywords-rake",
@@ -543,6 +547,12 @@ exclude_functions = [
     "register_renderer",
     "unregister_document_extractor",
     "unregister_renderer",
+    # Sparse and late-interaction embedding functions — async variants are deferred,
+    # sync variants excluded for consistency.
+    "embed_sparse",
+    "embed_sparse_async",
+    "embed_multi_vector",
+    "embed_multi_vector_async",
 ]
 reexported_types = ["ExtractionResult", "ExtractedDocument", "ExtractionDiff"]
 
@@ -586,6 +596,12 @@ exclude_functions = [
     "batch_extract_bytes_sync",
     "batch_extract_files",
     "batch_extract_files_sync",
+    # Sparse and late-interaction embedding functions — async variants are deferred,
+    # sync variants excluded for consistency.
+    "embed_sparse",
+    "embed_sparse_async",
+    "embed_multi_vector",
+    "embed_multi_vector_async",
 ]
 
 [crates.node.extra_dependencies]
@@ -622,6 +638,12 @@ exclude_functions = [
     "batch_extract_bytes_sync",
     "batch_extract_files",
     "batch_extract_files_sync",
+    # Sparse and late-interaction embedding functions — async variants are deferred,
+    # sync variants excluded for consistency.
+    "embed_sparse",
+    "embed_sparse_async",
+    "embed_multi_vector",
+    "embed_multi_vector_async",
 ]
 
 [crates.ruby.stubs]
@@ -677,6 +699,12 @@ exclude_functions = [
     # embed_texts_async and rerank_async are now generated with always-true cfg
     # conditions to work around ext-php-rs's #[php_impl] macro unconditional
     # function resolution. See prepend_cfg_for_php in rust_bindings.rs.
+    # Sparse and late-interaction embedding functions — async variants are deferred,
+    # sync variants excluded for consistency.
+    "embed_sparse",
+    "embed_sparse_async",
+    "embed_multi_vector",
+    "embed_multi_vector_async",
 ]
 
 # Windows: libheif is not installed on the `windows-latest` runner image, so
@@ -724,6 +752,12 @@ exclude_functions = [
     "register_renderer",
     "unregister_document_extractor",
     "unregister_renderer",
+    # Sparse and late-interaction embedding functions — async variants are deferred,
+    # sync variants excluded for consistency.
+    "embed_sparse",
+    "embed_sparse_async",
+    "embed_multi_vector",
+    "embed_multi_vector_async",
 ]
 exclude_types = [
     # Trait types cannot be FFI-bound
@@ -838,6 +872,12 @@ exclude_functions = [
     "batch_extract_bytes_sync",
     "batch_extract_files",
     "batch_extract_files_sync",
+    # Sparse and late-interaction embedding functions — async variants are deferred,
+    # sync variants excluded for consistency.
+    "embed_sparse",
+    "embed_sparse_async",
+    "embed_multi_vector",
+    "embed_multi_vector_async",
 ]
 
 [crates.wasm.extra_dependencies]
@@ -1045,6 +1085,12 @@ exclude_functions = [
     "unregister_document_extractor",
     "register_renderer",
     "unregister_renderer",
+    # Sparse and late-interaction embedding functions — async variants are deferred,
+    # sync variants excluded for consistency.
+    "embed_sparse",
+    "embed_sparse_async",
+    "embed_multi_vector",
+    "embed_multi_vector_async",
 ]
 exclude_types = [
     "LlmBackend",
@@ -1073,6 +1119,10 @@ features = [
     "embedding-presets",
     "reranker",
     "reranker-presets",
+    "sparse-embeddings",
+    "sparse-embedding-presets",
+    "late-interaction",
+    "late-interaction-presets",
     "chunking",
     "keywords-yake",
     "keywords-rake",
@@ -1112,6 +1162,12 @@ exclude_functions = [
     "batch_extract_bytes_sync",
     "batch_extract_files",
     "batch_extract_files_sync",
+    # Sparse and late-interaction embedding functions — async variants are deferred,
+    # sync variants excluded for consistency.
+    "embed_sparse",
+    "embed_sparse_async",
+    "embed_multi_vector",
+    "embed_multi_vector_async",
 ]
 
 # Windows: libheif is not installed on the `windows-latest` runner image, so
@@ -1145,7 +1201,7 @@ style = "frb"
 # re-pull `ort-sys` on `x86_64-linux-android` (no ORT prebuilt) via cargo feature
 # unification, defeating the `android-target` dep override. Desktop builds still
 # get them through the `cfg(not(android/ios/windows))` `features = ["full"]` dep.
-excluded_default_features = ["heic", "embeddings", "reranker"]
+excluded_default_features = ["heic", "embeddings", "reranker", "sparse-embeddings", "late-interaction"]
 features = [
     "pdf",
     "excel",
@@ -1177,6 +1233,10 @@ features = [
     "embedding-presets",
     "reranker",
     "reranker-presets",
+    "sparse-embeddings",
+    "sparse-embedding-presets",
+    "late-interaction",
+    "late-interaction-presets",
     "transcription-types",
     "tree-sitter",
     "liter-llm",
@@ -1205,6 +1265,12 @@ exclude_functions = [
     "batch_extract_bytes_sync",
     "batch_extract_files",
     "batch_extract_files_sync",
+    # Sparse and late-interaction embedding functions — async variants are deferred,
+    # sync variants excluded for consistency.
+    "embed_sparse",
+    "embed_sparse_async",
+    "embed_multi_vector",
+    "embed_multi_vector_async",
 ]
 
 # Android (any arch) and iOS: libheif-sys + ORT do not cross-compile to mobile
@@ -1279,6 +1345,12 @@ exclude_functions = [
     "batch_extract_bytes_sync",
     "batch_extract_files",
     "batch_extract_files_sync",
+    # Sparse and late-interaction embedding functions — async variants are deferred,
+    # sync variants excluded for consistency.
+    "embed_sparse",
+    "embed_sparse_async",
+    "embed_multi_vector",
+    "embed_multi_vector_async",
 ]
 
 # Windows: libheif is not installed on the `windows-latest` runner image, so
@@ -1368,6 +1440,10 @@ features = [
     "embedding-presets",
     "reranker",
     "reranker-presets",
+    "sparse-embeddings",
+    "sparse-embedding-presets",
+    "late-interaction",
+    "late-interaction-presets",
     "transcription-types",
     "tree-sitter",
     "liter-llm",
@@ -1439,6 +1515,12 @@ exclude_functions = [
     "batch_extract_bytes_sync",
     "batch_extract_files",
     "batch_extract_files_sync",
+    # Sparse and late-interaction embedding functions — async variants are deferred,
+    # sync variants excluded for consistency.
+    "embed_sparse",
+    "embed_sparse_async",
+    "embed_multi_vector",
+    "embed_multi_vector_async",
 ]
 
 # iOS: libheif-sys + ORT do not cross-compile to the iOS SDK, so the
@@ -1493,6 +1575,12 @@ exclude_functions = [
     "batch_extract_bytes_sync",
     "batch_extract_files",
     "batch_extract_files_sync",
+    # Sparse and late-interaction embedding functions — async variants are deferred,
+    # sync variants excluded for consistency.
+    "embed_sparse",
+    "embed_sparse_async",
+    "embed_multi_vector",
+    "embed_multi_vector_async",
 ]
 
 [crates.zig]
@@ -1511,6 +1599,12 @@ exclude_functions = [
     "batch_extract_bytes_sync",
     "batch_extract_files",
     "batch_extract_files_sync",
+    # Sparse and late-interaction embedding functions — async variants are deferred,
+    # sync variants excluded for consistency.
+    "embed_sparse",
+    "embed_sparse_async",
+    "embed_multi_vector",
+    "embed_multi_vector_async",
 ]
 
 [crates.output]

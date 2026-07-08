@@ -213,9 +213,15 @@ pub use core::config::{
     ExtractionConfig, ExtractionErrorItem, ExtractionResult, ExtractionSummary, FileExtractionConfig,
     ImageExtractionConfig, JupyterCellRendering, LanguageDetectionConfig, LlmConfig, MergeMode, NerBackendKind,
     NerConfig, OcrConfig, OutputFormat, PageClassificationConfig, PageConfig, PostProcessorConfig, RedactionConfig,
-    RedactionPattern, RedactionTerm, RerankerConfig, RerankerModelType, StructuredExtractionConfig,
+    RedactionPattern, RedactionTerm, RerankerConfig, RerankerHead, RerankerModelType, StructuredExtractionConfig,
     SummarizationConfig, TableChunkingMode, TokenReductionOptions, TranslationConfig, UrlExtractionConfig,
     UrlExtractionMode,
+};
+// Sparse-embedding / late-interaction config types are pure data (no ORT) and
+// always compiled; re-export at the crate root so bindings resolve
+// `xberg::SparseEmbeddingConfig` etc., mirroring `RerankerConfig` above.
+pub use core::config::{
+    LateInteractionConfig, LateInteractionModelType, SparseEmbeddingConfig, SparseEmbeddingModelType,
 };
 // ── Crawlberg config types — re-exported so consumers only need xberg as a dep ─
 //

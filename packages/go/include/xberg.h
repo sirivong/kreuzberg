@@ -926,6 +926,34 @@ typedef struct XBERGKeywordConfig XBERGKeywordConfig;
  */
 typedef struct XBERGLanguageDetectionConfig XBERGLanguageDetectionConfig;
 /**
+ * Configuration for the late-interaction (ColBERT) pipeline.
+ *
+ * Controls which model to use, batching, and download/cache behavior for the
+ * local ONNX ColBERT model.
+ *
+ * Since v5.0.0.
+ */
+typedef struct XBERGLateInteractionConfig XBERGLateInteractionConfig;
+/**
+ * A single document match returned by `max_sim_rank`, with its position in
+ * the input and MaxSim score.
+ *
+ * Since v5.0.0.
+ */
+typedef struct XBERGLateInteractionMatch XBERGLateInteractionMatch;
+/**
+ * Late-interaction model types supported by Xberg.
+ *
+ * Since v5.0.0.
+ */
+typedef struct XBERGLateInteractionModelType XBERGLateInteractionModelType;
+/**
+ * Static metadata for a bundled ColBERT preset (WASM/Android-safe, no ORT).
+ *
+ * Since v5.0.0.
+ */
+typedef struct XBERGLateInteractionPreset XBERGLateInteractionPreset;
+/**
  * The 18 canonical document layout classes.
  *
  * All model backends (RT-DETR, YOLO, etc.) map their native class IDs
@@ -1014,6 +1042,17 @@ typedef struct XBERGMetadata XBERGMetadata;
  * Combined paths to all models needed for OCR (backward compatibility).
  */
 typedef struct XBERGModelPaths XBERGModelPaths;
+/**
+ * A ColBERT multi-vector embedding: one row per attention-live token.
+ *
+ * `data` is a flat, row-major buffer of length `num_tokens * dim` â row `i`
+ * (the embedding for token `i`) occupies `data[i*dim .. (i+1)*dim]`. Flat
+ * storage keeps the type FFI-friendly across binding boundaries; use
+ * `MultiVectorEmbedding.rows` internally to iterate per-token slices.
+ *
+ * Since v5.0.0.
+ */
+typedef struct XBERGMultiVectorEmbedding XBERGMultiVectorEmbedding;
 /**
  * Input signals for multi-document boundary detection.
  */
@@ -1699,6 +1738,21 @@ typedef struct XBERGRerankerBackend XBERGRerankerBackend;
  */
 typedef struct XBERGRerankerConfig XBERGRerankerConfig;
 /**
+ * Selects how a local ONNX reranker's raw output tensor is turned into a score.
+ *
+ * - `RerankerHead.CrossEncoder` â classic single-logit cross-encoder head:
+ *   the model emits `[batch, 1]` (or ``batch``) logits; the caller applies
+ *   sigmoid to get a `[0, 1]` score. This is the original, unchanged path.
+ * - `RerankerHead.Qwen3Generative` â Qwen3 generative-reranker head: the
+ *   model emits `[batch, seq, vocab]` logits; the score is `P("yes")` read
+ *   from the last token's logits over the "yes"/"no" vocabulary entries,
+ *   via a softmax over those two logits. Already a `[0, 1]` probability â
+ *   no sigmoid is applied.
+ *
+ * Since v5.0.0.
+ */
+typedef struct XBERGRerankerHead XBERGRerankerHead;
+/**
  * Reranker model types supported by Xberg.
  *
  * Since v5.0.0.
@@ -1767,6 +1821,37 @@ typedef struct XBERGServerConfig XBERGServerConfig;
  * A URL entry from a sitemap.
  */
 typedef struct XBERGSitemapUrl XBERGSitemapUrl;
+/**
+ * A sparse learned embedding: vocabulary term indices and their weights.
+ *
+ * `indices` are ascending vocabulary token ids; `values`i`` is the weight for
+ * `indices`i``. The two arrays always have equal length. Only strictly-positive
+ * terms are retained, so the representation is genuinely sparse.
+ *
+ * Since v5.0.0.
+ */
+typedef struct XBERGSparseEmbedding XBERGSparseEmbedding;
+/**
+ * Configuration for the sparse-embedding pipeline.
+ *
+ * Controls which model to use, batching, and download/cache behavior for the
+ * local ONNX SPLADE model.
+ *
+ * Since v5.0.0.
+ */
+typedef struct XBERGSparseEmbeddingConfig XBERGSparseEmbeddingConfig;
+/**
+ * Sparse-embedding model types supported by Xberg.
+ *
+ * Since v5.0.0.
+ */
+typedef struct XBERGSparseEmbeddingModelType XBERGSparseEmbeddingModelType;
+/**
+ * Static metadata for a bundled SPLADE preset (WASM/Android-safe, no ORT).
+ *
+ * Since v5.0.0.
+ */
+typedef struct XBERGSparseEmbeddingPreset XBERGSparseEmbeddingPreset;
 /**
  * SSRF policy configuration.
  */
@@ -4688,6 +4773,91 @@ int32_t xberg_html_output_config_embed_css(const XBERGHtmlOutputConfig *ptr);
 XBERGHtmlOutputConfig *xberg_html_output_config_default(void);
 
 /**
+ * Create a `LateInteractionConfig` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `xberg_late_interaction_config_free`.
+ */
+XBERGLateInteractionConfig *xberg_late_interaction_config_from_json(const char *json);
+
+/**
+ * Serialize a `LateInteractionConfig` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
+ * The returned string must be freed with `xberg_free_string`.
+ */
+char *xberg_late_interaction_config_to_json(const XBERGLateInteractionConfig *ptr);
+
+/**
+ * Free a `LateInteractionConfig` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void xberg_late_interaction_config_free(XBERGLateInteractionConfig *ptr);
+
+/**
+ * Get the `model` field from a `LateInteractionConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+XBERGLateInteractionModelType *xberg_late_interaction_config_model(const XBERGLateInteractionConfig *ptr);
+
+/**
+ * Get the `batch_size` field from a `LateInteractionConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t xberg_late_interaction_config_batch_size(const XBERGLateInteractionConfig *ptr);
+
+/**
+ * Get the `max_length` field from a `LateInteractionConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t xberg_late_interaction_config_max_length(const XBERGLateInteractionConfig *ptr);
+
+/**
+ * Get the `query_max_length` field from a `LateInteractionConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t xberg_late_interaction_config_query_max_length(const XBERGLateInteractionConfig *ptr);
+
+/**
+ * Get the `show_download_progress` field from a `LateInteractionConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t xberg_late_interaction_config_show_download_progress(const XBERGLateInteractionConfig *ptr);
+
+/**
+ * Get the `cache_dir` field from a `LateInteractionConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_late_interaction_config_cache_dir(const XBERGLateInteractionConfig *ptr);
+
+/**
+ * Get the `acceleration` field from a `LateInteractionConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+XBERGAccelerationConfig *xberg_late_interaction_config_acceleration(const XBERGLateInteractionConfig *ptr);
+
+/**
+ * Get the `max_embed_duration_secs` field from a `LateInteractionConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uint64_t xberg_late_interaction_config_max_embed_duration_secs(const XBERGLateInteractionConfig *ptr);
+
+/**
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+XBERGLateInteractionConfig *xberg_late_interaction_config_default(void);
+
+/**
  * Create a `LayoutDetectionConfig` from a JSON string. Returns null on failure.
  * # Safety
  * JSON string must be valid UTF-8 and null-terminated.
@@ -6091,6 +6261,84 @@ uint64_t xberg_reranker_config_max_rerank_duration_secs(const XBERGRerankerConfi
  * freed with the appropriate free function.
  */
 XBERGRerankerConfig *xberg_reranker_config_default(void);
+
+/**
+ * Create a `SparseEmbeddingConfig` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `xberg_sparse_embedding_config_free`.
+ */
+XBERGSparseEmbeddingConfig *xberg_sparse_embedding_config_from_json(const char *json);
+
+/**
+ * Serialize a `SparseEmbeddingConfig` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
+ * The returned string must be freed with `xberg_free_string`.
+ */
+char *xberg_sparse_embedding_config_to_json(const XBERGSparseEmbeddingConfig *ptr);
+
+/**
+ * Free a `SparseEmbeddingConfig` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void xberg_sparse_embedding_config_free(XBERGSparseEmbeddingConfig *ptr);
+
+/**
+ * Get the `model` field from a `SparseEmbeddingConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+XBERGSparseEmbeddingModelType *xberg_sparse_embedding_config_model(const XBERGSparseEmbeddingConfig *ptr);
+
+/**
+ * Get the `batch_size` field from a `SparseEmbeddingConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t xberg_sparse_embedding_config_batch_size(const XBERGSparseEmbeddingConfig *ptr);
+
+/**
+ * Get the `max_length` field from a `SparseEmbeddingConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t xberg_sparse_embedding_config_max_length(const XBERGSparseEmbeddingConfig *ptr);
+
+/**
+ * Get the `show_download_progress` field from a `SparseEmbeddingConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+int32_t xberg_sparse_embedding_config_show_download_progress(const XBERGSparseEmbeddingConfig *ptr);
+
+/**
+ * Get the `cache_dir` field from a `SparseEmbeddingConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_sparse_embedding_config_cache_dir(const XBERGSparseEmbeddingConfig *ptr);
+
+/**
+ * Get the `acceleration` field from a `SparseEmbeddingConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+XBERGAccelerationConfig *xberg_sparse_embedding_config_acceleration(const XBERGSparseEmbeddingConfig *ptr);
+
+/**
+ * Get the `max_embed_duration_secs` field from a `SparseEmbeddingConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uint64_t xberg_sparse_embedding_config_max_embed_duration_secs(const XBERGSparseEmbeddingConfig *ptr);
+
+/**
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+XBERGSparseEmbeddingConfig *xberg_sparse_embedding_config_default(void);
 
 /**
  * Create a `SummarizationConfig` from a JSON string. Returns null on failure.
@@ -13747,6 +13995,286 @@ float xberg_reranked_document_score(const XBERGRerankedDocument *ptr);
 char *xberg_reranked_document_document(const XBERGRerankedDocument *ptr);
 
 /**
+ * Create a `SparseEmbedding` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `xberg_sparse_embedding_free`.
+ */
+XBERGSparseEmbedding *xberg_sparse_embedding_from_json(const char *json);
+
+/**
+ * Serialize a `SparseEmbedding` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
+ * The returned string must be freed with `xberg_free_string`.
+ */
+char *xberg_sparse_embedding_to_json(const XBERGSparseEmbedding *ptr);
+
+/**
+ * Free a `SparseEmbedding` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void xberg_sparse_embedding_free(XBERGSparseEmbedding *ptr);
+
+/**
+ * Get the `indices` field from a `SparseEmbedding`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_sparse_embedding_indices(const XBERGSparseEmbedding *ptr);
+
+/**
+ * Get the `values` field from a `SparseEmbedding`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_sparse_embedding_values(const XBERGSparseEmbedding *ptr);
+
+/**
+ * Create a `SparseEmbeddingPreset` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `xberg_sparse_embedding_preset_free`.
+ */
+XBERGSparseEmbeddingPreset *xberg_sparse_embedding_preset_from_json(const char *json);
+
+/**
+ * Serialize a `SparseEmbeddingPreset` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
+ * The returned string must be freed with `xberg_free_string`.
+ */
+char *xberg_sparse_embedding_preset_to_json(const XBERGSparseEmbeddingPreset *ptr);
+
+/**
+ * Free a `SparseEmbeddingPreset` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void xberg_sparse_embedding_preset_free(XBERGSparseEmbeddingPreset *ptr);
+
+/**
+ * Get the `name` field from a `SparseEmbeddingPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_sparse_embedding_preset_name(const XBERGSparseEmbeddingPreset *ptr);
+
+/**
+ * Get the `model_repo` field from a `SparseEmbeddingPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_sparse_embedding_preset_model_repo(const XBERGSparseEmbeddingPreset *ptr);
+
+/**
+ * Get the `model_file` field from a `SparseEmbeddingPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_sparse_embedding_preset_model_file(const XBERGSparseEmbeddingPreset *ptr);
+
+/**
+ * Get the `additional_files` field from a `SparseEmbeddingPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_sparse_embedding_preset_additional_files(const XBERGSparseEmbeddingPreset *ptr);
+
+/**
+ * Get the `max_length` field from a `SparseEmbeddingPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t xberg_sparse_embedding_preset_max_length(const XBERGSparseEmbeddingPreset *ptr);
+
+/**
+ * Get the `description` field from a `SparseEmbeddingPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_sparse_embedding_preset_description(const XBERGSparseEmbeddingPreset *ptr);
+
+/**
+ * Create a `MultiVectorEmbedding` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `xberg_multi_vector_embedding_free`.
+ */
+XBERGMultiVectorEmbedding *xberg_multi_vector_embedding_from_json(const char *json);
+
+/**
+ * Serialize a `MultiVectorEmbedding` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
+ * The returned string must be freed with `xberg_free_string`.
+ */
+char *xberg_multi_vector_embedding_to_json(const XBERGMultiVectorEmbedding *ptr);
+
+/**
+ * Free a `MultiVectorEmbedding` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void xberg_multi_vector_embedding_free(XBERGMultiVectorEmbedding *ptr);
+
+/**
+ * Get the `num_tokens` field from a `MultiVectorEmbedding`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uint32_t xberg_multi_vector_embedding_num_tokens(const XBERGMultiVectorEmbedding *ptr);
+
+/**
+ * Get the `dim` field from a `MultiVectorEmbedding`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uint32_t xberg_multi_vector_embedding_dim(const XBERGMultiVectorEmbedding *ptr);
+
+/**
+ * Get the `data` field from a `MultiVectorEmbedding`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_multi_vector_embedding_data(const XBERGMultiVectorEmbedding *ptr);
+
+/**
+ * Returns `true` if `data` holds exactly `num_tokens * dim` values â i.e.
+ * the flat buffer matches the declared shape.
+ *
+ * All fields are `pub` and the type is `Deserialize`, so a value coming
+ * from an untrusted source (FFI caller, JSON, a store row) may be
+ * malformed. `max_sim_score` guards on this so a length-mismatched
+ * buffer scores `0.0` rather than silently mis-scoring (a shorter `data`
+ * would make `rows` (Self::rows)' `chunks_exact` drop a trailing partial
+ * chunk). Uses `checked_mul` so an overflowing `num_tokens * dim` is
+ * reported as malformed instead of wrapping.
+ *
+ * Since v5.0.0.
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+int32_t xberg_multi_vector_embedding_is_well_formed(const XBERGMultiVectorEmbedding *this_);
+
+/**
+ * Create a `LateInteractionPreset` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `xberg_late_interaction_preset_free`.
+ */
+XBERGLateInteractionPreset *xberg_late_interaction_preset_from_json(const char *json);
+
+/**
+ * Serialize a `LateInteractionPreset` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
+ * The returned string must be freed with `xberg_free_string`.
+ */
+char *xberg_late_interaction_preset_to_json(const XBERGLateInteractionPreset *ptr);
+
+/**
+ * Free a `LateInteractionPreset` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void xberg_late_interaction_preset_free(XBERGLateInteractionPreset *ptr);
+
+/**
+ * Get the `name` field from a `LateInteractionPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_late_interaction_preset_name(const XBERGLateInteractionPreset *ptr);
+
+/**
+ * Get the `model_repo` field from a `LateInteractionPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_late_interaction_preset_model_repo(const XBERGLateInteractionPreset *ptr);
+
+/**
+ * Get the `model_file` field from a `LateInteractionPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_late_interaction_preset_model_file(const XBERGLateInteractionPreset *ptr);
+
+/**
+ * Get the `additional_files` field from a `LateInteractionPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_late_interaction_preset_additional_files(const XBERGLateInteractionPreset *ptr);
+
+/**
+ * Get the `max_length` field from a `LateInteractionPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t xberg_late_interaction_preset_max_length(const XBERGLateInteractionPreset *ptr);
+
+/**
+ * Get the `query_max_length` field from a `LateInteractionPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t xberg_late_interaction_preset_query_max_length(const XBERGLateInteractionPreset *ptr);
+
+/**
+ * Get the `dim` field from a `LateInteractionPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t xberg_late_interaction_preset_dim(const XBERGLateInteractionPreset *ptr);
+
+/**
+ * Get the `description` field from a `LateInteractionPreset`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_late_interaction_preset_description(const XBERGLateInteractionPreset *ptr);
+
+/**
+ * Create a `LateInteractionMatch` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `xberg_late_interaction_match_free`.
+ */
+XBERGLateInteractionMatch *xberg_late_interaction_match_from_json(const char *json);
+
+/**
+ * Serialize a `LateInteractionMatch` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
+ * The returned string must be freed with `xberg_free_string`.
+ */
+char *xberg_late_interaction_match_to_json(const XBERGLateInteractionMatch *ptr);
+
+/**
+ * Free a `LateInteractionMatch` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void xberg_late_interaction_match_free(XBERGLateInteractionMatch *ptr);
+
+/**
+ * Get the `index` field from a `LateInteractionMatch`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t xberg_late_interaction_match_index(const XBERGLateInteractionMatch *ptr);
+
+/**
+ * Get the `score` field from a `LateInteractionMatch`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+float xberg_late_interaction_match_score(const XBERGLateInteractionMatch *ptr);
+
+/**
  * Create a `YakeParams` from a JSON string. Returns null on failure.
  * # Safety
  * JSON string must be valid UTF-8 and null-terminated.
@@ -16361,6 +16889,21 @@ int32_t xberg_html_theme_from_i32(int32_t value);
 int32_t xberg_html_theme_from_str(const char *name);
 
 /**
+ * Convert an integer to a `LateInteractionModelType` variant. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure all pointer arguments are valid or null.
+ * Returned pointers must be freed with the appropriate free function.
+ */
+int32_t xberg_late_interaction_model_type_from_i32(int32_t value);
+
+/**
+ * Convert a `LateInteractionModelType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
+ */
+int32_t xberg_late_interaction_model_type_from_str(const char *name);
+
+/**
  * Convert an integer to a `TableModel` variant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure all pointer arguments are valid or null.
@@ -16511,6 +17054,21 @@ int32_t xberg_embedding_model_type_from_i32(int32_t value);
 int32_t xberg_embedding_model_type_from_str(const char *name);
 
 /**
+ * Convert an integer to a `RerankerHead` variant. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure all pointer arguments are valid or null.
+ * Returned pointers must be freed with the appropriate free function.
+ */
+int32_t xberg_reranker_head_from_i32(int32_t value);
+
+/**
+ * Convert a `RerankerHead` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
+ */
+int32_t xberg_reranker_head_from_str(const char *name);
+
+/**
  * Convert an integer to a `RerankerModelType` variant. Returns -1 on invalid input.
  * # Safety
  * Caller must ensure all pointer arguments are valid or null.
@@ -16524,6 +17082,21 @@ int32_t xberg_reranker_model_type_from_i32(int32_t value);
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
 int32_t xberg_reranker_model_type_from_str(const char *name);
+
+/**
+ * Convert an integer to a `SparseEmbeddingModelType` variant. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure all pointer arguments are valid or null.
+ * Returned pointers must be freed with the appropriate free function.
+ */
+int32_t xberg_sparse_embedding_model_type_from_i32(int32_t value);
+
+/**
+ * Convert a `SparseEmbeddingModelType` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
+ */
+int32_t xberg_sparse_embedding_model_type_from_str(const char *name);
 
 /**
  * Convert an integer to a `WhisperModel` variant. Returns -1 on invalid input.
@@ -17451,6 +18024,31 @@ char *xberg_html_theme_to_json(const XBERGHtmlTheme *ptr);
 char *xberg_html_theme_to_string(const XBERGHtmlTheme *ptr);
 
 /**
+ * Free a heap-allocated `LateInteractionModelType` returned by a pointer-returning FFI function.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void xberg_late_interaction_model_type_free(XBERGLateInteractionModelType *ptr);
+
+/**
+ * Serialize a heap-allocated `LateInteractionModelType` to a JSON string.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
+ * The returned string must be freed with `xberg_free_string`.
+ */
+char *xberg_late_interaction_model_type_to_json(const XBERGLateInteractionModelType *ptr);
+
+/**
+ * Render a heap-allocated `LateInteractionModelType` as its string representation
+ * (the unit-variant name as serialized by serde — e.g. `"completed"`,
+ * without surrounding JSON quotes).
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
+ * The returned string must be freed with `xberg_free_string`.
+ */
+char *xberg_late_interaction_model_type_to_string(const XBERGLateInteractionModelType *ptr);
+
+/**
  * Free a heap-allocated `TableModel` returned by a pointer-returning FFI function.
  * # Safety
  * Pointer must have been returned by this library, or be null.
@@ -17724,6 +18322,31 @@ char *xberg_reranker_model_type_to_json(const XBERGRerankerModelType *ptr);
  * The returned string must be freed with `xberg_free_string`.
  */
 char *xberg_reranker_model_type_to_string(const XBERGRerankerModelType *ptr);
+
+/**
+ * Free a heap-allocated `SparseEmbeddingModelType` returned by a pointer-returning FFI function.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void xberg_sparse_embedding_model_type_free(XBERGSparseEmbeddingModelType *ptr);
+
+/**
+ * Serialize a heap-allocated `SparseEmbeddingModelType` to a JSON string.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
+ * The returned string must be freed with `xberg_free_string`.
+ */
+char *xberg_sparse_embedding_model_type_to_json(const XBERGSparseEmbeddingModelType *ptr);
+
+/**
+ * Render a heap-allocated `SparseEmbeddingModelType` as its string representation
+ * (the unit-variant name as serialized by serde — e.g. `"completed"`,
+ * without surrounding JSON quotes).
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
+ * The returned string must be freed with `xberg_free_string`.
+ */
+char *xberg_sparse_embedding_model_type_to_string(const XBERGSparseEmbeddingModelType *ptr);
 
 /**
  * Free a heap-allocated `WhisperModel` returned by a pointer-returning FFI function.
@@ -19012,6 +19635,93 @@ uintptr_t xberg_find_unmarked_claims_len(const char *_markdown);
  */
 int32_t xberg_verify_excerpt(const char *excerpt,
                              const char *source_text);
+
+/**
+ * Async wrapper over `embed_sparse`: runs the blocking ONNX inference on a
+ * bounded blocking-task pool so it does not stall the async runtime.
+ *
+ * Since v5.0.0.
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+char *xberg_embed_sparse_async(const char *texts,
+                               const XBERGSparseEmbeddingConfig *config);
+
+/**
+ * Return the byte length of the C string most recently returned by `xberg_embed_sparse_async` on this
+ * thread. Returns 0 when the primary call returned null or failed before producing a string. Enables
+ * safe slice construction in Zig and Java FFM Panama without a NUL-scan.
+ * \note SAFETY: Pointer arguments are ignored and are present only to keep the companion ABI aligned
+ * with `xberg_embed_sparse_async`.
+ */
+uintptr_t xberg_embed_sparse_async_len(const char *_texts,
+                                       const XBERGSparseEmbeddingConfig *_config);
+
+/**
+ * Score a query against a document using ColBERT's MaxSim operator: for each
+ * query token vector, take the maximum dot product against any document
+ * token vector, then sum across query tokens.
+ *
+ * Returns `0.0` if `query` and `doc` have mismatched dimensionality, if either
+ * has zero tokens, or if either is not well-formed (MultiVectorEmbedding::is_well_formed)
+ * (its `data` length does not match `num_tokens * dim`).
+ *
+ * Pure CPU primitive â available without ONNX Runtime.
+ *
+ * Since v5.0.0.
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+double xberg_max_sim_score(const XBERGMultiVectorEmbedding *query,
+                           const XBERGMultiVectorEmbedding *doc);
+
+/**
+ * Rank a set of documents against a query by MaxSim score, descending.
+ *
+ * Mirrors the sort/truncate shape of `crate::reranking`'s `build_results`,
+ * minus top-k truncation (callers slice the returned `Vec` themselves).
+ *
+ * Pure CPU primitive â available without ONNX Runtime.
+ *
+ * Since v5.0.0.
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+char *xberg_max_sim_rank(const XBERGMultiVectorEmbedding *query,
+                         const char *docs);
+
+/**
+ * Return the byte length of the C string most recently returned by `xberg_max_sim_rank` on this
+ * thread. Returns 0 when the primary call returned null or failed before producing a string. Enables
+ * safe slice construction in Zig and Java FFM Panama without a NUL-scan.
+ * \note SAFETY: Pointer arguments are ignored and are present only to keep the companion ABI aligned
+ * with `xberg_max_sim_rank`.
+ */
+uintptr_t xberg_max_sim_rank_len(const XBERGMultiVectorEmbedding *_query,
+                                 const char *_docs);
+
+/**
+ * Async wrapper over `embed_multi_vector`: runs the blocking ONNX inference
+ * on a bounded blocking-task pool so it does not stall the async runtime.
+ *
+ * Since v5.0.0.
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+char *xberg_embed_multi_vector_async(const char *texts,
+                                     const XBERGLateInteractionConfig *config,
+                                     int32_t is_query);
+
+/**
+ * Return the byte length of the C string most recently returned by `xberg_embed_multi_vector_async` on
+ * this thread. Returns 0 when the primary call returned null or failed before producing a string.
+ * Enables safe slice construction in Zig and Java FFM Panama without a NUL-scan.
+ * \note SAFETY: Pointer arguments are ignored and are present only to keep the companion ABI aligned
+ * with `xberg_embed_multi_vector_async`.
+ */
+uintptr_t xberg_embed_multi_vector_async_len(const char *_texts,
+                                             const XBERGLateInteractionConfig *_config,
+                                             int32_t _is_query);
 
 /**
  * Register a C plugin implementing `OcrBackend` via a vtable.

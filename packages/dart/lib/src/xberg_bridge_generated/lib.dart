@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'lib.freezed.dart';
 
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DocumentExtractorDartCallbacks`, `EmbeddingBackendDartCallbacks`, `OcrBackendDartCallbacks`, `PostProcessorDartCallbacks`, `RendererDartCallbacks`, `RerankerBackendDartCallbacks`, `TokenizerBackendDartCallbacks`, `ValidatorDartCallbacks`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `backend_type`, `can_handle`, `count_tokens`, `dimensions`, `embed`, `emits_structured_markdown`, `estimated_duration_ms`, `extract`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `name`, `name`, `name`, `name`, `name`, `name`, `name`, `name`, `priority`, `priority`, `priority`, `process_document`, `process_image_file`, `process_image`, `process`, `processing_stage`, `render_result`, `rerank`, `should_process`, `should_validate`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `supported_languages`, `supported_mime_types`, `supports_document_processing`, `supports_language`, `supports_table_detection`, `validate`, `version`, `version`, `version`, `version`, `version`, `version`, `version`, `version`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `backend_type`, `can_handle`, `count_tokens`, `dimensions`, `embed`, `emits_structured_markdown`, `estimated_duration_ms`, `extract`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `name`, `name`, `name`, `name`, `name`, `name`, `name`, `name`, `priority`, `priority`, `priority`, `process_document`, `process_image_file`, `process_image`, `process`, `processing_stage`, `render_result`, `rerank`, `should_process`, `should_validate`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `supported_languages`, `supported_mime_types`, `supports_document_processing`, `supports_language`, `supports_table_detection`, `validate`, `version`, `version`, `version`, `version`, `version`, `version`, `version`, `version`
 
 /// Extract content from a single bytes or URI input.
 Future<ExtractionResult> extract({
@@ -149,6 +149,35 @@ Future<bool> verifyExcerpt({
   sourceText: sourceText,
 );
 
+/// Score a query against a document using ColBERT's MaxSim operator: for each
+/// query token vector, take the maximum dot product against any document
+/// token vector, then sum across query tokens.
+///
+/// Returns `0.0` if `query` and `doc` have mismatched dimensionality, if either
+/// has zero tokens, or if either is not [well-formed](MultiVectorEmbedding.is_well_formed)
+/// (its `data` length does not match `num_tokens * dim`).
+///
+/// Pure CPU primitive — available without ONNX Runtime.
+///
+/// Since v5.0.
+Future<double> maxSimScore({
+  required MultiVectorEmbedding query,
+  required MultiVectorEmbedding doc,
+}) => RustLib.instance.api.crateMaxSimScore(query: query, doc: doc);
+
+/// Rank a set of documents against a query by MaxSim score, descending.
+///
+/// Mirrors the sort/truncate shape of `crate.reranking`'s `build_results`,
+/// minus top-k truncation (callers slice the returned `Vec` themselves).
+///
+/// Pure CPU primitive — available without ONNX Runtime.
+///
+/// Since v5.0.
+Future<List<LateInteractionMatch>> maxSimRank({
+  required MultiVectorEmbedding query,
+  required List<MultiVectorEmbedding> docs,
+}) => RustLib.instance.api.crateMaxSimRank(query: query, docs: docs);
+
 Future<CacheStats> createCacheStatsFromJson({required String json}) =>
     RustLib.instance.api.crateCreateCacheStatsFromJson(json: json);
 
@@ -220,6 +249,10 @@ Future<HtmlOutputConfig> createHtmlOutputConfigFromJson({
   required String json,
 }) => RustLib.instance.api.crateCreateHtmlOutputConfigFromJson(json: json);
 
+Future<LateInteractionConfig> createLateInteractionConfigFromJson({
+  required String json,
+}) => RustLib.instance.api.crateCreateLateInteractionConfigFromJson(json: json);
+
 Future<LayoutDetectionConfig> createLayoutDetectionConfigFromJson({
   required String json,
 }) => RustLib.instance.api.crateCreateLayoutDetectionConfigFromJson(json: json);
@@ -282,6 +315,10 @@ Future<RedactionPattern> createRedactionPatternFromJson({
 
 Future<RerankerConfig> createRerankerConfigFromJson({required String json}) =>
     RustLib.instance.api.crateCreateRerankerConfigFromJson(json: json);
+
+Future<SparseEmbeddingConfig> createSparseEmbeddingConfigFromJson({
+  required String json,
+}) => RustLib.instance.api.crateCreateSparseEmbeddingConfigFromJson(json: json);
 
 Future<SummarizationConfig> createSummarizationConfigFromJson({
   required String json,
@@ -686,6 +723,25 @@ Future<EmbeddedDiff> createEmbeddedDiffFromJson({required String json}) =>
 Future<RerankedDocument> createRerankedDocumentFromJson({
   required String json,
 }) => RustLib.instance.api.crateCreateRerankedDocumentFromJson(json: json);
+
+Future<SparseEmbedding> createSparseEmbeddingFromJson({required String json}) =>
+    RustLib.instance.api.crateCreateSparseEmbeddingFromJson(json: json);
+
+Future<SparseEmbeddingPreset> createSparseEmbeddingPresetFromJson({
+  required String json,
+}) => RustLib.instance.api.crateCreateSparseEmbeddingPresetFromJson(json: json);
+
+Future<MultiVectorEmbedding> createMultiVectorEmbeddingFromJson({
+  required String json,
+}) => RustLib.instance.api.crateCreateMultiVectorEmbeddingFromJson(json: json);
+
+Future<LateInteractionPreset> createLateInteractionPresetFromJson({
+  required String json,
+}) => RustLib.instance.api.crateCreateLateInteractionPresetFromJson(json: json);
+
+Future<LateInteractionMatch> createLateInteractionMatchFromJson({
+  required String json,
+}) => RustLib.instance.api.crateCreateLateInteractionMatchFromJson(json: json);
 
 Future<YakeParams> createYakeParamsFromJson({required String json}) =>
     RustLib.instance.api.crateCreateYakeParamsFromJson(json: json);
@@ -8167,6 +8223,207 @@ class LanguageDetectionConfig {
           detectMultiple == other.detectMultiple;
 }
 
+/// Configuration for the late-interaction (ColBERT) pipeline.
+///
+/// Controls which model to use, batching, and download/cache behavior for the
+/// local ONNX ColBERT model.
+///
+/// Since v5.0.0.
+class LateInteractionConfig {
+  /// The late-interaction model to use (defaults to the "colbert" preset).
+  final LateInteractionModelType model;
+
+  /// Batch size for local ONNX inference.
+  ///
+  /// ColBERT emits a `[seq, dim]` multi-vector embedding per document, so
+  /// memory scales with batch size — keep this modest.
+  final PlatformInt64 batchSize;
+
+  /// Maximum token sequence length for the tokenizer (documents).
+  final PlatformInt64 maxLength;
+
+  /// Fixed padded length for query augmentation.
+  ///
+  /// ColBERT queries are padded (with the mask token, kept attention-live)
+  /// to exactly this many tokens rather than truncated/left as-is — this is
+  /// the "query augmentation" trick from the ColBERT paper.
+  final PlatformInt64 queryMaxLength;
+
+  /// Show model download progress (local ONNX path only).
+  final bool showDownloadProgress;
+
+  /// Custom cache directory for model files.
+  ///
+  /// Defaults to `~/.cache/xberg/late-interaction/` if not specified.
+  final String? cacheDir;
+
+  /// Hardware acceleration for the late-interaction ONNX model.
+  final AccelerationConfig? acceleration;
+
+  /// Maximum wall-clock duration (in seconds) for a single embed call when
+  /// using [`LateInteractionModelType::Plugin`]. `None` disables the timeout.
+  final PlatformInt64? maxEmbedDurationSecs;
+
+  const LateInteractionConfig({
+    required this.model,
+    required this.batchSize,
+    required this.maxLength,
+    required this.queryMaxLength,
+    required this.showDownloadProgress,
+    this.cacheDir,
+    this.acceleration,
+    this.maxEmbedDurationSecs,
+  });
+
+  @override
+  int get hashCode =>
+      model.hashCode ^
+      batchSize.hashCode ^
+      maxLength.hashCode ^
+      queryMaxLength.hashCode ^
+      showDownloadProgress.hashCode ^
+      cacheDir.hashCode ^
+      acceleration.hashCode ^
+      maxEmbedDurationSecs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LateInteractionConfig &&
+          runtimeType == other.runtimeType &&
+          model == other.model &&
+          batchSize == other.batchSize &&
+          maxLength == other.maxLength &&
+          queryMaxLength == other.queryMaxLength &&
+          showDownloadProgress == other.showDownloadProgress &&
+          cacheDir == other.cacheDir &&
+          acceleration == other.acceleration &&
+          maxEmbedDurationSecs == other.maxEmbedDurationSecs;
+}
+
+/// A single document match returned by [`max_sim_rank`], with its position in
+/// the input and MaxSim score.
+///
+/// Since v5.0.0.
+class LateInteractionMatch {
+  /// Position of this document in the original input slice.
+  final PlatformInt64 index;
+
+  /// MaxSim relevance score. Higher means more relevant to the query.
+  final double score;
+
+  const LateInteractionMatch({required this.index, required this.score});
+
+  @override
+  int get hashCode => index.hashCode ^ score.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LateInteractionMatch &&
+          runtimeType == other.runtimeType &&
+          index == other.index &&
+          score == other.score;
+}
+
+@freezed
+sealed class LateInteractionModelType with _$LateInteractionModelType {
+  const LateInteractionModelType._();
+
+  /// Use a preset ColBERT model (recommended).
+  const factory LateInteractionModelType.preset({
+    /// Preset name (e.g. "colbert").
+    required String name,
+  }) = LateInteractionModelType_Preset;
+
+  /// Use a custom ColBERT ONNX model from HuggingFace.
+  const factory LateInteractionModelType.custom({
+    /// HuggingFace model repository ID.
+    required String modelId,
+
+    /// Path to the ONNX file within the repo. Defaults to `"onnx/model.onnx"`.
+    required String modelFile,
+
+    /// Sibling files that must be downloaded alongside `model_file`.
+    required List<String> additionalFiles,
+
+    /// Maximum token sequence length. Stored as `i64` for FFI compatibility;
+    /// negative values are clamped to the model default.
+    required PlatformInt64 maxLength,
+  }) = LateInteractionModelType_Custom;
+
+  /// In-process late-interaction backend registered via the plugin system.
+  const factory LateInteractionModelType.plugin({
+    /// Name the backend was registered under.
+    required String name,
+  }) = LateInteractionModelType_Plugin;
+}
+
+/// Static metadata for a bundled ColBERT preset (WASM/Android-safe, no ORT).
+///
+/// Since v5.0.0.
+class LateInteractionPreset {
+  /// Stable preset name referenced from config.
+  final String name;
+
+  /// HuggingFace repository hosting the ONNX model.
+  final String modelRepo;
+
+  /// Path to the ONNX file within the repo.
+  final String modelFile;
+
+  /// Sibling files that must be downloaded alongside `model_file`.
+  final List<String> additionalFiles;
+
+  /// Maximum document token sequence length.
+  final PlatformInt64 maxLength;
+
+  /// Fixed padded query length (ColBERT query augmentation).
+  final PlatformInt64 queryMaxLength;
+
+  /// Per-token embedding dimensionality.
+  final PlatformInt64 dim;
+
+  /// Human-readable description.
+  final String description;
+
+  const LateInteractionPreset({
+    required this.name,
+    required this.modelRepo,
+    required this.modelFile,
+    required this.additionalFiles,
+    required this.maxLength,
+    required this.queryMaxLength,
+    required this.dim,
+    required this.description,
+  });
+
+  @override
+  int get hashCode =>
+      name.hashCode ^
+      modelRepo.hashCode ^
+      modelFile.hashCode ^
+      additionalFiles.hashCode ^
+      maxLength.hashCode ^
+      queryMaxLength.hashCode ^
+      dim.hashCode ^
+      description.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LateInteractionPreset &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          modelRepo == other.modelRepo &&
+          modelFile == other.modelFile &&
+          additionalFiles == other.additionalFiles &&
+          maxLength == other.maxLength &&
+          queryMaxLength == other.queryMaxLength &&
+          dim == other.dim &&
+          description == other.description;
+}
+
 /// The 18 canonical document layout classes.
 ///
 /// All model backends (RT-DETR, YOLO, etc.) map their native class IDs
@@ -8859,6 +9116,44 @@ class ModelPaths {
           clsModel == other.clsModel &&
           recModel == other.recModel &&
           dictFile == other.dictFile;
+}
+
+/// A ColBERT multi-vector embedding: one row per attention-live token.
+///
+/// `data` is a flat, row-major buffer of length `num_tokens * dim` — row `i`
+/// (the embedding for token `i`) occupies `data[i*dim .. (i+1)*dim]`. Flat
+/// storage keeps the type FFI-friendly across binding boundaries; use
+/// [`MultiVectorEmbedding::rows`] internally to iterate per-token slices.
+///
+/// Since v5.0.0.
+class MultiVectorEmbedding {
+  /// Number of attention-live token rows (padding rows are dropped, not
+  /// zeroed — see [`engine::normalize_tokens`]).
+  final PlatformInt64 numTokens;
+
+  /// Dimensionality of each per-token vector.
+  final PlatformInt64 dim;
+
+  /// Flat row-major buffer, length `num_tokens * dim`.
+  final Float64List data;
+
+  const MultiVectorEmbedding({
+    required this.numTokens,
+    required this.dim,
+    required this.data,
+  });
+
+  @override
+  int get hashCode => numTokens.hashCode ^ dim.hashCode ^ data.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MultiVectorEmbedding &&
+          runtimeType == other.runtimeType &&
+          numTokens == other.numTokens &&
+          dim == other.dim &&
+          data == other.data;
 }
 
 /// Input signals for multi-document boundary detection.
@@ -12295,6 +12590,26 @@ class RerankerConfig {
           maxRerankDurationSecs == other.maxRerankDurationSecs;
 }
 
+/// Selects how a local ONNX reranker's raw output tensor is turned into a score.
+///
+/// - [`RerankerHead::CrossEncoder`] — classic single-logit cross-encoder head:
+///   the model emits `[batch, 1]` (or `[batch]`) logits; the caller applies
+///   sigmoid to get a `[0, 1]` score. This is the original, unchanged path.
+/// - [`RerankerHead::Qwen3Generative`] — Qwen3 generative-reranker head: the
+///   model emits `[batch, seq, vocab]` logits; the score is `P("yes")` read
+///   from the last token's logits over the "yes"/"no" vocabulary entries,
+///   via a softmax over those two logits. Already a `[0, 1]` probability —
+///   no sigmoid is applied.
+///
+/// Since v5.0.0.
+enum RerankerHead {
+  /// Single-logit cross-encoder head (sigmoid applied by the caller).
+  crossEncoder,
+
+  /// Qwen3 generative-reranker head (softmax over yes/no token logits).
+  qwen3Generative,
+}
+
 @freezed
 sealed class RerankerModelType with _$RerankerModelType {
   const RerankerModelType._();
@@ -12329,6 +12644,13 @@ sealed class RerankerModelType with _$RerankerModelType {
     /// Stored as `i64` for FFI compatibility across language bindings.
     /// Treated as a non-negative value; negative values are clamped to the model default.
     required PlatformInt64 maxLength,
+
+    /// Scoring head for the ONNX model's output tensor.
+    ///
+    /// Defaults to [`RerankerHead::CrossEncoder`]. Set to
+    /// [`RerankerHead::Qwen3Generative`] for Qwen3 generative-reranker
+    /// checkpoints (e.g. `Qwen/Qwen3-Reranker-0.6B`).
+    required RerankerHead head,
   }) = RerankerModelType_Custom;
 
   /// Provider-hosted reranker via liter-llm (e.g. Cohere, Jina, Voyage).
@@ -12718,6 +13040,188 @@ class SitemapUrl {
           lastmod == other.lastmod &&
           changefreq == other.changefreq &&
           priority == other.priority;
+}
+
+/// A sparse learned embedding: vocabulary term indices and their weights.
+///
+/// `indices` are ascending vocabulary token ids; `values[i]` is the weight for
+/// `indices[i]`. The two arrays always have equal length. Only strictly-positive
+/// terms are retained, so the representation is genuinely sparse.
+///
+/// Since v5.0.0.
+class SparseEmbedding {
+  /// Vocabulary token ids with non-zero weight, ascending.
+  final Int64List indices;
+
+  /// Weights parallel to [`SparseEmbedding::indices`].
+  final Float64List values;
+
+  const SparseEmbedding({required this.indices, required this.values});
+
+  @override
+  int get hashCode => indices.hashCode ^ values.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SparseEmbedding &&
+          runtimeType == other.runtimeType &&
+          indices == other.indices &&
+          values == other.values;
+}
+
+/// Configuration for the sparse-embedding pipeline.
+///
+/// Controls which model to use, batching, and download/cache behavior for the
+/// local ONNX SPLADE model.
+///
+/// Since v5.0.0.
+class SparseEmbeddingConfig {
+  /// The sparse-embedding model to use (defaults to the "splade" preset).
+  final SparseEmbeddingModelType model;
+
+  /// Batch size for local ONNX inference.
+  ///
+  /// SPLADE emits a `[seq, vocab]` logit tensor per document, so memory scales
+  /// with batch size — keep this modest.
+  final PlatformInt64 batchSize;
+
+  /// Maximum token sequence length for the tokenizer.
+  final PlatformInt64 maxLength;
+
+  /// Show model download progress (local ONNX path only).
+  final bool showDownloadProgress;
+
+  /// Custom cache directory for model files.
+  ///
+  /// Defaults to `~/.cache/xberg/sparse-embeddings/` if not specified.
+  final String? cacheDir;
+
+  /// Hardware acceleration for the sparse-embedding ONNX model.
+  final AccelerationConfig? acceleration;
+
+  /// Maximum wall-clock duration (in seconds) for a single embed call when
+  /// using [`SparseEmbeddingModelType::Plugin`]. `None` disables the timeout.
+  final PlatformInt64? maxEmbedDurationSecs;
+
+  const SparseEmbeddingConfig({
+    required this.model,
+    required this.batchSize,
+    required this.maxLength,
+    required this.showDownloadProgress,
+    this.cacheDir,
+    this.acceleration,
+    this.maxEmbedDurationSecs,
+  });
+
+  @override
+  int get hashCode =>
+      model.hashCode ^
+      batchSize.hashCode ^
+      maxLength.hashCode ^
+      showDownloadProgress.hashCode ^
+      cacheDir.hashCode ^
+      acceleration.hashCode ^
+      maxEmbedDurationSecs.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SparseEmbeddingConfig &&
+          runtimeType == other.runtimeType &&
+          model == other.model &&
+          batchSize == other.batchSize &&
+          maxLength == other.maxLength &&
+          showDownloadProgress == other.showDownloadProgress &&
+          cacheDir == other.cacheDir &&
+          acceleration == other.acceleration &&
+          maxEmbedDurationSecs == other.maxEmbedDurationSecs;
+}
+
+@freezed
+sealed class SparseEmbeddingModelType with _$SparseEmbeddingModelType {
+  const SparseEmbeddingModelType._();
+
+  /// Use a preset SPLADE model (recommended).
+  const factory SparseEmbeddingModelType.preset({
+    /// Preset name (e.g. "splade").
+    required String name,
+  }) = SparseEmbeddingModelType_Preset;
+
+  /// Use a custom SPLADE (`BertForMaskedLM`) ONNX model from HuggingFace.
+  const factory SparseEmbeddingModelType.custom({
+    /// HuggingFace model repository ID.
+    required String modelId,
+
+    /// Path to the ONNX file within the repo. Defaults to `"onnx/model.onnx"`.
+    required String modelFile,
+
+    /// Sibling files that must be downloaded alongside `model_file`.
+    required List<String> additionalFiles,
+
+    /// Maximum token sequence length. Stored as `i64` for FFI compatibility;
+    /// negative values are clamped to the model default.
+    required PlatformInt64 maxLength,
+  }) = SparseEmbeddingModelType_Custom;
+
+  /// In-process sparse-embedding backend registered via the plugin system.
+  const factory SparseEmbeddingModelType.plugin({
+    /// Name the backend was registered under.
+    required String name,
+  }) = SparseEmbeddingModelType_Plugin;
+}
+
+/// Static metadata for a bundled SPLADE preset (WASM/Android-safe, no ORT).
+///
+/// Since v5.0.0.
+class SparseEmbeddingPreset {
+  /// Stable preset name referenced from config.
+  final String name;
+
+  /// HuggingFace repository hosting the ONNX model.
+  final String modelRepo;
+
+  /// Path to the ONNX file within the repo.
+  final String modelFile;
+
+  /// Sibling files that must be downloaded alongside `model_file`.
+  final List<String> additionalFiles;
+
+  /// Maximum token sequence length.
+  final PlatformInt64 maxLength;
+
+  /// Human-readable description.
+  final String description;
+
+  const SparseEmbeddingPreset({
+    required this.name,
+    required this.modelRepo,
+    required this.modelFile,
+    required this.additionalFiles,
+    required this.maxLength,
+    required this.description,
+  });
+
+  @override
+  int get hashCode =>
+      name.hashCode ^
+      modelRepo.hashCode ^
+      modelFile.hashCode ^
+      additionalFiles.hashCode ^
+      maxLength.hashCode ^
+      description.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SparseEmbeddingPreset &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          modelRepo == other.modelRepo &&
+          modelFile == other.modelFile &&
+          additionalFiles == other.additionalFiles &&
+          maxLength == other.maxLength &&
+          description == other.description;
 }
 
 /// SSRF policy configuration.

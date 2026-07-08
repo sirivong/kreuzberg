@@ -60,7 +60,7 @@ pub use processing::{
     ChunkSizing, ChunkerType, ChunkingConfig, EmbeddingConfig, EmbeddingModelType, PostProcessorConfig,
     TableChunkingMode,
 };
-pub use reranker::{RerankerConfig, RerankerModelType};
+pub use reranker::{RerankerConfig, RerankerHead, RerankerModelType};
 pub use sparse_embedding::{SparseEmbeddingConfig, SparseEmbeddingModelType};
 #[cfg(feature = "tree-sitter")]
 pub use tree_sitter::{CodeContentMode, TreeSitterConfig, TreeSitterProcessConfig};
