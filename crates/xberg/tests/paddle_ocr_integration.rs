@@ -149,6 +149,48 @@ async fn test_ocr_hello_world_english() {
     );
 }
 
+/// Test PP-OCRv6 recognition on English across all three v6 tiers.
+///
+/// v6 routes English (a v6-unified family) to the unified recognition model at the
+/// configured tier (medium/small/tiny), with a v6 detector and the shared PP-LCNet
+/// classifier. Verifies the version-aware wiring end to end against the live models.
+#[tokio::test]
+#[ignore = "requires network access and ONNX Runtime (PP-OCRv6 model download)"]
+async fn test_ocr_pp_ocrv6_english_tiers() {
+    let image_path = test_documents_dir().join("images/test_hello_world.png");
+    assert!(image_path.exists(), "Test image not found: {:?}", image_path);
+    let image_bytes = std::fs::read(&image_path).expect("Failed to read image");
+
+    for tier in ["medium", "small", "tiny"] {
+        let config = PaddleOcrConfig::new("en")
+            .with_model_version("pp-ocrv6")
+            .with_model_tier(tier)
+            .with_cache_dir(test_cache_dir());
+
+        let backend = PaddleOcrBackend::with_config(config).expect("Failed to create backend");
+
+        let ocr_config = OcrConfig {
+            backend: "paddle-ocr".to_string(),
+            language: "en".to_string(),
+            ..Default::default()
+        };
+
+        let result: xberg::Result<ExtractedDocument> = backend.process_image(&image_bytes, &ocr_config).await;
+        assert!(result.is_ok(), "PP-OCRv6 {tier} OCR failed: {:?}", result.err());
+
+        let text = result.unwrap().content.to_lowercase();
+        println!("PP-OCRv6 {tier} OCR result: {text}");
+        assert!(
+            text.contains("hello") || text.contains("helo"),
+            "Expected 'hello' in PP-OCRv6 {tier} result: {text}"
+        );
+        assert!(
+            text.contains("world") || text.contains("worid"),
+            "Expected 'world' in PP-OCRv6 {tier} result: {text}"
+        );
+    }
+}
+
 /// Test OCR on a complex English document (newspaper).
 #[tokio::test]
 #[ignore = "requires ONNX Runtime and downloaded models"]

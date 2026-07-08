@@ -10455,9 +10455,22 @@ class PaddleOcrConfig {
   final double dropScore;
 
   /// Model tier controlling detection/recognition model size and accuracy trade-off.
+  ///
+  /// For PP-OCRv5 (`model_version = "pp-ocrv5"`):
   /// - `"mobile"` (default): Lightweight models (~4.5MB detection, ~16.5MB recognition), fast download and inference
   /// - `"server"`: Large, high-accuracy models (~88MB detection, ~84MB recognition), best for GPU or complex documents
+  ///
+  /// For PP-OCRv6 (`model_version = "pp-ocrv6"`): `"medium"` (default), `"small"`, or `"tiny"`.
+  /// A legacy `"mobile"`/`"server"` tier under v6 falls back to `"medium"`.
   final String modelTier;
+
+  /// Model generation: `"pp-ocrv5"` (default) or `"pp-ocrv6"`.
+  ///
+  /// PP-OCRv6 adds a unified CJK+Latin+JA/KO recognition model with `medium`/`small`/`tiny`
+  /// tiers (see `model_tier`). Scripts outside the v6 unified coverage (Arabic, Cyrillic,
+  /// Devanagari, Greek, Tamil, Telugu, Thai) transparently fall back to the PP-OCRv5
+  /// per-script recognition models. Defaults to `"pp-ocrv5"` so existing configs are unchanged.
+  final String modelVersion;
 
   const PaddleOcrConfig({
     required this.language,
@@ -10472,6 +10485,7 @@ class PaddleOcrConfig {
     required this.padding,
     required this.dropScore,
     required this.modelTier,
+    required this.modelVersion,
   });
 
   @override
@@ -10487,7 +10501,8 @@ class PaddleOcrConfig {
       recBatchNum.hashCode ^
       padding.hashCode ^
       dropScore.hashCode ^
-      modelTier.hashCode;
+      modelTier.hashCode ^
+      modelVersion.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -10505,7 +10520,8 @@ class PaddleOcrConfig {
           recBatchNum == other.recBatchNum &&
           padding == other.padding &&
           dropScore == other.dropScore &&
-          modelTier == other.modelTier;
+          modelTier == other.modelTier &&
+          modelVersion == other.modelVersion;
 }
 
 /// Byte offset boundary for a page.

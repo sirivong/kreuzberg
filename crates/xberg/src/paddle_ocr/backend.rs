@@ -119,7 +119,9 @@ impl PaddleOcrBackend {
             return Ok(p.clone());
         }
 
-        let shared = self.model_manager.ensure_shared_models(&self.config.model_tier)?;
+        let shared = self
+            .model_manager
+            .ensure_shared_models_versioned(&self.config.model_version, &self.config.model_tier)?;
         *paths = Some(shared.clone());
         Ok(shared)
     }
@@ -138,7 +140,8 @@ impl PaddleOcrBackend {
         accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
     ) -> Result<Arc<OcrLite>> {
         let tier = &config.model_tier;
-        let resolved = self.model_manager.resolve_rec_model(family, tier)?;
+        let version = &config.model_version;
+        let resolved = self.model_manager.resolve_rec_model_versioned(version, family, tier)?;
         let accel_key = match accel.map(|a| &a.provider) {
             Some(crate::core::config::acceleration::ExecutionProviderType::Cuda) => "cuda",
             Some(crate::core::config::acceleration::ExecutionProviderType::TensorRt) => "tensorrt",
@@ -146,7 +149,7 @@ impl PaddleOcrBackend {
             Some(crate::core::config::acceleration::ExecutionProviderType::Auto) => "auto",
             Some(crate::core::config::acceleration::ExecutionProviderType::Cpu) | None => "cpu",
         };
-        let pool_key = format!("{tier}/{}/{accel_key}", resolved.model_key);
+        let pool_key = format!("{version}/{tier}/{}/{accel_key}", resolved.model_key);
 
         // Fast path: check if engine already exists
         {

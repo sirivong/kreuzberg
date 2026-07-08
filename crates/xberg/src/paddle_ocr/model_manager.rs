@@ -219,6 +219,94 @@ const V2_DOC_ORI_MODEL: SharedModelDefinition = SharedModelDefinition {
     local_filename: "model.onnx",
     sha256_checksum: "6b742aebce6f0f7f71f747931ac7becfc7c96c51641e14943b291eeb334e7947",
 };
+
+// ============================================================================
+// V6 model definitions (PP-OCRv6, tier-aware: medium/small/tiny)
+// ============================================================================
+
+/// PP-OCRv6 detection model definition (script-agnostic, one per tier).
+#[cfg(feature = "paddle-ocr")]
+#[derive(Debug, Clone)]
+struct V6DetModelDefinition {
+    tier: &'static str,
+    remote_filename: &'static str,
+    sha256_checksum: &'static str,
+}
+
+/// PP-OCRv6 recognition model definition (unified CJK+Latin+JA/KO, one per tier).
+#[cfg(feature = "paddle-ocr")]
+#[derive(Debug, Clone)]
+struct V6RecModelDefinition {
+    tier: &'static str,
+    remote_model: &'static str,
+    remote_dict: &'static str,
+    model_sha256: &'static str,
+    dict_sha256: &'static str,
+}
+
+/// PP-OCRv6 detection models: medium (62MB), small (9.9MB), tiny (1.8MB).
+#[cfg(feature = "paddle-ocr")]
+const V6_DET_MODELS: &[V6DetModelDefinition] = &[
+    V6DetModelDefinition {
+        tier: "medium",
+        remote_filename: "v6/det/medium/model.onnx",
+        sha256_checksum: "9d58088cce871cd690deae447f860df699f5db1d4e3ef21cc2a3229497e50ea2",
+    },
+    V6DetModelDefinition {
+        tier: "small",
+        remote_filename: "v6/det/small/model.onnx",
+        sha256_checksum: "b1a4f07289eda88d29239890b94ea2f9e29f5635a33ff6e165bb1b27dcea25fc",
+    },
+    V6DetModelDefinition {
+        tier: "tiny",
+        remote_filename: "v6/det/tiny/model.onnx",
+        sha256_checksum: "7603ac05a98aef4f7284517b9210c09f37352debd1183511645e9ee03c5a0406",
+    },
+];
+
+/// PP-OCRv6 recognition models. medium/small share an 18,708-char CJK+Latin+JA/KO dict
+/// (output `[B,T,18710]`); tiny uses a reduced 6,904-char ~zh/en dict (output `[B,T,6906]`).
+/// CTC convention matches v5 (blank@0, dict@1..N, trailing space@N+1) — the decoder sizes
+/// itself from the dict, so no xberg-side shim is required.
+#[cfg(feature = "paddle-ocr")]
+const V6_REC_MODELS: &[V6RecModelDefinition] = &[
+    V6RecModelDefinition {
+        tier: "medium",
+        remote_model: "v6/rec/medium/model.onnx",
+        remote_dict: "v6/rec/medium/dict.txt",
+        model_sha256: "a04998165e24f41ec7983539a698df757036aa150824e61b1387e82d2daa26d7",
+        dict_sha256: "b5f2bfe2bdd9448429e3e82b51c789775d9b42f2403d082b00662eb77e401c5d",
+    },
+    V6RecModelDefinition {
+        tier: "small",
+        remote_model: "v6/rec/small/model.onnx",
+        remote_dict: "v6/rec/small/dict.txt",
+        model_sha256: "1f96448a5939b72ccfe7b8e1635f7ee914d2ffa36c3c938ce6e1387a40b3daa1",
+        dict_sha256: "b5f2bfe2bdd9448429e3e82b51c789775d9b42f2403d082b00662eb77e401c5d",
+    },
+    V6RecModelDefinition {
+        tier: "tiny",
+        remote_model: "v6/rec/tiny/model.onnx",
+        remote_dict: "v6/rec/tiny/dict.txt",
+        model_sha256: "98e63c179d7905b747272705ebca428b3cf6b759af713800ffdf7b3b6b428656",
+        dict_sha256: "c5cbe34ef40c29c4df07ed012bf96569cb69a2d2a01a07027e9f13cb832bd9cd",
+    },
+];
+
+/// Script families covered by the PP-OCRv6 unified recognition model (CJK + Latin + JA/KO).
+/// Families outside this set fall back to the PP-OCRv5 per-script recognition models.
+#[cfg(feature = "paddle-ocr")]
+const V6_UNIFIED_FAMILIES: &[&str] = &["english", "chinese", "korean", "latin"];
+
+/// Maps a configured tier to an effective PP-OCRv6 tier. Legacy v5 tiers (`server`/`mobile`)
+/// and any unknown value fall back to `medium`, the v6 default.
+#[cfg(feature = "paddle-ocr")]
+fn effective_v6_tier(tier: &str) -> &str {
+    match tier {
+        "medium" | "small" | "tiny" => tier,
+        _ => "medium",
+    }
+}
 #[cfg_attr(alef, alef(skip))]
 /// Resolved recognition model with engine pool key for sharing.
 #[derive(Debug, Clone)]
@@ -534,6 +622,33 @@ impl ModelManager {
             });
         }
 
+        // PP-OCRv6 det + rec (unified) per tier.
+        for det in V6_DET_MODELS {
+            entries.push(ModelManifestEntry {
+                relative_path: format!("paddle-ocr/v6/det/{}/model.onnx", det.tier),
+                sha256: det.sha256_checksum.to_string(),
+                size_bytes: 0,
+                source_url: format!(
+                    "https://huggingface.co/{HF_REPO_ID}/resolve/main/{}",
+                    det.remote_filename
+                ),
+            });
+        }
+        for rec in V6_REC_MODELS {
+            entries.push(ModelManifestEntry {
+                relative_path: format!("paddle-ocr/v6/rec/{}/model.onnx", rec.tier),
+                sha256: rec.model_sha256.to_string(),
+                size_bytes: 0,
+                source_url: format!("https://huggingface.co/{HF_REPO_ID}/resolve/main/{}", rec.remote_model),
+            });
+            entries.push(ModelManifestEntry {
+                relative_path: format!("paddle-ocr/v6/rec/{}/dict.txt", rec.tier),
+                sha256: rec.dict_sha256.to_string(),
+                size_bytes: 0,
+                source_url: format!("https://huggingface.co/{HF_REPO_ID}/resolve/main/{}", rec.remote_dict),
+            });
+        }
+
         entries
     }
 
@@ -738,6 +853,121 @@ impl ModelManager {
             dict_file,
             model_key: format!("v2:{model_key}"),
         })
+    }
+
+    // ========================================================================
+    // V6 (PP-OCRv6) version-aware model resolution
+    // ========================================================================
+
+    /// Ensures the PP-OCRv6 detection model for the given tier is cached locally.
+    ///
+    /// The v6 detector is script-agnostic; `tier` is one of `medium`/`small`/`tiny`.
+    pub(crate) fn ensure_v6_det_model(&self, tier: &str) -> Result<PathBuf, XbergError> {
+        let tier = effective_v6_tier(tier);
+        let definition = V6_DET_MODELS
+            .iter()
+            .find(|d| d.tier == tier)
+            .ok_or_else(|| XbergError::Plugin {
+                message: format!("Invalid PP-OCRv6 tier \"{tier}\". Valid values: \"medium\", \"small\", \"tiny\""),
+                plugin_name: "paddle-ocr".to_string(),
+            })?;
+
+        let det_dir = self.cache_dir.join("v6").join("det").join(tier);
+        let model_file = det_dir.join("model.onnx");
+
+        if !model_file.exists() {
+            tracing::info!(tier, "Downloading PP-OCRv6 detection model...");
+            fs::create_dir_all(&det_dir)?;
+            let cached_path = self.hf_download(definition.remote_filename)?;
+            Self::verify_checksum(&cached_path, definition.sha256_checksum, &format!("v6/det/{tier}"))?;
+            fs::copy(&cached_path, &model_file).map_err(|e| XbergError::Plugin {
+                message: format!("Failed to copy v6 det model: {e}"),
+                plugin_name: "paddle-ocr".to_string(),
+            })?;
+            tracing::info!(tier, "PP-OCRv6 detection model saved");
+        }
+
+        Ok(det_dir)
+    }
+
+    /// Ensures the PP-OCRv6 unified recognition model for the given tier is cached locally.
+    fn ensure_v6_rec_model(&self, tier: &str) -> Result<ResolvedRecModel, XbergError> {
+        let tier = effective_v6_tier(tier);
+        let definition = V6_REC_MODELS
+            .iter()
+            .find(|d| d.tier == tier)
+            .ok_or_else(|| XbergError::Plugin {
+                message: format!("Invalid PP-OCRv6 tier \"{tier}\". Valid values: \"medium\", \"small\", \"tiny\""),
+                plugin_name: "paddle-ocr".to_string(),
+            })?;
+
+        let rec_dir = self.cache_dir.join("v6").join("rec").join(tier);
+        let model_file = rec_dir.join("model.onnx");
+        let dict_file = rec_dir.join("dict.txt");
+
+        if !model_file.exists() || !dict_file.exists() {
+            tracing::info!(tier, "Downloading PP-OCRv6 recognition model...");
+            fs::create_dir_all(&rec_dir)?;
+
+            let cached_model = self.hf_download(definition.remote_model)?;
+            Self::verify_checksum(&cached_model, definition.model_sha256, &format!("v6/rec/{tier}"))?;
+            fs::copy(&cached_model, &model_file).map_err(|e| XbergError::Plugin {
+                message: format!("Failed to copy v6 rec model: {e}"),
+                plugin_name: "paddle-ocr".to_string(),
+            })?;
+
+            let cached_dict = self.hf_download(definition.remote_dict)?;
+            Self::verify_checksum(&cached_dict, definition.dict_sha256, &format!("v6/rec/{tier}/dict"))?;
+            fs::copy(&cached_dict, &dict_file).map_err(|e| XbergError::Plugin {
+                message: format!("Failed to copy v6 rec dict: {e}"),
+                plugin_name: "paddle-ocr".to_string(),
+            })?;
+
+            tracing::info!(tier, "PP-OCRv6 recognition model and dict saved");
+        }
+
+        Ok(ResolvedRecModel {
+            model_dir: rec_dir,
+            dict_file,
+            model_key: format!("v6:{tier}"),
+        })
+    }
+
+    /// Ensures shared models (det + cls) for the given model version and tier.
+    ///
+    /// For `pp-ocrv6` the detector comes from the v6 tree (`medium`/`small`/`tiny`) while the
+    /// classifier reuses the PP-LCNet textline-orientation model (v6 ships no dedicated cls).
+    /// Any other version resolves to the PP-OCRv5 shared models.
+    pub(crate) fn ensure_shared_models_versioned(
+        &self,
+        version: &str,
+        tier: &str,
+    ) -> Result<SharedModelPaths, XbergError> {
+        if version == "pp-ocrv6" {
+            let det_model = self.ensure_v6_det_model(tier)?;
+            let cls_model = self.ensure_v2_cls_model()?;
+            Ok(SharedModelPaths { det_model, cls_model })
+        } else {
+            self.ensure_shared_models(tier)
+        }
+    }
+
+    /// Resolves the recognition model for a script family, model version, and tier.
+    ///
+    /// For `pp-ocrv6`, families covered by the unified model (English, Chinese, Korean, Latin)
+    /// resolve to the v6 recognition model for the effective tier; all other scripts fall back
+    /// to the PP-OCRv5 per-script models. Any other version resolves entirely via PP-OCRv5.
+    pub(crate) fn resolve_rec_model_versioned(
+        &self,
+        version: &str,
+        family: &str,
+        tier: &str,
+    ) -> Result<ResolvedRecModel, XbergError> {
+        if version == "pp-ocrv6" && V6_UNIFIED_FAMILIES.contains(&family) {
+            self.ensure_v6_rec_model(tier)
+        } else {
+            self.resolve_rec_model(family, tier)
+        }
     }
 
     /// Recursively calculates the size of a directory in bytes.
@@ -1050,7 +1280,16 @@ mod tests {
         let entries = ModelManager::manifest();
 
         // 2 shared (det, cls) + 9 rec families * 2 (model + dict) = 20
-        assert_eq!(entries.len(), 2 + 9 * 2);
+        // + 3 v6 det + 3 v6 rec * 2 (model + dict) = 9 => 29 total
+        assert_eq!(entries.len(), 2 + 9 * 2 + 3 + 3 * 2);
+
+        // v6 entries present
+        let paths: Vec<&str> = entries.iter().map(|e| e.relative_path.as_str()).collect();
+        for tier in &["medium", "small", "tiny"] {
+            assert!(paths.contains(&format!("paddle-ocr/v6/det/{tier}/model.onnx").as_str()));
+            assert!(paths.contains(&format!("paddle-ocr/v6/rec/{tier}/model.onnx").as_str()));
+            assert!(paths.contains(&format!("paddle-ocr/v6/rec/{tier}/dict.txt").as_str()));
+        }
 
         // Check shared models present
         let paths: Vec<&str> = entries.iter().map(|e| e.relative_path.as_str()).collect();
@@ -1208,5 +1447,115 @@ mod tests {
             server_det, mobile_det,
             "Server and mobile det model paths should differ"
         );
+    }
+
+    #[test]
+    fn test_effective_v6_tier_mapping() {
+        assert_eq!(effective_v6_tier("medium"), "medium");
+        assert_eq!(effective_v6_tier("small"), "small");
+        assert_eq!(effective_v6_tier("tiny"), "tiny");
+        // legacy v5 tiers and unknowns fall back to medium
+        assert_eq!(effective_v6_tier("mobile"), "medium");
+        assert_eq!(effective_v6_tier("server"), "medium");
+        assert_eq!(effective_v6_tier("bogus"), "medium");
+    }
+
+    #[test]
+    fn test_v6_model_definitions_complete() {
+        assert_eq!(V6_DET_MODELS.len(), 3);
+        assert_eq!(V6_REC_MODELS.len(), 3);
+        for tier in &["medium", "small", "tiny"] {
+            assert!(V6_DET_MODELS.iter().any(|d| d.tier == *tier));
+            assert!(V6_REC_MODELS.iter().any(|d| d.tier == *tier));
+        }
+        // medium/small share the unified dict; tiny uses the reduced dict
+        let medium = V6_REC_MODELS.iter().find(|d| d.tier == "medium").unwrap();
+        let small = V6_REC_MODELS.iter().find(|d| d.tier == "small").unwrap();
+        let tiny = V6_REC_MODELS.iter().find(|d| d.tier == "tiny").unwrap();
+        assert_eq!(medium.dict_sha256, small.dict_sha256);
+        assert_ne!(tiny.dict_sha256, medium.dict_sha256);
+    }
+
+    #[test]
+    fn test_v6_unified_family_routing() {
+        // v6 unified families route to the v6 rec model; others fall back to v5 per-script.
+        assert!(V6_UNIFIED_FAMILIES.contains(&"english"));
+        assert!(V6_UNIFIED_FAMILIES.contains(&"chinese"));
+        assert!(V6_UNIFIED_FAMILIES.contains(&"korean"));
+        assert!(V6_UNIFIED_FAMILIES.contains(&"latin"));
+        // scripts v6 does not cover
+        for uncovered in &["arabic", "eslav", "thai", "greek", "devanagari", "tamil", "telugu"] {
+            assert!(!V6_UNIFIED_FAMILIES.contains(uncovered));
+        }
+    }
+
+    #[test]
+    fn test_ensure_v6_det_model_tier_selection() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = ModelManager::new(temp_dir.path().to_path_buf());
+
+        // Pre-populate all v6 det tiers so no download is attempted.
+        for tier in &["medium", "small", "tiny"] {
+            let dir = temp_dir.path().join("v6").join("det").join(tier);
+            fs::create_dir_all(&dir).unwrap();
+            fs::write(dir.join("model.onnx"), "fake").unwrap();
+        }
+
+        let medium = manager.ensure_v6_det_model("medium").unwrap();
+        assert!(medium.ends_with("v6/det/medium"));
+        // legacy tier falls back to medium
+        let legacy = manager.ensure_v6_det_model("mobile").unwrap();
+        assert!(legacy.ends_with("v6/det/medium"));
+        let tiny = manager.ensure_v6_det_model("tiny").unwrap();
+        assert!(tiny.ends_with("v6/det/tiny"));
+    }
+
+    #[test]
+    fn test_resolve_rec_model_versioned_routing() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = ModelManager::new(temp_dir.path().to_path_buf());
+
+        // Pre-populate v6 rec (medium) and a v5 per-script (arabic) so no download happens.
+        let v6_rec = temp_dir.path().join("v6").join("rec").join("medium");
+        fs::create_dir_all(&v6_rec).unwrap();
+        fs::write(v6_rec.join("model.onnx"), "fake").unwrap();
+        fs::write(v6_rec.join("dict.txt"), "#\na\n ").unwrap();
+
+        let arabic_rec = manager.rec_family_path("arabic");
+        fs::create_dir_all(&arabic_rec).unwrap();
+        fs::write(arabic_rec.join("model.onnx"), "fake").unwrap();
+        fs::write(arabic_rec.join("dict.txt"), "#\na\n ").unwrap();
+
+        // English under v6 -> unified v6 rec
+        let english = manager
+            .resolve_rec_model_versioned("pp-ocrv6", "english", "medium")
+            .unwrap();
+        assert_eq!(english.model_key, "v6:medium");
+        assert!(english.model_dir.ends_with("v6/rec/medium"));
+
+        // Arabic under v6 -> v5 per-script fallback (v6 does not cover it)
+        let arabic = manager
+            .resolve_rec_model_versioned("pp-ocrv6", "arabic", "medium")
+            .unwrap();
+        assert_eq!(arabic.model_key, "v1:arabic");
+        assert!(arabic.model_dir.ends_with("rec/arabic"));
+    }
+
+    #[test]
+    fn test_ensure_shared_models_versioned_v6() {
+        let temp_dir = TempDir::new().unwrap();
+        let manager = ModelManager::new(temp_dir.path().to_path_buf());
+
+        // v6 det (small) + shared v2 cls
+        let det_dir = temp_dir.path().join("v6").join("det").join("small");
+        fs::create_dir_all(&det_dir).unwrap();
+        fs::write(det_dir.join("model.onnx"), "fake").unwrap();
+        let cls_dir = temp_dir.path().join("v2").join("cls");
+        fs::create_dir_all(&cls_dir).unwrap();
+        fs::write(cls_dir.join("model.onnx"), "fake").unwrap();
+
+        let shared = manager.ensure_shared_models_versioned("pp-ocrv6", "small").unwrap();
+        assert!(shared.det_model.ends_with("v6/det/small"));
+        assert!(shared.cls_model.ends_with("v2/cls"));
     }
 }

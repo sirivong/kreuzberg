@@ -16278,8 +16278,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   PaddleOcrConfig dco_decode_paddle_ocr_config(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     final arr = raw as List<dynamic>;
-    if (arr.length != 12)
-      throw Exception('unexpected arr length: expect 12 but see ${arr.length}');
+    if (arr.length != 13)
+      throw Exception('unexpected arr length: expect 13 but see ${arr.length}');
     return PaddleOcrConfig(
       language: dco_decode_String(arr[0]),
       cacheDir: dco_decode_opt_String(arr[1]),
@@ -16293,6 +16293,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       padding: dco_decode_i_64(arr[9]),
       dropScore: dco_decode_f_64(arr[10]),
       modelTier: dco_decode_String(arr[11]),
+      modelVersion: dco_decode_String(arr[12]),
     );
   }
 
@@ -24895,6 +24896,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     var var_padding = sse_decode_i_64(deserializer);
     var var_dropScore = sse_decode_f_64(deserializer);
     var var_modelTier = sse_decode_String(deserializer);
+    var var_modelVersion = sse_decode_String(deserializer);
     return PaddleOcrConfig(
       language: var_language,
       cacheDir: var_cacheDir,
@@ -24908,6 +24910,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       padding: var_padding,
       dropScore: var_dropScore,
       modelTier: var_modelTier,
+      modelVersion: var_modelVersion,
     );
   }
 
@@ -33180,6 +33183,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_i_64(self.padding, serializer);
     sse_encode_f_64(self.dropScore, serializer);
     sse_encode_String(self.modelTier, serializer);
+    sse_encode_String(self.modelVersion, serializer);
   }
 
   @protected

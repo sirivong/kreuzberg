@@ -100,6 +100,9 @@ public func paddleOcrConfigWithPaddingFromJson<GenericIntoRustString: IntoRustSt
 public func paddleOcrConfigWithModelTierFromJson<GenericIntoRustString: IntoRustString>(_ json: GenericIntoRustString, _ tier: GenericIntoRustString) throws -> RustString {
     try { let val = __swift_bridge__$paddle_ocr_config_with_model_tier_from_json({ let rustString = json.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), { let rustString = tier.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); if val.is_ok { return RustString(ptr: val.ok_or_err!) } else { throw RustString(ptr: val.ok_or_err!) } }()
 }
+public func paddleOcrConfigWithModelVersionFromJson<GenericIntoRustString: IntoRustString>(_ json: GenericIntoRustString, _ version: GenericIntoRustString) throws -> RustString {
+    try { let val = __swift_bridge__$paddle_ocr_config_with_model_version_from_json({ let rustString = json.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), { let rustString = version.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); if val.is_ok { return RustString(ptr: val.ok_or_err!) } else { throw RustString(ptr: val.ok_or_err!) } }()
+}
 public func token_counter_noop(_ client: TokenCounterRef) {
     __swift_bridge__$token_counter_noop(client.ptr)
 }
@@ -20593,8 +20596,8 @@ public class PaddleOcrConfig: PaddleOcrConfigRefMut {
     }
 }
 extension PaddleOcrConfig {
-    public convenience init<GenericIntoRustString: IntoRustString>(_ language: GenericIntoRustString, _ cache_dir: Optional<GenericIntoRustString>, _ use_angle_cls: Bool, _ enable_table_detection: Bool, _ det_db_thresh: Float, _ det_db_box_thresh: Float, _ det_db_unclip_ratio: Float, _ det_limit_side_len: UInt32, _ rec_batch_num: UInt32, _ padding: UInt32, _ drop_score: Float, _ model_tier: GenericIntoRustString) {
-        self.init(ptr: __swift_bridge__$PaddleOcrConfig$new({ let rustString = language.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), { if let rustString = optionalStringIntoRustString(cache_dir) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), use_angle_cls, enable_table_detection, det_db_thresh, det_db_box_thresh, det_db_unclip_ratio, det_limit_side_len, rec_batch_num, padding, drop_score, { let rustString = model_tier.intoRustString(); rustString.isOwned = false; return rustString.ptr }()))
+    public convenience init<GenericIntoRustString: IntoRustString>(_ language: GenericIntoRustString, _ cache_dir: Optional<GenericIntoRustString>, _ use_angle_cls: Bool, _ enable_table_detection: Bool, _ det_db_thresh: Float, _ det_db_box_thresh: Float, _ det_db_unclip_ratio: Float, _ det_limit_side_len: UInt32, _ rec_batch_num: UInt32, _ padding: UInt32, _ drop_score: Float, _ model_tier: GenericIntoRustString, _ model_version: GenericIntoRustString) {
+        self.init(ptr: __swift_bridge__$PaddleOcrConfig$new({ let rustString = language.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), { if let rustString = optionalStringIntoRustString(cache_dir) { rustString.isOwned = false; return rustString.ptr } else { return nil } }(), use_angle_cls, enable_table_detection, det_db_thresh, det_db_box_thresh, det_db_unclip_ratio, det_limit_side_len, rec_batch_num, padding, drop_score, { let rustString = model_tier.intoRustString(); rustString.isOwned = false; return rustString.ptr }(), { let rustString = model_version.intoRustString(); rustString.isOwned = false; return rustString.ptr }()))
     }
 }
 public class PaddleOcrConfigRefMut: PaddleOcrConfigRef {
@@ -20656,6 +20659,10 @@ extension PaddleOcrConfigRef {
 
     public func modelTier() -> RustString {
         RustString(ptr: __swift_bridge__$PaddleOcrConfig$model_tier(ptr))
+    }
+
+    public func modelVersion() -> RustString {
+        RustString(ptr: __swift_bridge__$PaddleOcrConfig$model_version(ptr))
     }
 }
 extension PaddleOcrConfig: Vectorizable {

@@ -9678,6 +9678,7 @@ const _: fn() = || {
         let _: i64 = PaddleOcrConfig.padding;
         let _: f64 = PaddleOcrConfig.drop_score;
         let _: String = PaddleOcrConfig.model_tier;
+        let _: String = PaddleOcrConfig.model_version;
     }
     {
         let PageBoundary = None::<crate::PageBoundary>.unwrap();
@@ -17198,6 +17199,7 @@ impl SseDecode for crate::PaddleOcrConfig {
         let mut var_padding = <i64>::sse_decode(deserializer);
         let mut var_dropScore = <f64>::sse_decode(deserializer);
         let mut var_modelTier = <String>::sse_decode(deserializer);
+        let mut var_modelVersion = <String>::sse_decode(deserializer);
         return crate::PaddleOcrConfig {
             language: var_language,
             cache_dir: var_cacheDir,
@@ -17211,6 +17213,7 @@ impl SseDecode for crate::PaddleOcrConfig {
             padding: var_padding,
             drop_score: var_dropScore,
             model_tier: var_modelTier,
+            model_version: var_modelVersion,
         };
     }
 }
@@ -23543,6 +23546,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::PaddleOcrConfig> {
             self.0.padding.into_into_dart().into_dart(),
             self.0.drop_score.into_into_dart().into_dart(),
             self.0.model_tier.into_into_dart().into_dart(),
+            self.0.model_version.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -30583,6 +30587,7 @@ impl SseEncode for crate::PaddleOcrConfig {
         <i64>::sse_encode(self.padding, serializer);
         <f64>::sse_encode(self.drop_score, serializer);
         <String>::sse_encode(self.model_tier, serializer);
+        <String>::sse_encode(self.model_version, serializer);
     }
 }
 

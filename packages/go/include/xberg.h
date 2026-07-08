@@ -15590,6 +15590,13 @@ float xberg_paddle_ocr_config_drop_score(const XBERGPaddleOcrConfig *ptr);
 char *xberg_paddle_ocr_config_model_tier(const XBERGPaddleOcrConfig *ptr);
 
 /**
+ * Get the `model_version` field from a `PaddleOcrConfig`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_paddle_ocr_config_model_version(const XBERGPaddleOcrConfig *ptr);
+
+/**
  * Sets a custom cache directory for model files.
  * \param path Path to cache directory
  * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
@@ -15701,6 +15708,16 @@ XBERGPaddleOcrConfig *xberg_paddle_ocr_config_with_padding(XBERGPaddleOcrConfig 
  */
 XBERGPaddleOcrConfig *xberg_paddle_ocr_config_with_model_tier(XBERGPaddleOcrConfig *this_,
                                                               const char *tier);
+
+/**
+ * Sets the model generation.
+ * \param version `"pp-ocrv5"` (default) or `"pp-ocrv6"`. Under `"pp-ocrv6"`, `model_tier` selects
+ * among `"medium"`/`"small"`/`"tiny"`.
+ * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
+ * freed with the appropriate free function.
+ */
+XBERGPaddleOcrConfig *xberg_paddle_ocr_config_with_model_version(XBERGPaddleOcrConfig *this_,
+                                                                 const char *version);
 
 /**
  * Creates a default configuration with English language support.
