@@ -28,7 +28,7 @@
 
 use crate::*;
 use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
-use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
 use flutter_rust_bridge::{Handler, IntoIntoDart};
 
 // Section: boilerplate
@@ -8600,6 +8600,7 @@ const _: fn() = || {
         let _: Option<crate::SecurityLimits> = ExtractionConfig.security_limits;
         let _: Option<i64> = ExtractionConfig.max_embedded_file_bytes;
         let _: crate::OutputFormat = ExtractionConfig.output_format;
+        let _: crate::JupyterCellRendering = ExtractionConfig.jupyter_cell_rendering;
         let _: Option<crate::LayoutDetectionConfig> = ExtractionConfig.layout;
         let _: Option<crate::TranscriptionConfig> = ExtractionConfig.transcription;
         let _: bool = ExtractionConfig.use_layout_for_markdown;
@@ -12838,6 +12839,7 @@ impl SseDecode for crate::ExtractionConfig {
         let mut var_securityLimits = <Option<crate::SecurityLimits>>::sse_decode(deserializer);
         let mut var_maxEmbeddedFileBytes = <Option<i64>>::sse_decode(deserializer);
         let mut var_outputFormat = <crate::OutputFormat>::sse_decode(deserializer);
+        let mut var_jupyterCellRendering = <crate::JupyterCellRendering>::sse_decode(deserializer);
         let mut var_layout = <Option<crate::LayoutDetectionConfig>>::sse_decode(deserializer);
         let mut var_transcription = <Option<crate::TranscriptionConfig>>::sse_decode(deserializer);
         let mut var_useLayoutForMarkdown = <bool>::sse_decode(deserializer);
@@ -12880,6 +12882,7 @@ impl SseDecode for crate::ExtractionConfig {
             security_limits: var_securityLimits,
             max_embedded_file_bytes: var_maxEmbeddedFileBytes,
             output_format: var_outputFormat,
+            jupyter_cell_rendering: var_jupyterCellRendering,
             layout: var_layout,
             transcription: var_transcription,
             use_layout_for_markdown: var_useLayoutForMarkdown,
@@ -13752,6 +13755,19 @@ impl SseDecode for crate::JatsMetadata {
             license: var_license,
             history_dates: var_historyDates,
             contributor_roles: var_contributorRoles,
+        };
+    }
+}
+
+impl SseDecode for crate::JupyterCellRendering {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::JupyterCellRendering::Source,
+            1 => crate::JupyterCellRendering::Outputs,
+            2 => crate::JupyterCellRendering::Both,
+            _ => unreachable!("Invalid variant for JupyterCellRendering: {}", inner),
         };
     }
 }
@@ -21006,6 +21022,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::ExtractionConfig> {
             self.0.security_limits.into_into_dart().into_dart(),
             self.0.max_embedded_file_bytes.into_into_dart().into_dart(),
             self.0.output_format.into_into_dart().into_dart(),
+            self.0.jupyter_cell_rendering.into_into_dart().into_dart(),
             self.0.layout.into_into_dart().into_dart(),
             self.0.transcription.into_into_dart().into_dart(),
             self.0.use_layout_for_markdown.into_into_dart().into_dart(),
@@ -21824,6 +21841,23 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::JatsMetadata> {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::JatsMetadata> {}
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::JatsMetadata>> for crate::JatsMetadata {
     fn into_into_dart(self) -> FrbWrapper<crate::JatsMetadata> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::JupyterCellRendering> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::JupyterCellRendering::Source => 0.into_dart(),
+            crate::JupyterCellRendering::Outputs => 1.into_dart(),
+            crate::JupyterCellRendering::Both => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::JupyterCellRendering> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::JupyterCellRendering>> for crate::JupyterCellRendering {
+    fn into_into_dart(self) -> FrbWrapper<crate::JupyterCellRendering> {
         self.into()
     }
 }
@@ -26464,6 +26498,7 @@ impl SseEncode for crate::ExtractionConfig {
         <Option<crate::SecurityLimits>>::sse_encode(self.security_limits, serializer);
         <Option<i64>>::sse_encode(self.max_embedded_file_bytes, serializer);
         <crate::OutputFormat>::sse_encode(self.output_format, serializer);
+        <crate::JupyterCellRendering>::sse_encode(self.jupyter_cell_rendering, serializer);
         <Option<crate::LayoutDetectionConfig>>::sse_encode(self.layout, serializer);
         <Option<crate::TranscriptionConfig>>::sse_encode(self.transcription, serializer);
         <bool>::sse_encode(self.use_layout_for_markdown, serializer);
@@ -27129,6 +27164,23 @@ impl SseEncode for crate::JatsMetadata {
         <Option<String>>::sse_encode(self.license, serializer);
         <std::collections::HashMap<String, String>>::sse_encode(self.history_dates, serializer);
         <Vec<crate::ContributorRole>>::sse_encode(self.contributor_roles, serializer);
+    }
+}
+
+impl SseEncode for crate::JupyterCellRendering {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::JupyterCellRendering::Source => 0,
+                crate::JupyterCellRendering::Outputs => 1,
+                crate::JupyterCellRendering::Both => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -31088,7 +31140,7 @@ mod io {
     use super::*;
     use crate::*;
     use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
-    use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+    use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
     use flutter_rust_bridge::{Handler, IntoIntoDart};
 
     // Section: boilerplate
@@ -31393,7 +31445,7 @@ mod web {
     use flutter_rust_bridge::for_generated::byteorder::{NativeEndian, ReadBytesExt, WriteBytesExt};
     use flutter_rust_bridge::for_generated::wasm_bindgen;
     use flutter_rust_bridge::for_generated::wasm_bindgen::prelude::*;
-    use flutter_rust_bridge::for_generated::{Lifetimeable, Lockable, transform_result_dco};
+    use flutter_rust_bridge::for_generated::{transform_result_dco, Lifetimeable, Lockable};
     use flutter_rust_bridge::{Handler, IntoIntoDart};
 
     // Section: boilerplate

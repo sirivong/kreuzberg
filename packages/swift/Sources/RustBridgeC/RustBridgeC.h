@@ -2513,6 +2513,18 @@ void* __swift_bridge__$Vec_OutputFormat$get_mut(void* vec_ptr, uintptr_t index);
 uintptr_t __swift_bridge__$Vec_OutputFormat$len(void* vec_ptr);
 void* __swift_bridge__$Vec_OutputFormat$as_ptr(void* vec_ptr);
 
+typedef struct JupyterCellRendering JupyterCellRendering;
+void __swift_bridge__$JupyterCellRendering$_free(void* self);
+
+void* __swift_bridge__$Vec_JupyterCellRendering$new(void);
+void __swift_bridge__$Vec_JupyterCellRendering$drop(void* vec_ptr);
+void __swift_bridge__$Vec_JupyterCellRendering$push(void* vec_ptr, void* item_ptr);
+void* __swift_bridge__$Vec_JupyterCellRendering$pop(void* vec_ptr);
+void* __swift_bridge__$Vec_JupyterCellRendering$get(void* vec_ptr, uintptr_t index);
+void* __swift_bridge__$Vec_JupyterCellRendering$get_mut(void* vec_ptr, uintptr_t index);
+uintptr_t __swift_bridge__$Vec_JupyterCellRendering$len(void* vec_ptr);
+void* __swift_bridge__$Vec_JupyterCellRendering$as_ptr(void* vec_ptr);
+
 typedef struct HtmlTheme HtmlTheme;
 void __swift_bridge__$HtmlTheme$_free(void* self);
 
@@ -3376,7 +3388,7 @@ bool __swift_bridge__$ContentFilterConfig$strip_repeating_text(void* self);
 bool __swift_bridge__$ContentFilterConfig$include_watermarks(void* self);
 void* __swift_bridge__$EmailConfig$new(struct __private__OptionU32 msg_fallback_codepage);
 struct __private__OptionU32 __swift_bridge__$EmailConfig$msg_fallback_codepage(void* self);
-void* __swift_bridge__$ExtractionConfig$new(bool use_cache, bool enable_quality_processing, void* ocr, bool force_ocr, void* force_ocr_pages, bool disable_ocr, void* chunking, void* content_filter, void* images, void* pdf_options, void* token_reduction, void* language_detection, void* pages, void* postprocessor, void* html_output, struct __private__OptionU64 extraction_timeout_secs, struct __private__OptionUsize max_concurrent_extractions, void* result_format, void* security_limits, struct __private__OptionU64 max_embedded_file_bytes, void* output_format, void* layout, void* transcription, bool use_layout_for_markdown, bool include_document_structure, void* acceleration, void* cache_namespace, struct __private__OptionU64 cache_ttl_secs, void* email, void* url, uintptr_t max_archive_depth, void* tree_sitter, void* structured_extraction, void* ner, void* redaction, void* summarization, void* translation, void* page_classification, void* captioning, struct __private__OptionBool qr_codes);
+void* __swift_bridge__$ExtractionConfig$new(bool use_cache, bool enable_quality_processing, void* ocr, bool force_ocr, void* force_ocr_pages, bool disable_ocr, void* chunking, void* content_filter, void* images, void* pdf_options, void* token_reduction, void* language_detection, void* pages, void* postprocessor, void* html_output, struct __private__OptionU64 extraction_timeout_secs, struct __private__OptionUsize max_concurrent_extractions, void* result_format, void* security_limits, struct __private__OptionU64 max_embedded_file_bytes, void* output_format, void* jupyter_cell_rendering, void* layout, void* transcription, bool use_layout_for_markdown, bool include_document_structure, void* acceleration, void* cache_namespace, struct __private__OptionU64 cache_ttl_secs, void* email, void* url, uintptr_t max_archive_depth, void* tree_sitter, void* structured_extraction, void* ner, void* redaction, void* summarization, void* translation, void* page_classification, void* captioning, struct __private__OptionBool qr_codes);
 bool __swift_bridge__$ExtractionConfig$use_cache(void* self);
 bool __swift_bridge__$ExtractionConfig$enable_quality_processing(void* self);
 void* __swift_bridge__$ExtractionConfig$ocr(void* self);
@@ -3398,6 +3410,7 @@ void* __swift_bridge__$ExtractionConfig$result_format(void* self);
 void* __swift_bridge__$ExtractionConfig$security_limits(void* self);
 struct __private__OptionU64 __swift_bridge__$ExtractionConfig$max_embedded_file_bytes(void* self);
 void* __swift_bridge__$ExtractionConfig$output_format(void* self);
+void* __swift_bridge__$ExtractionConfig$jupyter_cell_rendering(void* self);
 void* __swift_bridge__$ExtractionConfig$layout(void* self);
 void* __swift_bridge__$ExtractionConfig$transcription(void* self);
 bool __swift_bridge__$ExtractionConfig$use_layout_for_markdown(void* self);
@@ -4617,6 +4630,7 @@ void* __swift_bridge__$ImageOutputFormat$to_string(void* self);
 void* __swift_bridge__$ExtractInputKind$to_string(void* self);
 void* __swift_bridge__$UrlExtractionMode$to_string(void* self);
 void* __swift_bridge__$OutputFormat$to_string(void* self);
+void* __swift_bridge__$JupyterCellRendering$to_string(void* self);
 void* __swift_bridge__$HtmlTheme$to_string(void* self);
 void* __swift_bridge__$TableModel$to_string(void* self);
 void* __swift_bridge__$TableOverlapPreference$to_string(void* self);
@@ -4930,6 +4944,7 @@ struct __private__ResultPtrAndPtr __swift_bridge__$image_output_format_from_json
 struct __private__ResultPtrAndPtr __swift_bridge__$extract_input_kind_from_json(void* json);
 struct __private__ResultPtrAndPtr __swift_bridge__$url_extraction_mode_from_json(void* json);
 struct __private__ResultPtrAndPtr __swift_bridge__$output_format_from_json(void* json);
+struct __private__ResultPtrAndPtr __swift_bridge__$jupyter_cell_rendering_from_json(void* json);
 struct __private__ResultPtrAndPtr __swift_bridge__$html_theme_from_json(void* json);
 struct __private__ResultPtrAndPtr __swift_bridge__$table_model_from_json(void* json);
 struct __private__ResultPtrAndPtr __swift_bridge__$table_overlap_preference_from_json(void* json);
@@ -5134,6 +5149,7 @@ void* __swift_bridge__$__alef_phantom_vec_image_output_format(void);
 void* __swift_bridge__$__alef_phantom_vec_extract_input_kind(void);
 void* __swift_bridge__$__alef_phantom_vec_url_extraction_mode(void);
 void* __swift_bridge__$__alef_phantom_vec_output_format(void);
+void* __swift_bridge__$__alef_phantom_vec_jupyter_cell_rendering(void);
 void* __swift_bridge__$__alef_phantom_vec_call_mode(void);
 void* __swift_bridge__$__alef_phantom_vec_merge_mode(void);
 void* __swift_bridge__$__alef_phantom_vec_ner_backend_kind(void);
@@ -5250,7 +5266,6 @@ void* __swift_bridge__$__alef_phantom_vec_layout_class(void);
 typedef enum __swift_bridge__$ResultUIntAndString$Tag {__swift_bridge__$ResultUIntAndString$ResultOk, __swift_bridge__$ResultUIntAndString$ResultErr} __swift_bridge__$ResultUIntAndString$Tag;
 union __swift_bridge__$ResultUIntAndString$Fields {uintptr_t ok; void* err;};
 typedef struct __swift_bridge__$ResultUIntAndString{__swift_bridge__$ResultUIntAndString$Tag tag; union __swift_bridge__$ResultUIntAndString$Fields payload;} __swift_bridge__$ResultUIntAndString;
-
 
 
 #endif /* RUST_BRIDGE_C_H */
