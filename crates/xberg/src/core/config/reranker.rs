@@ -173,7 +173,7 @@ pub enum RerankerModelType {
         /// Maximum token sequence length for the tokenizer.
         ///
         /// Stored as `i64` for FFI compatibility across language bindings.
-        /// Treated as a non-negative value; negative values are clamped to the model default.
+        /// Must be positive; a non-positive value is rejected with a validation error.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         max_length: Option<i64>,
         /// Scoring head for the ONNX model's output tensor.
