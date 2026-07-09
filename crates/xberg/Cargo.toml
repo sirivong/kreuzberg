@@ -282,13 +282,10 @@ embedding-presets = []
 # embeddings: full embedding generation with ONNX Runtime (ORT-dependent, WASM-incompatible)
 # NOTE: embedding-presets is a subset of embeddings (no ORT); always implied by embeddings.
 embeddings = [
-    "dep:hf-hub",
-    "dep:ort",
+    "onnx-runtime",
     "dep:ndarray",
-    "dep:tokenizers",
     "chunking",
     "tokio-runtime",
-    "ort-bundled",
     "embedding-presets",
 ]
 # v5.0.0: cross-encoder reranking.
@@ -298,12 +295,9 @@ reranker-presets = []
 # WASM-incompatible). NOTE: reranker-presets is a subset of reranker; always implied.
 reranker = [
     "reranker-presets",
-    "dep:hf-hub",
-    "dep:ort",
+    "onnx-runtime",
     "dep:ndarray",
-    "dep:tokenizers",
     "tokio-runtime",
-    "ort-bundled",
 ]
 # v5.0.0: SPLADE sparse embeddings for hybrid dense+sparse retrieval.
 # sparse-embedding-presets: static preset metadata (WASM/Android-safe, no ORT).
