@@ -177,7 +177,7 @@ mavenPublishing {
     coordinates(
         groupId = "io.xberg",
         artifactId = "xberg-android",
-        version = "1.0.0-rc.18",
+        version = "1.0.0-rc.19",
     )
 
     pom {

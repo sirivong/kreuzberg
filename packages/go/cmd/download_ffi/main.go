@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	moduleVersion = "1.0.0-rc.18"
+	moduleVersion = "1.0.0-rc.19"
 	repoURL       = "https://github.com/xberg-io/xberg"
 	assetPrefix   = "xberg"
 )

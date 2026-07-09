@@ -6,5 +6,5 @@
 
 module Xberg
   ## The version string for this package.
-  VERSION = "1.0.0.pre.rc.18"
+  VERSION = "1.0.0.pre.rc.19"
 end

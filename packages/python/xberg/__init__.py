@@ -4,7 +4,7 @@
 # To verify freshness: alef verify --exit-code
 """Public API for _xberg.
 
-Version: 1.0.0-rc.18
+Version: 1.0.0-rc.19
 """
 
 from ._xberg import (
@@ -713,4 +713,4 @@ __all__ = [
     "verify_excerpt",
 ]
 
-__version__ = "1.0.0-rc.18"
+__version__ = "1.0.0-rc.19"

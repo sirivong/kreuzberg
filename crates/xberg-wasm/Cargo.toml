@@ -5,7 +5,7 @@
 
 [package]
 name = "xberg-wasm"
-version = "1.0.0-rc.18"
+version = "1.0.0-rc.19"
 edition = "2024"
 license = "MIT"
 description = "High-performance document intelligence library"
