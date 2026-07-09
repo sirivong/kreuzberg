@@ -132,11 +132,6 @@ impl LateInteractionEngine {
             self.doc_marker_id
         };
 
-        // Per-row token/mask/type-id vectors, marker-inserted below. Rows may
-        // have differing lengths before query padding; BatchLongest tokenizer
-        // padding already equalized the tokenizer's own output, and marker
-        // insertion is a same-length shift-and-splice, so all rows here stay
-        // equal length (or are padded to `query_max_length` uniformly).
         let mut ids_rows: Vec<Vec<i64>> = Vec::with_capacity(batch_size);
         let mut mask_rows: Vec<Vec<i64>> = Vec::with_capacity(batch_size);
         let mut type_rows: Vec<Vec<i64>> = Vec::with_capacity(batch_size);
@@ -151,10 +146,6 @@ impl LateInteractionEngine {
                 pad_query(&mut ids, &mut mask, self.mask_id, self.query_max_length);
             }
 
-            // ColBERT is single-segment: token_type_ids are all zeros. Build them
-            // as zeros of the final length rather than reading the tokenizer's
-            // per-token type ids, which `insert_marker` would otherwise leave
-            // positionally misaligned by one relative to the shifted ids/mask.
             let types = vec![0i64; ids.len()];
 
             ids_rows.push(ids);
@@ -191,9 +182,6 @@ impl LateInteractionEngine {
             session_inputs.push(("token_type_ids".into(), Value::from_array(type_ids_tensor)?.into()));
         }
 
-        // SAFETY: ort::Session::run() takes &mut self but delegates to run_inner(&self)
-        // with zero actual mutation. The ONNX Runtime C API (OrtApi::Run) is documented
-        // as thread-safe for concurrent Run() calls on the same session.
         #[allow(unsafe_code)]
         let outputs = unsafe {
             let session_ptr = &self.session as *const Session as *mut Session;
@@ -201,7 +189,6 @@ impl LateInteractionEngine {
         }
         .map_err(LateInteractionError::Ort)?;
 
-        // Token embeddings: [batch, seq, dim].
         let (_, output_value) = outputs.iter().next().ok_or(LateInteractionError::NoOutput)?;
         let embeddings: ArrayView<f32, Dim<IxDynImpl>> =
             output_value.try_extract_array().map_err(LateInteractionError::Ort)?;
@@ -224,7 +211,6 @@ fn insert_marker(ids: &mut [i64], mask: &mut [i64], marker_id: Option<u32>) {
     if ids.len() < 2 {
         return;
     }
-    // Shift [1..] right by one, in place, dropping the final element.
     for i in (2..ids.len()).rev() {
         ids[i] = ids[i - 1];
         mask[i] = mask[i - 1];
@@ -252,7 +238,7 @@ fn pad_query(ids: &mut Vec<i64>, mask: &mut Vec<i64>, mask_id: Option<u32>, quer
     let pad_id = mask_id.unwrap_or(0) as i64;
     while ids.len() < query_max_length {
         ids.push(pad_id);
-        mask.push(1); // Query augmentation: padding stays attention-live.
+        mask.push(1);
     }
 }
 
@@ -292,10 +278,6 @@ pub(crate) fn normalize_tokens(embeddings: &ArrayView3<f32>, mask: &Array2<i64>)
         .collect()
 }
 
-// SAFETY: LateInteractionEngine is Send + Sync because:
-// 1. Tokenizer is Send + Sync (confirmed in tokenizers crate)
-// 2. Session: we only call run() which is internally thread-safe per ONNX Runtime docs
-// 3. All other fields are immutable after construction
 #[allow(unsafe_code)]
 unsafe impl Send for LateInteractionEngine {}
 #[allow(unsafe_code)]
@@ -308,7 +290,7 @@ mod tests {
 
     #[test]
     fn insert_marker_shifts_and_splices_at_index_one() {
-        let mut ids = vec![101_i64, 2054, 2003, 102]; // [CLS] what is [SEP]
+        let mut ids = vec![101_i64, 2054, 2003, 102];
         let mut mask = vec![1_i64, 1, 1, 1];
         insert_marker(&mut ids, &mut mask, Some(999));
         assert_eq!(ids, vec![101, 999, 2054, 2003]);
@@ -343,9 +325,6 @@ mod tests {
 
     #[test]
     fn normalize_tokens_l2_normalizes_and_skips_padding() {
-        // batch=1, seq=2, dim=2. Row 0 is real (mask=1), row 1 is padding (mask=0).
-        // token 0: [3.0, 4.0] -> norm=5.0 -> [0.6, 0.8]
-        // token 1: [1.0, 1.0] -> padded, must be dropped entirely.
         let embeddings = Array3::from_shape_vec((1, 2, 2), vec![3.0_f32, 4.0, 1.0, 1.0]).unwrap();
         let mask = Array2::from_shape_vec((1, 2), vec![1_i64, 0]).unwrap();
         let out = normalize_tokens(&embeddings.view(), &mask);
@@ -358,21 +337,18 @@ mod tests {
         assert!((mv.data[0] - 0.6).abs() < 1e-5);
         assert!((mv.data[1] - 0.8).abs() < 1e-5);
 
-        // Per-token L2 norm is ~1.
         let norm = (mv.data[0] * mv.data[0] + mv.data[1] * mv.data[1]).sqrt();
         assert!((norm - 1.0).abs() < 1e-4);
     }
 
     #[test]
     fn normalize_tokens_keeps_all_real_and_marker_rows() {
-        // batch=1, seq=3, dim=2, all attention-live (e.g. [CLS], [Q]/[D] marker, real token).
         let embeddings = Array3::from_shape_vec((1, 3, 2), vec![1.0_f32, 0.0, 0.0, 2.0, 3.0, 4.0]).unwrap();
         let mask = Array2::from_shape_vec((1, 3), vec![1_i64, 1, 1]).unwrap();
         let out = normalize_tokens(&embeddings.view(), &mask);
 
         assert_eq!(out[0].num_tokens, 3);
         assert_eq!(out[0].data.len(), 6);
-        // token 2: [3,4] -> norm 5 -> [0.6, 0.8]
         assert!((out[0].data[4] - 0.6).abs() < 1e-5);
         assert!((out[0].data[5] - 0.8).abs() < 1e-5);
     }

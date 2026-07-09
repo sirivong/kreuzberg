@@ -241,7 +241,6 @@ mod tests {
         let result = register_reranker_backend(Arc::new(MockRerankerBackend { name: name.clone() }));
         assert!(matches!(result, Err(XbergError::Plugin { .. })));
 
-        // Clean up.
         unregister_reranker_backend(&name).unwrap();
     }
 

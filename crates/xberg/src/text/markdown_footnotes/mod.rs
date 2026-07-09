@@ -239,7 +239,6 @@ mod tests {
 
     #[test]
     fn test_find_footnote_anchors_excludes_definitions() {
-        // The `[^1]` use-site is an anchor; the `[^1]:` definition site is not.
         let text = "A claim.[^1]\n\n[^1]: The footnote definition.";
         let anchors = find_footnote_anchors(text);
         assert_eq!(anchors.len(), 1, "definition site must not be reported as an anchor");
@@ -249,7 +248,6 @@ mod tests {
 
     #[test]
     fn test_find_unmarked_claims_ignores_definition_lines() {
-        // A footnote definition whose content ends in a period must not be flagged as a claim.
         let text = "[^1]: This is the footnote content.";
         let unmarked = find_unmarked_claims(text);
         assert_eq!(unmarked.len(), 0);

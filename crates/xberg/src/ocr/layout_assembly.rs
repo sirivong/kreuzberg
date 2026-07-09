@@ -51,7 +51,6 @@ fn recognize_single_table(
     elements: &[OcrElement],
     tatr_model: &mut TatrModel,
 ) -> Option<(Vec<Vec<String>>, String)> {
-    // Crop the table region from the page image
     let crop_x = table_bbox.x1.max(0.0) as u32;
     let crop_y = table_bbox.y1.max(0.0) as u32;
     let crop_w = (table_bbox.width() as u32).min(page_image.width().saturating_sub(crop_x));
@@ -63,7 +62,6 @@ fn recognize_single_table(
 
     let cropped = image::imageops::crop_imm(page_image, crop_x, crop_y, crop_w, crop_h).to_image();
 
-    // Run TATR inference
     let tatr_result = match tatr_model.recognize(&cropped) {
         Ok(r) => r,
         Err(e) => {
@@ -72,25 +70,20 @@ fn recognize_single_table(
         }
     };
 
-    // Check if TATR detected any rows and columns
     if tatr_result.rows.is_empty() || tatr_result.columns.is_empty() {
         return None;
     }
 
-    // Build cell grid from row × column intersections
     let cell_grid = tatr::build_cell_grid(&tatr_result, None);
     if cell_grid.is_empty() || cell_grid[0].is_empty() {
         return None;
     }
 
-    // Validate cell grid sanity: if too many cells are empty or grid is malformed,
-    // fall back to skip table (category C: table garbling from low-confidence TATR).
     if !is_cell_grid_valid(&cell_grid) {
         tracing::debug!("TATR cell grid is invalid (too many empty cells or malformed); skipping table");
         return None;
     }
 
-    // Collect OCR elements that overlap the table region (≥20% of element area)
     let table_elements: Vec<&OcrElement> = elements
         .iter()
         .filter(|e| {
@@ -101,7 +94,6 @@ fn recognize_single_table(
         })
         .collect();
 
-    // Build markdown table by matching OCR elements to cells
     let (cells, markdown) = build_markdown_table(&cell_grid, &table_elements, crop_x as f32, crop_y as f32);
     Some((cells, markdown))
 }
@@ -126,14 +118,12 @@ fn build_markdown_table(
         return (Vec::new(), String::new());
     }
 
-    // Fill grid with cell text
     let mut grid: Vec<Vec<String>> = Vec::with_capacity(cell_grid.len());
 
     for row in cell_grid {
         let mut grid_row = vec![String::new(); num_cols];
 
         for (col_idx, cell) in row.iter().enumerate() {
-            // Translate cell bbox from crop coords to page coords
             let page_bbox = BBox::new(
                 cell.x1 + offset_x,
                 cell.y1 + offset_y,
@@ -146,13 +136,11 @@ fn build_markdown_table(
         grid.push(grid_row);
     }
 
-    // Render as markdown table
     let mut md = String::new();
 
     for (row_idx, row) in grid.iter().enumerate() {
         md.push('|');
         for cell in row {
-            // Escape pipe characters in cell text
             let escaped = cell.replace('|', "\\|");
             md.push(' ');
             md.push_str(escaped.trim());
@@ -160,7 +148,6 @@ fn build_markdown_table(
         }
         md.push('\n');
 
-        // Add separator after first row (header)
         if row_idx == 0 {
             md.push('|');
             for _ in 0..num_cols {
@@ -170,7 +157,6 @@ fn build_markdown_table(
         }
     }
 
-    // Remove trailing newline
     if md.ends_with('\n') {
         md.pop();
     }
@@ -199,7 +185,6 @@ fn match_elements_to_cell(elements: &[&OcrElement], cell_bbox: &BBox) -> String 
         return String::new();
     }
 
-    // Sort by y then x for reading order
     matched.sort_by(|a, b| a.2.total_cmp(&b.2).then_with(|| a.1.total_cmp(&b.1)));
 
     matched
@@ -223,7 +208,6 @@ fn element_bbox_iow(elem: &OcrElement, bbox: &BBox) -> f32 {
     let elem_area = width as f32 * height as f32;
 
     if elem_area <= 0.0 {
-        // Zero-area element: fall back to center-point containment
         let cx = e_left + width as f32 / 2.0;
         let cy = e_top + height as f32 / 2.0;
         return if point_in_bbox(cx, cy, bbox) { 1.0 } else { 0.0 };
@@ -257,13 +241,12 @@ fn point_in_bbox(cx: f32, cy: f32, bbox: &BBox) -> bool {
 /// - Grid has < 2 rows or < 2 columns (degenerate)
 fn is_cell_grid_valid(cell_grid: &[Vec<tatr::CellBBox>]) -> bool {
     if cell_grid.len() < 2 {
-        return false; // Single row is not a table
+        return false;
     }
     if cell_grid[0].len() < 2 {
-        return false; // Single column is not a table
+        return false;
     }
 
-    // Count how many cells are effectively empty (zero or near-zero area)
     let mut empty_count = 0;
     let total_count = cell_grid.len() * cell_grid[0].len();
 

@@ -34,10 +34,6 @@ where
         return Ok(vec![]);
     }
 
-    // An explicit `max_concurrent_extractions` always wins. Otherwise derive the limit
-    // from the thread budget, capping it when layout detection is active so that
-    // `concurrency × ONNX intra-op threads` does not oversubscribe the CPU (which makes
-    // batch slower than serial single-file processing).
     #[cfg(feature = "layout-types")]
     let layout_active = config.layout.is_some();
     #[cfg(not(feature = "layout-types"))]
@@ -70,9 +66,6 @@ where
         }
     }
 
-    // Every `results[index]` slot is filled by the match above — each task writes exactly
-    // one `Some(...)` into its own slot, and `join_next` exhausts all tasks before here.
-    // `flatten()` on `Iterator<Option<T>>` is equivalent to `.unwrap()` but avoids the lint.
     Ok(results.into_iter().flatten().collect())
 }
 
@@ -102,8 +95,6 @@ where
         Some(secs) => match tokio::time::timeout(std::time::Duration::from_secs(secs), extraction_future).await {
             Ok(inner) => inner,
             Err(_elapsed) => {
-                // Signal the cancellation token so that any blocking PDF thread can
-                // detect it at the next inter-page checkpoint and stop processing.
                 if let Some(ref token) = cancel_token {
                     token.cancel();
                 }
@@ -214,7 +205,6 @@ pub(crate) async fn batch_extract_files(
     config: &ExtractionConfig,
 ) -> Result<Vec<ExtractedDocument>> {
     let config_arc = Arc::new(config.clone());
-    // Use Arc<Vec> for file items — paths are small, so keeping them all alive is fine.
     let items_arc = Arc::new(items);
     let count = items_arc.len();
 
@@ -311,10 +301,6 @@ pub(crate) async fn batch_extract_bytes(
     let config_arc = Arc::new(config.clone());
     let count = items.len();
 
-    // Move items into individually-indexed slots so each task can take ownership
-    // of its bytes without cloning. This avoids the memory regression of
-    // Arc<Vec<BatchBytesItem>> which would keep all byte arrays alive for the
-    // entire batch duration.
     type BytesSlot = parking_lot::Mutex<Option<BatchBytesItem>>;
     let slots: Arc<Vec<BytesSlot>> = Arc::new(
         items

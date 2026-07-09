@@ -98,9 +98,6 @@ impl FilterField {
 /// A filter expression for constraining retrieval and deletion.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-// `Range` carries four optional jsonb bounds; the size is intrinsic to the wire
-// shape and boxing it would force manual serde impls. Filters live in request
-// scope so the carrying cost is negligible.
 #[allow(clippy::large_enum_variant)]
 pub enum Filter {
     /// Exact equality.

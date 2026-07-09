@@ -70,8 +70,6 @@ mod imp {
         decoder.clear_kv_cache();
         let mut output_ids = Vec::new();
 
-        // Prefill: forward the whole vision-prefixed sequence with proper
-        // (3, 1, seq) M-RoPE positions.
         let mut logits = decoder
             .forward_embeds(input_embeds, prefill_position_ids)
             .map_err(|e| CandleOcrError::InferenceFailed(format!("Prefill forward: {}", e)))?;
@@ -115,8 +113,6 @@ mod imp {
                 return Ok(output_ids);
             }
 
-            // Embed the new token and forward with a (3, 1, 1) position tensor
-            // (t = h = w = next_text_pos).
             let token_tensor = Tensor::new(&[token_id as i64], &dev)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Token tensor: {}", e)))?
                 .unsqueeze(0)
@@ -159,21 +155,17 @@ mod imp {
         let mut output_ids = Vec::new();
         let prefix_len = input_embeds.dim(1)?;
 
-        // Prefill: seed the KV cache with the vision-prefix embeddings at offset=0.
         let mut logits = decoder
             .forward_embeds_with_offset(input_embeds, 0)
             .map_err(|e| CandleOcrError::InferenceFailed(format!("Prefill forward: {}", e)))?;
 
         let mut seqlen_offset = prefix_len;
 
-        // Decoding loop: generate tokens until EOS or max_new_tokens.
         while output_ids.len() < max_new_tokens {
-            // Get logits for the last position: logits is (B=1, vocab)
             let last_logits = logits
                 .squeeze(0)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Squeeze batch: {}", e)))?;
 
-            // Apply repetition penalty before sampling
             let penalized_logits = if config.repetition_penalty != 1.0 && !output_ids.is_empty() {
                 apply_repetition_penalty(&last_logits, &output_ids, config.repetition_penalty)
                     .map_err(|e| CandleOcrError::InferenceFailed(format!("Repetition penalty: {}", e)))?
@@ -190,12 +182,10 @@ mod imp {
 
             output_ids.push(token_id);
 
-            // Stop on any EOS token.
             if eos_token_ids.contains(&token_id) {
                 return Ok(output_ids);
             }
 
-            // Embed the generated token and forward for next prediction.
             let token_tensor = Tensor::new(&[token_id as i64], logits.device())
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Token tensor: {}", e)))?
                 .unsqueeze(0)
@@ -205,7 +195,6 @@ mod imp {
                 .embed_tokens(&token_tensor)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Embed tokens: {}", e)))?;
 
-            // Forward with new embedding at current seqlen_offset (before incrementing)
             logits = decoder
                 .forward_embeds_with_offset(&token_embeds, seqlen_offset)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Decode forward: {}", e)))?;
@@ -219,8 +208,6 @@ mod imp {
     /// Apply repetition penalty to logits: reduce scores for tokens already in output.
     /// Penalty > 1 suppresses repetition; < 1 encourages it.
     ///
-    // HF canonical form: positive logits shrink toward 0 (divide), negative logits push further
-    // negative (multiply). Both reduce the post-softmax probability.
     pub(crate) fn apply_repetition_penalty(
         logits: &Tensor,
         output_ids: &[u32],
@@ -253,12 +240,10 @@ mod imp {
 
     /// Nucleus (top-p) sampling with temperature scaling.
     pub(crate) fn sample_nucleus(logits: &Tensor, top_p: f32, temperature: f32) -> Result<u32> {
-        // Guard against invalid temperature.
         if temperature <= 0.0 {
             return sample_greedy(logits);
         }
 
-        // Temperature scaling.
         let scaled = if (temperature - 1.0).abs() > 1e-5 {
             logits
                 .affine(1.0 / temperature as f64, 0.0)
@@ -267,7 +252,6 @@ mod imp {
             logits.clone()
         };
 
-        // Softmax to get probabilities.
         let probs = candle_nn::ops::softmax(&scaled, 0)
             .map_err(|e| CandleOcrError::InferenceFailed(format!("Softmax: {}", e)))?;
 
@@ -277,15 +261,12 @@ mod imp {
             .to_vec1::<f32>()
             .map_err(|e| CandleOcrError::InferenceFailed(format!("To vec: {}", e)))?;
 
-        // Sort by probability (descending) and find top-p cutoff.
-        // Filter out NaN/inf values before sorting for numerical safety.
         let mut indexed: Vec<(usize, f32)> = probs_vec
             .iter()
             .enumerate()
             .filter(|&(_, &p)| p.is_finite())
             .map(|(i, &p)| (i, p))
             .collect();
-        // NaN-safe sort: treat NaN as less than any number
         indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         let mut cumsum = 0.0;
@@ -298,7 +279,6 @@ mod imp {
             }
         }
 
-        // Renormalize and sample from valid tokens.
         if valid_indices.is_empty() {
             return sample_greedy(logits);
         }
@@ -308,8 +288,6 @@ mod imp {
             return sample_greedy(logits);
         }
 
-        // Use a simple deterministic approach: sample by cumulative sum.
-        // In Phase 1.b, we use seeded sampling for reproducibility.
         use std::cell::RefCell;
         thread_local! {
             static RNG: RefCell<u64> = const { RefCell::new(0xDEADBEEF) };
@@ -317,7 +295,6 @@ mod imp {
 
         RNG.with(|rng| {
             let mut state = rng.borrow_mut();
-            // Linear congruential generator for reproducibility.
             *state = state.wrapping_mul(1103515245).wrapping_add(12345);
             let sample_val = (*state % 1_000_000) as f32 / 1_000_000.0 * total_prob;
 
@@ -348,34 +325,26 @@ mod tests {
 
     #[test]
     fn test_apply_repetition_penalty_reduces_both_signs() {
-        // Create a small logits tensor
         let logits = vec![0.5f32, -0.3, 1.0, -0.8];
         let device = Device::Cpu;
         let logits_tensor = Tensor::from_vec(logits.clone(), (4,), &device).unwrap();
 
-        // Apply penalty of 1.1 to token 0 and 1
         let output_ids = vec![0, 1];
         let result = apply_repetition_penalty(&logits_tensor, &output_ids, 1.1).unwrap();
         let result_vec = result.to_vec1::<f32>().unwrap();
 
-        // Token 0: 0.5 / 1.1 ≈ 0.454 (positive: shrinks toward 0)
         assert!((result_vec[0] - 0.5 / 1.1).abs() < 0.01);
-        // Token 1: -0.3 * 1.1 = -0.33 (negative logits get more negative under penalty,
-        // reducing post-softmax probability)
         assert!((result_vec[1] - (-0.3 * 1.1)).abs() < 0.01);
-        // Token 2, 3: unchanged
         assert!((result_vec[2] - 1.0).abs() < 0.01);
         assert!((result_vec[3] - (-0.8)).abs() < 0.01);
     }
 
     #[test]
     fn test_sample_nucleus_handles_nan() -> Result<()> {
-        // Create logits with a NaN and regular values
         let logits = vec![0.5f32, f32::NAN, 1.0, -0.8];
         let device = Device::Cpu;
         let logits_tensor = Tensor::from_vec(logits, (4,), &device).unwrap();
 
-        // Should not panic and return a valid token ID
         let result = sample_nucleus(&logits_tensor, 0.9, 1.0)?;
         assert!(result < 4);
         Ok(())

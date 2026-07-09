@@ -197,11 +197,6 @@ async fn url_markdown_page_runs_through_pipeline() {
     assert_eq!(result.uris.as_ref().map(Vec::len), Some(1));
 }
 
-// ── end-to-end: .py file extraction via local URI ──────────────────────────
-// Proves that the tree-sitter extractor is selected for .py files end-to-end.
-// This covers the extractor-selection half of the fix; the mime-refinement half
-// (octet-stream + filename → text/x-source-code) is covered below.
-
 #[cfg(feature = "tree-sitter")]
 #[tokio::test]
 async fn extract_py_local_uri_returns_source_code_mime() {
@@ -231,13 +226,9 @@ async fn extract_py_local_uri_returns_source_code_mime() {
     assert!(output.results[0].content.len() >= 5, "content must be non-trivial");
 }
 
-// ── refine_downloaded_mime_type unit tests ──────────────────────────────────
-
 #[cfg(feature = "url-ingestion")]
 #[test]
 fn refine_downloaded_mime_type_passthrough_non_octet_stream() {
-    // Explicit MIME types from the server must never be overridden, even when
-    // the filename extension suggests something different.
     let refined = refine_downloaded_mime_type("application/pdf", Some("document.py"), "http://example.com/document.py");
     assert_eq!(
         refined, "application/pdf",
@@ -248,8 +239,6 @@ fn refine_downloaded_mime_type_passthrough_non_octet_stream() {
 #[cfg(all(feature = "url-ingestion", feature = "tree-sitter"))]
 #[test]
 fn refine_downloaded_mime_type_py_extension_resolves_to_source_code() {
-    // A .py filename served with Content-Type: application/octet-stream must
-    // be refined to text/x-source-code via tree-sitter extension detection.
     let refined = refine_downloaded_mime_type(
         "application/octet-stream",
         Some("hello.py"),
@@ -264,8 +253,6 @@ fn refine_downloaded_mime_type_py_extension_resolves_to_source_code() {
 #[cfg(feature = "url-ingestion")]
 #[test]
 fn refine_downloaded_mime_type_no_filename_returns_octet_stream() {
-    // Without a filename hint, fall back to application/octet-stream so
-    // extract_bytes can apply content sniffing.
     let refined = refine_downloaded_mime_type("application/octet-stream", None, "http://example.com/download");
     assert_eq!(
         refined, "application/octet-stream",
@@ -302,7 +289,6 @@ fn fill_dropped_shared_slots_reattaches_or_synthesizes_errors() {
             config: ExtractionConfig::default(),
         },
     ];
-    // Slots 0 and 2 were written by the batch loop; slot 1 was dropped.
     let mut items: Vec<Option<BatchItemResult>> = vec![
         Some(BatchItemResult {
             index: 0,
@@ -321,12 +307,10 @@ fn fill_dropped_shared_slots_reattaches_or_synthesizes_errors() {
 
     fill_dropped_shared_slots(&shared_items, &mut items, unmatched);
 
-    // No input silently dropped: every slot is filled.
     assert!(items.iter().all(Option::is_some), "every shared slot must be filled");
     let filled = items[1].as_ref().expect("slot 1 filled");
     assert_eq!(filled.index, 1);
     assert_eq!(filled.source, "http://b/");
-    // The captured panic error was re-attached rather than discarded.
     match &filled.result {
         Err(crate::XbergError::Other(message)) => {
             assert!(message.contains("task panicked: boom"), "got: {message}");

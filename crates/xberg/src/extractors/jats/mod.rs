@@ -56,7 +56,6 @@ fn extract_para_with_annotations_jats(
     let mut annotations = Vec::new();
     let mut depth: u32 = 0;
 
-    // Stack of (kind, depth_at_open, start_byte_offset, optional_href).
     let mut inline_stack: Vec<(&'static str, u32, u32, Option<String>)> = Vec::new();
 
     loop {
@@ -106,12 +105,10 @@ fn extract_para_with_annotations_jats(
                     break;
                 }
 
-                // Check if this closes an inline element on our stack
                 if let Some(&(kind, open_depth, start, ref href)) = inline_stack.last()
                     && open_depth == depth
                 {
                     let end = text.len() as u32;
-                    // Skip any leading whitespace separator that was prepended
                     let actual_start = if (start as usize) < text.len() {
                         let span = &text[start as usize..end as usize];
                         let trimmed = span.trim_start();
@@ -189,10 +186,7 @@ fn build_jats_internal_document(content: &str, budget: &mut SecurityBudget) -> c
     let mut in_row = false;
     let mut current_table: Vec<Vec<String>> = Vec::new();
     let mut current_row: Vec<String> = Vec::new();
-    // Track section nesting depth for heading levels.
-    // Top-level <sec> in body -> level 2, nested <sec> -> level 3, etc.
     let mut sec_depth: u32 = 0;
-    // Track whether the ordered list container for references has been opened.
     let mut ref_list_opened = false;
 
     loop {
@@ -214,18 +208,14 @@ fn build_jats_internal_document(content: &str, budget: &mut SecurityBudget) -> c
                         }
                         continue;
                     }
-                    // --- Abstract handling ---
                     "abstract" if in_article_meta => {
                         in_abstract = true;
                         builder.push_heading(2, "Abstract", None, None);
                     }
-                    "sec" if in_abstract => {
-                        // Nested sections inside abstract
-                    }
+                    "sec" if in_abstract => {}
                     "title" if in_abstract => {
                         let text = jats_extract_text(&mut reader, budget)?;
                         if !text.is_empty() {
-                            // Abstract sub-sections are rendered at level 3
                             builder.push_heading(3, &text, None, None);
                         }
                         continue;
@@ -237,7 +227,6 @@ fn build_jats_internal_document(content: &str, budget: &mut SecurityBudget) -> c
                         }
                         continue;
                     }
-                    // --- Body handling ---
                     "body" => {
                         in_body = true;
                         sec_depth = 0;
@@ -248,7 +237,6 @@ fn build_jats_internal_document(content: &str, budget: &mut SecurityBudget) -> c
                     "title" if in_body && !in_article_meta && !in_ref_list => {
                         let text = jats_extract_text(&mut reader, budget)?;
                         if !text.is_empty() {
-                            // Heading level: top-level sections = 2, nested = 3, etc.
                             let level = (sec_depth + 1).min(6) as u8;
                             builder.push_heading(level, &text, None, None);
                         }
@@ -257,7 +245,6 @@ fn build_jats_internal_document(content: &str, budget: &mut SecurityBudget) -> c
                     "p" if in_body => {
                         let (text, annotations) = extract_para_with_annotations_jats(&mut reader, budget)?;
                         if !text.is_empty() {
-                            // Extract URIs from link annotations
                             for ann in &annotations {
                                 if let crate::types::document_structure::AnnotationKind::Link { url, .. } = &ann.kind
                                     && !url.is_empty()
@@ -271,7 +258,6 @@ fn build_jats_internal_document(content: &str, budget: &mut SecurityBudget) -> c
                         continue;
                     }
                     "fig" if in_body => {
-                        // Skip figures in internal representation (no image data available)
                         let _ = jats_extract_text(&mut reader, budget)?;
                         continue;
                     }
@@ -282,15 +268,11 @@ fn build_jats_internal_document(content: &str, budget: &mut SecurityBudget) -> c
                         }
                         continue;
                     }
-                    // --- Back matter handling ---
                     "back" => {
                         in_back = true;
                     }
-                    "ack" if in_back => {
-                        // Acknowledgments section -- treat like a body section
-                    }
+                    "ack" if in_back => {}
                     "supplementary-material" if in_back => {
-                        // Skip supplementary material content
                         let _ = jats_extract_text(&mut reader, budget)?;
                         continue;
                     }
@@ -308,7 +290,6 @@ fn build_jats_internal_document(content: &str, budget: &mut SecurityBudget) -> c
                         }
                         continue;
                     }
-                    // --- Table handling ---
                     "table" => {
                         in_table = true;
                         current_table.clear();
@@ -329,7 +310,6 @@ fn build_jats_internal_document(content: &str, budget: &mut SecurityBudget) -> c
                         current_row.push(text);
                         continue;
                     }
-                    // --- Reference list handling ---
                     "ref-list" => {
                         in_ref_list = true;
                     }
@@ -546,7 +526,6 @@ impl InternalDocumentExtractor for JatsExtractor {
             subject_parts.push(format!("Corresponding Author: {}", corresp_author));
         }
 
-        // History dates
         let mut history_dates = std::collections::BTreeMap::new();
         if !jats_metadata.history_dates.is_empty() {
             for (date_type, date_val) in &jats_metadata.history_dates {
@@ -559,7 +538,6 @@ impl InternalDocumentExtractor for JatsExtractor {
             }
         }
 
-        // Permissions
         let copyright = if let Some(copyright) = &jats_metadata.copyright_statement {
             subject_parts.push(format!("Copyright: {}", copyright));
             Some(copyright.clone())
@@ -569,7 +547,6 @@ impl InternalDocumentExtractor for JatsExtractor {
 
         let license = jats_metadata.license.clone();
 
-        // Contributor roles
         let contributor_roles: Vec<ContributorRole> = jats_metadata
             .contributor_roles
             .iter()
@@ -596,7 +573,6 @@ impl InternalDocumentExtractor for JatsExtractor {
         doc.mime_type = mime_type.to_string();
         doc.metadata = metadata;
 
-        // Add DOI as a citation URI
         if let Some(doi) = &jats_metadata.doi {
             doc.push_uri(ExtractedUri::citation(
                 format!("https://doi.org/{}", doi),

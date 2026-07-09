@@ -21,11 +21,6 @@ on:
         required: false
         type: boolean
         default: false
-  # Docker images build from source (no binding artifacts needed), so this
-  # workflow runs fully in parallel with publish.yaml — both fire on the same
-  # `release: published` event. Kept `repository_dispatch` for manual/scripted
-  # re-publish; publish.yaml no longer dispatches it (the trigger-docker-publish
-  # job was removed) so there is no double-fire.
   release:
     types: [published]
   repository_dispatch:
@@ -71,8 +66,6 @@ jobs:
         with:
           tag: ${{ inputs.tag || github.event.client_payload.tag || github.event.release.tag_name }}
           ref: ${{ inputs.ref || github.event.client_payload.ref }}
-          # This workflow only builds the docker target; scope metadata accordingly
-          # so release_docker resolves true and unrelated release_* stay false.
           available-targets: docker
           dry-run: ${{ inputs.dry_run }}
           force-republish: ${{ inputs.force_republish }}
@@ -156,10 +149,6 @@ jobs:
           SUMMARY_LABEL: cli
         run: scripts/publish/check-docker-tag.sh
 
-  # Build each (variant, arch) on a NATIVE runner — no QEMU. Emulated arm64 builds
-  # were taking ~4h and hanging at tesseract static-linking, tripping the 6h cap.
-  # Each job builds + tests its single-arch image, then pushes it to GHCR by digest;
-  # the merge-docker job assembles the multi-arch manifest from the per-arch digests.
   build-docker:
     name: Build ${{ matrix.variant }} (${{ matrix.platform.name }})
     needs:
@@ -197,7 +186,6 @@ jobs:
         if: ${{ needs.prepare.outputs.target_sha != '' }}
         run: git checkout --progress --force ${{ needs.prepare.outputs.target_sha }}
 
-      # Build unless this variant's tag already exists (and we aren't force-republishing).
       - name: Decide whether to build
         id: gate
         env:
@@ -288,7 +276,6 @@ jobs:
         if: ${{ always() }}
         run: docker rmi xberg-publish:${{ matrix.variant }}-test || true
 
-  # Assemble and push the multi-arch manifest from the per-arch digests.
   merge-docker:
     name: Publish ${{ matrix.variant }} manifest
     needs:

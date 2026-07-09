@@ -378,8 +378,6 @@ mod tests {
         assert_eq!(result.mime_type, "application/json");
     }
 
-    // ── Lifecycle free-function tests ────────────────────────────────────────
-
     /// Unique MIME type per test to avoid collisions in the shared global registry.
     fn unique_mime(suffix: &str) -> String {
         use std::sync::atomic::{AtomicU64, Ordering};
@@ -419,8 +417,6 @@ mod tests {
         }
 
         fn supported_mime_types(&self) -> &[&str] {
-            // Safety: self-referential slice kept alive for the duration of the call.
-            // Tests do not inspect MIME registration; this is only for Plugin::name uniqueness.
             &[]
         }
     }

@@ -22,12 +22,9 @@ pub use quality_processor::QualityProcessor;
 #[cfg(feature = "quality")]
 pub use token_reduction::{ReductionLevel, TokenReductionConfig};
 
-// OSS v5 follow-up text-analysis modules. Each subsystem is feature-gated so the
-// non-OSS targets (no-ort-target, wasm-target, android-target) compile out cleanly.
 #[cfg(feature = "classification")]
 pub mod classification;
 
-// Stub module when classification feature is disabled (wasm-target, android-target have no ORT).
 #[cfg(not(feature = "classification"))]
 /// Page-classification API stub (classification feature not enabled on this target).
 pub mod classification {
@@ -54,8 +51,6 @@ pub mod classification {
 #[cfg(feature = "ner")]
 pub mod ner;
 
-// Stub module for Android x86_64 when ner feature is disabled (android-target has no ORT prebuilt).
-// Allows alef-generated bindings to reference types and functions without compilation errors.
 #[cfg(not(feature = "ner"))]
 /// Named-entity recognition API stub (ner feature not enabled on this target).
 pub mod ner {
@@ -91,7 +86,6 @@ pub mod summarization;
 #[cfg(feature = "translation")]
 pub mod translation;
 
-// Stub module when translation feature is disabled (wasm-target, android-target have no ORT).
 #[cfg(not(feature = "translation"))]
 /// Translation API stub (translation feature not enabled on this target).
 pub mod translation {

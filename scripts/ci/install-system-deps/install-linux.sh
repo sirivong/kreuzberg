@@ -63,9 +63,6 @@ echo "::group::Building libheif from source (Noble ships 1.17.6, libheif-sys nee
 LIBHEIF_VERSION="${LIBHEIF_VERSION:-1.23.0}"
 LIBHEIF_PREFIX="${LIBHEIF_PREFIX:-/usr/local}"
 
-# Remove apt's older libheif to prevent shadowing our source build.
-# On aarch64, apt's libheif (1.17.6) installs to /usr/lib/aarch64-linux-gnu/,
-# and on x86_64 to /usr/lib/x86_64-linux-gnu/. This ensures we use the 1.23.0 build.
 echo "Removing apt's libheif to prevent shadowing..."
 if dpkg -l | grep -q "^ii.*libheif"; then
   sudo apt-get remove -y libheif* || echo "::warning::Failed to remove apt libheif, continuing..."
@@ -107,11 +104,8 @@ else
   rm -rf "$build_dir"
 fi
 
-# Always run ldconfig to update the dynamic linker cache, even if libheif was cached
 sudo ldconfig
 
-# If cache save is enabled (e.g., actions/cache post-run), prepare cache directory
-# Actions/cache will restore from /tmp/libheif-cache in the next workflow run
 if [ -n "${GITHUB_ACTION:-}" ]; then
   mkdir -p /tmp/libheif-cache/usr/local/lib/pkgconfig
   mkdir -p /tmp/libheif-cache/usr/local/include
@@ -122,8 +116,6 @@ if [ -n "${GITHUB_ACTION:-}" ]; then
   [ -d /usr/local/share/libheif ] && cp -a /usr/local/share/libheif /tmp/libheif-cache/usr/local/share/
 fi
 
-# Diagnostic: verify the correct libheif is in the cache and has the required symbol.
-# This helps debug future ARM linker issues.
 echo ""
 echo "libheif symbol verification:"
 if [ -f "$LIBHEIF_PREFIX/lib/libheif.so.1" ]; then
@@ -141,8 +133,6 @@ ldconfig -p | grep libheif || echo "(no libheif in ldconfig cache)"
 
 if [[ -n "${GITHUB_ENV:-}" ]]; then
   echo "PKG_CONFIG_PATH=$LIBHEIF_PREFIX/lib/pkgconfig:${PKG_CONFIG_PATH:-}" >>"$GITHUB_ENV"
-  # Ensure /usr/local/lib comes FIRST in LD_LIBRARY_PATH so source-built libheif 1.23.0 wins
-  # over any system (apt) libheif. This is critical on ARM where apt's old libheif may be present.
   echo "LD_LIBRARY_PATH=$LIBHEIF_PREFIX/lib:${LD_LIBRARY_PATH:-}" >>"$GITHUB_ENV"
 fi
 
@@ -154,13 +144,11 @@ echo "CMake:"
 if command -v cmake >/dev/null 2>&1; then
   cmake --version | head -1
   echo "✓ CMake available"
-  # Export CMAKE environment variable for immediate availability in build scripts
   CMAKE_FULL_PATH="$(command -v cmake)"
   if [[ -n "$GITHUB_ENV" ]]; then
     echo "CMAKE=$CMAKE_FULL_PATH" >>"$GITHUB_ENV"
     echo "✓ Set CMAKE=$CMAKE_FULL_PATH in GITHUB_ENV"
   fi
-  # Also add cmake binary directory to GITHUB_PATH for subsequent steps
   CMAKE_BIN="$(dirname "$CMAKE_FULL_PATH")"
   if [[ -n "$GITHUB_PATH" && -d "$CMAKE_BIN" ]]; then
     echo "$CMAKE_BIN" >>"$GITHUB_PATH"

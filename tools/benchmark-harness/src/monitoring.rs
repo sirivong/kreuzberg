@@ -155,11 +155,9 @@ fn get_child_processes(parent_pid: Pid, system: &System) -> Vec<Pid> {
 fn collect_process_tree_memory(pid: Pid, system: &System) -> u64 {
     let mut total = 0;
 
-    // Add parent process memory
     if let Some(proc) = system.process(pid) {
         total += proc.memory();
 
-        // Recursively add all child processes
         for child_pid in get_child_processes(pid, system) {
             total += collect_process_tree_memory(child_pid, system);
         }
@@ -181,11 +179,9 @@ fn collect_process_tree_memory(pid: Pid, system: &System) -> u64 {
 fn collect_process_tree_vm(pid: Pid, system: &System) -> u64 {
     let mut total = 0;
 
-    // Add parent process VM
     if let Some(proc) = system.process(pid) {
         total += proc.virtual_memory();
 
-        // Recursively add all child processes
         for child_pid in get_child_processes(pid, system) {
             total += collect_process_tree_vm(child_pid, system);
         }
@@ -216,7 +212,6 @@ fn collect_process_tree_cpu(pid: Pid, system: &System) -> f64 {
     if let Some(proc) = system.process(pid) {
         total += proc.cpu_usage() as f64;
 
-        // Recursively add all child processes
         for child_pid in get_child_processes(pid, system) {
             total += collect_process_tree_cpu(child_pid, system);
         }
@@ -310,40 +305,23 @@ impl ResourceMonitor {
 
             let refresh_kind = ProcessRefreshKind::nothing().with_memory().with_cpu();
 
-            // Establish baseline for CPU delta calculation.
-            // sysinfo computes cpu_usage() as a diff between two consecutive refreshes,
-            // so the first refresh after System::new() always returns 0.0.
-            // By doing a baseline refresh here, the first in-loop sample will have
-            // a prior measurement to compare against and yield real CPU values.
             system.refresh_processes_specifics(ProcessesToUpdate::All, false, refresh_kind);
 
-            // Capture baseline RSS before extraction starts.
-            // This allows delta-based memory reporting: peak_during_extraction - baseline.
-            // Without this, pre-loaded models (e.g. PaddleOCR ~362MB) inflate every
-            // extraction's memory measurement, even for plain text files.
             let baseline_rss = collect_process_tree_memory(pid, &system);
             *baseline_memory.lock().await = baseline_rss;
 
             tokio::time::sleep(sample_interval).await;
 
             while running.load(Ordering::SeqCst) {
-                // Refresh all processes to track child processes spawned by the benchmark.
-                // Note: refresh_cpu_usage() is NOT called here — it refreshes global CPU counters,
-                // not per-process CPU. Per-process CPU is computed by refresh_processes_specifics
-                // as a delta between consecutive calls on the same System instance.
                 system.refresh_processes_specifics(ProcessesToUpdate::All, false, refresh_kind);
 
                 if system.process(pid).is_some() {
                     let elapsed = start.elapsed();
 
                     let cpu_count = num_cpus::get() as f64;
-                    // Collect CPU from entire process tree (parent + all children)
-                    // This mirrors collect_process_tree_memory to ensure CPU measurement
-                    // captures subprocess work, not just the idle parent process.
                     let tree_cpu = collect_process_tree_cpu(pid, &system);
                     let normalized_cpu_percent = tree_cpu / cpu_count;
 
-                    // Collect memory from entire process tree (parent + all children)
                     let tree_memory = collect_process_tree_memory(pid, &system);
                     let tree_vm = collect_process_tree_vm(pid, &system);
 
@@ -383,10 +361,8 @@ impl ResourceMonitor {
         let mut system = System::new();
         let refresh_kind = ProcessRefreshKind::nothing().with_memory().with_cpu();
 
-        // First refresh establishes the CPU baseline
         system.refresh_processes_specifics(ProcessesToUpdate::All, false, refresh_kind);
         std::thread::sleep(std::time::Duration::from_millis(50));
-        // Second refresh computes the CPU delta
         system.refresh_processes_specifics(ProcessesToUpdate::All, false, refresh_kind);
 
         let tree_memory = collect_process_tree_memory(self.pid, &system);
@@ -497,7 +473,6 @@ impl ResourceMonitor {
         baseline_bytes: u64,
     ) -> ResourceStats {
         if samples.is_empty() {
-            // If no background samples but snapshots are available, use snapshot RSS as fallback
             if !snapshots.is_empty() {
                 let peak_rss = snapshots
                     .iter()
@@ -519,7 +494,6 @@ impl ResourceMonitor {
             return ResourceStats::default();
         }
 
-        // Subtract baseline from memory samples to get delta (incremental cost of this extraction).
         let memory_values: Vec<u64> = samples
             .iter()
             .map(|s| s.memory_bytes.saturating_sub(baseline_bytes))
@@ -582,7 +556,7 @@ impl ResourceMonitor {
             sample_count: samples.len(),
             snapshots: snapshots.to_vec(),
             #[cfg(feature = "memory-profiling")]
-            allocation_hotspots: Vec::new(), // TODO: Extract from jemalloc profiles
+            allocation_hotspots: Vec::new(), // ~keep TODO: Extract from jemalloc profiles
             leak_detected,
         }
     }
@@ -699,9 +673,6 @@ mod tests {
     async fn test_resource_monitor_basic() {
         let monitor = ResourceMonitor::new();
 
-        // 25ms interval + 500ms sleep gives ~20 samples even on a slow CI
-        // runner; the previous 10/100ms ratio occasionally produced 0
-        // samples on macOS CI when the first tick missed the deadline.
         monitor.start(Duration::from_millis(25)).await;
         tokio::time::sleep(Duration::from_millis(500)).await;
         let samples = monitor.stop().await;

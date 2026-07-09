@@ -16,6 +16,6 @@ pub(crate) mod regions;
 mod text_repair;
 pub(crate) mod types;
 
-#[allow(unused_imports)] // Used by extractors/pdf/ocr.rs for building InternalDocument from OCR paragraphs
+#[allow(unused_imports)]
 pub(crate) use assembly::assemble_internal_document;
 pub(crate) use pipeline::{SegmentStructureConfig, extract_document_structure_from_segments};

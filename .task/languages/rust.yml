@@ -16,7 +16,6 @@ tasks:
     cmds:
       - rustup update stable
       - rustup component add rustfmt clippy
-      # Windows: install lld-link to avoid PATH conflicts with Git Bash's link.exe
       - cmd: rustup component add llvm-tools
         platforms: [windows]
       - cargo install cargo-llvm-cov --locked
@@ -32,23 +31,16 @@ tasks:
   build:dev:
     desc: "Build all Rust crates in debug mode"
     cmds:
-      # Exclude xberg-candle-ocr from --all-features everywhere: metal pulls
-      # objc2-metal (Apple-only) and cuda pulls cudarc (needs nvcc) — it cannot be
-      # --all-features-built on any CI runner.
       - cmd: cargo build --locked --workspace --all-features --exclude xberg-php --exclude xberg-node --exclude xberg-wasm --exclude xberg-candle-ocr
         platforms: [linux]
       - cmd: cargo build --locked --workspace --all-features --exclude xberg-php --exclude xberg-node --exclude xberg-wasm --exclude xberg-candle-ocr
         platforms: [darwin]
-      # Note: exclude benchmark-harness on Windows as jemalloc doesn't build with MSVC
       - cmd: cargo build --locked --workspace --all-features --exclude xberg-php --exclude xberg-node --exclude xberg-wasm --exclude benchmark-harness
         platforms: [windows]
 
   build:release:
     desc: "Build all Rust crates in release mode"
     cmds:
-      # Exclude xberg-candle-ocr from --all-features everywhere: metal pulls
-      # objc2-metal (Apple-only) and cuda pulls cudarc (needs nvcc) — it cannot be
-      # --all-features-built on any CI runner.
       - cmd: cargo build --locked --release --workspace --all-features --exclude xberg-php --exclude xberg-node --exclude xberg-wasm --exclude xberg-candle-ocr
         platforms: [linux]
       - cmd: cargo build --locked --release --workspace --all-features --exclude xberg-php --exclude xberg-node --exclude xberg-wasm --exclude xberg-candle-ocr
@@ -61,9 +53,6 @@ tasks:
     env:
       RUSTFLAGS: "-C debuginfo=2"
     cmds:
-      # Exclude xberg-candle-ocr from --all-features everywhere: metal pulls
-      # objc2-metal (Apple-only) and cuda pulls cudarc (needs nvcc) — it cannot be
-      # --all-features-built on any CI runner.
       - cmd: cargo build --locked --release --workspace --all-features --exclude xberg-php --exclude xberg-node --exclude xberg-wasm --exclude xberg-candle-ocr
         platforms: [linux]
       - cmd: cargo build --locked --release --workspace --all-features --exclude xberg-php --exclude xberg-node --exclude xberg-wasm --exclude xberg-candle-ocr

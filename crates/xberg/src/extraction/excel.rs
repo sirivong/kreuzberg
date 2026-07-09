@@ -69,7 +69,6 @@ pub(crate) fn read_excel_file(file_path: &str) -> Result<ExcelWorkbook> {
     #[cfg(not(feature = "office"))]
     let office_metadata: Option<HashMap<String, String>> = None;
 
-    // For standard XLSX-format files, use specialized handler with OOM protection
     if lower_path.ends_with(".xlsx") || lower_path.ends_with(".xlsm") || lower_path.ends_with(".xltm") {
         let file = std::fs::File::open(file_path)?;
         let workbook = calamine::Xlsx::new(std::io::BufReader::new(file))
@@ -79,7 +78,6 @@ pub(crate) fn read_excel_file(file_path: &str) -> Result<ExcelWorkbook> {
         return Ok(result);
     }
 
-    // For .xlam (Excel add-in), try XLSX parsing but gracefully return empty workbook on failure
     if lower_path.ends_with(".xlam") {
         let file = std::fs::File::open(file_path)?;
         match calamine::Xlsx::new(std::io::BufReader::new(file)) {
@@ -87,7 +85,6 @@ pub(crate) fn read_excel_file(file_path: &str) -> Result<ExcelWorkbook> {
                 return process_xlsx_workbook(workbook, office_metadata);
             }
             Err(_) => {
-                // .xlam files may not contain proper workbook data - return empty workbook
                 return Ok(ExcelWorkbook {
                     sheets: vec![],
                     metadata: office_metadata.unwrap_or_default(),
@@ -97,7 +94,6 @@ pub(crate) fn read_excel_file(file_path: &str) -> Result<ExcelWorkbook> {
         }
     }
 
-    // For .xla (legacy add-in), try XLS parsing but gracefully return empty workbook on failure
     if lower_path.ends_with(".xla") {
         let file = std::fs::File::open(file_path)?;
         match calamine::Xls::new(std::io::BufReader::new(file)) {
@@ -114,7 +110,6 @@ pub(crate) fn read_excel_file(file_path: &str) -> Result<ExcelWorkbook> {
         }
     }
 
-    // For .xlsb (binary spreadsheet), use XLSB parser with error propagation
     if lower_path.ends_with(".xlsb") {
         let file = std::fs::File::open(file_path)?;
         let workbook = calamine::Xlsb::new(std::io::BufReader::new(file))
@@ -122,7 +117,6 @@ pub(crate) fn read_excel_file(file_path: &str) -> Result<ExcelWorkbook> {
         return process_workbook(workbook, office_metadata);
     }
 
-    // For other formats, use open_workbook_auto
     let workbook = match open_workbook_auto(Path::new(file_path)) {
         Ok(wb) => wb,
         Err(calamine::Error::Io(io_err)) => {
@@ -152,7 +146,6 @@ pub(crate) fn read_excel_bytes(data: &[u8], file_extension: &str) -> Result<Exce
     let office_metadata: Option<HashMap<String, String>> = None;
 
     match file_extension.to_lowercase().as_str() {
-        // Standard XLSX-format files: propagate errors
         ".xlsx" | ".xlsm" | ".xltm" => {
             let cursor = Cursor::new(data);
             let workbook =
@@ -161,51 +154,40 @@ pub(crate) fn read_excel_bytes(data: &[u8], file_extension: &str) -> Result<Exce
             result.revisions = extract_xlsx_revisions_from_bytes(data);
             Ok(result)
         }
-        // Exotic format: .xlam (Excel add-in) - may not contain proper workbook data
         ".xlam" => {
             let cursor = Cursor::new(data);
             match calamine::Xlsx::new(cursor) {
                 Ok(workbook) => process_xlsx_workbook(workbook, office_metadata),
-                Err(_) => {
-                    // .xlam files may not contain proper workbook data - return empty workbook
-                    Ok(ExcelWorkbook {
-                        sheets: vec![],
-                        metadata: office_metadata.unwrap_or_default(),
-                        revisions: None,
-                    })
-                }
+                Err(_) => Ok(ExcelWorkbook {
+                    sheets: vec![],
+                    metadata: office_metadata.unwrap_or_default(),
+                    revisions: None,
+                }),
             }
         }
-        // Standard XLS format: propagate errors
         ".xls" => {
             let cursor = Cursor::new(data);
             let workbook =
                 calamine::Xls::new(cursor).map_err(|e| XbergError::parsing(format!("Failed to parse XLS: {}", e)))?;
             process_workbook(workbook, office_metadata)
         }
-        // Exotic format: .xla (legacy add-in) - may not contain proper workbook data
         ".xla" => {
             let cursor = Cursor::new(data);
             match calamine::Xls::new(cursor) {
                 Ok(workbook) => process_workbook(workbook, office_metadata),
-                Err(_) => {
-                    // .xla files may not contain proper workbook data - return empty workbook
-                    Ok(ExcelWorkbook {
-                        sheets: vec![],
-                        metadata: office_metadata.unwrap_or_default(),
-                        revisions: None,
-                    })
-                }
+                Err(_) => Ok(ExcelWorkbook {
+                    sheets: vec![],
+                    metadata: office_metadata.unwrap_or_default(),
+                    revisions: None,
+                }),
             }
         }
-        // Standard XLSB format (binary spreadsheet): propagate errors
         ".xlsb" => {
             let cursor = Cursor::new(data);
             let workbook =
                 calamine::Xlsb::new(cursor).map_err(|e| XbergError::parsing(format!("Failed to parse XLSB: {}", e)))?;
             process_workbook(workbook, office_metadata)
         }
-        // Standard OpenDocument format
         ".ods" => {
             let cursor = Cursor::new(data);
             let workbook =
@@ -233,11 +215,9 @@ fn process_xlsx_workbook<RS: Read + Seek>(
     let mut sheets = Vec::with_capacity(sheet_names.len());
 
     for name in &sheet_names {
-        // Use worksheet_cells_reader to stream cells and detect pathological bounding boxes
         match process_xlsx_sheet_safe(&mut workbook, name) {
             Ok(sheet) => sheets.push(sheet),
             Err(e) => {
-                // Log but don't fail - continue with other sheets
                 tracing::warn!("Failed to process sheet '{}': {}", name, e);
             }
         }
@@ -256,7 +236,6 @@ fn process_xlsx_workbook<RS: Read + Seek>(
 /// This function streams cells to compute the actual bounding box without allocating
 /// a full Range, then only creates the Range if the bounding box is within safe limits.
 fn process_xlsx_sheet_safe<RS: Read + Seek>(workbook: &mut calamine::Xlsx<RS>, sheet_name: &str) -> Result<ExcelSheet> {
-    // First pass: stream cells to compute actual bounding box and collect cell data
     let (cells, row_min, row_max, col_min, col_max) = {
         let mut cell_reader = workbook
             .worksheet_cells_reader(sheet_name)
@@ -268,7 +247,6 @@ fn process_xlsx_sheet_safe<RS: Read + Seek>(workbook: &mut calamine::Xlsx<RS>, s
         let mut col_min = u32::MAX;
         let mut col_max = 0u32;
 
-        // Stream through all cells, tracking bounds
         while let Ok(Some(cell)) = cell_reader.next_cell() {
             let (row, col) = cell.get_position();
             row_min = row_min.min(row);
@@ -276,7 +254,6 @@ fn process_xlsx_sheet_safe<RS: Read + Seek>(workbook: &mut calamine::Xlsx<RS>, s
             col_min = col_min.min(col);
             col_max = col_max.max(col);
 
-            // Convert DataRef to owned Data
             let data: Data = match cell.get_value() {
                 DataRef::Empty => Data::Empty,
                 DataRef::String(s) => Data::String(s.clone()),
@@ -292,9 +269,8 @@ fn process_xlsx_sheet_safe<RS: Read + Seek>(workbook: &mut calamine::Xlsx<RS>, s
             cells.push(((row, col), data));
         }
         (cells, row_min, row_max, col_min, col_max)
-    }; // cell_reader is dropped here, releasing the borrow
+    };
 
-    // Check if sheet is empty
     if cells.is_empty() {
         return Ok(ExcelSheet {
             name: sheet_name.to_owned(),
@@ -306,19 +282,14 @@ fn process_xlsx_sheet_safe<RS: Read + Seek>(workbook: &mut calamine::Xlsx<RS>, s
         });
     }
 
-    // Calculate bounding box size
     let bb_rows = (row_max - row_min + 1) as u64;
     let bb_cols = (col_max - col_min + 1) as u64;
     let bb_cells = bb_rows.saturating_mul(bb_cols);
 
-    // Check for pathological bounding box
     if bb_cells > MAX_BOUNDING_BOX_CELLS {
-        // Sheet has sparse data at extreme positions - process directly from cells
         return process_sparse_sheet_from_cells(sheet_name, cells, row_min, row_max, col_min, col_max);
     }
 
-    // Safe to create a Range - bounding box is within limits
-    // Use calamine's normal worksheet_range which will create the Range
     let range = workbook
         .worksheet_range(sheet_name)
         .map_err(|e| XbergError::parsing(format!("Failed to parse sheet '{}': {}", sheet_name, e)))?;
@@ -342,7 +313,6 @@ fn process_sparse_sheet_from_cells(
     let bb_rows = (row_max - row_min + 1) as usize;
     let bb_cols = (col_max - col_min + 1) as usize;
 
-    // Collect unique columns and rows that actually contain data
     let mut col_set = std::collections::BTreeSet::new();
     let mut row_set = std::collections::BTreeSet::new();
     let mut cell_map: HashMap<(u32, u32), &Data> = HashMap::with_capacity(cells.len());
@@ -370,7 +340,6 @@ fn process_sparse_sheet_from_cells(
         });
     }
 
-    // Limit output to avoid huge tables
     const MAX_OUTPUT_ROWS: usize = 1000;
     const MAX_OUTPUT_COLS: usize = 50;
     let display_rows = rows.len().min(MAX_OUTPUT_ROWS);
@@ -381,8 +350,6 @@ fn process_sparse_sheet_from_cells(
 
     write!(markdown, "## {}\n\n", sheet_name).expect("write to String cannot fail");
 
-    // First row of actual data is treated as the header row
-    // Build header
     let first_row = rows[0];
     let mut header_cells = Vec::with_capacity(display_cols);
     markdown.push_str("| ");
@@ -404,7 +371,6 @@ fn process_sparse_sheet_from_cells(
     markdown.push_str(" |\n");
     table_cells.push(header_cells);
 
-    // Separator row
     markdown.push_str("| ");
     for i in 0..display_cols {
         if i > 0 {
@@ -414,7 +380,6 @@ fn process_sparse_sheet_from_cells(
     }
     markdown.push_str(" |\n");
 
-    // Data rows
     for &row in rows.iter().skip(1).take(display_rows - 1) {
         let mut row_cells_vec = Vec::with_capacity(display_cols);
         markdown.push_str("| ");
@@ -488,9 +453,6 @@ fn process_sheet(name: &str, range: &Range<Data>) -> ExcelSheet {
     let (rows, cols) = range.get_size();
     let cell_count = range.used_cells().count();
 
-    // Fix for issue #331: Use actual cell count instead of declared dimensions
-    // to avoid OOM on sparse sheets with extreme dimensions (e.g., Excel Solver files).
-    // Declared dimensions can claim A1:XFD1048575 (~17T cells) while actual data is minimal.
     let estimated_capacity = 50 + (cols * 20) + (cell_count * 12);
 
     if rows == 0 || cols == 0 {
@@ -524,20 +486,14 @@ fn process_sheet(name: &str, range: &Range<Data>) -> ExcelSheet {
 ///
 /// Returns (markdown, table_cells) where table_cells is a 2D vector of strings.
 fn generate_markdown_and_cells(sheet_name: &str, range: &Range<Data>, capacity: usize) -> (String, Vec<Vec<String>>) {
-    // Fix for issue #331: Protect against extreme declared dimensions.
-    // Excel Solver files can declare A1:XFD1048575 (1M+ rows) but only have ~26 actual cells.
-    // Calling range.rows().collect() would iterate ALL declared rows causing OOM.
-    const MAX_REASONABLE_ROWS: usize = 100_000; // Cap at 100K rows for safety
+    const MAX_REASONABLE_ROWS: usize = 100_000;
 
     let (declared_rows, _declared_cols) = range.get_size();
 
-    // If declared rows exceed reasonable limit, skip processing to avoid OOM
     if declared_rows > MAX_REASONABLE_ROWS {
         let actual_cell_count = range.used_cells().count();
 
-        // If actual data is minimal compared to declared size, it's a sparse/pathological file
         if actual_cell_count < 10_000 {
-            // Return minimal output instead of OOM
             let result_capacity = 100 + sheet_name.len();
             let mut result = String::with_capacity(result_capacity);
             write!(
@@ -656,8 +612,6 @@ fn format_cell_to_string(data: &Data) -> String {
             }
         }
         Data::DateTime(dt) => {
-            // `as_datetime()` requires the calamine "chrono" feature which is not enabled;
-            // use `to_ymd_hms_milli()` instead (available with the "dates" feature).
             let (year, month, day, hour, min, sec, _milli) = dt.to_ymd_hms_milli();
             format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", year, month, day, hour, min, sec)
         }
@@ -873,8 +827,6 @@ fn extract_xlsx_office_metadata_from_archive<R: std::io::Read + std::io::Seek>(
     Ok(metadata)
 }
 
-// ── xl/revisions parsing ──────────────────────────────────────────────────────
-
 /// Extract revision headers from an in-memory `.xlsx`/`.xlsm`/`.xltm` blob.
 ///
 /// Returns `None` when `xl/revisions/revisionHeaders.xml` is absent (the
@@ -903,7 +855,6 @@ fn extract_xlsx_revisions_from_archive<R: Read + Seek>(
 ) -> Option<Vec<DocumentRevision>> {
     const HEADERS_PATH: &str = "xl/revisions/revisionHeaders.xml";
 
-    // Check presence without consuming; if absent this is not a shared workbook.
     let xml_bytes = {
         let mut entry = match archive.by_name(HEADERS_PATH) {
             Ok(e) => e,
@@ -950,7 +901,6 @@ fn parse_revision_headers_xml(xml_bytes: &[u8]) -> Result<Vec<DocumentRevision>>
     let doc = roxmltree::Document::parse(xml_str)
         .map_err(|e| XbergError::parsing(format!("failed to parse revisionHeaders.xml: {e}")))?;
 
-    // Spreadsheet ML namespace for revision headers
     const SPREADSHEETML_NS: &str = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
 
     let mut revisions = Vec::new();
@@ -974,9 +924,6 @@ fn parse_revision_headers_xml(xml_bytes: &[u8]) -> Result<Vec<DocumentRevision>>
             revision_id,
             author,
             timestamp,
-            // The header file does not tell us what kind of change was made;
-            // FormatChange is the closest neutral variant. Per-cell kind data
-            // requires parsing the corresponding revisionLog*.xml (follow-up).
             kind: RevisionKind::FormatChange,
             anchor: None,
             delta: RevisionDelta::default(),
@@ -994,8 +941,6 @@ mod tests {
     fn test_format_cell_to_string_basic() {
         assert_eq!(format_cell_to_string(&Data::Empty), "");
         assert_eq!(format_cell_to_string(&Data::String("test".to_owned())), "test");
-        // Whole-number floats must NOT include a trailing ".0" – ground-truth files
-        // use plain integers and f1_numeric scoring requires an exact token match.
         assert_eq!(format_cell_to_string(&Data::Float(42.0)), "42");
         assert_eq!(format_cell_to_string(&Data::Int(100)), "100");
         assert_eq!(format_cell_to_string(&Data::Bool(true)), "true");
@@ -1026,11 +971,9 @@ mod tests {
     #[test]
     fn test_format_cell_value_datetime() {
         use calamine::{ExcelDateTime, ExcelDateTimeType};
-        // 49353.5 in Excel serial date (1900 epoch) ≈ 2035-03-22 12:00:00
         let dt = Data::DateTime(ExcelDateTime::new(49353.5, ExcelDateTimeType::DateTime, false));
         let result = format_cell_to_string(&dt);
         assert!(!result.is_empty());
-        // Result should look like an ISO-style datetime string
         assert!(result.contains('-'), "Expected datetime string, got: {}", result);
     }
 
@@ -1159,7 +1102,6 @@ mod tests {
 
     #[test]
     fn test_format_cell_value_float_integer() {
-        // Whole-number floats should be formatted without a trailing ".0"
         let result = format_cell_to_string(&Data::Float(100.0));
         assert_eq!(result, "100");
     }
@@ -1222,8 +1164,6 @@ mod tests {
         assert_eq!(sheet.col_count, 5);
         assert_eq!(sheet.cell_count, 50);
     }
-
-    // ── xl/revisions tests ────────────────────────────────────────────────────
 
     /// Build a minimal in-memory `.xlsx` zip that contains a synthetic
     /// `xl/revisions/revisionHeaders.xml` with the given `<header>` elements.
@@ -1294,7 +1234,6 @@ mod tests {
             )
             .unwrap();
 
-            // Build revisionHeaders.xml
             let mut headers_xml = String::from(
                 r#"<?xml version="1.0" encoding="UTF-8"?>
 <headers xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">"#,
@@ -1318,7 +1257,6 @@ mod tests {
 
     #[test]
     fn should_return_none_revisions_when_xl_revisions_absent() {
-        // A plain xlsx without xl/revisions/ must yield revisions = None.
         use std::io::Write;
         use zip::write::{SimpleFileOptions, ZipWriter};
 
@@ -1358,7 +1296,6 @@ mod tests {
 
         assert_eq!(revisions.len(), 2, "expected 2 revisions from 2 headers");
 
-        // First header
         assert_eq!(
             revisions[0].revision_id, "11111111-2222-3333-4444-555555555555",
             "guid should be stored without braces"
@@ -1375,7 +1312,6 @@ mod tests {
             "delta.content should be empty for v1"
         );
 
-        // Second header
         assert_eq!(revisions[1].revision_id, "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE");
         assert_eq!(revisions[1].author.as_deref(), Some("Bob"));
         assert_eq!(revisions[1].timestamp.as_deref(), Some("2024-01-16T14:30:00Z"));
@@ -1383,7 +1319,6 @@ mod tests {
 
     #[test]
     fn should_return_some_empty_vec_when_headers_xml_exists_but_has_no_header_elements() {
-        // File with xl/revisions/revisionHeaders.xml that has no <header> children.
         use std::io::Write;
         use zip::write::{SimpleFileOptions, ZipWriter};
 
@@ -1410,8 +1345,6 @@ mod tests {
 
     #[test]
     fn should_surface_revisions_in_full_xlsx_extraction() {
-        // Round-trip: build an xlsx with 1 revision header and verify
-        // read_excel_bytes populates workbook.revisions.
         let xlsx = make_xlsx_with_revision_headers(&[(
             "DEADBEEF-0000-0000-0000-000000000001",
             "Carol",

@@ -212,14 +212,10 @@ mod tests {
         assert_eq!(config.bottom_margin_fraction, Some(0.08));
     }
 
-    // ── backward-compat serde tests ──────────────────────────────────────────
-
     #[test]
     #[cfg(feature = "pdf")]
     fn pdf_config_omitting_extract_form_fields_defaults_to_true() {
         use super::*;
-        // extract_form_fields uses `default_true` — stored configs that predate
-        // this field must deserialize to `true` (default-on, not false).
         let json = r#"{"extract_tables": true, "extract_metadata": true}"#;
         let config: PdfConfig = serde_json::from_str(json).unwrap();
         assert!(

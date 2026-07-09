@@ -94,9 +94,6 @@ jobs:
         uses: xberg-io/actions/install-task@v1
 
       - name: Run clippy
-        # Full workspace, all targets. sccache (wired by setup-rust above via
-        # use-sccache) wraps rustc for this step, so generated binding crates
-        # compile from cache on warm runs.
         run: cargo clippy --workspace --all-targets -- -D warnings
         shell: bash
 
@@ -112,8 +109,6 @@ jobs:
         run: cargo check --locked -p xberg --no-default-features
         shell: bash
 
-      # The WASM Tesseract backend is gated to `ocr-wasm` without `ocr`, a combo no other
-      # job builds; check it here so it can't bit-rot until release-time WASM publish.
       - name: Check ocr-wasm backend
         run: cargo check --locked -p xberg --no-default-features --features ocr-wasm --lib
         shell: bash

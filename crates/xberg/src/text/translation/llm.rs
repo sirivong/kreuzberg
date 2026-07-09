@@ -71,11 +71,9 @@ pub async fn translate_result(result: &mut ExtractedDocument, config: &Translati
 
     let mut usages: Vec<LlmUsage> = Vec::new();
 
-    // Translate plain content.
     let translated_content =
         translate_segment(config, &result.content, false, "translation_content", &mut usages).await?;
 
-    // Translate formatted_content (markup-preserving mode) when requested and present.
     let translated_formatted = if config.preserve_markup
         && let Some(formatted) = result.formatted_content.as_deref()
         && !formatted.trim().is_empty()
@@ -85,7 +83,6 @@ pub async fn translate_result(result: &mut ExtractedDocument, config: &Translati
         None
     };
 
-    // Translate chunks in place when present.
     if let Some(chunks) = result.chunks.as_mut() {
         for chunk in chunks.iter_mut() {
             let translated = translate_segment(config, &chunk.content, false, "translation_chunk", &mut usages).await?;

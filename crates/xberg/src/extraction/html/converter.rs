@@ -15,8 +15,6 @@ pub(crate) fn map_output_format(format: XbergOutputFormat) -> LibOutputFormat {
         XbergOutputFormat::Markdown => LibOutputFormat::Markdown,
         XbergOutputFormat::Djot => LibOutputFormat::Djot,
         XbergOutputFormat::Plain => LibOutputFormat::Plain,
-        // Html and Structured default to Markdown for HTML conversions
-        // Structured output includes the converted content plus full element metadata
         XbergOutputFormat::Html | XbergOutputFormat::Json | XbergOutputFormat::Structured => LibOutputFormat::Markdown,
         XbergOutputFormat::Custom(_) => LibOutputFormat::Markdown,
     }
@@ -137,8 +135,6 @@ pub(crate) fn convert_html_to_markdown_with_tables(
     let format = output_format.unwrap_or(XbergOutputFormat::Markdown);
     let mut opts = resolve_conversion_options(options, format);
     opts.include_document_structure = true;
-    // Respect the user's extract_metadata preference (already set by resolve_conversion_options)
-    // Do not override it here
     opts.extract_images = true;
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -185,8 +181,6 @@ fn extract_tables_from_document(result: &html_to_markdown_rs::types::ConversionR
         .iter()
         .filter_map(|node| {
             if let html_to_markdown_rs::types::NodeContent::Table { ref grid } = node.content {
-                // Build markdown from the grid. The crate's `col` does not reserve
-                // rowspan columns, so re-derive positions (xberg-io/xberg#1223).
                 let cells_2d = crate::extraction::grid_flatten::flatten_positioned_cells(
                     grid.rows as usize,
                     grid.cells
@@ -241,7 +235,6 @@ pub(crate) fn extract_html_inline_images(html: &str, options: Option<ConversionO
 
     let mut opts = options.unwrap_or_default();
     opts.extract_images = true;
-    // Use plain text mode for minimal conversion overhead; we only need the images.
     opts.output_format = LibOutputFormat::Plain;
     opts.extract_metadata = false;
 
@@ -305,7 +298,6 @@ mod tests {
         let (_markdown, _metadata, tables, _doc) = convert_html_to_markdown_with_tables(html, None, None).unwrap();
         assert_eq!(tables.len(), 1);
         let table = &tables[0];
-        // Verify grid structure
         assert_eq!(table.grid.rows, 2);
         let header_cells: Vec<_> = table.grid.cells.iter().filter(|c| c.is_header).collect();
         assert!(!header_cells.is_empty());
@@ -663,7 +655,6 @@ mod tests {
 
         let html = "<p>This is <strong>bold</strong> and <em>italic</em>.</p>";
         let result = convert_html_to_markdown(html, None, Some(OutputFormat::Djot)).unwrap();
-        // Djot uses * for strong, _ for emphasis
         assert!(result.contains("*bold*"));
         assert!(result.contains("_italic_"));
     }
@@ -686,11 +677,9 @@ mod tests {
 
         let (content, metadata) = convert_html_to_markdown_with_metadata(html, None, Some(OutputFormat::Djot)).unwrap();
 
-        // Content should be in djot format
         assert!(content.contains("# Content"));
-        assert!(content.contains("*content*")); // Djot strong syntax
+        assert!(content.contains("*content*"));
 
-        // Metadata should still be extracted
         assert!(metadata.is_some());
         let meta = metadata.unwrap();
         assert_eq!(meta.title, Some("Test Page".to_string()));
@@ -704,7 +693,6 @@ mod tests {
         let doc = doc.expect("document structure should be present");
         assert!(!doc.nodes.is_empty(), "Should have document nodes");
 
-        // Verify we get heading, paragraph, list items
         let has_heading = doc
             .nodes
             .iter()
@@ -781,10 +769,8 @@ mod tests {
 
         let (content, metadata, _, _) = convert_html_to_markdown_with_tables(html, Some(options), None).unwrap();
 
-        // Content should still be extracted
         assert!(content.contains("Content Heading"));
 
-        // But metadata should be None when extract_metadata=false
         assert!(
             metadata.is_none() || metadata.as_ref().unwrap().is_empty(),
             "Metadata should be None or empty when extract_metadata=false, but got: {:?}",
@@ -815,10 +801,8 @@ mod tests {
 
         let (content, metadata, _, _) = convert_html_to_markdown_with_tables(html, Some(options), None).unwrap();
 
-        // Content should be extracted
         assert!(content.contains("Content Heading"));
 
-        // Metadata should be present when extract_metadata=true
         assert!(metadata.is_some(), "Metadata should be Some when extract_metadata=true");
         let meta = metadata.unwrap();
         assert_eq!(

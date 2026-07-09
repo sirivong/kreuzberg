@@ -34,7 +34,6 @@ fn atomic_publish(src: &Path, dst: &Path, dst_dir: &Path, sha256: &str, label: &
         format!("Failed to stage model at {}: {e}", tmp.display())
     })?;
 
-    // Re-verify the staged copy so a torn/partial copy is caught before it is published.
     if let Err(e) = model_download::verify_sha256(&tmp, sha256, label) {
         let _ = fs::remove_file(&tmp);
         return Err(e);
@@ -121,10 +120,6 @@ const MODELS: &[ModelDefinition] = &[
     },
     ModelDefinition {
         model_type: "pp_doclayout_v3",
-        // ONNX export of PaddlePaddle/PP-DocLayoutV3 (PaddleDetection DETR), produced by the
-        // xberg-io/paddle-to-onnx pipeline (opset 17) and mirrored in the Xberg HF
-        // layout-models repo alongside rtdetr/tatr. Upstream PaddlePaddle/PP-DocLayoutV3 ships
-        // only Paddle-native weights (no ONNX), so it cannot be downloaded directly.
         hf_repo_id: "xberg-io/layout-models",
         remote_filename: "pp_doclayout_v3/model.onnx",
         local_filename: "pp_doclayout_v3.onnx",
@@ -298,7 +293,6 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let dst_dir = dir.path().to_path_buf();
         let src = dst_dir.join("source.bin");
-        // ~1 MiB payload so an interleaved/torn copy would be detectable.
         let payload: Vec<u8> = (0..1024 * 1024).map(|i| (i % 251) as u8).collect();
         fs::write(&src, &payload).unwrap();
         let sha = {
@@ -325,10 +319,8 @@ mod tests {
             h.join().unwrap();
         }
 
-        // The published file must be a complete, byte-identical copy — never torn.
         assert_eq!(fs::read(&*dst).unwrap(), payload, "published file must equal source");
 
-        // No staging temp files may leak.
         let leftovers: Vec<_> = fs::read_dir(&*dst_dir)
             .unwrap()
             .filter_map(Result::ok)
@@ -455,7 +447,6 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let manager = LayoutModelManager::new(Some(temp_dir.path().to_path_buf()));
 
-        // Pre-populate all models so ensure_all_models short-circuits without downloading.
         let models_and_files = [
             ("rtdetr", "model.onnx"),
             ("tatr", "tatr.onnx"),

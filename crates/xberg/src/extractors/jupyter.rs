@@ -72,10 +72,8 @@ impl JupyterExtractor {
             }
 
             if let Some(language_info) = notebook_metadata.get("language_info") {
-                // Store the full language_info object
                 metadata.insert(Cow::Borrowed("language_info"), language_info.clone());
 
-                // Extract individual fields for convenience
                 if let Some(obj) = language_info.as_object() {
                     if let Some(name) = obj.get("name") {
                         metadata.insert(Cow::Borrowed("language_name"), name.clone());
@@ -97,7 +95,6 @@ impl JupyterExtractor {
             metadata.insert(Cow::Borrowed("nbformat_minor"), nbformat_minor.clone());
         }
 
-        // Count cells by type
         if let Some(cells) = notebook.get("cells").and_then(|c| c.as_array()) {
             metadata.insert(Cow::Borrowed("cell_count"), json!(cells.len()));
         }
@@ -150,7 +147,6 @@ impl JupyterExtractor {
             _ => {}
         }
 
-        // Separate cells with a blank line
         if !content.ends_with('\n') {
             content.push('\n');
         }
@@ -256,7 +252,6 @@ impl JupyterExtractor {
         plain_mode: bool,
     ) -> Result<()> {
         if let Some(data) = output.get("data").and_then(|d| d.as_object()) {
-            // Prefer text/plain first - it has the most readable tokens for quality scoring
             if let Some(plain) = data.get("text/plain") {
                 let text = Self::extract_source(plain);
                 if !text.is_empty() {
@@ -267,9 +262,6 @@ impl JupyterExtractor {
                 }
             }
 
-            // Also include markdown/HTML content — these often contain richer
-            // semantic information than text/plain (e.g. descriptive fallback text).
-            // Skip these for plain text output mode.
             if !plain_mode {
                 for mime_type in &["text/markdown", "text/html"] {
                     if let Some(mime_content) = data.get(*mime_type) {
@@ -284,7 +276,6 @@ impl JupyterExtractor {
                 }
             }
 
-            // For raster image types, extract actual base64-encoded image data
             for mime_type in &["image/png", "image/jpeg", "image/gif", "image/webp"] {
                 if let Some(image_value) = data.get(*mime_type) {
                     let base64_str = Self::extract_source(image_value);
@@ -298,7 +289,6 @@ impl JupyterExtractor {
                             _ => "unknown",
                         };
 
-                        // Classify image based on metadata and visual properties
                         let (image_kind, kind_confidence) =
                             crate::extraction::image_kind::classify(&decoded, format, None, None, None, None, false);
 
@@ -328,12 +318,10 @@ impl JupyterExtractor {
                 }
             }
 
-            // Handle SVG as text (not a raster image for OCR)
             if data.contains_key("image/svg+xml") {
                 content.push_str("[Image: image/svg+xml]\n");
             }
 
-            // Include JSON output as structured data
             if let Some(json_content) = data.get("application/json")
                 && let Ok(formatted) = serde_json::to_string_pretty(json_content)
             {
@@ -397,7 +385,6 @@ impl JupyterExtractor {
 
         let mut builder = InternalDocumentBuilder::new("jupyter");
 
-        // Emit kernel language at start of document
         if let Some(lang) = kernel_lang {
             builder.push_paragraph(&format!("[kernel_language: {}]", lang), vec![], None, None);
         }
@@ -407,12 +394,10 @@ impl JupyterExtractor {
             let source_text = Self::extract_source(cell.get("source").unwrap_or(&Value::Null));
             let trimmed = source_text.trim();
 
-            // Emit cell ID and type markers at start of cell
             if let Some(cell_id) = cell.get("id").and_then(|id| id.as_str()) {
                 builder.push_paragraph(&format!("[cell_id: {}]", cell_id), vec![], None, None);
             }
 
-            // Emit tags if present
             if let Some(tags) = cell
                 .get("metadata")
                 .and_then(|m| m.get("tags"))
@@ -431,10 +416,6 @@ impl JupyterExtractor {
 
             match cell_type {
                 "markdown" => {
-                    // Reuse the shared Markdown extractor so notebook prose renders
-                    // identically to standalone .md/.qmd (headings, lists, tables,
-                    // emphasis, math, links collected as URIs) instead of the old
-                    // line-by-line heuristic.
                     let events: Vec<pulldown_cmark::Event> =
                         pulldown_cmark::Parser::new_ext(trimmed, crate::extractors::markdown::markdown_options())
                             .collect();
@@ -443,10 +424,8 @@ impl JupyterExtractor {
                     builder.append_document(cell_doc);
                 }
                 "code" => {
-                    // Render the code source unless the caller asked for outputs only.
                     if rendering.includes_source() {
                         let idx = builder.push_code(trimmed, kernel_lang, None, None);
-                        // Store execution_count and tags as element attributes
                         let mut attrs = AHashMap::new();
                         if let Some(exec_count) = cell.get("execution_count") {
                             match exec_count {
@@ -472,7 +451,6 @@ impl JupyterExtractor {
                             builder.set_attributes(idx, attrs);
                         }
 
-                        // Emit execution_count metadata as paragraph
                         if let Some(exec_count) = cell.get("execution_count") {
                             match exec_count {
                                 Value::Number(n) => {
@@ -486,18 +464,14 @@ impl JupyterExtractor {
                         }
                     }
 
-                    // Emit the notebook's saved outputs unless the caller asked for source
-                    // only. These are read from the .ipynb — cells are never executed.
                     if rendering.includes_outputs()
                         && let Some(outputs) = cell.get("outputs").and_then(|o| o.as_array())
                     {
                         for output in outputs {
                             let output_type = output.get("output_type").and_then(|t| t.as_str()).unwrap_or("unknown");
 
-                            // Emit output type marker
                             builder.push_paragraph(&format!("[output_type: {}]", output_type), vec![], None, None);
 
-                            // Emit MIME type markers if present
                             if let Some(data) = output.get("data").and_then(|d| d.as_object()) {
                                 for mime_type in data.keys() {
                                     builder.push_paragraph(&format!("[mime: {}]", mime_type), vec![], None, None);
@@ -606,7 +580,6 @@ impl InternalDocumentExtractor for JupyterExtractor {
             Self::extract_notebook(content, plain)?;
 
         let mut metadata_additional = AHashMap::new();
-        // Extract language name for the standard Metadata.language field
         let meta_language = additional_metadata
             .get(&Cow::Borrowed("language_name"))
             .and_then(|v| v.as_str().map(|s| s.to_string()));
@@ -614,16 +587,12 @@ impl InternalDocumentExtractor for JupyterExtractor {
             metadata_additional.insert(key, json!(value));
         }
 
-        // Images are only ever produced by code-cell outputs (display_data /
-        // execute_result). When outputs are suppressed, drop them so the image
-        // collection stays consistent with the suppressed `Image` elements.
         let images = if config.jupyter_cell_rendering.includes_outputs() {
             extracted_images
         } else {
             Vec::new()
         };
 
-        // Build InternalDocument from already-parsed notebook (no re-parse)
         let mut doc = Self::build_internal_document(&notebook_json, config.jupyter_cell_rendering)
             .unwrap_or_else(|| InternalDocumentBuilder::new("jupyter").build());
         doc.mime_type = mime_type.to_string();
@@ -683,7 +652,6 @@ mod tests {
 
         let (_, metadata, _, _) = JupyterExtractor::extract_notebook(notebook_json.as_bytes(), false).unwrap();
 
-        // Check cells array metadata
         let cells = metadata.get(&Cow::Borrowed("cells"));
         assert!(cells.is_some(), "Should have cells metadata array");
         let cells_arr = cells.unwrap().as_array().expect("cells should be an array");
@@ -694,10 +662,8 @@ mod tests {
         assert_eq!(cell0["execution_count"], json!(5));
         assert_eq!(cell0["tags"], json!(["test-tag", "important"]));
 
-        // Check cell_count
         assert_eq!(metadata.get(&Cow::Borrowed("cell_count")), Some(&json!(1)));
 
-        // Check language_info fields
         assert_eq!(metadata.get(&Cow::Borrowed("language_name")), Some(&json!("python")));
         assert_eq!(metadata.get(&Cow::Borrowed("language_version")), Some(&json!("3.10.0")));
         assert_eq!(
@@ -705,7 +671,6 @@ mod tests {
             Some(&json!("text/x-python"))
         );
 
-        // Check nbformat_minor
         assert_eq!(metadata.get(&Cow::Borrowed("nbformat_minor")), Some(&json!(5)));
     }
 

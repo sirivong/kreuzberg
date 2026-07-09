@@ -29,7 +29,6 @@ mod additional_serde {
     where
         S: Serializer,
     {
-        // Convert to HashMap for serialization
         let converted: HashMap<String, serde_json::Value> =
             map.iter().map(|(k, v)| (k.to_string(), v.clone())).collect();
         converted.serialize(serializer)
@@ -41,7 +40,6 @@ mod additional_serde {
     where
         D: Deserializer<'de>,
     {
-        // Deserialize from HashMap
         let map = HashMap::<String, serde_json::Value>::deserialize(deserializer)?;
         let result = map.into_iter().map(|(k, v)| (Cow::Owned(k), v)).collect();
         Ok(result)
@@ -129,7 +127,7 @@ pub enum FormatMetadata {
 /// enum-variant body) so serde can tag it under internal tagging and utoipa can emit a
 /// referenceable `CodeMetadata` component in the OpenAPI schema.
 #[cfg(feature = "tree-sitter")]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct CodeMetadata {
     /// Structural code chunks (function/class/module boundaries).
@@ -222,9 +220,6 @@ impl utoipa::PartialSchema for FormatMetadata {
         use utoipa::openapi::Ref;
         use utoipa::openapi::schema::{Discriminator, OneOfBuilder};
 
-        // Emit a flat oneOf with $ref items and a discriminator so that
-        // codegen tools (openapi-python-client, swagger_parser) do not choke
-        // on the allOf-of-ref pattern that utoipa's derive macro would produce.
         let builder = OneOfBuilder::new()
             .description(Some(
                 "Format-specific metadata (discriminated union). \
@@ -1041,15 +1036,7 @@ pub struct DocxMetadata {
     /// Values can be strings, numbers, booleans, or dates.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub custom_properties: Option<HashMap<String, serde_json::Value>>,
-    // Future Week 1-21 additions (commented out for now):
-    // style_catalog: OnceCell<Arc<StyleCatalog>>,       // Week 1-2: Style resolution
-    // theme: OnceCell<Arc<Theme>>,                      // Week 5: Theme colors
-    // numbering_catalog: OnceCell<Arc<NumberingCatalog>>, // Week 12-13: Numbering
-    // sections: Vec<SectionProperties>,                 // Week 3-4: Section properties
-    // document_settings: DocumentSettings,              // Week 11: Settings.xml
 }
-
-// ── Format-specific metadata structs (non-additional) ──────────────────
 
 /// CSV/TSV file metadata.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

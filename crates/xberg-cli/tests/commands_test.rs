@@ -89,7 +89,6 @@ fn test_extract_with_json_output() {
     assert!(json_result.is_ok(), "Output should be valid JSON, got: {}", stdout);
 
     let json = json_result.unwrap();
-    // JSON output is now wrapped in a timing envelope: { result: ExtractionResult, extraction_time_ms: f64 }
     assert!(json.get("result").is_some(), "JSON envelope should have 'result' field");
     assert!(
         json.get("extraction_time_ms").is_some(),
@@ -140,7 +139,6 @@ fn test_extract_with_chunking() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let json: serde_json::Value = serde_json::from_str(&stdout).expect("Should be valid JSON");
 
-    // JSON output is wrapped in an envelope; chunks live under result
     assert!(
         json["result"].get("chunks").is_some(),
         "result should have 'chunks' field"
@@ -383,7 +381,6 @@ fn test_batch_multiple_files() {
     assert!(json_result.is_ok(), "Output should be valid JSON, got: {}", stdout);
 
     let json = json_result.unwrap();
-    // Batch JSON output is now wrapped in a timing envelope: { results: [...], total_ms, per_file_ms }
     assert!(
         json.get("results").is_some(),
         "Batch envelope should have 'results' field"
@@ -465,8 +462,6 @@ fn test_batch_help() {
     assert!(stdout.contains("Batch extract from multiple documents"));
 }
 
-// ── Extract command flag parsing tests ──────────────────────────────
-
 #[test]
 fn test_extract_help_shows_all_extraction_override_flags() {
     build_binary();
@@ -480,7 +475,6 @@ fn test_extract_help_shows_all_extraction_override_flags() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    // Verify all ExtractionOverrides flags appear in help output
     let expected_flags = [
         "--ocr",
         "--ocr-backend",
@@ -521,8 +515,6 @@ fn test_extract_help_shows_all_extraction_override_flags() {
     }
 }
 
-// ── Batch command flag parity test ──────────────────────────────────
-
 #[test]
 fn test_batch_has_same_extraction_flags_as_extract() {
     build_binary();
@@ -543,7 +535,6 @@ fn test_batch_has_same_extraction_flags_as_extract() {
     let extract_help = String::from_utf8_lossy(&extract_output.stdout);
     let batch_help = String::from_utf8_lossy(&batch_output.stdout);
 
-    // All extraction override flags should be present on both commands
     let shared_flags = [
         "--ocr",
         "--ocr-backend",
@@ -585,10 +576,7 @@ fn test_batch_has_same_extraction_flags_as_extract() {
     }
 }
 
-// ── Validation error tests ──────────────────────────────────────────
-//
 // NOTE: The CLI validates file existence *before* override validation,
-// so we must provide a real file to reach the override validation stage.
 
 /// Create a temporary file and return its path as a String.
 /// The caller must keep the returned `tempfile::TempDir` alive for the
@@ -651,8 +639,6 @@ fn test_extract_layout_confidence_out_of_range_error() {
         .output()
         .expect("Failed to execute extract command");
 
-    // This flag is feature-gated behind layout-detection. If the binary was
-    // built without that feature, clap itself will reject the unknown flag.
     assert!(
         !output.status.success(),
         "Should fail for layout confidence out of range"
@@ -676,8 +662,6 @@ fn test_extract_layout_false_with_confidence_error() {
         .output()
         .expect("Failed to execute extract command");
 
-    // If layout-detection feature is enabled, validation should reject this combination.
-    // If not enabled, clap rejects the unknown flags.
     assert!(
         !output.status.success(),
         "Should fail when --layout false is combined with --layout-confidence"
@@ -704,8 +688,6 @@ fn test_extract_target_dpi_zero_error() {
     );
 }
 
-// ── Completions test ────────────────────────────────────────────────
-
 #[test]
 fn test_completions_bash_produces_output() {
     build_binary();
@@ -723,7 +705,6 @@ fn test_completions_bash_produces_output() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(!stdout.is_empty(), "Completions output should not be empty");
-    // bash completions should contain the command name
     assert!(
         stdout.contains("xberg"),
         "Bash completions should reference 'xberg', got: {}",
@@ -769,8 +750,6 @@ fn test_completions_fish_produces_output() {
     assert!(!stdout.is_empty(), "Fish completions output should not be empty");
 }
 
-// ── Embed help test ─────────────────────────────────────────────────
-
 #[test]
 fn test_embed_help_shows_correct_flags() {
     build_binary();
@@ -780,9 +759,7 @@ fn test_embed_help_shows_correct_flags() {
         .output()
         .expect("Failed to execute embed --help");
 
-    // embed is feature-gated; if not compiled, clap will show an error
     if !output.status.success() {
-        // If embed subcommand doesn't exist, skip the test
         let stderr = String::from_utf8_lossy(&output.stderr);
         if stderr.contains("unrecognized subcommand") || stderr.contains("invalid subcommand") {
             return;
@@ -811,8 +788,6 @@ fn test_embed_help_shows_correct_flags() {
         stdout
     );
 }
-
-// ── Chunk help test ─────────────────────────────────────────────────
 
 #[test]
 fn test_chunk_help_shows_correct_flags() {
@@ -862,8 +837,6 @@ fn test_chunk_help_shows_correct_flags() {
     );
 }
 
-// ── Style module NO_COLOR test ──────────────────────────────────────
-
 #[test]
 fn test_no_color_env_disables_ansi_in_output() {
     build_binary();
@@ -873,7 +846,6 @@ fn test_no_color_env_disables_ansi_in_output() {
         return;
     }
 
-    // Run with NO_COLOR set - output should have no ANSI escape sequences
     let output = Command::new(get_binary_path())
         .env("NO_COLOR", "1")
         .args(["detect", &test_file])
@@ -893,8 +865,6 @@ fn test_no_color_env_disables_ansi_in_output() {
         stdout
     );
 }
-
-// ── Additional validation edge cases ────────────────────────────────
 
 #[test]
 fn test_extract_chunk_size_too_large_error() {
@@ -951,14 +921,12 @@ fn test_extract_images_written_to_output_dir() {
     );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    // Markdown content must reference at least one image file
     assert!(
         stdout.contains("image_0."),
         "Expected image reference in markdown, got: {}",
         stdout
     );
 
-    // The referenced image files must exist on disk
     let image_files: Vec<_> = std::fs::read_dir(output_dir.path())
         .expect("Failed to read output dir")
         .filter_map(|e| e.ok())
@@ -976,7 +944,6 @@ fn test_extract_images_written_to_output_dir() {
         stdout
     );
 
-    // Every image file must have non-zero bytes
     for entry in &image_files {
         let meta = entry.metadata().expect("Failed to stat image file");
         assert!(
@@ -999,7 +966,6 @@ fn test_extract_images_default_to_cwd_when_no_output_dir() {
         test_file
     );
 
-    // Run from a temp working directory so image_N.* files land there, not in the repo root
     let work_dir = tempdir().expect("Failed to create temp dir");
 
     let output = Command::new(get_binary_path())

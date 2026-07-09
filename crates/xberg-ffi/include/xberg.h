@@ -212,12 +212,28 @@ typedef struct XBERGCitationMetadata XBERGCitationMetadata;
  */
 typedef struct XBERGClassificationLabel XBERGClassificationLabel;
 /**
+ * A single structurally-meaningful code chunk produced by tree-sitter parsing.
+ *
+ * Purpose-built payload owned by xberg â deliberately does not expose the upstream
+ * `tree_sitter_language_pack` types, so binding generators never need to resolve an
+ * external crate's types across FFI/language boundaries.
+ */
+typedef struct XBERGCodeChunkInfo XBERGCodeChunkInfo;
+/**
  * Content rendering mode for code extraction.
  *
  * Controls how extracted code content is represented in the `content` field
  * of `ExtractedDocument`.
  */
 typedef struct XBERGCodeContentMode XBERGCodeContentMode;
+/**
+ * Code-format metadata: the structural chunks produced by tree-sitter parsing.
+ *
+ * Wrapped by `FormatMetadata.Code`. Kept as a named struct (rather than an inline
+ * enum-variant body) so serde can tag it under internal tagging and utoipa can emit a
+ * referenceable `CodeMetadata` component in the OpenAPI schema.
+ */
+typedef struct XBERGCodeMetadata XBERGCodeMetadata;
 /**
  * Content extraction and conversion configuration.
  *
@@ -555,6 +571,18 @@ typedef struct XBERGEmbeddingConfig XBERGEmbeddingConfig;
  * Embedding model types supported by Xberg.
  */
 typedef struct XBERGEmbeddingModelType XBERGEmbeddingModelType;
+/**
+ * Inference backend that an `EmbeddingPreset` runs on.
+ *
+ * `Onnx` presets require the `embeddings` feature (ONNX Runtime, not available on
+ * WASM/Android x86_64 emulator). `Static` presets require `static-embeddings`
+ * (pure-Rust model2vec inference, no ORT â the only dense-embedding backend
+ * available on `no-ort-target`).
+ *
+ * Defaults to `Onnx` via `#`serde(default)`` so every existing preset payload
+ * (which predates this field) keeps deserializing without change.
+ */
+typedef struct XBERGEmbeddingsEmbeddingBackend XBERGEmbeddingsEmbeddingBackend;
 /**
  * A single named entity detected in the extracted text.
  */
@@ -10804,6 +10832,94 @@ XBERGBoundingBox *xberg_formula_bbox(const XBERGFormula *ptr);
 uint32_t xberg_formula_page(const XBERGFormula *ptr);
 
 /**
+ * Create a `CodeMetadata` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `xberg_code_metadata_free`.
+ */
+XBERGCodeMetadata *xberg_code_metadata_from_json(const char *json);
+
+/**
+ * Serialize a `CodeMetadata` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
+ * The returned string must be freed with `xberg_free_string`.
+ */
+char *xberg_code_metadata_to_json(const XBERGCodeMetadata *ptr);
+
+/**
+ * Free a `CodeMetadata` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void xberg_code_metadata_free(XBERGCodeMetadata *ptr);
+
+/**
+ * Get the `chunks` field from a `CodeMetadata`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_code_metadata_chunks(const XBERGCodeMetadata *ptr);
+
+/**
+ * Create a `CodeChunkInfo` from a JSON string. Returns null on failure.
+ * # Safety
+ * JSON string must be valid UTF-8 and null-terminated.
+ * Returned handle must be freed with `xberg_code_chunk_info_free`.
+ */
+XBERGCodeChunkInfo *xberg_code_chunk_info_from_json(const char *json);
+
+/**
+ * Serialize a `CodeChunkInfo` to a JSON string. Returns null on failure.
+ * # Safety
+ * `ptr` must be a valid, non-null pointer returned by a `xberg` function.
+ * The returned string must be freed with `xberg_free_string`.
+ */
+char *xberg_code_chunk_info_to_json(const XBERGCodeChunkInfo *ptr);
+
+/**
+ * Free a `CodeChunkInfo` handle.
+ * # Safety
+ * Pointer must have been returned by this library, or be null.
+ */
+void xberg_code_chunk_info_free(XBERGCodeChunkInfo *ptr);
+
+/**
+ * Get the `text` field from a `CodeChunkInfo`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_code_chunk_info_text(const XBERGCodeChunkInfo *ptr);
+
+/**
+ * Get the `context_path` field from a `CodeChunkInfo`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_code_chunk_info_context_path(const XBERGCodeChunkInfo *ptr);
+
+/**
+ * Get the `node_types` field from a `CodeChunkInfo`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+char *xberg_code_chunk_info_node_types(const XBERGCodeChunkInfo *ptr);
+
+/**
+ * Get the `byte_start` field from a `CodeChunkInfo`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t xberg_code_chunk_info_byte_start(const XBERGCodeChunkInfo *ptr);
+
+/**
+ * Get the `byte_end` field from a `CodeChunkInfo`.
+ * # Safety
+ * Pointer must be a valid handle returned by this library.
+ */
+uintptr_t xberg_code_chunk_info_byte_end(const XBERGCodeChunkInfo *ptr);
+
+/**
  * Create a `Metadata` from a JSON string. Returns null on failure.
  * # Safety
  * JSON string must be valid UTF-8 and null-terminated.
@@ -15711,7 +15827,7 @@ XBERGPaddleOcrConfig *xberg_paddle_ocr_config_with_model_tier(XBERGPaddleOcrConf
 
 /**
  * Sets the model generation.
- * \param version `"pp-ocrv5"` (default) or `"pp-ocrv6"`. Under `"pp-ocrv6"`, `model_tier` selects
+ * \param version `"pp-ocrv6"` (default) or `"pp-ocrv5"`. Under `"pp-ocrv6"`, `model_tier` selects
  * among `"medium"`/`"small"`/`"tiny"`.
  * \note SAFETY: Caller must ensure all pointer arguments are valid or null. Returned pointers must be
  * freed with the appropriate free function.
@@ -17654,6 +17770,21 @@ int32_t xberg_region_kind_from_i32(int32_t value);
  * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
  */
 int32_t xberg_region_kind_from_str(const char *name);
+
+/**
+ * Convert an integer to a `EmbeddingsEmbeddingBackend` variant. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure all pointer arguments are valid or null.
+ * Returned pointers must be freed with the appropriate free function.
+ */
+int32_t xberg_embeddings_embedding_backend_from_i32(int32_t value);
+
+/**
+ * Convert a `EmbeddingsEmbeddingBackend` serde wire value (C string) to its integer discriminant. Returns -1 on invalid input.
+ * # Safety
+ * Caller must ensure `ptr` is a valid pointer to a `c_char` or null.
+ */
+int32_t xberg_embeddings_embedding_backend_from_str(const char *name);
 
 /**
  * Convert an integer to a `KeywordAlgorithm` variant. Returns -1 on invalid input.

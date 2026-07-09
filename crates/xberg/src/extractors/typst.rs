@@ -82,13 +82,11 @@ impl TypstExtractor {
         let mut in_set_document = false;
         let mut paren_depth: i32 = 0;
         let mut paragraph_buf = String::new();
-        // Track multi-line #table() accumulation
         let mut in_table = false;
         let mut table_buf = String::new();
         let mut table_paren_depth: i32 = 0;
         let mut table_bracket_depth: i32 = 0;
         let mut footnote_counter: u32 = 0;
-        // Track active list state: Some(is_ordered) when inside a list
         let mut active_list: Option<bool> = None;
 
         let lines: Vec<&str> = content.lines().collect();
@@ -98,7 +96,6 @@ impl TypstExtractor {
             let trimmed = lines[line_idx].trim();
             line_idx += 1;
 
-            // Accumulate multi-line #table() blocks
             if in_table {
                 table_buf.push('\n');
                 table_buf.push_str(trimmed);
@@ -119,7 +116,6 @@ impl TypstExtractor {
                 continue;
             }
 
-            // Skip multi-line #set document(...) blocks
             if in_set_document {
                 for ch in trimmed.chars() {
                     match ch {
@@ -135,7 +131,6 @@ impl TypstExtractor {
                 continue;
             }
 
-            // Code block handling
             if trimmed.starts_with("```") {
                 if in_code_block {
                     if trimmed == "```" {
@@ -166,7 +161,6 @@ impl TypstExtractor {
                 continue;
             }
 
-            // Skip #set document(...)
             if trimmed.starts_with("#set document(") {
                 Self::flush_paragraph_internal(&mut paragraph_buf, &mut builder);
                 paren_depth = 0;
@@ -183,7 +177,6 @@ impl TypstExtractor {
                 continue;
             }
 
-            // Skip directives
             if trimmed.starts_with("#set ")
                 || trimmed.starts_with("#let ")
                 || trimmed.starts_with("#import ")
@@ -196,18 +189,15 @@ impl TypstExtractor {
                 continue;
             }
 
-            // List items
             if (trimmed.starts_with('+') || trimmed.starts_with('-'))
                 && trimmed.len() > 1
                 && trimmed.chars().nth(1).is_some_and(|c| !c.is_alphanumeric())
             {
                 Self::flush_paragraph_internal(&mut paragraph_buf, &mut builder);
                 let ordered = trimmed.starts_with('+');
-                // Open a new list if none is active, or if the type changed
                 match active_list {
                     Some(prev_ordered) if prev_ordered == ordered => {}
                     _ => {
-                        // Close previous list if type changed
                         if active_list.is_some() {
                             builder.end_list();
                         }
@@ -219,19 +209,16 @@ impl TypstExtractor {
                 continue;
             }
 
-            // Any non-list line ends the active list
             if active_list.is_some() {
                 builder.end_list();
                 active_list = None;
             }
 
-            // Headings
             if trimmed.starts_with('=') {
                 let heading_level = trimmed.chars().take_while(|&c| c == '=').count();
                 let heading_text = trimmed[heading_level..].trim();
                 if !heading_text.is_empty() {
                     Self::flush_paragraph_internal(&mut paragraph_buf, &mut builder);
-                    // Preserve Typst heading markers in the extracted text (e.g., "= " prefix)
                     let markers = "=".repeat(heading_level);
                     let full_heading = format!("{} {}", markers, heading_text);
                     builder.push_heading(heading_level as u8, &full_heading, None, None);
@@ -239,7 +226,6 @@ impl TypstExtractor {
                 continue;
             }
 
-            // Math blocks
             if trimmed.starts_with('$') && trimmed.ends_with('$') && trimmed.len() > 1 {
                 Self::flush_paragraph_internal(&mut paragraph_buf, &mut builder);
                 let math = trimmed.trim_matches('$').trim();
@@ -249,13 +235,11 @@ impl TypstExtractor {
                 continue;
             }
 
-            // Empty lines flush paragraph
             if trimmed.is_empty() {
                 Self::flush_paragraph_internal(&mut paragraph_buf, &mut builder);
                 continue;
             }
 
-            // #table() — start accumulation (may span multiple lines)
             if trimmed.starts_with("#table(") {
                 Self::flush_paragraph_internal(&mut paragraph_buf, &mut builder);
                 table_buf.clear();
@@ -280,7 +264,6 @@ impl TypstExtractor {
                 continue;
             }
 
-            // #footnote[text] — extract footnote
             if trimmed.starts_with("#footnote[") {
                 Self::flush_paragraph_internal(&mut paragraph_buf, &mut builder);
                 if let Some(text) = Self::extract_bracket_content(trimmed, "#footnote[") {
@@ -291,7 +274,6 @@ impl TypstExtractor {
                 continue;
             }
 
-            // #image("path") — extract image description
             if trimmed.starts_with("#image(") {
                 Self::flush_paragraph_internal(&mut paragraph_buf, &mut builder);
                 let image_path = IMAGE_RE.captures(trimmed).and_then(|c| c.get(1)).map(|m| m.as_str());
@@ -304,14 +286,12 @@ impl TypstExtractor {
                 continue;
             }
 
-            // Regular text accumulation
             if !paragraph_buf.is_empty() {
                 paragraph_buf.push(' ');
             }
             paragraph_buf.push_str(trimmed);
         }
 
-        // Close any open list at end of processing
         if active_list.is_some() {
             builder.end_list();
         }
@@ -324,7 +304,6 @@ impl TypstExtractor {
     fn flush_paragraph_internal(buf: &mut String, builder: &mut InternalDocumentBuilder) {
         if !buf.is_empty() {
             let (text, annotations) = Self::parse_inline_annotations(buf.trim());
-            // Extract URIs from link annotations
             for ann in &annotations {
                 if let crate::types::document_structure::AnnotationKind::Link { url, .. } = &ann.kind
                     && !url.is_empty()
@@ -340,14 +319,12 @@ impl TypstExtractor {
 
     /// Parse a `#table(...)` block and emit it as a table element in the internal builder.
     fn emit_table_internal(table_str: &str, builder: &mut InternalDocumentBuilder) {
-        // Extract column count from `columns: N`
         let num_cols = COLUMNS_RE
             .captures(table_str)
             .and_then(|caps| caps.get(1))
             .and_then(|m| m.as_str().parse::<usize>().ok())
             .unwrap_or(0);
 
-        // Collect all cell texts from [content] brackets
         let mut cells: Vec<String> = Vec::new();
         let mut in_bracket = false;
         let mut cell = String::new();
@@ -373,7 +350,6 @@ impl TypstExtractor {
             return;
         }
 
-        // Arrange cells into rows
         let effective_cols = if num_cols > 0 { num_cols } else { cells.len() };
         let rows: Vec<Vec<String>> = cells.chunks(effective_cols).map(|chunk| chunk.to_vec()).collect();
         builder.push_table_from_cells(&rows, None, None);
@@ -388,7 +364,6 @@ impl TypstExtractor {
         let mut byte_pos = 0;
 
         while byte_pos < raw.len() {
-            // Handle #link("url")[text]
             if raw.as_bytes()[byte_pos] == b'#'
                 && raw[byte_pos..].starts_with("#link(\"")
                 && let Some((url, display, consumed)) = Self::parse_link_at(&raw[byte_pos..])
@@ -401,18 +376,12 @@ impl TypstExtractor {
                 continue;
             }
 
-            // Handle #footnote[text] inline (emit text in brackets as-is with a
-            // footnote marker — but since footnotes are block-level, we skip
-            // inline footnotes in paragraph text).
-
-            // Decode the current character and its byte length
             let ch = &raw[byte_pos..];
             let c = ch.chars().next().unwrap();
             let c_len = c.len_utf8();
 
             match c {
                 '*' => {
-                    // Bold: find matching closing *
                     if let Some(close_byte) = Self::find_closing_marker_byte(raw, byte_pos + c_len, b'*') {
                         let start = text.len() as u32;
                         text.push_str(&raw[byte_pos + c_len..close_byte]);
@@ -420,14 +389,13 @@ impl TypstExtractor {
                         if end > start {
                             annotations.push(builder::bold(start, end));
                         }
-                        byte_pos = close_byte + 1; // skip closing '*'
+                        byte_pos = close_byte + 1;
                     } else {
                         text.push('*');
                         byte_pos += c_len;
                     }
                 }
                 '_' => {
-                    // Italic: find matching closing _
                     if let Some(close_byte) = Self::find_closing_marker_byte(raw, byte_pos + c_len, b'_') {
                         let start = text.len() as u32;
                         text.push_str(&raw[byte_pos + c_len..close_byte]);
@@ -435,14 +403,13 @@ impl TypstExtractor {
                         if end > start {
                             annotations.push(builder::italic(start, end));
                         }
-                        byte_pos = close_byte + 1; // skip closing '_'
+                        byte_pos = close_byte + 1;
                     } else {
                         text.push('_');
                         byte_pos += c_len;
                     }
                 }
                 '`' => {
-                    // Code: find matching closing `
                     if let Some(close_byte) = Self::find_closing_marker_byte(raw, byte_pos + c_len, b'`') {
                         let start = text.len() as u32;
                         text.push_str(&raw[byte_pos + c_len..close_byte]);
@@ -450,7 +417,7 @@ impl TypstExtractor {
                         if end > start {
                             annotations.push(builder::code(start, end));
                         }
-                        byte_pos = close_byte + 1; // skip closing '`'
+                        byte_pos = close_byte + 1;
                     } else {
                         text.push('`');
                         byte_pos += c_len;
@@ -622,7 +589,6 @@ impl TypstParser {
         if let Ok(re) = Regex::new(pattern)
             && let Some(caps) = re.captures(&self.content)
         {
-            // Single quoted string: split by comma
             if let Some(m) = caps.get(1) {
                 let keywords: Vec<String> = m
                     .as_str()
@@ -634,7 +600,6 @@ impl TypstParser {
                     return Some(keywords);
                 }
             }
-            // Array form: ("keyword1", "keyword2")
             if let Some(m) = caps.get(2) {
                 let array_str = m.as_str();
                 let mut keywords = Vec::new();
@@ -665,7 +630,6 @@ impl TypstParser {
         while let Some(line) = lines.next() {
             let trimmed = line.trim();
 
-            // Skip multi-line #set document(...) blocks
             if in_set_document {
                 for ch in trimmed.chars() {
                     match ch {
@@ -710,7 +674,6 @@ impl TypstParser {
                 continue;
             }
 
-            // Skip #set document(...) - may span multiple lines
             if trimmed.starts_with("#set document(") {
                 paren_depth = 0;
                 for ch in trimmed.chars() {
@@ -734,7 +697,6 @@ impl TypstParser {
                 continue;
             }
 
-            // Skip layout directives
             if trimmed.starts_with("#pagebreak")
                 || trimmed.starts_with("#colbreak")
                 || trimmed.starts_with("#v(")
@@ -843,14 +805,12 @@ impl TypstParser {
             }
         }
 
-        // Extract column count from `columns: N`
         let num_cols = COLUMNS_RE
             .captures(&content)
             .and_then(|caps| caps.get(1))
             .and_then(|m| m.as_str().parse::<usize>().ok())
             .unwrap_or(0);
 
-        // Collect all cell texts
         let mut cells: Vec<String> = Vec::new();
         let mut in_bracket = false;
         let mut cell = String::new();
@@ -873,7 +833,6 @@ impl TypstParser {
             }
         }
 
-        // Arrange cells into rows
         let mut table_content = String::new();
         if num_cols > 0 && !cells.is_empty() {
             for (i, cell_text) in cells.iter().enumerate() {
@@ -886,7 +845,6 @@ impl TypstParser {
                 table_content.push_str(cell_text);
             }
         } else {
-            // Fallback: join all cells with separator
             table_content = cells.join(" | ");
         }
 
@@ -936,8 +894,6 @@ impl TypstParser {
                     }
                 }
                 '#' => {
-                    // Skip the # prefix for Typst function calls like #link
-                    // The link extraction happens later in extract_link_text
                     result.push(ch);
                 }
                 _ => {
@@ -950,7 +906,6 @@ impl TypstParser {
     }
 
     fn extract_link_text(&self, line: &str) -> String {
-        // Handle #link("url")[text] pattern - extract just the display text
         let pattern = r#"#?link\("([^"]*)"\)\[([^\]]*)\]"#;
         if let Ok(re) = Regex::new(pattern) {
             return re
@@ -1160,7 +1115,6 @@ Actual content"#;
 
     #[test]
     fn test_cjk_with_inline_formatting() {
-        // CJK text with bold markers — must not panic on multi-byte chars
         let content = "これは*太字*テスト";
         let (output, _) = TypstExtractor::extract_from_typst(content);
         assert!(output.contains("太字"), "Bold content should be present");

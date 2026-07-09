@@ -2,9 +2,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import * as readline from "node:readline";
-// Import from the local build path to avoid pnpm workspace resolution issues.
-// The @xberg-io/xberg-wasm package is resolved through pnpm's virtual store which
-// doesn't reliably provide the WASM binary and glue JS via import.meta.url.
 import {
   WasmExtractInput,
   type ExtractionConfig,
@@ -295,9 +292,7 @@ function parseRequest(line: string): { path: string; forceOcr: boolean } {
     try {
       const req = JSON.parse(trimmed);
       return { path: req.path || "", forceOcr: req.force_ocr || false };
-    } catch {
-      // Fall through to plain path
-    }
+    } catch {}
   }
   return { path: trimmed, forceOcr: false };
 }
@@ -309,7 +304,6 @@ async function runServer(ocrEnabled: boolean): Promise<void> {
     terminal: false,
   });
 
-  // Signal readiness after WASM initialization
   console.log("READY");
 
   for await (const line of rl) {
@@ -387,12 +381,8 @@ async function main(): Promise<void> {
 
   process.stderr.write(`[wasm] initializing (timeout=${EXTRACTION_TIMEOUT_MS}ms, debug=${DEBUG})\n`);
 
-  // Initialize WASM BEFORE timing measurement
   await initWasm();
 
-  // Ensure PDFium is fully initialized before processing any files.
-  // initWasm() fires off PDFium init asynchronously (fire-and-forget),
-  // so we must explicitly await it to avoid empty PDF results.
   const wasmModule = getWasmModule();
   if (wasmModule) {
     try {
@@ -403,7 +393,6 @@ async function main(): Promise<void> {
     }
   }
 
-  // Enable OCR backend when requested (required for image extraction)
   if (ocrEnabled) {
     try {
       await enableOcr();

@@ -122,8 +122,8 @@ impl PaddleOcrConfig {
             rec_batch_num: 6,
             padding: 10,
             drop_score: 0.5,
-            model_tier: "mobile".to_string(), // resolves to v6 "medium" by default (see effective_v6_tier); "mobile"/"server" under explicit pp-ocrv5
-            model_version: "pp-ocrv6".to_string(), // v6 is the default generation; opt into legacy v5 explicitly
+            model_tier: "mobile".to_string(),
+            model_version: "pp-ocrv6".to_string(),
         }
     }
 
@@ -147,7 +147,6 @@ impl PaddleOcrConfig {
     /// ```
     #[cfg_attr(alef, alef(skip))]
     pub fn resolve_cache_dir(&self) -> PathBuf {
-        // First check if cache_dir is explicitly set
         if let Some(path) = &self.cache_dir {
             return path.clone();
         }
@@ -498,21 +497,15 @@ mod tests {
     #[test]
     #[allow(unsafe_code)]
     fn test_resolve_cache_dir_default() {
-        // Temporarily remove env override so we test the true default path
         let saved = std::env::var("XBERG_CACHE_DIR").ok();
-        // SAFETY: This test is not run in parallel with other tests that depend on this env var.
-        // The env var manipulation is only used to test the default cache dir resolution.
         unsafe { std::env::remove_var("XBERG_CACHE_DIR") };
 
         let config = PaddleOcrConfig::new("en");
         let cache_dir = config.resolve_cache_dir();
-        // Should contain "xberg" and "paddle-ocr" in the path
         assert!(cache_dir.to_string_lossy().contains("xberg"));
         assert!(cache_dir.to_string_lossy().contains("paddle-ocr"));
 
-        // Restore env var if it was set
         if let Some(val) = saved {
-            // SAFETY: Restoring the env var to its original state after the test.
             unsafe { std::env::set_var("XBERG_CACHE_DIR", val) };
         }
     }
@@ -609,7 +602,6 @@ mod tests {
 
     #[test]
     fn test_model_version_defaults_when_omitted() {
-        // JSON without model_version deserializes to the default generation (pp-ocrv6).
         let json = r#"{"language":"en","model_tier":"mobile"}"#;
         let config: PaddleOcrConfig = serde_json::from_str(json).unwrap();
         assert_eq!(config.model_version, "pp-ocrv6");
@@ -617,7 +609,6 @@ mod tests {
 
     #[test]
     fn test_model_version_pins_legacy_v5_when_requested() {
-        // Existing configs can still pin the legacy v5 fleet explicitly.
         let json = r#"{"language":"en","model_tier":"mobile","model_version":"pp-ocrv5"}"#;
         let config: PaddleOcrConfig = serde_json::from_str(json).unwrap();
         assert_eq!(config.model_version, "pp-ocrv5");
@@ -635,7 +626,6 @@ mod tests {
 
     #[test]
     fn test_model_tier_backward_compat() {
-        // JSON without model_tier should deserialize to default "mobile"
         let json = r#"{"language":"en","det_db_thresh":0.3}"#;
         let config: PaddleOcrConfig = serde_json::from_str(json).unwrap();
         assert_eq!(config.model_tier, "mobile");

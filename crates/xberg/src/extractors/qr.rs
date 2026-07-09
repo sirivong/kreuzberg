@@ -66,11 +66,6 @@ pub fn detect_qr_codes(image_bytes: &[u8], _format_hint: Option<&str>) -> Vec<Qr
 
     let mut results = Vec::with_capacity(grids.len());
     for grid in grids {
-        // `Grid::decode()` returns `String::from_utf8(...)` and surfaces
-        // non-UTF-8 payloads (e.g. Shift-JIS, binary) as a decode error,
-        // which silently drops otherwise-decodable QR content. Drive
-        // `decode_to` directly so we can lossy-convert and preserve those
-        // payloads.
         let mut payload_bytes: Vec<u8> = Vec::new();
         match grid.decode_to(&mut payload_bytes) {
             Ok(_meta) => {

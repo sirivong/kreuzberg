@@ -80,7 +80,6 @@ pub fn diagnose_document(
     gt_text: &str,
     gt_markdown: Option<&str>,
 ) -> DocumentDiagnostic {
-    // Structural diagnostics (unmatched blocks, cross-type matches)
     let (unmatched_gt_blocks, unmatched_extracted_blocks, cross_type_matches, sf1) = if let Some(md_gt) = gt_markdown {
         let (sq, diag) = crate::markdown_quality::score_structural_quality_diagnostic(extracted_content, md_gt);
 
@@ -120,7 +119,6 @@ pub fn diagnose_document(
         (Vec::new(), Vec::new(), Vec::new(), 0.0)
     };
 
-    // Token diff (missing/extra tokens)
     let ext_tokens = crate::quality::tokenize(extracted_content);
     let gt_tokens = crate::quality::tokenize(gt_text);
     let tf1 = crate::quality::compute_f1(&ext_tokens, &gt_tokens);
@@ -128,7 +126,6 @@ pub fn diagnose_document(
     missing_tokens.truncate(30);
     extra_tokens.truncate(30);
 
-    // Noise detection
     let noise = crate::noise_detection::detect_noise(extracted_content);
 
     DocumentDiagnostic {
@@ -186,7 +183,6 @@ mod tests {
         let long = "a".repeat(200);
         let result = truncate(&long, 120);
         assert!(result.ends_with("..."));
-        // 120 chars + "..."
         assert_eq!(result.len(), 123);
     }
 
@@ -207,7 +203,6 @@ mod tests {
         let gt_md = "# Title\n\nSome content here.\n\n## Missing Section\n\nMore text.";
         let diag = diagnose_document("test_doc", "pdf", "layout", extracted, gt_text, Some(gt_md));
         assert_eq!(diag.pipeline, "layout");
-        // There should be some unmatched GT blocks (the missing section)
         assert!(!diag.unmatched_gt_blocks.is_empty() || !diag.top_missing_tokens.is_empty());
     }
 
@@ -222,7 +217,6 @@ mod tests {
         assert!(dir.join("extracted.md").exists());
         assert!(dir.join("diagnostic.json").exists());
 
-        // Cleanup
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

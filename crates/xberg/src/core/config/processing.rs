@@ -280,16 +280,12 @@ impl ChunkingConfig {
             }
         };
 
-        // Preserve the caller's embedding choice, including None.
-        // Presets configure chunking parameters only; users must explicitly
-        // provide an EmbeddingConfig to opt into embedding generation.
         let embedding = self.embedding.clone();
 
         Self {
             max_characters: preset.chunk_size,
             overlap: preset.overlap,
             embedding,
-            // Preserve caller's other settings
             trim: self.trim,
             chunker_type: self.chunker_type,
             preset: self.preset.clone(),
@@ -617,11 +613,9 @@ mod tests {
         };
         let json = serde_json::to_string(&model).unwrap();
 
-        // Should use internally-tagged format with "type" discriminator
         assert!(json.contains(r#""type":"preset""#), "Should contain type:preset field");
         assert!(json.contains(r#""name":"fast""#), "Should contain name:fast field");
 
-        // Should NOT use adjacently-tagged format
         assert!(
             !json.contains(r#"{"preset":"#),
             "Should NOT use adjacently-tagged format"
@@ -632,7 +626,6 @@ mod tests {
     /// API documentation shows: `{"type": "preset", "name": "fast"}`
     #[test]
     fn test_embedding_model_type_preset_deserialization() {
-        // This is the documented API format that users should send
         let json = r#"{"type": "preset", "name": "fast"}"#;
         let model: EmbeddingModelType = serde_json::from_str(json).unwrap();
 
@@ -648,11 +641,9 @@ mod tests {
     /// This ensures the API doesn't accept the old/wrong documentation format.
     #[test]
     fn test_embedding_model_type_rejects_wrong_format() {
-        // This is the WRONG format that was in the old documentation
         let wrong_json = r#"{"preset": {"name": "fast"}}"#;
         let result: Result<EmbeddingModelType, _> = serde_json::from_str(wrong_json);
 
-        // Should fail to parse - the wrong format should be rejected
         assert!(result.is_err(), "Should reject adjacently-tagged format");
     }
 
@@ -709,8 +700,6 @@ mod tests {
         let resolved = config.resolve_preset();
         assert_eq!(resolved.max_characters, 1024);
         assert_eq!(resolved.overlap, 100);
-        // Preset configures chunking parameters only; embedding stays None unless
-        // the caller explicitly provided one (#797).
         assert!(resolved.embedding.is_none());
     }
 
@@ -733,7 +722,6 @@ mod tests {
         let resolved = config.resolve_preset();
         assert_eq!(resolved.max_characters, 512);
         assert_eq!(resolved.overlap, 50);
-        // Explicit embedding config preserved
         match &resolved.embedding.unwrap().model {
             EmbeddingModelType::Custom { model_id, .. } => assert_eq!(model_id, "custom/model"),
             _ => panic!("Expected Custom model type to be preserved"),
@@ -853,8 +841,6 @@ mod tests {
             _ => panic!("Expected Plugin variant"),
         }
     }
-
-    // --- Issue #797 regression tests ---
 
     /// Preset with no explicit embedding: embedding must remain None.
     ///

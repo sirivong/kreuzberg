@@ -28,7 +28,6 @@ use reader::CfbReader;
 pub(crate) fn extract_hwp_document(bytes: &[u8]) -> Result<HwpDocument> {
     let mut cfb = CfbReader::from_bytes(bytes)?;
 
-    // Parse the 256-byte file header
     let header_data = cfb.read_stream("FileHeader")?;
     let header = FileHeader::parse(header_data)?;
 
@@ -40,7 +39,6 @@ pub(crate) fn extract_hwp_document(bytes: &[u8]) -> Result<HwpDocument> {
 
     let mut doc = HwpDocument::default();
 
-    // Parse DocInfo for global tables (char shapes, etc.)
     if cfb.stream_exists("DocInfo") {
         let doc_info_data = cfb.read_stream("DocInfo")?;
         if let Ok(char_shapes) = parse_doc_info(doc_info_data) {
@@ -48,7 +46,6 @@ pub(crate) fn extract_hwp_document(bytes: &[u8]) -> Result<HwpDocument> {
         }
     }
 
-    // Body text is distributed across Section0..SectionN streams inside BodyText
     let mut streams = cfb.list_streams();
     streams.sort();
 
@@ -61,7 +58,6 @@ pub(crate) fn extract_hwp_document(bytes: &[u8]) -> Result<HwpDocument> {
         }
     }
 
-    // Attempt to extract images from BinData streams
     for path in cfb.list_streams() {
         if path.starts_with("BinData/") {
             let image_data = cfb.read_stream(&path)?;

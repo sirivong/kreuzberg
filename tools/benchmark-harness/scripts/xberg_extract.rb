@@ -100,7 +100,6 @@ def parse_request(line)
       req = JSON.parse(stripped)
       return [req["path"] || "", req["force_ocr"] || false]
     rescue JSON::ParserError
-      # Fall through to plain path
     end
   end
 
@@ -227,7 +226,6 @@ end
 def extract_server(ocr_enabled)
   debug_log("=== SERVER MODE START ===")
 
-  # Signal readiness after Ruby + native extension initialization
   puts("READY")
   $stdout.flush
 

@@ -51,7 +51,6 @@ async fn test_csv_skips_empty_values() {
 
     assert!(result.content.contains("Name: Alice"));
     assert!(result.content.contains("City: NYC"));
-    // Row 1 (Alice) should not have an Age line since it's empty
     let row1 = result.content.split("\n\n").next().unwrap_or("");
     assert!(!row1.contains("Age:"), "Empty cells should be skipped");
 }
@@ -80,7 +79,6 @@ async fn test_csv_short_row_no_panic() {
 
     assert!(result.content.contains("Name: Alice"));
     assert!(result.content.contains("Age: 30"));
-    // Alice's row has no City — should not appear
     let row1 = result.content.split("\n\n").next().unwrap_or("");
     assert!(!row1.contains("City:"));
 }
@@ -93,7 +91,6 @@ async fn test_csv_all_empty_data_rows() {
 
     let result = extract_bytes_document(csv, "text/csv", &config).await.unwrap();
 
-    // First row is all empty — should be skipped, Alice should be Row 1
     assert!(result.content.contains("Name: Alice"));
 }
 
@@ -101,7 +98,6 @@ async fn test_csv_all_empty_data_rows() {
 #[tokio::test]
 async fn test_csv_no_header_fallback() {
     let config = ExtractionConfig::default();
-    // All text, no numbers — detect_header returns false
     let csv = b"Alice,NYC,Engineer\nBob,LA,Designer\n";
 
     let result = extract_bytes_document(csv, "text/csv", &config).await.unwrap();

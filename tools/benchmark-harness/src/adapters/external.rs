@@ -27,104 +27,49 @@ const PYTHON_EXTRACTION_TIMEOUT_SECS: u64 = PERSISTENT_MAX_TIMEOUT_SECS - PYTHON
 /// Format lists are based on comprehensive research of each framework's actual capabilities.
 fn get_supported_formats(framework_name: &str) -> Vec<String> {
     match framework_name {
-        // LiteParse (run-llama/liteparse): PDF-only Rust CLI (`lit parse`).
-        // Supports both plaintext and markdown output formats.
         "liteparse" => vec!["pdf".to_string()],
 
-        // PyMuPDF4LLM: PDF + formats via PyMuPDF/fitz
-        // See: https://pymupdf.readthedocs.io/en/latest/how-to-open-a-file.html
-        // Note: many non-PDF formats return empty content — tracked as EmptyContent errors
-        "pymupdf4llm" => vec![
-            // Documents
-            "pdf",  // E-books
-            "epub", // Vector/text
-            "svg", "txt", // Images (for OCR) - gif and webp NOT supported by PyMuPDF
-            "png", "jpg", "jpeg", "bmp", "tiff", "tif",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect(),
+        "pymupdf4llm" => vec!["pdf", "epub", "svg", "txt", "png", "jpg", "jpeg", "bmp", "tiff", "tif"]
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect(),
 
-        // Docling: 15+ format types, 38+ extensions
-        // See: https://docling-project.github.io/docling/usage/supported_formats/
         "docling" => vec![
-            // Office documents
-            "pdf", "docx", "pptx", "xlsx", // Web/markup
-            "html", "htm", "md", "markdown", "asciidoc", // Data formats
-            "csv",      // Scientific/publishing
-            "jats",     // Subtitles
-            "vtt",      // Images (converted to PDF internally for layout analysis)
-            "png", "jpg", "jpeg", "tiff", "tif", "bmp", "webp",
+            "pdf", "docx", "pptx", "xlsx", "html", "htm", "md", "markdown", "asciidoc", "csv", "jats", "vtt", "png",
+            "jpg", "jpeg", "tiff", "tif", "bmp", "webp",
         ]
         .into_iter()
         .map(|s| s.to_string())
         .collect(),
 
-        // Tika: 1500+ formats for detection, extensive text extraction
-        // See: https://tika.apache.org/ and tika-mimetypes.xml
         "tika" => vec![
-            // Office documents (Microsoft)
-            "pdf", "docx", "doc", "pptx", "ppt", "ppsx", "pptm", "xlsx", "xls", "xlsm", "xlsb",
-            // Office documents (OpenDocument)
-            "odt", "ods", // Other documents
-            "rtf", "epub", // Web/markup
-            "html", "htm", "xml", "svg", "md", "txt", // Data formats
-            "csv", "tsv", "json", "yaml", "yml", "toml", // Email
-            "eml", "msg", // Scientific/technical (typst not supported - too new)
-            "tex", "latex", "bib", "rst", "org", "ipynb", // Images (metadata + OCR)
-            "png", "jpg", "jpeg", "gif", "bmp", "tiff", "tif", "webp", "jp2", // Archives
-            "zip", "tar", "gz", "7z",
+            "pdf", "docx", "doc", "pptx", "ppt", "ppsx", "pptm", "xlsx", "xls", "xlsm", "xlsb", "odt", "ods", "rtf",
+            "epub", "html", "htm", "xml", "svg", "md", "txt", "csv", "tsv", "json", "yaml", "yml", "toml", "eml",
+            "msg", "tex", "latex", "bib", "rst", "org", "ipynb", "png", "jpg", "jpeg", "gif", "bmp", "tiff", "tif",
+            "webp", "jp2", "zip", "tar", "gz", "7z",
         ]
         .into_iter()
         .map(|s| s.to_string())
         .collect(),
 
-        // MarkItDown: 25+ formats with optional dependencies
-        // See: https://github.com/microsoft/markitdown
-        // Note: MarkItDown OUTPUTS markdown, so md/txt are not conversion inputs
         "markitdown" => vec![
-            // Office documents
-            "pdf", "docx", "pptx", "xlsx", "xls", // Web/markup (md, txt not valid - outputs markdown)
-            "html", "htm", "xml", // Data formats
-            "csv", "json", // E-books & notebooks
-            "epub", "ipynb", // Email
-            "msg",   // Images (with Azure Document Intelligence)
-            "png", "jpg", "jpeg", "bmp", "tiff", "tif", // Archives
-            "zip",
+            "pdf", "docx", "pptx", "xlsx", "xls", "html", "htm", "xml", "csv", "json", "epub", "ipynb", "msg", "png",
+            "jpg", "jpeg", "bmp", "tiff", "tif", "zip",
         ]
         .into_iter()
         .map(|s| s.to_string())
         .collect(),
 
-        // Unstructured: 31+ partitionable formats
-        // See: https://docs.unstructured.io/ui/supported-file-types
         "unstructured" => vec![
-            // Office documents (Microsoft)
-            "pdf", "docx", "doc", "pptx", "ppt", "xlsx", "xls", // Office documents (OpenDocument)
-            "odt", // Other documents
-            "rtf", "epub", // Web/markup
-            "html", "htm", "xml", "md", "rst", "org", "txt",
-            // Data formats (json NOT supported for partitioning)
-            "csv", "tsv", // Email
-            "eml", "msg", // Images (requires hi_res strategy)
-            "png", "jpg", "jpeg", "tiff", "tif", "bmp",
+            "pdf", "docx", "doc", "pptx", "ppt", "xlsx", "xls", "odt", "rtf", "epub", "html", "htm", "xml", "md",
+            "rst", "org", "txt", "csv", "tsv", "eml", "msg", "png", "jpg", "jpeg", "tiff", "tif", "bmp",
         ]
         .into_iter()
         .map(|s| s.to_string())
         .collect(),
 
-        // MinerU: PDF and PNG/JPG images ONLY
-        // See: https://github.com/opendatalab/MinerU - cli/common.py defines actual formats
-        "mineru" => vec![
-            // Documents
-            "pdf", // Images (only png, jpg confirmed in source)
-            "png", "jpg",
-        ]
-        .into_iter()
-        .map(|s| s.to_string())
-        .collect(),
+        "mineru" => vec!["pdf", "png", "jpg"].into_iter().map(|s| s.to_string()).collect(),
 
-        // Default: common document formats for unknown frameworks
         _ => vec![
             "pdf", "docx", "doc", "xlsx", "xls", "pptx", "ppt", "txt", "md", "html", "xml", "json",
         ]
@@ -148,8 +93,6 @@ pub fn create_docling_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
     let supported_formats = get_supported_formats("docling");
     Ok(
         SubprocessAdapter::new("docling", command, args, vec![], supported_formats)
-            // docling_extract.py honors `--format=`; pass the requested format so
-            // plaintext vs markdown is real, not the script's default (markdown).
             .with_format_aware(true)
             .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS)),
     )
@@ -169,8 +112,6 @@ pub fn create_unstructured_adapter(ocr_enabled: bool) -> Result<SubprocessAdapte
     let supported_formats = get_supported_formats("unstructured");
     Ok(
         SubprocessAdapter::new("unstructured", command, args, vec![], supported_formats)
-            // unstructured_extract.py honors `--format=`; pass it for real
-            // plaintext vs markdown parity instead of the script default.
             .with_format_aware(true)
             .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS)),
     )
@@ -222,7 +163,6 @@ pub fn create_liteparse_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> 
 /// Helper function to get the path to a wrapper script
 /// Handles both development (source tree) and CI (downloaded artifact) environments
 fn get_script_path(script_name: &str) -> Result<PathBuf> {
-    // Priority 1: Check if CARGO_MANIFEST_DIR is set (development build)
     if let Ok(manifest_dir) = env::var("CARGO_MANIFEST_DIR") {
         let script_path = PathBuf::from(manifest_dir).join("scripts").join(script_name);
         if script_path.exists() {
@@ -230,21 +170,14 @@ fn get_script_path(script_name: &str) -> Result<PathBuf> {
         }
     }
 
-    // Priority 2: Check relative to current working directory (development)
     let script_path = PathBuf::from("tools/benchmark-harness/scripts").join(script_name);
     if script_path.exists() {
         return Ok(script_path);
     }
 
-    // Priority 3: Check relative to the running binary's parent directory (CI artifact)
-    // When the harness is downloaded as an artifact in CI, it's placed in target/release/
-    // but the scripts are still in the checkout at tools/benchmark-harness/scripts/
-    // Try to find the source tree by going up from the binary location
     if let Ok(exe_path) = std::env::current_exe()
         && let Some(exe_dir) = exe_path.parent()
     {
-        // exe_dir is typically target/release, go up to find the root
-        // Try: exe_dir/../../scripts/ (relative to target/release/)
         let script_path = exe_dir
             .join("..")
             .join("..")
@@ -257,7 +190,6 @@ fn get_script_path(script_name: &str) -> Result<PathBuf> {
         }
     }
 
-    // Priority 4: Check via BENCHMARK_HARNESS_SCRIPTS_DIR environment variable (CI override)
     if let Ok(scripts_dir) = env::var("BENCHMARK_HARNESS_SCRIPTS_DIR") {
         let script_path = PathBuf::from(scripts_dir).join(script_name);
         if script_path.exists() {
@@ -278,9 +210,6 @@ fn get_script_path(script_name: &str) -> Result<PathBuf> {
 /// Returns (command, args) where command is the executable and args are the base arguments
 fn find_python_with_framework(framework: &str) -> Result<(PathBuf, Vec<String>)> {
     if which::which("uv").is_ok() {
-        // Use `uv run <script>` which runs the script with the project's
-        // Python environment (.venv). Framework dependencies are installed
-        // via pyproject.toml dependency groups (bench-*).
         return Ok((PathBuf::from("uv"), vec!["run".to_string()]));
     }
 
@@ -360,7 +289,6 @@ fn get_tika_jar_path() -> Result<PathBuf> {
 fn ensure_tika_extract_compiled(java_path: &PathBuf, tika_jar_path: &PathBuf) -> Result<PathBuf> {
     let script_path = get_script_path("TikaExtract.java")?;
 
-    // Create a temp directory for compiled classes if it doesn't exist
     let compile_dir = PathBuf::from("target").join("tika-extract-classes");
     std::fs::create_dir_all(&compile_dir)
         .map_err(|e| crate::Error::Config(format!("Failed to create compile directory: {}", e)))?;
@@ -371,7 +299,6 @@ fn ensure_tika_extract_compiled(java_path: &PathBuf, tika_jar_path: &PathBuf) ->
         .join("benchmark")
         .join("TikaExtract.class");
 
-    // Only compile if the class file doesn't exist
     if !class_path.exists() {
         let output = std::process::Command::new(java_path)
             .arg("-version")
@@ -411,8 +338,6 @@ pub fn create_tika_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
     let command = find_java()?;
     let compile_dir = ensure_tika_extract_compiled(&command, &jar_path)?;
 
-    // Build classpath: compiled classes directory + tika-app JAR
-    // Use the platform-appropriate Java classpath separator (: on Unix, ; on Windows)
     #[cfg(target_os = "windows")]
     let classpath = format!("{};{}", compile_dir.display(), jar_path.display());
     #[cfg(not(target_os = "windows"))]
@@ -465,8 +390,6 @@ pub fn create_mineru_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
     let supported_formats = get_supported_formats("mineru");
     Ok(
         SubprocessAdapter::new("mineru", command, args, vec![], supported_formats)
-            // mineru_extract.py honors `--format=`; pass it for real plaintext vs
-            // markdown parity instead of the script default.
             .with_format_aware(true)
             .with_max_timeout(Duration::from_secs(SLOW_ML_TIMEOUT_SECS)),
     )

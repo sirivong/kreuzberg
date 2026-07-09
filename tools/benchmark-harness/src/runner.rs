@@ -77,7 +77,6 @@ fn calculate_statistics(iterations: &[IterationResult]) -> DurationStatistics {
     let mut durations_ms: Vec<f64> = durations.iter().map(|d| d.as_secs_f64() * 1000.0).collect();
     durations_ms.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    // Validate percentile is finite before creating Duration
     let p50 = percentile_r7(&durations_ms, 0.50);
     let median = if p50.is_finite() {
         Duration::from_secs_f64(p50 / 1000.0)
@@ -100,7 +99,6 @@ fn calculate_statistics(iterations: &[IterationResult]) -> DurationStatistics {
 
     let std_dev_ms = variance.sqrt();
 
-    // Validate p95 is finite before creating Duration
     let p95_ms = percentile_r7(&durations_ms, 0.95);
     let p95 = if p95_ms.is_finite() {
         Duration::from_secs_f64(p95_ms / 1000.0)
@@ -108,7 +106,6 @@ fn calculate_statistics(iterations: &[IterationResult]) -> DurationStatistics {
         Duration::from_secs(0)
     };
 
-    // Validate p99 is finite before creating Duration
     let p99_ms = percentile_r7(&durations_ms, 0.99);
     let p99 = if p99_ms.is_finite() {
         Duration::from_secs_f64(p99_ms / 1000.0)
@@ -193,8 +190,6 @@ impl BenchmarkRunner {
 
     /// Create a new benchmark runner with a specific output format
     pub fn with_output_format(config: BenchmarkConfig, registry: AdapterRegistry, output_format: OutputFormat) -> Self {
-        // Measure actual framework sizes instead of loading from static config
-        // This ensures accurate disk size reporting in benchmark results
         let framework_sizes = match crate::sizes::measure_framework_sizes() {
             Ok(sizes) => {
                 if !sizes.is_empty() {
@@ -220,7 +215,6 @@ impl BenchmarkRunner {
             }
             Err(e) => {
                 eprintln!("Warning: Failed to measure framework sizes: {}", e);
-                // No fallback - only use actual measurements
                 HashMap::new()
             }
         };
@@ -260,7 +254,6 @@ impl BenchmarkRunner {
     /// # Arguments
     /// * `result` - Mutable reference to benchmark result to enrich
     fn enrich_with_framework_size(&self, result: &mut BenchmarkResult) {
-        // Strip -batch suffix FIRST, then -sync/-async to find base framework
         let base_name = result
             .framework
             .trim_end_matches("-batch")
@@ -347,7 +340,6 @@ impl BenchmarkRunner {
             1
         };
 
-        // If warmup already timed out, run only one iteration to record the result.
         let effective_iterations = if warmup_timed_out {
             1
         } else {
@@ -373,7 +365,6 @@ impl BenchmarkRunner {
                 BenchmarkMode::SingleFile => "single-file",
                 BenchmarkMode::Batch => "batch",
             };
-            // Extract and sanitize filename for use in paths, with fallback for bad filenames
             let fixture_stem = file_path.file_stem().and_then(|s| s.to_str()).unwrap_or_else(|| {
                 eprintln!(
                     "Warning: Failed to extract valid UTF-8 filename from {:?}, using sanitized fallback",
@@ -462,7 +453,6 @@ impl BenchmarkRunner {
         let avg_extraction_duration = if !extraction_durations.is_empty() {
             let total_ms: f64 = extraction_durations.iter().map(|d| d.as_secs_f64() * 1000.0).sum();
             let avg_ms = total_ms / extraction_durations.len() as f64;
-            // Ensure the average is finite before creating Duration
             if avg_ms.is_finite() {
                 Some(Duration::from_secs_f64(avg_ms / 1000.0))
             } else {
@@ -483,10 +473,6 @@ impl BenchmarkRunner {
             all_results.first().and_then(|r| r.error_message.clone())
         };
 
-        // Take error_kind from the most severe across iterations
-        // Severity: Timeout=3 > HarnessError=2 > FrameworkError=1 > EmptyContent=1 > None=0
-        // But if any iteration succeeded, the aggregated result is successful with error_kind=None,
-        // because we use the successful iteration's data for the final result.
         let error_kind = if any_success {
             ErrorKind::None
         } else {
@@ -504,7 +490,6 @@ impl BenchmarkRunner {
                 .unwrap_or(ErrorKind::None)
         };
 
-        // Take quality from the first SUCCESSFUL iteration, not always from the first iteration
         let quality = all_results
             .iter()
             .find(|r| r.success)
@@ -565,14 +550,10 @@ impl BenchmarkRunner {
 
             let has_timeout = batch_results.iter().any(|r| r.error_kind == ErrorKind::Timeout);
 
-            // Record benchmark iterations normally; also record a timed-out warmup
-            // iteration so a genuine batch timeout surfaces as a Timeout result rather
-            // than falling through to the opaque "No batch results" error below.
             if iteration >= config.warmup_iterations || has_timeout {
                 all_batch_results.push(batch_results);
             }
 
-            // Stop retrying if any file in the batch timed out
             if has_timeout {
                 break;
             }
@@ -589,7 +570,6 @@ impl BenchmarkRunner {
             return Ok(result);
         }
 
-        // Aggregate per-file across iterations
         if all_batch_results.is_empty() {
             return Err(Error::Benchmark("No batch results".to_string()));
         }
@@ -629,7 +609,6 @@ impl BenchmarkRunner {
             let avg_extraction_duration = if !extraction_durations.is_empty() {
                 let total_ms: f64 = extraction_durations.iter().map(|d| d.as_secs_f64() * 1000.0).sum();
                 let avg_ms = total_ms / extraction_durations.len() as f64;
-                // Ensure the average is finite before creating Duration
                 if avg_ms.is_finite() {
                     Some(Duration::from_secs_f64(avg_ms / 1000.0))
                 } else {
@@ -649,7 +628,6 @@ impl BenchmarkRunner {
                 first_result.error_message.clone()
             };
 
-            // If any iteration succeeded, the aggregated result is successful with error_kind=None
             let error_kind = if any_success {
                 ErrorKind::None
             } else {
@@ -708,8 +686,6 @@ impl BenchmarkRunner {
             return Err(Error::Benchmark("No frameworks available for benchmarking".to_string()));
         }
 
-        // Pre-flight check: validate all fixture document files exist
-        // This catches missing vendored/test files early with a clear error
         let mut missing_files = Vec::new();
         for (fixture_path, fixture) in self.fixtures.fixtures() {
             let fixture_dir = fixture_path.parent().unwrap_or_else(|| std::path::Path::new("."));
@@ -742,7 +718,6 @@ impl BenchmarkRunner {
         }
 
         for adapter in &frameworks {
-            // Find the first fixture this adapter supports for warmup
             let warmup_fixture = self
                 .fixtures
                 .fixtures()
@@ -792,7 +767,6 @@ impl BenchmarkRunner {
             let mut adapter_files: HashMap<String, Vec<(PathBuf, bool)>> = HashMap::new();
 
             for (fixture_path, fixture) in self.fixtures.fixtures() {
-                // Skip OCR-requiring fixtures when OCR is disabled
                 if !self.config.ocr_enabled && fixture.requires_ocr() {
                     continue;
                 }
@@ -845,16 +819,12 @@ impl BenchmarkRunner {
                         .await
                         {
                             Ok(mut batch_results) => {
-                                // Enrich each result with framework size information
                                 for result in &mut batch_results {
                                     self.enrich_with_framework_size(result);
                                 }
                                 results.extend(batch_results);
                             }
                             Err(e) => {
-                                // Batch errors must fail the benchmark, not silently continue
-                                // This prevents silent data loss when adapters like liteparse
-                                // fail to produce output files.
                                 return Err(e);
                             }
                         }
@@ -903,7 +873,6 @@ impl BenchmarkRunner {
             let mut task_queue: Vec<(PathBuf, String, Arc<dyn FrameworkAdapter>, bool)> = Vec::new();
 
             for (fixture_path, fixture) in self.fixtures.fixtures() {
-                // Skip OCR-requiring fixtures when OCR is disabled
                 if !self.config.ocr_enabled && fixture.requires_ocr() {
                     continue;
                 }
@@ -955,9 +924,7 @@ impl BenchmarkRunner {
             }
         }
 
-        // Apply quality scoring if enabled
         if self.config.measure_quality {
-            // Build mapping from document path -> ground truth text and markdown
             let mut ground_truth_map: HashMap<PathBuf, String> = HashMap::new();
             let mut markdown_gt_map: HashMap<PathBuf, String> = HashMap::new();
             for (fixture_path, fixture) in self.fixtures.fixtures() {
@@ -1089,7 +1056,6 @@ mod tests {
         let registry = AdapterRegistry::new();
         let runner = BenchmarkRunner::new(config, registry);
 
-        // Test with -sync suffix
         let mut result_sync = BenchmarkResult {
             framework: "xberg-python-sync".to_string(),
             output_format: OutputFormat::Markdown,
@@ -1113,7 +1079,6 @@ mod tests {
             extracted_text: None,
         };
 
-        // Test with -async suffix
         let mut result_async = BenchmarkResult {
             framework: "xberg-python-async".to_string(),
             output_format: OutputFormat::Markdown,
@@ -1137,7 +1102,6 @@ mod tests {
             extracted_text: None,
         };
 
-        // Test with -batch suffix
         let mut result_batch = BenchmarkResult {
             framework: "xberg-python-batch".to_string(),
             output_format: OutputFormat::Markdown,
@@ -1161,24 +1125,19 @@ mod tests {
             extracted_text: None,
         };
 
-        // Verify installation_size is None before enrichment
         assert!(result_sync.framework_capabilities.installation_size.is_none());
         assert!(result_async.framework_capabilities.installation_size.is_none());
         assert!(result_batch.framework_capabilities.installation_size.is_none());
 
-        // Enrich the results
         runner.enrich_with_framework_size(&mut result_sync);
         runner.enrich_with_framework_size(&mut result_async);
         runner.enrich_with_framework_size(&mut result_batch);
 
-        // If framework_sizes.json exists and contains xberg-python, verify all variants are enriched
         if let Some(size_info) = &result_sync.framework_capabilities.installation_size {
-            // All three should have the same size info from base "xberg-python"
             assert!(size_info.size_bytes > 0, "Size should be positive");
             assert!(!size_info.method.is_empty(), "Method should be set");
             assert!(!size_info.description.is_empty(), "Description should be set");
 
-            // Verify all variants got enriched with the same data
             assert!(result_async.framework_capabilities.installation_size.is_some());
             assert!(result_batch.framework_capabilities.installation_size.is_some());
 

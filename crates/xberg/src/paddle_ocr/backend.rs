@@ -15,13 +15,10 @@ use std::panic::catch_unwind;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-// Thread-local storage for passing AccelerationConfig to PaddleOCR session builder.
-// Required because OcrLite's API uses function pointers (not closures).
 thread_local! {
     static PADDLE_TL_ACCEL: RefCell<Option<crate::core::config::acceleration::AccelerationConfig>> = const { RefCell::new(None) };
 }
 
-// Session builder function that applies acceleration from thread-local storage.
 fn paddle_accel_builder_fn(
     builder: ort::session::builder::SessionBuilder,
 ) -> std::result::Result<ort::session::builder::SessionBuilder, ort::Error> {
@@ -151,7 +148,6 @@ impl PaddleOcrBackend {
         };
         let pool_key = format!("{version}/{tier}/{}/{accel_key}", resolved.model_key);
 
-        // Fast path: check if engine already exists
         {
             let pool = self.engine_pool.lock().map_err(|e| crate::XbergError::Plugin {
                 message: format!("Failed to acquire engine pool lock: {e}"),
@@ -162,7 +158,6 @@ impl PaddleOcrBackend {
             }
         }
 
-        // Slow path: create new engine
         let shared = self.get_or_init_shared_paths()?;
 
         crate::ort_discovery::ensure_ort_available();
@@ -175,9 +170,6 @@ impl PaddleOcrBackend {
         let cls_model_path = Self::find_onnx_model(&shared.cls_model)?;
         let rec_model_path = Self::find_onnx_model(&resolved.model_dir)?;
 
-        // Use 1 ONNX thread per engine since multiple pages run concurrently
-        // via JoinSet. Page-level parallelism is more efficient than per-engine
-        // multi-threading for OCR workloads.
         let num_threads = 1;
 
         let dict_path = resolved.dict_file.to_str().ok_or_else(|| crate::XbergError::Ocr {
@@ -185,11 +177,7 @@ impl PaddleOcrBackend {
             source: None,
         })?;
 
-        // Build a custom session builder function if acceleration is configured.
-        // Uses module-level thread-local to pass AccelerationConfig to the fn pointer
-        // since OcrLite's API uses fn pointers (not closures).
         // NOTE: The thread-local is set by `process_image` from the per-call
-        // `OcrConfig::acceleration` before engines are created.
         let builder_fn: Option<
             fn(
                 ort::session::builder::SessionBuilder,
@@ -230,19 +218,15 @@ impl PaddleOcrBackend {
 
         let engine = Arc::new(ocr_lite);
 
-        // Insert into pool (with double-check for concurrent initialization)
         let mut pool = self.engine_pool.lock().map_err(|e| crate::XbergError::Plugin {
             message: format!("Failed to acquire engine pool lock: {e}"),
             plugin_name: "paddle-ocr".to_string(),
         })?;
 
-        // Re-check if another thread already inserted an engine while we were creating ours
         if let Some(existing_engine) = pool.get(&pool_key) {
-            // Another thread beat us; use their engine instead
             return Ok(Arc::clone(existing_engine));
         }
 
-        // We're first; insert our engine
         pool.insert(pool_key, Arc::clone(&engine));
 
         Ok(engine)
@@ -363,10 +347,6 @@ impl PaddleOcrBackend {
 
         let padding = config.padding;
         let max_side_len = config.det_limit_side_len;
-        // Reference mapping: det_db_thresh (0.3) = DB binarization threshold,
-        // det_db_box_thresh (0.5) = minimum box confidence score.
-        // OcrLite::detect takes (box_score_thresh, box_thresh, ...) where
-        // box_score_thresh filters by score and box_thresh is legacy (now unused).
         let box_score_thresh = config.det_db_box_thresh;
         let box_thresh = config.det_db_thresh;
         let un_clip_ratio = config.det_db_unclip_ratio;
@@ -389,7 +369,6 @@ impl PaddleOcrBackend {
                 source: None,
             })?;
 
-        // Filter out low-confidence recognition results (matches PaddleOCR's drop_score)
         let drop_score = config.drop_score;
         let text_blocks: Vec<_> = result
             .text_blocks
@@ -432,9 +411,6 @@ impl OcrBackend for PaddleOcrBackend {
             });
         }
 
-        // Set per-call acceleration on the thread-local so that the ONNX session
-        // builder picks it up when lazily initializing engines. This replaces the
-        // old `self.acceleration` path which was always None.
         PADDLE_TL_ACCEL.with(|cell| {
             *cell.borrow_mut() = config.acceleration.clone();
         });
@@ -450,13 +426,10 @@ impl OcrBackend for PaddleOcrBackend {
             Arc::clone(&self.config)
         };
 
-        // Map the first language code to PaddleOCR language (PaddleOCR supports single language per call)
-        // Multi-language support would require multiple passes, which is beyond scope for this release.
         let languages = config.effective_languages();
         let primary_lang = languages[0].as_str();
         let paddle_lang = map_language_code(primary_lang).unwrap_or("en");
 
-        // Auto-rotate: detect page orientation and rotate image if needed
         let ocr_image_bytes: std::borrow::Cow<'_, [u8]> = if config.auto_rotate {
             match self.detect_and_rotate(image_bytes) {
                 Ok(Some(rotated)) => std::borrow::Cow::Owned(rotated),
@@ -470,8 +443,6 @@ impl OcrBackend for PaddleOcrBackend {
             std::borrow::Cow::Borrowed(image_bytes)
         };
 
-        // Resolve acceleration: per-request OcrConfig.acceleration takes precedence
-        // over the backend-level default (fixes #783).
         let effective_accel = self.resolve_acceleration(config.acceleration.as_ref());
 
         let (text, ocr_elements) = self
@@ -485,8 +456,6 @@ impl OcrBackend for PaddleOcrBackend {
 
         let text_blocks_count = ocr_elements.len();
 
-        // Build structured InternalDocument from OCR elements for the layout
-        // classification pipeline (same path as tesseract hOCR).
         let ocr_doc = {
             use crate::types::extraction::BoundingBox;
             use crate::types::internal::{ElementKind, InternalDocument, InternalElement};
@@ -524,7 +493,6 @@ impl OcrBackend for PaddleOcrBackend {
             "PaddleOCR InternalDocument built"
         );
 
-        // Table detection
         let mut tables: Vec<Table> = vec![];
         let mut table_count = 0;
         let mut table_rows: Option<u32> = None;
@@ -734,7 +702,6 @@ mod tests {
         use crate::types::internal::{ElementKind, InternalDocument, InternalElement};
         use crate::types::ocr_elements::OcrElementLevel;
 
-        // Create mock TextBlocks like PaddleOCR would produce
         let blocks = [
             xberg_paddle_ocr::TextBlock {
                 text: "Hello World".to_string(),
@@ -764,7 +731,6 @@ mod tests {
             },
         ];
 
-        // Convert TextBlocks to OcrElements (same as backend does)
         let ocr_elements: Vec<OcrElement> = blocks
             .iter()
             .map(|block| text_block_to_element(block, 1))
@@ -774,7 +740,6 @@ mod tests {
 
         assert_eq!(ocr_elements.len(), 2, "Should produce 2 OcrElements");
 
-        // Build InternalDocument (same logic as process_image)
         let mut doc = InternalDocument::new("pdf");
         for elem in &ocr_elements {
             let (left, top, width, height) = elem.geometry.to_aabb();
@@ -798,7 +763,6 @@ mod tests {
             doc.push_element(ie);
         }
 
-        // Verify OcrText elements have correct ElementKind
         for ie in &doc.elements {
             assert!(
                 matches!(
@@ -811,7 +775,6 @@ mod tests {
             );
         }
 
-        // Verify bounding boxes from Quadrilateral → AABB
         let first_bbox = doc.elements[0].bbox.as_ref().expect("First element should have bbox");
         assert_eq!(first_bbox.x0, 10.0, "left should be min x of quad points");
         assert_eq!(first_bbox.y0, 10.0, "top should be min y of quad points");
@@ -824,9 +787,6 @@ mod tests {
         assert_eq!(second_bbox.x1, 300.0);
         assert_eq!(second_bbox.y1, 100.0);
 
-        // Verify confidence scores are preserved
-        // Note: f32 → f64 conversion introduces small floating-point error,
-        // so we use a tolerance rather than exact equality.
         let first_conf = doc.elements[0]
             .ocr_confidence
             .as_ref()
@@ -842,7 +802,6 @@ mod tests {
             first_conf.recognition
         );
 
-        // Verify page numbers are set
         assert_eq!(doc.elements[0].page, Some(1));
         assert_eq!(doc.elements[1].page, Some(1));
     }
@@ -857,7 +816,6 @@ mod tests {
     fn test_paddle_accel_tl_set_from_ocr_config_acceleration() {
         use crate::core::config::AccelerationConfig;
 
-        // Start with no acceleration — thread-local should be cleared.
         PADDLE_TL_ACCEL.with(|cell| {
             *cell.borrow_mut() = Some(AccelerationConfig {
                 provider: crate::core::config::acceleration::ExecutionProviderType::Cpu,
@@ -865,7 +823,6 @@ mod tests {
             });
         });
 
-        // Simulate what process_image does when config.acceleration is None.
         let accel: Option<AccelerationConfig> = None;
         PADDLE_TL_ACCEL.with(|cell| {
             *cell.borrow_mut() = accel.clone();
@@ -873,7 +830,6 @@ mod tests {
         let tl_value = PADDLE_TL_ACCEL.with(|cell| cell.borrow().clone());
         assert!(tl_value.is_none(), "TL should be cleared when acceleration is None");
 
-        // Simulate what process_image does when config.acceleration is Some(cuda).
         let cuda_accel = AccelerationConfig {
             provider: crate::core::config::acceleration::ExecutionProviderType::Cuda,
             device_id: 0,
@@ -889,7 +845,6 @@ mod tests {
             "TL provider should be Cuda"
         );
 
-        // Clean up thread-local after test.
         PADDLE_TL_ACCEL.with(|cell| {
             *cell.borrow_mut() = None;
         });

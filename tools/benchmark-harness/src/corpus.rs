@@ -62,19 +62,16 @@ pub fn build_corpus(fixtures_dir: &Path, filter: &CorpusFilter) -> Result<Vec<Co
             .unwrap_or("")
             .to_string();
 
-        // Apply name filter (match ANY pattern)
         if !filter.name_patterns.is_empty() && !filter.name_patterns.iter().any(|p| name.contains(p.as_str())) {
             continue;
         }
 
-        // Apply file type filter
         if let Some(ref types) = filter.file_types
             && !types.contains(&fixture.file_type)
         {
             continue;
         }
 
-        // Apply file size filter
         if let Some(max_size) = filter.max_file_size
             && fixture.file_size > max_size
         {
@@ -85,7 +82,6 @@ pub fn build_corpus(fixtures_dir: &Path, filter: &CorpusFilter) -> Result<Vec<Co
         let gt_text = fixture.resolve_ground_truth_path(fixture_dir);
         let gt_markdown = fixture.resolve_ground_truth_markdown_path(fixture_dir);
 
-        // Apply ground truth filters
         if filter.require_ground_truth && gt_text.is_none() {
             continue;
         }

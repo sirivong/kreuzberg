@@ -1,18 +1,4 @@
 #!/usr/bin/env node
-// Generates docs-site/public/demo-dev.html from docs-site/public/demo.html with CDN URLs replaced
-// by the local asset server so no manual editing of demo.html is ever needed.
-//
-// CDN pattern replaced:
-//   https://cdn.jsdelivr.net/npm/@xberg-io/xberg-wasm@*/...
-//   → http://localhost:9000/...
-//
-// Also patches pkg/web/xberg_wasm.js (gitignored, wasm-pack generated) to
-// replace bare specifier imports ("env", "wasi_snapshot_preview1") with inline
-// browser shims.  The local 5.x WASM binary is compiled with WASI syscalls via
-// tesseract's C layer; the importmap approach does not propagate into Workers
-// loading cross-origin modules, so we shim the generated JS directly.
-//
-// The output file is gitignored and regenerated on every `task demo:dev`.
 
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
@@ -39,10 +25,6 @@ writeFileSync(dest, patched, "utf8");
 console.log(`patch-demo-dev: docs-site/public/demo-dev.html → http://localhost:8001/demo-dev.html`);
 console.log(`  assets served from http://localhost:${ASSET_PORT}`);
 
-// Patch pkg/web/xberg_wasm.js — strip bare "env" / "wasi_snapshot_preview1"
-// import lines and replace with inline browser shims so the module loads in a
-// Worker without an importmap (importmap inheritance in Workers is unreliable
-// for bare specifiers in transitive cross-origin dynamic imports).
 const wasmJs = join(root, "crates", "xberg-wasm", "pkg", "web", "xberg_wasm.js");
 if (!existsSync(wasmJs)) {
   console.warn(`patch-demo-dev: ${wasmJs} not found — skipping WASI shim patch`);

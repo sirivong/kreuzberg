@@ -156,7 +156,6 @@ fn extract_pptx_from_container<R: std::io::Read + std::io::Seek>(
     let notes = extract_all_notes(&mut container)?;
     let section_names = extract_section_names(&mut container)?;
 
-    // Extract slide comments before the container is consumed by the iterator.
     let slide_paths_for_comments = container.slide_paths().to_vec();
     let revisions = comments::extract_comments(&mut container, &slide_paths_for_comments);
 
@@ -204,18 +203,15 @@ fn extract_pptx_from_container<R: std::io::Read + std::io::Seek>(
             );
         }
 
-        // Build document structure for this slide (only when requested)
         if let Some(ref mut builder) = doc_builder {
             build_slide_structure(&slide, builder, &mut image_index_counter);
         }
 
-        // Collect hyperlinks from runs that have hlinkClick references
         collect_slide_hyperlinks(&slide, &mut collected_hyperlinks);
 
         if config.extract_images
             && let Ok(image_data) = iterator.get_slide_images(&slide)
         {
-            // Collect image element metadata for matching
             let image_elements: Vec<_> = slide
                 .elements
                 .iter()
@@ -232,8 +228,6 @@ fn extract_pptx_from_container<R: std::io::Read + std::io::Seek>(
                 let format = detect_image_format(data);
                 let image_index = extracted_images.len();
 
-                // Try to get dimensions and description from corresponding element
-                // EMU to pixels at 96 DPI: 1 pixel = 9525 EMU
                 let (width, height, description, bbox) =
                     if let Some((img_ref, pos)) = image_elements.get(img_idx_in_slide) {
                         let w = if pos.cx > 0 { Some((pos.cx / 9525) as u32) } else { None };
@@ -243,7 +237,6 @@ fn extract_pptx_from_container<R: std::io::Read + std::io::Seek>(
                         (None, None, None, None)
                     };
 
-                // Classify image based on metadata and visual properties
                 let (image_kind, kind_confidence) =
                     crate::extraction::image_kind::classify(data, format.as_ref(), width, height, None, None, false);
 
@@ -277,7 +270,6 @@ fn extract_pptx_from_container<R: std::io::Read + std::io::Seek>(
 
     let (content, boundaries, mut page_contents) = content_builder.build();
 
-    // Refine is_blank: slides that have images are not blank
     if let Some(ref mut pcs) = page_contents {
         for pc in pcs.iter_mut() {
             if extracted_images
@@ -340,7 +332,6 @@ fn runs_to_text_and_annotations(runs: &[Run]) -> (String, Vec<TextAnnotation>) {
             continue;
         }
 
-        // Insert a space between runs when needed
         if !text.is_empty() {
             let ends_ws = text.ends_with(|c: char| c.is_whitespace());
             let starts_ws = run_text.starts_with(|c: char| c.is_whitespace());
@@ -366,7 +357,6 @@ fn runs_to_text_and_annotations(runs: &[Run]) -> (String, Vec<TextAnnotation>) {
             annotations.push(builder::strikethrough(start, end));
         }
         if let Some(sz) = run.formatting.font_size {
-            // sz is in hundredths of a point; convert to "Xpt" string
             let pts = sz as f64 / 100.0;
             let value = if pts.fract() == 0.0 {
                 format!("{}pt", pts as u32)
@@ -402,15 +392,12 @@ fn build_slide_structure(
     doc_builder: &mut DocumentStructureBuilder,
     image_index_counter: &mut u32,
 ) {
-    // Determine slide title: first short text element
     let mut sorted_indices: Vec<usize> = (0..slide.elements.len()).collect();
     sorted_indices.sort_by_key(|&i| {
         let pos = slide.elements[i].position();
         (pos.y, pos.x)
     });
 
-    // Find the slide title: prefer explicit title placeholder, fall back to
-    // first short text element.
     let slide_title = sorted_indices
         .iter()
         .find_map(|&idx| {
@@ -458,7 +445,6 @@ fn build_slide_structure(
                 } else if !plain_text.trim().is_empty() {
                     let node_idx = doc_builder.push_paragraph(&plain_text, annotations, None, bbox);
 
-                    // Store language from first run with a non-empty lang
                     if let Some(lang) = text.runs.iter().find_map(|r| {
                         let l = &r.formatting.lang;
                         if l.is_empty() { None } else { Some(l.clone()) }
@@ -497,7 +483,6 @@ fn build_slide_structure(
                 }
             }
             SlideElement::Image(img_ref, _) => {
-                // Prefer alt text description, fall back to target path
                 let desc = img_ref.description.as_deref().or({
                     if img_ref.target.is_empty() {
                         None
@@ -518,7 +503,6 @@ fn build_slide_structure(
 /// Collect hyperlinks from all runs in a slide by resolving `hlinkClick` rIds
 /// against the slide's hyperlink relationships.
 fn collect_slide_hyperlinks(slide: &elements::Slide, out: &mut Vec<(String, Option<String>)>) {
-    // Helper: iterate all runs from all elements
     let mut visit_runs = |runs: &[Run]| {
         for run in runs {
             if let Some(ref hlink_id) = run.hyperlink_id
@@ -554,7 +538,6 @@ fn collect_slide_hyperlinks(slide: &elements::Slide, out: &mut Vec<(String, Opti
     }
 }
 
-// Re-export Slide implementation methods for internal use
 impl elements::Slide {
     fn from_xml(slide_number: u32, xml_data: &[u8], rels_data: Option<&[u8]>) -> Result<Self> {
         let elements = parser::parse_slide_xml(xml_data)?;
@@ -587,9 +570,6 @@ impl elements::Slide {
             (pos.y, pos.x)
         });
 
-        // Find the slide title: prefer a shape with an explicit title placeholder
-        // type (type="title" or type="ctrTitle"). Fall back to the first short text
-        // element in y-sorted order when no placeholder is marked.
         let title_idx = element_indices
             .iter()
             .find_map(|&idx| {
@@ -604,7 +584,6 @@ impl elements::Slide {
                 None
             })
             .or_else(|| {
-                // Fallback: first short text element
                 element_indices.iter().find_map(|&idx| {
                     if let SlideElement::Text(text, _) = &self.elements[idx] {
                         let plain = join_runs_with_spacing(&text.runs, Run::extract);
@@ -617,7 +596,6 @@ impl elements::Slide {
                 })
             });
 
-        // Emit title first as a heading
         if let Some(tidx) = title_idx
             && let SlideElement::Text(text, _) = &self.elements[tidx]
         {
@@ -631,7 +609,6 @@ impl elements::Slide {
         }
 
         for &idx in &element_indices {
-            // Skip the title element we already emitted
             if Some(idx) == title_idx {
                 continue;
             }
@@ -644,7 +621,6 @@ impl elements::Slide {
                         join_runs_with_spacing(&text.runs, Run::render_as_md)
                     };
 
-                    // All remaining text elements are body text, not titles
                     builder.add_text(&text_content);
                 }
                 SlideElement::Table(table, _) => {
@@ -668,18 +644,12 @@ impl elements::Slide {
                         if item.has_bullet {
                             builder.add_list_item(item.level, item.is_ordered, &item_text);
                         } else {
-                            // Non-bulleted preamble paragraph within a list shape.
-                            // Render as plain text, not a list item.
                             builder.add_text(&item_text);
                         }
                     }
                 }
                 SlideElement::Image(img_ref, _) => {
-                    // Only emit the markdown image reference when inject_placeholders
-                    // is enabled (default true). When false, image data may still be
-                    // extracted separately but the reference is not injected into text.
                     if config.inject_placeholders {
-                        // Resolve image target from rels
                         let target = self
                             .images
                             .iter()
@@ -800,7 +770,6 @@ pub(crate) mod tests {
             )
             .unwrap();
 
-            // Add app.xml with slide count
             let app_xml = format!(
                 r#"<?xml version="1.0" encoding="UTF-8"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"
@@ -870,7 +839,6 @@ pub(crate) mod tests {
         )
         .unwrap();
 
-        // Metadata should be populated (slide_count should be 1 for the test content)
         assert_eq!(result.metadata.slide_count, 1);
     }
 
@@ -926,8 +894,8 @@ pub(crate) mod tests {
 
     /// Build a PPTX bytes with sections and optional speaker notes for integration testing.
     pub(crate) fn create_pptx_with_sections_and_notes(
-        slides: &[(&str, Option<&str>)], // (text, notes)
-        sections: &[(&str, &[usize])],   // (name, 1-indexed slide positions)
+        slides: &[(&str, Option<&str>)],
+        sections: &[(&str, &[usize])],
     ) -> Vec<u8> {
         use std::io::Write;
         use zip::write::{SimpleFileOptions, ZipWriter};
@@ -952,7 +920,6 @@ pub(crate) mod tests {
     <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/>
 </Relationships>"#).unwrap();
 
-        // Build rels file listing each slide
         let mut pres_rels = String::from(
             r#"<?xml version="1.0" encoding="UTF-8"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">"#,
@@ -969,7 +936,6 @@ pub(crate) mod tests {
         zip.start_file("ppt/_rels/presentation.xml.rels", opts).unwrap();
         zip.write_all(pres_rels.as_bytes()).unwrap();
 
-        // Build sldIdLst: base ID = 256
         let base_id: u32 = 256;
         let mut sld_id_lst = String::new();
         for (i, _) in slides.iter().enumerate() {
@@ -982,7 +948,6 @@ pub(crate) mod tests {
             );
         }
 
-        // Build sectionLst
         let mut section_lst = String::new();
         for (name, positions) in sections {
             use std::fmt::Write as FmtWrite;
@@ -1018,7 +983,6 @@ pub(crate) mod tests {
         zip.start_file("ppt/presentation.xml", opts).unwrap();
         zip.write_all(presentation_xml.as_bytes()).unwrap();
 
-        // Write slide XML and optional notes XML
         for (i, (text, notes)) in slides.iter().enumerate() {
             let slide_xml = format!(
                 r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -1169,7 +1133,6 @@ pub(crate) mod tests {
             &pptx,
             &PptxExtractionOptions {
                 extract_images: false,
-                // no page_config → page_contents should be None
                 ..Default::default()
             },
         )
@@ -1257,8 +1220,6 @@ pub(crate) mod tests {
         );
     }
 
-    // ── inject_placeholders tests (issue #671) ──
-
     /// Build a minimal PPTX ZIP with one slide that contains an image (<p:pic>) element.
     ///
     /// The slide XML includes a picture shape referencing rel id "rId2", and the
@@ -1298,7 +1259,6 @@ pub(crate) mod tests {
     <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/>
 </Relationships>"#).unwrap();
 
-            // Slide with both a text run and a picture element
             let slide_xml = format!(
                 r#"<?xml version="1.0" encoding="UTF-8"?>
 <p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
@@ -1331,14 +1291,12 @@ pub(crate) mod tests {
             zip.start_file("ppt/slides/slide1.xml", opts).unwrap();
             zip.write_all(slide_xml.as_bytes()).unwrap();
 
-            // Rels for the slide: rId2 → media/image1.png
             zip.start_file("ppt/slides/_rels/slide1.xml.rels", opts).unwrap();
             zip.write_all(br#"<?xml version="1.0" encoding="UTF-8"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
     <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.png"/>
 </Relationships>"#).unwrap();
 
-            // A tiny placeholder PNG (1×1 transparent)
             zip.start_file("ppt/media/image1.png", opts).unwrap();
             zip.write_all(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82").unwrap();
 
@@ -1399,7 +1357,6 @@ pub(crate) mod tests {
 
     #[test]
     fn test_inject_placeholders_false_preserves_text_content() {
-        // Suppressing image references must not remove surrounding slide text.
         let pptx = create_pptx_with_image_slide("Quarterly Review");
         let result = extract_pptx_from_bytes(
             &pptx,
@@ -1419,8 +1376,6 @@ pub(crate) mod tests {
 
     #[test]
     fn test_default_inject_placeholders_preserves_existing_behaviour() {
-        // inject_placeholders defaults to true — existing call sites without the
-        // new arg (via the public API passing true) must continue to emit refs.
         let pptx = create_pptx_with_image_slide("Slide Title");
         let result_true = extract_pptx_from_bytes(
             &pptx,
@@ -1439,14 +1394,11 @@ pub(crate) mod tests {
             },
         )
         .unwrap();
-        // With placeholders: content is longer (image refs add characters)
         assert!(
             result_true.content.len() >= result_false.content.len(),
             "inject_placeholders=true should produce >= content length vs false"
         );
     }
-
-    // ── slide comment / revisions tests ──────────────────────────────────────
 
     /// Build a minimal PPTX with optional comment XML parts.
     ///
@@ -1488,7 +1440,6 @@ pub(crate) mod tests {
         )
         .unwrap();
 
-        // Build ppt/_rels/presentation.xml.rels listing each slide
         let mut rels = String::from(
             r#"<?xml version="1.0" encoding="UTF-8"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">"#,
@@ -1507,11 +1458,9 @@ pub(crate) mod tests {
         zip.start_file("ppt/_rels/presentation.xml.rels", opts).unwrap();
         zip.write_all(rels.as_bytes()).unwrap();
 
-        // Minimal presentation.xml
         zip.start_file("ppt/presentation.xml", opts).unwrap();
         zip.write_all(br#"<?xml version="1.0"?><p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:sldIdLst/></p:presentation>"#).unwrap();
 
-        // Write slide XML
         for (i, text) in slides.iter().enumerate() {
             let slide_xml = format!(
                 r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -1526,7 +1475,6 @@ pub(crate) mod tests {
             zip.write_all(slide_xml.as_bytes()).unwrap();
         }
 
-        // Write commentAuthors.xml if any authors provided
         if !authors.is_empty() {
             let mut authors_xml = String::from(
                 r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -1544,7 +1492,6 @@ pub(crate) mod tests {
             zip.write_all(authors_xml.as_bytes()).unwrap();
         }
 
-        // Write per-slide comment files
         for (slide_idx, slide_comments) in comments_per_slide.iter().enumerate() {
             if slide_comments.is_empty() {
                 continue;
@@ -1566,7 +1513,6 @@ pub(crate) mod tests {
             zip.write_all(cm_xml.as_bytes()).unwrap();
         }
 
-        // Minimal docProps
         zip.start_file("docProps/core.xml", opts).unwrap();
         zip.write_all(
             br#"<?xml version="1.0"?>
@@ -1662,7 +1608,6 @@ pub(crate) mod tests {
         .unwrap();
 
         let revisions = result.revisions.as_ref().expect("revisions should be Some");
-        // 1 comment on slide 1 + 0 on slide 2 + 2 on slide 3 = 3 total
         assert_eq!(revisions.len(), 3);
 
         use crate::types::revisions::RevisionAnchor;

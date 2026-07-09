@@ -30,13 +30,11 @@ pub fn create_xberg_adapter(
 ) -> Result<SubprocessAdapter> {
     let cli_path = locate_xberg_cli()?;
 
-    // Map output format to CLI flag
     let content_format = match output_format {
         OutputFormat::Markdown => "markdown",
         OutputFormat::Plaintext => "plain",
     };
 
-    // Build command arguments
     let subcommand = if batch { "batch" } else { "extract" };
     let mut args = vec![
         subcommand.to_string(),
@@ -44,15 +42,10 @@ pub fn create_xberg_adapter(
         "json".to_string(),
         "--content-format".to_string(),
         content_format.to_string(),
-        // Lift the CLI's 60s default extraction timeout to just under the
-        // harness timeout (1800s): slow-but-successful extractions (large
-        // layout docs run >100s) must be measured, not failed. CLI flags
-        // still override individual fields from this JSON.
         "--config-json".to_string(),
         r#"{"extraction_timeout_secs":1740}"#.to_string(),
     ];
 
-    // Add pipeline-specific flags
     match pipeline {
         XbergPipeline::Baseline => {
             args.push("--ocr".to_string());
@@ -61,11 +54,6 @@ pub fn create_xberg_adapter(
             args.push("tesseract".to_string());
         }
         XbergPipeline::Layout => {
-            // `--layout` is Option<bool> with `num_args = 0..=1`, so `--layout true` parses.
-            // `--use-layout-for-markdown` is a plain `bool` presence flag — appending "true"
-            // as a second token leaves the literal "true" as an orphan positional argument
-            // and clap rejects the whole invocation, producing the 100% harness-error
-            // pattern observed on the Xberg Layout variant in the dashboard.
             args.push("--layout".to_string());
             args.push("true".to_string());
             args.push("--use-layout-for-markdown".to_string());
@@ -124,7 +112,6 @@ pub fn create_xberg_adapter(
         }
     }
 
-    // Forward-compat marker: always specify pdf-backend
     args.push("--pdf-backend".to_string());
     args.push("pdf-oxide".to_string());
 
@@ -166,19 +153,16 @@ pub fn create_xberg_adapter(
 /// * `Ok(PathBuf)` - Path to the executable
 /// * `Err(Error)` - If xberg cannot be found
 fn locate_xberg_cli() -> Result<PathBuf> {
-    // Try release build first
     let release_path = PathBuf::from("target/release/xberg");
     if release_path.exists() {
         return Ok(release_path);
     }
 
-    // Try debug build
     let debug_path = PathBuf::from("target/debug/xberg");
     if debug_path.exists() {
         return Ok(debug_path);
     }
 
-    // Try system PATH
     if let Ok(path) = which("xberg") {
         return Ok(path);
     }

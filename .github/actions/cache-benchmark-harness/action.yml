@@ -32,7 +32,6 @@ outputs:
 runs:
   using: composite
   steps:
-    # Validate inputs
     - name: Validate inputs
       shell: bash
       env:
@@ -51,7 +50,6 @@ runs:
         echo "  Build profile: $BUILD_PROFILE"
         echo "  Cache version: ${{ inputs.cache-version }}"
 
-    # Compute hash for benchmark-harness sources
     - name: Compute benchmark-harness source hash
       id: harness-hash
       shell: bash
@@ -74,7 +72,6 @@ runs:
         echo "harness-hash=$HARNESS_HASH" >> "$GITHUB_OUTPUT"
         echo "✓ Harness source hash: $HARNESS_HASH"
 
-    # Compute hash for xberg dependency
     - name: Compute xberg dependency hash
       id: xberg-hash
       shell: bash
@@ -96,7 +93,6 @@ runs:
         echo "xberg-hash=$XBERG_HASH" >> "$GITHUB_OUTPUT"
         echo "✓ Xberg dependency hash: $XBERG_HASH"
 
-    # Compute hash for Cargo files
     - name: Compute Cargo files hash
       id: cargo-hash
       shell: bash
@@ -116,7 +112,6 @@ runs:
         echo "cargo-hash=$CARGO_HASH" >> "$GITHUB_OUTPUT"
         echo "✓ Cargo files hash: $CARGO_HASH"
 
-    # Generate cache key
     - name: Generate cache key
       id: generate-cache-key
       shell: bash
@@ -147,7 +142,6 @@ runs:
         echo "  Cargo hash:      $CARGO_HASH"
         echo "  Cache version:   $CACHE_VERSION"
 
-    # Determine target path based on profile
     - name: Determine target paths
       id: target-paths
       shell: bash
@@ -174,13 +168,11 @@ runs:
         echo "target-dir=$TARGET_DIR" >> "$GITHUB_OUTPUT"
         echo "✓ Target directory: $TARGET_DIR"
 
-    # Detect architecture for cache keys (shell expansion doesn't work in YAML with: context)
     - name: Detect architecture
       id: detect-arch
       shell: bash
       run: echo "arch=$(uname -m)" >> "$GITHUB_OUTPUT"
 
-    # Restore from cache
     - name: Restore benchmark-harness binary from cache
       id: cache-restore
       uses: xberg-io/actions/cache-binding-artifact@v1
@@ -195,7 +187,6 @@ runs:
           ${{ steps.target-paths.outputs.target-dir }}/benchmark-harness
         operation: restore
 
-    # Log cache hit status
     - name: Log cache hit status
       shell: bash
       run: |
@@ -207,7 +198,6 @@ runs:
           echo "✗ Cache MISS - Building benchmark-harness from source"
         fi
 
-    # Build if cache miss
     - name: Build benchmark-harness
       id: build
       if: steps.cache-restore.outputs.cache-hit != 'true'
@@ -244,7 +234,6 @@ runs:
 
         echo "✓ Build succeeded"
 
-    # Validate binary exists and is executable
     - name: Validate benchmark-harness binary
       id: validate-binary
       shell: bash
@@ -281,7 +270,6 @@ runs:
         echo "  Size:        $BINARY_SIZE"
         echo "  Permissions: $BINARY_PERMS"
 
-    # Save to cache if build occurred
     - name: Save benchmark-harness binary to cache
       if: steps.cache-restore.outputs.cache-hit != 'true'
       uses: xberg-io/actions/cache-binding-artifact@v1
@@ -292,7 +280,6 @@ runs:
           ${{ steps.target-paths.outputs.target-dir }}/benchmark-harness
         operation: save
 
-    # Summary
     - name: Summary
       if: always()
       shell: bash

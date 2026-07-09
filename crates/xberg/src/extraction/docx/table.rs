@@ -507,8 +507,6 @@ fn parse_width_element(e: &BytesStart) -> Option<TableWidth> {
 fn parse_table_look(e: &BytesStart) -> TableLook {
     let mut look = TableLook::default();
 
-    // Try individual boolean attributes first (OOXML 2012+ Transitional).
-    // Check if ANY individual attribute is present to distinguish from bitmask-only.
     let has_individual = get_attribute(e, b"firstRow").is_some()
         || get_attribute(e, b"lastRow").is_some()
         || get_attribute(e, b"firstColumn").is_some()
@@ -524,7 +522,6 @@ fn parse_table_look(e: &BytesStart) -> TableLook {
         look.no_h_band = get_attribute(e, b"noHBand").as_deref() == Some("1");
         look.no_v_band = get_attribute(e, b"noVBand").as_deref() == Some("1");
     } else if let Some(val_str) = get_attribute(e, b"val") {
-        // Fall back to legacy hex bitmask
         if let Ok(mask) = i32::from_str_radix(&val_str, 16) {
             look.first_row = (mask & 0x0020) != 0;
             look.last_row = (mask & 0x0040) != 0;
@@ -542,7 +539,7 @@ fn parse_table_look(e: &BytesStart) -> TableLook {
 fn parse_vmerge(e: &BytesStart) -> VerticalMerge {
     match get_attribute(e, b"val") {
         Some(val) if val == "restart" => VerticalMerge::Restart,
-        _ => VerticalMerge::Continue, // Empty element or missing attribute = Continue
+        _ => VerticalMerge::Continue,
     }
 }
 
@@ -799,7 +796,7 @@ mod tests {
         reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
-        reader.read_event_into(&mut buf).unwrap(); // Start(w:tblPr)
+        reader.read_event_into(&mut buf).unwrap();
         buf.clear();
 
         let props = parse_table_properties(&mut reader);
@@ -838,7 +835,7 @@ mod tests {
         reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
-        reader.read_event_into(&mut buf).unwrap(); // Start(w:trPr)
+        reader.read_event_into(&mut buf).unwrap();
         buf.clear();
 
         let props = parse_row_properties(&mut reader);
@@ -861,7 +858,7 @@ mod tests {
         reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
-        reader.read_event_into(&mut buf).unwrap(); // Start(w:tcPr)
+        reader.read_event_into(&mut buf).unwrap();
         buf.clear();
 
         let props = parse_cell_properties(&mut reader);
@@ -892,7 +889,7 @@ mod tests {
         reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
-        reader.read_event_into(&mut buf).unwrap(); // Start(w:tcPr)
+        reader.read_event_into(&mut buf).unwrap();
         buf.clear();
 
         let props = parse_cell_properties(&mut reader);
@@ -920,7 +917,7 @@ mod tests {
         reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
-        reader.read_event_into(&mut buf).unwrap(); // Start(w:tblGrid)
+        reader.read_event_into(&mut buf).unwrap();
         buf.clear();
 
         let grid = parse_table_grid(&mut reader);
@@ -936,13 +933,11 @@ mod tests {
         reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
-        let event = reader.read_event_into(&mut buf).unwrap(); // Empty(w:tblLook)
+        let event = reader.read_event_into(&mut buf).unwrap();
 
         if let Event::Empty(e) = event {
             let look = parse_table_look(&e);
 
-            // 0x0460 = 0000_0100_0110_0000
-            // first_row (0x0020) = 1, last_row (0x0040) = 1, first_column (0x0080) = 0, etc.
             assert!(look.first_row);
             assert!(look.last_row);
             assert!(!look.first_column);
@@ -961,12 +956,11 @@ mod tests {
         reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
-        reader.read_event_into(&mut buf).unwrap(); // Start(w:tcPr)
+        reader.read_event_into(&mut buf).unwrap();
         buf.clear();
 
         let props = parse_cell_properties(&mut reader);
 
-        // Bare <w:vMerge/> without val attribute should be Continue
         assert_eq!(props.v_merge, Some(VerticalMerge::Continue));
     }
 
@@ -978,10 +972,9 @@ mod tests {
         reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
-        reader.read_event_into(&mut buf).unwrap(); // Empty(w:tblPr)
+        reader.read_event_into(&mut buf).unwrap();
         buf.clear();
 
-        // Consume the Empty event and test with default
         let props = TableProperties::default();
 
         assert!(props.style_id.is_none());
@@ -1002,7 +995,7 @@ mod tests {
         reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
-        reader.read_event_into(&mut buf).unwrap(); // Start(w:tblCellMar)
+        reader.read_event_into(&mut buf).unwrap();
         buf.clear();
 
         let margins = parse_cell_margins_element(&mut reader);
@@ -1026,7 +1019,7 @@ mod tests {
         reader.config_mut().trim_text(true);
 
         let mut buf = Vec::new();
-        reader.read_event_into(&mut buf).unwrap(); // Start(w:tblBorders)
+        reader.read_event_into(&mut buf).unwrap();
         buf.clear();
 
         let borders = parse_table_borders(&mut reader);

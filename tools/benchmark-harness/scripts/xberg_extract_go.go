@@ -63,7 +63,6 @@ func main() {
 	ocrEnabled := false
 	var args []string
 
-	// Parse OCR flags
 	for _, arg := range os.Args[1:] {
 		switch arg {
 		case "--ocr":
@@ -160,7 +159,6 @@ func runServer(ocrEnabled bool) {
 	debug("Server mode: reading paths from stdin")
 	scanner := bufio.NewScanner(os.Stdin)
 
-	// Signal readiness after runtime + FFI initialization is complete
 	fmt.Println("READY")
 
 	for scanner.Scan() {

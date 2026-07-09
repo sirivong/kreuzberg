@@ -139,10 +139,8 @@ pub(crate) fn parse_json(data: &[u8], config: Option<JsonExtractionConfig>) -> R
         }
     }
 
-    // Still extract text fields for metadata population
     let mut path_buf = String::new();
     let _ = extract_from_json_value(&value, &mut path_buf, &config, &mut metadata, &mut text_fields);
-    // Output pretty-printed JSON to preserve structure (matches ground truth format)
     let content = serde_json::to_string_pretty(&value).unwrap_or_else(|_| String::from_utf8_lossy(data).to_string());
 
     Ok(StructuredDataResult {
@@ -172,7 +170,6 @@ fn extract_json_schema(
             if arr.is_empty() {
                 serde_json::json!({"type": "array", "length": 0})
             } else if arr.len() <= config.array_item_limit {
-                // Push "[0]" suffix and recurse, then restore.
                 let base_len = path.len();
                 path.push_str("[0]");
                 let items = extract_json_schema(&arr[0], path, depth + 1, config);
@@ -194,7 +191,6 @@ fn extract_json_schema(
         serde_json::Value::Object(obj) => {
             let mut properties = serde_json::Map::new();
             for (key, val) in obj {
-                // Extend the path buffer with ".key" (or just "key" at root).
                 let base_len = path.len();
                 if !path.is_empty() {
                     path.push('.');
@@ -220,7 +216,6 @@ fn extract_from_json_value(
         serde_json::Value::Object(obj) => {
             let mut text_parts = Vec::new();
             for (key, val) in obj {
-                // Append ".key" (or just "key" at root) to the shared buffer.
                 let base_len = path.len();
                 if !path.is_empty() {
                     path.push('.');
@@ -234,7 +229,6 @@ fn extract_from_json_value(
         serde_json::Value::Array(arr) => {
             let mut text_parts = Vec::new();
             for (i, item) in arr.iter().enumerate() {
-                // Append "[i]" (or "item_i" at root) to the shared buffer.
                 let base_len = path.len();
                 if path.is_empty() {
                     path.push_str("item_");
@@ -288,9 +282,7 @@ fn extract_from_json_value(
 }
 
 fn is_text_field(key: &str, custom_patterns: &[String]) -> bool {
-    // Extract leaf field name (last dot-separated segment)
     let leaf = key.rsplit('.').next().unwrap_or(key);
-    // Strip array index suffix like "[0]"
     let leaf = if let Some(bracket_pos) = leaf.find('[') {
         &leaf[..bracket_pos]
     } else {
@@ -361,8 +353,6 @@ pub(crate) fn parse_jsonl(data: &[u8], config: Option<JsonExtractionConfig>) -> 
         all_objects.push(value);
     }
 
-    // Infallible: serde_json::to_string_pretty cannot fail on a Value::Array
-    // of already-parsed Value objects.
     let content = serde_json::to_string_pretty(&serde_json::Value::Array(all_objects))
         .expect("serializing Vec<serde_json::Value> to JSON cannot fail");
 
@@ -384,10 +374,8 @@ pub(crate) fn parse_yaml(data: &[u8]) -> Result<StructuredDataResult> {
     let mut metadata = HashMap::new();
     let mut text_fields = Vec::new();
 
-    // Still extract for metadata population
     let mut path_buf = String::new();
     let _ = extract_from_value(&value, &mut path_buf, &mut metadata, &mut text_fields);
-    // Output original YAML content to preserve structure (matches ground truth format)
     let content = yaml_str.to_string();
 
     Ok(StructuredDataResult {
@@ -465,10 +453,8 @@ pub(crate) fn parse_toml(data: &[u8]) -> Result<StructuredDataResult> {
     let mut metadata = HashMap::new();
     let mut text_fields = Vec::new();
 
-    // Still extract for metadata population
     let mut path_buf = String::new();
     let _ = extract_from_toml_value(&value, &mut path_buf, &mut metadata, &mut text_fields);
-    // Output original TOML content to preserve structure (matches ground truth format)
     let content = toml_str.to_string();
 
     Ok(StructuredDataResult {
@@ -622,7 +608,6 @@ mod tests {
         assert!(is_text_field("metadata.label", &[]));
         assert!(!is_text_field("count", &[]));
         assert!(!is_text_field("offset", &[]));
-        // Exact match means "width" no longer matches just because it contains "id" substring
         assert!(!is_text_field("width", &[]));
         assert!(!is_text_field("valid", &[]));
     }
@@ -709,8 +694,6 @@ mod tests {
 
     #[test]
     fn test_parse_jsonl_metadata_last_writer_wins() {
-        // When multiple lines have the same key, last value wins in metadata.
-        // This matches JSON array behavior where duplicate paths overwrite.
         let jsonl = "{\"name\": \"Alice\"}\n{\"name\": \"Bob\"}";
         let result = parse_jsonl(jsonl.as_bytes(), None).unwrap();
         assert_eq!(result.metadata.get("name").unwrap(), "Bob");
@@ -755,14 +738,13 @@ mod tests {
         let jsonl = "{}\n{}";
         let result = parse_jsonl(jsonl.as_bytes(), None).unwrap();
         assert_eq!(result.format, "jsonl");
-        // Two empty objects produce a valid array
         let parsed: serde_json::Value = serde_json::from_str(&result.content).unwrap();
         assert_eq!(parsed.as_array().unwrap().len(), 2);
     }
 
     #[test]
     fn test_parse_jsonl_invalid_utf8() {
-        let data: &[u8] = &[0xFF, 0xFE, 0x7B, 0x7D]; // invalid UTF-8 + "{}"
+        let data: &[u8] = &[0xFF, 0xFE, 0x7B, 0x7D];
         let result = parse_jsonl(data, None);
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();

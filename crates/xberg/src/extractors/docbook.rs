@@ -91,9 +91,7 @@ type DocBookParseResult = (
 /// so we wrap the content in `<_root>...</_root>` when needed.
 fn ensure_root_element(content: &str) -> std::borrow::Cow<'_, str> {
     let trimmed = content.trim_start();
-    // Skip XML declaration and DOCTYPE if present
     let body = if trimmed.starts_with("<?xml") {
-        // Find the end of the XML declaration
         trimmed
             .find("?>")
             .map(|pos| trimmed[pos + 2..].trim_start())
@@ -101,13 +99,11 @@ fn ensure_root_element(content: &str) -> std::borrow::Cow<'_, str> {
     } else {
         trimmed
     };
-    // Skip DOCTYPE
     let body = if body.starts_with("<!DOCTYPE") {
         body.find('>').map(|pos| body[pos + 1..].trim_start()).unwrap_or(body)
     } else {
         body
     };
-    // Check if the remaining content starts with a known DocBook root element
     let has_root = body.starts_with("<article")
         || body.starts_with("<book")
         || body.starts_with("<chapter")
@@ -197,8 +193,6 @@ fn build_docbook_internal_document(
                     "title" if title_extracted => {
                         let text = extract_element_text(&mut reader, budget)?;
                         if !text.is_empty() {
-                            // Compute heading level relative to the depth where the document
-                            // title was extracted, so the first nested section starts at level 2.
                             let relative = section_depth.saturating_sub(title_depth);
                             let level = std::cmp::min(relative.saturating_add(1), 6);
                             builder.push_heading(level, &text, None, None);
@@ -207,7 +201,6 @@ fn build_docbook_internal_document(
                     "para" => {
                         let (text, annotations) = extract_para_with_annotations(&mut reader, budget)?;
                         if !text.is_empty() {
-                            // Extract URIs from link annotations
                             for ann in &annotations {
                                 if let crate::types::document_structure::AnnotationKind::Link { url, .. } = &ann.kind
                                     && !url.is_empty()
@@ -511,7 +504,6 @@ fn parse_docbook_single_pass(content: &str, plain: bool, budget: &mut SecurityBu
                         output.push_str("\n\n");
                     }
 
-                    // Admonitions
                     "note" | "warning" | "tip" | "caution" | "important" => {
                         let admonition_type = tag.to_string();
                         let admonition_text = extract_element_text(&mut reader, budget)?;
@@ -667,7 +659,6 @@ fn extract_element_text_with_inline(
 ) -> Result<String> {
     let mut text = String::new();
     let mut depth = 0;
-    // Track emphasis type (bold vs italic) per nesting level
     let mut emphasis_bold_stack: Vec<bool> = Vec::new();
 
     loop {
@@ -889,7 +880,6 @@ fn extract_para_with_annotations(
     let mut annotations = Vec::new();
     let mut depth: u32 = 0;
 
-    // Stack of (kind, depth_at_open, start_byte_offset, optional_href).
     let mut inline_stack: Vec<(&'static str, u32, u32, Option<String>)> = Vec::new();
 
     loop {
@@ -972,12 +962,10 @@ fn extract_para_with_annotations(
                 }
                 budget.leave();
 
-                // Check if this closes an inline element on our stack
                 if let Some(&(kind, open_depth, start, ref href)) = inline_stack.last()
                     && open_depth == depth
                 {
                     let end = text.len() as u32;
-                    // Skip any leading whitespace separator that was prepended
                     let actual_start = if (start as usize) < text.len() {
                         let span = &text[start as usize..end as usize];
                         let trimmed = span.trim_start();
@@ -1142,7 +1130,6 @@ impl InternalDocumentExtractor for DocbookExtractor {
             .map(|s| s.to_string())
             .unwrap_or_else(|_| String::from_utf8_lossy(content).into_owned());
 
-        // Extract metadata via single pass for the metadata fields
         let mut budget = SecurityBudget::from_config(config);
         let (_extracted_content, title, author, date, _tables, publisher, copyright) =
             parse_docbook_single_pass(&docbook_content, true, &mut budget)?;

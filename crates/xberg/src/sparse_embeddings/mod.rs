@@ -14,9 +14,6 @@ use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
 
-// The ORT-backed engine (and its sync-primitive cache) only compiles under the
-// full `sparse-embeddings` feature; a presets-only build (`wasm-target`,
-// `android-target`) must not pull in `ort`/`tokenizers` via `engine.rs`.
 #[cfg(feature = "sparse-embeddings")]
 pub mod engine;
 
@@ -105,7 +102,7 @@ pub static SPARSE_EMBEDDING_PRESETS: LazyLock<Vec<SparseEmbeddingPreset>> = Lazy
 ///
 /// Since v5.0.0.
 #[cfg(any(feature = "sparse-embedding-presets", feature = "sparse-embeddings"))]
-#[cfg_attr(alef, alef(skip))] // not a binding free fn (parity with embeddings/reranker getters); bare name would collide with late_interaction
+#[cfg_attr(alef, alef(skip))]
 pub fn get_preset(name: &str) -> Option<SparseEmbeddingPreset> {
     SPARSE_EMBEDDING_PRESETS.iter().find(|p| p.name == name).cloned()
 }
@@ -114,12 +111,10 @@ pub fn get_preset(name: &str) -> Option<SparseEmbeddingPreset> {
 ///
 /// Since v5.0.0.
 #[cfg(any(feature = "sparse-embedding-presets", feature = "sparse-embeddings"))]
-#[cfg_attr(alef, alef(skip))] // not a binding free fn (parity with embeddings/reranker getters); bare name would collide with late_interaction
+#[cfg_attr(alef, alef(skip))]
 pub fn list_presets() -> Vec<String> {
     SPARSE_EMBEDDING_PRESETS.iter().map(|p| p.name.clone()).collect()
 }
-
-// ── ORT-backed inference (feature = "sparse-embeddings") ──────────────────────
 
 #[cfg(feature = "sparse-embeddings")]
 type CachedEngine = Arc<SparseEmbeddingEngine>;
@@ -130,7 +125,7 @@ static ENGINE_CACHE: LazyLock<RwLock<AHashMap<String, CachedEngine>>> = LazyLock
 /// Bounds concurrent blocking inference tasks spawned by [`embed_sparse_async`].
 #[cfg(all(feature = "sparse-embeddings", feature = "tokio-runtime"))]
 static SPARSE_SEMAPHORE: LazyLock<Arc<tokio::sync::Semaphore>> = LazyLock::new(|| {
-    let permits = crate::core::config::concurrency::resolve_thread_budget(None).max(1);
+    let permits = crate::core::config::concurrency::resolve_batch_concurrency(None, true).max(1);
     Arc::new(tokio::sync::Semaphore::new(permits))
 });
 
@@ -190,7 +185,6 @@ fn get_or_init_engine(
     let cache_directory = crate::onnx::resolve_cache_dir("sparse-embeddings", cache_dir);
     let engine_key = format!("{repo_name}_{model_file}_{}", cache_directory.display());
 
-    // Fast path: read lock.
     match ENGINE_CACHE.read() {
         Ok(cache) => {
             if let Some(cached) = cache.get(&engine_key) {
@@ -204,7 +198,6 @@ fn get_or_init_engine(
         }
     }
 
-    // Slow path: write lock + init.
     let mut cache = match ENGINE_CACHE.write() {
         Ok(guard) => guard,
         Err(poison) => poison.into_inner(),
@@ -262,9 +255,6 @@ fn map_engine_err(e: engine::SparseEmbedError) -> crate::XbergError {
 /// unavailable, or if a `Plugin` model is selected (not yet supported).
 ///
 /// Since v5.0.0.
-// Rust-only for now: language-binding exposure (concrete signature + per-language
-// wiring + e2e) is deferred to the dedicated binding-wiring phase. Skipped from
-// alef so the generic signature does not fail binding generation.
 #[cfg_attr(alef, alef(skip))]
 #[cfg(feature = "sparse-embeddings")]
 pub fn embed_sparse<T: AsRef<str>>(
@@ -342,6 +332,38 @@ mod tests {
                     sibling
                 );
             }
+
+            // `crate::onnx::fetch_companion` always downloads tokenizer.json and
+            // config.json alongside the model file (from `<model_dir>/<name>` or
+            // the repo root), and opportunistically downloads
+            // special_tokens_map.json / tokenizer_config.json when present. A
+            // preset shipping a companion without a pinned hash would be
+            // downloaded unverified, so every companion the loader actually
+            // fetches must be pinned too.
+            let model_dir = std::path::Path::new(&preset.model_file)
+                .parent()
+                .and_then(|p| p.to_str())
+                .filter(|s| !s.is_empty());
+            let companion_path = |name: &str| match model_dir {
+                Some(dir) => format!("{dir}/{name}"),
+                None => name.to_string(),
+            };
+            for required in ["tokenizer.json", "config.json"] {
+                let path = companion_path(required);
+                assert!(
+                    pinned.contains(path.as_str()),
+                    "preset {} companion {} is not pinned in presets.sha256sum",
+                    preset.name,
+                    path
+                );
+            }
+            // special_tokens_map.json / tokenizer_config.json are downloaded via
+            // `unwrap_or_default()` (best-effort -- not every repo ships them),
+            // so they are pinned-if-present rather than required. This test
+            // covers presets that already have them in the manifest; it cannot
+            // detect a genuinely absent-and-unpinned companion since the
+            // manifest itself is the only source of "what exists" available
+            // here.
         }
     }
 

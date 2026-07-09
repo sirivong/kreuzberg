@@ -28,12 +28,10 @@
 mod dependencies;
 mod sections;
 
-// Re-export validation functions used in production code
 pub(crate) use sections::{
     validate_chunking_params, validate_language_code, validate_ocr_backend, validate_token_reduction_level,
 };
 
-// Re-export validation functions used only in tests
 #[cfg(test)]
 pub(crate) use dependencies::{validate_cors_origin, validate_host, validate_port, validate_upload_size};
 #[cfg(test)]
@@ -46,7 +44,6 @@ pub(crate) use sections::{
 mod tests {
     use super::*;
 
-    // Tests for section validation functions
     #[test]
     fn test_validate_binarization_method_valid() {
         assert!(validate_binarization_method("otsu").is_ok());
@@ -288,7 +285,6 @@ mod tests {
         assert!(err.contains("en"));
     }
 
-    // Tests for dependency validation functions
     #[test]
     fn test_validate_port_valid() {
         assert!(validate_port(1).is_ok());

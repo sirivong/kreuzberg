@@ -37,10 +37,6 @@ pub mod cache;
 pub(crate) mod cache_dir;
 pub mod cancellation;
 pub mod core;
-// Rust-only extraction engine. Declared as a bare `pub mod` whose files are NOT
-// listed in `alef.toml` `sources`, so the binding generator emits nothing for
-// it. Do NOT add `pub use engine::...` re-exports here — that would pull the
-// engine types into the scanned public surface.
 pub mod engine;
 pub mod error;
 /// Format-specific document extraction implementations and office metadata types.
@@ -77,9 +73,9 @@ pub mod chunking;
 #[cfg(feature = "diff")]
 pub mod diff;
 
-// TODO(wasm-llm): `liter-llm` stays in no-ORT/wasm target presets because the
-// dependency supports hosted HTTP providers on wasm. The runtime module remains
-// disabled until the wasm request/runtime integration is wired and tested.
+// ~keep TODO(wasm-llm): `liter-llm` stays in no-ORT/wasm target presets because the
+// ~keep dependency supports hosted HTTP providers on wasm. The runtime module remains
+// ~keep disabled until the wasm request/runtime integration is wired and tested.
 #[cfg(all(feature = "liter-llm", not(target_arch = "wasm32")))]
 pub mod llm;
 
@@ -107,10 +103,6 @@ pub mod image;
 
 #[cfg(feature = "language-detection")]
 pub mod language_detection;
-
-// Note: `image` module (DPI, resize, preprocessing) requires full `ocr` feature
-// due to fast_image_resize dependency. The `ocr` module is available with either
-// `ocr` or `ocr-wasm` feature; WASM OCR uses lighter-weight FFI calls via tesseract-wasm.
 
 #[cfg(feature = "stopwords")]
 pub mod stopwords;
@@ -151,11 +143,6 @@ pub mod ocr;
 ))]
 pub mod ort_discovery;
 
-// Always compiled: besides the checksummed model-manager helpers (feature-gated
-// inside the module), it hosts `with_download_deadline`, the network-agnostic
-// watchdog every hf-hub `.get()` site wraps itself in. That guard has no hf-hub
-// dependency and must be reachable from every download feature (embeddings,
-// reranker, transcription, …) without threading a shared cfg through each one.
 pub(crate) mod model_download;
 
 #[cfg(any(feature = "paddle-ocr", feature = "paddle-ocr-types"))]
@@ -173,36 +160,26 @@ pub mod layout;
 #[cfg(feature = "pdf")]
 pub mod pdf;
 
-// Transcription (audio/video STT) — decode + inference pipeline; config types live under core::config.
 #[cfg(feature = "transcription")]
 pub mod transcription;
 
 #[cfg(feature = "captioning")]
 pub mod captioning;
 
-// ── Error, Result, and all types ─────────────────────────────────────────────
 // NOTE: `CancellationToken` is intentionally NOT re-exported here.
-// It is an `Arc<AtomicBool>` wrapper that does not cross FFI cleanly.
-// Internal callers and FFI shims should reach it via `xberg::cancellation::CancellationToken`.
 pub use error::{Result, XbergError};
 pub use types::*;
 
-// Office metadata types are nested under `extraction::office_metadata::*` but
-// alef-backend-dart's mirror declarations resolve names against the crate
 // root (`#[frb(mirror(CoreProperties))]` → `xberg::CoreProperties`).
-// Re-export at the root for path resolution; the canonical module path
-// remains valid via `extraction::office_metadata`.
 #[cfg(feature = "office")]
 pub use extraction::office_metadata::{CoreProperties, DocxAppProperties};
 
-// ── Extraction — public API ──────────────────────────────────────────────────
 #[cfg(feature = "url-ingestion")]
 pub use core::extract::map_url;
 pub use core::extract::{extract, extract_batch};
 #[cfg(feature = "pdf")]
 pub use core::split::{SplitConfig, SplitSegment, SplitStrategy, split_and_extract};
 
-// ── Extraction config types ───────────────────────────────────────────────────
 pub use core::config::{
     AccelerationConfig, CallMode, CaptioningConfig, ChunkSizing, ChunkerType, ChunkingConfig, ContentFilterConfig,
     EmailConfig, EmbeddingConfig, EmbeddingModelType, ExecutionProviderType, ExtractInput, ExtractInputKind,
@@ -213,45 +190,29 @@ pub use core::config::{
     SummarizationConfig, TableChunkingMode, TokenReductionOptions, TranslationConfig, UrlExtractionConfig,
     UrlExtractionMode,
 };
-// Sparse-embedding / late-interaction config types are pure data (no ORT) and
-// always compiled; re-export at the crate root so bindings resolve
-// `xberg::SparseEmbeddingConfig` etc., mirroring `RerankerConfig` above.
 pub use core::config::{
     LateInteractionConfig, LateInteractionModelType, SparseEmbeddingConfig, SparseEmbeddingModelType,
 };
-// ── Crawlberg config types — re-exported so consumers only need xberg as a dep ─
-//
-// Gate mirrors `UrlExtractionConfig.crawl`: compiled when either the full
-// `url-ingestion` runtime or the lighter `url-config-types` is active.
+#[cfg(feature = "transcription-types")]
+pub use core::config::{TranscriptionConfig, WhisperModel};
 #[cfg(any(feature = "url-ingestion", feature = "url-config-types"))]
 pub use crawlberg::{
     AssetCategory, AuthConfig, BrowserBackend, BrowserConfig, BrowserMode, BrowserWait, ContentConfig, CrawlConfig,
     ProxyConfig, SsrfPolicy,
 };
-// ── URL map result types — sitemap / link-graph discovery ────────────────────
-#[cfg(feature = "transcription-types")]
-pub use core::config::{TranscriptionConfig, WhisperModel};
 #[cfg(feature = "url-ingestion")]
 pub use crawlberg::{MapResult, SitemapUrl};
 pub use extractors::security::SecurityLimits;
 
-// ── Presets — format + registry + resolver ───────────────────────────────────
 #[cfg(feature = "presets")]
 pub use presets::{
     LoadError, MetaSchema, Preset, PresetCategory, PresetSample, PresetSummary, Registry, ResolveError, ResolvedPreset,
     resolve,
 };
-// `CallMode` and `MergeMode` are re-exported unconditionally from `core::config` above —
-// they live in `core::config::llm` (always compiled), not behind the `presets` feature.
 
 #[cfg(feature = "quality")]
 pub use text::{ReductionLevel, TokenReductionConfig};
 
-// `ner-llm` is liter-llm (HTTP) + pure-Rust `ner`; it has no ORT dependency, so it
-// is enabled on the x86_64 Android emulator via `android-target`. However, the
-// `text::ner::llm` module itself is gated out on android x86_64 (upstream linkage
-// constraint), so the re-export must carry the same exclusion to avoid E0432.
-// The stub below covers both the no-ner-llm case and the android-x86_64+ner-llm case.
 #[cfg(all(
     feature = "ner-llm",
     not(target_arch = "wasm32"),
@@ -260,16 +221,9 @@ pub use text::{ReductionLevel, TokenReductionConfig};
 #[cfg_attr(alef, alef(skip))]
 pub use text::ner::llm::LlmBackend;
 
-// Re-export the NerBackend trait at crate root so consumers (e.g. the alef-generated
-// JNI shim) can call trait methods like `detect` / `detect_with_custom` on
-// `&LlmBackend` after a simple `use core_crate::*;`.
 #[cfg(feature = "ner-llm")]
 pub use text::ner::NerBackend;
 
-// Stub for every config where the real `text::ner::llm` module is absent:
-//   (a) `ner-llm` feature is off entirely, OR
-//   (b) `ner-llm` is on but we are on android x86_64 (module gated out there).
-// This ensures `LlmBackend` is always in scope for alef-generated bindings.
 #[cfg(any(not(feature = "ner-llm"), all(target_os = "android", target_arch = "x86_64")))]
 #[derive(Clone, Debug)]
 #[cfg_attr(alef, alef(skip))]
@@ -301,16 +255,9 @@ impl LlmBackend {
     }
 }
 
-// GlineBackend (GLiNER ONNX NER) and RegionKind (per-region VLM extraction) are
-// re-exported here so alef-generated bindings can refer to them as `xberg::GlineBackend`
-// and `xberg::RegionKind` without internal module path exposure.
 #[cfg(feature = "ner-onnx")]
 pub use text::ner::gline::GlineBackend;
 
-// Stub for every config that drops ner-onnx so alef-generated bindings keep
-// compiling (Windows, all Android arches, all iOS arches, WASM). Previously
-// narrowed to (Windows OR wasm32 OR android x86_64); broadened to match the
-// iOS/Android-wide target gates added to the binding crates.
 #[cfg(not(feature = "ner-onnx"))]
 #[derive(Clone, Debug)]
 pub struct GlineBackend {
@@ -348,7 +295,6 @@ impl GlineBackend {
 #[cfg(all(feature = "liter-llm", not(target_arch = "wasm32")))]
 pub use llm::region_extractor::RegionKind;
 
-// Stub for targets without liter-llm (WASM) so alef-generated FFI bindings compile.
 #[cfg(not(all(feature = "liter-llm", not(target_arch = "wasm32"))))]
 /// Per-region VLM extraction type stub.
 ///
@@ -375,12 +321,10 @@ impl RegionKind {
     }
 }
 
-// Public NER API: detect_entities function and backend types.
 #[cfg(feature = "ner")]
 #[cfg_attr(alef, alef(skip))]
 pub use text::ner::detect_entities;
 
-// Public classification API: classify_document function and existing classify_text.
 #[cfg(feature = "classification")]
 #[cfg_attr(alef, alef(skip))]
 pub use text::classification::classify_document;
@@ -405,8 +349,6 @@ pub use paddle_ocr::{ModelPaths, PaddleLanguage, PaddleOcrConfig};
 #[cfg(feature = "paddle-ocr")]
 pub use paddle_ocr::{ModelCacheStats, ModelManager, ModelManifestEntry, PaddleOcrBackend};
 
-// Re-export canonical CacheStats (generic extraction cache statistics) at the crate root.
-// This supersedes the orphan `types::formats::CacheStats` which has been removed.
 pub use cache::CacheStats;
 
 #[cfg(feature = "layout-types")]
@@ -440,9 +382,6 @@ pub use text::markdown_footnotes::{
     find_unmarked_claims, parse_citations, parse_footnote_definitions, verify_excerpt,
 };
 
-// DiffLine and CellChange are canonical in types::revisions (unconditional)
-// and surfaced at the crate root via `pub use types::*` above.
-// The diff feature adds algorithm types on top.
 #[cfg(feature = "diff")]
 pub use diff::{DiffHunk, DiffOptions, EmbeddedChanges, EmbeddedDiff, ExtractionDiff, TableDiff, compare};
 
@@ -455,7 +394,6 @@ pub use tree_sitter_language_pack::{
     SymbolInfo, SymbolKind, process as process_code,
 };
 
-// ── MIME / Format Info — public API (4 functions + 1 type) ───────────────────
 pub use core::mime::{SupportedFormat, detect_mime_type_from_bytes, get_extensions_for_mime, list_supported_formats};
 
 /// Detect the MIME type of a file at the given path.
@@ -466,14 +404,9 @@ pub fn detect_mime_type(path: String, check_exists: bool) -> crate::Result<Strin
     core::mime::detect_mime_type(path, check_exists)
 }
 
-// ── PDF Rendering ─────────────────────────────────────────────────────────────
 #[cfg(feature = "pdf")]
 pub use pdf::render::{pdf_page_count, render_pdf_page_to_png};
 
-// ── Plugin Lifecycle — public API ────────────────────────────────────────────
-// Alef extracts plugin-lifecycle fns via the `plugins::{trait_snake}::` alias modules
-// (see plugins/mod.rs) so they emit with their fully-qualified path. Skip this
-// top-level re-export to avoid generating duplicate bindings.
 #[cfg_attr(alef, alef(skip))]
 pub use plugins::{
     clear_document_extractors, clear_embedding_backends, clear_ocr_backends, clear_post_processors, clear_renderers,
@@ -486,16 +419,12 @@ pub use plugins::{
     unregister_tokenizer_backend, unregister_validator,
 };
 
-// ── Plugin Traits — public API (for plugin implementors) ─────────────────────
-// Re-exported at the top level so plugin implementors can write
-// `use xberg::DocumentExtractor` without knowledge of internal module paths.
 #[cfg_attr(alef, alef(skip))]
 pub use plugins::{
     DocumentExtractor, EmbeddingBackend, OcrBackend, OcrBackendType, PostProcessor, ProcessingStage, Renderer,
     RerankerBackend, TokenizerBackend, Validator,
 };
 
-// ── Embeddings — public API (4 functions + 1 type, feature-gated) ────────────
 #[cfg(feature = "embedding-presets")]
 pub use embeddings::EmbeddingPreset;
 
@@ -577,14 +506,6 @@ pub fn embedding_query_prefix(config: &EmbeddingConfig) -> Option<String> {
     embeddings::embedding_query_prefix(config)
 }
 
-// ── Embedding-preset stubs for builds without the feature ────────────────────
-// The alef-generated xberg-ffi crate references `xberg::EmbeddingPreset`
-// unconditionally in FFI return-type positions. Without these stubs, any build
-// that omits `embedding-presets` fails to compile xberg-ffi and — if the
-// feature was accidentally dropped from a release build — causes a Java
-// `UnsatisfiedLinkError` at class-load time (issue #998).  Stubs return
-// empty/None so callers degrade gracefully instead of crashing.
-
 /// Stub preset type for builds without the `embedding-presets` feature.
 ///
 /// Field names match the real type so JSON round-trips through
@@ -627,7 +548,6 @@ pub fn list_embedding_presets() -> Vec<String> {
     Vec::new()
 }
 
-// ── Reranking — public API (4 functions + 2 types, feature-gated) ─────────────
 /// Re-export `RerankerPreset` when the `reranker-presets` feature is active.
 ///
 /// Since v5.0.0.
@@ -723,7 +643,6 @@ pub fn list_reranker_presets() -> Vec<String> {
     reranking::list_presets()
 }
 
-// ── Reranker-preset stubs for builds without the feature ─────────────────────
 /// Stub preset type for builds without the `reranker-presets` feature.
 ///
 /// Field names match the real type so JSON round-trips remain schema-compatible.
@@ -781,7 +700,6 @@ pub fn list_reranker_presets() -> Vec<String> {
     Vec::new()
 }
 
-// ── Sparse embeddings (SPLADE) — public API, feature-gated ────────────────────
 /// Re-export the sparse-embedding result and preset types when the presets
 /// feature is active.
 ///
@@ -861,7 +779,6 @@ pub fn list_sparse_embedding_presets() -> Vec<String> {
     sparse_embeddings::list_presets()
 }
 
-// ── Sparse-embedding stubs for builds without the feature ─────────────────────
 /// Stub result type for builds without the `sparse-embedding-presets` feature.
 ///
 /// Field names match the real type so JSON round-trips remain schema-compatible.
@@ -917,7 +834,6 @@ pub fn list_sparse_embedding_presets() -> Vec<String> {
     Vec::new()
 }
 
-// ── Late interaction (ColBERT) — public API, feature-gated ────────────────────
 /// Re-export the multi-vector result/preset types and the pure-CPU MaxSim
 /// primitives when the presets feature is active.
 ///
@@ -1002,7 +918,6 @@ pub fn list_late_interaction_presets() -> Vec<String> {
     late_interaction::list_presets()
 }
 
-// ── Late-interaction stubs for builds without the feature ─────────────────────
 /// Stub multi-vector result type for builds without the `late-interaction-presets` feature.
 ///
 /// Since v5.0.0.
@@ -1076,7 +991,6 @@ pub fn list_late_interaction_presets() -> Vec<String> {
     Vec::new()
 }
 
-// ── Captioning — public API (3 functions, feature-gated) ──────────────────────
 /// Caption a single image from bytes using a configured LLM.
 ///
 /// # Arguments
@@ -1196,7 +1110,6 @@ pub use captioning::caption_image_file;
 #[cfg_attr(alef, alef(skip))]
 pub use captioning::caption_images;
 
-// ── Enrichment chokepoint ─────────────────────────────────────────────────────
 /// Unified post-extraction enrichment: classification, NER, captioning, and
 /// (future) transcription in a single composable call.
 pub mod enrich;

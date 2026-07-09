@@ -81,8 +81,6 @@ pub async fn split_and_extract(bytes: &[u8], config: &SplitConfig) -> Result<Vec
         )));
     }
 
-    // Parse once, forcing per-page content extraction so segments can be
-    // partitioned by page attribution without re-parsing.
     let mut extraction = config.extraction.clone();
     extraction
         .pages
@@ -313,8 +311,6 @@ mod tests {
     }
 
     #[test]
-    // The `3..=2` literal is a deliberately-reversed range exercising the
-    // start-after-end rejection path; clippy would otherwise flag it.
     #[allow(clippy::reversed_empty_ranges)]
     fn page_ranges_validation_rejects_out_of_bounds() {
         assert!(ranges_from_page_ranges(&[1..=6], 5).is_err(), "end beyond page count");
@@ -331,18 +327,13 @@ mod tests {
 
         assert_eq!(segment.page_range, 1..=3);
         let out = &segment.document;
-        // Pages 1..=3 kept, original page numbers preserved.
         let page_numbers: Vec<u32> = out.pages.as_ref().unwrap().iter().map(|p| p.page_number).collect();
         assert_eq!(page_numbers, vec![1, 2, 3]);
-        // Only the page-1 table falls in range; page-4 table excluded.
         assert_eq!(out.tables.len(), 1);
         assert_eq!(out.tables[0].page_number, 1);
-        // Only the page-2 image falls in range; page-5 image excluded.
         assert_eq!(out.images.as_ref().unwrap().len(), 1);
         assert_eq!(out.images.as_ref().unwrap()[0].page_number, Some(2));
-        // Content is reassembled from the segment's pages, not the whole doc.
         assert_eq!(out.content, "page 1 text\n\npage 2 text\n\npage 3 text");
-        // Counts recomputed for the segment; metadata page count updated.
         assert_eq!(out.counts.pages, 3);
         assert_eq!(out.counts.tables, 1);
         assert_eq!(out.counts.images, 1);
@@ -362,8 +353,6 @@ mod tests {
     #[cfg(feature = "heuristics")]
     #[test]
     fn auto_ranges_single_document_yields_one_full_range() {
-        // A cohesive doc with no boundary signals must produce a single segment
-        // spanning all pages.
         let doc = sample_doc();
         let ranges = auto_ranges(&doc, 5).unwrap();
         assert_eq!(ranges, vec![1..=5]);
@@ -374,8 +363,6 @@ mod tests {
     fn auto_ranges_folds_boundaries_into_contiguous_ranges() {
         use crate::heuristics::multidoc::{BoundaryReason, DocumentBoundary};
 
-        // Directly exercise the boundary→range folding: new documents start at
-        // pages 3 and 5 within an 8-page PDF.
         let boundaries = vec![
             DocumentBoundary {
                 start_page: 1,

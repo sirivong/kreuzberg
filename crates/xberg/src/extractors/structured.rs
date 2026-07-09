@@ -43,7 +43,6 @@ fn build_internal_document(
 
     let mut builder = InternalDocumentBuilder::new(source_format);
 
-    // Try to build structured document for JSON objects
     if source_format == "json"
         && let Ok(value) = serde_json::from_str::<serde_json::Value>(&result.content)
         && value.is_object()
@@ -52,7 +51,6 @@ fn build_internal_document(
         return Ok(builder.build());
     }
 
-    // Fallback: code block — account for the full content size
     budget.account_text(result.content.len())?;
     builder.push_code(&result.content, language, None, None);
     Ok(builder.build())

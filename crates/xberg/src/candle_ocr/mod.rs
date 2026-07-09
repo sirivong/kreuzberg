@@ -15,10 +15,6 @@ pub mod paddleocr_vl_backend;
 #[cfg(all(feature = "candle-glm-ocr", not(target_arch = "wasm32")))]
 pub mod glm_ocr_backend;
 
-// Checksum-verified weight staging for candle VLM-OCR backends. PaddleOCR-VL 1.6 uses
-// this staging path so the default `model_id` auto-downloads via hf-hub, verified
-// against a checked-in sha256 manifest, without requiring callers to pre-stage a local
-// `model_path`.
 #[cfg(feature = "candle-paddleocr-vl")]
 mod model_stager;
 
@@ -63,7 +59,6 @@ use xberg_candle_ocr::DevicePreference;
 /// - `TensorRt` -> `DevicePreference::Cuda` (TensorRT runs on CUDA hardware; candle has no separate TRT path)
 #[cfg(feature = "candle-ocr")]
 pub(crate) fn resolve_device_preference(config: &OcrConfig) -> DevicePreference {
-    // 1. Inline override via backend_options
     if let Some(opts) = &config.backend_options
         && let Some(v) = opts.get("device").and_then(|v| v.as_str())
     {
@@ -76,12 +71,10 @@ pub(crate) fn resolve_device_preference(config: &OcrConfig) -> DevicePreference 
         }
     }
 
-    // 2. Central acceleration config
     if let Some(accel) = &config.acceleration {
         return device_preference_from_acceleration(accel);
     }
 
-    // 3. Default
     DevicePreference::Auto
 }
 

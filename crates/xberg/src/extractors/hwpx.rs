@@ -386,7 +386,6 @@ mod tests {
         let result = extractor
             .extract_content(&zip_bytes, "application/haansofthwpx", &config)
             .await;
-        // The ZIP is valid but not a real HWPX — we expect a parse error, not a security error.
         let is_parse_err = match &result {
             Err(e) => {
                 let msg = e.to_string();

@@ -303,8 +303,6 @@ pub fn load_framework_sizes(config_path: &Path) -> Result<HashMap<String, DiskSi
 mod tests {
     use super::*;
 
-    // -- BenchmarkConfig::validate tests --
-
     #[test]
     fn test_valid_batch_config() {
         let config = BenchmarkConfig::new(
@@ -375,7 +373,7 @@ mod tests {
     fn test_single_file_mode_requires_max_concurrent_one() {
         let config = BenchmarkConfig::new(
             PathBuf::from("/tmp/results"),
-            4, // not 1
+            4,
             3,
             Duration::from_secs(180),
             BenchmarkMode::SingleFile,
@@ -388,12 +386,8 @@ mod tests {
     #[test]
     fn test_default_config_validates() {
         let config = BenchmarkConfig::default();
-        // Default is Batch mode with max_concurrent = num_cpus which is >= 1.
-        // This should pass unless running on a system with 0 CPUs.
         assert!(config.validate().is_ok());
     }
-
-    // -- ProfilingConfig::validate tests --
 
     #[test]
     fn test_valid_profiling_config() {
@@ -435,33 +429,27 @@ mod tests {
 
     #[test]
     fn test_profiling_boundary_frequencies() {
-        // Minimum valid frequency
         assert!(ProfilingConfig::new(100, 1, 1).is_ok());
-        // Maximum valid frequency
         assert!(ProfilingConfig::new(10000, 1, 1).is_ok());
-        // Just below minimum
         assert!(ProfilingConfig::new(99, 1, 1).is_err());
-        // Just above maximum
         assert!(ProfilingConfig::new(10001, 1, 1).is_err());
     }
 
     #[test]
     fn test_optimal_frequency_zero_duration() {
         let freq = ProfilingConfig::calculate_optimal_frequency(0);
-        assert_eq!(freq, 500); // REALISTIC_MAX_HZ
+        assert_eq!(freq, 500);
     }
 
     #[test]
     fn test_optimal_frequency_short_task() {
         let freq = ProfilingConfig::calculate_optimal_frequency(100);
-        // 500 * 1000 / 100 = 5000, clamped to 500
         assert_eq!(freq, 500);
     }
 
     #[test]
     fn test_optimal_frequency_long_task() {
         let freq = ProfilingConfig::calculate_optimal_frequency(10_000);
-        // 500 * 1000 / 10000 = 50, clamped to 100
         assert_eq!(freq, 100);
     }
 

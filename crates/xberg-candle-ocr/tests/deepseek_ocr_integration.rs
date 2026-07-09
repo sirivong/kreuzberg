@@ -68,7 +68,6 @@ fn longest_repeated_ngram_run(text: &str, n: usize) -> usize {
 #[test]
 #[ignore = "requires DeepSeek-OCR weights from HuggingFace; set XBERG_DEEPSEEK_OCR_MODEL_PATH and run with --ignored"]
 fn deepseek_ocr_extracts_text_from_sample_image() {
-    // Resolve model path from environment — skip gracefully if absent.
     let model_path = match std::env::var("XBERG_DEEPSEEK_OCR_MODEL_PATH") {
         Ok(p) if !p.is_empty() => p,
         _ => {
@@ -85,14 +84,8 @@ fn deepseek_ocr_extracts_text_from_sample_image() {
 
     eprintln!("Loading DeepSeek-OCR engine from: {model_path}");
 
-    // Version 2 is the primary release (SAM + Qwen2 vision tower).
-    let mut engine = DeepseekOCREngine::init(
-        &model_path,
-        candle_core::Device::Cpu,
-        candle_core::DType::F32,
-        2, // version
-    )
-    .expect("DeepseekOCREngine::init must succeed with a valid model path");
+    let mut engine = DeepseekOCREngine::init(&model_path, candle_core::Device::Cpu, candle_core::DType::F32, 2)
+        .expect("DeepseekOCREngine::init must succeed with a valid model path");
 
     eprintln!("Engine loaded. Running inference on fixture image …");
 
@@ -102,7 +95,6 @@ fn deepseek_ocr_extracts_text_from_sample_image() {
 
     eprintln!("Output ({} chars):\n{output}", output.len());
 
-    // ── Assertion 1: non-empty output ─────────────────────────────────────────
     assert!(!output.is_empty(), "DeepSeek-OCR output must not be empty");
     assert!(
         output.len() > 3,
@@ -110,8 +102,6 @@ fn deepseek_ocr_extracts_text_from_sample_image() {
         output
     );
 
-    // ── Assertion 2: degenerate-repeat guard ──────────────────────────────────
-    // A longest 3-gram run >= 5 is a strong signal of nucleus-sampling collapse.
     let repeat_run = longest_repeated_ngram_run(&output, 3);
     assert!(
         repeat_run < 5,

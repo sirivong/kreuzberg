@@ -775,7 +775,6 @@ mod rendering_modes {
         );
     }
 
-    // A code cell whose only output is a saved PNG (1x1 transparent).
     const NOTEBOOK_WITH_IMAGE: &[u8] = br#"{
         "cells": [
             {
@@ -812,8 +811,6 @@ mod rendering_modes {
 
     #[tokio::test]
     async fn source_mode_suppresses_output_images() {
-        // Images only come from cell outputs, so Source mode must drop them,
-        // keeping the image collection consistent with suppressed Image elements.
         assert_eq!(
             image_count(JupyterCellRendering::Source).await,
             0,

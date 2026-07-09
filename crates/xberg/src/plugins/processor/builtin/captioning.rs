@@ -261,7 +261,6 @@ mod tests {
             mime_type: std::borrow::Cow::Borrowed("text/plain"),
             ..Default::default()
         };
-        // result.images is None — simulates forgetting config.images
         p.process(&mut result, &cfg).await.unwrap();
         let warnings = result.processing_warnings;
         assert!(

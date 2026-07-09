@@ -85,7 +85,6 @@ fn test_default_config_populates_tables_on_text_layer_pdf() {
         );
         assert!(!t.markdown.trim().is_empty(), "table markdown empty: {t:?}");
         assert!(t.page_number >= 1, "page_number must be 1-indexed: {t:?}");
-        // Validate bounding box orientation (PDF coords: y0 < y1, x0 < x1).
         if let Some(bbox) = &t.bounding_box {
             assert!(bbox.y0 < bbox.y1, "bbox y0 must be less than y1: {bbox:?}");
             assert!(bbox.x0 < bbox.x1, "bbox x0 must be less than x1: {bbox:?}");

@@ -78,7 +78,6 @@ def _field(value: Any, name: str, default: Any = None) -> Any:
 
 
 def _create_config(ocr_enabled: bool, *, force_ocr: bool = False) -> Any:
-    # Use minimal config with cache disabled for benchmarking
     config = ExtractionConfig(use_cache=False)
     if ocr_enabled:
         if isinstance(config, dict):
@@ -156,7 +155,6 @@ def _parse_request(line: str) -> tuple[str, bool]:
 
 def run_server(ocr_enabled: bool) -> None:
     """Persistent server mode: read paths from stdin, write JSON to stdout."""
-    # Signal readiness after Python + FFI initialization
     print("READY", flush=True)
     for line in sys.stdin:
         file_path, force_ocr = _parse_request(line)

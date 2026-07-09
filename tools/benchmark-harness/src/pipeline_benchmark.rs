@@ -59,7 +59,7 @@ impl SortMetric {
                 if pr.time_ms.is_nan() {
                     f64::NEG_INFINITY
                 } else {
-                    -pr.time_ms // negate so ascending sort = slowest first
+                    -pr.time_ms
                 }
             }
         }
@@ -135,12 +135,8 @@ async fn extract_and_score(
     let (tf1, _basic_sf1, _basic_order, _basic_per_type) =
         crate::comparison::score_document(&content, gt_text, gt_markdown);
 
-    // Use the pipeline benchmark's enhanced scoring: heading-level-normalized,
-    // with structure detection and content capping.
     let (sf1, order_score, per_type_sf1) = match gt_markdown {
         Some(md) => {
-            // Skip SF1 for documents without structural ground truth
-            // (all-Paragraph docs produce meaningless 0% scores)
             let gt_blocks = parse_markdown_blocks(md);
             let has_structure = gt_blocks
                 .iter()
@@ -149,9 +145,7 @@ async fn extract_and_score(
             if !has_structure {
                 (f64::NAN, f64::NAN, HashMap::new())
             } else {
-                // Cap content to 50K chars to prevent scoring from taking too long
                 let capped = if content.len() > 50_000 {
-                    // Find a valid UTF-8 boundary near 50K
                     let mut end = 50_000;
                     while end > 0 && !content.is_char_boundary(end) {
                         end -= 1;
@@ -160,7 +154,6 @@ async fn extract_and_score(
                 } else {
                     &content
                 };
-                // Use heading-level-normalized scoring (H1≡H2≡H3 etc.)
                 let sq = score_structural_quality_normalized(capped, md);
                 let per_type: HashMap<String, f64> = sq.per_type.iter().map(|(k, v)| (k.to_string(), v.f1)).collect();
                 (sq.structural_f1, sq.order_score, per_type)
@@ -191,7 +184,7 @@ async fn extract_and_score(
 /// Run the pipeline benchmark.
 pub async fn run_pipeline_benchmark(config: &PipelineBenchmarkConfig) -> Result<Vec<PipelineDocResult>> {
     let filter = CorpusFilter {
-        file_types: None, // All formats with ground truth
+        file_types: None,
         require_ground_truth: true,
         name_patterns: config.doc_filter.clone(),
         ..Default::default()
@@ -247,7 +240,6 @@ pub async fn run_pipeline_benchmark(config: &PipelineBenchmarkConfig) -> Result<
                 let doc_dir = dir.join(&doc.name);
                 let _ = std::fs::create_dir_all(&doc_dir);
                 let _ = std::fs::write(doc_dir.join(format!("{}.md", pipeline.name())), &pr.content);
-                // Also dump ground truth for comparison
                 if let Some(ref gt_md) = gt_markdown {
                     let _ = std::fs::write(doc_dir.join("ground_truth.md"), gt_md);
                 }
@@ -300,10 +292,8 @@ pub fn print_pipeline_table(results: &[PipelineDocResult], sort_by: SortMetric, 
         return;
     }
 
-    // Optionally sort and truncate for triage view
     let display_results: Vec<&PipelineDocResult> = if let Some(n) = bottom_n {
         let mut sorted: Vec<&PipelineDocResult> = results.iter().collect();
-        // Sort by the worst (min) score across all pipelines for the chosen metric
         sorted.sort_by(|a, b| {
             let a_worst = a
                 .results
@@ -324,7 +314,6 @@ pub fn print_pipeline_table(results: &[PipelineDocResult], sort_by: SortMetric, 
 
     let pipelines: Vec<&str> = results[0].results.iter().map(|r| r.pipeline.name()).collect();
 
-    // Header
     eprint!("{:<30} {:>5}", "Document", "Type");
     for p in &pipelines {
         eprint!(" {:>8} {:>8} {:>7}", format!("{} SF1", p), "TF1", "ms");
@@ -363,7 +352,6 @@ pub fn print_pipeline_table(results: &[PipelineDocResult], sort_by: SortMetric, 
         eprintln!();
     }
 
-    // Averages (always over all results, not just displayed)
     let total_docs = results.len();
     eprintln!("{}", "-".repeat(36 + pipelines.len() * 26));
     eprint!("{:<30} {:>5}", "AVERAGE", "");
@@ -401,7 +389,6 @@ pub fn print_pipeline_table(results: &[PipelineDocResult], sort_by: SortMetric, 
         }
     }
     eprintln!();
-    // Report how many docs were excluded from SF1 average
     let sf1_excluded: usize = results.iter().map(|r| r.results[0].sf1).filter(|v| v.is_nan()).count();
     if sf1_excluded > 0 {
         eprintln!(
@@ -421,7 +408,6 @@ pub fn print_triage_blocks(results: &[PipelineDocResult], sort_by: SortMetric, b
 
     let block_types = ["H1", "H2", "H3", "Table", "Code", "ListItem", "Paragraph"];
 
-    // Sort and take bottom N
     let mut sorted: Vec<&PipelineDocResult> = results.iter().collect();
     sorted.sort_by(|a, b| {
         let a_worst = a
@@ -479,7 +465,6 @@ pub fn compute_aggregates(results: &[PipelineDocResult]) -> Vec<PipelineAggregat
     for i in 0..num_pipelines {
         let pipeline_name = results[0].results[i].pipeline.name().to_string();
 
-        // Filter NaN values from SF1 (docs without structural ground truth)
         let mut sf1s: Vec<f64> = results
             .iter()
             .map(|r| r.results[i].sf1)

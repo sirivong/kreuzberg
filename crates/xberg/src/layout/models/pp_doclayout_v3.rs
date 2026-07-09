@@ -115,21 +115,13 @@ impl PpDocLayoutV3Model {
     /// 24 vision_footnote.
     fn class_from_id(id: i64) -> Option<LayoutClass> {
         match id {
-            // Chart
             3 => Some(LayoutClass::Chart),
-            // Formula variants → Formula
             5 | 11 | 15 => Some(LayoutClass::Formula),
-            // Title variants → Title
             6 | 7 | 17 => Some(LayoutClass::Title),
-            // Footer variants → PageFooter
             8 | 9 => Some(LayoutClass::PageFooter),
-            // Header variants → PageHeader
             12 | 13 => Some(LayoutClass::PageHeader),
-            // Image / Seal → Picture
             14 | 20 => Some(LayoutClass::Picture),
-            // Table → Table
             21 => Some(LayoutClass::Table),
-            // Text-like classes (0,1,2,4,10,16,18,19,22,23,24) → Text
             0 | 1 | 2 | 4 | 10 | 16 | 18 | 19 | 22 | 23 | 24 => Some(LayoutClass::Text),
             _ => None,
         }
@@ -176,8 +168,6 @@ impl PpDocLayoutV3Model {
         let scale_h = ts as f32 / orig_h;
         let scale_w = ts as f32 / orig_w;
 
-        // im_shape: the resized input dimensions (always 800×800), NOT the original image size.
-        // PaddleDetection convention: im_shape = [H_resized, W_resized].
         let im_shape = Array2::from_shape_vec((1, 2), vec![ts as f32, ts as f32]).expect("im_shape shape mismatch");
         let scale_factor = Array2::from_shape_vec((1, 2), vec![scale_h, scale_w]).expect("scale_factor shape mismatch");
 
@@ -216,7 +206,6 @@ impl PpDocLayoutV3Model {
                 None => continue,
             };
 
-            // Boxes are already in original image pixel space — just clamp.
             let x1 = rows[base + COL_X1].clamp(0.0, max_w);
             let y1 = rows[base + COL_Y1].clamp(0.0, max_h);
             let x2 = rows[base + COL_X2].clamp(0.0, max_w);
@@ -240,7 +229,6 @@ impl PpDocLayoutV3Model {
         let orig_w = img.width();
         let orig_h = img.height();
 
-        // --- Preprocessing ---
         let preprocess_start = Instant::now();
 
         let (pixel_array, im_shape_array, scale_factor_array) = Self::preprocess_single(img);
@@ -251,11 +239,8 @@ impl PpDocLayoutV3Model {
         let preprocess_ms = preprocess_start.elapsed().as_secs_f64() * 1000.0;
         tracing::debug!(preprocess_ms, "PP-DocLayout-V3 preprocessing complete");
 
-        // --- ONNX inference (inputs by name) ---
         let onnx_start = Instant::now();
 
-        // Resolve input names before the mutable session.run() borrow.
-        // The real ONNX presents inputs as im_shape(0)/image(1)/scale_factor(2).
         let im_shape_name = self.resolve_input_name("im_shape", 0);
         let image_name = self.resolve_input_name("image", 1);
         let scale_factor_name = self.resolve_input_name("scale_factor", 2);
@@ -269,9 +254,6 @@ impl PpDocLayoutV3Model {
         let onnx_ms = onnx_start.elapsed().as_secs_f64() * 1000.0;
         tracing::debug!(onnx_ms, "PP-DocLayout-V3 ONNX session.run() complete");
 
-        // --- Output parsing ---
-        // fetch_name_0: [N_total, 7] f32 — detection rows [class,score,x1,y1,x2,y2,_]
-        // fetch_name_1: [batch]   i32 — per-image bbox counts
         let mut det_data: Vec<f32> = Vec::new();
         let mut bbox_num: Vec<i32> = Vec::new();
 
@@ -285,7 +267,6 @@ impl PpDocLayoutV3Model {
             {
                 bbox_num = view.1.to_vec();
             }
-            // fetch_name_2 (mask grid) is intentionally ignored.
         }
 
         if det_data.is_empty() {
@@ -294,7 +275,6 @@ impl PpDocLayoutV3Model {
             ));
         }
 
-        // n_valid = bbox_num[0] for single-image inference.
         let n_valid = bbox_num.first().copied().unwrap_or(0).max(0) as usize;
 
         let detections = Self::parse_detections(&det_data, n_valid, threshold, orig_w, orig_h);
@@ -343,7 +323,6 @@ impl PpDocLayoutV3Model {
         let ts = INPUT_SIZE as usize;
         let hw = ts * ts;
 
-        // --- Preprocessing ---
         let preprocess_start = Instant::now();
 
         let mut all_pixel_data: Vec<f32> = Vec::with_capacity(batch * 3 * hw);
@@ -385,10 +364,8 @@ impl PpDocLayoutV3Model {
         let preprocess_ms = preprocess_start.elapsed().as_secs_f64() * 1000.0;
         tracing::debug!(preprocess_ms, batch, "PP-DocLayout-V3 batch preprocessing complete");
 
-        // --- ONNX inference ---
         let onnx_start = Instant::now();
 
-        // Resolve input names before the mutable session.run() borrow.
         let im_shape_name = self.resolve_input_name("im_shape", 0);
         let image_name = self.resolve_input_name("image", 1);
         let scale_factor_name = self.resolve_input_name("scale_factor", 2);
@@ -402,7 +379,6 @@ impl PpDocLayoutV3Model {
         let onnx_ms = onnx_start.elapsed().as_secs_f64() * 1000.0;
         tracing::debug!(onnx_ms, batch, "PP-DocLayout-V3 batch ONNX session.run() complete");
 
-        // --- Output parsing ---
         let mut det_data: Vec<f32> = Vec::new();
         let mut bbox_num: Vec<i32> = Vec::new();
 
@@ -426,7 +402,6 @@ impl PpDocLayoutV3Model {
 
         crate::layout::inference_timings::set(preprocess_ms / batch as f64, onnx_ms / batch as f64);
 
-        // Slice fetch_name_0 rows per image using bbox_num offsets.
         let mut results: Vec<Vec<LayoutDetection>> = Vec::with_capacity(batch);
         let mut row_offset: usize = 0;
 
@@ -497,7 +472,6 @@ impl LayoutModel for PpDocLayoutV3Model {
             return Ok(empty);
         }
         let t = threshold.unwrap_or(DEFAULT_THRESHOLD);
-        // Single-image case: use the regular inference path (no tensor stacking overhead).
         if images.len() == 1 {
             return self.run_inference(images[0], t).map(|d| vec![d]);
         }
@@ -512,8 +486,6 @@ impl LayoutModel for PpDocLayoutV3Model {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // --- class_from_id: 25-class PP-DocLayout-V3 taxonomy ---
 
     #[test]
     fn class_from_id_chart_maps_to_chart() {
@@ -587,7 +559,6 @@ mod tests {
 
     #[test]
     fn class_from_id_text_classes_map_to_text() {
-        // All text-like classes: 0,1,2,4,10,16,18,19,22,23,24
         for id in [0i64, 1, 2, 4, 10, 16, 18, 19, 22, 23, 24] {
             assert_eq!(
                 PpDocLayoutV3Model::class_from_id(id),
@@ -604,8 +575,6 @@ mod tests {
         assert_eq!(PpDocLayoutV3Model::class_from_id(100), None);
     }
 
-    // --- Constants ---
-
     #[test]
     fn default_threshold_is_half() {
         assert_eq!(DEFAULT_THRESHOLD, 0.5);
@@ -616,11 +585,8 @@ mod tests {
         assert_eq!(INPUT_SIZE, 800);
     }
 
-    // --- parse_detections ---
-
     #[test]
     fn parse_detections_filters_low_confidence() {
-        // Row: class=3(chart), score=0.3 (below threshold 0.5)
         let row: Vec<f32> = vec![3.0, 0.3, 10.0, 20.0, 100.0, 200.0, 0.0];
         let dets = PpDocLayoutV3Model::parse_detections(&row, 1, 0.5, 640, 480);
         assert!(dets.is_empty(), "detection below threshold must be filtered");
@@ -628,7 +594,6 @@ mod tests {
 
     #[test]
     fn parse_detections_accepts_above_threshold() {
-        // Row: class=21(table), score=0.8
         let row: Vec<f32> = vec![21.0, 0.8, 10.0, 20.0, 100.0, 200.0, 0.0];
         let dets = PpDocLayoutV3Model::parse_detections(&row, 1, 0.5, 640, 480);
         assert_eq!(dets.len(), 1);
@@ -638,7 +603,6 @@ mod tests {
 
     #[test]
     fn parse_detections_clamps_coordinates_to_image_bounds() {
-        // Row with out-of-bounds box
         let row: Vec<f32> = vec![22.0, 0.9, -5.0, -10.0, 700.0, 500.0, 0.0];
         let dets = PpDocLayoutV3Model::parse_detections(&row, 1, 0.5, 640, 480);
         assert_eq!(dets.len(), 1);
@@ -650,13 +614,10 @@ mod tests {
 
     #[test]
     fn parse_detections_skips_unknown_class_id() {
-        // class_id=25 is out of taxonomy range
         let row: Vec<f32> = vec![25.0, 0.9, 10.0, 20.0, 100.0, 200.0, 0.0];
         let dets = PpDocLayoutV3Model::parse_detections(&row, 1, 0.5, 640, 480);
         assert!(dets.is_empty(), "unknown class ID must be skipped");
     }
-
-    // --- empty_batch_short_circuit ---
 
     #[test]
     fn empty_batch_short_circuits_to_empty_result() {
@@ -677,15 +638,13 @@ mod tests {
         );
     }
 
-    // --- preprocess_single: PaddleDetection im_shape/scale_factor convention ---
-
     /// `im_shape` must always be `[INPUT_SIZE, INPUT_SIZE]` (the resized input dimensions),
     /// NOT the original image dimensions. The PaddleDetection model uses `im_shape` as the
     /// tensor input size and divides output coordinates by `scale_factor` to restore original
     /// pixel space. Passing original dimensions causes output boxes to be out of bounds.
     #[test]
     fn preprocess_single_im_shape_is_resized_dimensions_not_original() {
-        let img = RgbImage::new(1275, 1650); // A4 page at ~150 DPI
+        let img = RgbImage::new(1275, 1650);
         let (_pixel_tensor, im_shape, _scale_factor) = PpDocLayoutV3Model::preprocess_single(&img);
         assert_eq!(
             im_shape[[0, 0]],

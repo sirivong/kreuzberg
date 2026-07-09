@@ -148,14 +148,11 @@ mod tests {
     #[cfg(feature = "api")]
     fn test_openapi_includes_all_endpoints() {
         let schema = openapi_json();
-        // Health endpoints
         assert!(schema.contains("/health"));
         assert!(schema.contains("/info"));
         assert!(schema.contains("/version"));
-        // Extraction
         assert!(schema.contains("/extract"));
         assert!(schema.contains("/detect"));
-        // Cache
         assert!(schema.contains("/cache/stats"));
         assert!(schema.contains("/cache/clear"));
         assert!(schema.contains("/cache/manifest"));

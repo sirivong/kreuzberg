@@ -136,7 +136,6 @@ pub(crate) fn create_router_with_limits_and_server_config(
         job_store: Arc::new(super::jobs::JobStore::new()),
     };
 
-    // CORS configuration based on ServerConfig
     let cors_layer = if server_config.cors_allows_all() {
         tracing::warn!(
             "CORS configured to allow all origins (default). This permits CSRF attacks. \
@@ -179,12 +178,10 @@ pub(crate) fn create_router_with_limits_and_server_config(
         .route("/cache/clear", delete(cache_clear_handler))
         .route("/cache/manifest", get(cache_manifest_handler))
         .route("/cache/warm", post(cache_warm_handler))
-        // OpenWebUI compatibility endpoints
         .route("/process", put(openweb_external_handler))
         .route("/v1/convert/file", post(openweb_docling_handler))
         .fallback(not_found_handler);
 
-    // Add OpenAPI schema endpoint if API feature is enabled
     #[cfg(feature = "api")]
     {
         router = router.route("/openapi.json", get(openapi_schema_handler));
@@ -200,9 +197,6 @@ pub(crate) fn create_router_with_limits_and_server_config(
         .layer(CatchPanicLayer::new())
         .layer(SetSensitiveHeadersLayer::new([axum::http::header::AUTHORIZATION]))
         // Per-request and per-response events are demoted to DEBUG so the default
-        // `tower_http=info` filter keeps them out of normal logs. Failures stay at
-        // WARN so they surface without needing RUST_LOG overrides. Full transport
-        // tracing is restored with RUST_LOG=tower_http=debug.
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(DefaultMakeSpan::new().level(tracing::Level::DEBUG))

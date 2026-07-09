@@ -169,7 +169,6 @@ mod tests {
         clear_renderers().unwrap();
         assert!(list_renderers().unwrap().is_empty());
 
-        // Restore built-ins so other tests are unaffected.
         use crate::plugins::registry::get_renderer_registry;
         let registry = get_renderer_registry();
         let mut registry = registry.write();

@@ -134,8 +134,6 @@ pub(crate) fn extract_tar_text_content(bytes: &[u8], limits: &SecurityLimits) ->
         if !entry.header().entry_type().is_dir() && TEXT_EXTENSIONS.iter().any(|ext| path.to_lowercase().ends_with(ext))
         {
             let estimated_size = (entry.size().min(10 * 1024 * 1024)) as usize;
-            // Read bytes then decode so a non-UTF-8 member is recovered rather
-            // than silently dropped (xberg-io/xberg#1223).
             let mut raw = Vec::with_capacity(estimated_size);
             if let Err(e) = entry.read_to_end(&mut raw) {
                 tracing::warn!(member = %path, error = %e, "skipping TAR member: read failed");

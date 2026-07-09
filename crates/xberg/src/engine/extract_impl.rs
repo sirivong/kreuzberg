@@ -128,9 +128,6 @@ async fn extract_batch_concurrent(
     let mut items: Vec<Option<BatchItemResult>> = Vec::with_capacity(input_count);
     items.resize_with(input_count, || None);
 
-    // Shared-URL group: http(s) URIs whose resolved crawl config + mode match
-    // the batch base config. These reuse ONE crawlberg engine via crawlberg's
-    // batch API instead of building a fresh engine per item.
     #[cfg(feature = "url-ingestion")]
     let mut shared_items: Vec<SharedUrlItem> = Vec::new();
     #[cfg(feature = "url-ingestion")]
@@ -139,9 +136,6 @@ async fn extract_batch_concurrent(
     for (index, input) in inputs.into_iter().enumerate() {
         let source = input_source(&input);
 
-        // Partition: route matching http(s) URIs into the shared group; every
-        // other input (bytes, file, file://, scheme-overriding URIs) keeps the
-        // existing per-item JoinSet + Semaphore + timeout path verbatim.
         #[cfg(feature = "url-ingestion")]
         {
             if let Some(uri) = shared_group_uri(&input) {
@@ -256,12 +250,9 @@ async fn run_shared_url_group(
 ) {
     use std::collections::HashMap;
 
-    // Build the crawl engine ONCE for the shared batch config.
     let engine = match inner.crawl_engine_for(&base_config.url.crawl) {
         Ok(engine) => engine,
         Err(error) => {
-            // Construction/validation fails identically for every shared URL
-            // (they share one crawl config): isolate it into each error slot.
             for shared in &shared_items {
                 items[shared.index] = Some(BatchItemResult {
                     index: shared.index,
@@ -273,9 +264,6 @@ async fn run_shared_url_group(
         }
     };
 
-    // crawlberg returns results PAIRED WITH THE SEED URL IN COMPLETION ORDER,
-    // not input order. A per-URL queue of positions restores input order and
-    // maps duplicate URLs to the correct successive input slots.
     let mut positions_for_url: HashMap<&str, VecDeque<usize>> = HashMap::new();
     for (position, shared) in shared_items.iter().enumerate() {
         positions_for_url
@@ -285,11 +273,6 @@ async fn run_shared_url_group(
     }
     let urls: Vec<&str> = shared_items.iter().map(|shared| shared.uri.as_str()).collect();
 
-    // Crawl results whose URL key matches no queued input position (most
-    // commonly a panicked task, which crawlberg reports as an empty-URL
-    // `("", Err(..))` pair — see crawlberg `batch.rs`). Their errors are captured
-    // here and re-attached to dropped input slots in the sweep below, rather than
-    // silently discarded.
     let mut unmatched_errors: VecDeque<XbergError> = VecDeque::new();
 
     match base_config.url.mode {
@@ -529,8 +512,6 @@ async fn extract_bytes_input(input: ExtractInput, config: &ExtractionConfig, ind
         .bytes
         .ok_or_else(|| XbergError::validation("extract input kind 'bytes' requires the 'bytes' field".to_string()))?;
     let mime_type = resolve_bytes_mime_type(input.mime_type.as_deref(), input.filename.as_deref(), &bytes)?;
-    // Thread the source filename so extractors can fall back to extension-based
-    // language detection (e.g. tree-sitter) when content sniffing is inconclusive.
     let mut cfg = config.clone();
     cfg.source_name = input.filename.as_deref().map(str::to_string);
     let mut result = Box::pin(extract_bytes(&bytes, &mime_type, &cfg)).await?;
@@ -808,14 +789,10 @@ fn merge_crawl_summary(
 /// `extract_bytes` handles it via content sniffing.
 #[cfg(feature = "url-ingestion")]
 fn refine_downloaded_mime_type(mime_type: &str, filename: Option<&str>, url: &str) -> String {
-    // Trust explicit, non-generic MIME types from the server.
     if mime_type != "application/octet-stream" {
         return mime_type.to_string();
     }
 
-    // Attempt extension-based detection from the filename (crawlberg derives this from
-    // the URL path or Content-Disposition header). This reaches the tree-sitter language
-    // detection path for source-code extensions (.py → text/x-source-code).
     if let Some(name) = filename
         && let Ok(detected) = crate::core::mime::detect_mime_type(name, false)
         && crate::core::mime::validate_mime_type(&detected).is_ok()
@@ -829,9 +806,6 @@ fn refine_downloaded_mime_type(mime_type: &str, filename: Option<&str>, url: &st
         return detected;
     }
 
-    // No usable filename hint, or detected MIME is unsupported: fall through to the
-    // octet-stream handling in extract_bytes (content sniffing / tree-sitter content
-    // detection).
     mime_type.to_string()
 }
 

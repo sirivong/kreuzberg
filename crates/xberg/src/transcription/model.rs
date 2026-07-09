@@ -83,10 +83,6 @@ pub enum WhisperModelError {
     Cache(String),
 }
 
-// ---------------------------------------------------------------------------
-// Internal helpers
-// ---------------------------------------------------------------------------
-
 /// Map a [`WhisperModel`] to its directory name inside the whisper cache root.
 #[cfg(feature = "transcription")]
 pub(crate) fn model_dirname(model: WhisperModel) -> &'static str {
@@ -153,9 +149,6 @@ fn has_external_data_shard(model: WhisperModel) -> bool {
 #[cfg(feature = "transcription")]
 fn model_files(model: WhisperModel) -> Vec<(&'static str, &'static str)> {
     if is_sharded(model) {
-        // Merged decoder: a single ONNX used for both passes. LargeV3 also
-        // carries an external `.onnx_data` weight shard; Small and Medium are
-        // self-contained.
         let mut files = vec![
             ("onnx/encoder_model.onnx", "encoder.onnx"),
             ("onnx/decoder_model_merged.onnx", "decoder.onnx"),
@@ -167,7 +160,6 @@ fn model_files(model: WhisperModel) -> Vec<(&'static str, &'static str)> {
         files.push(("config.json", "config.json"));
         files
     } else {
-        // Tiny and Base: individual ONNX files, no data shards.
         vec![
             ("onnx/encoder_model.onnx", "encoder.onnx"),
             ("onnx/decoder_model.onnx", "decoder.onnx"),
@@ -185,20 +177,6 @@ fn all_files_cached(target_dir: &Path, model: WhisperModel) -> bool {
         .into_iter()
         .all(|(_, local_name)| target_dir.join(local_name).exists())
 }
-
-// ---------------------------------------------------------------------------
-// Cross-process download lock (mirrors embeddings/mod.rs ProcessDownloadLock)
-//
-// hf-hub's own lock is non-blocking with only ~5 retries at 1-second intervals.
-// That is far shorter than a 100 MB+ model download. Without a blocking outer
-// lock, concurrent first-time callers race: the loser exhausts its retries and
-// returns ApiError::LockAcquisition instead of waiting.
-//
-// This guard wraps a blocking flock(LOCK_EX) on a xberg-owned lock file.
-// The first process to enter the download section holds it for the full
-// download; every other process blocks at acquisition, then finds the model
-// already present and proceeds without re-downloading.
-// ---------------------------------------------------------------------------
 
 #[cfg(feature = "transcription")]
 struct ProcessDownloadLock {
@@ -254,11 +232,6 @@ impl Drop for ProcessDownloadLock {
 #[cfg(all(feature = "transcription", target_family = "unix"))]
 fn blocking_lock_exclusive(file: &std::fs::File) -> bool {
     use std::os::fd::AsRawFd;
-    // SAFETY: `file` is a live, open file owned by the caller for the duration of
-    // the call; `as_raw_fd()` yields a valid descriptor. `flock` with `LOCK_EX`
-    // (without `LOCK_NB`) blocks until the advisory lock is granted and mutates no
-    // Rust-visible state. The lock is released by `unlock_file` on drop or
-    // automatically by the OS when the owning process exits.
     #[allow(unsafe_code)]
     let result = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) };
     result == 0
@@ -268,8 +241,6 @@ fn blocking_lock_exclusive(file: &std::fs::File) -> bool {
 #[cfg(all(feature = "transcription", target_family = "unix"))]
 fn unlock_file(file: &std::fs::File) {
     use std::os::fd::AsRawFd;
-    // SAFETY: `file` is a live, open file owned by the caller; `flock` with
-    // `LOCK_UN` releases any advisory lock and mutates no Rust-visible state.
     #[allow(unsafe_code)]
     unsafe {
         libc::flock(file.as_raw_fd(), libc::LOCK_UN);
@@ -289,10 +260,6 @@ fn blocking_lock_exclusive(_file: &std::fs::File) -> bool {
 /// No-op unlock for non-unix targets — no lock was taken.
 #[cfg(all(feature = "transcription", not(target_family = "unix")))]
 fn unlock_file(_file: &std::fs::File) {}
-
-// ---------------------------------------------------------------------------
-// Public API
-// ---------------------------------------------------------------------------
 
 /// Resolve a Whisper model to on-disk ONNX paths, downloading from HF Hub if needed.
 ///
@@ -323,13 +290,11 @@ pub fn ensure_whisper_model(
     allow_network: bool,
     verify_hash: bool,
 ) -> Result<WhisperModelPaths, WhisperModelError> {
-    // Resolve the on-disk target directory for this model variant.
     let whisper_cache = cache_dir
         .map(|p| p.to_path_buf())
         .unwrap_or_else(|| crate::cache_dir::resolve_cache_dir("whisper"));
     let target_dir = whisper_cache.join(model_dirname(model));
 
-    // Fast path: every required file is already present.
     if all_files_cached(&target_dir, model) {
         tracing::debug!(
             dir = ?target_dir,
@@ -339,12 +304,10 @@ pub fn ensure_whisper_model(
         return Ok(build_paths(model, &target_dir));
     }
 
-    // Network is disabled and the model is not cached — bail out.
     if !allow_network {
         return Err(WhisperModelError::ModelMissing(hf_repo(model).to_string()));
     }
 
-    // Ensure the target directory exists before acquiring the lock.
     std::fs::create_dir_all(&target_dir).map_err(|error| {
         WhisperModelError::Cache(format!(
             "Failed to create Whisper cache directory {}: {error}",
@@ -352,13 +315,8 @@ pub fn ensure_whisper_model(
         ))
     })?;
 
-    // Acquire a cross-process download lock.
-    // The lock parent is the whisper_cache directory itself (not target_dir) so
-    // that different model variants can download concurrently.
     let _download_lock = ProcessDownloadLock::acquire(&whisper_cache, hf_repo(model));
 
-    // Re-check after acquiring the lock: a concurrent process may have finished
-    // the download while we were waiting.
     if all_files_cached(&target_dir, model) {
         tracing::debug!(
             dir = ?target_dir,
@@ -368,9 +326,9 @@ pub fn ensure_whisper_model(
         return Ok(build_paths(model, &target_dir));
     }
 
-    // Hash verification reminder — the table is not yet populated in W3.
-    // TODO(W3+): populate a static hash table keyed by (WhisperModel, filename)
-    //            and verify each downloaded file via `crate::model_download::verify_sha256`.
+    // ~keep Hash verification reminder — the table is not yet populated in W3.
+    // ~keep TODO(W3+): populate a static hash table keyed by (WhisperModel, filename)
+    // ~keep            and verify each downloaded file via `crate::model_download::verify_sha256`.
     if verify_hash {
         tracing::warn!(
             model = model_dirname(model),
@@ -380,10 +338,6 @@ pub fn ensure_whisper_model(
         );
     }
 
-    // Download via hf-hub.
-    // ApiBuilder::from_env() respects HF_HUB_CACHE / HUGGINGFACE_HUB_CACHE env vars.
-    // We override the cache dir so files land in our whisper_cache structure, matching
-    // how the embeddings module manages its own cache directory.
     let api = hf_hub::api::sync::ApiBuilder::from_env()
         .with_cache_dir(whisper_cache.clone())
         .with_progress(false)
@@ -393,8 +347,6 @@ pub fn ensure_whisper_model(
     for (remote_path, local_name) in model_files(model) {
         let local_path = target_dir.join(local_name);
 
-        // Skip individual files that are already present (e.g. a partially completed
-        // previous download where some files made it through).
         if local_path.exists() {
             tracing::debug!(file = local_name, "Whisper file already present, skipping");
             continue;
@@ -407,9 +359,6 @@ pub fn ensure_whisper_model(
             "Downloading Whisper model file",
         );
 
-        // Run the blocking fetch under the wall-clock watchdog: hf-hub sets no read/connect
-        // timeout, so a firewalled host would otherwise wedge the pipeline forever at 0% CPU.
-        // `ApiRepo` is not `Clone` in hf-hub 0.4, but `Api` is, so rebuild the repo inside.
         let downloaded = {
             let api = api.clone();
             let remote = remote_path.to_string();
@@ -425,9 +374,6 @@ pub fn ensure_whisper_model(
             ))
         })?;
 
-        // hf-hub places the file in its own cache layout under `whisper_cache`.
-        // Copy it to our canonical local filename so the rest of the codebase
-        // uses stable, predictable paths independent of hf-hub's internal layout.
         std::fs::copy(&downloaded, &local_path).map_err(|error| {
             WhisperModelError::Io(std::io::Error::other(format!(
                 "Failed to copy '{remote_path}' to {}: {error}",
@@ -474,10 +420,6 @@ fn build_paths(model: WhisperModel, target_dir: &Path) -> WhisperModelPaths {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -511,7 +453,6 @@ mod tests {
         assert!(!has_external_data_shard(WhisperModel::Small));
         assert!(!has_external_data_shard(WhisperModel::Medium));
         assert!(has_external_data_shard(WhisperModel::LargeV3));
-        // Small/Medium merged decoders are self-contained (no .onnx_data download).
         assert!(
             !model_files(WhisperModel::Small)
                 .iter()
@@ -542,12 +483,7 @@ mod tests {
     #[test]
     fn ensure_model_returns_missing_when_network_disabled_and_uncached() {
         let tmp = tempfile::tempdir().expect("tempdir");
-        let result = ensure_whisper_model(
-            WhisperModel::Tiny,
-            Some(tmp.path()),
-            false, // allow_network = false
-            false,
-        );
+        let result = ensure_whisper_model(WhisperModel::Tiny, Some(tmp.path()), false, false);
         assert!(
             matches!(result, Err(WhisperModelError::ModelMissing(_))),
             "expected ModelMissing, got: {result:?}",
@@ -561,7 +497,6 @@ mod tests {
         let target_dir = tmp.path().join("small");
         std::fs::create_dir_all(&target_dir).unwrap();
 
-        // Create stub files to satisfy all_files_cached.
         for (_, local_name) in model_files(WhisperModel::Small) {
             std::fs::write(target_dir.join(local_name), b"stub").unwrap();
         }
@@ -569,7 +504,6 @@ mod tests {
         let paths = ensure_whisper_model(WhisperModel::Small, Some(tmp.path()), false, false)
             .expect("should succeed when all files are cached");
 
-        // For sharded models, decoder and decoder_with_past must be the same file.
         assert_eq!(
             paths.decoder, paths.decoder_with_past,
             "sharded model: decoder and decoder_with_past must point at the merged file",

@@ -25,7 +25,7 @@ use std::io::Cursor;
 use std::io::Read;
 
 /// Maximum size for an individual IWA file to guard against decompression bombs.
-const MAX_IWA_DECOMPRESSED_SIZE: usize = 64 * 1024 * 1024; // 64 MiB
+const MAX_IWA_DECOMPRESSED_SIZE: usize = 64 * 1024 * 1024;
 
 /// Collects all .iwa file paths from a ZIP archive.
 ///
@@ -88,7 +88,6 @@ pub(crate) fn decode_iwa_stream(data: &[u8]) -> std::result::Result<Vec<u8>, Str
 
     while i + 4 <= data.len() {
         let chunk_type = data[i];
-        // 24-bit little-endian length in bytes 1..4
         let chunk_len = (data[i + 1] as usize) | ((data[i + 2] as usize) << 8) | ((data[i + 3] as usize) << 16);
         i += 4;
 
@@ -105,7 +104,6 @@ pub(crate) fn decode_iwa_stream(data: &[u8]) -> std::result::Result<Vec<u8>, Str
 
         match chunk_type {
             0x00 => {
-                // Snappy-compressed block
                 let decompressed = decoder
                     .decompress_vec(payload)
                     .map_err(|e| format!("Snappy decompression failed: {e}"))?;
@@ -118,7 +116,6 @@ pub(crate) fn decode_iwa_stream(data: &[u8]) -> std::result::Result<Vec<u8>, Str
                 output.extend_from_slice(&decompressed);
             }
             0x01 => {
-                // Uncompressed block — use payload directly
                 if output.len() + payload.len() > MAX_IWA_DECOMPRESSED_SIZE {
                     return Err(format!(
                         "Uncompressed IWA exceeds size limit ({MAX_IWA_DECOMPRESSED_SIZE} bytes)"
@@ -127,7 +124,6 @@ pub(crate) fn decode_iwa_stream(data: &[u8]) -> std::result::Result<Vec<u8>, Str
                 output.extend_from_slice(payload);
             }
             _ => {
-                // Unknown chunk type — skip to avoid corruption
                 tracing::debug!("Unknown IWA chunk type: 0x{:02x}, len={chunk_len}", chunk_type);
             }
         }
@@ -150,7 +146,6 @@ pub(crate) fn extract_text_from_proto(data: &[u8]) -> Vec<String> {
     let mut i = 0usize;
 
     while i < data.len() {
-        // Read varint tag
         let (tag_varint, tag_len) = match read_varint(data, i) {
             Some(v) => v,
             None => break,
@@ -160,19 +155,14 @@ pub(crate) fn extract_text_from_proto(data: &[u8]) -> Vec<String> {
         let wire_type = tag_varint & 0x7;
 
         match wire_type {
-            0 => {
-                // Varint — skip
-                match read_varint(data, i) {
-                    Some((_, len)) => i += len,
-                    None => break,
-                }
-            }
+            0 => match read_varint(data, i) {
+                Some((_, len)) => i += len,
+                None => break,
+            },
             1 => {
-                // 64-bit — skip
                 i += 8;
             }
             2 => {
-                // Length-delimited — inspect for text
                 let (length, len_bytes) = match read_varint(data, i) {
                     Some(v) => v,
                     None => break,
@@ -185,7 +175,6 @@ pub(crate) fn extract_text_from_proto(data: &[u8]) -> Vec<String> {
                 let payload = &data[i..end];
                 i = end;
 
-                // Attempt UTF-8 decode — only keep strings ≥ 3 chars of printable content
                 if let Ok(s) = utf8_validation::from_utf8(payload) {
                     let trimmed = s.trim();
                     if trimmed.len() >= 3 && trimmed.chars().any(|c| c.is_alphabetic() || c.is_numeric()) {
@@ -193,16 +182,13 @@ pub(crate) fn extract_text_from_proto(data: &[u8]) -> Vec<String> {
                     }
                 }
 
-                // Also recurse into nested messages (they're also length-delimited)
                 let nested = extract_text_from_proto(payload);
                 texts.extend(nested);
             }
             5 => {
-                // 32-bit — skip
                 i += 4;
             }
             _ => {
-                // Unknown wire type, stop parsing this message to avoid corruption
                 break;
             }
         }
@@ -250,7 +236,6 @@ pub(crate) fn extract_metadata_from_zip(content: &[u8]) -> crate::types::metadat
 
     let mut metadata = crate::types::metadata::Metadata::default();
 
-    // Try to read Metadata/Properties.plist (XML plist with doc metadata)
     if let Ok(mut file) = archive.by_name("Metadata/Properties.plist") {
         let mut buf = Vec::new();
         if file.read_to_end(&mut buf).is_ok()
@@ -260,8 +245,6 @@ pub(crate) fn extract_metadata_from_zip(content: &[u8]) -> crate::types::metadat
         }
     }
 
-    // Try to read Metadata/DocumentIdentifier from the ZIP
-    // (some iWork files store the doc title here)
     if let Ok(mut file) = archive.by_name("Metadata/DocumentIdentifier") {
         let mut buf = Vec::new();
         if file.read_to_end(&mut buf).is_ok()
@@ -282,13 +265,10 @@ pub(crate) fn extract_metadata_from_zip(content: &[u8]) -> crate::types::metadat
 /// iWork plist metadata uses `<key>...</key><string>...</string>` pairs.
 /// We extract known keys: title, author, keywords, language.
 fn parse_plist_metadata(plist: &str, metadata: &mut crate::types::metadata::Metadata) {
-    // Simple key/value extraction from XML plist without a full XML parser.
-    // The format is: <key>NAME</key>\n<string>VALUE</string>
     let lines: Vec<&str> = plist.lines().map(|l| l.trim()).collect();
     let mut i = 0;
     while i < lines.len() {
         if let Some(key) = extract_plist_tag(lines[i], "key") {
-            // Look at the next non-empty line for the value
             let mut j = i + 1;
             while j < lines.len() && lines[j].is_empty() {
                 j += 1;
@@ -360,7 +340,6 @@ mod tests {
 
     #[test]
     fn test_extract_text_from_proto_basic() {
-        // Protobuf: field 3, wire type 2 (length-delimited) = tag 0x1A
         let text = b"Hello World from iWork";
         let mut proto = vec![0x1A, text.len() as u8];
         proto.extend_from_slice(text);
@@ -375,14 +354,11 @@ mod tests {
 
     #[test]
     fn test_extract_text_from_proto_skips_binary() {
-        // Craft a proto payload with binary blob (non-UTF-8)
         let binary: Vec<u8> = (0..20).map(|i| i * 7 + 3).collect();
         let mut proto = vec![0x1A, binary.len() as u8];
         proto.extend_from_slice(&binary);
 
-        // Should not panic and should produce no valid text strings
         let extracted = extract_text_from_proto(&proto);
-        // Binary data should not produce alphabetic strings
         for s in &extracted {
             assert!(
                 !s.chars().all(|c| c.is_alphabetic()),
@@ -393,12 +369,11 @@ mod tests {
 
     #[test]
     fn test_extract_text_from_proto_nested() {
-        // Nested message: outer field 2 wrapping an inner field 3 with text
         let inner_text = b"Nested Content";
         let mut inner = vec![0x1A, inner_text.len() as u8];
         inner.extend_from_slice(inner_text);
 
-        let mut outer = vec![0x12, inner.len() as u8]; // field 2, wire type 2
+        let mut outer = vec![0x12, inner.len() as u8];
         outer.extend_from_slice(&inner);
 
         let extracted = extract_text_from_proto(&outer);
@@ -413,7 +388,6 @@ mod tests {
     fn test_collect_iwa_paths_returns_only_iwa() {
         use std::io::Write;
 
-        // Build a minimal ZIP in memory with one .iwa and one .xml entry
         let mut buf = Vec::new();
         {
             let cursor = std::io::Cursor::new(&mut buf);

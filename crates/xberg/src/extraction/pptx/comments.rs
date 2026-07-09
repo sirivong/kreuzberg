@@ -31,20 +31,16 @@ pub(super) fn extract_comments<R: Read + Seek>(
     let mut any_comment_file_found = false;
 
     for (slide_idx, _) in slide_paths.iter().enumerate() {
-        // PPTX stores comments in ppt/comments/comment{N}.xml, 1-indexed.
         let comment_path = format!("ppt/comments/comment{}.xml", slide_idx + 1);
         let xml_bytes = match container.read_file(&comment_path) {
             Ok(b) => {
                 any_comment_file_found = true;
                 b
             }
-            Err(_) => continue, // absent = no comments on this slide
+            Err(_) => continue,
         };
 
-        // slide index for anchor: the PPTX module numbers slides 1-indexed
-        // in slide_number but RevisionAnchor::Slide is 0-indexed per the spec
-        // comment in revisions.rs.  Use 0-based so anchor is consistent.
-        let slide_index = slide_idx; // 0-based
+        let slide_index = slide_idx;
 
         match parse_comment_xml(&xml_bytes, slide_index, &author_map) {
             Ok(revisions) => all_comments.extend(revisions),
@@ -126,8 +122,6 @@ fn parse_comment_xml(
             continue;
         }
 
-        // Derive revision_id from the `idx` attribute; fall back to a
-        // positional synthetic id so consumers always get a non-empty id.
         let revision_id = cm
             .attribute("idx")
             .filter(|s| !s.is_empty())
@@ -143,7 +137,6 @@ fn parse_comment_xml(
 
         let timestamp = cm.attribute("dt").filter(|s| !s.is_empty()).map(str::to_string);
 
-        // Collect the comment text from child <p:text> elements.
         let comment_text: String = cm
             .descendants()
             .filter(|n| n.has_tag_name((PRESENTATIONML_NAMESPACE, "text")))
@@ -244,7 +237,6 @@ mod tests {
     #[test]
     fn should_resolve_author_none_when_author_id_is_unmapped() {
         let author_map = make_author_map(&[(0, "Alice")]);
-        // authorId=99 is not in the map
         let xml = make_comment_xml(&[(1, 99, "2024-03-15T10:30:00Z", "Orphan comment")]);
         let revisions = parse_comment_xml(&xml, 2, &author_map).expect("should parse");
 
@@ -275,7 +267,6 @@ mod tests {
         assert_eq!(revisions[1].revision_id, "2");
         assert_eq!(revisions[1].author.as_deref(), Some("Bob"));
         assert_eq!(revisions[2].revision_id, "3");
-        // All on slide index 1
         for rev in &revisions {
             assert!(matches!(&rev.anchor, Some(RevisionAnchor::Slide { index: 1 })));
         }

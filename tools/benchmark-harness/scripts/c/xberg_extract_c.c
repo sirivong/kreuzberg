@@ -38,9 +38,6 @@ if (debug_enabled)                                                              
 fprintf(stderr, "[DEBUG] " fmt "\n", ##__VA_ARGS__);                                   \
 } while (0)
 
-/* -------------------------------------------------------------------------- */
-/* Helpers                                                                     */
-/* -------------------------------------------------------------------------- */
 
 static double time_ms(void) {
     struct timespec ts;
@@ -60,7 +57,7 @@ static uint64_t peak_memory_bytes(void) {
     #else
     struct rusage usage;
     if (getrusage(RUSAGE_SELF, &usage) == 0) {
-        return (uint64_t)usage.ru_maxrss * 1024; /* Linux reports in KB */
+        return (uint64_t)usage.ru_maxrss * 1024;
     }
     return 0;
     #endif
@@ -137,22 +134,15 @@ static char *json_escape_alloc(const char *src) {
     return buf;
 }
 
-/* -------------------------------------------------------------------------- */
-/* OCR detection (mirrors Go/Rust adapter logic)                              */
-/* -------------------------------------------------------------------------- */
 
 static bool determine_ocr_used(const char *mime_type, bool ocr_enabled) {
     if (!mime_type)
     return false;
-    /* If extraction detected OCR format */
     if (strstr(mime_type, "image/") != NULL && ocr_enabled)
     return true;
     return false;
 }
 
-/* -------------------------------------------------------------------------- */
-/* JSON request parsing (minimal — just extract "path" and "force_ocr")       */
-/* -------------------------------------------------------------------------- */
 
 /**
  * Parse a request line which is either a plain file path or a JSON object
@@ -164,7 +154,6 @@ static bool determine_ocr_used(const char *mime_type, bool ocr_enabled) {
  * For JSON parsing, we extract values manually to avoid dependencies.
  */
 static void parse_request(char *line, const char **out_path, bool *out_force_ocr) {
-    /* Trim trailing whitespace/newline */
     size_t len = strlen(line);
     while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r' || line[len - 1] == ' ' ||
         line[len - 1] == '\t')) {
@@ -173,14 +162,11 @@ static void parse_request(char *line, const char **out_path, bool *out_force_ocr
 
     *out_force_ocr = false;
 
-    /* Check if it's JSON */
     if (len > 0 && line[0] == '{') {
-        /* Find "path" field */
         const char *path_key = "\"path\"";
         char *p = strstr(line, path_key);
         if (p) {
             p += strlen(path_key);
-            /* Skip colon and whitespace */
             while (*p == ' ' || *p == ':' || *p == '\t')
             p++;
             if (*p == '"') {
@@ -192,7 +178,6 @@ static void parse_request(char *line, const char **out_path, bool *out_force_ocr
                 }
             }
         }
-        /* Check force_ocr */
         if (strstr(line, "\"force_ocr\":true") || strstr(line, "\"force_ocr\": true")) {
             *out_force_ocr = true;
         }
@@ -201,9 +186,6 @@ static void parse_request(char *line, const char **out_path, bool *out_force_ocr
     }
 }
 
-/* -------------------------------------------------------------------------- */
-/* Extraction + JSON output                                                    */
-/* -------------------------------------------------------------------------- */
 
 /**
  * Build the config JSON string for OCR-enabled extraction.
@@ -359,15 +341,11 @@ static XBERGExtractedDocument *extract_document(const char *path, bool ocr_enabl
     return result;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Modes                                                                       */
-/* -------------------------------------------------------------------------- */
 
 static int run_server(bool ocr_enabled) {
     DEBUG_LOG("Server mode: reading paths from stdin");
     char line[8192];
 
-    /* Signal readiness */
     printf("READY\n");
     fflush(stdout);
 
@@ -437,7 +415,6 @@ static int run_batch(int file_count, const char **files, bool ocr_enabled) {
     double batch_start = time_ms();
 
     if (file_count == 1) {
-        /* Single file in batch mode: return single object (not array) */
         double start = time_ms();
         XBERGExtractedDocument *result = extract_document(files[0], ocr_enabled, false);
         double elapsed = time_ms() - start;
@@ -453,7 +430,6 @@ static int run_batch(int file_count, const char **files, bool ocr_enabled) {
         bool ocr_used = determine_ocr_used(mime_type, ocr_enabled);
         if (mime_type)
         xberg_free_string(mime_type);
-        /* Include _batch_total_ms for batch mode */
         uint64_t mem = peak_memory_bytes();
         char *content = xberg_extracted_document_content(result);
         char *escaped_content = content ? json_escape_alloc(content) : NULL;
@@ -482,7 +458,6 @@ static int run_batch(int file_count, const char **files, bool ocr_enabled) {
         return 0;
     }
 
-    /* Multiple files: print JSON array */
     printf("[");
     for (int i = 0; i < file_count; i++) {
         XBERGExtractedDocument *result = extract_document(files[i], ocr_enabled, false);
@@ -536,9 +511,6 @@ static int run_batch(int file_count, const char **files, bool ocr_enabled) {
     return 0;
 }
 
-/* -------------------------------------------------------------------------- */
-/* Main                                                                        */
-/* -------------------------------------------------------------------------- */
 
 int main(int argc, char *argv[]) {
     debug_enabled = getenv("XBERG_BENCHMARK_DEBUG") != NULL &&
@@ -551,7 +523,6 @@ int main(int argc, char *argv[]) {
     const char **files = NULL;
     int file_count = 0;
 
-    /* Parse arguments */
     int arg_idx = 1;
     while (arg_idx < argc) {
         if (strcmp(argv[arg_idx], "--ocr") == 0) {
@@ -561,7 +532,6 @@ int main(int argc, char *argv[]) {
         } else if (!mode) {
             mode = argv[arg_idx];
         } else {
-            /* Remaining args are file paths */
             files = (const char **)&argv[arg_idx];
             file_count = argc - arg_idx;
             break;

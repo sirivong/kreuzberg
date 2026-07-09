@@ -81,17 +81,12 @@ impl TesseractBackend {
                 ..Default::default()
             },
         };
-        // The `None` branch is already defaulted by `effective_languages`. An explicit
-        // `tesseract_config` carries its own language list, which may be empty; guard that
-        // case too so an empty language never reaches Tesseract as a pack named "".
         if internal.language.trim().is_empty() {
             internal.language = crate::core::config::ocr::DEFAULT_OCR_LANGUAGE.to_string();
         }
-        // Propagate top-level OcrConfig.auto_rotate (OR with any preprocessing setting)
         if config.auto_rotate {
             internal.auto_rotate = true;
         }
-        // Propagate the runtime tessdata directory override, if any.
         internal.tessdata_path = config.tessdata_path.clone();
         internal
     }
@@ -211,7 +206,6 @@ impl OcrBackend for TesseractBackend {
             source: Some(Box::new(e)),
         })?;
 
-        // Use resolved language from OCR result metadata (handles "all"/"*" resolution)
         let resolved_language = ocr_result
             .metadata
             .get("language")
@@ -219,14 +213,12 @@ impl OcrBackend for TesseractBackend {
             .unwrap_or(&tess_config.language)
             .to_string();
 
-        // Check if OCR pre-formatted the content (e.g., tables inlined into markdown)
         let pre_formatted = ocr_result
             .metadata
             .get("pre_formatted")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
-        // Convert HashMap<String, Value> to AHashMap<Cow<'static, str>, Value>
         let mut additional = AHashMap::new();
         for (key, value) in ocr_result.metadata {
             additional.insert(Cow::Owned(key), value);
@@ -244,7 +236,6 @@ impl OcrBackend for TesseractBackend {
                     .first()
                     .and_then(|t| t.cells.first().map(|row| row.len() as u32)),
             })),
-            // Signal pre-formatted content so apply_output_format() skips re-conversion
             output_format: pre_formatted,
             additional,
             ..Default::default()
@@ -307,7 +298,6 @@ impl OcrBackend for TesseractBackend {
             source: Some(Box::new(e)),
         })?;
 
-        // Use resolved language from OCR result metadata (handles "all"/"*" resolution)
         let resolved_language = ocr_result
             .metadata
             .get("language")
@@ -315,14 +305,12 @@ impl OcrBackend for TesseractBackend {
             .unwrap_or(&tess_config.language)
             .to_string();
 
-        // Check if OCR pre-formatted the content (e.g., tables inlined into markdown)
         let pre_formatted = ocr_result
             .metadata
             .get("pre_formatted")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
 
-        // Convert HashMap<String, Value> to AHashMap<Cow<'static, str>, Value>
         let mut additional = AHashMap::new();
         for (key, value) in ocr_result.metadata {
             additional.insert(Cow::Owned(key), value);
@@ -340,7 +328,6 @@ impl OcrBackend for TesseractBackend {
                     .first()
                     .and_then(|t| t.cells.first().map(|row| row.len() as u32)),
             })),
-            // Signal pre-formatted content so apply_output_format() skips re-conversion
             output_format: pre_formatted,
             additional,
             ..Default::default()
@@ -418,9 +405,7 @@ mod tests {
     #[test]
     fn test_tesseract_backend_supports_language() {
         let backend = TesseractBackend::new();
-        // English should always be available
         assert!(backend.supports_language("eng"));
-        // Invalid language codes should return false
         assert!(!backend.supports_language("xyz"));
         assert!(!backend.supports_language("invalid"));
     }
@@ -435,9 +420,7 @@ mod tests {
     fn test_tesseract_backend_supported_languages() {
         let backend = TesseractBackend::new();
         let languages = backend.supported_languages();
-        // English should always be available
         assert!(languages.contains(&"eng".to_string()));
-        // Should have at least English
         assert!(!languages.is_empty());
     }
 
@@ -482,9 +465,6 @@ mod tests {
     fn test_config_to_tesseract_defaults_empty_language_to_eng() {
         let backend = TesseractBackend::new();
 
-        // No tesseract_config: empty language list (e.g. `language=[]`) must default to "eng"
-        // rather than producing an empty language string. Regression test for the image OCR
-        // path failing with "Failed to download language pack ''".
         let ocr_config = OcrConfig {
             backend: "tesseract".to_string(),
             language: vec![],
@@ -492,7 +472,6 @@ mod tests {
         };
         assert_eq!(backend.config_to_tesseract(&ocr_config).language, "eng");
 
-        // With a tesseract_config whose language is also empty, the same default applies.
         let ocr_config_with_tess = OcrConfig {
             backend: "tesseract".to_string(),
             language: vec![],
@@ -579,8 +558,6 @@ mod tests {
 
     #[test]
     fn tesseract_backend_does_not_eagerly_allocate_processor() {
-        // Constructing TesseractBackend should not allocate the native Tesseract/Leptonica
-        // handle. The processor is allocated lazily on first use.
         let backend = TesseractBackend::new();
         assert!(
             !backend.processor_is_initialized(),

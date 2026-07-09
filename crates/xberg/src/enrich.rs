@@ -44,8 +44,6 @@ use crate::ClassificationLabel;
 #[cfg(feature = "ner")]
 use crate::types::entity::{Entity, EntityCategory};
 
-// ── Per-stage config knobs ────────────────────────────────────────────────────
-
 /// NER enrichment knob: which backend to use and which categories to request.
 #[cfg(feature = "ner")]
 pub struct NerEnrichmentConfig {
@@ -89,8 +87,6 @@ pub struct CaptioningEnrichmentConfig {
     pub custom_prompt: Option<String>,
 }
 
-// ── Aggregated config ─────────────────────────────────────────────────────────
-
 /// Aggregated enrichment configuration.
 ///
 /// Each field is feature-gated and independently optional. Set a field to
@@ -122,17 +118,11 @@ pub struct EnrichmentConfig {
     pub transcription: Option<crate::core::config::TranscriptionConfig>,
 }
 
-// ── Result type ──────────────────────────────────────────────────────────────
-
 /// Extraction result with optional enrichment layers applied.
 ///
 /// The `extraction` field carries the original [`ExtractedDocument`] unchanged.
 /// Enrichment fields are `None` when the corresponding stage was not configured
 /// or when the feature was compiled out.
-// EnrichedResult cannot derive Debug automatically because the `ner` field
-// holds an `Arc<dyn NerBackend>` which is not Debug. The NerBackend trait
-// is defined upstream and cannot be extended. We skip Debug derivation and
-// rely on the public fields being individually accessible.
 pub struct EnrichedResult {
     /// The original extraction result, unchanged by the enrichment pipeline.
     pub extraction: ExtractedDocument,
@@ -158,8 +148,6 @@ pub struct EnrichedResult {
     #[cfg(feature = "captioning")]
     pub captions: Option<Vec<String>>,
 }
-
-// ── Public entry point ────────────────────────────────────────────────────────
 
 /// Apply enrichment stages to an extraction result.
 ///
@@ -194,10 +182,7 @@ pub struct EnrichedResult {
 ///   the transcription backend is not yet implemented.
 #[cfg_attr(alef, alef(skip))]
 pub async fn enrich(extraction: ExtractedDocument, config: &EnrichmentConfig) -> crate::Result<EnrichedResult> {
-    // When none of the enrichment features are enabled, `config` is only
     // read inside `#[cfg(...)]` branches that are all compiled out — silence
-    // the unused-variable warning so `-D warnings` builds (e.g. Live HF preset)
-    // stay green.
     #[cfg(not(any(
         feature = "transcription-types",
         feature = "classification",
@@ -206,8 +191,6 @@ pub async fn enrich(extraction: ExtractedDocument, config: &EnrichmentConfig) ->
     )))]
     let _ = config;
 
-    // Transcription guard: config surface is present, backend is not.
-    // Any `Some(...)` value is an explicit caller intent — surface the gap clearly.
     #[cfg(feature = "transcription-types")]
     if config.transcription.is_some() {
         return Err(crate::XbergError::Other(
@@ -215,12 +198,10 @@ pub async fn enrich(extraction: ExtractedDocument, config: &EnrichmentConfig) ->
         ));
     }
 
-    // Stage 1: classification.
     #[cfg(feature = "classification")]
     let classification = if let Some(ref cfg) = config.classification {
         let pages: Vec<&str> = match extraction.pages.as_deref() {
             Some(pages) => pages.iter().map(|p| p.content.as_str()).collect(),
-            // Fall back to the full content blob when per-page data is absent.
             None => vec![extraction.content.as_str()],
         };
         Some(crate::text::classification::classify_document(&pages, &cfg.config).await?)
@@ -228,7 +209,6 @@ pub async fn enrich(extraction: ExtractedDocument, config: &EnrichmentConfig) ->
         None
     };
 
-    // Stage 2: NER.
     #[cfg(feature = "ner")]
     let entities = if let Some(ref cfg) = config.ner {
         Some(crate::text::ner::detect_entities(&extraction.content, cfg.backend.as_ref(), &cfg.categories).await?)
@@ -236,9 +216,6 @@ pub async fn enrich(extraction: ExtractedDocument, config: &EnrichmentConfig) ->
         None
     };
 
-    // Stage 3: captioning.
-    // Only images with non-empty data are forwarded to the VLM. Reference-only
-    // images (data.is_empty()) are skipped to avoid sending garbage bytes.
     #[cfg(feature = "captioning")]
     let captions = if let Some(ref cfg) = config.captioning {
         match extraction.images.as_deref() {

@@ -79,8 +79,6 @@ mod tests {
 
     #[test]
     fn deadline_reads_env_override_and_aborts_a_hung_closure() {
-        // SAFETY: env mutation in the 2024 edition is unsafe; this var is exclusive to these tests
-        // and only read at call time, so the set/read/remove sequence here has no observer to race.
         #[allow(unsafe_code)]
         unsafe {
             std::env::set_var("XBERG_MODEL_DOWNLOAD_TIMEOUT_SECS", "1");
@@ -97,7 +95,6 @@ mod tests {
             Ok::<(), String>(())
         });
         let elapsed = started.elapsed();
-        // SAFETY: restore process state so sibling tests see the default (same reasoning as above).
         #[allow(unsafe_code)]
         unsafe {
             std::env::remove_var("XBERG_MODEL_DOWNLOAD_TIMEOUT_SECS");

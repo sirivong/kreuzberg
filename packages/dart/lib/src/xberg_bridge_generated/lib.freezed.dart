@@ -3293,22 +3293,22 @@ as String,
 /// @nodoc
 mixin _$FormatMetadata {
 
-
+ Object get field0;
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is FormatMetadata);
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FormatMetadata&&const DeepCollectionEquality().equals(other.field0, field0));
 }
 
 
 @override
-int get hashCode => runtimeType.hashCode;
+int get hashCode => Object.hash(runtimeType,const DeepCollectionEquality().hash(field0));
 
 @override
 String toString() {
-  return 'FormatMetadata()';
+  return 'FormatMetadata(field0: $field0)';
 }
 
 
@@ -3455,7 +3455,7 @@ return code(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( PdfMetadata field0)?  pdf,TResult Function( DocxMetadata field0)?  docx,TResult Function( ExcelMetadata field0)?  excel,TResult Function( EmailMetadata field0)?  email,TResult Function( PptxMetadata field0)?  pptx,TResult Function( ArchiveMetadata field0)?  archive,TResult Function( ImageMetadata field0)?  image,TResult Function( XmlMetadata field0)?  xml,TResult Function( TextMetadata field0)?  text,TResult Function( HtmlMetadata field0)?  html,TResult Function( OcrMetadata field0)?  ocr,TResult Function( CsvMetadata field0)?  csv,TResult Function( BibtexMetadata field0)?  bibtex,TResult Function( CitationMetadata field0)?  citation,TResult Function( FictionBookMetadata field0)?  fictionBook,TResult Function( DbfMetadata field0)?  dbf,TResult Function( JatsMetadata field0)?  jats,TResult Function( EpubMetadata field0)?  epub,TResult Function( PstMetadata field0)?  pst,TResult Function( AudioMetadata field0)?  audio,TResult Function()?  code,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( PdfMetadata field0)?  pdf,TResult Function( DocxMetadata field0)?  docx,TResult Function( ExcelMetadata field0)?  excel,TResult Function( EmailMetadata field0)?  email,TResult Function( PptxMetadata field0)?  pptx,TResult Function( ArchiveMetadata field0)?  archive,TResult Function( ImageMetadata field0)?  image,TResult Function( XmlMetadata field0)?  xml,TResult Function( TextMetadata field0)?  text,TResult Function( HtmlMetadata field0)?  html,TResult Function( OcrMetadata field0)?  ocr,TResult Function( CsvMetadata field0)?  csv,TResult Function( BibtexMetadata field0)?  bibtex,TResult Function( CitationMetadata field0)?  citation,TResult Function( FictionBookMetadata field0)?  fictionBook,TResult Function( DbfMetadata field0)?  dbf,TResult Function( JatsMetadata field0)?  jats,TResult Function( EpubMetadata field0)?  epub,TResult Function( PstMetadata field0)?  pst,TResult Function( AudioMetadata field0)?  audio,TResult Function( CodeMetadata field0)?  code,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case FormatMetadata_Pdf() when pdf != null:
 return pdf(_that.field0);case FormatMetadata_Docx() when docx != null:
@@ -3478,7 +3478,7 @@ return jats(_that.field0);case FormatMetadata_Epub() when epub != null:
 return epub(_that.field0);case FormatMetadata_Pst() when pst != null:
 return pst(_that.field0);case FormatMetadata_Audio() when audio != null:
 return audio(_that.field0);case FormatMetadata_Code() when code != null:
-return code();case _:
+return code(_that.field0);case _:
   return orElse();
 
 }
@@ -3496,7 +3496,7 @@ return code();case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( PdfMetadata field0)  pdf,required TResult Function( DocxMetadata field0)  docx,required TResult Function( ExcelMetadata field0)  excel,required TResult Function( EmailMetadata field0)  email,required TResult Function( PptxMetadata field0)  pptx,required TResult Function( ArchiveMetadata field0)  archive,required TResult Function( ImageMetadata field0)  image,required TResult Function( XmlMetadata field0)  xml,required TResult Function( TextMetadata field0)  text,required TResult Function( HtmlMetadata field0)  html,required TResult Function( OcrMetadata field0)  ocr,required TResult Function( CsvMetadata field0)  csv,required TResult Function( BibtexMetadata field0)  bibtex,required TResult Function( CitationMetadata field0)  citation,required TResult Function( FictionBookMetadata field0)  fictionBook,required TResult Function( DbfMetadata field0)  dbf,required TResult Function( JatsMetadata field0)  jats,required TResult Function( EpubMetadata field0)  epub,required TResult Function( PstMetadata field0)  pst,required TResult Function( AudioMetadata field0)  audio,required TResult Function()  code,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( PdfMetadata field0)  pdf,required TResult Function( DocxMetadata field0)  docx,required TResult Function( ExcelMetadata field0)  excel,required TResult Function( EmailMetadata field0)  email,required TResult Function( PptxMetadata field0)  pptx,required TResult Function( ArchiveMetadata field0)  archive,required TResult Function( ImageMetadata field0)  image,required TResult Function( XmlMetadata field0)  xml,required TResult Function( TextMetadata field0)  text,required TResult Function( HtmlMetadata field0)  html,required TResult Function( OcrMetadata field0)  ocr,required TResult Function( CsvMetadata field0)  csv,required TResult Function( BibtexMetadata field0)  bibtex,required TResult Function( CitationMetadata field0)  citation,required TResult Function( FictionBookMetadata field0)  fictionBook,required TResult Function( DbfMetadata field0)  dbf,required TResult Function( JatsMetadata field0)  jats,required TResult Function( EpubMetadata field0)  epub,required TResult Function( PstMetadata field0)  pst,required TResult Function( AudioMetadata field0)  audio,required TResult Function( CodeMetadata field0)  code,}) {final _that = this;
 switch (_that) {
 case FormatMetadata_Pdf():
 return pdf(_that.field0);case FormatMetadata_Docx():
@@ -3519,7 +3519,7 @@ return jats(_that.field0);case FormatMetadata_Epub():
 return epub(_that.field0);case FormatMetadata_Pst():
 return pst(_that.field0);case FormatMetadata_Audio():
 return audio(_that.field0);case FormatMetadata_Code():
-return code();}
+return code(_that.field0);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -3533,7 +3533,7 @@ return code();}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( PdfMetadata field0)?  pdf,TResult? Function( DocxMetadata field0)?  docx,TResult? Function( ExcelMetadata field0)?  excel,TResult? Function( EmailMetadata field0)?  email,TResult? Function( PptxMetadata field0)?  pptx,TResult? Function( ArchiveMetadata field0)?  archive,TResult? Function( ImageMetadata field0)?  image,TResult? Function( XmlMetadata field0)?  xml,TResult? Function( TextMetadata field0)?  text,TResult? Function( HtmlMetadata field0)?  html,TResult? Function( OcrMetadata field0)?  ocr,TResult? Function( CsvMetadata field0)?  csv,TResult? Function( BibtexMetadata field0)?  bibtex,TResult? Function( CitationMetadata field0)?  citation,TResult? Function( FictionBookMetadata field0)?  fictionBook,TResult? Function( DbfMetadata field0)?  dbf,TResult? Function( JatsMetadata field0)?  jats,TResult? Function( EpubMetadata field0)?  epub,TResult? Function( PstMetadata field0)?  pst,TResult? Function( AudioMetadata field0)?  audio,TResult? Function()?  code,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( PdfMetadata field0)?  pdf,TResult? Function( DocxMetadata field0)?  docx,TResult? Function( ExcelMetadata field0)?  excel,TResult? Function( EmailMetadata field0)?  email,TResult? Function( PptxMetadata field0)?  pptx,TResult? Function( ArchiveMetadata field0)?  archive,TResult? Function( ImageMetadata field0)?  image,TResult? Function( XmlMetadata field0)?  xml,TResult? Function( TextMetadata field0)?  text,TResult? Function( HtmlMetadata field0)?  html,TResult? Function( OcrMetadata field0)?  ocr,TResult? Function( CsvMetadata field0)?  csv,TResult? Function( BibtexMetadata field0)?  bibtex,TResult? Function( CitationMetadata field0)?  citation,TResult? Function( FictionBookMetadata field0)?  fictionBook,TResult? Function( DbfMetadata field0)?  dbf,TResult? Function( JatsMetadata field0)?  jats,TResult? Function( EpubMetadata field0)?  epub,TResult? Function( PstMetadata field0)?  pst,TResult? Function( AudioMetadata field0)?  audio,TResult? Function( CodeMetadata field0)?  code,}) {final _that = this;
 switch (_that) {
 case FormatMetadata_Pdf() when pdf != null:
 return pdf(_that.field0);case FormatMetadata_Docx() when docx != null:
@@ -3556,7 +3556,7 @@ return jats(_that.field0);case FormatMetadata_Epub() when epub != null:
 return epub(_that.field0);case FormatMetadata_Pst() when pst != null:
 return pst(_that.field0);case FormatMetadata_Audio() when audio != null:
 return audio(_that.field0);case FormatMetadata_Code() when code != null:
-return code();case _:
+return code(_that.field0);case _:
   return null;
 
 }
@@ -3571,7 +3571,7 @@ class FormatMetadata_Pdf extends FormatMetadata {
   const FormatMetadata_Pdf({required this.field0}): super._();
 
 
- final  PdfMetadata field0;
+@override final  PdfMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -3637,7 +3637,7 @@ class FormatMetadata_Docx extends FormatMetadata {
   const FormatMetadata_Docx({required this.field0}): super._();
 
 
- final  DocxMetadata field0;
+@override final  DocxMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -3703,7 +3703,7 @@ class FormatMetadata_Excel extends FormatMetadata {
   const FormatMetadata_Excel({required this.field0}): super._();
 
 
- final  ExcelMetadata field0;
+@override final  ExcelMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -3769,7 +3769,7 @@ class FormatMetadata_Email extends FormatMetadata {
   const FormatMetadata_Email({required this.field0}): super._();
 
 
- final  EmailMetadata field0;
+@override final  EmailMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -3835,7 +3835,7 @@ class FormatMetadata_Pptx extends FormatMetadata {
   const FormatMetadata_Pptx({required this.field0}): super._();
 
 
- final  PptxMetadata field0;
+@override final  PptxMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -3901,7 +3901,7 @@ class FormatMetadata_Archive extends FormatMetadata {
   const FormatMetadata_Archive({required this.field0}): super._();
 
 
- final  ArchiveMetadata field0;
+@override final  ArchiveMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -3967,7 +3967,7 @@ class FormatMetadata_Image extends FormatMetadata {
   const FormatMetadata_Image({required this.field0}): super._();
 
 
- final  ImageMetadata field0;
+@override final  ImageMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -4033,7 +4033,7 @@ class FormatMetadata_Xml extends FormatMetadata {
   const FormatMetadata_Xml({required this.field0}): super._();
 
 
- final  XmlMetadata field0;
+@override final  XmlMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -4099,7 +4099,7 @@ class FormatMetadata_Text extends FormatMetadata {
   const FormatMetadata_Text({required this.field0}): super._();
 
 
- final  TextMetadata field0;
+@override final  TextMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -4165,7 +4165,7 @@ class FormatMetadata_Html extends FormatMetadata {
   const FormatMetadata_Html({required this.field0}): super._();
 
 
- final  HtmlMetadata field0;
+@override final  HtmlMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -4231,7 +4231,7 @@ class FormatMetadata_Ocr extends FormatMetadata {
   const FormatMetadata_Ocr({required this.field0}): super._();
 
 
- final  OcrMetadata field0;
+@override final  OcrMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -4297,7 +4297,7 @@ class FormatMetadata_Csv extends FormatMetadata {
   const FormatMetadata_Csv({required this.field0}): super._();
 
 
- final  CsvMetadata field0;
+@override final  CsvMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -4363,7 +4363,7 @@ class FormatMetadata_Bibtex extends FormatMetadata {
   const FormatMetadata_Bibtex({required this.field0}): super._();
 
 
- final  BibtexMetadata field0;
+@override final  BibtexMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -4429,7 +4429,7 @@ class FormatMetadata_Citation extends FormatMetadata {
   const FormatMetadata_Citation({required this.field0}): super._();
 
 
- final  CitationMetadata field0;
+@override final  CitationMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -4495,7 +4495,7 @@ class FormatMetadata_FictionBook extends FormatMetadata {
   const FormatMetadata_FictionBook({required this.field0}): super._();
 
 
- final  FictionBookMetadata field0;
+@override final  FictionBookMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -4561,7 +4561,7 @@ class FormatMetadata_Dbf extends FormatMetadata {
   const FormatMetadata_Dbf({required this.field0}): super._();
 
 
- final  DbfMetadata field0;
+@override final  DbfMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -4627,7 +4627,7 @@ class FormatMetadata_Jats extends FormatMetadata {
   const FormatMetadata_Jats({required this.field0}): super._();
 
 
- final  JatsMetadata field0;
+@override final  JatsMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -4693,7 +4693,7 @@ class FormatMetadata_Epub extends FormatMetadata {
   const FormatMetadata_Epub({required this.field0}): super._();
 
 
- final  EpubMetadata field0;
+@override final  EpubMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -4759,7 +4759,7 @@ class FormatMetadata_Pst extends FormatMetadata {
   const FormatMetadata_Pst({required this.field0}): super._();
 
 
- final  PstMetadata field0;
+@override final  PstMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -4825,7 +4825,7 @@ class FormatMetadata_Audio extends FormatMetadata {
   const FormatMetadata_Audio({required this.field0}): super._();
 
 
- final  AudioMetadata field0;
+@override final  AudioMetadata field0;
 
 /// Create a copy of FormatMetadata
 /// with the given fields replaced by the non-null parameter values.
@@ -4888,33 +4888,67 @@ as AudioMetadata,
 
 
 class FormatMetadata_Code extends FormatMetadata {
-  const FormatMetadata_Code(): super._();
+  const FormatMetadata_Code({required this.field0}): super._();
 
 
+@override final  CodeMetadata field0;
 
-
+/// Create a copy of FormatMetadata
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$FormatMetadata_CodeCopyWith<FormatMetadata_Code> get copyWith => _$FormatMetadata_CodeCopyWithImpl<FormatMetadata_Code>(this, _$identity);
 
 
 
 @override
 bool operator ==(Object other) {
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is FormatMetadata_Code);
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is FormatMetadata_Code&&(identical(other.field0, field0) || other.field0 == field0));
 }
 
 
 @override
-int get hashCode => runtimeType.hashCode;
+int get hashCode => Object.hash(runtimeType,field0);
 
 @override
 String toString() {
-  return 'FormatMetadata.code()';
+  return 'FormatMetadata.code(field0: $field0)';
 }
 
 
 }
 
+/// @nodoc
+abstract mixin class $FormatMetadata_CodeCopyWith<$Res> implements $FormatMetadataCopyWith<$Res> {
+  factory $FormatMetadata_CodeCopyWith(FormatMetadata_Code value, $Res Function(FormatMetadata_Code) _then) = _$FormatMetadata_CodeCopyWithImpl;
+@useResult
+$Res call({
+ CodeMetadata field0
+});
 
 
+
+
+}
+/// @nodoc
+class _$FormatMetadata_CodeCopyWithImpl<$Res>
+    implements $FormatMetadata_CodeCopyWith<$Res> {
+  _$FormatMetadata_CodeCopyWithImpl(this._self, this._then);
+
+  final FormatMetadata_Code _self;
+  final $Res Function(FormatMetadata_Code) _then;
+
+/// Create a copy of FormatMetadata
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? field0 = null,}) {
+  return _then(FormatMetadata_Code(
+field0: null == field0 ? _self.field0 : field0 // ignore: cast_nullable_to_non_nullable
+as CodeMetadata,
+  ));
+}
+
+
+}
 
 /// @nodoc
 mixin _$HeuristicsError {
@@ -10382,7 +10416,7 @@ class RerankerModelType_Custom extends RerankerModelType {
 /// Maximum token sequence length for the tokenizer.
 ///
 /// Stored as `i64` for FFI compatibility across language bindings.
-/// Treated as a non-negative value; negative values are clamped to the model default.
+/// Must be positive; a non-positive value is rejected with a validation error.
  final  PlatformInt64 maxLength;
 /// Scoring head for the ONNX model's output tensor.
 ///

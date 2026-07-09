@@ -54,10 +54,8 @@ impl OcrBackend for VlmOcrBackend {
             .as_ref()
             .ok_or_else(|| crate::XbergError::validation("VLM OCR requires vlm_config to be set"))?;
 
-        // Detect MIME type from image bytes
         let mime = infer::get(image_bytes).map(|t| t.mime_type()).unwrap_or("image/png");
 
-        // Use the first language from the list (primary language), defaulted to English.
         let languages = config.effective_languages();
         let lang_str = languages[0].as_str();
 
@@ -103,7 +101,6 @@ impl OcrBackend for VlmOcrBackend {
 ///
 /// - `XbergError::Ocr` if the VLM returns no content or the API call fails
 /// - `XbergError::MissingDependency` if the liter-llm client cannot be created
-// `stream` is pub(crate) in liter-llm, preventing struct literal initialization.
 #[allow(clippy::field_reassign_with_default)]
 pub(crate) async fn vlm_ocr(
     image_bytes: &[u8],
@@ -114,17 +111,13 @@ pub(crate) async fn vlm_ocr(
 ) -> crate::Result<(String, Option<crate::types::LlmUsage>)> {
     let client = super::client::create_client(config)?;
 
-    // Base64-encode the image into a data URL.
     let b64 = base64::engine::general_purpose::STANDARD.encode(image_bytes);
     let data_url = format!("data:{image_mime_type};base64,{b64}");
 
-    // Use the caller-supplied Jinja2 template if provided, otherwise fall back to the
-    // built-in default.  The template receives `{{ language }}` as a context variable.
     let template = vlm_prompt.unwrap_or(super::prompts::VLM_OCR_TEMPLATE);
     let ctx = minijinja::context! { language => language };
     let prompt = super::prompts::render_template(template, &ctx)?;
 
-    // Build a multi-part user message with text prompt + image.
     let message = Message::User(UserMessage {
         content: UserContent::Parts(vec![
             ContentPart::Text { text: prompt },
@@ -138,7 +131,6 @@ pub(crate) async fn vlm_ocr(
         name: None,
     });
 
-    // Field assignment needed: `stream` is pub(crate) in liter-llm, preventing struct literal.
     let mut request = ChatCompletionRequest::default();
     request.model = config.model.clone();
     request.messages = vec![message];
@@ -156,7 +148,6 @@ pub(crate) async fn vlm_ocr(
 
     let usage = super::usage::extract_usage_from_chat(&response, "vlm_ocr");
 
-    // Extract the text content from the first choice.
     let text = response
         .choices
         .first()
@@ -201,7 +192,6 @@ mod tests {
         let custom_prompt = "Extract all text from this document image. \
                              Preserve formatting and use latex for mathematical formulas.";
 
-        // When a custom template is supplied it must be rendered instead of the default.
         let ctx = minijinja::context! { language => "eng" };
         let prompt = super::super::prompts::render_template(custom_prompt, &ctx).unwrap();
 

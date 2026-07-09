@@ -113,7 +113,6 @@ fn test_per_fixture_results_populated() {
     assert!(!aggregated.per_fixture_results.is_empty());
     assert_eq!(aggregated.per_fixture_results.len(), 2);
 
-    // Check that fixture_id is correctly extracted from file path
     let fixture_ids: Vec<String> = aggregated
         .per_fixture_results
         .iter()
@@ -122,7 +121,6 @@ fn test_per_fixture_results_populated() {
     assert!(fixture_ids.contains(&"fixture_1".to_string()));
     assert!(fixture_ids.contains(&"fixture_2".to_string()));
 
-    // Check that output_format is preserved
     for row in &aggregated.per_fixture_results {
         assert_eq!(row.output_format, OutputFormat::Markdown);
     }
@@ -140,7 +138,7 @@ fn test_plaintext_has_no_layout_percentiles() {
             Some(QualityMetrics {
                 f1_score_text: 0.90,
                 f1_score_numeric: 0.85,
-                f1_score_layout: None, // Plaintext mode has no layout
+                f1_score_layout: None,
                 quality_score: 0.88,
                 missing_tokens: vec![],
                 extra_tokens: vec![],
@@ -167,7 +165,6 @@ fn test_plaintext_has_no_layout_percentiles() {
 
     let aggregated = aggregate_new_format(&results);
 
-    // Find the plaintext aggregation
     let plaintext_key = aggregated
         .by_framework_mode
         .keys()
@@ -227,7 +224,6 @@ fn test_output_format_in_aggregation_key() {
 
     let aggregated = aggregate_new_format(&results);
 
-    // Should have two separate aggregations: one for markdown, one for plaintext
     let markdown_key = aggregated.by_framework_mode.keys().find(|k| k.contains("markdown"));
     let plaintext_key = aggregated.by_framework_mode.keys().find(|k| k.contains("plaintext"));
 
@@ -238,7 +234,6 @@ fn test_output_format_in_aggregation_key() {
 #[test]
 fn test_plaintext_frameworks_excluded_from_sf1_ranking() {
     let results = vec![
-        // Markdown framework for PDF
         make_benchmark_result(
             "xberg-markdown",
             OutputFormat::Markdown,
@@ -255,7 +250,6 @@ fn test_plaintext_frameworks_excluded_from_sf1_ranking() {
                 correct: true,
             }),
         ),
-        // Plaintext-only framework
         make_benchmark_result(
             "docling",
             OutputFormat::Plaintext,
@@ -276,12 +270,10 @@ fn test_plaintext_frameworks_excluded_from_sf1_ranking() {
 
     let aggregated = aggregate_new_format(&results);
 
-    // plaintext frameworks should NOT appear in pdf_sf1_ranking_markdown
     for ranked in &aggregated.comparison.pdf_sf1_ranking_markdown {
         assert!(!ranked.framework_mode.contains("docling"));
     }
 
-    // markdown frameworks SHOULD appear in pdf_sf1_ranking_markdown
     let has_markdown = aggregated
         .comparison
         .pdf_sf1_ranking_markdown
@@ -345,7 +337,6 @@ fn test_quality_percentiles_all_three() {
 
     let aggregated = aggregate_new_format(&results);
 
-    // Find the aggregation with quality metrics
     let has_quality_percentiles = aggregated.by_framework_mode.values().any(|agg| {
         agg.by_file_type.values().any(|ft| {
             [ft.no_ocr.as_ref(), ft.with_ocr.as_ref()]
@@ -353,7 +344,6 @@ fn test_quality_percentiles_all_three() {
                 .flatten()
                 .any(|perf| {
                     if let Some(q) = &perf.quality {
-                        // Check that all three percentiles are present
                         q.f1_text_p50 > 0.0
                             && q.f1_text_p95 > 0.0
                             && q.f1_text_p99 >= 0.0

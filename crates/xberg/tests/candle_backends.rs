@@ -37,18 +37,10 @@
 use xberg::core::config::OcrConfig;
 use xberg::plugins::registry::OcrBackendRegistry;
 
-// ---------------------------------------------------------------------------
-// Helper: build a fresh registry with defaults and return the registered names.
-// ---------------------------------------------------------------------------
-
 fn new_registry_names() -> Vec<String> {
     let registry = OcrBackendRegistry::new();
     registry.list()
 }
-
-// ---------------------------------------------------------------------------
-// Helper: gating logic for e2e tests based on XBERG_REQUIRE_MODELS env var.
-// ---------------------------------------------------------------------------
 
 /// Determine whether missing required weights should cause a panic or a skip.
 ///
@@ -87,15 +79,6 @@ fn check_local_model_path(env_var: &str, model_name: &str) -> Option<String> {
         }
     }
 }
-
-// Auto-download models (GLM-OCR, TrOCR) need no local path: they fetch weights
-// from HuggingFace Hub on first use. Under `XBERG_REQUIRE_MODELS`, a download or
-// inference failure fails the test; otherwise it is skipped gracefully (handled
-// inline in each test via `require_models()`).
-
-// ---------------------------------------------------------------------------
-// Registry / selection tests — no network, no model weights.
-// ---------------------------------------------------------------------------
 
 /// The global registry seeds a "candle-glm-ocr" backend when the feature is on.
 #[cfg(feature = "candle-glm-ocr")]
@@ -144,10 +127,6 @@ fn registry_returns_none_for_unknown_candle_backend() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// parse_options — non-object JSON produces defaults (no panic, no error).
-// ---------------------------------------------------------------------------
-
 /// GLM-OCR: non-object backend_options (array) leaves parse_options returning defaults.
 ///
 /// The `parse_options` implementation calls `opts.get("key")` which is only valid
@@ -162,17 +141,14 @@ fn parse_options_glm_ocr_rejects_non_object_json_by_returning_defaults() {
 
     let backend = GlmOcrBackend::new(GlmOcrTask::default(), LayoutMode::default());
 
-    // Array value: parse_options must not panic and the backend struct is valid.
     let _config = OcrConfig {
         backend_options: Some(serde_json::json!([1, 2, 3])),
         ..Default::default()
     };
 
-    // Verify the backend is still functional (name/version accessible — no panic).
     use xberg::plugins::Plugin as _;
     assert_eq!(backend.name(), "candle-glm-ocr");
 
-    // Scalar value.
     let _config2 = OcrConfig {
         backend_options: Some(serde_json::json!("ocr")),
         ..Default::default()
@@ -217,10 +193,6 @@ fn parse_options_paddleocr_vl_rejects_non_object_json_by_returning_defaults() {
     assert_eq!(backend.name(), "candle-paddleocr-vl");
 }
 
-// ---------------------------------------------------------------------------
-// parse_options — empty object `{}` is accepted and returns defaults.
-// ---------------------------------------------------------------------------
-
 /// GLM-OCR: empty object backend_options is silently accepted; defaults apply.
 #[cfg(feature = "candle-glm-ocr")]
 #[test]
@@ -237,7 +209,6 @@ fn parse_options_glm_ocr_accepts_empty_object_and_returns_defaults() {
         ..Default::default()
     };
 
-    // Backend remains properly identified after empty-object options.
     assert_eq!(backend.name(), "candle-glm-ocr");
     assert_eq!(backend.version(), "0.1.0");
 }
@@ -273,9 +244,7 @@ fn parse_options_paddleocr_vl_accepts_empty_object_and_returns_defaults() {
     assert_eq!(backend.version(), "0.1.0");
 }
 
-// ---------------------------------------------------------------------------
 // Network-gated e2e tests — #[ignore] until env vars are set.
-// ---------------------------------------------------------------------------
 
 /// End-to-end DeepSeek-OCR extraction through `OcrBackend::process_image`.
 ///
@@ -300,7 +269,6 @@ async fn candle_deepseek_ocr_e2e_extraction() {
 
     let mut config = OcrConfig::default();
     config.backend_options = Some(serde_json::json!({"model_path": model_path}));
-    // Device preference defaults to Auto -> CUDA when built with candle-cuda, else CPU.
 
     let result = backend
         .process_image(image_bytes, &config)
@@ -348,7 +316,6 @@ async fn candle_paddleocr_vl_e2e_extraction() {
 
     let mut config = OcrConfig::default();
     config.backend_options = Some(serde_json::json!({"model_path": model_path}));
-    // Device preference defaults to Auto -> CUDA when built with candle-cuda, else CPU.
 
     let result = backend
         .process_image(image_bytes, &config)
@@ -359,9 +326,6 @@ async fn candle_paddleocr_vl_e2e_extraction() {
         !result.content.is_empty(),
         "PaddleOCR-VL extraction returned empty content"
     );
-    // The fixture reads "Hello World"; anything else means the pipeline is
-    // producing text but not the text on the page (degenerate decoding passes
-    // a bare non-empty check).
     assert!(
         result.content.to_lowercase().contains("hello world"),
         "PaddleOCR-VL should read the fixture text, got: {}",
@@ -399,8 +363,6 @@ async fn candle_glm_ocr_e2e_extraction() {
 
     let backend = GlmOcrBackend::new(GlmOcrTask::default(), LayoutMode::default());
 
-    // Device preference defaults to Auto -> CUDA when built with candle-cuda, else CPU.
-    // GLM-OCR auto-downloads (~3 GB) from HF Hub; no local model path needed.
     let config = OcrConfig::default();
 
     let result = match backend.process_image(image_bytes, &config).await {
@@ -443,8 +405,6 @@ async fn candle_trocr_e2e_extraction() {
 
     let backend = TrocrBackend::new(TrocrVariant::default());
 
-    // Device preference defaults to Auto -> CUDA when built with candle-cuda, else CPU.
-    // TrOCR auto-downloads (~1.5 GB) from HF Hub; no local model path needed.
     let config = OcrConfig::default();
 
     let result = match backend.process_image(image_bytes, &config).await {

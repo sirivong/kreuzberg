@@ -55,8 +55,6 @@ fn test_scanned_pdf_ocr_extracts_text() {
     let result = match extract_uri_document_blocking(fixture("scanned_hello.pdf"), None, &config) {
         Ok(doc) => doc,
         Err(e) => {
-            // Tessdata unavailable in this environment: nothing to assert about
-            // successful OCR, but the failure must not be a silent empty success.
             eprintln!("OCR extraction errored (tessdata likely unavailable): {e}");
             return;
         }
@@ -64,7 +62,6 @@ fn test_scanned_pdf_ocr_extracts_text() {
 
     let content = result.content.to_lowercase();
     eprintln!("scanned OCR content: {content:?}");
-    // The fixture renders "HELLO SCANNED / OCR WORLD / INVOICE 12345" as an image.
     let hit = ["hello", "scanned", "ocr", "world", "invoice", "12345"]
         .iter()
         .any(|tok| content.contains(tok));
@@ -82,7 +79,6 @@ fn test_scanned_pdf_ocr_failure_is_not_silent() {
         return;
     }
 
-    // An unregistered backend name forces the OCR fallback to fail deterministically.
     let config = ExtractionConfig {
         ocr: Some(OcrConfig {
             backend: "definitely-not-a-real-ocr-backend".to_string(),
@@ -139,7 +135,6 @@ fn test_mixed_native_and_scanned_preserves_native_text() {
 
     let content = result.content.to_lowercase();
     eprintln!("mixed content: {content:?}");
-    // Native page 1 text must always survive, regardless of OCR outcome on page 2.
     assert!(
         content.contains("native page one") || content.contains("native"),
         "native page-1 text must be preserved in the mixed document, got: {content:?}"

@@ -51,7 +51,7 @@ static ENGINE_CACHE: LazyLock<RwLock<AHashMap<String, CachedEngine>>> = LazyLock
 /// Since v5.0.0.
 #[cfg(all(feature = "reranker", feature = "tokio-runtime"))]
 static RERANK_SEMAPHORE: LazyLock<Arc<tokio::sync::Semaphore>> = LazyLock::new(|| {
-    let budget = crate::core::config::concurrency::resolve_thread_budget(None);
+    let budget = crate::core::config::concurrency::resolve_batch_concurrency(None, true);
     Arc::new(tokio::sync::Semaphore::new(budget))
 });
 
@@ -163,15 +163,8 @@ pub static RERANKER_PRESETS: LazyLock<Vec<RerankerPreset>> = LazyLock::new(|| {
             head: crate::core::config::reranker::RerankerHead::CrossEncoder,
         },
         // NOTE: `jina-reranker-v2-base-multilingual` was REMOVED — its license is
-        // CC-BY-NC-4.0 (non-commercial, verified from the model card), which cannot
-        // ship in a permissively-licensed library. The "multilingual" alias now
-        // resolves to `bge-reranker-v2-m3` (Apache-2.0, 100+ languages) instead.
-        // `jina-reranker-v1-turbo-en` above is retained: it is Apache-2.0.
         RerankerPreset {
             name: "qwen3-reranker-0.6b".to_string(),
-            // Self-hosted export of Qwen3-Reranker-0.6B (Apache-2.0): custom causal-LM
-            // ONNX (opset 18) emitting `[batch, seq, vocab]` logits, exactly the shape
-            // the generative head reads. Weights split into model.onnx + model.onnx.data.
             model_repo: "xberg-io/reranker-models".to_string(),
             model_file: "qwen3-reranker-0.6b/model.onnx".to_string(),
             additional_files: vec!["qwen3-reranker-0.6b/model.onnx.data".to_string()],
@@ -184,10 +177,6 @@ pub static RERANKER_PRESETS: LazyLock<Vec<RerankerPreset>> = LazyLock::new(|| {
         },
         RerankerPreset {
             name: "ettin-reranker-150m".to_string(),
-            // Self-hosted export of cross-encoder/ettin-reranker-150m-v1 (Apache-2.0):
-            // a ModernBERT-based cross-encoder whose trained head is a sentence-transformers
-            // Dense→LayerNorm→Dense chain (768→768→1), exported to ONNX (opset 17) emitting
-            // `[batch, 1]` logits — the classic cross-encoder shape.
             model_repo: "xberg-io/reranker-models".to_string(),
             model_file: "ettin-reranker-150m/model.onnx".to_string(),
             additional_files: Vec::new(),
@@ -211,13 +200,8 @@ pub static RERANKER_PRESETS: LazyLock<Vec<RerankerPreset>> = LazyLock::new(|| {
 #[cfg(feature = "reranker-presets")]
 const PRESET_ALIASES: &[(&str, &str)] = &[
     ("fast", "jina-reranker-v1-turbo-en"),
-    // Default reranker. Evolved to the 2026-gen Apache-2.0 ettin cross-encoder
-    // (ModernBERT, long-context, higher quality per param than bge-base, which
-    // remains available under its own catalog name `bge-reranker-base`).
     ("balanced", "ettin-reranker-150m"),
     ("quality", "bge-reranker-v2-m3"),
-    // Was jina-reranker-v2-base-multilingual (CC-BY-NC, removed) — now the
-    // Apache-2.0 bge-reranker-v2-m3, which is also 100+ languages.
     ("multilingual", "bge-reranker-v2-m3"),
 ];
 
@@ -250,13 +234,6 @@ pub(crate) fn list_presets() -> Vec<String> {
     out
 }
 
-// ── ONNX Runtime helpers — vendored from embeddings/mod.rs ────────────────────
-// These three tiny helpers are inlined here rather than imported from
-// `crate::embeddings` because that module requires the `embedding-presets`
-// feature; a build with `reranker` but without `embedding-presets` would fail
-// to resolve `crate::embeddings::*`. Vendored copies kept in sync with
-// `embeddings/mod.rs`.
-
 /// Resolve the cache directory for reranker models.
 #[cfg(feature = "reranker")]
 fn resolve_cache_dir(cache_dir: Option<std::path::PathBuf>) -> std::path::PathBuf {
@@ -287,11 +264,10 @@ fn resolve_answer_token_id(tokenizer: &tokenizers::Tokenizer, word: &str) -> Opt
             None => word.to_string(),
         }
     };
-    // Most-specific-first direct vocabulary lookups.
     let variants = [
         word.to_string(),
-        format!("\u{0120}{word}"), // GPT-2/Qwen BPE leading-space marker (Ġ)
-        format!("\u{2581}{word}"), // SentencePiece leading-space marker (▁)
+        format!("\u{0120}{word}"),
+        format!("\u{2581}{word}"),
         capitalized,
     ];
     for variant in &variants {
@@ -299,7 +275,6 @@ fn resolve_answer_token_id(tokenizer: &tokenizers::Tokenizer, word: &str) -> Opt
             return Some(id);
         }
     }
-    // Fall back to encoding the bare word; accept it only if it is a single token.
     let encoding = tokenizer.encode(word, false).ok()?;
     match encoding.get_ids() {
         [single] => Some(*single),
@@ -350,16 +325,11 @@ fn get_or_init_engine(
     head: crate::core::config::reranker::RerankerHead,
 ) -> crate::Result<Arc<RerankerEngine>> {
     let cache_directory = resolve_cache_dir(cache_dir);
-    // `head` is part of the cache key: the same repo/model_file could in principle
-    // be requested under different heads across calls (e.g. a Custom config that
-    // toggles `head`), and each needs its own engine with correctly resolved
-    // true/false token ids.
     let engine_key = format!(
         "{repo_name}_{model_file}_{cache_directory}_{head:?}",
         cache_directory = cache_directory.display()
     );
 
-    // Fast path: read lock
     {
         match ENGINE_CACHE.read() {
             Ok(cache) => {
@@ -376,25 +346,18 @@ fn get_or_init_engine(
         }
     }
 
-    // Slow path: write lock + initialization
     {
         let mut cache = match ENGINE_CACHE.write() {
             Ok(guard) => guard,
             Err(poison_error) => poison_error.into_inner(),
         };
 
-        // Double-check after acquiring write lock
         if let Some(cached) = cache.get(&engine_key) {
             return Ok(Arc::clone(cached));
         }
 
         crate::ort_discovery::ensure_ort_available();
 
-        // Download, tokenize, and build the ORT session via the shared onnx helpers.
-        // `additional_files` carries sibling weight blobs (e.g. bge-reranker-v2-m3's
-        // `model.onnx.data`) that ORT locates next to `model_file` at load time. The
-        // cross-encoder pair encoding is applied at inference time via `EncodeInput::Dual`,
-        // so the tokenizer is configured identically to the dense-embedding case.
         let files = crate::onnx::download_model_files(
             repo_name,
             model_file,
@@ -545,6 +508,14 @@ fn build_results_for_head(
 ///
 /// Applies `transform` to each raw value to produce the final `[0, 1]` score,
 /// then sorts descending and truncates to `top_k`.
+///
+/// When `top_k` is smaller than the survivor count, this partitions with
+/// [`slice::select_nth_unstable_by`] (`O(n)`) to isolate the top-k elements and
+/// sorts only that k-slice (`O(k log k)`), instead of fully sorting all `n`
+/// results (`O(n log n)`) before truncating. The returned order is identical
+/// to a full sort followed by `truncate(k)` — same descending-by-score
+/// ordering, same tie-breaking (`partial_cmp` with `Equal` fallback) applied
+/// consistently by both the partition and the final sort.
 #[cfg(any(feature = "reranker", test))]
 fn build_results_from_scores(
     documents: &[String],
@@ -563,12 +534,23 @@ fn build_results_from_scores(
         })
         .collect();
 
-    // Sort descending by score.
-    results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    let cmp_desc =
+        |a: &RerankedDocument, b: &RerankedDocument| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal);
 
-    // Truncate to top_k if requested.
-    if let Some(k) = top_k {
-        results.truncate(k);
+    match top_k {
+        Some(k) if k < results.len() => {
+            if k > 0 {
+                results.select_nth_unstable_by(k - 1, cmp_desc);
+            }
+            results.truncate(k);
+            results.sort_by(cmp_desc);
+        }
+        _ => {
+            results.sort_by(cmp_desc);
+            if let Some(k) = top_k {
+                results.truncate(k);
+            }
+        }
     }
 
     results
@@ -605,16 +587,11 @@ pub fn rerank(
         });
     }
 
-    // Dispatch by model type.
     match &config.model {
         #[cfg(all(feature = "liter-llm", not(target_arch = "wasm32")))]
         crate::core::config::RerankerModelType::Llm { llm } => {
             let top_k = config.top_k;
             let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
-                // `block_in_place` requires a multi-thread runtime; calling it
-                // on a current-thread runtime panics. Detect via the runtime
-                // flavor and fall back to a nested current-thread runtime when
-                // we're embedded in one.
                 if matches!(handle.runtime_flavor(), tokio::runtime::RuntimeFlavor::CurrentThread) {
                     return Err(crate::XbergError::reranking(
                         "Synchronous rerank() with an LLM backend cannot be called from a current-thread Tokio runtime. \
@@ -625,9 +602,6 @@ pub fn rerank(
                     handle.block_on(crate::llm::rerank::rerank_via_llm(&query, &documents, llm, top_k))
                 })
             } else {
-                // No ambient runtime: drive the future on the shared, never-dropped
-                // global runtime. Building a per-call runtime here would panic on
-                // drop when this sync path runs inside a caller's blocking context.
                 crate::core::runtime::global_runtime()?
                     .block_on(crate::llm::rerank::rerank_via_llm(&query, &documents, llm, top_k))
             };
@@ -670,9 +644,6 @@ pub fn rerank(
                 }
                 tokio::task::block_in_place(|| handle.block_on(rerank_future))
             } else {
-                // No ambient runtime: drive the future on the shared, never-dropped
-                // global runtime. Building a per-call runtime here would panic on
-                // drop when this sync path runs inside a caller's blocking context.
                 crate::core::runtime::global_runtime()?.block_on(rerank_future)
             }?;
 
@@ -765,9 +736,7 @@ pub async fn rerank_async(
             return Ok(build_results(&documents, logits, config.top_k));
         }
         crate::core::config::RerankerModelType::Preset { .. }
-        | crate::core::config::RerankerModelType::Custom { .. } => {
-            // Fall through to ONNX path below.
-        }
+        | crate::core::config::RerankerModelType::Custom { .. } => {}
     }
 
     let _permit = RERANK_SEMAPHORE
@@ -806,6 +775,38 @@ mod tests {
                     sibling
                 );
             }
+
+            // `crate::onnx::fetch_companion` always downloads tokenizer.json and
+            // config.json alongside the model file (from `<model_dir>/<name>` or
+            // the repo root), and opportunistically downloads
+            // special_tokens_map.json / tokenizer_config.json when present. A
+            // preset shipping a companion without a pinned hash would be
+            // downloaded unverified, so every companion the loader actually
+            // fetches must be pinned too.
+            let model_dir = std::path::Path::new(&preset.model_file)
+                .parent()
+                .and_then(|p| p.to_str())
+                .filter(|s| !s.is_empty());
+            let companion_path = |name: &str| match model_dir {
+                Some(dir) => format!("{dir}/{name}"),
+                None => name.to_string(),
+            };
+            for required in ["tokenizer.json", "config.json"] {
+                let path = companion_path(required);
+                assert!(
+                    pinned.contains(path.as_str()),
+                    "preset {} companion {} is not pinned in presets.sha256sum",
+                    preset.name,
+                    path
+                );
+            }
+            // special_tokens_map.json / tokenizer_config.json are downloaded via
+            // `unwrap_or_default()` (best-effort -- not every repo ships them),
+            // so they are pinned-if-present rather than required. This test
+            // covers presets that already have them in the manifest; it cannot
+            // detect a genuinely absent-and-unpinned companion since the
+            // manifest itself is the only source of "what exists" available
+            // here.
         }
     }
 
@@ -818,12 +819,10 @@ mod tests {
     #[test]
     fn build_results_sorts_descending_by_score() {
         let documents = vec!["doc0".to_string(), "doc1".to_string(), "doc2".to_string()];
-        // Logits: -1.0, 2.0, 0.5 — sigmoid: ~0.27, ~0.88, ~0.62
         let logits = vec![-1.0_f32, 2.0_f32, 0.5_f32];
         let results = build_results(&documents, logits, None);
 
         assert_eq!(results.len(), 3);
-        // First result should have highest score (doc at index 1 with logit=2.0)
         assert_eq!(results[0].index, 1);
         assert!(results[0].score > results[1].score, "Results must be sorted descending");
         assert!(results[1].score > results[2].score, "Results must be sorted descending");
@@ -836,7 +835,6 @@ mod tests {
         let results = build_results(&documents, logits, Some(2));
 
         assert_eq!(results.len(), 2, "top_k=2 should truncate to 2 results");
-        // Scores should still be descending
         assert!(results[0].score >= results[1].score);
     }
 
@@ -862,7 +860,6 @@ mod tests {
         let logits = vec![0.0_f32, 1.0_f32];
         let results = build_results(&documents, logits, None);
 
-        // Results sorted: index 1 first (higher logit), then index 0
         assert_eq!(results[0].document, "foo bar");
         assert_eq!(results[1].document, "hello world");
     }
@@ -875,14 +872,12 @@ mod tests {
         let raw_logits = vec![0.0_f32, 2.0_f32];
         let results = build_results_for_head(&documents, raw_logits.clone(), None, RerankerHead::CrossEncoder);
 
-        // Must match build_results (sigmoid applied) byte-for-byte for the cross-encoder head.
         let expected = build_results(&documents, raw_logits, None);
         assert_eq!(results.len(), expected.len());
         for (a, b) in results.iter().zip(expected.iter()) {
             assert_eq!(a.index, b.index);
             assert!((a.score - b.score).abs() < 1e-9);
         }
-        // Sanity: sigmoid(0.0) == 0.5, not left as a raw logit.
         let doc0 = results.iter().find(|r| r.index == 0).unwrap();
         assert!(
             (doc0.score - 0.5).abs() < 1e-6,
@@ -895,9 +890,6 @@ mod tests {
     fn build_results_for_head_qwen3_does_not_double_sigmoid() {
         use crate::core::config::reranker::RerankerHead;
 
-        // Qwen3 scores are ALREADY probabilities in [0, 1] (post-softmax).
-        // A probability of 0.9 must remain 0.9, not be pushed toward
-        // sigmoid(0.9) ~= 0.7109 by a second transform.
         let documents = vec!["doc0".to_string(), "doc1".to_string()];
         let already_probabilities = vec![0.9_f32, 0.1_f32];
         let results = build_results_for_head(
@@ -920,14 +912,12 @@ mod tests {
             doc1.score
         );
 
-        // Explicitly assert this differs from what double-sigmoiding would produce.
         let wrongly_double_sigmoided = sigmoid_f32(0.9);
         assert!(
             (doc0.score - wrongly_double_sigmoided).abs() > 0.01,
             "Qwen3 score must NOT be re-sigmoided"
         );
 
-        // Ordering must still be descending by score.
         assert!(doc0.score > doc1.score);
     }
 
@@ -949,16 +939,12 @@ mod tests {
     #[test]
     fn preset_list_exposes_catalog_plus_aliases() {
         let presets = list_presets();
-        // 5 catalog (4 cross-encoders + 1 Qwen3 generative) + 4 friendly aliases.
         assert_eq!(presets.len(), RERANKER_PRESETS.len() + PRESET_ALIASES.len());
-        // Catalog names present (all permissive-licensed).
         assert!(presets.iter().any(|n| n == "bge-reranker-base"));
         assert!(presets.iter().any(|n| n == "bge-reranker-v2-m3"));
         assert!(presets.iter().any(|n| n == "jina-reranker-v1-turbo-en"));
         assert!(presets.iter().any(|n| n == "qwen3-reranker-0.6b"));
-        // The CC-BY-NC jina v2 multilingual must NOT be present.
         assert!(!presets.iter().any(|n| n == "jina-reranker-v2-base-multilingual"));
-        // Friendly aliases present.
         for (alias, _) in PRESET_ALIASES {
             assert!(presets.iter().any(|n| n == *alias), "missing alias: {alias}");
         }
@@ -973,7 +959,6 @@ mod tests {
         assert_eq!(preset.model_repo, "xberg-io/reranker-models");
         assert_eq!(preset.head, RerankerHead::Qwen3Generative);
 
-        // All pre-existing presets must remain on the original cross-encoder head.
         for name in ["bge-reranker-base", "bge-reranker-v2-m3", "jina-reranker-v1-turbo-en"] {
             let preset = get_preset(name).expect(name);
             assert_eq!(
@@ -1010,19 +995,14 @@ mod tests {
     #[cfg(feature = "reranker-presets")]
     #[test]
     fn catalog_paths_are_stable() {
-        // Lock the source repos/files to catch accidental drift. All presets are
-        // self-hosted on `xberg-io/reranker-models` (cross-encoder weights unmodified
-        // from their Apache-2.0/MIT upstreams; `qwen3-reranker-0.6b` is our custom
-        // causal-LM ONNX export of the Apache-2.0 Qwen3-Reranker-0.6B) and pinned by
-        // the checked-in `presets.sha256sum`.
         let by_name = |n: &str| get_preset(n).expect(n);
 
-        let base = by_name("bge-reranker-base"); // MIT
+        let base = by_name("bge-reranker-base");
         assert_eq!(base.model_repo, "xberg-io/reranker-models");
         assert_eq!(base.model_file, "bge-reranker-base/model.onnx");
         assert!(base.additional_files.is_empty());
 
-        let m3 = by_name("bge-reranker-v2-m3"); // Apache-2.0 (weights); mirror of BAAI
+        let m3 = by_name("bge-reranker-v2-m3");
         assert_eq!(m3.model_repo, "xberg-io/reranker-models");
         assert_eq!(m3.model_file, "bge-reranker-v2-m3/model.onnx");
         assert_eq!(
@@ -1030,11 +1010,11 @@ mod tests {
             vec!["bge-reranker-v2-m3/model.onnx.data".to_string()]
         );
 
-        let turbo = by_name("jina-reranker-v1-turbo-en"); // Apache-2.0
+        let turbo = by_name("jina-reranker-v1-turbo-en");
         assert_eq!(turbo.model_repo, "xberg-io/reranker-models");
         assert_eq!(turbo.model_file, "jina-reranker-v1-turbo-en/model.onnx");
 
-        let qwen3 = by_name("qwen3-reranker-0.6b"); // Apache-2.0; generative head
+        let qwen3 = by_name("qwen3-reranker-0.6b");
         assert_eq!(qwen3.model_repo, "xberg-io/reranker-models");
         assert_eq!(qwen3.model_file, "qwen3-reranker-0.6b/model.onnx");
         assert_eq!(
@@ -1069,7 +1049,6 @@ mod tests {
     #[cfg(feature = "reranker")]
     #[test]
     fn resolve_qwen3_token_ids_uses_direct_vocab_when_present() {
-        // "yes" and "no" are direct vocab entries — the direct-lookup path must win.
         let tokenizer = build_wordlevel_tokenizer(&[("[UNK]", 0), ("yes", 1), ("no", 2)], false);
 
         let (true_id, false_id) = resolve_qwen3_token_ids(&tokenizer).expect("must resolve both ids");
@@ -1081,17 +1060,8 @@ mod tests {
     #[cfg(feature = "reranker")]
     #[test]
     fn resolve_answer_token_id_falls_back_to_encoding_when_no_direct_vocab_entry() {
-        // Vocab only contains lowercase "yes"/"no"; a `Lowercase` normalizer is
-        // attached so `encode` (which runs the normalizer) can still resolve the
-        // capitalized query word to the lowercase vocab entry, but `token_to_id`
-        // (a raw, unnormalized vocab lookup used by the direct-lookup variants)
-        // cannot, since none of the direct variants (`Yes`, `Ġyes`, `▁yes`, plain
-        // `yes` vs the queried `Yes`/`No`) match the raw uppercase input. This
-        // forces resolution through the encode-fallback path exclusively.
         let tokenizer = build_wordlevel_tokenizer(&[("[UNK]", 0), ("yes", 7), ("no", 9)], true);
 
-        // Sanity check: none of the direct-lookup variants for "Yes"/"No" exist
-        // as raw vocab keys, so a hit can only come from the encode fallback.
         assert!(tokenizer.token_to_id("Yes").is_none());
         assert!(tokenizer.token_to_id("Ġyes").is_none());
         assert!(tokenizer.token_to_id("\u{2581}yes").is_none());
@@ -1113,13 +1083,6 @@ mod tests {
     #[cfg(feature = "reranker")]
     #[test]
     fn resolve_qwen3_token_ids_errors_with_actionable_message_when_word_is_unresolvable() {
-        // "yes" is entirely absent from the vocab (and there's no other single-token
-        // way to reach it, including via encoding). WordLevel's whitespace
-        // pre-tokenizer splits "yes" into no sub-words, so encoding an absent word
-        // maps it to a single `[UNK]` id — not a genuine "multi-token" failure.
-        // To force the encode fallback to reject the word, the vocab contains
-        // neither "yes" nor `[UNK]`, so `tokenizer.encode` fails outright and
-        // `resolve_answer_token_id` returns `None`.
         let tokenizer = build_wordlevel_tokenizer(&[("no", 1)], false);
 
         let error = resolve_qwen3_token_ids(&tokenizer).expect_err("\"yes\" is unresolvable and must error");
@@ -1146,12 +1109,6 @@ mod tests {
     #[cfg(feature = "reranker")]
     #[test]
     fn resolve_answer_token_id_encode_fallback_rejects_unk_mapped_word() {
-        // "yes" is entirely absent from this vocab (and none of the direct-lookup
-        // variants exist either), so the tokenizer's `encode` fallback maps it to
-        // a single `[UNK]` id. The encode fallback accepts single-token
-        // encodings unconditionally, so an `[UNK]`-mapped word must not resolve
-        // to the shared `[UNK]` id — otherwise every unrelated missing word
-        // would silently alias onto the same answer-token id.
         let tokenizer = build_wordlevel_tokenizer(&[("[UNK]", 0), ("no", 1)], false);
 
         assert!(tokenizer.token_to_id("yes").is_none());
@@ -1199,7 +1156,6 @@ mod tests {
         #[async_trait]
         impl RerankerBackend for MockPlugin {
             async fn rerank(&self, _query: String, documents: Vec<String>) -> crate::Result<Vec<f32>> {
-                // Return descending logits so doc 0 wins.
                 Ok(documents
                     .iter()
                     .enumerate()
@@ -1229,7 +1185,6 @@ mod tests {
         .unwrap();
 
         assert_eq!(results.len(), 2, "top_k=2 should limit to 2 results");
-        // Scores must be descending.
         assert!(results[0].score >= results[1].score);
 
         unregister_reranker_backend(&name).unwrap();

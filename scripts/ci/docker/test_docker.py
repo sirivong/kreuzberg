@@ -118,11 +118,6 @@ class TestRunner:
         self.info(f"Results written to {RESULTS_FILE}")
 
 
-# ---------------------------------------------------------------------------
-# Shared tests (all variants)
-# ---------------------------------------------------------------------------
-
-
 def test_image_exists(t: TestRunner) -> None:
     t.start("Docker image exists")
     r = subprocess.run(["docker", "inspect", t.image], check=False, capture_output=True, timeout=30)
@@ -283,11 +278,6 @@ def test_readonly_mount(t: TestRunner) -> None:
         t.fail_test("Read-only mount", "Failed to extract with read-only filesystem")
 
 
-# ---------------------------------------------------------------------------
-# Core/Full-only tests (API server tests)
-# ---------------------------------------------------------------------------
-
-
 def _wait_for_api(port: int, retries: int = 10) -> bool:
     import urllib.request
 
@@ -445,7 +435,6 @@ def test_api_health(t: TestRunner) -> None:
     else:
         t.fail_test("API health check", "No response from /health")
 
-    # Plugin initialization validation
     t.start("Plugin initialization validation")
     if health and "plugins" in health:
         import re
@@ -825,11 +814,6 @@ def test_security_memlimit(t: TestRunner) -> None:
         t.fail_test("Memory limit", "Container failed with memory limit")
 
 
-# ---------------------------------------------------------------------------
-# CLI-only tests
-# ---------------------------------------------------------------------------
-
-
 def test_cli_image_size(t: TestRunner) -> None:
     t.start("Image size is reasonable (< 200MB)")
     r = subprocess.run(
@@ -848,11 +832,6 @@ def test_cli_image_size(t: TestRunner) -> None:
         t.pass_test()
     else:
         t.fail_test("Image size", f"Expected < 200MB, got {size_mb}MB")
-
-
-# ---------------------------------------------------------------------------
-# Test suites per variant
-# ---------------------------------------------------------------------------
 
 
 def run_cli_tests(t: TestRunner) -> None:
@@ -923,7 +902,6 @@ def main() -> None:
     finally:
         t.cleanup()
 
-    # Summary
     print()
     print("=" * 72)
     t.info(f"Test Results: {t.passed}/{t.total} passed, {t.failed} failed")

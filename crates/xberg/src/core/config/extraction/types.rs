@@ -559,7 +559,6 @@ impl Default for LanguageDetectionConfig {
     }
 }
 
-// Default value functions
 fn default_true() -> bool {
     true
 }
@@ -711,8 +710,6 @@ mod tests {
         assert!(back.include_page_rasters);
     }
 
-    // --- ImageOutputFormat tests ---
-
     #[test]
     fn test_image_output_format_default_is_native() {
         assert_eq!(ImageOutputFormat::default(), ImageOutputFormat::Native);
@@ -758,7 +755,6 @@ mod tests {
 
     #[test]
     fn test_output_format_jpeg_default_quality_applied_when_field_absent() {
-        // Omitting "quality" from the JSON object should yield the default (85).
         let json = r#"{"type":"jpeg"}"#;
         let fmt: ImageOutputFormat = serde_json::from_str(json).unwrap();
         assert_eq!(fmt, ImageOutputFormat::Jpeg { quality: 85 });
@@ -774,7 +770,6 @@ mod tests {
 
     #[test]
     fn test_output_format_webp_default_quality_applied_when_field_absent() {
-        // Omitting "quality" from the JSON object should yield the default (80).
         let json = r#"{"type":"webp"}"#;
         let fmt: ImageOutputFormat = serde_json::from_str(json).unwrap();
         assert_eq!(fmt, ImageOutputFormat::Webp { quality: 80 });
@@ -782,10 +777,6 @@ mod tests {
 
     #[test]
     fn test_output_format_webp_wire_value_is_lowercase_webp() {
-        // The variant is spelled `Webp` (not `WebP`) so serde's default
-        // snake_case rendering produces the industry-standard single-word
-        // `"webp"` wire tag, and alef-derived binding method/constant names
-        // (`fn webp`, `Webp`, `WEBP`) match.
         let fmt = ImageOutputFormat::Webp { quality: 80 };
         let json = serde_json::to_string(&fmt).unwrap();
         assert_eq!(json, r#"{"type":"webp","quality":80}"#);

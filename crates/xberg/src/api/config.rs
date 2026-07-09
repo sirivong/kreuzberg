@@ -48,7 +48,6 @@ pub(crate) fn load_server_config(config_path: Option<&str>) -> Result<ServerConf
         ServerConfig::default()
     };
 
-    // Apply environment variable overrides with proper logging
     config.apply_env_overrides()?;
 
     tracing::info!(

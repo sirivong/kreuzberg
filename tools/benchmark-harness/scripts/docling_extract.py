@@ -52,7 +52,6 @@ def create_converter(ocr_enabled: bool) -> DocumentConverter:
             }
         )
     except (ImportError, TypeError):
-        # Fallback if the format-options API is unavailable on this version.
         return DocumentConverter()
 
 
@@ -170,7 +169,6 @@ def _run_with_timeout(fn, args, timeout):
         parent_conn.close()
         return result
     except Exception:
-        # Fork not available — fall back to in-process extraction
         try:
             return fn(*args)
         except Exception as e:
@@ -220,12 +218,10 @@ def main() -> None:
         elif arg.startswith("--format="):
             output_format = arg.split("=", 1)[1]
         elif arg == "--format":
-            # Next-arg style handled below by appending
             args.append(arg)
         else:
             args.append(arg)
 
-    # Support `--format <value>` (space-separated)
     cleaned: list[str] = []
     i = 0
     while i < len(args):
@@ -252,7 +248,6 @@ def main() -> None:
     mode = args[0]
     file_paths = args[1:]
 
-    # Create converter once (expensive initialization)
     converter = create_converter(ocr_enabled)
 
     try:

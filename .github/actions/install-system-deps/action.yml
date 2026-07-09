@@ -132,11 +132,6 @@ runs:
       id: cache-libheif-windows
       uses: actions/cache@v5
       with:
-        # Cache `installed/` as a whole — libheif-sys's build.rs uses the
-        # `vcpkg` crate which reads `installed/vcpkg/updates/` to enumerate
-        # installed packages. Caching only `installed/x64-windows-static-md`
-        # (the previous v1 key) restored the binaries but not the metadata
-        # dir, leading to `could not read status file updates dir: ... (os error 3)`.
         path: |
           C:\vcpkg\installed
           C:\vcpkg\buildtrees\libheif

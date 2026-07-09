@@ -1,31 +1,15 @@
 #!/bin/bash
-# Run all VLM-OCR baseline generation scripts.
-#
-# Usage:
-#   ./run_all_baselines.sh              # Run all models
-#   MODELS="deepseek" ./run_all_baselines.sh  # Run DeepSeek only
-#   FIXTURES=/path/to/fixtures ./run_all_baselines.sh
-#
-# Environment:
-#   MODELS          Space-separated model names (deepseek, paddleocr)
-#   FIXTURES        Path to fixtures directory (default: ../../fixtures)
-#   OUTPUT_BASE     Base output directory (default: baselines/)
-#   DEVICE          CUDA device or CPU (default: cuda)
-#   HF_TOKEN        HuggingFace API token (for gated models)
-#
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# Configuration
 MODELS="${MODELS:-deepseek paddleocr}"
 FIXTURES="${FIXTURES:-../../fixtures}"
 OUTPUT_BASE="${OUTPUT_BASE:-baselines}"
 DEVICE="${DEVICE:-cuda}"
 
-# Ensure output base exists
 mkdir -p "$OUTPUT_BASE"
 
 echo "======================================================================"
@@ -37,16 +21,13 @@ echo "Output base: $OUTPUT_BASE"
 echo "Device: $DEVICE"
 echo "======================================================================"
 
-# Verify fixtures directory
 if [ ! -d "$FIXTURES" ]; then
   echo "ERROR: Fixtures directory not found: $FIXTURES"
   exit 1
 fi
 
-# Track overall status
 all_success=true
 
-# Run each model
 for model in $MODELS; do
   case "$model" in
   deepseek)
@@ -85,7 +66,6 @@ for model in $MODELS; do
   esac
 done
 
-# Summary
 echo ""
 echo "======================================================================"
 echo "Baseline Generation Summary"

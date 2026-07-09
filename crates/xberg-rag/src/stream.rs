@@ -19,8 +19,6 @@ use futures::{Stream, StreamExt, TryStreamExt, stream};
 use crate::error::{RagError, RagResult};
 use crate::types::{ChunkId, DocumentId, RetrievedChunk};
 
-// ─── Event types ─────────────────────────────────────────────────────────────
-
 /// A single event emitted by the answer stream.
 #[derive(Debug, Clone, PartialEq)]
 pub enum AnswerEvent {
@@ -56,8 +54,6 @@ pub struct TokenUsage {
     pub completion_tokens: u32,
 }
 
-// ─── Progress types ──────────────────────────────────────────────────────────
-
 /// Progress events emitted during document ingestion.
 #[derive(Debug, Clone, PartialEq)]
 pub enum IngestProgress {
@@ -82,16 +78,12 @@ pub enum RetrieveProgress {
     Finished,
 }
 
-// ─── RetrievedContext ────────────────────────────────────────────────────────
-
 /// The context passed to the LLM: an ordered list of retrieved chunks.
 #[derive(Debug, Clone)]
 pub struct RetrievedContext {
     /// Chunks in descending relevance order.
     pub chunks: Vec<RetrievedChunk>,
 }
-
-// ─── LlmAnswerConfig ─────────────────────────────────────────────────────────
 
 /// Configuration for the LLM used by [`answer_stream`].
 #[derive(Debug, Clone, Default)]
@@ -105,8 +97,6 @@ pub struct LlmAnswerConfig {
     /// that injects the retrieved context is used.
     pub system_prompt: Option<String>,
 }
-
-// ─── answer_stream ───────────────────────────────────────────────────────────
 
 /// Stream an answer grounded in `context` for the given `prompt`.
 ///
@@ -124,7 +114,6 @@ pub fn answer_stream(
     prompt: String,
     config: LlmAnswerConfig,
 ) -> impl Stream<Item = RagResult<AnswerEvent>> + Send + 'static {
-    // Emit citations for every chunk that carries content.
     let citations: Vec<RagResult<AnswerEvent>> = context
         .chunks
         .iter()
@@ -138,7 +127,6 @@ pub fn answer_stream(
         })
         .collect();
 
-    // Asynchronously open the LLM connection and build the inner token stream.
     let setup = async move {
         let context_text: String = context
             .chunks
@@ -160,8 +148,6 @@ pub fn answer_stream(
     stream::iter(citations).chain(llm_stream)
 }
 
-// ─── map_tokens ──────────────────────────────────────────────────────────────
-
 /// Map a raw liter-llm chunk stream to [`AnswerEvent`]s.
 ///
 /// - Non-empty `delta.content` → [`AnswerEvent::Token`]
@@ -178,14 +164,12 @@ pub fn map_tokens(
         match result {
             Err(e) => Some(Err(RagError::Backend(Box::new(e)))),
             Ok(chunk) => {
-                // Usage chunks (typically the final SSE frame when include_usage=true).
                 if let Some(usage) = chunk.usage {
                     return Some(Ok(AnswerEvent::Usage(TokenUsage {
                         prompt_tokens: usage.prompt_tokens as u32,
                         completion_tokens: usage.completion_tokens as u32,
                     })));
                 }
-                // Token chunks: extract content from the first choice delta.
                 chunk
                     .choices
                     .into_iter()
@@ -197,8 +181,6 @@ pub fn map_tokens(
         }
     })
 }
-
-// ─── build_token_stream ──────────────────────────────────────────────────────
 
 /// Open the LLM connection and return a raw streaming chunk iterator.
 ///
@@ -221,9 +203,7 @@ async fn build_token_stream(
     .map_err(|e| RagError::Backend(Box::new(e)))?;
 
     let system_content = match config.system_prompt {
-        // Caller owns prompt composition: use their system prompt verbatim.
         Some(system) => system,
-        // OSS default: minimal generic framing that injects the retrieved context.
         None if context_text.is_empty() => "You are a helpful assistant.".to_string(),
         None => format!("Use the following context to answer the question:\n\n{context_text}"),
     };
@@ -253,8 +233,6 @@ async fn build_token_stream(
         .await
         .map_err(|e| RagError::Backend(Box::new(e)))
 }
-
-// ─── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {

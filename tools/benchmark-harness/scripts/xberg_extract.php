@@ -242,7 +242,6 @@ function run_server(?ExtractionConfig $config = null, bool $ocrEnabled = false):
 {
     debug_log('=== SERVER MODE START ===');
 
-    // Signal readiness after PHP + extension initialization
     echo "READY\n";
     flush();
 
@@ -264,7 +263,6 @@ function run_server(?ExtractionConfig $config = null, bool $ocrEnabled = false):
 
         try {
             $start = microtime(true);
-            // Create request-specific config if forceOcr is true
             $requestConfig = $config;
             if ($forceOcr) {
                 $requestConfig = create_config(true, true);
@@ -319,7 +317,6 @@ function main(): void
     $ocrEnabled = false;
     $args = [];
 
-    // Parse OCR flags
     for ($i = 1; $i < count($argv); $i++) {
         if ($argv[$i] === '--ocr') {
             $ocrEnabled = true;

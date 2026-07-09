@@ -68,9 +68,6 @@ impl Serialize for CancellationToken {
     where
         S: Serializer,
     {
-        // Serialize the current cancellation state.
-        // Note: This is a snapshot at serialization time; deserialized tokens
-        // are independent of the original token's future state.
         let state = self.is_cancelled();
         state.serialize(serializer)
     }
@@ -81,7 +78,6 @@ impl<'de> Deserialize<'de> for CancellationToken {
     where
         D: Deserializer<'de>,
     {
-        // Deserialize the cancellation state into a new token.
         let cancelled = bool::deserialize(deserializer)?;
         Ok(CancellationToken {
             cancelled: Arc::new(AtomicBool::new(cancelled)),

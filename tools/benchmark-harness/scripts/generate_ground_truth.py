@@ -1,18 +1,4 @@
 #!/usr/bin/env -S uv run --script
-# /// script
-# requires-python = ">=3.10"
-# dependencies = [
-#     "beautifulsoup4>=4.12",
-#     "python-docx>=1.0",
-#     "python-pptx>=1.0",
-#     "openpyxl>=3.1",
-#     "nbformat>=5.9",
-#     "xlrd>=2.0",
-#     "extract-msg>=0.48",
-#     "lxml>=5.0",
-#     "odfpy>=1.4",
-# ]
-# ///
 """Generate ground truth text files for benchmark fixtures.
 
 Walks all fixture JSONs, extracts text from source documents using independent
@@ -50,10 +36,6 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
-
-# ---------------------------------------------------------------------------
-# File type → handler mapping
-# ---------------------------------------------------------------------------
 
 RAW_SOURCE_TYPES = frozenset(
     {
@@ -102,7 +84,6 @@ LIBREOFFICE_TYPES = frozenset({"ppt"})
 DBF_TYPES = frozenset({"dbf"})
 HWP_TYPES = frozenset({"hwp"})
 
-# Archive and image types are excluded from ground truth generation
 EXCLUDED_TYPES = frozenset(
     {
         "7z",
@@ -186,11 +167,6 @@ def get_source_type(file_type: str) -> str:
     return "manual"
 
 
-# ---------------------------------------------------------------------------
-# Text extraction handlers
-# ---------------------------------------------------------------------------
-
-
 def handle_raw_source(doc_path: Path) -> str:
     """Read the file as-is. For text-based formats, source content IS ground truth."""
     try:
@@ -219,7 +195,6 @@ def handle_pdftotext(doc_path: Path) -> str:
 
 def handle_pandoc(doc_path: Path, file_type: str) -> str:
     """Convert document to plain text using pandoc."""
-    # Map file types to pandoc input formats
     pandoc_format_map = {
         "tex": "latex",
         "latex": "latex",
@@ -250,7 +225,6 @@ def handle_python_docx(doc_path: Path) -> str:
 
     doc = docx.Document(str(doc_path))
     paragraphs = [p.text for p in doc.paragraphs]
-    # Also extract table text
     for table in doc.tables:
         for row in table.rows:
             cells = [cell.text for cell in row.cells]
@@ -299,7 +273,6 @@ def handle_beautifulsoup(doc_path: Path) -> str:
     except UnicodeDecodeError:
         html_content = doc_path.read_text(encoding="latin-1")
     soup = BeautifulSoup(html_content, "html.parser")
-    # Remove script and style elements
     for tag in soup(["script", "style"]):
         tag.decompose()
     return soup.get_text(separator="\n", strip=True)
@@ -315,16 +288,14 @@ def handle_python_email(doc_path: Path) -> str:
         msg = email.message_from_string(raw)
 
     parts = []
-    # Add headers
     for header in ("From", "To", "Subject", "Date"):
         val = msg.get(header)
         if val:
             parts.append(f"{header}: {val}")
 
     if parts:
-        parts.append("")  # blank line after headers
+        parts.append("")
 
-    # Extract body
     if msg.is_multipart():
         for part in msg.walk():
             content_type = part.get_content_type()
@@ -389,7 +360,6 @@ def handle_xml_parse(doc_path: Path) -> str:
     try:
         tree = ET.parse(str(doc_path))
     except ET.ParseError:
-        # Fallback: read as raw text
         return handle_raw_source(doc_path)
     root = tree.getroot()
     texts = []
@@ -418,7 +388,6 @@ def handle_xlrd(doc_path: Path) -> str:
 
 def handle_antiword(doc_path: Path) -> str:
     """Extract text from DOC using antiword, catdoc, or pandoc as fallbacks."""
-    # Try antiword first
     try:
         result = subprocess.run(
             ["antiword", str(doc_path)],
@@ -431,7 +400,6 @@ def handle_antiword(doc_path: Path) -> str:
     except FileNotFoundError:
         pass
 
-    # Fallback to catdoc
     try:
         result = subprocess.run(
             ["catdoc", str(doc_path)],
@@ -444,7 +412,6 @@ def handle_antiword(doc_path: Path) -> str:
     except FileNotFoundError:
         pass
 
-    # Fallback to textutil (macOS)
     try:
         result = subprocess.run(
             ["textutil", "-convert", "txt", "-stdout", str(doc_path)],
@@ -472,10 +439,8 @@ def handle_ods(doc_path: Path) -> str:
         for row in table.getElementsByType(TableRow):
             cells = []
             for cell in row.getElementsByType(TableCell):
-                # Get text content from cell
                 cell_texts = []
                 for p in cell.getElementsByType(odf_text.P):
-                    # Recursively get all text
                     text_parts = []
                     for node in p.childNodes:
                         if hasattr(node, "data"):
@@ -483,7 +448,6 @@ def handle_ods(doc_path: Path) -> str:
                         elif hasattr(node, "__str__"):
                             text_parts.append(str(node))
                     cell_texts.append("".join(text_parts))
-                # Handle repeated cells
                 repeat = cell.getAttribute("numbercolumnsrepeated")
                 cell_text = " ".join(cell_texts)
                 if repeat and int(repeat) > 1 and cell_text:
@@ -514,7 +478,6 @@ def handle_libreoffice(doc_path: Path) -> str:
     except FileNotFoundError:
         pass
 
-    # Fallback: try textutil (macOS)
     try:
         result = subprocess.run(
             ["textutil", "-convert", "txt", "-stdout", str(doc_path)],
@@ -563,11 +526,6 @@ def extract_text(doc_path: Path, file_type: str) -> str:
     if file_type in ODS_TYPES:
         return handle_ods(doc_path)
     raise ValueError(f"No handler for file type: {file_type}")
-
-
-# ---------------------------------------------------------------------------
-# Core logic
-# ---------------------------------------------------------------------------
 
 
 def get_repo_root() -> Path:
@@ -631,23 +589,19 @@ def process_fixture(
 
     file_type = fixture.get("file_type", "")
 
-    # Skip excluded types
     if file_type in EXCLUDED_TYPES:
         stats["skipped_excluded"] += 1
         return
 
-    # Skip unhandled types
     if file_type not in ALL_HANDLED_TYPES:
         print(f"  SKIP (unhandled type): {fixture_path.name} ({file_type})")
         stats["skipped_unhandled"] += 1
         return
 
-    # Skip if already has ground truth (unless --force)
     if fixture.get("ground_truth") and not force:
         stats["skipped_existing"] += 1
         return
 
-    # Resolve document path
     doc_rel = fixture.get("document", "")
     if not doc_rel:
         print(f"  SKIP (no document): {fixture_path.name}")
@@ -660,15 +614,12 @@ def process_fixture(
         stats["skipped_missing_doc"] += 1
         return
 
-    # Determine ground truth output path
     gt_dir = repo_root / "test_documents" / "ground_truth" / file_type
     gt_filename = fixture_path.stem + ".txt"
     gt_path = gt_dir / gt_filename
 
-    # Compute relative path from fixture to ground truth
     gt_rel = os.path.relpath(gt_path, fixture_path.parent)
 
-    # Mapping key
     mapping_key = make_mapping_key(fixture_path, fixtures_dir)
 
     if dry_run:
@@ -679,7 +630,6 @@ def process_fixture(
         stats["would_generate"] += 1
         return
 
-    # Extract text
     try:
         text = extract_text(doc_path, file_type)
     except Exception as e:
@@ -687,11 +637,9 @@ def process_fixture(
         stats["errors"] += 1
         return
 
-    # Write ground truth file
     gt_dir.mkdir(parents=True, exist_ok=True)
     gt_path.write_text(text, encoding="utf-8")
 
-    # Patch fixture JSON
     fixture["ground_truth"] = {
         "text_file": gt_rel,
         "source": get_source_type(file_type),
@@ -700,7 +648,6 @@ def process_fixture(
         json.dump(fixture, f, indent=2)
         f.write("\n")
 
-    # Update mapping
     gt_mapping_path = str(gt_path.relative_to(repo_root))
     mapping[mapping_key] = gt_mapping_path
 
@@ -726,11 +673,9 @@ def main() -> int:
     format_filter = set(args.format_filter.split(",")) if args.format_filter else None
     skip_types = set(args.skip_types.split(",")) if args.skip_types else set()
 
-    # Load existing mapping
     mapping = load_mapping(repo_root)
     initial_mapping_size = len(mapping)
 
-    # Collect and process fixtures
     fixture_paths = collect_fixtures(fixtures_dir)
     print(f"Found {len(fixture_paths)} fixture files\n")
 
@@ -746,7 +691,6 @@ def main() -> int:
     }
 
     for fixture_path in fixture_paths:
-        # Load to check file type for filtering
         try:
             with open(fixture_path) as f:
                 fixture_data = json.load(f)
@@ -763,13 +707,11 @@ def main() -> int:
 
         process_fixture(fixture_path, repo_root, fixtures_dir, mapping, args.dry_run, args.force, stats)
 
-    # Save mapping
     if not args.dry_run and stats["generated"] > 0:
         save_mapping(repo_root, mapping)
         new_entries = len(mapping) - initial_mapping_size
         print(f"\nUpdated ground_truth_mapping.json: {new_entries} new entries (total: {len(mapping)})")
 
-    # Print summary
     print(f"\n{'=' * 50}")
     print("Summary:")
     print(f"  Generated:         {stats['generated']}")

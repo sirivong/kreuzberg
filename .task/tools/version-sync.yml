@@ -10,8 +10,6 @@ vars:
 tasks:
   sync:
     desc: "Synchronize version across all package manifests (no regeneration)"
-    # Version propagation only. Regeneration is a separate, explicit step:
-    # run `task alef:generate` (alef all --clean) after bumping the version.
     cmds:
       - "{{.ALEF}} sync-versions"
 

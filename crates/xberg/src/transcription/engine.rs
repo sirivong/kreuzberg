@@ -36,10 +36,6 @@ use tokenizers::Tokenizer;
 use crate::transcription::decode::PcmAudio;
 use crate::transcription::model::WhisperModelPaths;
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
 /// Whisper operates on 30-second windows at 16 kHz.
 const WHISPER_SAMPLE_RATE: usize = 16_000;
 /// 30-second window in samples.
@@ -52,10 +48,6 @@ const WHISPER_N_FFT: usize = 400;
 const WHISPER_HOP_LENGTH: usize = 160;
 /// Maximum number of output tokens produced per chunk (Whisper canonical).
 const WHISPER_MAX_TOKENS: usize = 448;
-
-// ---------------------------------------------------------------------------
-// Error type
-// ---------------------------------------------------------------------------
 
 /// Errors that can occur during Whisper inference.
 #[derive(Debug, Error)]
@@ -83,10 +75,6 @@ pub enum TranscriptionError {
     #[error("mel spectrogram error: {0}")]
     MelSpec(String),
 }
-
-// ---------------------------------------------------------------------------
-// Special-token IDs resolved once at load time
-// ---------------------------------------------------------------------------
 
 /// Token IDs for the four-token Whisper decode prompt.
 #[derive(Debug, Clone)]
@@ -119,9 +107,6 @@ impl SpecialTokens {
         let transcribe = resolve("<|transcribe|>")?;
         let no_timestamps = resolve("<|notimestamps|>")?;
 
-        // Build a language→id map by probing a curated list of ISO-639-1 codes.
-        // All multilingual Whisper models have `<|en|>`, `<|de|>`, etc. in their
-        // vocabulary. We resolve any code that the tokenizer actually knows.
         let language_codes = [
             "af", "am", "ar", "as", "az", "ba", "be", "bg", "bn", "bo", "br", "bs", "ca", "cs", "cy", "da", "de", "el",
             "en", "es", "et", "eu", "fa", "fi", "fo", "fr", "gl", "gu", "ha", "haw", "he", "hi", "hr", "ht", "hu",
@@ -169,10 +154,6 @@ impl SpecialTokens {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Session builder helpers
-// ---------------------------------------------------------------------------
-
 /// Build an ONNX Runtime session from a model file path.
 ///
 /// Uses the same builder configuration as `reranking/mod.rs`:
@@ -197,10 +178,6 @@ fn build_session(path: &std::path::Path) -> Result<Session, TranscriptionError> 
     Ok(session)
 }
 
-// ---------------------------------------------------------------------------
-// WhisperEngine
-// ---------------------------------------------------------------------------
-
 /// Whisper ONNX inference engine.
 ///
 /// Holds three sessions (encoder, decoder, decoder_with_past) and a tokenizer.
@@ -216,12 +193,6 @@ pub struct WhisperEngine {
     n_mels: u32,
 }
 
-// SAFETY: WhisperEngine is Send + Sync because:
-// 1. Tokenizer is Send + Sync (confirmed in the tokenizers crate).
-// 2. Session::run() is thread-safe per the ONNX Runtime C API documentation;
-//    its &mut self signature is an API artifact — run_inner(&self) does the work.
-// 3. BatchLogMelSpectrogram is Send + Sync (all fields are Send + Sync).
-// 4. All other fields are immutable after construction.
 #[allow(unsafe_code)]
 unsafe impl Send for WhisperEngine {}
 #[allow(unsafe_code)]
@@ -244,14 +215,8 @@ impl WhisperEngine {
 
         let encoder = build_session(&paths.encoder)?;
         let decoder = build_session(&paths.decoder)?;
-        // For non-sharded models (Tiny, Base) decoder_with_past is a different
-        // file.  For sharded models (Small+) it points to the same merged file
-        // but is still loaded as an independent Session object so that both
-        // I/O name sets can be queried independently.
         let decoder_with_past = build_session(&paths.decoder_with_past)?;
 
-        // Log I/O names discovered from the live sessions — useful for debugging
-        // mismatches between model revisions.
         tracing::debug!(
             inputs = ?encoder.inputs().iter().map(|i| i.name().to_string()).collect::<Vec<_>>(),
             outputs = ?encoder.outputs().iter().map(|o| o.name().to_string()).collect::<Vec<_>>(),
@@ -326,7 +291,6 @@ impl WhisperEngine {
 
         let lang = language.unwrap_or("en");
 
-        // Split into 30-second chunks and transcribe each.
         let mut parts: Vec<String> = Vec::new();
         let mut offset = 0_usize;
 
@@ -353,16 +317,11 @@ impl WhisperEngine {
         Ok(parts.join(" "))
     }
 
-    // -----------------------------------------------------------------------
-    // Private implementation
-    // -----------------------------------------------------------------------
-
     /// Transcribe a single chunk of PCM (at most 30 seconds of audio).
     ///
     /// The chunk is zero-padded to exactly [`WHISPER_CHUNK_SAMPLES`] samples
     /// so that the encoder always receives a `[1, n_mels, 3000]` tensor.
     fn transcribe_chunk(&self, chunk: &[f32], lang: &str) -> Result<String, TranscriptionError> {
-        // Pad or truncate to exactly 480 000 samples.
         let padded = if chunk.len() == WHISPER_CHUNK_SAMPLES {
             chunk.to_vec()
         } else {
@@ -371,19 +330,10 @@ impl WhisperEngine {
             v
         };
 
-        // -----------------------------------------------------------------------
-        // Step 1: compute log-mel spectrogram
-        // -----------------------------------------------------------------------
         let mel_flat = self.compute_log_mel(&padded)?;
 
-        // -----------------------------------------------------------------------
-        // Step 2: encoder pass
-        // -----------------------------------------------------------------------
         let encoder_hidden_states = self.run_encoder(mel_flat)?;
 
-        // -----------------------------------------------------------------------
-        // Step 3: build initial prompt tokens
-        // -----------------------------------------------------------------------
         let lang_id = self.special_tokens.language_id(lang);
         let prompt: Vec<i64> = vec![
             self.special_tokens.start_of_transcript as i64,
@@ -392,17 +342,11 @@ impl WhisperEngine {
             self.special_tokens.no_timestamps as i64,
         ];
 
-        // -----------------------------------------------------------------------
-        // Steps 4–5: greedy decode loop
-        // -----------------------------------------------------------------------
         let token_ids = self.greedy_decode(prompt, &encoder_hidden_states)?;
 
-        // -----------------------------------------------------------------------
-        // Step 6: decode token IDs to text
-        // -----------------------------------------------------------------------
         let text = self
             .tokenizer
-            .decode(&token_ids, /* skip_special_tokens */ true)
+            .decode(&token_ids, true)
             .map_err(|e| TranscriptionError::Tokenizer(e.to_string()))?;
 
         Ok(text.trim().to_string())
@@ -416,12 +360,6 @@ impl WhisperEngine {
     /// We use `compute_flat()` (which returns raw `Vec<f32>`) to avoid touching
     /// mel_spec's ndarray 0.16 types — ort requires ndarray 0.17 types.
     fn compute_log_mel(&self, samples: &[f32]) -> Result<Vec<f32>, TranscriptionError> {
-        // `BatchLogMelSpectrogram::compute_flat` returns rows (n_mels) × cols (n_frames)
-        // laid out row-major in `data`, using natural log internally with a guard.
-        // Whisper expects log10; we convert via division by ln(10).
-        // We then apply the canonical Whisper normalisation:
-        //   log_spec = max(log10_spec, max(log10_spec) - 8)
-        //   log_spec = (log_spec + 4) / 4
         const LN10: f32 = std::f32::consts::LN_10;
 
         let output = self
@@ -433,26 +371,20 @@ impl WhisperEngine {
         let n_frames = output.cols;
         let mut flat = output.data;
 
-        // flat is row-major: flat[mel * n_frames + frame]
-
-        // Convert ln → log10.
         for v in flat.iter_mut() {
             *v /= LN10;
         }
 
-        // Whisper normalisation across the whole chunk.
         let max_val = flat.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let floor = max_val - 8.0_f32;
         for v in flat.iter_mut() {
             *v = (v.max(floor) + 4.0_f32) / 4.0_f32;
         }
 
-        // Pad or trim to exactly WHISPER_N_FRAMES columns.
         let target_frames = WHISPER_N_FRAMES;
         let log_mel_flat = if n_frames == target_frames {
             flat
         } else if n_frames < target_frames {
-            // Pad each mel row with zeros to reach target_frames.
             let mut padded = vec![0.0_f32; n_mels * target_frames];
             for mel_idx in 0..n_mels {
                 let src_start = mel_idx * n_frames;
@@ -461,7 +393,6 @@ impl WhisperEngine {
             }
             padded
         } else {
-            // Trim each mel row to target_frames.
             let mut trimmed = vec![0.0_f32; n_mels * target_frames];
             for mel_idx in 0..n_mels {
                 let src_start = mel_idx * n_frames;
@@ -478,25 +409,17 @@ impl WhisperEngine {
     /// Run the encoder and return the `last_hidden_state` value.
     fn run_encoder(&self, mel_flat: Vec<f32>) -> Result<Value, TranscriptionError> {
         let n_mels = self.n_mels as usize;
-        // Build [1, n_mels, WHISPER_N_FRAMES] array using ndarray 0.17 (ort's version).
         let mel_nd = Array3::from_shape_vec((1, n_mels, WHISPER_N_FRAMES), mel_flat)
             .map_err(|e| TranscriptionError::Shape(e.to_string()))?;
 
         let mel_value: Value = Value::from_array(mel_nd)?.into();
 
-        // SAFETY: ort::Session::run() takes &mut self but delegates to
-        // run_inner(&self), which is thread-safe per the ONNX Runtime C API
-        // documentation (OrtApi::Run is explicitly documented as thread-safe
-        // for concurrent calls on the same session). The *mut cast is sound
-        // because run_inner performs no mutation of the Session struct.
         #[allow(unsafe_code)]
         let outputs = unsafe {
             let ptr = &self.encoder as *const Session as *mut Session;
             (*ptr).run(ort::inputs!["input_features" => mel_value])
         }?;
 
-        // Find `last_hidden_state` by name; fall back to the first output if the
-        // model revision uses a different name.
         let encoder_output_name = self
             .encoder
             .outputs()
@@ -520,7 +443,6 @@ impl WhisperEngine {
     fn greedy_decode(&self, prompt: Vec<i64>, encoder_hidden_states: &Value) -> Result<Vec<u32>, TranscriptionError> {
         let eot = self.special_tokens.end_of_text;
 
-        // Discover decoder I/O names once from the live sessions.
         let dec_input_names: Vec<String> = self.decoder.inputs().iter().map(|i| i.name().to_string()).collect();
         let dec_output_names: Vec<String> = self.decoder.outputs().iter().map(|o| o.name().to_string()).collect();
         let dwp_input_names: Vec<String> = self
@@ -539,7 +461,6 @@ impl WhisperEngine {
         tracing::debug!(?dec_input_names, ?dec_output_names, "Decoder I/O names");
         tracing::debug!(?dwp_input_names, ?dwp_output_names, "Decoder-with-past I/O names");
 
-        // Detect the exact name the model uses for encoder hidden states.
         let enc_hs_input_name = dec_input_names
             .iter()
             .find(|n| n.contains("encoder_hidden_states"))
@@ -558,9 +479,6 @@ impl WhisperEngine {
             .cloned()
             .unwrap_or_else(|| "logits".to_string());
 
-        // -----------------------------------------------------------------------
-        // Step 0: initial decoder pass (no past key-values)
-        // -----------------------------------------------------------------------
         let prompt_len = prompt.len();
         let input_ids_0 =
             Array2::from_shape_vec((1, prompt_len), prompt).map_err(|e| TranscriptionError::Shape(e.to_string()))?;
@@ -573,14 +491,12 @@ impl WhisperEngine {
             &enc_hs_input_name => enc_hs_clone,
         ];
 
-        // SAFETY: see run_encoder for the full SAFETY argument. Same pattern.
         #[allow(unsafe_code)]
         let step0_outputs: ort::session::SessionOutputs = unsafe {
             let ptr = &self.decoder as *const Session as *mut Session;
             (*ptr).run(step0_inputs)
         }?;
 
-        // Extract logits and greedy-argmax the last position.
         let first_token = {
             let logits_val = step0_outputs
                 .iter()
@@ -595,17 +511,6 @@ impl WhisperEngine {
         }
         let mut generated: Vec<u32> = vec![first_token];
 
-        // Collect KV-cache outputs from step 0.
-        // Present-key-values are named "present.{i}.{decoder|encoder}.{key|value}".
-        // The matching decoder_with_past inputs are named
-        // "past_key_values.{i}.{decoder|encoder}.{key|value}".
-        //
-        // Key architectural detail: the DWP session only outputs decoder KV
-        // (present.*.decoder.*) — not encoder KV — because encoder cross-attention
-        // keys/values are constant across all decode steps. We therefore:
-        //   1. Extract encoder KV from step-0 outputs and never update them.
-        //   2. Extract decoder KV from step-0 outputs and update them each step.
-        //   3. Feed both to every DWP step.
         let step0_non_logits: Vec<(String, Value)> = step0_outputs
             .into_iter()
             .filter(|(name, _)| *name != logits_output_name)
@@ -615,7 +520,6 @@ impl WhisperEngine {
             })
             .collect();
 
-        // Separate encoder KV (constant) from decoder KV (updated each step).
         let mut encoder_kvs: Vec<(String, Value)> = Vec::new();
         let mut decoder_kvs: Vec<(String, Value)> = Vec::new();
         for (name, val) in step0_non_logits {
@@ -626,9 +530,6 @@ impl WhisperEngine {
             }
         }
 
-        // -----------------------------------------------------------------------
-        // Steps 1…N: decoder_with_past loop
-        // -----------------------------------------------------------------------
         let dwp_wants_enc_hs = dwp_input_names.iter().any(|n| n.contains("encoder_hidden_states"));
 
         for _ in 1..WHISPER_MAX_TOKENS {
@@ -645,19 +546,16 @@ impl WhisperEngine {
                 dwp_inputs.push((enc_hs_input_name.as_str().into(), enc_hs_c.into()));
             }
 
-            // Append decoder past key-value tensors (updated at each step).
             for (kv_name, kv_val) in &decoder_kvs {
                 let kv_clone = clone_value_f32(kv_val)?;
                 dwp_inputs.push((kv_name.as_str().into(), kv_clone.into()));
             }
 
-            // Append encoder past key-value tensors (constant; never change).
             for (kv_name, kv_val) in &encoder_kvs {
                 let kv_clone = clone_value_f32(kv_val)?;
                 dwp_inputs.push((kv_name.as_str().into(), kv_clone.into()));
             }
 
-            // SAFETY: see run_encoder for the full SAFETY argument. Same pattern.
             #[allow(unsafe_code)]
             let step_outputs: ort::session::SessionOutputs = unsafe {
                 let ptr = &self.decoder_with_past as *const Session as *mut Session;
@@ -678,9 +576,6 @@ impl WhisperEngine {
             }
             generated.push(next_token);
 
-            // Update decoder KV-cache from DWP outputs.
-            // DWP outputs only decoder KV (present.*.decoder.*); encoder KV
-            // remains unchanged across all steps.
             let new_decoder_kvs: Vec<(String, Value)> = step_outputs
                 .into_iter()
                 .filter(|(name, _)| *name != dwp_logits_output_name)
@@ -693,17 +588,11 @@ impl WhisperEngine {
             if !new_decoder_kvs.is_empty() {
                 decoder_kvs = new_decoder_kvs;
             }
-            // If new_decoder_kvs is empty the merged-decoder caches KV
-            // internally — keep the previous decoder_kvs unchanged.
         }
 
         Ok(generated)
     }
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 /// Extract the token with the highest logit from the last position of a
 /// `[batch=1, seq_len, vocab_size]` logits tensor.
@@ -759,26 +648,13 @@ fn clone_value_f32(value: &Value) -> Result<Value, TranscriptionError> {
     Ok(result)
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn greedy_argmax_last_picks_highest() {
-        // Manually construct a [1, 2, 4] logits tensor.
-        let data = Array3::from_shape_vec(
-            (1, 2, 4),
-            vec![
-                // position 0: max at index 1
-                0.1_f32, 0.9, 0.2, 0.0, // position 1: max at index 3
-                0.1, 0.2, 0.3, 0.8,
-            ],
-        )
-        .unwrap();
+        let data = Array3::from_shape_vec((1, 2, 4), vec![0.1_f32, 0.9, 0.2, 0.0, 0.1, 0.2, 0.3, 0.8]).unwrap();
         let val: Value = Value::from_array(data).unwrap().into();
         let tok = greedy_argmax_last(&val).unwrap();
         assert_eq!(tok, 3, "expected argmax at index 3 (last position)");
@@ -794,7 +670,6 @@ mod tests {
 
     #[test]
     fn special_tokens_resolve_from_tiny_vocab() {
-        // This test requires the Tiny model to be cached locally.  If not, skip.
         use crate::core::config::transcription::WhisperModel;
         use crate::transcription::model::ensure_whisper_model;
 
@@ -805,7 +680,7 @@ mod tests {
 
         let paths = match ensure_whisper_model(WhisperModel::Tiny, Some(&cache_dir), false, false) {
             Ok(p) => p,
-            Err(_) => return, // model not cached — skip
+            Err(_) => return,
         };
 
         let tokenizer = Tokenizer::from_file(&paths.tokenizer).expect("tokenizer load");

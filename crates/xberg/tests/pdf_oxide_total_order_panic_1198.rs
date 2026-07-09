@@ -57,14 +57,10 @@ fn text_path_repro_is_contained_not_a_raw_panic() {
     let Some(bytes) = read_repro("total_order_panic_1198_text_path.pdf") else {
         return;
     };
-    // OCR is disabled by default (`ocr: None`), matching the reported repro.
     let config = ExtractionConfig::default();
 
     match extract_bytes_document_blocking(&bytes, "application/pdf", &config) {
-        // A future pdf_oxide release may fix the sort; then extraction succeeds outright.
         Ok(_) => {}
-        // Today: the page-4 panic is caught by guard_oxide_panic and reported as a
-        // graceful error naming the containment site, not a process-aborting panic.
         Err(error) => {
             let message = error.to_string();
             assert!(

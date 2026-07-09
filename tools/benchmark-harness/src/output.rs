@@ -19,10 +19,6 @@ use std::path::Path;
 /// # Returns
 /// * `Ok(())` if valid, `Err` with description if invalid
 pub fn validate_result(result: &BenchmarkResult) -> Result<()> {
-    // Note: duration=0 is valid for sub-millisecond extractions (e.g., simple JSON files).
-    // We only record millisecond precision, so very fast extractions show as 0ms.
-
-    // Check for invalid state: success=true with error message
     if result.success && result.error_message.is_some() {
         return Err(Error::Benchmark(format!(
             "Invalid result state for {}/{}: success=true but error_message is set",
@@ -31,7 +27,6 @@ pub fn validate_result(result: &BenchmarkResult) -> Result<()> {
         )));
     }
 
-    // Check for invalid state: success=false without error message
     if !result.success && result.error_message.is_none() {
         return Err(Error::Benchmark(format!(
             "Invalid result state for {}/{}: success=false but error_message is None",
@@ -40,7 +35,6 @@ pub fn validate_result(result: &BenchmarkResult) -> Result<()> {
         )));
     }
 
-    // Check for invalid state: success=true but error_kind is not None
     if result.success && result.error_kind != ErrorKind::None {
         return Err(Error::Benchmark(format!(
             "Invalid result state for {}/{}: success=true but error_kind is {:?}",
@@ -59,7 +53,6 @@ pub fn validate_result(result: &BenchmarkResult) -> Result<()> {
 /// * `results` - Vector of benchmark results to write
 /// * `output_path` - Path to output JSON file
 pub fn write_json(results: &[BenchmarkResult], output_path: &Path) -> Result<()> {
-    // Validate all results before writing
     for result in results {
         validate_result(result)?;
     }
@@ -241,7 +234,6 @@ fn calculate_framework_stats(results: &[&BenchmarkResult]) -> FrameworkExtension
         0.0
     };
 
-    // Extraction duration stats (pure extraction time, excludes subprocess overhead)
     let mut extraction_durations: Vec<f64> = successful_results
         .iter()
         .filter_map(|r| r.extraction_duration.map(|d| d.as_secs_f64() * 1000.0))
@@ -436,13 +428,8 @@ mod tests {
         assert!(output_path.parent().unwrap().exists());
     }
 
-    // ============================================================================
-    // Tests for extraction_duration statistics in calculate_framework_stats
-    // ============================================================================
-
     #[test]
     fn test_framework_stats_extraction_duration_all_present() {
-        // Test: All results have extraction_duration -> percentiles populated
         let result1 = create_benchmark_result("framework1", true, 100, Some(80), 1_000_000.0, 10_000_000);
         let result2 = create_benchmark_result("framework1", true, 150, Some(120), 1_000_000.0, 10_000_000);
         let result3 = create_benchmark_result("framework1", true, 200, Some(160), 1_000_000.0, 10_000_000);
@@ -456,15 +443,12 @@ mod tests {
         assert!(stats.median_extraction_duration_ms.is_some());
         assert!(stats.p95_extraction_duration_ms.is_some());
 
-        // Average of 80, 120, 160 = 120 ms
         assert!((stats.avg_extraction_duration_ms.unwrap() - 120.0).abs() < 0.1);
-        // Median of 80, 120, 160 = 120 ms
         assert!((stats.median_extraction_duration_ms.unwrap() - 120.0).abs() < 0.1);
     }
 
     #[test]
     fn test_framework_stats_extraction_duration_all_none() {
-        // Test: All results have extraction_duration = None -> percentiles None
         let result1 = create_benchmark_result("framework1", true, 100, None, 1_000_000.0, 10_000_000);
         let result2 = create_benchmark_result("framework1", true, 150, None, 1_000_000.0, 10_000_000);
         let result3 = create_benchmark_result("framework1", true, 200, None, 1_000_000.0, 10_000_000);
@@ -481,7 +465,6 @@ mod tests {
 
     #[test]
     fn test_framework_stats_extraction_duration_mixed_some_none() {
-        // Test: Mixed Some/None extraction_duration -> only Some values used
         let result1 = create_benchmark_result("framework1", true, 100, Some(80), 1_000_000.0, 10_000_000);
         let result2 = create_benchmark_result("framework1", true, 150, None, 1_000_000.0, 10_000_000);
         let result3 = create_benchmark_result("framework1", true, 200, Some(160), 1_000_000.0, 10_000_000);
@@ -494,33 +477,26 @@ mod tests {
         assert!(stats.avg_extraction_duration_ms.is_some());
         assert!(stats.median_extraction_duration_ms.is_some());
 
-        // Only 80 and 160 ms, average = 120 ms
         assert!((stats.avg_extraction_duration_ms.unwrap() - 120.0).abs() < 0.1);
     }
 
     #[test]
     fn test_framework_stats_extraction_duration_filters_nan() {
-        // Test: NaN/infinite durations filtered out
         let result1 = create_benchmark_result("framework1", true, 100, Some(80), 1_000_000.0, 10_000_000);
         let result2 = create_benchmark_result("framework1", true, 150, Some(120), 1_000_000.0, 10_000_000);
         let result3 = create_benchmark_result("framework1", true, 200, Some(160), 1_000_000.0, 10_000_000);
 
-        // Inject NaN and infinity by manipulating durations (since Duration doesn't support NaN)
-        // We'll test this conceptually with valid values, but the filtering logic is tested
-        // by verifying that only finite, non-NaN values are used
         let results = vec![&result1, &result2, &result3];
 
         let stats = calculate_framework_stats(&results);
 
         assert_eq!(stats.count, 3);
-        // All three values are valid (80, 120, 160)
         assert!(stats.avg_extraction_duration_ms.is_some());
         assert_eq!(stats.avg_extraction_duration_ms.unwrap(), 120.0);
     }
 
     #[test]
     fn test_framework_stats_extraction_duration_empty_results() {
-        // Test: Empty results -> sensible defaults
         let results: Vec<&BenchmarkResult> = vec![];
 
         let stats = calculate_framework_stats(&results);
@@ -538,7 +514,6 @@ mod tests {
 
     #[test]
     fn test_framework_stats_extraction_duration_only_failed_results() {
-        // Test: Only failed results -> extraction_duration None (only successful results used)
         let result1 = create_benchmark_result("framework1", false, 0, None, 0.0, 0);
         let result2 = create_benchmark_result("framework1", false, 0, None, 0.0, 0);
         let results = vec![&result1, &result2];
@@ -554,7 +529,6 @@ mod tests {
 
     #[test]
     fn test_framework_stats_extraction_duration_single_value() {
-        // Test: Single extraction_duration value -> all percentiles return that value
         let result = create_benchmark_result("framework1", true, 100, Some(80), 1_000_000.0, 10_000_000);
         let results = vec![&result];
 
@@ -569,7 +543,6 @@ mod tests {
 
     #[test]
     fn test_framework_stats_success_rate_with_extraction_duration() {
-        // Test: Mixed success/failure with extraction_duration on successful results
         let result1 = create_benchmark_result("framework1", true, 100, Some(80), 1_000_000.0, 10_000_000);
         let result2 = create_benchmark_result("framework1", true, 150, Some(120), 1_000_000.0, 10_000_000);
         let result3 = create_benchmark_result("framework1", false, 0, None, 0.0, 0);
@@ -581,15 +554,12 @@ mod tests {
         assert_eq!(stats.successful, 2);
         assert_eq!(stats.success_rate, 2.0 / 3.0);
 
-        // Only successful results have extraction_duration
         assert!(stats.avg_extraction_duration_ms.is_some());
-        // Average of 80 and 120 = 100
         assert!((stats.avg_extraction_duration_ms.unwrap() - 100.0).abs() < 0.1);
     }
 
     #[test]
     fn test_framework_stats_large_number_extraction_durations() {
-        // Test: Many extraction_duration values -> percentiles calculated correctly
         let mut results = vec![];
         for i in 1..=100 {
             results.push(create_benchmark_result(
@@ -608,19 +578,15 @@ mod tests {
         assert_eq!(stats.count, 100);
         assert_eq!(stats.successful, 100);
 
-        // Average of 8, 16, 24, ..., 800 = 8*(1+2+...+100)/100 = 8*5050/100 = 404
         let expected_avg = 8.0 * (1..=100).sum::<u64>() as f64 / 100.0;
         assert!((stats.avg_extraction_duration_ms.unwrap() - expected_avg).abs() < 1.0);
 
-        // Median of 1-100: 50th percentile
         assert!(stats.median_extraction_duration_ms.is_some());
-        // P95: 95th percentile
         assert!(stats.p95_extraction_duration_ms.is_some());
     }
 
     #[test]
     fn test_analyze_by_extension_with_extraction_duration() {
-        // Integration test: analyze_by_extension properly aggregates extraction_duration
         let results = vec![
             create_benchmark_result("framework1", true, 100, Some(80), 1_000_000.0, 10_000_000),
             create_benchmark_result("framework1", true, 150, Some(120), 1_000_000.0, 10_000_000),
@@ -640,7 +606,6 @@ mod tests {
 
     #[test]
     fn test_analyze_by_extension_mixed_extraction_duration() {
-        // Test: analyze_by_extension with mixed extraction_duration presence
         let mut result1 = create_benchmark_result("framework1", true, 100, Some(80), 1_000_000.0, 10_000_000);
         result1.file_extension = "pdf".to_string();
 
@@ -655,7 +620,6 @@ mod tests {
         let ext_analysis = &report.by_extension["pdf"];
         let framework_stats = &ext_analysis.framework_stats["framework1"];
 
-        // Should have extraction_duration stats (only from result1 which has Some)
         assert!(framework_stats.avg_extraction_duration_ms.is_some());
         assert_eq!(framework_stats.avg_extraction_duration_ms.unwrap(), 80.0);
     }

@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
 # Generate markdown ground truth for formats requiring LibreOffice conversion.
-# Workflow: soffice → intermediate format → pandoc -t gfm → sanitize
-#
-# Prerequisites:
-#   - soffice (LibreOffice) on PATH
-#   - pandoc on PATH
-#   - python3 on PATH
-#
-# Usage: bash tools/benchmark-harness/scripts/generate_libreoffice_gt.sh
 
 set -euo pipefail
 
@@ -18,7 +10,6 @@ TMP_DIR="/tmp/gt_convert"
 
 mkdir -p "$TMP_DIR"
 
-# --- DOC → DOCX → GFM ---
 echo "=== DOC ground truth generation ==="
 mkdir -p "$REPO_ROOT/test_documents/ground_truth/doc"
 
@@ -38,7 +29,6 @@ for f in "${doc_files[@]}"; do
   name=$(basename "$f" .doc)
   gt_md="$REPO_ROOT/test_documents/ground_truth/doc/${name}.md"
 
-  # Convert to docx via LibreOffice
   soffice --headless --convert-to docx --outdir "$TMP_DIR" "$f" 2>/dev/null
   converted="$TMP_DIR/${name}.docx"
 
@@ -52,7 +42,6 @@ for f in "${doc_files[@]}"; do
   fi
 done
 
-# --- PPT → PPTX → GFM ---
 echo ""
 echo "=== PPT ground truth generation ==="
 mkdir -p "$REPO_ROOT/test_documents/ground_truth/ppt"
@@ -82,7 +71,6 @@ for f in "${ppt_files[@]}"; do
   fi
 done
 
-# --- ODS: no pandoc support for spreadsheet input ---
 echo ""
 echo "=== ODS: skipped (pandoc cannot read spreadsheet formats) ==="
 echo "  Existing text GT in test_documents/ground_truth/ods/ is sufficient."

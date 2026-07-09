@@ -14,19 +14,15 @@ use super::comrak_bridge::build_comrak_ast;
 /// Returns [`Cow::Borrowed`] when no replacement occurs (zero allocation).
 /// Returns [`Cow::Owned`] with one pre-sized allocation when any hit is found.
 fn unescape_backslash_sequences<'a>(input: &'a str, targets: &[char]) -> Cow<'a, str> {
-    // Walk byte-by-byte looking for a backslash followed by a target char.
     let bytes = input.as_bytes();
     let len = bytes.len();
     let mut i = 0usize;
 
-    // Find the first hit position.
     let first_hit = loop {
         if i + 1 >= len {
             return Cow::Borrowed(input);
         }
         if bytes[i] == b'\\' {
-            // SAFETY: we just verified i < len; input is valid UTF-8 so bytes[i+1]
-            // is a valid ASCII byte whose char value we can compare.
             let next = bytes[i + 1] as char;
             if targets.contains(&next) {
                 break i;
@@ -35,7 +31,6 @@ fn unescape_backslash_sequences<'a>(input: &'a str, targets: &[char]) -> Cow<'a,
         i += 1;
     };
 
-    // We have a hit at `first_hit`.  Build output, copying verbatim up to here.
     let mut out = String::with_capacity(input.len());
     out.push_str(&input[..first_hit]);
     i = first_hit;
@@ -44,14 +39,11 @@ fn unescape_backslash_sequences<'a>(input: &'a str, targets: &[char]) -> Cow<'a,
         if i + 1 < len && bytes[i] == b'\\' {
             let next = bytes[i + 1] as char;
             if targets.contains(&next) {
-                out.push(next); // drop the backslash
+                out.push(next);
                 i += 2;
                 continue;
             }
         }
-        // Push one char (handle multi-byte UTF-8 correctly).
-        // SAFETY: input is valid UTF-8; we scan byte-by-byte but only push
-        // well-formed char boundaries.
         let c = input[i..].chars().next().expect("valid UTF-8");
         out.push(c);
         i += c.len_utf8();
@@ -64,12 +56,10 @@ fn unescape_backslash_sequences<'a>(input: &'a str, targets: &[char]) -> Cow<'a,
 ///
 /// Returns [`Cow::Borrowed`] when neither entity appears (zero allocation).
 fn replace_html_entities(input: &str) -> Cow<'_, str> {
-    // Quick check before any allocation.
     if !input.contains("&#10;") && !input.contains("&#2;") {
         return Cow::Borrowed(input);
     }
 
-    // Walk through, replacing entity sequences.
     let mut out = String::with_capacity(input.len());
     let mut rest = input;
 
@@ -81,12 +71,9 @@ fn replace_html_entities(input: &str) -> Cow<'_, str> {
                 out.push(' ');
                 rest = tail;
             } else if let Some(tail) = after.strip_prefix("&#2;") {
-                // Remove it (emit nothing).
                 rest = tail;
             } else {
-                // Not one of our targets; emit `&#` literally and continue.
                 out.push_str("&#");
-                // SAFETY: after starts with "&#" (2 bytes of ASCII), so this slice is valid.
                 rest = &after[2..];
             }
         } else {
@@ -103,7 +90,6 @@ fn replace_html_entities(input: &str) -> Cow<'_, str> {
 ///
 /// Returns [`Cow::Borrowed`] when no triple-newline sequence is found.
 fn collapse_excess_newlines(input: &str) -> Cow<'_, str> {
-    // Fast path: avoid allocation when possible.
     if !input.contains("\n\n\n") {
         return Cow::Borrowed(input);
     }
@@ -117,7 +103,6 @@ fn collapse_excess_newlines(input: &str) -> Cow<'_, str> {
             if newline_run <= 2 {
                 out.push('\n');
             }
-            // Beyond 2 consecutive newlines: swallow.
         } else {
             newline_run = 0;
             out.push(c);
@@ -140,22 +125,17 @@ pub(crate) fn render_markdown(doc: &InternalDocument) -> String {
     let arena = Arena::new();
     let root = build_comrak_ast(doc, &arena);
 
-    // Guard: empty AST causes index-out-of-bounds in comrak's formatter.
     if root.first_child().is_none() {
         tracing::debug!("markdown rendering: empty AST, returning empty string");
         return String::new();
     }
 
     let mut options = comrak_options();
-    options.render.width = 0; // no line wrapping
+    options.render.width = 0;
 
     let mut output = String::new();
     format_commonmark(root, &options, &mut output).expect("comrak formatting should not fail");
 
-    // Strip comrak-generated HTML comments (e.g. `<!-- end list -->`) that leak
-    // into markdown output when adjacent lists are rendered. Only page marker
-    // comments (`<!-- PAGE N -->`) should appear in output, and those are inserted
-    // by our own code, not by comrak.
     if output.contains("<!--") {
         output = output
             .lines()
@@ -167,18 +147,10 @@ pub(crate) fn render_markdown(doc: &InternalDocument) -> String {
             .join("\n");
     }
 
-    // Safety net: decode any HTML entities that slipped through from other code paths.
-    // `&#10;` (newline) → space, `&#2;` (STX control char) → removed.
-    // Single-pass; only reassign when something changed to avoid re-cloning the buffer.
     if let Cow::Owned(s) = replace_html_entities(&output) {
         output = s;
     }
 
-    // Un-escape underscores, brackets, and parentheses in one pass:
-    // comrak's format_commonmark escapes `\_`, `\[`, `\]`, `\(`, `\)` in text nodes
-    // to prevent emphasis/link interpretation, but the AST already handles real links
-    // and our content uses these characters literally. Single-pass over all five targets;
-    // returns Cow::Borrowed (zero alloc) when none are present.
     {
         const UNESCAPE_TARGETS: &[char] = &['_', '[', ']', '(', ')', '*', '='];
         let cow = unescape_backslash_sequences(&output, UNESCAPE_TARGETS);
@@ -187,11 +159,6 @@ pub(crate) fn render_markdown(doc: &InternalDocument) -> String {
         }
     }
 
-    // Un-escape stars and hashes at the START of lines only.
-    // comrak escapes `*` → `\*` and `#` → `\#` to prevent false emphasis / ATX-heading
-    // interpretation. We need to un-escape these for RST list markers (`\* item` → `* item`)
-    // and auto-numbered lists (`\#. item` → `#. item`), but NOT inside table cells where
-    // `\*\*text\*\*` should remain escaped as literal asterisks.
     if output.contains("\\*") || output.contains("\\#") {
         output = output
             .lines()
@@ -207,19 +174,12 @@ pub(crate) fn render_markdown(doc: &InternalDocument) -> String {
             .join("\n");
     }
 
-    // Collapse runs of 3+ newlines (double blank lines) into exactly 2 newlines.
-    // comrak emits an extra blank line after lists when followed by a code block or table.
-    // MD012 forbids multiple consecutive blank lines.
-    // Single-pass; only reassign when a triple-newline was actually collapsed.
     if let Cow::Owned(s) = collapse_excess_newlines(&output) {
         output = s;
     }
 
-    // Strip arXiv watermark/sidebar noise that gets concatenated with body text.
-    // Only applies to the first ~2000 chars (first page area) to avoid touching references.
     output = strip_arxiv_watermark_noise(output);
 
-    // Trim trailing whitespace but keep single trailing newline
     let trimmed_len = output.trim_end().len();
     if trimmed_len == 0 {
         return String::new();
@@ -236,13 +196,10 @@ pub(crate) fn render_markdown(doc: &InternalDocument) -> String {
 /// that the PDF extractor concatenates with body text. This strips patterns like:
 /// "Title N arXiv:NNNN.NNNNNvN [cat.SC] DD Mon YYYY" from the first pages.
 fn strip_arxiv_watermark_noise(mut text: String) -> String {
-    // Only search the first portion of the text (roughly first 2 pages)
     let search_limit = text.floor_char_boundary(text.len().min(6000));
     let search_area = &text[..search_limit];
 
     if let Some(m) = ARXIV_WATERMARK_REGEX.find(search_area) {
-        // Only strip if it looks like a watermark (appears near end of a paragraph,
-        // not in the middle of a sentence about arXiv).
         let after = &search_area[m.end()..];
         let before_char = if m.start() > 0 {
             search_area[..m.start()].chars().last()
@@ -250,7 +207,6 @@ fn strip_arxiv_watermark_noise(mut text: String) -> String {
             None
         };
 
-        // Strip if preceded by a sentence-ending period or is at end of paragraph
         let is_at_paragraph_boundary = before_char == Some('.') || after.starts_with('\n') || after.starts_with("\n\n");
         if is_at_paragraph_boundary {
             let start = m.start();
@@ -279,7 +235,6 @@ pub(crate) fn comrak_options<'a>() -> Options<'a> {
     options.extension.superscript = true;
     options.extension.highlight = true;
     options.extension.alerts = true;
-    // Use fenced code blocks (```) instead of 4-space indentation.
     options.render.prefer_fenced = true;
     options
 }
@@ -287,8 +242,6 @@ pub(crate) fn comrak_options<'a>() -> Options<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // --- unescape_backslash_sequences ---
 
     #[test]
     fn unescape_backslash_sequences_empty_input_returns_borrowed() {
@@ -325,7 +278,6 @@ mod tests {
 
     #[test]
     fn unescape_backslash_sequences_backslash_not_followed_by_target_is_kept() {
-        // `\n` is not in targets; the backslash should be emitted literally.
         let input = "foo\\nbar";
         let result = unescape_backslash_sequences(input, &['_']);
         assert!(matches!(result, Cow::Borrowed(_)));
@@ -344,8 +296,6 @@ mod tests {
         let result = unescape_backslash_sequences(input, &['_', '[', ']', '(', ')']);
         assert_eq!(result.as_ref(), expected.as_str());
     }
-
-    // --- replace_html_entities ---
 
     #[test]
     fn replace_html_entities_empty_returns_borrowed() {
@@ -392,8 +342,6 @@ mod tests {
         let result = replace_html_entities(input);
         assert_eq!(result, "a&#42;b");
     }
-
-    // --- collapse_excess_newlines ---
 
     #[test]
     fn collapse_excess_newlines_empty_returns_borrowed() {

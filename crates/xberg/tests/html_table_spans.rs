@@ -26,8 +26,6 @@ fn rowspan_keeps_following_cells_aligned() {
 </table>"#;
     let cells = table_cells(html);
     assert!(cells.len() >= 3, "expected 3 rows, got: {cells:?}");
-    // Row 2 (the second data row) must read ["", "Bob", "20"] — Bob in the Name
-    // column, not shifted into Group.
     let last = cells.last().unwrap();
     assert_eq!(last.len(), 3, "row must have 3 columns: {last:?}");
     assert_eq!(

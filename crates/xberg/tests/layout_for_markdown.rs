@@ -56,8 +56,6 @@ fn layout_for_markdown_config() -> ExtractionConfig {
     }
 }
 
-// ── Default: no behavior change ─────────────────────────────────────────────
-
 /// With `use_layout_for_markdown = false` (the default), the pipeline must
 /// produce output that is indistinguishable from the baseline (no layout).
 /// This guards against accidental regressions introduced by the new field.
@@ -76,8 +74,6 @@ fn test_use_layout_for_markdown_false_matches_baseline() {
         "use_layout_for_markdown=false must not change extraction output compared to no-layout config"
     );
 }
-
-// ── Layout injection: structural improvement ─────────────────────────────────
 
 /// With `use_layout_for_markdown = true` and a PDF that has headings, the
 /// markdown output must contain at least one ATX heading line (`# ...`).
@@ -168,7 +164,6 @@ fn test_use_layout_for_markdown_without_layout_config_is_noop() {
     let pdf = "pdf/google_doc_document.pdf";
     let baseline = extract_md(pdf, &baseline_config());
 
-    // use_layout_for_markdown=true but layout=None → runner must skip silently.
     let noop_config = ExtractionConfig {
         output_format: OutputFormat::Markdown,
         layout: None,
@@ -187,9 +182,6 @@ fn test_use_layout_for_markdown_without_layout_config_is_noop() {
 /// The field must be a no-op when the entire document is OCR'd.
 #[test]
 fn test_use_layout_for_markdown_skipped_when_force_ocr() {
-    // We can't easily run OCR in unit tests without a backend registered,
-    // but we CAN verify the config combination doesn't panic or error.
-    // The actual gate is tested via the `maybe_run_layout_for_markdown` guard.
     let config = ExtractionConfig {
         output_format: OutputFormat::Markdown,
         layout: Some(LayoutDetectionConfig::default()),
@@ -197,7 +189,6 @@ fn test_use_layout_for_markdown_skipped_when_force_ocr() {
         force_ocr: true,
         ..Default::default()
     };
-    // Config construction must succeed and the field values must be set correctly.
     assert!(config.use_layout_for_markdown);
     assert!(config.force_ocr);
     assert!(config.layout.is_some());

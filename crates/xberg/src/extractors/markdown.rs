@@ -68,13 +68,12 @@ pub(crate) fn normalize_fence_lang(info: &str) -> Option<String> {
     let inner = info
         .strip_prefix('{')
         .map_or(info, |rest| rest.strip_suffix('}').unwrap_or(rest));
-    // Take the leading language token, dropping chunk options after a comma or space.
     let lang = inner
         .split([',', ' ', '\t'])
         .next()
         .unwrap_or("")
         .trim()
-        .trim_start_matches('.'); // Quarto also accepts `.python`-style classes
+        .trim_start_matches('.');
     if lang.is_empty() { None } else { Some(lang.to_string()) }
 }
 
@@ -95,18 +94,12 @@ impl MarkdownExtractor {
         Self
     }
 
-    // Frontmatter utilities moved to shared frontmatter_utils module
-    // Text extraction and data URI decoding moved to shared markdown_utils module
-
-    // cells_to_markdown and extract_title_from_content moved to shared frontmatter_utils module
-
     /// Build an `InternalDocument` from pulldown-cmark events and optional YAML frontmatter.
     pub(crate) fn build_internal_document(events: &[Event], yaml: &Option<serde_yaml_ng::Value>) -> InternalDocument {
         use crate::types::builder;
         use crate::types::document_structure::TextAnnotation;
         let mut b = InternalDocumentBuilder::new("markdown");
 
-        // Emit frontmatter as a metadata block
         if let Some(serde_yaml_ng::Value::Mapping(map)) = yaml {
             let entries: Vec<(String, String)> = map
                 .iter()
@@ -138,7 +131,7 @@ impl MarkdownExtractor {
         let mut current_row: Vec<String> = Vec::new();
         let mut current_cell = String::new();
         let mut in_table_cell = false;
-        let mut list_stack: Vec<bool> = Vec::new(); // ordered flag
+        let mut list_stack: Vec<bool> = Vec::new();
         let mut list_item_text = String::new();
         let mut list_item_annotations: Vec<TextAnnotation> = Vec::new();
         let mut in_list_item = false;
@@ -147,12 +140,9 @@ impl MarkdownExtractor {
         let mut image_url: Option<String> = None;
         let mut footnote_def_label: Option<String> = None;
         let mut footnote_def_text = String::new();
-        // Definition lists (`Term` line followed by `: definition`): term titles and descriptions.
         let mut in_def_title = false;
         let mut in_def_desc = false;
         let mut def_buf = String::new();
-        // Block-quote nesting: `true` marks a GFM alert (rendered as an admonition, no
-        // quote start/end) so the matching End can be dispatched correctly.
         let mut blockquote_stack: Vec<bool> = Vec::new();
 
         let mut annotation_starts: Vec<AnnotationEntry> = Vec::new();
@@ -216,8 +206,6 @@ impl MarkdownExtractor {
                     paragraph_text.clear();
                     paragraph_annotations.clear();
                 }
-                // Inline formatting — annotation tracking
-                // Annotations are tracked for paragraphs, headings, and list items.
                 Event::Start(Tag::Strong) => {
                     if in_paragraph {
                         annotation_starts.push((0, active_text_offset(&paragraph_text), None));
@@ -387,7 +375,6 @@ impl MarkdownExtractor {
                     if let Some(i) = annotation_starts.iter().rposition(|(k, _, _)| *k == 4) {
                         let (_, start, link_data) = annotation_starts.remove(i);
                         if let Some((url, title)) = link_data {
-                            // Collect the link label text from the active buffer
                             let label_text = if in_paragraph {
                                 let end = active_text_offset(&paragraph_text);
                                 if start < end {
@@ -415,7 +402,6 @@ impl MarkdownExtractor {
                             } else {
                                 None
                             };
-                            // Push URI (compute kind before moving url)
                             if !url.is_empty() {
                                 let kind = classify_uri(&url);
                                 b.push_uri(ExtractedUri {
@@ -449,8 +435,6 @@ impl MarkdownExtractor {
                 }
                 Event::Start(Tag::BlockQuote(kind)) => {
                     // GFM alert (`> [!NOTE]`) — pulldown consumes the `[!KIND]` marker into
-                    // the block-quote kind, so render it as an admonition to avoid losing it.
-                    // Plain block quotes keep the existing quote start/end markers.
                     if let Some(alert) = kind {
                         let alert_kind = match alert {
                             pulldown_cmark::BlockQuoteKind::Note => "note",
@@ -467,8 +451,6 @@ impl MarkdownExtractor {
                     }
                 }
                 Event::End(TagEnd::BlockQuote(_)) => {
-                    // Only plain block quotes emit a closing marker; a GFM alert's body
-                    // flows out as ordinary paragraphs after its admonition element.
                     let was_alert = blockquote_stack.pop().unwrap_or(false);
                     if !was_alert {
                         b.push_quote_end();
@@ -538,12 +520,10 @@ impl MarkdownExtractor {
                 Event::Start(Tag::Image { dest_url, .. }) => {
                     in_image = true;
                     image_alt.clear();
-                    // Store image URL for URI collection on End
                     image_url = Some(dest_url.to_string());
                 }
                 Event::End(TagEnd::Image) => {
                     in_image = false;
-                    // Push a proper image element (no ExtractedImage data, use sentinel index)
                     let trimmed = image_alt.trim();
                     let desc = if trimmed.is_empty() { "" } else { trimmed };
                     {
@@ -567,7 +547,6 @@ impl MarkdownExtractor {
                             ocr_rotation: None,
                         });
                     }
-                    // Collect image URI
                     if let Some(url) = image_url.take().filter(|u| !u.is_empty()) {
                         b.push_uri(ExtractedUri {
                             url,
@@ -668,8 +647,6 @@ impl MarkdownExtractor {
                         paragraph_text.push_str(s);
                     }
                 }
-                // Inline (`$x$`) and display (`$$x$$`) math. Inline math flows into the
-                // active text buffer wrapped in `$`; display math is a standalone formula.
                 Event::InlineMath(s) => {
                     if in_heading {
                         heading_text.push('$');
@@ -721,8 +698,6 @@ impl MarkdownExtractor {
                 Event::FootnoteReference(name) => {
                     b.push_footnote_ref(name, name, None);
                 }
-                // Raw HTML — both block (`Html`) and inline (`InlineHtml`) are preserved
-                // verbatim into whichever text buffer is active.
                 Event::Html(s) | Event::InlineHtml(s) => {
                     if in_heading {
                         heading_text.push_str(s);
@@ -813,18 +788,12 @@ impl InternalDocumentExtractor for MarkdownExtractor {
         let events: Vec<Event> = parser.collect();
 
         let mut extracted_images = Vec::new();
-        // Walk the AST only for images (data URI extraction)
         let _ = crate::extractors::markdown_utils::extract_text_from_events(&events, &mut extracted_images);
 
-        // Build InternalDocument from events and frontmatter
         let mut doc = Self::build_internal_document(&events, &yaml);
         doc.metadata = metadata;
         doc.mime_type = mime_type.to_string();
 
-        // Tables are already pushed by `build_internal_document` via the builder,
-        // so we do NOT push them again here (that would create duplicates).
-
-        // Add extracted images to InternalDocument
         if !extracted_images.is_empty() {
             for image in extracted_images {
                 doc.push_image(image);
@@ -1168,7 +1137,6 @@ nested:
 
     #[test]
     fn test_decode_data_uri_png() {
-        // 1x1 red PNG pixel (minimal valid PNG)
         let png_b64 =
             "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==";
         let uri = format!("data:image/png;base64,{png_b64}");
@@ -1183,7 +1151,6 @@ nested:
 
     #[test]
     fn test_decode_data_uri_jpeg() {
-        // Minimal JPEG-like base64 (tests the decode path)
         let uri = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
 
         let image = crate::extractors::markdown_utils::decode_data_uri_image(uri, 3);
@@ -1287,8 +1254,6 @@ nested:
 
     #[tokio::test]
     async fn test_trimmed_paragraph_with_emoji() {
-        // Trimming paragraph text with multi-byte emoji must not produce
-        // annotations pointing past the trimmed text end.
         let md = b"  **bold** \xf0\x9f\x8e\x89 text  ";
 
         let extractor = MarkdownExtractor::new();
@@ -1370,9 +1335,6 @@ nested:
     async fn test_pandoc_full_elements_parsed() {
         use crate::AnnotationKind;
         use crate::types::internal::ElementKind;
-        // Note: pulldown-cmark's super/subscript require whitespace-flanked delimiters
-        // (`^x^`, `~x~`); it does not do pandoc's intraword `mc^2^` / `H~2~O`. We enable the
-        // option and follow pulldown's own rules.
         let content = concat!(
             "Marker ^sup^ and ~sub~ inline.\n\n",
             "Inline $a^2 + b^2$ stays inline.\n\n",
@@ -1464,8 +1426,6 @@ nested:
 
     #[tokio::test]
     async fn test_smart_punctuation_rewrites_quotes() {
-        // Documents the intentional side effect of ENABLE_SMART_PUNCTUATION: straight
-        // quotes and `--` become typographic characters.
         let content = "He said \"hello\" -- really.".as_bytes();
         let extractor = MarkdownExtractor::new();
         let doc = extractor

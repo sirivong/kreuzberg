@@ -746,10 +746,6 @@ pub struct ExtractedImage {
     pub data_base64: Option<String>,
 }
 
-// ============================================================================
-// Element-based Output Format Types (Unstructured-compatible)
-// ============================================================================
-
 /// Result-shape selection for extraction results.
 ///
 /// Distinct from [`crate::OutputFormat`] (which controls rendering — Plain, Markdown,
@@ -918,12 +914,9 @@ impl super::tables::Table {
 mod tests {
     use super::*;
 
-    // ── ChunkMetadata backward-compat ────────────────────────────────────────
-
     #[test]
     fn chunk_metadata_omitting_heading_path_deserializes_to_empty_vec() {
         // heading_path has `#[serde(default)]` — stored JSON without the field
-        // must deserialize to an empty Vec, not an error.
         let json = r#"{
             "byte_start": 0,
             "byte_end": 42,
@@ -938,13 +931,9 @@ mod tests {
         );
     }
 
-    // ── ExtractedDocument serde behavior ─────────────────────────────────────
-
     #[test]
     fn extraction_result_omitting_formulas_and_form_fields_defaults_to_empty() {
         // Both `formulas` and `form_fields` use `#[serde(default)]` and
-        // `skip_serializing_if = "Vec::is_empty"`.  Old JSON that lacks these
-        // fields must deserialize cleanly to empty Vecs.
         let json = r#"{
             "content": "hello",
             "mime_type": "text/plain",
@@ -962,7 +951,6 @@ mod tests {
     #[test]
     fn extraction_result_omitting_counts_defaults_to_zero() {
         // `counts` uses `#[serde(default)]`; stored JSON predating the field must
-        // deserialize to `DocumentCounts::default()` (all zeros), not error.
         let json = r#"{
             "content": "hello",
             "mime_type": "text/plain",
@@ -1012,7 +1000,6 @@ mod tests {
         };
 
         let json = serde_json::to_string(&result).unwrap();
-        // formulas must be present in JSON when non-empty
         assert!(json.contains("formulas"), "non-empty formulas must be serialized");
 
         let deserialized: ExtractedDocument = serde_json::from_str(&json).unwrap();

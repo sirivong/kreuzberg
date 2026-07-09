@@ -53,9 +53,6 @@ fn fake_memo_fixture() -> StructuredFixture {
         "required": ["title", "date", "summary"],
         "additionalProperties": false
     });
-    // Hand-rolled GT for the actual contents of fake_memo.pdf (a delivery
-    // report dated 2023-05-05). Title is stable run-to-run; date/summary
-    // wording varies a little so F1 here is informational, not a gate.
     let ground_truth = json!({
         "title": "Delivery Report",
         "date": "May 5, 2023",
@@ -143,9 +140,6 @@ async fn structured_extraction_smoke_text_then_llm() {
         mean_type
     );
 
-    // Smoke gates: prove the pipeline composes. F1 is informational here
-    // because the GT is hand-rolled paraphrase, not dataset-canonical; field
-    // accuracy is what Stage 2 measures on real datasets (CORD / SROIE / etc.).
     assert_eq!(
         schema_validity, 1.0,
         "structured output must validate against the schema (strict mode is on)"

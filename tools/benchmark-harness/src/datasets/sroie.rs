@@ -37,7 +37,6 @@ pub fn load(root: &Path, split: Split) -> Result<Vec<StructuredFixture>> {
     let schema = load_sroie_schema()?;
     let mut fixtures = Vec::new();
 
-    // Parse manifest for (document, gt_json) pairs
     for line in manifest_content.lines() {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') {

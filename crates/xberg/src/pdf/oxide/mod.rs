@@ -83,9 +83,6 @@ impl OxideDocument {
             source: None,
         })?;
 
-        // `authenticate(b"")` returns Ok(true) for unencrypted PDFs and for
-        // encrypted ones that open with the empty password. Only fall through to
-        // the configured passwords when the empty one does not authenticate.
         let opened = doc.authenticate(b"").unwrap_or(false);
         if !opened {
             let mut authenticated = false;

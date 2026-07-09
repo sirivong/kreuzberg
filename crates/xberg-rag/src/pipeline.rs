@@ -24,8 +24,6 @@ use crate::query::{RetrieveMode, RetrieveQuery};
 use crate::store::VectorStore;
 use crate::types::{ChunkRecord, DocumentId, DocumentRecord, RetrievedChunk};
 
-// ─── Embedder ────────────────────────────────────────────────────────────────
-
 /// Embeds a batch of texts into dense float vectors.
 ///
 /// Implementations must be `Send + Sync + 'static` so they can be held behind
@@ -50,8 +48,6 @@ pub trait Embedder: Send + Sync + 'static {
     }
 }
 
-// ─── IngestRequest ───────────────────────────────────────────────────────────
-
 /// Input for a single document ingestion.
 #[derive(Debug, Clone, Default)]
 pub struct IngestRequest {
@@ -75,15 +71,11 @@ pub struct IngestRequest {
     pub metadata: serde_json::Value,
 }
 
-// ─── RagPipelineConfig ───────────────────────────────────────────────────────
-
 /// Configuration for the ingest/retrieve pipeline.
 pub struct RagPipelineConfig<'a> {
     /// Chunking configuration forwarded to `xberg::chunking::chunk_for_rag`.
     pub chunking: &'a xberg::ChunkingConfig,
 }
-
-// ─── chunk_to_record ─────────────────────────────────────────────────────────
 
 /// Convert one [`xberg::Chunk`] into a [`ChunkRecord`] ready for upsertion.
 ///
@@ -106,8 +98,6 @@ pub fn chunk_to_record(chunk: xberg::Chunk, ordinal: u32, embedding: Vec<f32>) -
         chunk_metadata,
     }
 }
-
-// ─── ingest_document ─────────────────────────────────────────────────────────
 
 /// Chunk, embed, and upsert a document into `collection`.
 ///
@@ -143,7 +133,6 @@ pub async fn ingest_document(
     let texts: Vec<String> = chunks.iter().map(|c| c.content.clone()).collect();
     let embeddings = embedder.embed(texts).await?;
 
-    // Guard the embedder contract: zip would silently drop chunks on a mismatch.
     if embeddings.len() != chunks.len() {
         return Err(RagError::EmbeddingCountMismatch {
             expected: chunks.len(),
@@ -172,8 +161,6 @@ pub async fn ingest_document(
 
     store.upsert_document(collection, &document, &chunk_records).await
 }
-
-// ─── retrieve ────────────────────────────────────────────────────────────────
 
 /// Retrieve chunks for `query` from `collection`.
 ///
@@ -205,8 +192,6 @@ pub async fn retrieve(
     Ok(output.chunks)
 }
 
-// ─── CoreEmbedder ────────────────────────────────────────────────────────────
-
 /// Embedder backed by `xberg::embed_texts_async`.
 ///
 /// Requires the `pipeline-embeddings` feature, which enables ONNX Runtime.
@@ -226,8 +211,6 @@ impl Embedder for CoreEmbedder {
     }
 
     async fn embed_query(&self, texts: Vec<String>) -> RagResult<Vec<Vec<f32>>> {
-        // Asymmetric models (e.g. Arctic-Embed) prepend a query instruction
-        // prefix; symmetric models resolve `None` and embed verbatim.
         let texts = match xberg::embedding_query_prefix(&self.config) {
             Some(prefix) => texts.into_iter().map(|text| format!("{prefix}{text}")).collect(),
             None => texts,
@@ -237,8 +220,6 @@ impl Embedder for CoreEmbedder {
             .map_err(RagError::Core)
     }
 }
-
-// ─── rerank ──────────────────────────────────────────────────────────────────
 
 /// Rerank retrieved chunks using `xberg::rerank_async`.
 ///
@@ -277,8 +258,6 @@ pub async fn rerank(
     Ok(reranked)
 }
 
-// ─── extract_keywords ────────────────────────────────────────────────────────
-
 /// Extract keywords from `text` using `xberg::keywords::extract_keywords`.
 ///
 /// Returns keyword strings sorted by descending relevance score.
@@ -294,8 +273,6 @@ pub fn extract_keywords(text: &str, config: &xberg::KeywordConfig) -> RagResult<
         .map(|kws| kws.into_iter().map(|k| k.text).collect())
         .map_err(RagError::Core)
 }
-
-// ─── Tests ────────────────────────────────────────────────────────────────────
 
 #[cfg(all(test, feature = "in-memory"))]
 mod tests {
@@ -355,7 +332,6 @@ mod tests {
     #[async_trait]
     impl Embedder for BadEmbedder {
         async fn embed(&self, texts: Vec<String>) -> RagResult<Vec<Vec<f32>>> {
-            // Returns one more vector than requested — always a count mismatch.
             Ok(vec![vec![0.0; 4]; texts.len() + 1])
         }
     }

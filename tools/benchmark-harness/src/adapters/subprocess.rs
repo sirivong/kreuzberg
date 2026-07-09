@@ -46,41 +46,31 @@ fn error_to_error_kind(e: &Error) -> ErrorKind {
         Error::FrameworkError(_) => ErrorKind::FrameworkError,
         Error::EmptyContent(_) => ErrorKind::EmptyContent,
         Error::Benchmark(msg) | Error::Config(msg) => {
-            // Detect config/setup errors from message patterns
             let msg_lower = msg.to_lowercase();
 
-            // Common patterns for missing dependencies/models
             if msg_lower.contains("torch.") && msg_lower.contains("not found") {
-                // docling: torch.PP-OCRv6 not found
                 ErrorKind::ConfigSetupError
             } else if msg_lower.contains("partition_") && msg_lower.contains("not available") {
-                // unstructured: partition_X not available
                 ErrorKind::ConfigSetupError
             } else if msg_lower.contains("tessdata")
                 || msg_lower.contains("tesseract") && msg_lower.contains("not found")
             {
-                // OCR: tessdata missing or tesseract not found
                 ErrorKind::ConfigSetupError
             } else if msg_lower.contains("module")
                 && (msg_lower.contains("not found") || msg_lower.contains("not installed"))
             {
-                // Python: Module X not found / not installed
                 ErrorKind::ConfigSetupError
             } else if msg_lower.contains("import error") || msg_lower.contains("importerror") {
-                // Python import failures are often dependency issues
                 ErrorKind::ConfigSetupError
             } else if msg_lower.contains("no such file")
                 && (msg_lower.contains(".so") || msg_lower.contains(".dylib") || msg_lower.contains(".dll"))
             {
-                // Native library not found
                 ErrorKind::ConfigSetupError
             } else if msg_lower.contains("failed to find")
                 && (msg_lower.contains("model") || msg_lower.contains("library"))
             {
-                // Generic model/library not found
                 ErrorKind::ConfigSetupError
             } else {
-                // Unknown error type, default to HarnessError
                 ErrorKind::HarnessError
             }
         }
@@ -92,7 +82,7 @@ use tokio::process::Command;
 /// Minimum duration in seconds for a valid throughput calculation.
 /// Durations below this threshold produce unreliable throughput values
 /// and will result in throughput being set to 0.0 (filtered in aggregation).
-const MIN_VALID_DURATION_SECS: f64 = 0.000_001; // 1 microsecond
+const MIN_VALID_DURATION_SECS: f64 = 0.000_001;
 
 /// Check if verbose benchmark debugging is enabled via BENCHMARK_DEBUG env var.
 fn is_debug_enabled() -> bool {
@@ -133,37 +123,30 @@ impl SubprocessAdapter {
     fn framework_supports_ocr(framework_name: &str) -> bool {
         let name_lower = framework_name.to_lowercase();
 
-        // Xberg bindings all support OCR
         if name_lower.starts_with("xberg-") || name_lower == "xberg" {
             return true;
         }
 
-        // PyMuPDF supports OCR via tesseract
         if name_lower.contains("pymupdf") {
             return true;
         }
 
-        // Docling supports OCR via external OCR backends
         if name_lower.contains("docling") {
             return true;
         }
 
-        // Unstructured supports OCR via Tesseract
         if name_lower.contains("unstructured") {
             return true;
         }
 
-        // Tika supports OCR via Tika OCR parser
         if name_lower.contains("tika") {
             return true;
         }
 
-        // MinerU supports OCR via PaddleOCR
         if name_lower.contains("mineru") {
             return true;
         }
 
-        // Most other frameworks don't support OCR
         false
     }
 
@@ -293,7 +276,6 @@ impl SubprocessAdapter {
         }
         cmd.args(&self.args);
 
-        // Append format flag if format_aware is enabled
         if self.format_aware {
             cmd.arg(format!("--format={}", output_format));
         }
@@ -356,7 +338,6 @@ impl SubprocessAdapter {
     ) -> Result<(String, String, Duration)> {
         let start = Instant::now();
 
-        // For liteparse with native batch, use lit batch-parse instead of shell wrapper
         if self.use_native_batch && self.format_aware {
             return self
                 .execute_liteparse_native_batch(file_paths, timeout, output_format)
@@ -369,7 +350,6 @@ impl SubprocessAdapter {
         }
         cmd.args(&self.args);
 
-        // Append format flag if format_aware is enabled
         if self.format_aware {
             cmd.arg(format!("--format={}", output_format));
         }
@@ -436,7 +416,6 @@ impl SubprocessAdapter {
 
         let start = Instant::now();
 
-        // Create temp input/output directories
         let temp_dir =
             tempfile::tempdir().map_err(|e| Error::Benchmark(format!("Failed to create temp directory: {}", e)))?;
         let input_dir = temp_dir.path().join("input");
@@ -446,9 +425,6 @@ impl SubprocessAdapter {
         fs::create_dir(&output_dir)
             .map_err(|e| Error::Benchmark(format!("Failed to create output directory: {}", e)))?;
 
-        // Symlink all input files into the input directory to avoid copying large files.
-        // Prefix each link with its batch index so fixtures that share a basename
-        // (across categories) do not collide in the flat staging directory.
         for (idx, path) in file_paths.iter().enumerate() {
             let file_name = path
                 .file_name()
@@ -466,7 +442,6 @@ impl SubprocessAdapter {
                 .map_err(|e| Error::Benchmark(format!("Failed to symlink file {}: {}", idx, e)))?;
         }
 
-        // Build lit batch-parse command
         let format_arg = match output_format {
             OutputFormat::Markdown => "markdown",
             OutputFormat::Plaintext => "text",
@@ -511,12 +486,6 @@ impl SubprocessAdapter {
             )));
         }
 
-        // Map outputs back to inputs by the unique `<idx>_` staging prefix each
-        // input was symlinked under. `lit batch-parse` mirrors that prefix onto its
-        // output, but the produced extension can vary by liteparse version
-        // (.md/.markdown, .txt/.text) and it may keep or drop the source extension,
-        // so we scan the dir once and match by prefix rather than reconstructing an
-        // exact filename (the old exact-name match silently produced empty results).
         let preferred_exts: [&str; 2] = match output_format {
             OutputFormat::Markdown => ["md", "markdown"],
             OutputFormat::Plaintext => ["txt", "text"],
@@ -529,11 +498,9 @@ impl SubprocessAdapter {
 
         let mut results = Vec::new();
         for (idx, _path) in file_paths.iter().enumerate() {
-            // `<idx>_` is unique: "1_" matches "1_foo.md" but not "10_foo.md".
             let prefix = format!("{idx}_");
             let matches: Vec<&(String, std::path::PathBuf)> =
                 produced.iter().filter(|(name, _)| name.starts_with(&prefix)).collect();
-            // Prefer the text/markdown payload if liteparse also emits sidecars.
             let hit = matches
                 .iter()
                 .find(|(name, _)| preferred_exts.iter().any(|e| name.ends_with(&format!(".{e}"))))
@@ -553,8 +520,6 @@ impl SubprocessAdapter {
                     }));
                 }
                 None => {
-                    // Fail loud (never silently emit empty results) and list what
-                    // liteparse actually wrote so a naming mismatch is diagnosable.
                     let listing: Vec<&String> = produced.iter().map(|(name, _)| name).collect();
                     return Err(Error::Benchmark(format!(
                         "lit batch-parse produced no output for input #{idx} (prefix '{prefix}'). \
@@ -650,7 +615,6 @@ impl SubprocessAdapter {
     fn parse_output(&self, stdout: &str) -> Result<serde_json::Value> {
         if is_debug_enabled() {
             let preview = if stdout.len() > 300 {
-                // Find a valid UTF-8 char boundary at or before byte 300
                 let end = (0..=300).rev().find(|&i| stdout.is_char_boundary(i)).unwrap_or(0);
                 format!("{}...[{} bytes total]", &stdout[..end], stdout.len())
             } else {
@@ -667,15 +631,12 @@ impl SubprocessAdapter {
         let raw: serde_json::Value = serde_json::from_str(stdout)
             .map_err(|e| Error::Benchmark(format!("Failed to parse subprocess output as JSON: {}", e)))?;
 
-        // Validate that output is a JSON object
         if !raw.is_object() {
             return Err(Error::Benchmark(
                 "Subprocess output must be a JSON object with 'content' field".to_string(),
             ));
         }
 
-        // xberg-cli envelope shape: {result: {content, metadata, ...}, extraction_time_ms: f64}.
-        // Unwrap to the flat shape competitors emit so downstream parsing is uniform.
         let parsed = if let Some(inner) = raw.get("result").filter(|v| v.is_object()) {
             let mut flat = inner.clone();
             if let (Some(obj), Some(t)) = (flat.as_object_mut(), raw.get("extraction_time_ms")) {
@@ -691,12 +652,9 @@ impl SubprocessAdapter {
             raw
         };
 
-        // Check if the framework reported an error
         if let Some(error_val) = parsed.get("error") {
             let error_msg = error_val.as_str().unwrap_or("unknown error");
             if !error_msg.is_empty() {
-                // Detect Python-side extraction timeouts (from multiprocessing fork
-                // timeout handler) and classify them as Timeout rather than FrameworkError.
                 if error_msg.contains("timed out") {
                     return Err(Error::Timeout(error_msg.to_string()));
                 }
@@ -705,8 +663,6 @@ impl SubprocessAdapter {
         }
 
         if !parsed.get("content").is_some_and(|v| v.is_string()) {
-            // Check if this is a framework returning empty for unsupported format
-            // (e.g. {"error": "", "_extraction_time_ms": 0} with no content field)
             let extraction_time = parsed
                 .get("_extraction_time_ms")
                 .and_then(|v| v.as_f64())
@@ -721,8 +677,7 @@ impl SubprocessAdapter {
             ));
         }
 
-        // Check for empty/whitespace-only content
-        let content_str = parsed["content"].as_str().unwrap(); // safe: is_string() checked above
+        let content_str = parsed["content"].as_str().unwrap();
         if content_str.trim().is_empty() {
             return Err(Error::EmptyContent("Framework returned empty content".to_string()));
         }
@@ -786,9 +741,6 @@ impl FrameworkAdapter for SubprocessAdapter {
             }
         };
 
-        // Take a post-extraction snapshot before stopping the monitor.
-        // This provides a fallback memory measurement for sub-millisecond extractions
-        // where the background sampler may not have collected any samples.
         let post_sample = monitor.snapshot_current_memory();
         let mut samples = monitor.stop().await;
         if samples.is_empty() {
@@ -826,30 +778,17 @@ impl FrameworkAdapter for SubprocessAdapter {
             .and_then(|v| v.as_f64())
             .map(|ms| Duration::from_secs_f64(ms / 1000.0));
 
-        // Capture extracted text for quality assessment
         let extracted_text = parsed.get("content").and_then(|v| v.as_str()).map(|s| s.to_string());
 
         let subprocess_overhead = extraction_duration.map(|ext| duration.saturating_sub(ext));
 
-        // Use extraction_duration for throughput when available (more accurate for persistent mode
-        // where `duration` is just I/O roundtrip). Fall back to wall-clock `duration`.
         let effective_duration = extraction_duration.unwrap_or(duration);
         let throughput = if effective_duration.as_secs_f64() >= MIN_VALID_DURATION_SECS {
             file_size as f64 / effective_duration.as_secs_f64()
         } else {
-            0.0 // Below minimum threshold - will be filtered in aggregation
+            0.0
         };
 
-        // Choose the memory source that captured the larger peak.
-        //
-        // The extraction script self-reports `_peak_memory_bytes` (RUSAGE_SELF), which is
-        // reliable for fast extractions (<10ms) where the external sampler may miss the
-        // subprocess entirely. BUT RUSAGE_SELF only covers the script process itself — a
-        // framework that offloads work to a worker/model process (e.g. mineru) self-reports a
-        // near-empty wrapper (~12 MB) while the real footprint lives in a descendant. The
-        // ResourceMonitor samples the whole process tree and captures that. Taking the max of
-        // the two keeps the self-report's advantage for fast paths while no longer discarding
-        // worker-process memory when the tree monitor saw more.
         let self_reported_memory = parsed.get("_peak_memory_bytes").and_then(|v| v.as_u64());
 
         let metrics = match self_reported_memory {
@@ -871,24 +810,21 @@ impl FrameworkAdapter for SubprocessAdapter {
             },
         };
 
-        // Check if subprocess reported OCR usage
         let ocr_status = parsed
             .get("_ocr_used")
             .and_then(|v| v.as_bool())
             .map(|used| if used { OcrStatus::Used } else { OcrStatus::NotUsed })
             .unwrap_or(OcrStatus::Unknown);
 
-        // Build framework capabilities
         let framework_capabilities = FrameworkCapabilities {
             ocr_support: Self::framework_supports_ocr(&self.name),
             batch_support: self.supports_batch,
             ..Default::default()
         };
 
-        // Build PDF metadata if this is a PDF file
         let pdf_metadata = if file_path.extension().and_then(|e| e.to_str()) == Some("pdf") {
             Some(crate::types::PdfMetadata {
-                has_text_layer: false, // Unknown from subprocess
+                has_text_layer: false,
                 detection_method: "unknown".to_string(),
                 page_count: None,
                 ocr_enabled: ocr_status == OcrStatus::Used,
@@ -941,16 +877,9 @@ impl FrameworkAdapter for SubprocessAdapter {
         force_ocr: &[bool],
         output_format: OutputFormat,
     ) -> Result<Vec<BenchmarkResult>> {
-        // Early return if file_paths is empty
         if file_paths.is_empty() {
             return Ok(Vec::new());
         }
-        // `timeout` is a per-document budget. A batch runs every file under a single
-        // subprocess invocation (one `lit batch-parse`, or one shell command over all
-        // paths), so the whole batch needs roughly per-document × file-count. Without
-        // this scaling the adapter's per-document max_timeout clamp (e.g. liteparse's
-        // 180s) is applied to the entire corpus and guarantees a timeout on any
-        // non-trivial batch.
         let timeout = self
             .effective_timeout(timeout)
             .checked_mul(file_paths.len() as u32)
@@ -985,11 +914,7 @@ impl FrameworkAdapter for SubprocessAdapter {
                 let resource_stats = ResourceMonitor::calculate_stats(&samples, &snapshots, baseline);
                 let actual_duration = start_time.elapsed();
 
-                // Create one failure result per file instead of a single aggregated failure
-                // Use the actual elapsed time divided by number of files
                 let num_files = file_paths.len() as f64;
-                // Amortized per-file duration: total batch wall time divided by file count.
-                // For concurrent batch processing, this represents average cost, not individual file duration.
                 let avg_duration_per_file = Duration::from_secs_f64(actual_duration.as_secs_f64() / num_files.max(1.0));
 
                 let framework_capabilities = FrameworkCapabilities {
@@ -1051,7 +976,6 @@ impl FrameworkAdapter for SubprocessAdapter {
             }
         };
 
-        // Take a post-extraction snapshot as fallback for fast batch operations
         let post_sample = monitor.snapshot_current_memory();
         let mut samples = monitor.stop().await;
         if samples.is_empty() {
@@ -1061,14 +985,9 @@ impl FrameworkAdapter for SubprocessAdapter {
         let baseline = monitor.baseline_memory().await;
         let resource_stats = ResourceMonitor::calculate_stats(&samples, &snapshots, baseline);
 
-        // Parse batch output to extract per-file OCR status and extraction times
-        // Try to parse as JSON array; fall back to single object wrapped in array
         let parsed_batch: Option<Vec<serde_json::Value>> = serde_json::from_str::<Vec<serde_json::Value>>(&stdout)
             .ok()
-            .or_else(|| {
-                // Some adapters return a single object for 1-file batches
-                serde_json::from_str::<serde_json::Value>(&stdout).ok().map(|v| vec![v])
-            });
+            .or_else(|| serde_json::from_str::<serde_json::Value>(&stdout).ok().map(|v| vec![v]));
 
         let batch_ocr_statuses: Vec<OcrStatus> = parsed_batch
             .as_ref()
@@ -1085,7 +1004,6 @@ impl FrameworkAdapter for SubprocessAdapter {
             })
             .unwrap_or_else(|| vec![OcrStatus::Unknown; file_paths.len()]);
 
-        // Extract per-file extraction times from batch JSON results
         let batch_extraction_times: Vec<Option<Duration>> = parsed_batch
             .as_ref()
             .map(|results| {
@@ -1100,7 +1018,6 @@ impl FrameworkAdapter for SubprocessAdapter {
             })
             .unwrap_or_else(|| vec![None; file_paths.len()]);
 
-        // Extract per-file content from batch JSON results for quality assessment
         let batch_contents: Vec<Option<String>> = parsed_batch
             .as_ref()
             .map(|results| {
@@ -1111,14 +1028,12 @@ impl FrameworkAdapter for SubprocessAdapter {
             })
             .unwrap_or_else(|| vec![None; file_paths.len()]);
 
-        // Validate per-item success/error, mirroring single-file parse_output logic
         let batch_validations: Vec<(bool, Option<String>, ErrorKind)> = parsed_batch
             .as_ref()
             .map(|results| {
                 results
                     .iter()
                     .map(|item| {
-                        // Check if the framework reported an error for this item
                         if let Some(error_val) = item.get("error") {
                             let error_msg = error_val.as_str().unwrap_or("unknown error");
                             if !error_msg.is_empty() {
@@ -1130,7 +1045,6 @@ impl FrameworkAdapter for SubprocessAdapter {
                                 return (false, Some(error_msg.to_string()), kind);
                             }
                         }
-                        // Check for missing or non-string content
                         match item.get("content").and_then(|v| v.as_str()) {
                             Some(s) if !s.trim().is_empty() => (true, None, ErrorKind::None),
                             Some(_) => (
@@ -1158,8 +1072,6 @@ impl FrameworkAdapter for SubprocessAdapter {
                 ]
             });
 
-        // Create one result per file instead of a single aggregated result
-        // Since batch processing doesn't give us per-file timing, we use average duration
         let num_files = file_paths.len() as f64;
         let avg_duration_per_file = Duration::from_secs_f64(duration.as_secs_f64() / num_files.max(1.0));
 
@@ -1177,22 +1089,18 @@ impl FrameworkAdapter for SubprocessAdapter {
 
                 let file_extension = file_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_string();
 
-                // Use per-file OCR status if available, otherwise Unknown
                 let ocr_status = batch_ocr_statuses.get(idx).copied().unwrap_or(OcrStatus::Unknown);
 
-                // Use per-file extraction time if available from batch JSON
                 let extraction_duration = batch_extraction_times.get(idx).copied().flatten();
 
-                // Prefer per-file extraction time for accurate throughput, fall back to averaged duration
                 let effective_duration = extraction_duration.unwrap_or(avg_duration_per_file);
                 let file_throughput = if effective_duration.as_secs_f64() >= MIN_VALID_DURATION_SECS {
                     file_size as f64 / effective_duration.as_secs_f64()
                 } else {
-                    0.0 // Below minimum threshold - will be filtered in aggregation
+                    0.0
                 };
                 let subprocess_overhead = extraction_duration.map(|ext| avg_duration_per_file.saturating_sub(ext));
 
-                // Amortize batch memory proportionally by file size
                 let file_fraction = if total_file_size > 0 {
                     file_size as f64 / total_file_size as f64
                 } else {
@@ -1296,7 +1204,6 @@ mod tests {
 
     #[test]
     fn test_parse_output_empty_error_no_content() {
-        // {"error": "", "_extraction_time_ms": 0} → EmptyContent (unsupported format)
         let adapter = SubprocessAdapter::new("test", "echo", vec![], vec![], vec!["pdf".to_string()]);
         let output = r#"{"error": "", "_extraction_time_ms": 0}"#;
         let result = adapter.parse_output(output);
@@ -1312,7 +1219,6 @@ mod tests {
 
     #[test]
     fn test_parse_output_nonempty_error() {
-        // {"error": "something went wrong"} → FrameworkError
         let adapter = SubprocessAdapter::new("test", "echo", vec![], vec![], vec!["pdf".to_string()]);
         let output = r#"{"error": "something went wrong"}"#;
         let result = adapter.parse_output(output);
@@ -1328,7 +1234,6 @@ mod tests {
 
     #[test]
     fn test_parse_output_valid_content() {
-        // Valid output with content field
         let adapter = SubprocessAdapter::new("test", "echo", vec![], vec![], vec!["pdf".to_string()]);
         let output = r#"{"content": "Hello, world!", "_extraction_time_ms": 42.5}"#;
         let result = adapter.parse_output(output);
@@ -1340,7 +1245,6 @@ mod tests {
 
     #[test]
     fn test_parse_output_missing_content_nonzero_time() {
-        // Missing content with nonzero extraction time → Benchmark error (harness bug)
         let adapter = SubprocessAdapter::new("test", "echo", vec![], vec![], vec!["pdf".to_string()]);
         let output = r#"{"_extraction_time_ms": 150.0}"#;
         let result = adapter.parse_output(output);
@@ -1358,7 +1262,6 @@ mod tests {
     fn test_max_timeout_clamps_config_timeout() {
         let adapter = SubprocessAdapter::new("test", "echo", vec![], vec![], vec!["pdf".to_string()])
             .with_max_timeout(Duration::from_secs(120));
-        // Config timeout (900s) should be clamped to max (120s)
         let effective = adapter.effective_timeout(Duration::from_secs(900));
         assert_eq!(effective, Duration::from_secs(120));
     }
@@ -1367,7 +1270,6 @@ mod tests {
     fn test_max_timeout_passes_lower_config() {
         let adapter = SubprocessAdapter::new("test", "echo", vec![], vec![], vec!["pdf".to_string()])
             .with_max_timeout(Duration::from_secs(120));
-        // Config timeout (60s) is already lower than max (120s), keep config
         let effective = adapter.effective_timeout(Duration::from_secs(60));
         assert_eq!(effective, Duration::from_secs(60));
     }
@@ -1375,7 +1277,6 @@ mod tests {
     #[test]
     fn test_max_timeout_none_uses_config() {
         let adapter = SubprocessAdapter::new("test", "echo", vec![], vec![], vec!["pdf".to_string()]);
-        // No max_timeout → config timeout passes through unchanged
         let effective = adapter.effective_timeout(Duration::from_secs(900));
         assert_eq!(effective, Duration::from_secs(900));
     }
@@ -1389,7 +1290,6 @@ mod tests {
 
     #[test]
     fn test_parse_output_empty_string_content() {
-        // {"content": "", "_extraction_time_ms": 5} → EmptyContent
         let adapter = SubprocessAdapter::new("test", "echo", vec![], vec![], vec!["pdf".to_string()]);
         let output = r#"{"content": "", "_extraction_time_ms": 5.0}"#;
         let result = adapter.parse_output(output);
@@ -1405,7 +1305,6 @@ mod tests {
 
     #[test]
     fn test_parse_output_whitespace_only_content() {
-        // {"content": "  \n  "} → EmptyContent
         let adapter = SubprocessAdapter::new("test", "echo", vec![], vec![], vec!["pdf".to_string()]);
         let output = "{\"content\": \"  \\n  \", \"_extraction_time_ms\": 10.0}";
         let result = adapter.parse_output(output);
@@ -1420,7 +1319,6 @@ mod tests {
 
     #[test]
     fn test_parse_output_python_side_timeout() {
-        // Python-side timeout via multiprocessing fork reports "timed out" → Timeout error
         let adapter = SubprocessAdapter::new("test", "echo", vec![], vec![], vec!["pdf".to_string()]);
         let output = r#"{"error": "extraction timed out after 150s", "_extraction_time_ms": 150000.0}"#;
         let result = adapter.parse_output(output);
@@ -1446,7 +1344,6 @@ mod tests {
             ErrorKind::HarnessError
         );
 
-        // Config/setup errors
         assert_eq!(
             error_to_error_kind(&Error::Benchmark("torch.PP-OCRv6 not found".into())),
             ErrorKind::ConfigSetupError

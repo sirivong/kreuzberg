@@ -121,9 +121,6 @@ jobs:
   bench-rust:
     name: bench-rust (${{ matrix.pipeline }}, ${{ matrix.output_format }}, ${{ matrix.mode }})
     needs: setup
-    # Layout pipeline loads RT-DETR (~50MB) + TATR (~235MB) ONNX models and exhausts
-    # runner-medium-arm64; the runner agent stopped responding at ~24min on every
-    # layout job. Route layout jobs to runner-large-arm64 (16-core, 64Gi).
     runs-on: ${{ matrix.pipeline == 'layout' && 'runner-large-arm64' || 'runner-medium-arm64' }}
     timeout-minutes: 360
     permissions:
@@ -560,8 +557,6 @@ jobs:
         mode: [single-file]
         shard: [1, 2, 3]
         output_format: [markdown, plaintext]
-        # Skip the recurring framework-env failure on the plaintext shard 1/3.
-        # See project_benchmark_status.md for re-enable criteria.
         exclude:
           - mode: single-file
             shard: 1
@@ -634,10 +629,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # liteparse is the primary head-to-head competitor: measured on the full
-        # grid (markdown/plaintext × single-file/batch), apples-to-apples with
-        # xberg. Batch uses liteparse's native `lit batch-parse` (see the harness
-        # liteparse adapter), mirroring xberg's native extract_batch.
         mode: [single-file, batch]
         output_format: [markdown, plaintext]
     steps:
@@ -713,9 +704,6 @@ jobs:
         bench-liteparse,
       ]
     runs-on: ubuntu-24.04-arm
-    # The App token (BOT_APP_*) is absent on workflow_dispatch, so GH_TOKEN falls
-    # back to the default GITHUB_TOKEN. Grant it contents: write so `gh release
-    # create` does not 403 ("Resource not accessible by integration").
     permissions:
       contents: write
     if: ${{ !cancelled() && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch') }}
@@ -738,9 +726,6 @@ jobs:
         with:
           cache-key-prefix: aggregate
 
-      # The Consolidate step builds/runs the harness binary, which links libheif;
-      # without this the aggregate job fails on `libheif.pc not found` (PKG_CONFIG_PATH),
-      # blocking ALL result aggregation even when per-framework benchmarks succeeded.
       - name: Install system dependencies (libheif + native libs for harness binary)
         uses: ./.github/actions/install-system-deps
 

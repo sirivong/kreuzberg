@@ -1,14 +1,3 @@
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#     "paddleocr>=3.4.0",
-#     "paddlepaddle>=3.3.0",
-#     "rapidocr-onnxruntime>=1.4.0",
-#     "pymupdf>=1.24.0",
-#     "pillow>=10.0.0",
-#     "numpy>=1.24.0",
-# ]
-# ///
 """Generate vendored OCR baselines from PaddleOCR Python and RapidOCR.
 
 Usage:
@@ -74,9 +63,7 @@ def run_paddleocr_python(pdf_path: str) -> tuple[str, float]:
     start = time.monotonic()
     all_lines: list[str] = []
     for img in images:
-        # predict() returns list of OCRResult (dict-like) objects
         for result in ocr.predict(img):
-            # OCRResult has 'rec_text' key with list of recognized texts
             rec_texts = result.get("rec_text", [])
             if isinstance(rec_texts, (list, tuple)):
                 for t in rec_texts:

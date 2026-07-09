@@ -98,7 +98,6 @@ pub struct EmbedBenchmarkResults {
 /// Each chunk contains `words_per_chunk` space-separated lorem-ipsum-style words
 /// to approximate realistic sentence length distributions.
 fn generate_test_chunks(count: usize, words_per_chunk: usize) -> Vec<Chunk> {
-    // Rotating word list gives realistic token distributions without repetition bias.
     const WORDS: &[&str] = &[
         "the",
         "quick",
@@ -165,7 +164,6 @@ fn generate_test_chunks(count: usize, words_per_chunk: usize) -> Vec<Chunk> {
 
     (0..count)
         .map(|i| {
-            // Build chunk text: vary starting offset so each chunk is distinct.
             let text: String = (0..words_per_chunk)
                 .map(|j| WORDS[(i * 7 + j * 3) % WORDS.len()])
                 .collect::<Vec<_>>()
@@ -219,7 +217,6 @@ pub fn run_embed_benchmark() -> EmbedBenchmarkResults {
         THROUGHPUT_CHUNK_COUNT, WORDS_PER_CHUNK
     );
 
-    // --- Per-preset throughput ---
     let mut preset_results: Vec<PresetResult> = Vec::new();
 
     for preset in EMBEDDING_PRESETS.iter() {
@@ -228,7 +225,6 @@ pub fn run_embed_benchmark() -> EmbedBenchmarkResults {
             preset.name, preset.dimensions, preset.description
         );
 
-        // Step 1: Warm-up (first call initializes ONNX session; may download model).
         let mut warmup_chunks = generate_test_chunks(1, WORDS_PER_CHUNK);
         let warmup_config = config_for_preset(preset, 1);
 
@@ -244,7 +240,6 @@ pub fn run_embed_benchmark() -> EmbedBenchmarkResults {
         let warm_ms = warm_start.elapsed().as_secs_f64() * 1000.0;
         println!(" {:.0} ms", warm_ms);
 
-        // Step 2: Throughput measurement at default batch size (32).
         let mut chunks = generate_test_chunks(THROUGHPUT_CHUNK_COUNT, WORDS_PER_CHUNK);
         let throughput_config = config_for_preset(preset, 32);
 
@@ -276,7 +271,6 @@ pub fn run_embed_benchmark() -> EmbedBenchmarkResults {
         });
     }
 
-    // --- Batch size sweep on "balanced" preset ---
     println!(
         "\n--- Batch size sweep (balanced preset, {} chunks) ---\n",
         THROUGHPUT_CHUNK_COUNT
@@ -331,20 +325,17 @@ pub fn run_embed_benchmark() -> EmbedBenchmarkResults {
         });
     }
 
-    // --- Parallel inference test ---
     println!("\n--- Parallel inference test (balanced preset) ---\n");
 
     let parallel_batches: usize = 8;
     let chunks_per_batch: usize = 50;
 
-    // Generate independent batches (one per simulated "document").
     let mut batches: Vec<Vec<Chunk>> = (0..parallel_batches)
         .map(|_| generate_test_chunks(chunks_per_batch, WORDS_PER_CHUNK))
         .collect();
 
     let parallel_config = config_for_preset(balanced, 32);
 
-    // Sequential baseline: process each batch one after another.
     let mut seq_batches = batches.clone();
     let seq_start = Instant::now();
     for batch in &mut seq_batches {
@@ -352,9 +343,6 @@ pub fn run_embed_benchmark() -> EmbedBenchmarkResults {
     }
     let seq_ms = seq_start.elapsed().as_secs_f64() * 1000.0;
 
-    // Parallel via rayon: each thread calls engine.embed(&self) concurrently.
-    // This works because EmbeddingEngine uses thread-local ONNX sessions
-    // behind Arc<EmbeddingEngine>, so concurrent reads are safe.
     let par_start = Instant::now();
     batches.par_iter_mut().for_each(|batch| {
         embed_chunks(batch, &parallel_config).expect("Parallel embedding failed");
@@ -385,7 +373,6 @@ pub fn run_embed_benchmark() -> EmbedBenchmarkResults {
         speedup,
     });
 
-    // --- Summary table ---
     if !preset_results.is_empty() {
         println!("\n=== Summary ===\n");
         println!(

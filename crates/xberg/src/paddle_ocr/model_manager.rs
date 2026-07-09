@@ -132,10 +132,6 @@ const REC_MODELS: &[RecModelDefinition] = &[
     },
 ];
 
-// ============================================================================
-// V2 model definitions (tier-aware)
-// ============================================================================
-
 /// V2 detection model definition (tier-aware).
 #[cfg(feature = "paddle-ocr")]
 #[derive(Debug, Clone)]
@@ -219,10 +215,6 @@ const V2_DOC_ORI_MODEL: SharedModelDefinition = SharedModelDefinition {
     local_filename: "model.onnx",
     sha256_checksum: "6b742aebce6f0f7f71f747931ac7becfc7c96c51641e14943b291eeb334e7947",
 };
-
-// ============================================================================
-// V6 model definitions (PP-OCRv6, tier-aware: medium/small/tiny)
-// ============================================================================
 
 /// PP-OCRv6 detection model definition (script-agnostic, one per tier).
 #[cfg(feature = "paddle-ocr")]
@@ -355,7 +347,7 @@ pub struct ModelPaths {
 }
 #[cfg_attr(alef, alef(skip))]
 /// A single model file entry in the cache manifest.
-#[allow(dead_code)] // constructed by `paddle-ocr`; types crate exposes the public shape only
+#[allow(dead_code)]
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ModelManifestEntry {
     /// Relative path within the cache directory (e.g., "paddle-ocr/det/model.onnx").
@@ -369,7 +361,7 @@ pub struct ModelManifestEntry {
 }
 #[cfg_attr(alef, alef(skip))]
 /// Statistics about the PaddleOCR model cache.
-#[allow(dead_code)] // constructed by `paddle-ocr`; types crate exposes the public shape only
+#[allow(dead_code)]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ModelCacheStats {
     /// Total size of cached models in bytes.
@@ -478,7 +470,6 @@ impl ModelManager {
     fn download_rec_model(&self, definition: &RecModelDefinition, rec_dir: &Path) -> Result<(), XbergError> {
         let family = definition.script_family;
 
-        // Download model
         let remote_model = format!("rec/{family}/model.onnx");
         let cached_model_path = self.hf_download(&remote_model)?;
         Self::verify_checksum(&cached_model_path, definition.model_sha256, &format!("rec/{family}"))?;
@@ -488,7 +479,6 @@ impl ModelManager {
             plugin_name: "paddle-ocr".to_string(),
         })?;
 
-        // Download dict
         let remote_dict = format!("rec/{family}/dict.txt");
         let cached_dict_path = self.hf_download(&remote_dict)?;
         Self::verify_checksum(&cached_dict_path, definition.dict_sha256, &format!("rec/{family}/dict"))?;
@@ -610,7 +600,6 @@ impl ModelManager {
                     HF_REPO_ID, rec.script_family
                 ),
             });
-            // Dict files don't have size_bytes tracked, use 0 as placeholder
             entries.push(ModelManifestEntry {
                 relative_path: format!("paddle-ocr/rec/{}/dict.txt", rec.script_family),
                 sha256: rec.dict_sha256.to_string(),
@@ -622,7 +611,6 @@ impl ModelManager {
             });
         }
 
-        // PP-OCRv6 det + rec (unified) per tier.
         for det in V6_DET_MODELS {
             entries.push(ModelManifestEntry {
                 relative_path: format!("paddle-ocr/v6/det/{}/model.onnx", det.tier),
@@ -661,22 +649,16 @@ impl ModelManager {
     /// - All v2 unified rec models (server, mobile, en_mobile)
     /// - All per-script rec models for uncovered scripts
     pub fn ensure_all_models(&self) -> Result<(), XbergError> {
-        // V2 detection models: server tier
         self.ensure_v2_det_model("server")?;
-        // V2 detection models: mobile tier
         self.ensure_v2_det_model("mobile")?;
-        // V2 classification model (shared across tiers)
         self.ensure_v2_cls_model()?;
 
-        // Document orientation model
         self.ensure_doc_ori_model()?;
 
-        // V2 unified rec models
         for v2_rec in V2_REC_MODELS {
             self.ensure_v2_rec_model(v2_rec.model_key)?;
         }
 
-        // Per-script rec models for uncovered scripts
         for rec in REC_MODELS {
             self.ensure_rec_model(rec.script_family)?;
         }
@@ -688,10 +670,6 @@ impl ModelManager {
         );
         Ok(())
     }
-
-    // ========================================================================
-    // V2 tier-aware model resolution
-    // ========================================================================
 
     /// Ensures the v2 detection model for the given tier is cached locally.
     ///
@@ -790,12 +768,9 @@ impl ModelManager {
     /// | all others | per-script (unchanged) | per-script (unchanged) |
     pub(crate) fn resolve_rec_model(&self, family: &str, tier: &str) -> Result<ResolvedRecModel, XbergError> {
         match (family, tier) {
-            // English + Chinese families use v2 unified models
             ("english", "server") | ("chinese", "server") => self.ensure_v2_rec_model("unified_server"),
-            // Both English and Chinese mobile use unified_mobile (CJK+English in one model)
             ("english", "mobile") | ("chinese", "mobile") => self.ensure_v2_rec_model("unified_mobile"),
 
-            // All other scripts: per-script models (no tier distinction)
             _ => {
                 let rec_paths = self.ensure_rec_model(family)?;
                 Ok(ResolvedRecModel {
@@ -825,7 +800,6 @@ impl ModelManager {
             tracing::info!(model_key, "Downloading v2 recognition model...");
             fs::create_dir_all(&rec_dir)?;
 
-            // Download model
             let cached_model = self.hf_download(definition.remote_model)?;
             Self::verify_checksum(&cached_model, definition.model_sha256, &format!("v2/rec/{model_key}"))?;
             fs::copy(&cached_model, &model_file).map_err(|e| XbergError::Plugin {
@@ -833,7 +807,6 @@ impl ModelManager {
                 plugin_name: "paddle-ocr".to_string(),
             })?;
 
-            // Download dict
             let cached_dict = self.hf_download(definition.remote_dict)?;
             Self::verify_checksum(
                 &cached_dict,
@@ -854,10 +827,6 @@ impl ModelManager {
             model_key: format!("v2:{model_key}"),
         })
     }
-
-    // ========================================================================
-    // V6 (PP-OCRv6) version-aware model resolution
-    // ========================================================================
 
     /// Ensures the PP-OCRv6 detection model for the given tier is cached locally.
     ///
@@ -1082,7 +1051,6 @@ mod tests {
         let rec_dir = manager.rec_family_path("english");
         fs::create_dir_all(&rec_dir).unwrap();
         fs::write(rec_dir.join("model.onnx"), "fake").unwrap();
-        // Still false - dict missing
         assert!(!manager.is_rec_model_cached("english"));
 
         fs::write(rec_dir.join("dict.txt"), "#\na\n ").unwrap();
@@ -1094,7 +1062,6 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let manager = ModelManager::new(temp_dir.path().to_path_buf());
 
-        // Create shared models only
         for model_type in &["det", "cls"] {
             let dir = manager.model_path(model_type);
             fs::create_dir_all(&dir).unwrap();
@@ -1102,7 +1069,6 @@ mod tests {
         }
         assert!(!manager.are_models_cached());
 
-        // Add v2 unified_server rec (used for english)
         let rec_dir = manager.cache_dir().join("v2").join("rec").join("unified_server");
         fs::create_dir_all(&rec_dir).unwrap();
         fs::write(rec_dir.join("model.onnx"), "fake").unwrap();
@@ -1181,15 +1147,12 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let manager = ModelManager::new(temp_dir.path().to_path_buf());
 
-        // Pre-populate cache so ensure_models_exist doesn't try to download
-        // v2 shared models (det server, cls)
         let det_dir = temp_dir.path().join("v2").join("det").join("server");
         fs::create_dir_all(&det_dir).unwrap();
         fs::write(det_dir.join("model.onnx"), "fake").unwrap();
         let cls_dir = temp_dir.path().join("v2").join("cls");
         fs::create_dir_all(&cls_dir).unwrap();
         fs::write(cls_dir.join("model.onnx"), "fake").unwrap();
-        // v2 unified_server rec model (used by ensure_models_exist for english)
         let rec_dir = temp_dir.path().join("v2").join("rec").join("unified_server");
         fs::create_dir_all(&rec_dir).unwrap();
         fs::write(rec_dir.join("model.onnx"), "fake").unwrap();
@@ -1208,7 +1171,6 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let manager = ModelManager::new(temp_dir.path().to_path_buf());
 
-        // Pre-populate v2 shared model paths
         let det_dir = temp_dir.path().join("v2").join("det").join("server");
         fs::create_dir_all(&det_dir).unwrap();
         fs::write(det_dir.join("model.onnx"), "fake").unwrap();
@@ -1251,7 +1213,6 @@ mod tests {
         let file_path = temp_dir.path().join("test.bin");
         fs::write(&file_path, b"hello").unwrap();
 
-        // SHA256 of "hello"
         let expected = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
         assert!(ModelManager::verify_checksum(&file_path, expected, "test").is_ok());
     }
@@ -1279,11 +1240,8 @@ mod tests {
     fn test_manifest_returns_all_models() {
         let entries = ModelManager::manifest();
 
-        // 2 shared (det, cls) + 9 rec families * 2 (model + dict) = 20
-        // + 3 v6 det + 3 v6 rec * 2 (model + dict) = 9 => 29 total
         assert_eq!(entries.len(), 2 + 9 * 2 + 3 + 3 * 2);
 
-        // v6 entries present
         let paths: Vec<&str> = entries.iter().map(|e| e.relative_path.as_str()).collect();
         for tier in &["medium", "small", "tiny"] {
             assert!(paths.contains(&format!("paddle-ocr/v6/det/{tier}/model.onnx").as_str()));
@@ -1291,16 +1249,13 @@ mod tests {
             assert!(paths.contains(&format!("paddle-ocr/v6/rec/{tier}/dict.txt").as_str()));
         }
 
-        // Check shared models present
         let paths: Vec<&str> = entries.iter().map(|e| e.relative_path.as_str()).collect();
         assert!(paths.contains(&"paddle-ocr/det/model.onnx"));
         assert!(paths.contains(&"paddle-ocr/cls/model.onnx"));
 
-        // English and Chinese should NOT be in per-script manifest
         assert!(!paths.contains(&"paddle-ocr/rec/english/model.onnx"));
         assert!(!paths.contains(&"paddle-ocr/rec/chinese/model.onnx"));
 
-        // Check all per-script rec families present
         for family in &[
             "latin",
             "korean",
@@ -1363,24 +1318,20 @@ mod tests {
 
         let v2_dir = temp_dir.path().join("v2");
 
-        // Pre-populate v2 det models (server + mobile)
         for tier in &["server", "mobile"] {
             let dir = v2_dir.join("det").join(tier);
             fs::create_dir_all(&dir).unwrap();
             fs::write(dir.join("model.onnx"), "fake").unwrap();
         }
 
-        // Pre-populate v2 cls model
         let cls_dir = v2_dir.join("cls");
         fs::create_dir_all(&cls_dir).unwrap();
         fs::write(cls_dir.join("model.onnx"), "fake").unwrap();
 
-        // Pre-populate v2 doc_ori model
         let doc_ori_dir = v2_dir.join("doc_ori");
         fs::create_dir_all(&doc_ori_dir).unwrap();
         fs::write(doc_ori_dir.join("model.onnx"), "fake").unwrap();
 
-        // Pre-populate v2 rec models (unified_server, unified_mobile, en_mobile)
         for model_key in &["unified_server", "unified_mobile", "en_mobile"] {
             let dir = v2_dir.join("rec").join(model_key);
             fs::create_dir_all(&dir).unwrap();
@@ -1388,7 +1339,6 @@ mod tests {
             fs::write(dir.join("dict.txt"), "#\na\n ").unwrap();
         }
 
-        // Pre-populate per-script rec families (9 families, no english/chinese)
         for family in &[
             "latin",
             "korean",
@@ -1406,7 +1356,6 @@ mod tests {
             fs::write(rec_dir.join("dict.txt"), "#\na\n ").unwrap();
         }
 
-        // Should succeed without downloading
         assert!(manager.ensure_all_models().is_ok());
     }
 
@@ -1417,14 +1366,12 @@ mod tests {
 
         let v2_dir = temp_dir.path().join("v2");
 
-        // Pre-populate both det tier models
         for tier in &["server", "mobile"] {
             let dir = v2_dir.join("det").join(tier);
             fs::create_dir_all(&dir).unwrap();
             fs::write(dir.join("model.onnx"), "fake").unwrap();
         }
 
-        // Verify server tier resolves to server path
         let server_det = manager.ensure_v2_det_model("server").unwrap();
         assert!(
             server_det.ends_with("server"),
@@ -1433,7 +1380,6 @@ mod tests {
         );
         assert!(server_det.join("model.onnx").exists());
 
-        // Verify mobile tier resolves to mobile path
         let mobile_det = manager.ensure_v2_det_model("mobile").unwrap();
         assert!(
             mobile_det.ends_with("mobile"),
@@ -1442,7 +1388,6 @@ mod tests {
         );
         assert!(mobile_det.join("model.onnx").exists());
 
-        // Verify server and mobile det paths are different
         assert_ne!(
             server_det, mobile_det,
             "Server and mobile det model paths should differ"
@@ -1454,7 +1399,6 @@ mod tests {
         assert_eq!(effective_v6_tier("medium"), "medium");
         assert_eq!(effective_v6_tier("small"), "small");
         assert_eq!(effective_v6_tier("tiny"), "tiny");
-        // legacy v5 tiers and unknowns fall back to medium
         assert_eq!(effective_v6_tier("mobile"), "medium");
         assert_eq!(effective_v6_tier("server"), "medium");
         assert_eq!(effective_v6_tier("bogus"), "medium");
@@ -1468,7 +1412,6 @@ mod tests {
             assert!(V6_DET_MODELS.iter().any(|d| d.tier == *tier));
             assert!(V6_REC_MODELS.iter().any(|d| d.tier == *tier));
         }
-        // medium/small share the unified dict; tiny uses the reduced dict
         let medium = V6_REC_MODELS.iter().find(|d| d.tier == "medium").unwrap();
         let small = V6_REC_MODELS.iter().find(|d| d.tier == "small").unwrap();
         let tiny = V6_REC_MODELS.iter().find(|d| d.tier == "tiny").unwrap();
@@ -1478,12 +1421,10 @@ mod tests {
 
     #[test]
     fn test_v6_unified_family_routing() {
-        // v6 unified families route to the v6 rec model; others fall back to v5 per-script.
         assert!(V6_UNIFIED_FAMILIES.contains(&"english"));
         assert!(V6_UNIFIED_FAMILIES.contains(&"chinese"));
         assert!(V6_UNIFIED_FAMILIES.contains(&"korean"));
         assert!(V6_UNIFIED_FAMILIES.contains(&"latin"));
-        // scripts v6 does not cover
         for uncovered in &["arabic", "eslav", "thai", "greek", "devanagari", "tamil", "telugu"] {
             assert!(!V6_UNIFIED_FAMILIES.contains(uncovered));
         }
@@ -1494,7 +1435,6 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let manager = ModelManager::new(temp_dir.path().to_path_buf());
 
-        // Pre-populate all v6 det tiers so no download is attempted.
         for tier in &["medium", "small", "tiny"] {
             let dir = temp_dir.path().join("v6").join("det").join(tier);
             fs::create_dir_all(&dir).unwrap();
@@ -1503,7 +1443,6 @@ mod tests {
 
         let medium = manager.ensure_v6_det_model("medium").unwrap();
         assert!(medium.ends_with("v6/det/medium"));
-        // legacy tier falls back to medium
         let legacy = manager.ensure_v6_det_model("mobile").unwrap();
         assert!(legacy.ends_with("v6/det/medium"));
         let tiny = manager.ensure_v6_det_model("tiny").unwrap();
@@ -1515,7 +1454,6 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let manager = ModelManager::new(temp_dir.path().to_path_buf());
 
-        // Pre-populate v6 rec (medium) and a v5 per-script (arabic) so no download happens.
         let v6_rec = temp_dir.path().join("v6").join("rec").join("medium");
         fs::create_dir_all(&v6_rec).unwrap();
         fs::write(v6_rec.join("model.onnx"), "fake").unwrap();
@@ -1526,14 +1464,12 @@ mod tests {
         fs::write(arabic_rec.join("model.onnx"), "fake").unwrap();
         fs::write(arabic_rec.join("dict.txt"), "#\na\n ").unwrap();
 
-        // English under v6 -> unified v6 rec
         let english = manager
             .resolve_rec_model_versioned("pp-ocrv6", "english", "medium")
             .unwrap();
         assert_eq!(english.model_key, "v6:medium");
         assert!(english.model_dir.ends_with("v6/rec/medium"));
 
-        // Arabic under v6 -> v5 per-script fallback (v6 does not cover it)
         let arabic = manager
             .resolve_rec_model_versioned("pp-ocrv6", "arabic", "medium")
             .unwrap();
@@ -1546,7 +1482,6 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let manager = ModelManager::new(temp_dir.path().to_path_buf());
 
-        // v6 det (small) + shared v2 cls
         let det_dir = temp_dir.path().join("v6").join("det").join("small");
         fs::create_dir_all(&det_dir).unwrap();
         fs::write(det_dir.join("model.onnx"), "fake").unwrap();

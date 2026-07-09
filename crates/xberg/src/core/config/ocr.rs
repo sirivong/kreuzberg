@@ -28,25 +28,20 @@ where
 
     match value {
         serde_json::Value::String(s) => {
-            // Single string: split on "+" (Tesseract format) or treat as single language
             if s.contains('+') {
-                // Tesseract multi-language format: "eng+deu" -> vec!["eng", "deu"]
                 Ok(s.split('+').map(|l| l.to_string()).collect())
             } else {
-                // Single language: "eng" -> vec!["eng"]
                 Ok(vec![s])
             }
         }
-        serde_json::Value::Array(arr) => {
-            // Array of strings: deserialize directly
-            arr.into_iter()
-                .map(|v| {
-                    v.as_str()
-                        .map(String::from)
-                        .ok_or_else(|| Error::custom("each language must be a string"))
-                })
-                .collect()
-        }
+        serde_json::Value::Array(arr) => arr
+            .into_iter()
+            .map(|v| {
+                v.as_str()
+                    .map(String::from)
+                    .ok_or_else(|| Error::custom("each language must be a string"))
+            })
+            .collect(),
         _ => Err(Error::custom(
             "language must be a string (e.g., \"eng\") or an array of strings (e.g., [\"eng\", \"deu\"])",
         )),
@@ -65,7 +60,6 @@ where
     match value {
         None => Ok(None),
         Some(serde_json::Value::String(s)) => {
-            // Single string: split on "+" or treat as single language
             if s.contains('+') {
                 Ok(Some(s.split('+').map(|l| l.to_string()).collect()))
             } else {
@@ -73,7 +67,6 @@ where
             }
         }
         Some(serde_json::Value::Array(arr)) => {
-            // Array of strings
             let langs: Result<Vec<String>, D::Error> = arr
                 .into_iter()
                 .map(|v| {
@@ -548,7 +541,6 @@ impl OcrConfig {
     #[cfg(test)]
     pub(crate) fn validate(&self) -> Result<(), XbergError> {
         validate_ocr_backend(&self.backend)?;
-        // When backend is "vlm", vlm_config must be present.
         crate::core::config_validation::validate_vlm_backend_config(&self.backend, self.vlm_config.as_ref())?;
         if let Some(ref pipeline) = self.pipeline {
             for stage in &pipeline.stages {
@@ -620,12 +612,10 @@ impl OcrConfig {
     /// paddleocr fallback would mask errors from the chosen backend.
     #[cfg(all(any(feature = "ocr", feature = "ocr-pipeline"), feature = "pdf"))]
     pub(crate) fn effective_pipeline(&self) -> Option<OcrPipelineConfig> {
-        // Rule 1: explicit pipeline always wins.
         if self.pipeline.is_some() {
             return self.pipeline.clone();
         }
 
-        // Rule 2: synthesise from vlm_fallback policy.
         match &self.vlm_fallback {
             VlmFallbackPolicy::OnLowQuality { quality_threshold } => {
                 let Some(vlm_cfg) = self.vlm_config.clone() else {
@@ -633,7 +623,6 @@ impl OcrConfig {
                         "vlm_fallback=OnLowQuality is set but vlm_config is missing; \
                          falling through to single-backend mode"
                     );
-                    // Fall through to rules 3/4 below.
                     return self.effective_pipeline_classical();
                 };
                 let mut thresholds = self.effective_thresholds();
@@ -690,7 +679,6 @@ impl OcrConfig {
             VlmFallbackPolicy::Disabled => {}
         }
 
-        // Rules 3/4: paddle-ocr auto-pipeline or single-backend.
         self.effective_pipeline_classical()
     }
 
@@ -816,7 +804,6 @@ mod tests {
 
     #[test]
     fn test_language_deserialization_tesseract_format() {
-        // Tesseract multi-language format: "eng+deu" should be split
         let json = r#"{"language": "eng+deu"}"#;
         let config: OcrConfig = serde_json::from_str(json).unwrap();
         assert_eq!(config.language, vec!["eng".to_string(), "deu".to_string()]);
@@ -884,29 +871,24 @@ mod tests {
     #[cfg(feature = "ocr")]
     #[test]
     fn test_effective_languages_defaults_and_filters() {
-        // Empty list falls back to the documented default.
         let empty = OcrConfig {
             language: vec![],
             ..Default::default()
         };
         assert_eq!(empty.effective_languages(), vec!["eng".to_string()]);
 
-        // A list of only blank entries also falls back rather than producing "".
         let blank = OcrConfig {
             language: vec![String::new(), "   ".to_string()],
             ..Default::default()
         };
         assert_eq!(blank.effective_languages(), vec!["eng".to_string()]);
 
-        // Real entries are trimmed and blank entries dropped.
         let mixed = OcrConfig {
             language: vec!["eng".to_string(), " ".to_string(), " deu".to_string()],
             ..Default::default()
         };
         assert_eq!(mixed.effective_languages(), vec!["eng".to_string(), "deu".to_string()]);
     }
-
-    // ── effective_pipeline tests ──
 
     #[cfg(all(feature = "ocr", feature = "pdf"))]
     #[test]
@@ -979,7 +961,6 @@ mod tests {
     #[cfg(all(feature = "ocr", feature = "pdf"))]
     #[test]
     fn test_effective_thresholds_custom_vs_default() {
-        // With custom thresholds
         let custom = OcrQualityThresholds {
             min_total_non_whitespace: 128,
             min_meaningful_words: 10,
@@ -993,14 +974,11 @@ mod tests {
         assert_eq!(eff.min_total_non_whitespace, 128);
         assert_eq!(eff.min_meaningful_words, 10);
 
-        // Without custom thresholds (should return defaults)
         let config_default = OcrConfig::default();
         let eff_default = config_default.effective_thresholds();
         assert_eq!(eff_default.min_total_non_whitespace, 64);
         assert_eq!(eff_default.min_meaningful_words, 3);
     }
-
-    // ── VlmFallbackPolicy tests ──
 
     #[test]
     fn test_vlm_fallback_policy_default_is_disabled() {
@@ -1063,7 +1041,6 @@ mod tests {
             ..Default::default()
         };
 
-        // Config under test: OnLowQuality with threshold 0.6.
         let config = OcrConfig {
             backend: "tesseract".to_string(),
             vlm_fallback: VlmFallbackPolicy::OnLowQuality { quality_threshold: 0.6 },
@@ -1071,7 +1048,6 @@ mod tests {
             ..Default::default()
         };
 
-        // Equivalent explicit pipeline: what a caller would write by hand.
         let explicit = OcrConfig {
             pipeline: Some(OcrPipelineConfig {
                 stages: vec![
@@ -1107,18 +1083,15 @@ mod tests {
             .effective_pipeline()
             .expect("explicit pipeline must be returned");
 
-        // Stage count matches.
         assert_eq!(
             synthesised.stages.len(),
             hand_written.stages.len(),
             "stage count mismatch"
         );
 
-        // Stage 0: classical backend.
         assert_eq!(synthesised.stages[0].backend, hand_written.stages[0].backend);
         assert_eq!(synthesised.stages[0].priority, hand_written.stages[0].priority);
 
-        // Stage 1: VLM backend with matching model.
         assert_eq!(synthesised.stages[1].backend, hand_written.stages[1].backend);
         assert_eq!(synthesised.stages[1].priority, hand_written.stages[1].priority);
         let s_vlm = synthesised.stages[1]
@@ -1131,7 +1104,6 @@ mod tests {
             .expect("hand-written stage 1 must have vlm_config");
         assert_eq!(s_vlm.model, h_vlm.model);
 
-        // Quality threshold propagated correctly.
         assert!(
             (synthesised.quality_thresholds.pipeline_min_quality - 0.6).abs() < f64::EPSILON,
             "threshold must be 0.6, got {}",
@@ -1169,13 +1141,11 @@ mod tests {
     #[test]
     fn test_vlm_fallback_disabled_no_synthesis() {
         let config = OcrConfig {
-            // Non-default backend so paddleocr auto-fallback is skipped too.
             backend: "paddleocr".to_string(),
             vlm_fallback: VlmFallbackPolicy::Disabled,
             vlm_config: None,
             ..Default::default()
         };
-        // No explicit pipeline + Disabled policy → None.
         assert!(config.effective_pipeline().is_none());
     }
 
@@ -1199,7 +1169,7 @@ mod tests {
         };
         let config = OcrConfig {
             pipeline: Some(explicit),
-            vlm_fallback: VlmFallbackPolicy::Always, // would override if not for explicit pipeline
+            vlm_fallback: VlmFallbackPolicy::Always,
             vlm_config: Some(LlmConfig {
                 model: "openai/gpt-4o".to_string(),
                 ..Default::default()
@@ -1245,14 +1215,11 @@ mod tests {
 
     #[test]
     fn test_ocr_config_vlm_fallback_omitted_when_disabled_default() {
-        // When vlm_fallback is Disabled (the default), we confirm it round-trips.
         let config = OcrConfig::default();
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: OcrConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.vlm_fallback, VlmFallbackPolicy::Disabled);
     }
-
-    // ── Serde tests ──
 
     #[test]
     fn test_pipeline_config_serde_roundtrip() {
@@ -1291,11 +1258,10 @@ mod tests {
 
     #[test]
     fn test_pipeline_stage_deserialization_missing_optional_fields() {
-        // Only backend is required; everything else should use defaults
         let json = r#"{"backend": "tesseract"}"#;
         let stage: OcrPipelineStage = serde_json::from_str(json).unwrap();
         assert_eq!(stage.backend, "tesseract");
-        assert_eq!(stage.priority, 100); // default_priority
+        assert_eq!(stage.priority, 100);
         assert!(stage.language.is_none());
         assert!(stage.tesseract_config.is_none());
         assert!(stage.paddle_ocr_config.is_none());
@@ -1338,13 +1304,10 @@ mod tests {
         let json = r#"{"min_total_non_whitespace": 256}"#;
         let thresholds: OcrQualityThresholds = serde_json::from_str(json).unwrap();
         assert_eq!(thresholds.min_total_non_whitespace, 256);
-        // All other fields should be defaults
         assert_eq!(thresholds.min_meaningful_words, 3);
         assert_eq!(thresholds.min_garbage_chars, 5);
         assert!((thresholds.pipeline_min_quality - 0.5).abs() < f64::EPSILON);
     }
-
-    // ── Validation tests ──
 
     #[test]
     fn test_validate_catches_invalid_pipeline_stage_backend() {
@@ -1410,8 +1373,6 @@ mod tests {
         };
         assert!(config.validate().is_ok());
     }
-
-    // ── backend_options tests ──
 
     #[test]
     fn test_ocr_config_backend_options_default_is_none() {
@@ -1499,7 +1460,6 @@ mod tests {
             .expect("primary stage must carry backend_options");
         assert_eq!(opts["mode"], "fast");
 
-        // PaddleOCR stage should not inherit backend_options from the top-level config.
         let fallback = &pipeline.stages[1];
         assert_eq!(fallback.backend, "paddleocr");
         assert!(
@@ -1511,8 +1471,6 @@ mod tests {
     #[cfg(all(feature = "ocr", feature = "pdf"))]
     #[test]
     fn test_explicit_pipeline_ignores_top_level_backend_options() {
-        // When the caller provides an explicit pipeline, OcrConfig.backend_options
-        // must NOT be injected into the returned stages — the stage owns its own value.
         let config = OcrConfig {
             backend_options: Some(serde_json::json!({"mode": "fast"})),
             pipeline: Some(OcrPipelineConfig {
@@ -1542,8 +1500,6 @@ mod tests {
     #[cfg(all(feature = "ocr", feature = "pdf"))]
     #[test]
     fn test_stage_level_backend_options_preserved_in_explicit_pipeline() {
-        // Stage-level backend_options in an explicit pipeline are returned unchanged —
-        // neither cleared nor overridden by any top-level value.
         let stage_opts = serde_json::json!({"device": "gpu", "batch": 8});
         let config = OcrConfig {
             backend_options: Some(serde_json::json!({"mode": "fast"})),

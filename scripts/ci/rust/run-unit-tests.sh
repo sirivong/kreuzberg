@@ -59,32 +59,19 @@ echo "=== Starting cargo test ==="
 TEST_LOG="/tmp/cargo-test-$$.log"
 
 if ! {
-  # `--all-targets` runs --lib --bins --tests --examples --benches but excludes
-  # `--doc`. 22 rustdoc examples in the xberg crate currently reference
-  # private items (extraction::capacity::estimate_content_capacity et al.) and
-  # fail to compile. Tracking the cleanup separately; doc-test coverage is not
-  # on the v5.0.0 publish path. TODO: re-enable doc tests once the failing
-  # examples are rewritten against the public API.
+  # ~keep `--all-targets` runs --lib --bins --tests --examples --benches but excludes
+  # ~keep `--doc`. 22 rustdoc examples in the xberg crate currently reference
+  # ~keep private items (extraction::capacity::estimate_content_capacity et al.) and
+  # ~keep fail to compile. Tracking the cleanup separately; doc-test coverage is not
+  # ~keep on the v5.0.0 publish path. TODO: re-enable doc tests once the failing
+  # ~keep examples are rewritten against the public API.
   echo "=== cargo test -p xberg --features full ==="
   RUST_BACKTRACE=full cargo test --locked -p xberg --features full --all-targets --verbose
 
   echo "=== cargo test --workspace (all features, excluding xberg) ==="
   extra_excludes=()
-  # Exclude xberg-candle-ocr and xberg-cli from --all-features on every
-  # platform: both have platform-hostile accelerator features. xberg-candle-ocr
-  # has `metal` (Apple-only, breaks Linux) and `cuda` (needs nvcc, absent on macOS).
-  # xberg-cli re-exports candle-cuda and candle-metal, so --all-features pulls
-  # cudarc (nvcc) and objc2-metal (Apple-only). Neither can be --all-features-built
-  # on any CI runner; their device features are exercised by a dedicated
-  # curated-feature job, not here.
   extra_excludes+=(--exclude xberg-candle-ocr)
   extra_excludes+=(--exclude xberg-cli)
-  # benchmark-harness is the only test target that depends on `xberg` with
-  # `features = ["full"]`, which forces candle-core 0.11 -> gemm 0.19 -> gemm-f16
-  # 0.19 into the unified build. gemm-f16 0.19 fails to compile on aarch64 (both
-  # CI runners are arm64: ubuntu-24.04-arm and macos Apple Silicon) and on Windows.
-  # Candle is exercised on x86_64 CUDA in ci-gpu, so drop the sole candle puller
-  # from this CPU workspace test on every platform.
   extra_excludes+=(--exclude benchmark-harness)
   RUST_BACKTRACE=full cargo test --locked \
     --workspace \

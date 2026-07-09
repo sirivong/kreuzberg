@@ -48,14 +48,10 @@ pub enum LayoutMode {
     Paired,
 }
 
-// The Default value is feature-conditional: Paired when layout-detection is
 // compiled in, WholePage otherwise. #[derive(Default)] cannot express this.
 #[allow(clippy::derivable_impls)]
 impl Default for LayoutMode {
     fn default() -> Self {
-        // When layout-detection is compiled in, default to Paired so per-region
-        // task dispatch is used without explicit configuration. Falls back to
-        // WholePage when the feature is absent.
         #[cfg(feature = "layout-detection")]
         {
             LayoutMode::Paired
@@ -120,7 +116,6 @@ where
     K: std::hash::Hash + Eq + Clone,
     V: Send + 'static,
 {
-    // Fast path: value already in pool.
     {
         let pool_guard = pool.read();
         if let Some(value) = pool_guard.get(&key) {
@@ -128,11 +123,9 @@ where
         }
     }
 
-    // Slow path: initialize and insert under write lock.
     let new_value = Arc::new(init()?);
 
     let mut pool_guard = pool.write();
-    // Double-check: another thread may have inserted while we were initializing.
     if let Some(existing) = pool_guard.get(&key) {
         return Ok(Arc::clone(existing));
     }
@@ -158,8 +151,6 @@ fn get_or_init_engine(preference: DevicePreference, dtype: DType) -> crate::Resu
             ?dtype,
             "Initialising GLM-OCR engine (cold start)"
         );
-        // Default task passed here is irrelevant to weight loading; the backend
-        // always calls `process_image_with_task` with the per-call task.
         GlmOcrEngine::new(GlmOcrTask::default(), device, dtype).map_err(|e| crate::XbergError::Ocr {
             message: format!("GLM-OCR engine initialisation failed: {e}"),
             source: Some(Box::new(e)),
@@ -181,7 +172,6 @@ fn get_or_init_layout_model(
 ) -> crate::Result<Arc<Mutex<crate::layout::models::pp_doclayout_v3::PpDocLayoutV3Model>>> {
     use crate::layout::models::pp_doclayout_v3::PpDocLayoutV3Model;
 
-    // Convert path to string, validating UTF-8
     let model_path_str = model_path
         .to_str()
         .ok_or_else(|| crate::XbergError::Ocr {
@@ -245,7 +235,6 @@ fn task_for_label(label: crate::layout::LayoutClass, enable_chart_understanding:
             }
         }
         LayoutClass::Picture => GlmOcrTask::Caption,
-        // Text-like regions
         LayoutClass::Text
         | LayoutClass::Title
         | LayoutClass::SectionHeader
@@ -351,8 +340,6 @@ impl GlmOcrBackend {
     /// - `layout_mode` (string): `"whole_page"`, `"paired"` (default: platform-dependent)
     /// - `enable_chart_understanding` (bool): route detected charts to chart task (default: `false`)
     fn parse_options(&self, config: &OcrConfig) -> GlmOcrOptions {
-        // Seed defaults from the backend's constructor arguments; backend_options
-        // (per-call) override them when present.
         let mut task = self.default_task;
         let mut layout_mode = self.layout_mode;
         let mut enable_chart_understanding = false;
@@ -364,7 +351,7 @@ impl GlmOcrBackend {
                     "formula" => GlmOcrTask::Formula,
                     "chart" => GlmOcrTask::Chart,
                     "caption" => GlmOcrTask::Caption,
-                    _ => GlmOcrTask::Ocr, // default on unknown
+                    _ => GlmOcrTask::Ocr,
                 };
             }
 
@@ -416,10 +403,8 @@ impl Plugin for GlmOcrBackend {
 #[async_trait]
 impl OcrBackend for GlmOcrBackend {
     async fn process_image(&self, image_bytes: &[u8], config: &OcrConfig) -> Result<ExtractedDocument> {
-        // Parse configuration
         let opts = self.parse_options(config);
 
-        // Validate image data
         if image_bytes.is_empty() {
             return Err(crate::XbergError::Validation {
                 message: "Empty image data provided to GLM-OCR".to_string(),
@@ -432,7 +417,6 @@ impl OcrBackend for GlmOcrBackend {
 
         let (content, formulas) = match opts.layout_mode {
             LayoutMode::WholePage => {
-                // Run whole-page inference in a blocking task.
                 let task = opts.task;
                 let device = opts.device;
                 let content = tokio::task::spawn_blocking(move || {
@@ -475,28 +459,13 @@ impl OcrBackend for GlmOcrBackend {
     }
 
     fn supports_language(&self, _lang: &str) -> bool {
-        // GLM-OCR is trained on multilingual data and supports a broad range of
-        // scripts. Accept all language codes.
         true
     }
 
     fn supported_languages(&self) -> Vec<String> {
-        // Major language codes supported by GLM-OCR
         vec![
-            "eng", "en", // English
-            "zho", "zh", // Chinese (simplified and traditional)
-            "jpn", "ja", // Japanese
-            "kor", "ko", // Korean
-            "fra", "fr", // French
-            "deu", "de", // German
-            "spa", "es", // Spanish
-            "ita", "it", // Italian
-            "por", "pt", // Portuguese
-            "rus", "ru", // Russian
-            "ara", "ar", // Arabic
-            "hin", "hi", // Hindi
-            "tha", "th", // Thai
-            "vie", "vi", // Vietnamese
+            "eng", "en", "zho", "zh", "jpn", "ja", "kor", "ko", "fra", "fr", "deu", "de", "spa", "es", "ita", "it",
+            "por", "pt", "rus", "ru", "ara", "ar", "hin", "hi", "tha", "th", "vie", "vi",
         ]
         .iter()
         .map(|s| s.to_string())
@@ -508,8 +477,6 @@ impl OcrBackend for GlmOcrBackend {
     }
 
     fn emits_structured_markdown(&self) -> bool {
-        // GLM-OCR emits markdown output directly from the VLM,
-        // so the extraction pipeline should skip layout reconstruction stages.
         true
     }
 }
@@ -532,7 +499,6 @@ async fn process_paired(
     use crate::layout::models::LayoutModel;
 
     tokio::task::spawn_blocking(move || {
-        // Decode image once; all region crops reuse the same decoded pixels.
         let img = image::load_from_memory(&image_bytes)
             .map_err(|e| crate::XbergError::Ocr {
                 message: format!("GLM-OCR paired: image decode failed: {e}"),
@@ -540,7 +506,6 @@ async fn process_paired(
             })?
             .to_rgb8();
 
-        // Resolve the PP-DocLayout-V3 model path via the layout model manager.
         let manager = LayoutModelManager::new(None);
         let model_path = manager
             .ensure_pp_doclayout_v3_model()
@@ -559,16 +524,11 @@ async fn process_paired(
             source: Some(Box::new(e)),
         })?;
 
-        // Sort detections in reading order (top-to-bottom, left-to-right).
         let mut sorted = detections;
         sorted.sort_by(|a, b| a.bbox.y1.total_cmp(&b.bbox.y1).then(a.bbox.x1.total_cmp(&b.bbox.x1)));
 
         let engine = get_or_init_engine(device, dtype)?;
 
-        // If layout detection returned zero regions, fall back to whole-page inference.
-        // This can occur on some hardware configurations (e.g., CUDA) where PP-DocLayout-V3
-        // returns no regions for a given image. Instead of silently returning empty content,
-        // process the full image with the default OCR task.
         if sorted.is_empty() {
             tracing::debug!("GLM-OCR paired: no layout regions detected, falling back to whole-page inference");
             let output = engine
@@ -589,16 +549,13 @@ async fn process_paired(
         for detection in &sorted {
             let bbox = &detection.bbox;
 
-            // Clamp to image bounds (model coordinates are in pixel space).
             let x = (bbox.x1.max(0.0) as u32).min(img_width.saturating_sub(1));
             let y = (bbox.y1.max(0.0) as u32).min(img_height.saturating_sub(1));
             let w = ((bbox.x2 - bbox.x1).max(1.0) as u32).min(img_width - x);
             let h = ((bbox.y2 - bbox.y1).max(1.0) as u32).min(img_height - y);
 
-            // Crop the region using image::imageops.
             let crop = image::imageops::crop_imm(&img, x, y, w, h).to_image();
 
-            // Encode crop as PNG bytes.
             let mut crop_bytes: Vec<u8> = Vec::new();
             crop.write_to(&mut std::io::Cursor::new(&mut crop_bytes), image::ImageFormat::Png)
                 .map_err(|e| crate::XbergError::Ocr {
@@ -610,9 +567,6 @@ async fn process_paired(
 
             let output = match engine.process_image_with_task(&crop_bytes, region_task) {
                 Ok(out) => out,
-                // Extreme-aspect-ratio crops (e.g. single-line inline formulas) exceed the
-                // GLM-OCR preprocessor's 200:1 limit. Skip the region rather than aborting the
-                // entire page so other regions are still processed.
                 Err(CandleOcrError::UnsupportedConfig(ref msg)) => {
                     tracing::warn!(
                         class = ?detection.class_name,
@@ -630,30 +584,24 @@ async fn process_paired(
                 }
             };
 
-            // For formulas, strip any pre-wrapped `$$` delimiters before storing.
-            // This ensures the Formula.latex field contains clean LaTeX without delimiters.
             let latex_clean = if detection.class_name == crate::layout::LayoutClass::Formula {
                 strip_formula_delimiters(&output.content)
             } else {
                 output.content.clone()
             };
 
-            // Wrap output based on task type (Formula wrapping adds `$$`).
             let wrapped = wrap_output(region_task, &latex_clean);
 
-            // Capture formula content if this is a formula region
             if detection.class_name == crate::layout::LayoutClass::Formula && !latex_clean.is_empty() {
                 formulas.push(crate::types::Formula {
                     latex: latex_clean,
                     bbox: crate::types::extraction::BoundingBox {
-                        // Layout BBox is (x1, y1, x2, y2) = (top-left-x, top-left-y, bottom-right-x, bottom-right-y)
-                        // BoundingBox is (x0, y0, x1, y1) = (top-left-x, top-left-y, bottom-right-x, bottom-right-y)
                         x0: bbox.x1 as f64,
                         y0: bbox.y1 as f64,
                         x1: bbox.x2 as f64,
                         y1: bbox.y2 as f64,
                     },
-                    page: 1, // page is relative to this single-image OCR call; will be set by caller
+                    page: 1,
                 });
             }
 
@@ -818,7 +766,6 @@ mod tests {
     #[test]
     fn test_task_for_label_chart_disabled() {
         use crate::layout::LayoutClass;
-        // When chart understanding is disabled, Chart → Caption
         assert_eq!(task_for_label(LayoutClass::Chart, false), GlmOcrTask::Caption);
     }
 
@@ -826,7 +773,6 @@ mod tests {
     #[test]
     fn test_task_for_label_chart_enabled() {
         use crate::layout::LayoutClass;
-        // When chart understanding is enabled, Chart → Chart
         assert_eq!(task_for_label(LayoutClass::Chart, true), GlmOcrTask::Chart);
     }
 
@@ -839,7 +785,6 @@ mod tests {
             ..Default::default()
         };
         let opts = GlmOcrBackend::new(GlmOcrTask::default(), LayoutMode::default()).parse_options(&config);
-        // Verify that the parsed flag can be used to route charts correctly
         let routed_task = task_for_label(LayoutClass::Chart, opts.enable_chart_understanding);
         assert_eq!(routed_task, GlmOcrTask::Chart);
     }
@@ -853,7 +798,6 @@ mod tests {
             ..Default::default()
         };
         let opts = GlmOcrBackend::new(GlmOcrTask::default(), LayoutMode::default()).parse_options(&config);
-        // Verify that disabled flag routes charts to Caption
         let routed_task = task_for_label(LayoutClass::Chart, opts.enable_chart_understanding);
         assert_eq!(routed_task, GlmOcrTask::Caption);
     }
@@ -864,14 +808,12 @@ mod tests {
         let wrapped = wrap_output(GlmOcrTask::Formula, "x^2 + y^2 = r^2");
         assert!(wrapped.starts_with("$$\n"));
         assert!(wrapped.ends_with("\n$$"));
-        // Verify that the latex content is preserved (without the delimiters)
         assert!(wrapped.contains("x^2 + y^2 = r^2"));
     }
 
     #[cfg(feature = "layout-detection")]
     #[test]
     fn test_strip_formula_delimiters_removes_wrapping_dollars() {
-        // Test stripping $$ delimiters added by wrap_output
         let wrapped = "$$\nE = mc^2\n$$";
         let result = strip_formula_delimiters(wrapped);
         assert_eq!(result, "E = mc^2");
@@ -880,7 +822,6 @@ mod tests {
     #[cfg(feature = "layout-detection")]
     #[test]
     fn test_strip_formula_delimiters_handles_pre_wrapped_content() {
-        // Test that if the model already wrapped the output, we strip it correctly
         let pre_wrapped = "$$x^2 + y^2 = z^2$$";
         let result = strip_formula_delimiters(pre_wrapped);
         assert_eq!(result, "x^2 + y^2 = z^2");
@@ -889,7 +830,6 @@ mod tests {
     #[cfg(feature = "layout-detection")]
     #[test]
     fn test_strip_formula_delimiters_preserves_undecorated_content() {
-        // Test that content without $$ is left alone
         let plain = "a + b = c";
         let result = strip_formula_delimiters(plain);
         assert_eq!(result, "a + b = c");
@@ -898,11 +838,9 @@ mod tests {
     #[cfg(feature = "layout-detection")]
     #[test]
     fn test_formula_extraction_from_wrapped_output() {
-        // Test that we can extract raw latex from formula output
         let task = GlmOcrTask::Formula;
         let raw_latex = "E = mc^2";
         let wrapped = wrap_output(task, raw_latex);
-        // The wrapped version has $$ delimiters; stripping them should give us back the original
         let stripped = strip_formula_delimiters(&wrapped);
         assert_eq!(stripped, raw_latex);
     }
@@ -928,8 +866,6 @@ mod tests {
         use std::sync::Arc as StdArc;
         use std::sync::atomic::{AtomicUsize, Ordering};
 
-        // Test the generic pool helper with a cheap value type.
-        // This verifies the double-checked-lock logic without loading any models.
         let pool = RwLock::new(AHashMap::new());
         let init_count = StdArc::new(AtomicUsize::new(0));
 
@@ -942,7 +878,6 @@ mod tests {
         assert!(result1.is_ok());
         assert_eq!(init_count.load(Ordering::SeqCst), 1, "Initializer should run once");
 
-        // Second call with same key: should return cached value without re-initializing
         let init_count_clone = StdArc::clone(&init_count);
         let result2 = pool_get_or_init(&pool, "test_key", || {
             init_count_clone.fetch_add(1, Ordering::SeqCst);
@@ -956,7 +891,6 @@ mod tests {
             "Initializer should still have run exactly once"
         );
 
-        // Verify pointer equality: both results should be the same Arc instance
         let v1 = result1.unwrap();
         let v2 = result2.unwrap();
         assert!(Arc::ptr_eq(&v1, &v2), "Cached values should be the same Arc instance");
@@ -969,8 +903,6 @@ mod tests {
         use std::sync::atomic::{AtomicUsize, Ordering};
         use std::thread;
 
-        // Test concurrent racing initialization: multiple threads accessing the same pool
-        // key should all receive the same Arc instance, even if they race during initialization.
         let pool = StdArc::new(RwLock::new(AHashMap::new()));
         let init_count = StdArc::new(AtomicUsize::new(0));
         let mut handles = vec![];
@@ -992,7 +924,6 @@ mod tests {
 
         let results: Vec<_> = handles.into_iter().map(|h| h.join().unwrap()).collect();
 
-        // All results should be the same Arc instance (pointer-equal).
         for i in 1..results.len() {
             assert!(
                 Arc::ptr_eq(&results[0], &results[i]),
@@ -1000,39 +931,12 @@ mod tests {
             );
         }
 
-        // The initializer may run multiple times due to RwLock contention, but all
-        // threads should get the same cached Arc (the first one that completed initialization).
-        // Document that some redundant initialization is acceptable as a tradeoff for
-        // lock-free fast path.
         let final_count = init_count.load(Ordering::SeqCst);
         assert!(final_count >= 1, "Initializer must run at least once");
     }
 
     #[test]
     fn test_glm_ocr_zero_regions_fallback_guard() {
-        // This test documents the zero-regions fallback behavior added to process_paired.
-        //
-        // When PP-DocLayout-V3 layout detection returns zero regions (which can occur
-        // on some hardware like CUDA), the paired-mode dispatch would previously return
-        // empty content with no error. This is now guarded with a fallback to whole-page
-        // inference (GlmOcrTask::Ocr).
-        //
-        // The fix is a control-flow guard at line ~564-584 in glm_ocr_backend.rs:
-        //   if sorted.is_empty() {
-        //       return Ok((engine.process_image_with_task(&image_bytes, GlmOcrTask::Ocr), Vec::new()))
-        //   }
-        //
-        // This ensures that:
-        // 1. Zero detected regions is caught before the for-loop over sorted regions
-        // 2. The full image is processed with the default OCR task
-        // 3. Non-empty content is always produced (no silent empty results)
-        //
-        // Full integration testing of this path requires a GPU (CUDA or similar) where
-        // PP-DocLayout-V3 may return zero regions. CPU testing will typically return
-        // at least one region for any non-blank image. Correctness is verified by:
-        // - Code inspection: the guard is straightforward control flow
-        // - GPU CI verification: Candle GPU (glm-ocr) job in CI must pass
-        // - No regression: existing region-based processing (sorted.len() > 0) is unchanged
         assert_eq!(GlmOcrTask::Ocr, GlmOcrTask::default());
     }
 }

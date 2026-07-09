@@ -107,8 +107,8 @@ impl OcrBackendRegistry {
             }
         }
 
-        // TODO(wasm-llm): VLM OCR should be available on wasm once hosted LLM
-        // request handling is wired; the feature remains in wasm presets until then.
+        // ~keep TODO(wasm-llm): VLM OCR should be available on wasm once hosted LLM
+        // ~keep request handling is wired; the feature remains in wasm presets until then.
         #[cfg(all(feature = "liter-llm", not(target_arch = "wasm32")))]
         {
             use crate::llm::vlm_ocr::VlmOcrBackend;
@@ -118,9 +118,6 @@ impl OcrBackendRegistry {
             });
         }
 
-        // Candle-based VLM OCR backends. Per-model sub-features on
-        // `xberg-candle-ocr` (trocr / paddleocr-vl) gate the actual
-        // registrations.
         #[cfg(feature = "candle-trocr")]
         {
             use crate::candle_ocr::TrocrBackend;
@@ -226,7 +223,6 @@ impl OcrBackendRegistry {
     #[cfg(any(feature = "ocr", feature = "ocr-wasm", feature = "ocr-pipeline"))]
     #[tracing::instrument(skip(self), fields(registered_backends = ?self.backends.keys().collect::<Vec<_>>()))]
     pub(crate) fn get(&self, name: &str) -> Result<Arc<dyn OcrBackend>> {
-        // Normalize common aliases: "paddleocr" → "paddle-ocr"
         let canonical = match name {
             "paddleocr" => "paddle-ocr",
             _ => name,
@@ -418,10 +414,6 @@ mod tests {
     #[cfg(feature = "ocr")]
     #[test]
     fn ensure_defaults_reseeds_when_default_missing_but_registry_nonempty() {
-        // Simulate `clear_ocr_backends()` followed by registering a *different*
-        // backend: the registry is non-empty but has no built-in default. The
-        // self-heal must still restore the default — the old "empty registry"
-        // check skipped healing here, leaving default-config OCR unusable.
         let mut registry = OcrBackendRegistry::new_empty();
         registry
             .register(Arc::new(MockOcrBackend {
@@ -452,9 +444,6 @@ mod tests {
 
     #[test]
     fn should_re_register_default_backends_after_clear() {
-        // `OcrBackendRegistry::new` seeds the built-in backends. Clearing the
-        // registry and calling `register_defaults` must restore them, so a
-        // registry emptied via `clear()` can be self-healed.
         let mut registry = OcrBackendRegistry::new();
         let seeded = registry.list();
         assert!(
@@ -478,8 +467,6 @@ mod tests {
 
     #[test]
     fn test_registry_construction_does_not_eagerly_allocate_tesseract() {
-        // Directly construct a TesseractBackend to verify deferred allocation.
-        // The processor should not be allocated until first use.
         use crate::ocr::tesseract_backend::TesseractBackend;
 
         let backend = TesseractBackend::new();
@@ -666,11 +653,9 @@ mod tests {
 
         registry.register(backend).unwrap();
 
-        // "paddleocr" (without hyphen) should resolve to "paddle-ocr"
         let retrieved = registry.get("paddleocr").unwrap();
         assert_eq!(retrieved.name(), "paddle-ocr");
 
-        // "paddle-ocr" (canonical) should also work
         let retrieved = registry.get("paddle-ocr").unwrap();
         assert_eq!(retrieved.name(), "paddle-ocr");
     }
@@ -686,11 +671,9 @@ mod tests {
 
         registry.register(backend).unwrap();
 
-        // Canonical name works
         let retrieved = registry.get("paddle-ocr").unwrap();
         assert_eq!(retrieved.name(), "paddle-ocr");
 
-        // Alias without hyphen also works
         let aliased = registry.get("paddleocr").unwrap();
         assert_eq!(aliased.name(), "paddle-ocr");
     }

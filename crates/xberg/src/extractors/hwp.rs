@@ -73,7 +73,6 @@ fn build_hwp_internal_document(hwp_doc: &HwpDocument) -> InternalDocument {
             {
                 let annotations = apply_char_shapes(&t.content, &para.char_shape_runs, &hwp_doc.char_shapes);
                 if para.outline_level > 0 {
-                    // outline_level 1 maps to Heading 1, etc.
                     let idx = builder.push_heading(para.outline_level, &t.content, None, None);
                     if !annotations.is_empty() {
                         builder.set_annotations(idx, annotations);
@@ -228,11 +227,6 @@ mod tests {
     #[test]
     fn test_apply_char_shapes() {
         let text = "Hello world";
-        // Let's say "Hello" is bold, " world" is italic.
-        // Hello: 5 chars. " world": 6 chars.
-        // runs: start pos to shape_idx.
-        // 0 -> 0 (bold)
-        // 5 -> 1 (italic)
         let runs = vec![(0, 0), (5, 1)];
         let shape1 = CharShape {
             bold: true,
@@ -248,11 +242,11 @@ mod tests {
         assert_eq!(annotations.len(), 2);
         assert_eq!(annotations[0].kind, AnnotationKind::Bold);
         assert_eq!(annotations[0].start, 0);
-        assert_eq!(annotations[0].end, 5); // "Hello" is 5 bytes
+        assert_eq!(annotations[0].end, 5);
 
         assert_eq!(annotations[1].kind, AnnotationKind::Italic);
         assert_eq!(annotations[1].start, 5);
-        assert_eq!(annotations[1].end, 11); // " world" is 6 bytes
+        assert_eq!(annotations[1].end, 11);
     }
 
     #[test]
@@ -265,7 +259,7 @@ mod tests {
         };
 
         let para = Paragraph {
-            outline_level: 1, // Heading 1
+            outline_level: 1,
             text: Some(ParaText {
                 content: "My Heading".to_string(),
             }),
@@ -276,7 +270,6 @@ mod tests {
 
         let image = HwpImage {
             name: "image1.png".to_string(),
-            // Fake PNG magic bytes
             data: vec![0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
         };
 
@@ -288,7 +281,7 @@ mod tests {
 
         let internal_doc = build_hwp_internal_document(&hwp_doc);
 
-        assert_eq!(internal_doc.elements.len(), 2); // 1 heading + 1 image
+        assert_eq!(internal_doc.elements.len(), 2);
 
         let first_elem = &internal_doc.elements[0];
         match first_elem.kind {
@@ -306,7 +299,6 @@ mod tests {
             crate::types::internal::ElementKind::Image { image_index } => {
                 let i = &internal_doc.images[image_index as usize];
                 assert_eq!(i.source_path.as_deref(), Some("image1.png"));
-                // infer crate should detect PNG from magic bytes
                 assert_eq!(i.format, Cow::Borrowed("image/png"));
             }
             _ => panic!("Expected Image"),

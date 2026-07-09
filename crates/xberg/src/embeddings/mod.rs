@@ -85,18 +85,13 @@ use std::sync::LazyLock;
 use ahash::AHashMap;
 #[cfg(feature = "embeddings")]
 use engine::EmbeddingEngine;
-#[cfg(feature = "embeddings")]
-use std::sync::RwLock;
-// Used by the ONNX engine cache (embeddings) and by the shared semaphore /
-// spawn_blocking config wrapper, both of which additionally require
-// `tokio-runtime` — a `static-embeddings`-only build (no tokio) never
-// references bare `Arc` here (the static engine cache uses fully-qualified
-// `std::sync::Arc`).
 #[cfg(any(
     feature = "embeddings",
     all(feature = "static-embeddings", feature = "tokio-runtime")
 ))]
 use std::sync::Arc;
+#[cfg(feature = "embeddings")]
+use std::sync::RwLock;
 
 #[cfg(feature = "embeddings")]
 type CachedEngine = Arc<EmbeddingEngine>;
@@ -372,17 +367,12 @@ fn resolve_model_info(
             };
             Ok((preset.model_repo, preset.model_file, preset.additional_files, pooling))
         }
-        crate::core::config::EmbeddingModelType::Custom { model_id, .. } => {
-            // For custom models, default to mean pooling and standard model path
-            // (single self-contained ONNX file — no sibling weight blobs).
-            // Users providing custom HF models should ensure the repo has the expected layout.
-            Ok((
-                model_id.clone(),
-                "onnx/model.onnx".to_string(),
-                Vec::new(),
-                engine::Pooling::Mean,
-            ))
-        }
+        crate::core::config::EmbeddingModelType::Custom { model_id, .. } => Ok((
+            model_id.clone(),
+            "onnx/model.onnx".to_string(),
+            Vec::new(),
+            engine::Pooling::Mean,
+        )),
         crate::core::config::EmbeddingModelType::Llm { .. } => Err(crate::XbergError::embedding(
             "LLM embeddings have no local model to warm or download — the provider serves them over HTTP at embed time.",
         )),
@@ -407,15 +397,11 @@ fn get_or_init_engine(
     accel: Option<crate::core::config::acceleration::AccelerationConfig>,
 ) -> crate::Result<Arc<EmbeddingEngine>> {
     let cache_directory = resolve_cache_dir(cache_dir);
-    // max_sequence_length participates in the cache key: two configs that only
-    // differ in truncation length must not share a tokenizer (otherwise the first
-    // one initialized would silently cap the other).
     let engine_key = format!(
         "{repo_name}_{model_file}_{max_sequence_length}_{cache_directory}",
         cache_directory = cache_directory.display()
     );
 
-    // Fast path: read lock
     {
         match ENGINE_CACHE.read() {
             Ok(cache) => {
@@ -432,24 +418,18 @@ fn get_or_init_engine(
         }
     }
 
-    // Slow path: write lock + initialization
     {
         let mut cache = match ENGINE_CACHE.write() {
             Ok(guard) => guard,
             Err(poison_error) => poison_error.into_inner(),
         };
 
-        // Double-check after acquiring write lock
         if let Some(cached) = cache.get(&engine_key) {
             return Ok(Arc::clone(cached));
         }
 
         crate::ort_discovery::ensure_ort_available();
 
-        // Download, tokenize, and build the ORT session via the shared onnx helpers.
-        // Most presets are a single self-contained ONNX file; large fp32 exports
-        // (Qwen3-Embedding, Arctic-v2.0) additionally ship an external-data
-        // `model.onnx.data` sibling that ORT loads by relative path at session build.
         let files = crate::onnx::download_model_files(
             repo_name,
             model_file,
@@ -587,7 +567,6 @@ pub(crate) fn generate_embeddings_for_chunks(
     let texts: Vec<&str> = chunks.iter().map(|c| c.content.as_str()).collect();
     let embeddings_result = embed_texts(&texts, config)?;
 
-    // Assign embeddings to chunks.
     for (chunk, embedding) in chunks.iter_mut().zip(embeddings_result) {
         chunk.embedding = Some(embedding);
     }
@@ -640,8 +619,6 @@ pub fn embed_texts<T: AsRef<str>>(
         return Ok(Vec::new());
     }
 
-    // Validate that no individual text is empty — empty strings produce
-    // meaningless embeddings and can cause tokenizer edge-cases.
     for (i, t) in texts.iter().enumerate() {
         if t.as_ref().is_empty() {
             return Err(crate::XbergError::embedding(format!(
@@ -651,51 +628,37 @@ pub fn embed_texts<T: AsRef<str>>(
         }
     }
 
-    // Dispatch: LLM-hosted embeddings bypass the local ONNX engine entirely.
     match &config.model {
-        // TODO(wasm-llm): liter-llm has a wasm-http backend, but embedding
-        // dispatch still needs a wasm runtime path before this cfg can include wasm32.
-        // `tokio-runtime` is required in addition to `liter-llm` — this arm drives
-        // `tokio::runtime::Handle`/`block_in_place`/`global_runtime` directly, and
-        // `liter-llm`'s own feature definition does not imply `tokio-runtime` (unlike
-        // `embeddings`, which always does). A `static-embeddings + liter-llm` build
-        // without `tokio-runtime` falls through to the arm below instead.
+        // ~keep TODO(wasm-llm): liter-llm has a wasm-http backend, but embedding
+        // ~keep dispatch still needs a wasm runtime path before this cfg can include wasm32.
+        // ~keep `tokio-runtime` is required in addition to `liter-llm` — this arm drives
+        // ~keep `tokio::runtime::Handle`/`block_in_place`/`global_runtime` directly, and
+        // ~keep `liter-llm`'s own feature definition does not imply `tokio-runtime` (unlike
+        // ~keep `embeddings`, which always does). A `static-embeddings + liter-llm` build
+        // ~keep without `tokio-runtime` falls through to the arm below instead.
         #[cfg(all(feature = "liter-llm", feature = "tokio-runtime", not(target_arch = "wasm32")))]
         crate::core::config::EmbeddingModelType::Llm { llm } => {
             let normalize = config.normalize;
-            // If we're already inside an async runtime (e.g. server mode),
-            // use block_in_place to avoid the "cannot block inside runtime" panic.
-            // Otherwise, create a dedicated single-threaded runtime for the sync path.
             let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
                 tokio::task::block_in_place(|| {
                     handle.block_on(crate::llm::vlm_embeddings::embed_via_llm(texts, llm, normalize))
                 })
             } else {
-                // No ambient runtime: drive the future on the shared, never-dropped
-                // global runtime. Building a per-call runtime here would panic on
-                // drop when this sync path runs inside a caller's blocking context.
                 crate::core::runtime::global_runtime()?
                     .block_on(crate::llm::vlm_embeddings::embed_via_llm(texts, llm, normalize))
             };
             result.map(|(embeddings, _usage)| embeddings)
         }
-        // TODO(wasm-llm): keep wasm in the MissingDependency branch until hosted
-        // embedding calls are wired for wasm runtimes.
+        // ~keep TODO(wasm-llm): keep wasm in the MissingDependency branch until hosted
+        // ~keep embedding calls are wired for wasm runtimes.
         #[cfg(any(not(feature = "liter-llm"), not(feature = "tokio-runtime"), target_arch = "wasm32"))]
         crate::core::config::EmbeddingModelType::Llm { .. } => Err(crate::XbergError::MissingDependency(
             "LLM embeddings require the 'liter-llm' and 'tokio-runtime' features. Rebuild with --features liter-llm"
                 .into(),
         )),
-        // The Plugin arm's `embed` is an async trait method, so driving it requires
-        // a tokio executor. A `static-embeddings`-only build (no `tokio-runtime`)
-        // cannot reach this arm — see the fallback arm below.
         #[cfg(feature = "tokio-runtime")]
         crate::core::config::EmbeddingModelType::Plugin { name } => {
             let registry = crate::plugins::get_embedding_backend_registry();
-            // Clone the Arc out of the lock along with the dimensions captured
-            // at registration (the trait contract requires stability, but we
-            // don't re-ask the backend on every dispatch — that would let a
-            // buggy backend drift past shape validation silently).
             let (backend, expected_dim) = {
                 let guard = registry.read();
                 guard.get_with_dimensions(name)?
@@ -703,12 +666,6 @@ pub fn embed_texts<T: AsRef<str>>(
             let expected_count = texts.len();
             let owned_texts: Vec<String> = texts.iter().map(|t| t.as_ref().to_string()).collect();
 
-            // Dispatch the async `embed` call. Same pattern as the `Llm` arm:
-            // if we're already in a tokio runtime, `block_in_place` to avoid
-            // starving workers; otherwise spin up a single-threaded runtime.
-            // `Some(0)` is treated as "no timeout" rather than "timeout immediately" — a
-            // zero-duration `tokio::time::timeout` fires before the backend gets a chance
-            // to run, which is a surprising config interpretation users rarely intend.
             let timeout = config
                 .max_embed_duration_secs
                 .filter(|&s| s > 0)
@@ -727,9 +684,6 @@ pub fn embed_texts<T: AsRef<str>>(
             let embed_result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
                 tokio::task::block_in_place(|| handle.block_on(embed_future))
             } else {
-                // No ambient runtime: drive the future on the shared, never-dropped
-                // global runtime. Building a per-call runtime here would panic on
-                // drop when this sync path runs inside a caller's blocking context.
                 crate::core::runtime::global_runtime()?.block_on(embed_future)
             };
             let mut embeddings = embed_result?;
@@ -795,8 +749,6 @@ fn resolve_local_backend(model_type: &crate::core::config::EmbeddingModelType) -
             .map(|p| p.backend)
             .ok_or_else(|| crate::XbergError::embedding(format!("Unknown embedding preset: {name}"))),
         crate::core::config::EmbeddingModelType::Custom { .. } => Ok(EmbeddingBackend::Onnx),
-        // Llm/Plugin never reach this helper — embed_texts/embed_texts_async
-        // dispatch them before falling through to embed_texts_local.
         crate::core::config::EmbeddingModelType::Llm { .. }
         | crate::core::config::EmbeddingModelType::Plugin { .. } => {
             unreachable!("Llm and Plugin model types are dispatched before embed_texts_local is called")
@@ -968,10 +920,6 @@ pub async fn embed_texts_async<T: AsRef<str> + Send + 'static>(
         return Ok(Vec::new());
     }
 
-    // Reject empty-string inputs here so every dispatch path (Llm fast path,
-    // Plugin fast path, ONNX via spawn_blocking) rejects them the same way.
-    // The sync `embed_texts` has this check; the async fast paths used to skip
-    // it.
     for (i, t) in texts.iter().enumerate() {
         if t.as_ref().is_empty() {
             return Err(crate::XbergError::embedding(format!(
@@ -981,21 +929,17 @@ pub async fn embed_texts_async<T: AsRef<str> + Send + 'static>(
         }
     }
 
-    // Dispatch is exhaustive over EmbeddingModelType so a future variant must add an arm here.
-    // Llm is cfg-gated; Plugin awaits the host-language backend directly (no spawn_blocking
-    // round-trip since the trait is async); Preset/Custom fall through to the local path
-    // (ONNX or static, resolved by embed_texts -> embed_texts_local's backend dispatch).
     match &config.model {
-        // TODO(wasm-llm): liter-llm has a wasm-http backend, but embedding
-        // dispatch still needs a wasm runtime path before this cfg can include wasm32.
+        // ~keep TODO(wasm-llm): liter-llm has a wasm-http backend, but embedding
+        // ~keep dispatch still needs a wasm runtime path before this cfg can include wasm32.
         #[cfg(all(feature = "liter-llm", not(target_arch = "wasm32")))]
         crate::core::config::EmbeddingModelType::Llm { llm } => {
             return crate::llm::vlm_embeddings::embed_via_llm(&texts, llm, config.normalize)
                 .await
                 .map(|(embeddings, _usage)| embeddings);
         }
-        // TODO(wasm-llm): keep wasm in the MissingDependency branch until hosted
-        // embedding calls are wired for wasm runtimes.
+        // ~keep TODO(wasm-llm): keep wasm in the MissingDependency branch until hosted
+        // ~keep embedding calls are wired for wasm runtimes.
         #[cfg(any(not(feature = "liter-llm"), target_arch = "wasm32"))]
         crate::core::config::EmbeddingModelType::Llm { .. } => {
             return Err(crate::XbergError::MissingDependency(
@@ -1010,9 +954,6 @@ pub async fn embed_texts_async<T: AsRef<str> + Send + 'static>(
             };
             let expected_count = texts.len();
             let owned_texts: Vec<String> = texts.iter().map(|t| t.as_ref().to_string()).collect();
-            // `Some(0)` is treated as "no timeout" rather than "timeout immediately" — a
-            // zero-duration `tokio::time::timeout` fires before the backend gets a chance
-            // to run, which is a surprising config interpretation users rarely intend.
             let timeout = config
                 .max_embed_duration_secs
                 .filter(|&s| s > 0)
@@ -1033,20 +974,14 @@ pub async fn embed_texts_async<T: AsRef<str> + Send + 'static>(
             return Ok(embeddings);
         }
         crate::core::config::EmbeddingModelType::Preset { .. }
-        | crate::core::config::EmbeddingModelType::Custom { .. } => {
-            // Fall through to the local (ONNX or static) path below.
-        }
+        | crate::core::config::EmbeddingModelType::Custom { .. } => {}
     }
 
-    // Acquire a permit from the global semaphore to limit concurrent local
-    // inference calls, preventing resource exhaustion under high fan-out.
     let _permit = EMBED_SEMAPHORE
         .acquire()
         .await
         .map_err(|_| crate::XbergError::embedding("Embedding semaphore closed".to_string()))?;
 
-    // Wrap config in Arc to avoid cloning the entire struct (strings, PathBuf)
-    // into the blocking closure.
     let config = Arc::new(config.clone());
     tokio::task::spawn_blocking(move || embed_texts(&texts, &config))
         .await
@@ -1079,6 +1014,38 @@ mod tests {
                     sibling
                 );
             }
+
+            // `crate::onnx::fetch_companion` always downloads tokenizer.json and
+            // config.json alongside the model file (from `<model_dir>/<name>` or
+            // the repo root), and opportunistically downloads
+            // special_tokens_map.json / tokenizer_config.json when present. A
+            // preset shipping a companion without a pinned hash would be
+            // downloaded unverified, so every companion the loader actually
+            // fetches must be pinned too.
+            let model_dir = std::path::Path::new(&preset.model_file)
+                .parent()
+                .and_then(|p| p.to_str())
+                .filter(|s| !s.is_empty());
+            let companion_path = |name: &str| match model_dir {
+                Some(dir) => format!("{dir}/{name}"),
+                None => name.to_string(),
+            };
+            for required in ["tokenizer.json", "config.json"] {
+                let path = companion_path(required);
+                assert!(
+                    pinned.contains(path.as_str()),
+                    "preset {} companion {} is not pinned in presets.sha256sum",
+                    preset.name,
+                    path
+                );
+            }
+            // special_tokens_map.json / tokenizer_config.json are downloaded via
+            // `unwrap_or_default()` (best-effort -- not every repo ships them),
+            // so they are pinned-if-present rather than required. This test
+            // covers presets that already have them in the manifest; it cannot
+            // detect a genuinely absent-and-unpinned companion since the
+            // manifest itself is the only source of "what exists" available
+            // here.
         }
     }
 
@@ -1096,8 +1063,6 @@ mod tests {
     #[test]
     fn test_list_presets() {
         let presets = list_presets();
-        // Kept as an exact count (not just "contains") so this test fails loudly
-        // whenever a preset is added or removed without an update here.
         assert_eq!(presets.len(), 8, "expected exactly 8 presets, got: {presets:?}");
         assert!(presets.iter().any(|n| n == "fast"));
         assert!(presets.iter().any(|n| n == "balanced"));
@@ -1152,7 +1117,6 @@ mod tests {
 
     #[test]
     fn embedding_backend_deserializes_missing_field_as_onnx() {
-        // Back-compat: a preset payload predating the `backend` field must still
         // deserialize, defaulting to Onnx via #[serde(default)].
         let json = r#"{
             "name": "custom",
@@ -1253,10 +1217,8 @@ mod tests {
             },
             ..Default::default()
         };
-        // This should return an error (bad API key), NOT panic.
         let result = tokio::task::spawn_blocking(move || embed_texts(&["test text"], &config)).await;
         assert!(result.is_ok(), "spawn_blocking should not panic");
-        // The inner result should be an error (auth failure), not a panic
         assert!(result.unwrap().is_err(), "Expected auth error, not success");
     }
 
@@ -1274,12 +1236,7 @@ mod tests {
         assert_ne!(level3_repr, "All", "Level3 must not be the same variant as All");
     }
 
-    // --- Plugin variant dispatch tests -----------------------------------
-    // Requires `tokio-runtime`: the Plugin dispatch arm and `embed_texts_async`
-    // (exercised below) are only compiled with tokio present, and this module
     // uses `#[tokio::test]` throughout. A `static-embeddings`-only build (no
-    // `embeddings`, no `tokio-runtime`) would otherwise fail to compile this
-    // module even though it never reaches Plugin dispatch at runtime.
     #[cfg(feature = "tokio-runtime")]
     mod plugin_dispatch {
         use crate::plugins::embedding::{register_embedding_backend, unregister_embedding_backend};
@@ -1299,7 +1256,7 @@ mod tests {
             name: String,
             reported_dimensions: usize,
             vector_dimensions: usize,
-            response_count: Option<usize>, // None → one vector per input (correct); Some(n) → force n
+            response_count: Option<usize>,
             panic_on_embed: bool,
             fill_value: f32,
         }
@@ -1411,7 +1368,7 @@ mod tests {
                 name: name.clone(),
                 reported_dimensions: 3,
                 vector_dimensions: 3,
-                response_count: Some(2), // 2 vectors for 3 inputs
+                response_count: Some(2),
                 panic_on_embed: false,
                 fill_value: 0.0,
             }))
@@ -1434,7 +1391,7 @@ mod tests {
             register_embedding_backend(Arc::new(ConfigurableBackend {
                 name: name.clone(),
                 reported_dimensions: 4,
-                vector_dimensions: 5, // wrong
+                vector_dimensions: 5,
                 response_count: None,
                 panic_on_embed: false,
                 fill_value: 0.0,
@@ -1457,7 +1414,7 @@ mod tests {
                 reported_dimensions: 3,
                 vector_dimensions: 3,
                 response_count: None,
-                panic_on_embed: true, // flag now means "return Plugin error"
+                panic_on_embed: true,
                 fill_value: 0.0,
             }))
             .unwrap();
@@ -1471,8 +1428,6 @@ mod tests {
 
         #[test]
         fn empty_texts_short_circuits_before_backend_call() {
-            // No backend registered under this name — if we don't short-circuit,
-            // the dispatch would fail with a Plugin-not-registered error.
             let config = config_for("never-looked-up", false);
             let texts: Vec<&str> = vec![];
             let vectors = super::super::embed_texts(&texts, &config).unwrap();
@@ -1482,9 +1437,6 @@ mod tests {
         #[test]
         fn concurrent_registration_stress() {
             use std::thread;
-            // Stress-test the registry under concurrent registrations.
-            // 8 threads each register 10 uniquely-named backends. Assert final
-            // list() contains all 80 + each dispatch still resolves cleanly.
             let mut handles = Vec::new();
             let prefix = unique_name("stress");
             for t in 0..8 {
@@ -1512,12 +1464,10 @@ mod tests {
             let registered = list.iter().filter(|n| n.starts_with(&prefix)).count();
             assert_eq!(registered, 80, "expected 80 registrations, got {registered}");
 
-            // Dispatch should still resolve any of them.
             let sample = format!("{prefix}-t0-i0");
             let vectors = super::super::embed_texts(&["probe"], &config_for(&sample, false)).unwrap();
             assert_eq!(vectors.len(), 1);
 
-            // Clean up the 80 we created.
             for t in 0..8 {
                 for i in 0..10 {
                     let name = format!("{prefix}-t{t}-i{i}");
@@ -1563,7 +1513,6 @@ mod tests {
         #[tokio::test(flavor = "multi_thread")]
         async fn timeout_fires_when_backend_exceeds_duration() {
             let name = unique_name("timeout");
-            // Backend sleeps 2 seconds; timeout is 1 second.
             register_embedding_backend(Arc::new(SlowBackend {
                 name: name.clone(),
                 sleep_duration: std::time::Duration::from_secs(2),
@@ -1592,10 +1541,6 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread")]
         async fn async_dispatch_applies_normalization_when_enabled() {
-            // Complements normalization_applied_when_enabled (sync path): makes
-            // sure the async fast path calls normalize_embeddings too. Any
-            // refactor that drops the normalize step only on one path gets
-            // caught.
             let name = unique_name("async-normalize");
             register_embedding_backend(Arc::new(ConfigurableBackend {
                 name: name.clone(),
@@ -1603,7 +1548,7 @@ mod tests {
                 vector_dimensions: 2,
                 response_count: None,
                 panic_on_embed: false,
-                fill_value: 3.0, // non-unit-norm — must be normalized to unit length
+                fill_value: 3.0,
             }))
             .unwrap();
 
@@ -1623,12 +1568,6 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread")]
         async fn async_dispatch_smoke_test() {
-            // Smoke-test embed_texts_async for the Plugin variant — routes
-            // through the async fast path, returns the expected shape. A
-            // regression that silently re-routed Plugin through spawn_blocking
-            // would still pass this test (it only checks output); keep that
-            // stronger property enforced by code review + the normalize +
-            // timeout tests above.
             let name = unique_name("async-path");
             register_embedding_backend(Arc::new(ConfigurableBackend {
                 name: name.clone(),
@@ -1653,8 +1592,6 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread")]
         async fn disabled_timeout_allows_slow_backend_to_complete() {
-            // Complement to the timeout test: with None, a slow backend must
-            // still succeed (sleep under test threshold).
             let name = unique_name("no-timeout");
             register_embedding_backend(Arc::new(SlowBackend {
                 name: name.clone(),
@@ -1676,9 +1613,6 @@ mod tests {
 
         #[tokio::test(flavor = "multi_thread")]
         async fn zero_max_duration_treated_as_disabled() {
-            // `Some(0)` is a config nonsense value — a zero-duration timeout would
-            // fire before the backend ever runs. Dispatch should treat it as
-            // equivalent to `None` (no timeout) instead of erroring on every call.
             let name = unique_name("zero-timeout");
             register_embedding_backend(Arc::new(SlowBackend {
                 name: name.clone(),
@@ -1710,7 +1644,7 @@ mod tests {
                 vector_dimensions: 2,
                 response_count: None,
                 panic_on_embed: false,
-                fill_value: 3.0, // non-unit-norm input
+                fill_value: 3.0,
             }))
             .unwrap();
 
@@ -1725,8 +1659,6 @@ mod tests {
             unregister_embedding_backend(&name).unwrap();
         }
     }
-
-    // --- validate_embedding_shape direct tests ---------------------------
 
     #[test]
     fn validate_shape_accepts_correct_response() {

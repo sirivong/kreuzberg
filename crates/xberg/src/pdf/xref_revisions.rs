@@ -64,25 +64,21 @@ fn collect_startxref_offsets(content: &[u8]) -> Vec<usize> {
     let mut offsets: Vec<usize> = Vec::new();
     let len = content.len();
 
-    // Walk every `%%EOF` occurrence, collecting the startxref offset before each.
     let mut search_start = 0usize;
     while search_start < len {
         let Some(eof_pos) = find_subsequence(&content[search_start..], b"%%EOF").map(|p| p + search_start) else {
             break;
         };
 
-        // Search backwards from eof_pos for `startxref`.
         let window_start = eof_pos.saturating_sub(EOF_SCAN_WINDOW);
         let window = &content[window_start..eof_pos];
         if let Some(sx_rel) = find_last_subsequence(window, b"startxref") {
             let sx_abs = window_start + sx_rel;
-            // The offset follows `startxref\n` (or `startxref\r\n`).
             let after = sx_abs + b"startxref".len();
             if let Some(offset) = parse_decimal_after(content, after)
                 && offset < len
                 && !offsets.contains(&offset)
             {
-                // Only keep if offset points into the file and is new.
                 offsets.push(offset);
             }
         }
@@ -90,7 +86,6 @@ fn collect_startxref_offsets(content: &[u8]) -> Vec<usize> {
         search_start = eof_pos + b"%%EOF".len();
     }
 
-    // Sort oldest-first: smaller byte offsets are earlier xref sections.
     offsets.sort_unstable();
     offsets
 }
@@ -109,12 +104,10 @@ fn collect_prev_chain(content: &[u8], xref_offset: usize) -> Vec<usize> {
 
     loop {
         if seen.contains(&current) {
-            // Circular reference guard.
             break;
         }
         seen.push(current);
 
-        // Find the trailer dictionary after this xref section.
         let slice = &content[current..];
         let prev = extract_prev_from_trailer(slice);
         match prev {
@@ -130,7 +123,6 @@ fn collect_prev_chain(content: &[u8], xref_offset: usize) -> Vec<usize> {
         }
     }
 
-    // chain is newest-first (we followed /Prev backwards), reverse for oldest-first.
     chain.reverse();
     chain
 }
@@ -141,24 +133,19 @@ fn collect_prev_chain(content: &[u8], xref_offset: usize) -> Vec<usize> {
 /// Scans forward for the word `trailer` then looks for `/Prev` in the
 /// subsequent dictionary text.
 fn extract_prev_from_trailer(slice: &[u8]) -> Option<usize> {
-    // Find "trailer" keyword.
     let trailer_pos = find_subsequence(slice, b"trailer")?;
     let after_trailer = &slice[trailer_pos + b"trailer".len()..];
 
-    // Find the dictionary opening `<<`.
     let dict_start = find_subsequence(after_trailer, b"<<")?;
     let dict_slice = &after_trailer[dict_start..];
 
-    // Find the closing `>>`.
     let dict_end = find_subsequence(dict_slice, b">>")?;
     let dict_content = &dict_slice[..dict_end + 2];
 
-    // Search for `/Prev` key in the dictionary bytes.
     let prev_key = b"/Prev";
     let prev_pos = find_subsequence(dict_content, prev_key)?;
     let after_prev = &dict_content[prev_pos + prev_key.len()..];
 
-    // Skip whitespace and parse the integer.
     let trimmed = trim_leading_whitespace(after_prev);
     parse_decimal_value(trimmed)
 }
@@ -190,7 +177,6 @@ fn extract_lopdf_info_metadata(document: &lopdf::Document) -> (Option<String>, O
 
     let author = info_dict.get(b"Author").ok().and_then(extract_lopdf_string);
 
-    // Prefer ModDate; fall back to CreationDate.
     let timestamp = info_dict
         .get(b"ModDate")
         .ok()
@@ -206,7 +192,6 @@ fn extract_lopdf_string(obj: &lopdf::Object) -> Option<String> {
     use lopdf::Object;
     match obj {
         Object::String(bytes, _) => {
-            // Handle UTF-16BE BOM.
             if bytes.len() >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF {
                 let u16s: Vec<u16> = bytes[2..]
                     .chunks_exact(2)
@@ -258,8 +243,6 @@ fn parse_pdf_date_string(raw: &str) -> String {
     }
 }
 
-// ── Low-level byte utilities ──────────────────────────────────────────────────
-
 /// Find the first occurrence of `needle` in `haystack`. Returns the byte position.
 fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     haystack.windows(needle.len()).position(|window| window == needle)
@@ -299,8 +282,6 @@ fn parse_decimal_after(content: &[u8], after: usize) -> Option<usize> {
     parse_decimal_value(&content[after.min(content.len())..])
 }
 
-// ── Public entry point ────────────────────────────────────────────────────────
-
 /// Extract `DocumentRevision` entries from the incremental-update xref chain in `content`.
 ///
 /// Returns `None` for single-save PDFs (no `/Prev` in the trailer). Returns
@@ -319,9 +300,6 @@ fn parse_decimal_after(content: &[u8], after: usize) -> Option<usize> {
 /// - `anchor`: `None` — whole-file revisions have no paragraph-level anchor.
 /// - `delta`: [`RevisionDelta::default()`] — per-revision content extraction deferred.
 pub(crate) fn extract_pdf_xref_revisions(content: &[u8], document: &lopdf::Document) -> Option<Vec<DocumentRevision>> {
-    // Walk the /Prev chain from the document's (merged) trailer. After load_mem the
-    // /Prev key is consumed, but xref_start points to the final xref offset. We use
-    // that as the chain head and follow /Prev through the raw bytes.
     let final_offset = document.xref_start;
     let historical_offsets = collect_prev_chain(content, final_offset);
 
@@ -347,13 +325,9 @@ pub(crate) fn extract_pdf_xref_revisions(content: &[u8], document: &lopdf::Docum
     if revisions.is_empty() { None } else { Some(revisions) }
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    // ── Minimal PDF construction helpers ─────────────────────────────────────
 
     /// Build a valid minimal single-page PDF as bytes.
     ///
@@ -391,7 +365,6 @@ mod tests {
 
         let xref_offset = buf.len();
 
-        // xref table
         buf.extend_from_slice(b"xref\n");
         buf.extend_from_slice(b"0 4\n");
         buf.extend_from_slice(b"0000000000 65535 f \n");
@@ -399,10 +372,8 @@ mod tests {
         buf.extend_from_slice(format!("{:010} 00000 n \n", obj2_offset).as_bytes());
         buf.extend_from_slice(format!("{:010} 00000 n \n", obj3_offset).as_bytes());
 
-        // trailer (no /Prev — single save)
         buf.extend_from_slice(b"trailer\n<</Size 4 /Root 1 0 R>>\n");
 
-        // startxref + %%EOF
         buf.extend_from_slice(format!("startxref\n{}\n%%EOF\n", xref_offset).as_bytes());
 
         buf
@@ -441,8 +412,6 @@ mod tests {
         buf
     }
 
-    // ── Helper: find xref_offset from a minimal single-save PDF ──────────────
-
     /// Parse the xref offset from `startxref\n<N>\n%%EOF` at end of `bytes`.
     fn parse_last_startxref(bytes: &[u8]) -> usize {
         let len = bytes.len();
@@ -451,8 +420,6 @@ mod tests {
         let after = sx + b"startxref".len();
         parse_decimal_value(trim_leading_whitespace(&window[after..])).expect("no offset")
     }
-
-    // ── Unit tests: byte utilities ────────────────────────────────────────────
 
     #[test]
     fn should_find_subsequence_at_start() {
@@ -489,8 +456,6 @@ mod tests {
         assert_eq!(parse_decimal_value(b"abc"), None);
     }
 
-    // ── Unit tests: date parsing ──────────────────────────────────────────────
-
     #[test]
     fn should_parse_pdf_date_with_d_prefix_and_full_timestamp() {
         assert_eq!(parse_pdf_date_string("D:20240315103045"), "2024-03-15T10:30:45Z");
@@ -511,8 +476,6 @@ mod tests {
         assert_eq!(parse_pdf_date_string("bad"), "bad");
     }
 
-    // ── Unit tests: trailer /Prev extraction ─────────────────────────────────
-
     #[test]
     fn should_extract_prev_from_trailer_with_prev_key() {
         let trailer = b"trailer\n<</Size 5 /Root 1 0 R /Prev 100>>\nstartxref\n";
@@ -530,8 +493,6 @@ mod tests {
         let slice = b"not a trailer at all";
         assert_eq!(extract_prev_from_trailer(slice), None);
     }
-
-    // ── Unit tests: startxref offset collection ───────────────────────────────
 
     #[test]
     fn should_collect_one_startxref_offset_from_single_save_pdf() {
@@ -557,8 +518,6 @@ mod tests {
             offsets
         );
     }
-
-    // ── Integration tests: extract_pdf_xref_revisions ────────────────────────
 
     /// A single-save PDF has no /Prev chain → revisions must be None.
     #[test]
@@ -674,15 +633,12 @@ mod tests {
     fn should_surface_author_and_timestamp_from_info_dict() {
         use lopdf::{Dictionary, Document, Object, ObjectId};
 
-        // Build a two-revision PDF, then inject an /Info dict into it via lopdf.
         let base = build_minimal_pdf();
         let base_xref = parse_last_startxref(&base);
         let pdf_bytes = build_incremental_pdf(&base, base_xref);
 
-        // Build the lopdf document the extractor would use.
         let mut doc = Document::load_mem(&pdf_bytes).expect("lopdf must parse incremental PDF");
 
-        // Add an /Info dictionary.
         let mut info = Dictionary::new();
         info.set(
             "Author",

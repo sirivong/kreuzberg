@@ -17,45 +17,29 @@ use super::strategy::{TokenCounter, apply_strategy};
 /// Run pattern redaction (and optional NER-driven redaction) over `result` and
 /// rewrite every textual field. Populates `result.redaction_report`.
 pub async fn redact(result: &mut ExtractedDocument, config: &RedactionConfig) -> Result<()> {
-    // Validate user-supplied terms/patterns up front so the engine never tries to
-    // compile a malformed regex mid-pipeline.
     config.validate()?;
     let active_categories = active_categories(config);
-    // Compile every user-supplied term + pattern ONCE here so chunk / formatted /
-    // entity scans reuse the same regex objects — avoids O(chunks × terms)
-    // compilations on long documents.
     let custom_regexes = compile_custom(config);
 
-    // 1. Pattern-engine matches on the original content.
     let categories_vec: Vec<PiiCategory> = active_categories.iter().cloned().collect();
     let mut matches = scan_text(&result.content, &categories_vec);
 
-    // 1b. User-supplied literal terms and regex patterns.
     matches.extend(scan_custom(&result.content, &custom_regexes));
 
-    // 2. Optional NER matches for Person / Organization / Location.
     #[cfg(feature = "ner")]
     if let Some(ner_config) = &config.ner {
         let ner_matches = collect_ner_matches(&result.content, ner_config, &active_categories).await?;
         matches.extend(ner_matches);
     }
-    // Suppress unused-binding warning when `ner` is off (we still read the field for offset
-    // computations elsewhere on Late stage callers).
     #[cfg(not(feature = "ner"))]
     let _ = &active_categories;
 
-    // 3. Filter to only the configured categories (if any were specified).
-    //    Custom-category hits (`custom_terms` / `custom_patterns`) are always
-    //    retained — the user added them explicitly, the category filter is for
-    //    pruning the engine's built-in detectors.
     if !config.categories.is_empty() {
         matches.retain(|m| matches!(m.category, PiiCategory::Custom(_)) || config.categories.contains(&m.category));
     }
 
-    // 4. Resolve overlaps: prefer earlier match; if equal start, prefer longer span.
     let matches = dedupe_overlaps(matches);
 
-    // Build findings before rewriting (so offsets refer to the original content).
     let mut counter = TokenCounter::new();
     let mut findings: Vec<RedactionFinding> = Vec::with_capacity(matches.len());
     for m in &matches {
@@ -69,14 +53,9 @@ pub async fn redact(result: &mut ExtractedDocument, config: &RedactionConfig) ->
         });
     }
 
-    // 5. Rewrite content: apply replacements in reverse order so byte offsets
-    // stay valid for earlier matches.
     let new_content = apply_replacements_reverse(&result.content, &matches, &findings);
     let original_content = std::mem::replace(&mut result.content, new_content);
 
-    // 6. Rewrite formatted_content with the same content-substitution map.
-    //    formatted_content uses different offsets from `content`, so we rescan it
-    //    rather than reuse `matches`.
     if let Some(formatted) = result.formatted_content.as_ref() {
         let formatted_matches = build_matches_for(formatted, &categories_vec, config, &custom_regexes);
         let formatted_findings: Vec<RedactionFinding> = formatted_matches
@@ -96,7 +75,6 @@ pub async fn redact(result: &mut ExtractedDocument, config: &RedactionConfig) ->
         result.formatted_content = Some(rewritten);
     }
 
-    // 7. Rewrite each chunk.
     if let Some(chunks) = result.chunks.as_mut() {
         for chunk in chunks.iter_mut() {
             let chunk_matches = build_matches_for(&chunk.content, &categories_vec, config, &custom_regexes);
@@ -122,9 +100,6 @@ pub async fn redact(result: &mut ExtractedDocument, config: &RedactionConfig) ->
             chunk.content = rewritten;
 
             if config.preserve_offsets {
-                // Shift `byte_end` to track the rewrite. `byte_start` is the
-                // anchor in the original document and stays put unless the
-                // shift makes the range invalid.
                 let delta = new_len as isize - original_len as isize;
                 let new_end = (chunk.metadata.byte_end as isize + delta).max(chunk.metadata.byte_start as isize);
                 chunk.metadata.byte_end = new_end as usize;
@@ -132,19 +107,16 @@ pub async fn redact(result: &mut ExtractedDocument, config: &RedactionConfig) ->
         }
     }
 
-    // 8. Rewrite NER entity text (if any).
     if let Some(entities) = result.entities.as_mut() {
         for entity in entities.iter_mut() {
             entity.text = redact_string(&entity.text, &categories_vec, config, &custom_regexes, &mut counter);
         }
     }
 
-    // 9. Rewrite summary text.
     if let Some(summary) = result.summary.as_mut() {
         summary.text = redact_string(&summary.text, &categories_vec, config, &custom_regexes, &mut counter);
     }
 
-    // 10. Rewrite translation body + formatted markup.
     if let Some(translation) = result.translation.as_mut() {
         translation.content = redact_string(
             &translation.content,
@@ -158,8 +130,6 @@ pub async fn redact(result: &mut ExtractedDocument, config: &RedactionConfig) ->
         }
     }
 
-    // 11. Rewrite page classification labels — labels are configured strings, so
-    // redacting them rarely fires, but Custom categories may match.
     if let Some(pages) = result.page_classifications.as_mut() {
         for page in pages.iter_mut() {
             for label in page.labels.iter_mut() {
@@ -168,21 +138,14 @@ pub async fn redact(result: &mut ExtractedDocument, config: &RedactionConfig) ->
         }
     }
 
-    // 11b. Walk every remaining text-bearing field. Redaction previously
-    // rewrote only content/formatted_content/chunks/entities/summary/translation
-    // and left ~12 serialized fields carrying the original PII while the report
-    // claimed success (xberg-io/xberg#1223). Every field a consumer can read
-    // must be masked, or the report is a lie.
     redact_secondary_text_fields(result, &categories_vec, config, &custom_regexes, &mut counter);
 
-    // 12. Populate redaction_report.
     let total = findings.len() as u32;
     result.redaction_report = Some(RedactionReport {
         findings,
         total_redacted: total,
     });
 
-    // Drop the original_content explicitly so the compiler can't keep it alive.
     drop(original_content);
 
     Ok(())
@@ -296,7 +259,6 @@ fn apply_replacements_reverse(text: &str, matches: &[PatternMatch], findings: &[
     debug_assert_eq!(matches.len(), findings.len());
     let mut out = text.to_string();
     for (m, finding) in matches.iter().zip(findings.iter()).rev() {
-        // Guard against out-of-range or non-UTF-8-boundary spans.
         if m.start <= m.end && m.end <= out.len() && out.is_char_boundary(m.start) && out.is_char_boundary(m.end) {
             out.replace_range(m.start..m.end, &finding.replacement_token);
         }
@@ -409,7 +371,6 @@ fn redact_secondary_text_fields(
         };
     }
 
-    // Top-level tables.
     for table in doc.tables.iter_mut() {
         for row in table.cells.iter_mut() {
             for cell in row.iter_mut() {
@@ -419,7 +380,6 @@ fn redact_secondary_text_fields(
         rd!(table.markdown);
     }
 
-    // Per-page content and per-page tables (Arc-shared, so make_mut to write).
     if let Some(pages) = doc.pages.as_mut() {
         for page in pages.iter_mut() {
             rd!(page.content);
@@ -435,26 +395,22 @@ fn redact_secondary_text_fields(
         }
     }
 
-    // Element stream.
     if let Some(elements) = doc.elements.as_mut() {
         for el in elements.iter_mut() {
             rd!(el.text);
         }
     }
 
-    // OCR elements.
     if let Some(ocr_elements) = doc.ocr_elements.as_mut() {
         for el in ocr_elements.iter_mut() {
             rd!(el.text);
         }
     }
 
-    // Djot plain-text projection.
     if let Some(djot) = doc.djot_content.as_mut() {
         rd!(djot.plain_text);
     }
 
-    // Images: captions, descriptions, and nested OCR sub-documents.
     if let Some(images) = doc.images.as_mut() {
         for image in images.iter_mut() {
             rd_opt!(image.caption);
@@ -466,8 +422,6 @@ fn redact_secondary_text_fields(
         }
     }
 
-    // Hyperlinks and their labels — Email is an always-on category, so the very
-    // addresses redaction claims to remove were being returned here verbatim.
     if let Some(uris) = doc.uris.as_mut() {
         for uri in uris.iter_mut() {
             rd!(uri.url);
@@ -475,15 +429,12 @@ fn redact_secondary_text_fields(
         }
     }
 
-    // PDF annotation / comment text.
     if let Some(annotations) = doc.annotations.as_mut() {
         for annotation in annotations.iter_mut() {
             rd_opt!(annotation.content);
         }
     }
 
-    // Interactive form field values — the canonical PII surface on filled
-    // tax / medical / loan forms.
     for field in doc.form_fields.iter_mut() {
         rd!(field.name);
         rd_opt!(field.value);
@@ -491,7 +442,6 @@ fn redact_secondary_text_fields(
         rd_opt!(field.tooltip);
     }
 
-    // Derived keyword text.
     #[cfg(any(feature = "keywords-yake", feature = "keywords-rake"))]
     if let Some(keywords) = doc.extracted_keywords.as_mut() {
         for kw in keywords.iter_mut() {
@@ -499,7 +449,6 @@ fn redact_secondary_text_fields(
         }
     }
 
-    // Document metadata.
     rd_opt!(doc.metadata.title);
     rd_opt!(doc.metadata.subject);
     if let Some(authors) = doc.metadata.authors.as_mut() {
@@ -513,7 +462,6 @@ fn redact_secondary_text_fields(
         }
     }
 
-    // LLM-distilled structured output and code-intelligence JSON.
     if let Some(structured) = doc.structured_output.as_mut() {
         redact_json_value(structured, categories, config, custom_regexes, counter);
     }
@@ -733,7 +681,6 @@ mod tests {
         let config = RedactionConfig::default();
         redact(&mut doc, &config).await.expect("redaction must succeed");
 
-        // Everything the extractor returns must be clean.
         let mut leaks: Vec<&str> = Vec::new();
         if doc.content.contains(email) {
             leaks.push("content");

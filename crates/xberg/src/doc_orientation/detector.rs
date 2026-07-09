@@ -25,8 +25,6 @@ const HF_REPO_ID: &str = "xberg-io/paddleocr-onnx-models";
 const REMOTE_FILENAME: &str = "v2/classifiers/PP-LCNet_x1_0_doc_ori.onnx";
 const SHA256: &str = "6b742aebce6f0f7f71f747931ac7becfc7c96c51641e14943b291eeb334e7947";
 
-// PP-LCNet preprocessing constants.
-// Input: resize short side to 256, center crop 224×224, ImageNet normalize (BGR).
 const INPUT_SIZE: u32 = 224;
 const RESIZE_SHORT: u32 = 256;
 
@@ -68,18 +66,14 @@ impl DocOrientationDetector {
     pub(crate) fn detect(&self, image: &RgbImage) -> Result<OrientationResult> {
         let session = self.get_or_init_session()?;
 
-        // Preprocess: resize short side to 256, center crop 224×224
         let preprocessed = preprocess(image);
 
-        // Build input tensor: [1, 3, 224, 224]
         let input_tensor = normalize(&preprocessed);
         let tensor = Tensor::from_array(input_tensor).map_err(|e| XbergError::Ocr {
             message: format!("Failed to create doc_ori input tensor: {e}"),
             source: None,
         })?;
 
-        // SAFETY: ONNX Runtime C API is thread-safe for concurrent inference.
-        // The ort crate's &mut self on Session::run is overly conservative.
         #[allow(unsafe_code)]
         let outputs = unsafe {
             let session_ptr = session as *const Session as *mut Session;
@@ -90,7 +84,6 @@ impl DocOrientationDetector {
             source: None,
         })?;
 
-        // Parse output: argmax over 4 orientation classes
         let (_, output_value) = outputs.iter().next().ok_or_else(|| XbergError::Ocr {
             message: "No output from doc orientation model".to_string(),
             source: None,
@@ -105,7 +98,6 @@ impl DocOrientationDetector {
             .1
             .to_vec();
 
-        // Softmax + argmax
         let max_score = scores.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let exp_scores: Vec<f32> = scores.iter().map(|&s| (s - max_score).exp()).collect();
         let sum_exp: f32 = exp_scores.iter().sum();
@@ -231,7 +223,6 @@ pub(crate) fn detect_and_rotate(detector: &DocOrientationDetector, image_bytes: 
         return Ok(None);
     }
 
-    // Rotate the image back to upright (opposite direction of detected orientation).
     let rotated = match result.degrees {
         90 => image::imageops::rotate270(&img),
         180 => image::imageops::rotate180(&img),
@@ -239,7 +230,6 @@ pub(crate) fn detect_and_rotate(detector: &DocOrientationDetector, image_bytes: 
         _ => return Ok(None),
     };
 
-    // Encode back to PNG bytes
     let mut buf = std::io::Cursor::new(Vec::new());
     rotated
         .write_to(&mut buf, image::ImageFormat::Png)
@@ -261,7 +251,6 @@ pub(crate) fn detect_and_rotate(detector: &DocOrientationDetector, image_bytes: 
 fn preprocess(image: &RgbImage) -> RgbImage {
     let (w, h) = (image.width(), image.height());
 
-    // Resize: scale so short side = RESIZE_SHORT
     let (new_w, new_h) = if w < h {
         let scale = RESIZE_SHORT as f32 / w as f32;
         (RESIZE_SHORT, (h as f32 * scale).round() as u32)
@@ -272,7 +261,6 @@ fn preprocess(image: &RgbImage) -> RgbImage {
 
     let resized = image::imageops::resize(image, new_w, new_h, image::imageops::FilterType::Triangle);
 
-    // Center crop to INPUT_SIZE × INPUT_SIZE
     let x_offset = (new_w.saturating_sub(INPUT_SIZE)) / 2;
     let y_offset = (new_h.saturating_sub(INPUT_SIZE)) / 2;
     let crop_w = INPUT_SIZE.min(new_w);
@@ -287,7 +275,6 @@ fn normalize(image: &RgbImage) -> ndarray::Array4<f32> {
     let (w, h) = (image.width() as usize, image.height() as usize);
     let mut tensor = ndarray::Array4::<f32>::zeros((1, 3, h, w));
 
-    // ImageNet mean/std for BGR order (swap R and B)
     const BGR_MEAN: [f32; 3] = [0.406 * 255.0, 0.456 * 255.0, 0.485 * 255.0];
     const BGR_NORM: [f32; 3] = [1.0 / (0.225 * 255.0), 1.0 / (0.224 * 255.0), 1.0 / (0.229 * 255.0)];
 
@@ -297,7 +284,6 @@ fn normalize(image: &RgbImage) -> ndarray::Array4<f32> {
             let r = pixel[0] as f32;
             let g = pixel[1] as f32;
             let b = pixel[2] as f32;
-            // BGR order: channel 0 = Blue, channel 1 = Green, channel 2 = Red
             tensor[[0, 0, y, x]] = (b - BGR_MEAN[0]) * BGR_NORM[0];
             tensor[[0, 1, y, x]] = (g - BGR_MEAN[1]) * BGR_NORM[1];
             tensor[[0, 2, y, x]] = (r - BGR_MEAN[2]) * BGR_NORM[2];

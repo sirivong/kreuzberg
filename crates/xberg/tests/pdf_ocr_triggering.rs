@@ -5,7 +5,6 @@
 
 #![cfg(any())]
 
-// Original content preserved below; recompiled once gating cfg drops.
 // Disabled by the file-level cfg(any()) above.
 
 /*

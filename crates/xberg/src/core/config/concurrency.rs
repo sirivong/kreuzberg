@@ -81,18 +81,12 @@ pub(crate) fn resolve_thread_budget(config: Option<&ConcurrencyConfig>) -> usize
 /// assert!(layout <= plain);
 /// assert!(layout >= 1);
 /// ```
-// Sole non-test caller is `collect_batch` (batch.rs), which is gated on `tokio-runtime`.
-// Under `--no-default-features` that caller is compiled out, so relax the `-D warnings`
-// dead-code lint for exactly that config; the fn stays compiled for tests and all
-// feature-enabled builds.
 #[cfg_attr(not(feature = "tokio-runtime"), allow(dead_code))]
 pub(crate) fn resolve_batch_concurrency(config: Option<&ConcurrencyConfig>, layout_active: bool) -> usize {
     let budget = resolve_thread_budget(config);
     if !layout_active {
         return budget;
     }
-    // Each concurrent layout extraction uses `budget` intra-op threads. Bound the
-    // product `concurrency × budget` by the core count to avoid oversubscription.
     let cores = num_cpus::get().max(1);
     (cores / budget.max(1)).max(1).min(budget)
 }
@@ -114,14 +108,6 @@ pub(crate) fn init_thread_pools(budget: usize) {
     POOL_INIT.call_once(|| {
         #[cfg(not(target_arch = "wasm32"))]
         if let Err(_err) = rayon::ThreadPoolBuilder::new().num_threads(budget).build_global() {
-            // The global Rayon pool is already initialized — typically because the host
-            // application (or another library) built it first, e.g. by calling
-            // `rayon::ThreadPoolBuilder::new()...build_global()` before invoking xberg.
-            // In that case xberg runs its parallel work on the existing (externally
-            // provided) pool rather than silently failing. We surface this at debug level
-            // instead of swallowing the error with `.ok()`. The configured `budget` only
-            // takes effect when xberg wins the race and owns the global pool; a host
-            // that wants a specific pool size should build the global pool itself first.
             tracing::debug!(
                 budget,
                 "global rayon pool already initialized; reusing the existing pool \
@@ -166,13 +152,11 @@ mod tests {
 
     #[test]
     fn test_batch_concurrency_without_layout_equals_budget() {
-        // No layout: concurrency is the full thread budget.
         assert_eq!(resolve_batch_concurrency(None, false), resolve_thread_budget(None));
     }
 
     #[test]
     fn test_batch_concurrency_with_layout_does_not_exceed_no_layout() {
-        // Layout must never raise concurrency above the plain budget, and stays >= 1.
         let plain = resolve_batch_concurrency(None, false);
         let layout = resolve_batch_concurrency(None, true);
         assert!(layout >= 1);
@@ -181,8 +165,6 @@ mod tests {
 
     #[test]
     fn test_batch_concurrency_with_layout_bounds_thread_product() {
-        // concurrency × intra-op threads must stay within the core count so the
-        // layout ONNX sessions do not oversubscribe the CPU.
         let config = ConcurrencyConfig { max_threads: Some(4) };
         let intra = resolve_thread_budget(Some(&config));
         let concurrency = resolve_batch_concurrency(Some(&config), true);
@@ -196,7 +178,6 @@ mod tests {
 
     #[test]
     fn test_init_thread_pools_idempotent() {
-        // Should not panic when called multiple times.
         init_thread_pools(2);
         init_thread_pools(4);
     }

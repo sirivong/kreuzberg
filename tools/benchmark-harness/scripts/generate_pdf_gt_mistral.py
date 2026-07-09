@@ -77,7 +77,6 @@ def call_mistral_ocr(pdf_path: str) -> str:
     resp.raise_for_status()
     data = resp.json()
 
-    # Extract markdown from pages
     pages = data.get("pages", [])
     if not pages:
         return ""
@@ -97,14 +96,13 @@ def find_fixtures_needing_gt() -> list[tuple[str, str, str]]:
         if gt is None:
             continue
         if gt.get("markdown_file"):
-            continue  # Already has MD GT
+            continue
 
         doc_path = data.get("document", "")
         pdf_path = str((f.parent / doc_path).resolve())
         if not Path(pdf_path).exists():
             continue
 
-        # Determine GT output path
         text_file = gt.get("text_file", "")
         if text_file:
             gt_md = text_file.rsplit(".", 1)[0] + ".md"
@@ -135,19 +133,15 @@ def process_fixture(fixture_path: str, pdf_path: str, gt_md_path: str, dry_run: 
             print("EMPTY")
             return False
 
-        # Sanitize
         from sanitize_pandoc_gt import sanitize
 
         markdown = sanitize(markdown)
 
-        # Write GT file
         Path(gt_md_path).parent.mkdir(parents=True, exist_ok=True)
         Path(gt_md_path).write_text(markdown)
 
-        # Update fixture JSON
         data = json.loads(Path(fixture_path).read_text())
         gt = data["ground_truth"]
-        # Compute relative path from fixture to GT
         rel_path = os.path.relpath(gt_md_path, Path(fixture_path).parent)
         gt["markdown_file"] = rel_path
         gt["source"] = "mistral-pixtral"
@@ -172,7 +166,6 @@ def main():
     load_env()
 
     if args.fixture:
-        # Process single fixture
         data = json.loads(Path(args.fixture).read_text())
         doc_path = data.get("document", "")
         pdf_path = str((Path(args.fixture).parent / doc_path).resolve())
@@ -186,7 +179,6 @@ def main():
         process_fixture(args.fixture, pdf_path, gt_md_path, dry_run=args.dry_run)
         return
 
-    # Process all fixtures needing GT
     fixtures = find_fixtures_needing_gt()
     print(f"Found {len(fixtures)} PDF fixtures needing markdown GT")
 

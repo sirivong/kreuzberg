@@ -20,25 +20,20 @@ where
 
     match value {
         serde_json::Value::String(s) => {
-            // Single string: split on "+" (Tesseract format) or treat as single language
             if s.contains('+') {
-                // Tesseract multi-language format: "eng+deu" -> vec!["eng", "deu"]
                 Ok(s.split('+').map(|l| l.to_string()).collect())
             } else {
-                // Single language: "eng" -> vec!["eng"]
                 Ok(vec![s])
             }
         }
-        serde_json::Value::Array(arr) => {
-            // Array of strings: deserialize directly
-            arr.into_iter()
-                .map(|v| {
-                    v.as_str()
-                        .map(String::from)
-                        .ok_or_else(|| Error::custom("each language must be a string"))
-                })
-                .collect()
-        }
+        serde_json::Value::Array(arr) => arr
+            .into_iter()
+            .map(|v| {
+                v.as_str()
+                    .map(String::from)
+                    .ok_or_else(|| Error::custom("each language must be a string"))
+            })
+            .collect(),
         _ => Err(Error::custom(
             "language must be a string (e.g., \"eng\") or an array of strings (e.g., [\"eng\", \"deu\"])",
         )),
@@ -449,7 +444,6 @@ impl Default for TesseractConfig {
     fn default() -> Self {
         Self {
             language: vec!["eng".to_string()],
-            // PSM_AUTO (3) hangs 60-90s on sparse/no-text images in WASM (issue #855)
             #[cfg(target_arch = "wasm32")]
             psm: 6,
             #[cfg(not(target_arch = "wasm32"))]

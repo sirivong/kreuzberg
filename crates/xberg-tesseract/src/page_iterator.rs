@@ -209,28 +209,18 @@ impl PageIterator {
         let level = TessPageIteratorLevel::RIL_BLOCK as c_int;
         let mut blocks = Vec::new();
 
-        // SAFETY: `*handle` is a valid non-null TessPageIterator pointer owned by this struct.
-        // `TessPageIteratorBegin` resets the iterator to the first element and takes only
-        // the pointer — no aliasing occurs because we hold the mutex for the duration.
         unsafe { TessPageIteratorBegin(*handle) };
 
         loop {
-            let block_type = unsafe {
-                // SAFETY: `*handle` is valid; TessPageIteratorBlockType reads the current
-                // iterator position and returns an integer enum value without taking ownership.
-                TessPageIteratorBlockType(*handle)
-            };
+            let block_type = unsafe { TessPageIteratorBlockType(*handle) };
 
             let mut left: c_int = 0;
             let mut top: c_int = 0;
             let mut right: c_int = 0;
             let mut bottom: c_int = 0;
 
-            let bbox_ok = unsafe {
-                // SAFETY: `*handle` is valid; the four `*mut c_int` pointers point to local
-                // stack variables whose lifetimes exceed this call.
-                TessPageIteratorBoundingBox(*handle, level, &mut left, &mut top, &mut right, &mut bottom)
-            };
+            let bbox_ok =
+                unsafe { TessPageIteratorBoundingBox(*handle, level, &mut left, &mut top, &mut right, &mut bottom) };
 
             if bbox_ok != 0 {
                 blocks.push(BlockInfo {
@@ -242,11 +232,7 @@ impl PageIterator {
                 });
             }
 
-            let has_next = unsafe {
-                // SAFETY: `*handle` is valid; TessPageIteratorNext advances the iterator
-                // in-place and returns 0 when there are no more elements at this level.
-                TessPageIteratorNext(*handle, level)
-            };
+            let has_next = unsafe { TessPageIteratorNext(*handle, level) };
             if has_next == 0 {
                 break;
             }
@@ -269,24 +255,15 @@ impl PageIterator {
         let level = TessPageIteratorLevel::RIL_PARA as c_int;
         let mut paragraphs = Vec::new();
 
-        // SAFETY: `*handle` is a valid non-null TessPageIterator pointer owned by this struct.
-        // `TessPageIteratorBegin` resets the iterator to the first element; the mutex ensures
-        // exclusive access for the entire loop.
         unsafe { TessPageIteratorBegin(*handle) };
 
         loop {
             let mut justification: c_int = 0;
-            // SAFETY: TessPageIteratorParagraphInfo expects BOOL* (int*) for is_list_item and
-            // is_crown. Rust bool is 1 byte while C int is 4 bytes, so we use c_int temporaries
-            // to avoid undefined behaviour (stack corruption) and convert afterwards.
             let mut is_list_item_raw: c_int = 0;
             let mut is_crown_raw: c_int = 0;
             let mut first_line_indent: c_int = 0;
 
             let para_ok = unsafe {
-                // SAFETY: `*handle` is valid; all output pointers reference stack variables
-                // whose lifetimes exceed this call. TessPageIteratorParagraphInfo writes
-                // through these pointers without retaining them.
                 TessPageIteratorParagraphInfo(
                     *handle,
                     &mut justification,
@@ -304,11 +281,8 @@ impl PageIterator {
             let mut right: c_int = 0;
             let mut bottom: c_int = 0;
 
-            let bbox_ok = unsafe {
-                // SAFETY: `*handle` is valid; the four `*mut c_int` pointers reference local
-                // stack variables. TessPageIteratorBoundingBox does not retain these pointers.
-                TessPageIteratorBoundingBox(*handle, level, &mut left, &mut top, &mut right, &mut bottom)
-            };
+            let bbox_ok =
+                unsafe { TessPageIteratorBoundingBox(*handle, level, &mut left, &mut top, &mut right, &mut bottom) };
 
             if para_ok != 0 && bbox_ok != 0 {
                 paragraphs.push(ParaInfo {
@@ -323,11 +297,7 @@ impl PageIterator {
                 });
             }
 
-            let has_next = unsafe {
-                // SAFETY: `*handle` is valid; TessPageIteratorNext advances the iterator
-                // in-place and returns 0 when there are no more elements at this level.
-                TessPageIteratorNext(*handle, level)
-            };
+            let has_next = unsafe { TessPageIteratorNext(*handle, level) };
             if has_next == 0 {
                 break;
             }
@@ -343,9 +313,6 @@ impl PageIterator {
     /// Returns the paragraph information as a tuple if successful, otherwise returns an error.
     pub fn paragraph_info(&self) -> Result<(TessParagraphJustification, bool, bool, i32)> {
         let mut justification = 0;
-        // SAFETY: TessPageIteratorParagraphInfo expects BOOL* (int*) for is_list_item and
-        // is_crown. Rust bool is 1 byte while C int is 4 bytes, so we use c_int temporaries
-        // to avoid undefined behaviour (stack corruption) and convert afterwards.
         let mut is_list_item_raw: c_int = 0;
         let mut is_crown_raw: c_int = 0;
         let mut first_line_indent = 0;

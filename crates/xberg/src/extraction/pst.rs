@@ -60,7 +60,6 @@ use std::rc::Rc;
 pub(crate) fn extract_pst_messages(pst_data: &[u8]) -> Result<(Vec<EmailExtractionResult>, Vec<ProcessingWarning>)> {
     use std::io::Write;
 
-    // open_store requires a file path, so we write to a uniquely-named temp file
     let mut temp_file = tempfile::Builder::new()
         .prefix("xberg_pst_")
         .suffix(".tmp")
@@ -116,7 +115,6 @@ fn extract_from_path(path: &std::path::Path) -> Result<(Vec<EmailExtractionResul
         Err(_) => return Ok((messages, warnings)),
     };
 
-    // Iterative depth-first traversal to avoid deep recursion
     let mut folder_stack: Vec<(Rc<dyn PstFolder>, u32)> = vec![(root_folder, 0)];
 
     while let Some((folder, depth)) = folder_stack.pop() {
@@ -124,7 +122,6 @@ fn extract_from_path(path: &std::path::Path) -> Result<(Vec<EmailExtractionResul
             continue;
         }
 
-        // Extract messages from this folder's contents table
         if let Some(contents) = folder.contents_table() {
             let ids: Vec<u32> = contents.rows_matrix().map(|r| u32::from(r.id())).collect();
             for id in ids {
@@ -156,7 +153,6 @@ fn extract_from_path(path: &std::path::Path) -> Result<(Vec<EmailExtractionResul
             }
         }
 
-        // Queue sub-folders from the hierarchy table
         if let Some(hierarchy) = folder.hierarchy_table() {
             let ids: Vec<u32> = hierarchy.rows_matrix().map(|r| u32::from(r.id())).collect();
             for id in ids {
@@ -193,13 +189,13 @@ fn extract_from_path(path: &std::path::Path) -> Result<(Vec<EmailExtractionResul
 fn extract_message_content(message: &dyn PstMessage, entry_id: &EntryId) -> EmailExtractionResult {
     let props = message.properties();
 
-    let subject = get_str_prop(props, 0x0037); // PR_SUBJECT
-    let sender_name = get_str_prop(props, 0x0C1A); // PR_SENDER_NAME
-    let sender_email = get_str_prop(props, 0x0C1F); // PR_SENDER_EMAIL_ADDRESS
+    let subject = get_str_prop(props, 0x0037);
+    let sender_name = get_str_prop(props, 0x0C1A);
+    let sender_email = get_str_prop(props, 0x0C1F);
     let from_email = sender_email.or(sender_name);
 
-    let plain_text = get_str_prop(props, 0x1000); // PR_BODY
-    let html_content = get_str_prop(props, 0x1013); // PR_HTML (handles String or Binary via prop_value_to_string)
+    let plain_text = get_str_prop(props, 0x1000);
+    let html_content = get_str_prop(props, 0x1013);
 
     let content = plain_text.clone().or_else(|| html_content.clone()).unwrap_or_default();
 
@@ -211,7 +207,6 @@ fn extract_message_content(message: &dyn PstMessage, entry_id: &EntryId) -> Emai
         }
     });
 
-    // Build MAPI EntryID hex string: 4 zero bytes (flags) + 16-byte record_key + 4-byte node_id LE
     let record_key = entry_id.record_key();
     let node_id_bytes = u32::from(entry_id.node_id()).to_le_bytes();
     let entry_id_hex: String = std::iter::repeat_n(0u8, 4)
@@ -220,7 +215,6 @@ fn extract_message_content(message: &dyn PstMessage, entry_id: &EntryId) -> Emai
         .map(|b| format!("{b:02X}"))
         .collect();
 
-    // Extract recipients from the recipient table
     let mut to_emails: Vec<String> = Vec::new();
     let mut cc_emails: Vec<String> = Vec::new();
     let mut bcc_emails: Vec<String> = Vec::new();
@@ -234,7 +228,7 @@ fn extract_message_content(message: &dyn PstMessage, entry_id: &EntryId) -> Emai
                 continue;
             };
 
-            let mut recipient_type: i32 = 1; // default: TO
+            let mut recipient_type: i32 = 1;
             let mut display_name: Option<String> = None;
             let mut smtp_email: Option<String> = None;
 
@@ -248,20 +242,16 @@ fn extract_message_content(message: &dyn PstMessage, entry_id: &EntryId) -> Emai
 
                 match prop_id {
                     0x0C15 => {
-                        // PR_RECIPIENT_TYPE
                         if let PropertyValue::Integer32(v) = value {
                             recipient_type = v;
                         }
                     }
                     0x3001 => {
-                        // PR_DISPLAY_NAME
                         display_name = prop_value_to_string(&value);
                     }
-                    0x39FE | 0x3003
-                        // PR_SMTP_ADDRESS / PR_EMAIL_ADDRESS
-                        if smtp_email.is_none() => {
-                            smtp_email = prop_value_to_string(&value);
-                        }
+                    0x39FE | 0x3003 if smtp_email.is_none() => {
+                        smtp_email = prop_value_to_string(&value);
+                    }
                     _ => {}
                 }
             }
@@ -271,9 +261,9 @@ fn extract_message_content(message: &dyn PstMessage, entry_id: &EntryId) -> Emai
                 continue;
             }
             match recipient_type {
-                1 => to_emails.push(recipient),  // MAPI_TO
-                2 => cc_emails.push(recipient),  // MAPI_CC
-                3 => bcc_emails.push(recipient), // MAPI_BCC
+                1 => to_emails.push(recipient),
+                2 => cc_emails.push(recipient),
+                3 => bcc_emails.push(recipient),
                 _ => {
                     tracing::warn!(recipient_type, "Unknown MAPI recipient type; skipping recipient");
                 }
@@ -281,7 +271,6 @@ fn extract_message_content(message: &dyn PstMessage, entry_id: &EntryId) -> Emai
         }
     }
 
-    // Extract attachments from the attachment table
     let mut attachments: Vec<EmailAttachment> = Vec::new();
 
     if let Some(attach_table) = message.attachment_table() {
@@ -306,10 +295,9 @@ fn extract_message_content(message: &dyn PstMessage, entry_id: &EntryId) -> Emai
                 };
 
                 match prop_id {
-                    0x3707 => long_filename = prop_value_to_string(&value), // PR_ATTACH_LONG_FILENAME
-                    0x3704 => short_filename = prop_value_to_string(&value), // PR_ATTACH_FILENAME
+                    0x3707 => long_filename = prop_value_to_string(&value),
+                    0x3704 => short_filename = prop_value_to_string(&value),
                     0x3701 => {
-                        // PR_ATTACH_DATA_BINARY
                         if let PropertyValue::Binary(v) = value {
                             attach_data = Some(v.buffer().to_vec());
                         }
@@ -374,7 +362,6 @@ fn prop_value_to_string(value: &PropertyValue) -> Option<String> {
 fn windows_filetime_to_string(filetime: i64) -> String {
     use chrono::DateTime;
 
-    // 100-nanosecond intervals between 1601-01-01 and 1970-01-01
     const EPOCH_DIFF_100NS: i64 = 116_444_736_000_000_000;
     if filetime < EPOCH_DIFF_100NS {
         return format!("(invalid timestamp: {})", filetime);
@@ -406,24 +393,18 @@ mod tests {
         ndb::node_id::NodeId,
     };
 
-    // ── EntryID format ───────────────────────────────────────────────────────
-
     /// Regression test for issue #764: entry_id must be the MAPI hex format,
     /// not the Rust Debug representation of the EntryId struct.
     #[test]
     fn test_entry_id_hex_format_issue_764() {
-        // 16-byte record_key (store UID), all distinct so we can verify ordering
         let record_key_bytes: [u8; 16] = [
             0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10,
         ];
         let record_key = StoreRecordKey::new(record_key_bytes);
 
-        // Build a NormalMessage node_id with index = 1
-        // NodeId bits: index<<5 | nid_type; NormalMessage = 0x04
         let node_id = NodeId::from(0x04 | (1u32 << 5));
         let entry_id = EntryId::new(record_key, node_id);
 
-        // Reconstruct the expected hex manually
         let node_id_u32 = u32::from(entry_id.node_id());
         let node_id_le = node_id_u32.to_le_bytes();
         let expected: String = std::iter::repeat_n(0u8, 4)
@@ -432,23 +413,17 @@ mod tests {
             .map(|b| format!("{b:02X}"))
             .collect();
 
-        // Must be 48 hex chars (24 bytes)
         assert_eq!(expected.len(), 48, "MAPI EntryID must be 48 hex chars");
 
-        // Must start with 8 zeros (4 zero bytes = rgbFlags)
         assert!(expected.starts_with("00000000"), "EntryID must start with 00000000");
 
-        // Must NOT contain Debug-style syntax
         assert!(!expected.contains("EntryId"), "must not be Debug representation");
         assert!(!expected.contains("record_key"), "must not be Debug representation");
         assert!(!expected.contains('{'), "must not be Debug representation");
     }
 
-    // ── FILETIME conversion ──────────────────────────────────────────────────
-
     #[test]
     fn test_filetime_known_epoch() {
-        // FILETIME for 1970-01-01T00:00:00Z is exactly EPOCH_DIFF_100NS
         let filetime: i64 = 116_444_736_000_000_000;
         let result = windows_filetime_to_string(filetime);
         assert_eq!(result, "1970-01-01T00:00:00Z");
@@ -456,9 +431,6 @@ mod tests {
 
     #[test]
     fn test_filetime_known_date() {
-        // 2024-03-15T12:00:00Z as FILETIME
-        // seconds since 1970: 1710504000
-        // filetime = 1710504000 * 10_000_000 + 116_444_736_000_000_000 = 133_549_776_000_000_000
         let filetime: i64 = 133_549_776_000_000_000;
         let result = windows_filetime_to_string(filetime);
         assert_eq!(result, "2024-03-15T12:00:00Z");
@@ -466,7 +438,6 @@ mod tests {
 
     #[test]
     fn test_filetime_before_unix_epoch_is_invalid() {
-        // Any filetime less than EPOCH_DIFF_100NS represents a date before 1970-01-01
         let filetime: i64 = 116_444_735_999_999_999;
         let result = windows_filetime_to_string(filetime);
         assert!(result.starts_with("(invalid timestamp:"));
@@ -477,10 +448,6 @@ mod tests {
         let result = windows_filetime_to_string(0);
         assert!(result.starts_with("(invalid timestamp:"));
     }
-
-    // ── prop_value_to_string ─────────────────────────────────────────────────
-    // Unicode/String8/Binary newtypes have private fields so we can only
-    // test the non-string arms directly here.
 
     #[test]
     fn test_prop_value_integer32_returns_none() {

@@ -42,10 +42,6 @@ fn render_html(doc: xberg::types::internal::InternalDocument) -> String {
     result.formatted_content.unwrap_or(result.content)
 }
 
-// ---------------------------------------------------------------------------
-// Document builders
-// ---------------------------------------------------------------------------
-
 /// A rich document with headings, paragraph, list, code block, and table.
 fn build_rich_document() -> xberg::types::internal::InternalDocument {
     let mut b = InternalDocumentBuilder::new("test-rich");
@@ -119,10 +115,6 @@ fn build_minimal_document() -> xberg::types::internal::InternalDocument {
     b.push_paragraph("A single paragraph of text.", vec![], None, None);
     b.build()
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 #[test]
 fn test_rich_document_html_quality() {

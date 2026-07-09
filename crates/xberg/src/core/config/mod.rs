@@ -31,7 +31,6 @@ pub mod translation;
 #[cfg(feature = "tree-sitter")]
 pub mod tree_sitter;
 
-// Re-export main types for backward compatibility
 pub use acceleration::{AccelerationConfig, ExecutionProviderType};
 pub use concurrency::ConcurrencyConfig;
 pub use content_filter::ContentFilterConfig;
@@ -65,7 +64,6 @@ pub use sparse_embedding::{SparseEmbeddingConfig, SparseEmbeddingModelType};
 #[cfg(feature = "tree-sitter")]
 pub use tree_sitter::{CodeContentMode, TreeSitterConfig, TreeSitterProcessConfig};
 
-// OSS v5 follow-up feature configs.
 pub use captioning::CaptioningConfig;
 pub use classification::PageClassificationConfig;
 pub use ner::{NerBackendKind, NerConfig};

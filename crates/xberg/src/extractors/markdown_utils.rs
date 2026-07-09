@@ -70,7 +70,6 @@ pub(crate) fn extract_text_from_events(events: &[Event], images: &mut Vec<Extrac
                     text.push_str(dest_url);
                 }
                 text.push(']');
-                // Extract image from data URIs
                 if dest_url.starts_with("data:image/")
                     && let Some(image) = decode_data_uri_image(dest_url, images.len() as u32)
                 {
@@ -152,7 +151,6 @@ pub(crate) fn decode_data_uri_image(uri: &str, index: u32) -> Option<ExtractedIm
     let cleaned = data.replace(['\n', '\r'], "");
     let decoded = base64::engine::general_purpose::STANDARD.decode(&cleaned).ok()?;
 
-    // Classify image based on metadata and visual properties
     let (image_kind, kind_confidence) =
         crate::extraction::image_kind::classify(&decoded, format, None, None, None, None, false);
 

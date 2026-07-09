@@ -37,8 +37,6 @@ fn token_reduction_applies_to_markdown_output() {
     let markdown = extract_len(OutputFormat::Markdown);
 
     assert!(plain < original, "plain output must be reduced: {plain} vs {original}");
-    // Markdown output must also be reduced — previously it stayed full size
-    // because the reduction was discarded by the format swap.
     assert!(
         markdown < original,
         "markdown output must be reduced too, got {markdown} vs original {original}"

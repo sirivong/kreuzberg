@@ -479,8 +479,6 @@ impl ExtractionConfig {
     /// assert!(resolved.force_ocr);
     /// ```
     pub(crate) fn with_file_overrides(&self, overrides: &FileExtractionConfig) -> Self {
-        // Destructure to ensure compile-time exhaustiveness: adding a field to
-        // FileExtractionConfig without handling it here will produce a compile error.
         let FileExtractionConfig {
             ref enable_quality_processing,
             ref ocr,
@@ -841,13 +839,10 @@ mod tests {
     #[cfg(feature = "layout-detection")]
     #[test]
     fn test_use_layout_for_markdown_serde_default_false() {
-        // Field absent in JSON → should default to false.
         let json = r#"{}"#;
         let config: ExtractionConfig = serde_json::from_str(json).unwrap();
         assert!(!config.use_layout_for_markdown);
     }
-
-    // --- extraction_timeout_secs defaults ----------------------------------
 
     #[test]
     fn test_default_extraction_timeout_is_sixty_seconds() {
@@ -881,7 +876,6 @@ mod tests {
 
     #[test]
     fn test_extraction_timeout_serde_absent_field_defaults_to_sixty() {
-        // When the JSON field is absent the serde default function must fire.
         let json = r#"{}"#;
         let config: ExtractionConfig = serde_json::from_str(json).unwrap();
         assert_eq!(

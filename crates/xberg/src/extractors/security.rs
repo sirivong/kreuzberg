@@ -57,15 +57,7 @@ impl Default for SecurityLimits {
             max_archive_size: 500 * 1024 * 1024,
             max_compression_ratio: 100,
             max_files_in_archive: 10_000,
-            // 1024 levels — generous headroom for legitimate DOCX/PPTX/EPUB
-            // documents (deeply nested tables-in-cells, OMath expressions,
-            // formatting wrappers) while still catching depth-bomb attacks
-            // (those typically have 5 000+ levels).
             max_nesting_depth: 1024,
-            // 1 MiB — per-token cap that catches billion-laughs entity
-            // expansion (single entities ballooning to hundreds of MB) without
-            // false-positiving on legitimate long attributes / CDATA blocks.
-            // Cumulative content size is bounded separately by max_content_size.
             max_entity_length: 1024 * 1024,
             max_content_size: 100 * 1024 * 1024,
             max_iterations: 10_000_000,
@@ -674,8 +666,6 @@ mod tests {
         ));
     }
 
-    // ---- has_path_traversal tests ------------------------------------------
-
     #[test]
     fn test_path_traversal_detected_in_simple_dotdot() {
         assert!(has_path_traversal("../etc/passwd"));
@@ -703,7 +693,6 @@ mod tests {
 
     #[test]
     fn test_dotdot_in_filename_not_flagged() {
-        // A filename like "1..2.png" has no ParentDir component.
         assert!(!has_path_traversal("images/1..2.png"));
     }
 

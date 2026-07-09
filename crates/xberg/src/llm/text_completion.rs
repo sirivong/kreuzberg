@@ -18,7 +18,6 @@ use crate::types::LlmUsage;
 ///
 /// Returns an error if the LLM client cannot be constructed, the request fails,
 /// or the response does not contain assistant content.
-// `stream` is pub(crate) in liter-llm, preventing struct literal initialisation.
 #[allow(clippy::field_reassign_with_default)]
 #[cfg_attr(alef, alef(skip))]
 pub async fn complete_text(

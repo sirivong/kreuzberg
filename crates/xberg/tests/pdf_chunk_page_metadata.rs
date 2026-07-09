@@ -135,7 +135,6 @@ fn chunks_from_single_page_pdf_are_not_null() {
     let result = extract_uri_document_blocking(get_test_file_path("pdf/single_page.pdf"), None, &config)
         .expect("single_page.pdf extraction should succeed");
 
-    // chunks must be Some(...) — null means chunking silently failed (see issue #1105).
     let chunks = result
         .chunks
         .expect("chunks must be Some([...]) for a single-page PDF with chunking configured, not null");

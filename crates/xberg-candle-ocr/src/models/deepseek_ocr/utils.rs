@@ -36,8 +36,6 @@ pub fn interpolate_bicubic(
     _align_corner: Option<bool>,
     _half_pixel: Option<bool>,
 ) -> Result<Tensor> {
-    // Simplified bicubic: use bilinear fallback
-    // Full bicubic interpolation is complex; use linear approximation
     let (_, _, h, w) = input.dims4()?;
     let (target_h, target_w) = target_size;
 
@@ -45,7 +43,6 @@ pub fn interpolate_bicubic(
         return Ok(input.clone());
     }
 
-    // Simple nearest-neighbor resize for now (can be improved)
     let h_ratio = (h - 1) as f32 / (target_h - 1).max(1) as f32;
     let w_ratio = (w - 1) as f32 / (target_w - 1).max(1) as f32;
 

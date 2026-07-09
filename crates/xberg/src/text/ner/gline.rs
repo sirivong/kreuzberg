@@ -295,8 +295,6 @@ fn read_gliner_checksums(path: &Path) -> Result<HashMap<String, String>> {
 }
 
 fn parse_checksums(content: &str) -> Result<HashMap<String, String>> {
-    // Format + validation live in the shared `sha256sum` manifest parser; GLiNER just
-    // needs the entries as a path→checksum map for lookup by artifact.
     let entries = crate::model_download::parse_sha256_manifest(content)
         .map_err(|e| crate::XbergError::validation(format!("Invalid GLiNER checksums file: {e}")))?;
     Ok(entries.into_iter().collect())

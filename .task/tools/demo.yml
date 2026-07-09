@@ -1,23 +1,6 @@
 version: "3"
 
 # ============================================================================
-# Demo development environment
-#
-# Generates a patched demo-dev.html (CDN URLs → localhost), then starts two
-# servers that reproduce the cross-origin scenario the CDN creates in prod:
-#
-#   Docs server  → http://localhost:8001  (serves docs-site/public/)
-#   Asset server → http://localhost:9000  (serves crates/xberg-wasm/)
-#
-# First-time setup:
-#   task demo:dev:setup              # install wasm-pack, wasm-bindgen-cli, WASI SDK
-#
-# Usage:
-#   task demo:dev                    # full build + patch + both servers
-#   SKIP_WASM_BUILD=1 task demo:dev  # skip Rust build, TS + patch only
-#
-# Open:  http://localhost:8001/demo-dev.html
-# ============================================================================
 
 tasks:
   dev:

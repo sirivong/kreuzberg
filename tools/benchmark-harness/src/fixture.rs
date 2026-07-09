@@ -162,8 +162,6 @@ impl Fixture {
                 });
             }
 
-            // Validate that ground truth file exists at load time
-            // Use fixture directory as the base for relative paths
             if let (Some(fixture_dir), Some(tf)) = (fixture_path.parent(), &gt.text_file) {
                 let ground_truth_path = fixture_dir.join(tf);
                 if !ground_truth_path.exists() {
@@ -177,7 +175,6 @@ impl Fixture {
                     });
                 }
 
-                // Validate markdown ground truth file if specified
                 if let Some(ref md_file) = gt.markdown_file {
                     if md_file.is_absolute() {
                         return Err(Error::InvalidFixture {
@@ -224,12 +221,10 @@ impl Fixture {
 
     /// Determine if this fixture requires OCR based on file type and metadata
     pub fn requires_ocr(&self) -> bool {
-        // Check if explicitly marked in metadata
         if let Some(requires_ocr) = self.metadata.get("requires_ocr").and_then(|v| v.as_bool()) {
             return requires_ocr;
         }
 
-        // Infer from file type - images always need OCR
         matches!(
             self.file_type.to_lowercase().as_str(),
             "jpg" | "jpeg" | "png" | "gif" | "bmp" | "tiff" | "tif" | "webp" | "jp2" | "jpx" | "jpm" | "mj2"
@@ -358,9 +353,7 @@ impl FixtureManager {
                     );
                     for fixture_path in all_fixtures {
                         match self.load_fixture(&fixture_path) {
-                            Ok(()) => {
-                                // Successfully loaded
-                            }
+                            Ok(()) => {}
                             Err(e) => {
                                 failed_fixtures.push((fixture_path.clone(), e.to_string()));
                             }
@@ -370,9 +363,7 @@ impl FixtureManager {
             } else {
                 for fixture_path in all_fixtures {
                     match self.load_fixture(&fixture_path) {
-                        Ok(()) => {
-                            // Successfully loaded
-                        }
+                        Ok(()) => {}
                         Err(e) => {
                             failed_fixtures.push((fixture_path.clone(), e.to_string()));
                         }
@@ -382,9 +373,7 @@ impl FixtureManager {
         } else {
             for fixture_path in all_fixtures {
                 match self.load_fixture(&fixture_path) {
-                    Ok(()) => {
-                        // Successfully loaded
-                    }
+                    Ok(()) => {}
                     Err(e) => {
                         failed_fixtures.push((fixture_path.clone(), e.to_string()));
                     }
@@ -392,7 +381,6 @@ impl FixtureManager {
             }
         }
 
-        // Report failed fixtures if any occurred
         if !failed_fixtures.is_empty() {
             eprintln!(
                 "Warning: {} of {} fixtures failed to load:",
@@ -440,9 +428,8 @@ impl FixtureManager {
     /// `index` is 1-based (1..=total).
     pub fn retain_shard(&mut self, index: usize, total: usize) {
         assert!(index >= 1 && index <= total, "shard index must be 1..=total");
-        // Sort by path for deterministic assignment across jobs
         self.fixtures.sort_by(|a, b| a.0.cmp(&b.0));
-        let shard_index = index - 1; // convert to 0-based
+        let shard_index = index - 1;
         self.fixtures = self
             .fixtures
             .drain(..)
@@ -726,7 +713,6 @@ mod tests {
             ground_truth: None,
         };
 
-        // PDF normally doesn't require OCR, but metadata overrides this
         assert!(fixture.requires_ocr());
     }
 
@@ -744,7 +730,6 @@ mod tests {
             ground_truth: None,
         };
 
-        // PNG normally requires OCR, but metadata overrides this
         assert!(!fixture.requires_ocr());
     }
 
@@ -784,7 +769,6 @@ mod tests {
 
         std::fs::write(&fixture_path, serde_json::to_string(&fixture).unwrap()).unwrap();
 
-        // Should fail because ground truth file doesn't exist
         let result = Fixture::from_file(&fixture_path);
         assert!(result.is_err());
         match result {
@@ -801,7 +785,6 @@ mod tests {
         let fixture_path = temp_dir.path().join("test.json");
         let ground_truth_path = temp_dir.path().join("ground_truth.txt");
 
-        // Create the ground truth file
         std::fs::write(&ground_truth_path, "Sample ground truth text").unwrap();
 
         let fixture = Fixture {
@@ -821,7 +804,6 @@ mod tests {
 
         std::fs::write(&fixture_path, serde_json::to_string(&fixture).unwrap()).unwrap();
 
-        // Should succeed because ground truth file exists
         let result = Fixture::from_file(&fixture_path);
         assert!(result.is_ok());
     }
@@ -831,7 +813,6 @@ mod tests {
         let _lock = ENV_LOCK.lock().unwrap();
         let temp_dir = TempDir::new().unwrap();
 
-        // Create valid fixture
         let valid_fixture_path = temp_dir.path().join("valid.json");
         let valid_fixture = Fixture {
             document: PathBuf::from("test.pdf"),
@@ -843,7 +824,6 @@ mod tests {
         };
         std::fs::write(&valid_fixture_path, serde_json::to_string(&valid_fixture).unwrap()).unwrap();
 
-        // Create invalid fixture (missing ground truth file)
         let invalid_fixture_path = temp_dir.path().join("invalid.json");
         let invalid_fixture = Fixture {
             document: PathBuf::from("test.pdf"),
@@ -866,11 +846,9 @@ mod tests {
         }
 
         let mut manager = FixtureManager::new();
-        // Should succeed overall (returns Ok), but report failed fixtures
         let result = manager.load_fixtures_from_dir(temp_dir.path());
         assert!(result.is_ok());
 
-        // Should have loaded only the valid fixture
         assert_eq!(manager.len(), 1);
     }
 }

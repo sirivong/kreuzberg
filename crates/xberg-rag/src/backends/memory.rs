@@ -76,7 +76,6 @@ fn score(metric: DistanceMetric, a: &[f32], b: &[f32]) -> f32 {
             if na == 0.0 || nb == 0.0 { 0.0 } else { dot / (na * nb) }
         }
         DistanceMetric::InnerProduct => a.iter().zip(b).map(|(x, y)| x * y).sum(),
-        // Higher score == more relevant, so negate the L2 distance.
         DistanceMetric::L2 => {
             let d2: f32 = a.iter().zip(b).map(|(x, y)| (x - y) * (x - y)).sum();
             -d2.sqrt()
@@ -276,7 +275,6 @@ impl VectorStore for InMemoryVectorStore {
             validate_chunk_side_vectors(chunk)?;
         }
 
-        // Resolve identity: reuse the id for an existing external_id, else mint one.
         let doc_id = match document
             .external_id
             .as_ref()
@@ -332,7 +330,6 @@ impl VectorStore for InMemoryVectorStore {
         let coll = collections
             .get_mut(collection)
             .ok_or_else(|| RagError::CollectionNotFound(collection.to_string()))?;
-        // A document matches if any of its chunks satisfies the filter.
         let mut to_remove: Vec<DocumentId> = Vec::new();
         for (id, doc) in &coll.documents {
             let matches = coll
@@ -403,21 +400,17 @@ impl VectorStore for InMemoryVectorStore {
                     .collect()
             }
             RetrieveMode::Sparse => {
-                // Validated non-None by `query.validate`.
                 let query_sparse = query.query_sparse.as_ref().expect("validated: query_sparse present");
                 candidates
                     .iter()
                     .filter_map(|c| {
                         let doc_sparse = c.record.sparse_embedding.as_ref()?;
                         let s = sparse_dot(query_sparse, doc_sparse);
-                        // Only chunks sharing at least one query term are candidates
-                        // (a zero score means no overlap), matching the sqlite backend.
                         (s > 0.0).then(|| to_retrieved_chunk(coll, c, query, s, PrimaryScore::Sparse(s)))
                     })
                     .collect()
             }
             RetrieveMode::LateInteraction => {
-                // Validated non-None by `query.validate`.
                 let query_mv = query
                     .query_multi_vector
                     .as_ref()
@@ -431,7 +424,6 @@ impl VectorStore for InMemoryVectorStore {
                     })
                     .collect()
             }
-            // Unreachable: guarded above.
             RetrieveMode::FullText | RetrieveMode::Hybrid => unreachable!("guarded by capability check above"),
         };
 

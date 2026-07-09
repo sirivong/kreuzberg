@@ -58,7 +58,7 @@ pub(crate) fn extract_tables_native(doc: &mut OxideDocument) -> Result<Vec<Table
             }
         };
 
-        let page_number = (page_idx + 1) as u32; // Xberg uses 1-indexed page numbers
+        let page_number = (page_idx + 1) as u32;
 
         for extracted_table in extracted {
             if extracted_table.rows.is_empty() || extracted_table.col_count == 0 {
@@ -67,14 +67,10 @@ pub(crate) fn extract_tables_native(doc: &mut OxideDocument) -> Result<Vec<Table
 
             let (cells, markdown) = convert_extracted_table(&extracted_table);
 
-            // Skip tables that produced no meaningful content
             if cells.is_empty() || markdown.trim().is_empty() {
                 continue;
             }
 
-            // Guard: require minimum 2 rows and 2 columns for a valid table.
-            // Single-column tables and single-row tables are typically not real tables.
-            // This filters out Google Docs paragraph borders and other styling artifacts.
             if cells.len() < 2 || cells.iter().all(|row| row.len() < 2) {
                 tracing::debug!(
                     page = page_idx,
@@ -264,8 +260,6 @@ pub(crate) fn extract_tables_heuristic(
             continue;
         }
 
-        // Page-height approximation matches the structure pipeline:
-        // max of segment y+height with letter-size fallback.
         let page_height = segments
             .iter()
             .map(|s| s.y + s.height)
@@ -392,21 +386,11 @@ fn reconstruct_region_table(
         return None;
     }
 
-    // `layout_guided = true`: the region-clustering step separated vertically
-    // isolated slabs of words, which is similar to (but weaker than) a layout
-    // model's Table region hint. We use the relaxed text-density thresholds;
-    // `is_well_formed_table` below is the actual prose guard.
     let cleaned = post_process_table(grid, true, allow_single_column)?;
     if cleaned.len() <= 1 {
         return None;
     }
 
-    // Reject reconstructed grids that look like code listings rather than tables.
-    // Monospace code blocks (especially C-family syntax with curly braces) can
-    // pass the text-edge clustering step because their fixed-width character
-    // spacing creates column-like positions. Isolated `{` or `}` cells are an
-    // unambiguous signal: those characters never appear as standalone table cells
-    // in real tabular data.
     if looks_like_code_listing(&cleaned) {
         tracing::trace!(
             page = page_number,
@@ -461,23 +445,15 @@ fn reconstruct_region_table(
 /// clean single-line cell strings.
 fn cell_text_in_reading_order(cell: &pdf_oxide::structure::table_extractor::TableCell) -> String {
     if cell.spans.is_empty() {
-        // No positional span data — fall back to the pre-joined text field.
         return cell.text.trim().replace('\n', " ").to_string();
     }
 
-    // Collect (y, x, text) for each span, then sort by y descending, x ascending.
     let mut sorted: Vec<(f32, f32, &str)> = cell
         .spans
         .iter()
         .map(|span| (span.bbox.y, span.bbox.x, span.text.as_str()))
         .collect();
-    sorted.sort_by(|a, b| {
-        // Primary: Y descending (larger Y = higher on page = earlier in reading order)
-        b.0.total_cmp(&a.0).then_with(|| {
-            // Secondary: X ascending (left before right)
-            a.1.total_cmp(&b.1)
-        })
-    });
+    sorted.sort_by(|a, b| b.0.total_cmp(&a.0).then_with(|| a.1.total_cmp(&b.1)));
 
     let joined: String = sorted
         .iter()
@@ -504,7 +480,6 @@ fn convert_extracted_table(table: &pdf_oxide::structure::table_extractor::Table)
     for (row_idx, row) in table.rows.iter().enumerate() {
         let row_cells: Vec<String> = row.cells.iter().map(cell_text_in_reading_order).collect();
 
-        // Build markdown row
         markdown.push('|');
         for cell in &row_cells {
             markdown.push(' ');
@@ -513,7 +488,6 @@ fn convert_extracted_table(table: &pdf_oxide::structure::table_extractor::Table)
         }
         markdown.push('\n');
 
-        // Insert header separator after the first header row
         if row.is_header && !found_header {
             found_header = true;
             markdown.push('|');
@@ -522,7 +496,6 @@ fn convert_extracted_table(table: &pdf_oxide::structure::table_extractor::Table)
             }
             markdown.push('\n');
         } else if row_idx == 0 && !found_header {
-            // If no explicit header, treat first row as header for markdown formatting
             found_header = true;
             markdown.push('|');
             for _ in &row_cells {
@@ -646,7 +619,6 @@ mod tests {
 
         let (cells, markdown) = convert_extracted_table(&table);
         assert_eq!(cells.len(), 2);
-        // Even without explicit header, first row gets separator for valid markdown
         assert!(markdown.contains("| --- |"));
     }
 
@@ -665,8 +637,6 @@ mod tests {
         assert!(cells.is_empty());
         assert!(markdown.is_empty());
     }
-
-    // ── W2.E: cell reading-order reconciliation ──
 
     /// Build a synthetic TextSpan for position-order tests.
     ///
@@ -713,11 +683,7 @@ mod tests {
             colspan: 1,
             rowspan: 1,
             mcids: vec![],
-            // Spans intentionally out of reading order: lower Y (bottom of page) first.
-            spans: vec![
-                make_span("second", 10.0, 100.0), // y=100 — lower on page (appears later)
-                make_span("first", 10.0, 200.0),  // y=200 — higher on page (appears first)
-            ],
+            spans: vec![make_span("second", 10.0, 100.0), make_span("first", 10.0, 200.0)],
             bbox: None,
             is_header: false,
         };
@@ -739,7 +705,6 @@ mod tests {
             colspan: 1,
             rowspan: 1,
             mcids: vec![],
-            // Same Y — right column (x=200) delivered before left column (x=10).
             spans: vec![make_span("right", 200.0, 150.0), make_span("left", 10.0, 150.0)],
             bbox: None,
             is_header: false,
@@ -751,8 +716,6 @@ mod tests {
             "same-row spans must be ordered left-to-right (X ascending); got: {text:?}"
         );
     }
-
-    // ── Heuristic table extraction tests ──
 
     /// Build a synthetic `HocrWord` for the clustering tests.
     fn make_word(text: &str, left: u32, top: u32, width: u32) -> crate::pdf::table_reconstruct::HocrWord {
@@ -808,15 +771,11 @@ mod tests {
             assert!(t.cells.iter().any(|r| r.len() >= 2), "no row has 2+ columns: {t:?}");
             assert!(!t.markdown.trim().is_empty(), "markdown is empty: {t:?}");
             assert!(t.page_number >= 1, "page_number must be 1-indexed: {t:?}");
-            // Markdown must contain a header-separator row, which is what makes
-            // the output a valid GFM table the rest of the pipeline can consume.
             assert!(
                 t.markdown.contains("| --- |") || t.markdown.contains("|---|"),
                 "table markdown is missing the header separator row: {:?}",
                 t.markdown
             );
-            // Bounding box: PDF coords with y0 = bottom edge, y1 = top edge.
-            // Catches coordinate inversions; only checked when present.
             if let Some(bbox) = &t.bounding_box {
                 assert!(
                     bbox.y0 < bbox.y1,
@@ -841,7 +800,7 @@ mod tests {
 
         let baseline = extract_tables_heuristic(&mut doc, false, &HashSet::new()).expect("baseline heuristic");
         if baseline.is_empty() {
-            return; // fixture didn't produce anything to skip — see prior test
+            return;
         }
         let pages_baseline_touched: HashSet<u32> = baseline.iter().map(|t| t.page_number).collect();
 
@@ -861,8 +820,6 @@ mod tests {
     /// Vertical-gap clustering: words all within one band become one region.
     #[test]
     fn test_cluster_words_single_region_not_split() {
-        // 6 words in 3 rows, all within ~30px vertically.
-        // height=10, row_gap_split = 1.8 * 10 = 18px → 12px row spacing stays in one region.
         let words = vec![
             make_word("a1", 100, 100, 20),
             make_word("a2", 200, 100, 20),
@@ -881,17 +838,13 @@ mod tests {
     /// filter (≥3 distinct rows, ≥2 distinct x-positions, ≥4 words).
     #[test]
     fn test_cluster_words_two_tables_separated_by_large_gap() {
-        // First table at y≈100-124 (3 rows), second at y≈300-324 (3 rows).
-        // Gap between table 1's last row and table 2's first row = 300-124 = 176px ≫ 18px split.
         let words = vec![
-            // Table 1: rows at y=100, y=112, y=124
             make_word("a1", 100, 100, 20),
             make_word("a2", 200, 100, 20),
             make_word("b1", 100, 112, 20),
             make_word("b2", 200, 112, 20),
             make_word("c1", 100, 124, 20),
             make_word("c2", 200, 124, 20),
-            // Table 2: rows at y=300, y=312, y=324
             make_word("d1", 100, 300, 20),
             make_word("d2", 200, 300, 20),
             make_word("e1", 100, 312, 20),
@@ -904,7 +857,6 @@ mod tests {
         for r in &regions {
             assert_eq!(r.len(), 6, "each region should have 6 words: {r:?}");
         }
-        // First region must precede second (image-coord top, smaller-y first).
         let first_top = regions[0].iter().map(|w| w.top).min().unwrap();
         let second_top = regions[1].iter().map(|w| w.top).min().unwrap();
         assert!(first_top < second_top, "regions should be ordered top-to-bottom");
@@ -988,8 +940,6 @@ mod tests {
 
         let style = LineStyle::new(1.0, 0.0, 0.0, 0.0);
 
-        // A4: 595 × 842 pt. Table: y=550..750 (PDF y-up coords).
-        // 2 columns: left x=50..200, right x=200..400. 5 rows of 40pt each.
         let mut doc = DocumentBuilder::new();
         doc.a4_page()
             .stroke_rect(50.0, 550.0, 350.0, 200.0, style.clone())

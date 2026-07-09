@@ -30,19 +30,14 @@ pub(crate) fn validate_host(host: &str) -> Result<()> {
         });
     }
 
-    // Check if it's a valid IPv4 address
     if host.parse::<std::net::Ipv4Addr>().is_ok() {
         return Ok(());
     }
 
-    // Check if it's a valid IPv6 address
     if host.parse::<std::net::Ipv6Addr>().is_ok() {
         return Ok(());
     }
 
-    // Check if it's a valid hostname (basic validation)
-    // Hostnames must contain only alphanumeric characters, dots, and hyphens
-    // Must not look like an invalid IPv4 address (all numeric with dots)
     let looks_like_ipv4 = host
         .split('.')
         .all(|part| !part.is_empty() && part.chars().all(|c| c.is_numeric()));
@@ -69,7 +64,6 @@ pub(crate) fn validate_cors_origin(origin: &str) -> Result<()> {
     }
 
     if origin.starts_with("http://") || origin.starts_with("https://") {
-        // Basic validation: ensure there's something after the protocol
         if origin.len() > 8 && (origin.starts_with("http://") && origin.len() > 7 || origin.starts_with("https://")) {
             return Ok(());
         }

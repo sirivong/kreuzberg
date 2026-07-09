@@ -175,7 +175,6 @@ async fn test_adaptive_sampling_intervals() {
     sleep(Duration::from_millis(50)).await;
     let samples_10ms = monitor_10ms.stop().await.len();
 
-    // Verify that sampling is functional - we get at least some samples
     assert!(
         samples_1ms >= 1,
         "1ms sampling produced no samples: {} (sampling not working)",
@@ -192,8 +191,6 @@ async fn test_adaptive_sampling_intervals() {
         samples_10ms
     );
 
-    // Verify general trend - allow for system variance
-    // Just check that we don't have an inverted trend where longer intervals produce more samples
     let reasonable_trend = samples_1ms + samples_5ms >= samples_10ms;
     assert!(
         reasonable_trend,

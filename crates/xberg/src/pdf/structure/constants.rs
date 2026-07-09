@@ -1,20 +1,20 @@
 //! Threshold constants for PDF-to-Markdown spatial analysis.
 
-// ── Glyph-fragmentation repair (issue #962) ────────────────────────────────
-//
-// Word-exported PDFs position each glyph via its own BT…ET block with a
-// sinusoidal y-jitter (~3–5 pt amplitude, 6-glyph period). pdf_oxide's
-// ColumnAware reading order groups spans by y-level, scrambling reading
-// order for these documents. The constants below parameterise the
-// detection and reconstruction heuristic in `pdf::oxide::text`.
-//
-// TODO: remove this heuristic when xberg upgrades to pdf_oxide ≥ 0.3.51.
-// Upstream fix shipped in v0.3.51 (2026-05-19, closing issue #518): the Tm
-// continuation check now uses glyph height as the tolerance floor (≥ 0.5 pt)
-// so per-glyph sinusoidal jitter merges natively into a single span and the
-// reading-order scramble no longer occurs. xberg currently pins v0.3.50.
-// After bumping, verify with test_3_5pt_jitter_coalesced and the other tests
-// in tests/pdf_glyph_spacing_issue_962.rs before deleting this block.
+// ~keep ── Glyph-fragmentation repair (issue #962) ────────────────────────────────
+// ~keep
+// ~keep Word-exported PDFs position each glyph via its own BT…ET block with a
+// ~keep sinusoidal y-jitter (~3–5 pt amplitude, 6-glyph period). pdf_oxide's
+// ~keep ColumnAware reading order groups spans by y-level, scrambling reading
+// ~keep order for these documents. The constants below parameterise the
+// ~keep detection and reconstruction heuristic in `pdf::oxide::text`.
+// ~keep
+// ~keep TODO: remove this heuristic when xberg upgrades to pdf_oxide ≥ 0.3.51.
+// ~keep Upstream fix shipped in v0.3.51 (2026-05-19, closing issue #518): the Tm
+// ~keep continuation check now uses glyph height as the tolerance floor (≥ 0.5 pt)
+// ~keep so per-glyph sinusoidal jitter merges natively into a single span and the
+// ~keep reading-order scramble no longer occurs. xberg currently pins v0.3.50.
+// ~keep After bumping, verify with test_3_5pt_jitter_coalesced and the other tests
+// ~keep in tests/pdf_glyph_spacing_issue_962.rs before deleting this block.
 
 /// Maximum y-gap (pt) between two spans that can still be considered "same
 /// line" under the glyph-fragmentation detection heuristic.
@@ -42,8 +42,6 @@ pub(crate) const MIN_DISORDER_COUNT: usize = 3;
 /// reconstruction. Must be ≥ MAX_GLYPH_JITTER_PT so every span pair
 /// accepted by the detection gate is merged into the same group.
 pub(crate) const COALESCE_THRESHOLD: f32 = 5.0;
-
-// ── Structural heading analysis ────────────────────────────────────────────
 
 /// Maximum word count for a paragraph to qualify as a heading.
 pub(super) const MAX_HEADING_WORD_COUNT: usize = 20;

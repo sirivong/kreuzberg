@@ -22,17 +22,11 @@ fn horizontal_merge_keeps_column_alignment() {
         .expect("extraction must succeed");
     let table = doc.tables.first().expect("a table must be extracted");
 
-    // Header row merges columns 0-1 into "Fuse"; the "Circuit" header must be in
-    // the last column, and the data rows must line up under it. The key check:
-    // the "Circuit"/data association survives — 101|40A|Blower and 102|50A|Cooling
-    // stay as intact rows.
     let flat: Vec<String> = table.cells.iter().flatten().cloned().collect();
     let joined = flat.join(" | ");
     assert!(joined.contains("Fuse"), "merged header present: {joined}");
     assert!(joined.contains("Circuit"), "circuit header present: {joined}");
 
-    // Find the data row with "101" and assert 40A + Blower are its neighbors in
-    // order (association intact, not shifted).
     let data_row = table
         .cells
         .iter()

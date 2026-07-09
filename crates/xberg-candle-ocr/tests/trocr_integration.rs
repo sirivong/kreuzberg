@@ -36,7 +36,6 @@ fn skip_unless_network_tests_opt_in() -> bool {
 }
 
 fn fixture_path(name: &str) -> PathBuf {
-    // crates/xberg-candle-ocr/tests/ → workspace root → test_documents/images
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../test_documents/images")
         .join(name)

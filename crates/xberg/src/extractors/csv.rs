@@ -84,8 +84,6 @@ impl InternalDocumentExtractor for CsvExtractor {
 
         let rows = parse_csv(&text, delimiter);
 
-        // Enforce security limits: one step per row, cell count, entity length,
-        // and cumulative content size.
         for row in &rows {
             budget.step()?;
             budget.add_cells(row.len())?;
@@ -100,7 +98,6 @@ impl InternalDocumentExtractor for CsvExtractor {
         let has_header = detect_header(&rows);
         let column_types = infer_column_types(&rows, has_header);
 
-        // Build markdown table before moving rows into Table::cells
         let markdown = build_markdown_table(&rows);
 
         let table = Table {
@@ -126,11 +123,8 @@ impl InternalDocumentExtractor for CsvExtractor {
             },
         };
 
-        // Build InternalDocument with the table
         let mut builder = InternalDocumentBuilder::new("csv");
 
-        // Generate embedding-friendly text: header-value pairs when a header row
-        // is detected, or fall back to space-separated output for headerless CSVs.
         let content_text = if has_header {
             render_csv_embedding_text(&table.cells)
         } else {
@@ -139,8 +133,6 @@ impl InternalDocumentExtractor for CsvExtractor {
         builder.push_paragraph(&content_text, vec![], None, None);
 
         let mut doc = builder.build();
-        // Add the table to doc.tables so result.tables is populated for callers
-        // that need the structured data (e.g. element-based extraction).
         doc.tables.push(Table {
             cells: table.cells.clone(),
             markdown: table.markdown.clone(),
@@ -167,7 +159,7 @@ impl InternalDocumentExtractor for CsvExtractor {
     }
 
     fn priority(&self) -> i32 {
-        60 // Higher than PlainTextExtractor (50) to take precedence
+        60
     }
 }
 
@@ -211,7 +203,6 @@ fn parse_csv(text: &str, delimiter: char) -> Vec<Vec<String>> {
     while let Some(c) = chars.next() {
         if in_quotes {
             if c == '"' {
-                // Check for escaped quote ("")
                 if chars.peek() == Some(&'"') {
                     current_field.push('"');
                     chars.next();
@@ -256,7 +247,6 @@ fn parse_csv(text: &str, delimiter: char) -> Vec<Vec<String>> {
         }
     }
 
-    // Flush last field/row
     if !current_field.is_empty() || !current_row.is_empty() {
         current_row.push(current_field);
         if !current_row.iter().all(|f| f.is_empty()) {
@@ -276,14 +266,10 @@ fn parse_csv(text: &str, delimiter: char) -> Vec<Vec<String>> {
 /// When the `quality` feature is enabled, uses chardetng for more sophisticated
 /// encoding detection. Without it, tries common encodings in order.
 fn decode_csv_bytes(content: &[u8]) -> String {
-    // Fast path: valid UTF-8. Strip a leading BOM so it doesn't ride along into
-    // the first header cell — Excel exports UTF-8 CSV with a BOM by default
-    // (xberg-io/xberg#1223).
     if let Ok(s) = utf8_validation::from_utf8(content) {
         return crate::utils::strip_bom(s).to_string();
     }
 
-    // Non-UTF-8 content: use encoding detection.
     #[cfg(feature = "quality")]
     {
         crate::utils::strip_bom(&crate::utils::safe_decode(content, None)).to_string()
@@ -301,21 +287,15 @@ fn decode_csv_bytes(content: &[u8]) -> String {
 /// selecting the first one that decodes without errors.
 #[cfg(not(feature = "quality"))]
 fn decode_csv_bytes_fallback(content: &[u8]) -> String {
-    // Multibyte encodings first: they reject invalid byte sequences, so a
-    // no-errors decode is real evidence. windows-1252 / iso-8859-1 map all 256
-    // bytes and therefore *never* report errors, so if they came first they
-    // would shadow gb18030 / big5 and every Chinese CSV would decode as Latin-1
-    // mojibake (xberg-io/xberg#1223).
     let encoding_labels = [
-        "shift_jis",    // Japanese Shift-JIS (common for CSV from Japanese systems)
-        "windows-31j",  // Windows CP932 (Microsoft's Shift-JIS variant)
-        "gb18030",      // Simplified Chinese
-        "big5",         // Traditional Chinese
-        "windows-1252", // Western European catch-all (decodes any bytes)
-        "iso-8859-1",   // Latin-1 catch-all (decodes any bytes)
+        "shift_jis",
+        "windows-31j",
+        "gb18030",
+        "big5",
+        "windows-1252",
+        "iso-8859-1",
     ];
 
-    // Try each encoding and use the first one that decodes without errors
     for label in &encoding_labels {
         if let Some(encoding) = encoding_rs::Encoding::for_label(label.as_bytes()) {
             let (decoded, _, had_errors) = encoding.decode(content);
@@ -325,14 +305,11 @@ fn decode_csv_bytes_fallback(content: &[u8]) -> String {
         }
     }
 
-    // If all encodings had errors, try Shift-JIS anyway
-    // This handles files with a few garbled characters gracefully
     if let Some(shift_jis) = encoding_rs::Encoding::for_label(b"shift_jis") {
         let (decoded, _, _) = shift_jis.decode(content);
         return decoded.into_owned();
     }
 
-    // Final fallback: lossy UTF-8 conversion
     String::from_utf8_lossy(content).into_owned()
 }
 
@@ -369,12 +346,10 @@ fn detect_header(rows: &[Vec<String>]) -> bool {
         return false;
     }
 
-    // Check if first row has no numeric values
     if first_row.iter().any(|cell| is_csv_number(cell)) {
         return false;
     }
 
-    // Check if at least one data row has numeric values
     let data_rows = &rows[1..rows.len().min(6)];
 
     data_rows.iter().any(|row| row.iter().any(|cell| is_csv_number(cell)))
@@ -401,7 +376,6 @@ fn infer_column_types(rows: &[Vec<String>], has_header: bool) -> Vec<String> {
 
     let data_rows = &rows[data_start..scan_end];
 
-    // Pre-compiled date regexes (LazyLock statics)
     let date_patterns: &[&regex::Regex] = &[&DATE_RE_ISO, &DATE_RE_US, &DATE_RE_EU];
 
     (0..col_count)
@@ -460,7 +434,6 @@ fn infer_column_types(rows: &[Vec<String>], has_header: bool) -> Vec<String> {
 /// Rows shorter than the header silently skip the missing columns.
 fn render_csv_embedding_text(cells: &[Vec<String>]) -> String {
     if cells.len() < 2 {
-        // Header-only or empty: fall back to listing headers
         if let Some(headers) = cells.first() {
             return headers
                 .iter()
@@ -479,7 +452,6 @@ fn render_csv_embedding_text(cells: &[Vec<String>]) -> String {
     let mut row_number = 0usize;
 
     for row in data_rows {
-        // Skip rows where every cell is empty
         if row.iter().all(|c| c.trim().is_empty()) {
             continue;
         }
@@ -552,7 +524,6 @@ fn build_markdown_table(rows: &[Vec<String>]) -> String {
         }
         markdown.push('\n');
 
-        // Add separator after first row (header)
         if i == 0 {
             markdown.push('|');
             for _ in 0..col_count {
@@ -640,10 +611,8 @@ mod tests {
             .await
             .expect("CSV extraction should succeed");
 
-        // Tables should be populated in the InternalDocument
         assert!(!result.tables.is_empty());
 
-        // Metadata should contain CSV-specific fields via FormatMetadata
         if let Some(FormatMetadata::Csv(csv_meta)) = &result.metadata.format {
             assert!(csv_meta.has_header);
         } else {
@@ -662,7 +631,6 @@ mod tests {
             .await
             .expect("CSV extraction with quoted fields should succeed");
 
-        // Tables should be populated
         assert!(!result.tables.is_empty());
     }
 
@@ -696,20 +664,16 @@ mod tests {
 
     #[test]
     fn test_decode_csv_bytes_shift_jis() {
-        // Shift-JIS encoded CSV: "名前,年齢,住所"
-        // This is the header row from test_mskanji.csv
         let shift_jis_data = vec![
             0x96u8, 0xbc, 0x91, 0x4f, 0x2c, 0x94, 0x4e, 0x97, 0xee, 0x2c, 0x8f, 0x5a, 0x8f, 0x8a,
         ];
 
         let decoded = decode_csv_bytes(&shift_jis_data);
 
-        // Should decode to correct Japanese text
         assert!(decoded.contains("名前"), "Should contain '名前' (Name)");
         assert!(decoded.contains("年齢"), "Should contain '年齢' (Age)");
         assert!(decoded.contains("住所"), "Should contain '住所' (Address)");
 
-        // Should NOT contain replacement characters (mojibake)
         assert!(
             !decoded.contains("□"),
             "Should not contain mojibake replacement characters"
@@ -722,7 +686,6 @@ mod tests {
 
     #[test]
     fn test_decode_csv_bytes_utf8() {
-        // UTF-8 encoded data should pass through unchanged
         let utf8_data = "名前,年齢,住所".as_bytes();
         let decoded = decode_csv_bytes(utf8_data);
         assert_eq!(decoded, "名前,年齢,住所");
@@ -762,7 +725,6 @@ mod tests {
 
     #[test]
     fn nan_inf_are_not_numeric() {
-        // "NaN"/"inf"/"Infinity" must not read as numbers (str::parse accepts them).
         assert!(!is_csv_number("NaN"));
         assert!(!is_csv_number("inf"));
         assert!(!is_csv_number("-Infinity"));
@@ -774,8 +736,6 @@ mod tests {
 
     #[test]
     fn header_row_of_nan_inf_labels_still_detected_as_header() {
-        // A header like "NaN,inf,count" must not be mistaken for a numeric data
-        // row, so the table is still recognized as having a header.
         let rows = vec![
             vec!["NaN".to_string(), "inf".to_string(), "label".to_string()],
             vec!["1".to_string(), "2".to_string(), "x".to_string()],
@@ -828,7 +788,6 @@ mod tests {
         let config = ExtractionConfig::default();
         let result = extractor.extract_content(&content, "text/csv", &config).await.unwrap();
 
-        // Tables should be populated
         assert!(!result.tables.is_empty());
     }
 }

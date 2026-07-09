@@ -82,11 +82,6 @@ fn detect_multiple_languages(text: &str, config: &LanguageDetectionConfig) -> Re
     }
 
     let mut lang_counts = ahash::AHashMap::new();
-    // Honor the caller's configured threshold. Per-chunk confidence on 200-char
-    // windows runs lower than whole-document confidence, so a high threshold may
-    // yield no multi-language hits — in which case we fall back to single-language
-    // detection below. Previously the threshold was silently capped at 0.35,
-    // admitting low-confidence chunks the caller had asked to exclude (#1223).
     let threshold = config.min_confidence;
 
     for chunk in &chunk_strings {
@@ -102,9 +97,6 @@ fn detect_multiple_languages(text: &str, config: &LanguageDetectionConfig) -> Re
     }
 
     let mut lang_vec: Vec<(Lang, usize)> = lang_counts.into_iter().collect();
-    // Sort by count descending, then by ISO code ascending so equal-frequency
-    // languages have a stable order (HashMap iteration order is nondeterministic,
-    // which made detected_languages[0] flip between runs — #1223).
     lang_vec.sort_by(|a, b| {
         b.1.cmp(&a.1)
             .then_with(|| lang_to_iso639_3(a.0).cmp(&lang_to_iso639_3(b.0)))

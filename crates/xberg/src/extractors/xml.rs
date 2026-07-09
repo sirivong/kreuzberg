@@ -15,8 +15,6 @@ use async_trait::async_trait;
 /// declaration when present and falling back to charset detection otherwise.
 /// Strips a leading BOM.
 fn decode_xml_to_utf8(content: &[u8]) -> String {
-    // Read the declared encoding from the prolog (first ~256 bytes) without
-    // decoding — the declaration itself is ASCII.
     let prolog_len = content.len().min(256);
     let prolog = String::from_utf8_lossy(&content[..prolog_len]);
     let declared = prolog
@@ -60,11 +58,6 @@ fn build_internal_document(content: &[u8], mime_type: &str, budget: &mut Securit
     let mut doc = InternalDocument::new("xml");
     let is_svg = mime_type == "image/svg+xml";
 
-    // Decode to UTF-8 up front, honoring the `<?xml encoding=...?>` declaration
-    // and any BOM. quick_xml's byte reader otherwise yields raw bytes that this
-    // function lossily interprets as UTF-8, so ISO-8859-1 / Shift_JIS-declared
-    // XML lost every non-ASCII character to U+FFFD (xberg-io/xberg#1223). After
-    // this, the per-event `from_utf8_lossy` calls below are lossless.
     let decoded = decode_xml_to_utf8(content);
     let mut reader = Reader::from_reader(decoded.as_bytes());
     reader.config_mut().trim_text(true);
@@ -83,7 +76,6 @@ fn build_internal_document(content: &[u8], mime_type: &str, budget: &mut Securit
                 let name_bytes = e.name().as_ref().to_vec();
                 let name_owned = String::from_utf8_lossy(&name_bytes).into_owned();
 
-                // Extract element attributes
                 let mut attrs = AHashMap::new();
                 for attr in e.attributes().flatten() {
                     let key: Cow<str> = String::from_utf8_lossy(attr.key.as_ref());
@@ -127,9 +119,6 @@ fn build_internal_document(content: &[u8], mime_type: &str, budget: &mut Securit
                 let trimmed = text.trim();
                 if !trimmed.is_empty() {
                     budget.account_text(trimmed.len())?;
-                    // Text content should be indented at the same level as its immediate parent,
-                    // not one level deeper. Since we incremented depth after the opening tag,
-                    // the parent heading is at (current depth - 1).
                     let text_depth = if depth > 0 { depth - 1 } else { 0 };
                     let elem = InternalElement::text(ElementKind::Paragraph, trimmed, text_depth).with_index(index);
                     doc.push_element(elem);

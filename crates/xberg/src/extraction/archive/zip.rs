@@ -117,10 +117,6 @@ pub(crate) fn extract_zip_text_content(bytes: &[u8], limits: &SecurityLimits) ->
 
         if !file.is_dir() && TEXT_EXTENSIONS.iter().any(|ext| path.to_lowercase().ends_with(ext)) {
             let estimated_size = (file.size() as usize).min(10 * 1024 * 1024);
-            // Read bytes then decode, so a non-UTF-8 member (legacy-encoded
-            // .txt/.csv) is recovered instead of silently dropped
-            // (xberg-io/xberg#1223). read_to_string would have failed and the
-            // member would have vanished with no signal.
             let mut raw = Vec::with_capacity(estimated_size);
             if let Err(e) = file.read_to_end(&mut raw) {
                 tracing::warn!(member = %path, error = %e, "skipping ZIP member: read failed");

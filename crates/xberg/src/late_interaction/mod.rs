@@ -17,10 +17,6 @@ use std::sync::LazyLock;
 
 use serde::{Deserialize, Serialize};
 
-// The ORT-backed engine (and its sync-primitive cache) only compiles under the
-// full `late-interaction` feature; a presets-only build (`wasm-target`,
-// `android-target`) keeps the pure-CPU MaxSim + type + preset surface but must
-// not pull in `ort`/`tokenizers` via `engine.rs`.
 #[cfg(feature = "late-interaction")]
 pub mod engine;
 
@@ -136,11 +132,6 @@ pub static LATE_INTERACTION_PRESETS: LazyLock<Vec<LateInteractionPreset>> = Lazy
         },
         LateInteractionPreset {
             name: "gte-moderncolbert".to_string(),
-            // Self-hosted export of lightonai/GTE-ModernColBERT-v1 (Apache-2.0): a
-            // ModernBERT encoder plus the PyLate Dense 768→128 projection, exported to
-            // ONNX (opset 17) emitting per-token `[batch, seq, 128]` embeddings. Not
-            // L2-normalized in-graph — the MaxSim engine normalizes per token. The
-            // ColBERT `[Q]`/`[D]` marker tokens are prepended by the engine.
             model_repo: "xberg-io/late-interaction-models".to_string(),
             model_file: "gte-moderncolbert-v1/model.onnx".to_string(),
             additional_files: Vec::new(),
@@ -158,7 +149,7 @@ pub static LATE_INTERACTION_PRESETS: LazyLock<Vec<LateInteractionPreset>> = Lazy
 ///
 /// Since v5.0.0.
 #[cfg(any(feature = "late-interaction-presets", feature = "late-interaction"))]
-#[cfg_attr(alef, alef(skip))] // not a binding free fn (parity with embeddings/reranker getters); bare name would collide with sparse_embeddings
+#[cfg_attr(alef, alef(skip))]
 pub fn get_preset(name: &str) -> Option<LateInteractionPreset> {
     LATE_INTERACTION_PRESETS.iter().find(|p| p.name == name).cloned()
 }
@@ -167,7 +158,7 @@ pub fn get_preset(name: &str) -> Option<LateInteractionPreset> {
 ///
 /// Since v5.0.0.
 #[cfg(any(feature = "late-interaction-presets", feature = "late-interaction"))]
-#[cfg_attr(alef, alef(skip))] // not a binding free fn (parity with embeddings/reranker getters); bare name would collide with sparse_embeddings
+#[cfg_attr(alef, alef(skip))]
 pub fn list_presets() -> Vec<String> {
     LATE_INTERACTION_PRESETS.iter().map(|p| p.name.clone()).collect()
 }
@@ -199,11 +190,6 @@ pub struct LateInteractionMatch {
 /// Since v5.0.0.
 #[cfg(any(feature = "late-interaction-presets", feature = "late-interaction"))]
 pub fn max_sim_score(query: &MultiVectorEmbedding, doc: &MultiVectorEmbedding) -> f64 {
-    // `dim == 0` guard is load-bearing: `rows()` uses `chunks_exact(dim)`, which
-    // panics on a zero chunk size. FFI callers can construct a zero-dim value.
-    // `is_well_formed` guards a `data` length that disagrees with the declared
-    // shape — otherwise `rows()` would silently drop a partial trailing chunk
-    // and under-score rather than fail.
     if query.dim != doc.dim
         || query.dim == 0
         || query.num_tokens == 0
@@ -247,8 +233,6 @@ pub fn max_sim_rank(query: &MultiVectorEmbedding, docs: &[MultiVectorEmbedding])
     results
 }
 
-// ── ORT-backed inference (feature = "late-interaction") ───────────────────────
-
 #[cfg(feature = "late-interaction")]
 type CachedEngine = Arc<LateInteractionEngine>;
 
@@ -258,7 +242,7 @@ static ENGINE_CACHE: LazyLock<RwLock<AHashMap<String, CachedEngine>>> = LazyLock
 /// Bounds concurrent blocking inference tasks spawned by [`embed_multi_vector_async`].
 #[cfg(all(feature = "late-interaction", feature = "tokio-runtime"))]
 static LATE_INTERACTION_SEMAPHORE: LazyLock<Arc<tokio::sync::Semaphore>> = LazyLock::new(|| {
-    let permits = crate::core::config::concurrency::resolve_thread_budget(None).max(1);
+    let permits = crate::core::config::concurrency::resolve_batch_concurrency(None, true).max(1);
     Arc::new(tokio::sync::Semaphore::new(permits))
 });
 
@@ -332,7 +316,6 @@ fn get_or_init_engine(
         query_max_length
     );
 
-    // Fast path: read lock.
     match ENGINE_CACHE.read() {
         Ok(cache) => {
             if let Some(cached) = cache.get(&engine_key) {
@@ -346,7 +329,6 @@ fn get_or_init_engine(
         }
     }
 
-    // Slow path: write lock + init.
     let mut cache = match ENGINE_CACHE.write() {
         Ok(guard) => guard,
         Err(poison) => poison.into_inner(),
@@ -368,8 +350,6 @@ fn get_or_init_engine(
     let tokenizer = crate::onnx::load_tokenizer(&files, max_length, late_err)?;
     let session = crate::onnx::build_session(&files.model, accel.as_ref(), late_err)?;
 
-    // ColBERT marker/mask tokens are resolved from the tokenizer's vocabulary
-    // after load; any that are absent degrade gracefully (see engine.rs).
     let query_marker_id = tokenizer.token_to_id("[Q]");
     let doc_marker_id = tokenizer.token_to_id("[D]");
     let mask_id = tokenizer.token_to_id("[MASK]");
@@ -420,9 +400,6 @@ fn map_engine_err(e: engine::LateInteractionError) -> crate::XbergError {
 /// is unavailable, or if a `Plugin` model is selected (not yet supported).
 ///
 /// Since v5.0.0.
-// Rust-only for now: language-binding exposure (concrete signature + per-language
-// wiring + e2e) is deferred to the dedicated binding-wiring phase. Skipped from
-// alef so the generic signature does not fail binding generation.
 #[cfg_attr(alef, alef(skip))]
 #[cfg(feature = "late-interaction")]
 pub fn embed_multi_vector<T: AsRef<str>>(
@@ -504,6 +481,38 @@ mod tests {
                     sibling
                 );
             }
+
+            // `crate::onnx::fetch_companion` always downloads tokenizer.json and
+            // config.json alongside the model file (from `<model_dir>/<name>` or
+            // the repo root), and opportunistically downloads
+            // special_tokens_map.json / tokenizer_config.json when present. A
+            // preset shipping a companion without a pinned hash would be
+            // downloaded unverified, so every companion the loader actually
+            // fetches must be pinned too.
+            let model_dir = std::path::Path::new(&preset.model_file)
+                .parent()
+                .and_then(|p| p.to_str())
+                .filter(|s| !s.is_empty());
+            let companion_path = |name: &str| match model_dir {
+                Some(dir) => format!("{dir}/{name}"),
+                None => name.to_string(),
+            };
+            for required in ["tokenizer.json", "config.json"] {
+                let path = companion_path(required);
+                assert!(
+                    pinned.contains(path.as_str()),
+                    "preset {} companion {} is not pinned in presets.sha256sum",
+                    preset.name,
+                    path
+                );
+            }
+            // special_tokens_map.json / tokenizer_config.json are downloaded via
+            // `unwrap_or_default()` (best-effort -- not every repo ships them),
+            // so they are pinned-if-present rather than required. This test
+            // covers presets that already have them in the manifest; it cannot
+            // detect a genuinely absent-and-unpinned companion since the
+            // manifest itself is the only source of "what exists" available
+            // here.
         }
     }
 
@@ -543,11 +552,6 @@ mod tests {
 
     #[test]
     fn max_sim_score_sums_best_match_per_query_token() {
-        // Query has 2 tokens (dim 2): [1,0] and [0,1].
-        // Doc has 2 tokens (dim 2): [1,0] and [0.6,0.8].
-        // For query token [1,0]: dot with [1,0]=1.0, dot with [0.6,0.8]=0.6 -> max=1.0
-        // For query token [0,1]: dot with [1,0]=0.0, dot with [0.6,0.8]=0.8 -> max=0.8
-        // Total MaxSim = 1.0 + 0.8 = 1.8
         let query = MultiVectorEmbedding {
             num_tokens: 2,
             dim: 2,
@@ -601,7 +605,6 @@ mod tests {
         };
         assert!(ok.is_well_formed());
 
-        // data shorter than num_tokens * dim.
         let short = MultiVectorEmbedding {
             num_tokens: 2,
             dim: 3,
@@ -609,7 +612,6 @@ mod tests {
         };
         assert!(!short.is_well_formed());
 
-        // num_tokens * dim overflows usize -> reported malformed, not wrapped.
         let overflow = MultiVectorEmbedding {
             num_tokens: u32::MAX,
             dim: u32::MAX,
@@ -620,9 +622,6 @@ mod tests {
 
     #[test]
     fn max_sim_score_zero_on_malformed_buffer() {
-        // Doc declares 2 tokens of dim 2 (needs 4 values) but carries only 3:
-        // without the well-formedness guard, `chunks_exact(2)` would silently
-        // drop the partial trailing value and score against a single row.
         let query = MultiVectorEmbedding {
             num_tokens: 1,
             dim: 2,
@@ -647,17 +646,17 @@ mod tests {
             MultiVectorEmbedding {
                 num_tokens: 1,
                 dim: 2,
-                data: vec![0.5, 0.0], // score 0.5
+                data: vec![0.5, 0.0],
             },
             MultiVectorEmbedding {
                 num_tokens: 1,
                 dim: 2,
-                data: vec![1.0, 0.0], // score 1.0
+                data: vec![1.0, 0.0],
             },
             MultiVectorEmbedding {
                 num_tokens: 1,
                 dim: 2,
-                data: vec![0.1, 0.0], // score 0.1
+                data: vec![0.1, 0.0],
             },
         ];
         let ranked = max_sim_rank(&query, &docs);

@@ -39,10 +39,6 @@ struct FixtureSuite {
     query: String,
     documents: Vec<String>,
     expected_top_index: usize,
-    // Read from the JSON for future stronger assertions (currently only the
-    // top-rank is asserted; the bottom-rank check is deferred until Session 2
-    // when we add a stricter ranking metric). Keep deserialised so the fixture
-    // stays the source of truth.
     #[allow(dead_code)]
     expected_worst_index: usize,
 }
@@ -82,7 +78,6 @@ async fn run_preset_inference(preset_name: &str, suite: &FixtureSuite) -> xberg:
             name: preset_name.to_string(),
         },
         cache_dir: cache_dir(),
-        // Force conservative batch — some models OOM on default 32 with long docs.
         batch_size: 8,
         ..Default::default()
     };
@@ -199,10 +194,6 @@ async fn ettin_reranker_150m_english_top_ranks_first() {
         assert_top_is_expected(&results, suite.expected_top_index, &suite.id, "ettin-reranker-150m");
     }
 }
-
-// The `jina-reranker-v2-base-multilingual` preset was removed (CC-BY-NC license);
-// its multilingual coverage is served by the Apache/MIT `bge-reranker-v2-m3`
-// preset exercised below and aliased as `multilingual`.
 
 /// `bge-reranker-v2-m3` ships the weights split into `model.onnx` +
 /// `model.onnx.data`. This test exists primarily to exercise the

@@ -143,8 +143,6 @@ impl RerankerEngine {
             return Ok(Vec::new());
         }
 
-        // Defensive: callers from polyglot bindings may pass batch_size=0 when the
-        // host-side `RerankerConfig` mirror omits the serde default.
         let batch_size = if batch_size == 0 { 32 } else { batch_size };
 
         let mut all_scores = Vec::with_capacity(documents.len());
@@ -159,10 +157,6 @@ impl RerankerEngine {
 
     /// Score a single batch of `(query, document)` pairs.
     fn rerank_batch(&self, query: &str, documents: &[&str]) -> Result<Vec<f32>, RerankError> {
-        // Qwen3 generative rerankers are causal LMs, not BERT-style cross-encoders:
-        // the (query, document) pair is wrapped in a chat-template prompt and
-        // tokenized as a single sequence (no pair-encoding, no token_type_ids).
-        // The cross-encoder path keeps the original `EncodeInput::Dual` pair encoding.
         let owned_prompts: Vec<String>;
         let encodings = if self.head == RerankerHead::Qwen3Generative {
             owned_prompts = documents
@@ -198,30 +192,27 @@ impl RerankerEngine {
         let batch_size = documents.len();
         let max_size = encoding_length * batch_size;
 
-        // Build input tensors.
         let mut ids_array = Vec::with_capacity(max_size);
         let mut mask_array = Vec::with_capacity(max_size);
-        let mut type_ids_array = Vec::with_capacity(max_size);
+        let mut type_ids_array = if self.need_token_type_ids {
+            Vec::with_capacity(max_size)
+        } else {
+            Vec::new()
+        };
 
         for encoding in &encodings {
             ids_array.extend(encoding.get_ids().iter().map(|&x| x as i64));
             mask_array.extend(encoding.get_attention_mask().iter().map(|&x| x as i64));
-            type_ids_array.extend(encoding.get_type_ids().iter().map(|&x| x as i64));
+            if self.need_token_type_ids {
+                type_ids_array.extend(encoding.get_type_ids().iter().map(|&x| x as i64));
+            }
         }
 
         let ids_tensor = ndarray::Array::from_shape_vec((batch_size, encoding_length), ids_array)
             .map_err(|e| RerankError::Shape(e.to_string()))?;
-        let type_ids_tensor = ndarray::Array::from_shape_vec((batch_size, encoding_length), type_ids_array)
-            .map_err(|e| RerankError::Shape(e.to_string()))?;
         let mask_tensor = ndarray::Array::from_shape_vec((batch_size, encoding_length), mask_array)
             .map_err(|e| RerankError::Shape(e.to_string()))?;
 
-        // Per-row index of the last unmasked (`attention_mask == 1`) token.
-        // Qwen3 is a causal LM whose relevance logit lives at the final real
-        // token — which is *not* `seq_len - 1` for a shorter, right-padded row —
-        // so the generative head must read each row at this index rather than a
-        // hardcoded last position. Falls back to the final position for a fully
-        // masked row (never expected). Unused by the cross-encoder head.
         let last_token_indices: Vec<usize> = mask_tensor
             .outer_iter()
             .map(|row| {
@@ -237,14 +228,11 @@ impl RerankerEngine {
         ];
 
         if self.need_token_type_ids {
+            let type_ids_tensor = ndarray::Array::from_shape_vec((batch_size, encoding_length), type_ids_array)
+                .map_err(|e| RerankError::Shape(e.to_string()))?;
             session_inputs.push(("token_type_ids".into(), Value::from_array(type_ids_tensor)?.into()));
         }
 
-        // Run inference — thread-safe despite &mut self signature on Session::run()
-        //
-        // SAFETY: ort::Session::run() takes &mut self but delegates to run_inner(&self)
-        // with zero actual mutation. The ONNX Runtime C API (OrtApi::Run) is documented
-        // as thread-safe for concurrent Run() calls on the same session.
         #[allow(unsafe_code)]
         let outputs = unsafe {
             let session_ptr = &self.session as *const Session as *mut Session;
@@ -252,20 +240,15 @@ impl RerankerEngine {
         }
         .map_err(RerankError::Ort)?;
 
-        // Extract the logit output tensor.
         let (_, output_value) = outputs.iter().next().ok_or(RerankError::NoOutput)?;
         let tensor: ArrayView<f32, Dim<IxDynImpl>> = output_value.try_extract_array().map_err(RerankError::Ort)?;
 
         let scores = match self.head {
-            RerankerHead::CrossEncoder => {
-                // Squeeze [batch, 1] or [batch] to Vec<f32>.
-                // Cross-encoders typically output [batch, 1]; squeeze to [batch].
-                match tensor.dim().ndim() {
-                    1 => tensor.slice(s![..]).iter().copied().collect(),
-                    2 => tensor.slice(s![.., 0]).iter().copied().collect(),
-                    n => return Err(RerankError::Shape(format!("Expected 1D or 2D output tensor, got {n}D"))),
-                }
-            }
+            RerankerHead::CrossEncoder => match tensor.dim().ndim() {
+                1 => tensor.slice(s![..]).iter().copied().collect(),
+                2 => tensor.slice(s![.., 0]).iter().copied().collect(),
+                n => return Err(RerankError::Shape(format!("Expected 1D or 2D output tensor, got {n}D"))),
+            },
             RerankerHead::Qwen3Generative => {
                 let true_id = self
                     .true_token_id
@@ -334,7 +317,6 @@ fn qwen3_scores(
 
     let mut scores = Vec::with_capacity(batch);
     for b in 0..batch {
-        // Clamp defensively so a stale/oversized index can never index out of bounds.
         let idx = last_token_indices
             .get(b)
             .copied()
@@ -342,7 +324,6 @@ fn qwen3_scores(
             .min(seq_len - 1);
         let false_logit = logits[[b, idx, false_id]];
         let true_logit = logits[[b, idx, true_id]];
-        // Numerically-stable 2-way softmax: subtract the max before exponentiating.
         let max_logit = false_logit.max(true_logit);
         let false_exp = (false_logit - max_logit).exp();
         let true_exp = (true_logit - max_logit).exp();
@@ -353,10 +334,6 @@ fn qwen3_scores(
     Ok(scores)
 }
 
-// SAFETY: RerankerEngine is Send + Sync because:
-// 1. Tokenizer is Send + Sync (confirmed in tokenizers crate)
-// 2. Session: we only call run() which is internally thread-safe per ONNX Runtime docs
-// 3. All other fields are immutable after construction
 #[allow(unsafe_code)]
 unsafe impl Send for RerankerEngine {}
 #[allow(unsafe_code)]
@@ -364,10 +341,8 @@ unsafe impl Sync for RerankerEngine {}
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    // Exercise the production sigmoid, not a local copy — keeps engine tests
-    // honest if the mod-level sigmoid ever changes.
     use super::super::sigmoid_f32 as sigmoid;
+    use super::*;
 
     #[test]
     fn sigmoid_zero_gives_half() {
@@ -416,15 +391,7 @@ mod tests {
 
     #[test]
     fn qwen3_scores_hand_computed_softmax() {
-        // vocab = 4; true_id = 3 ("yes"), false_id = 2 ("no").
-        // batch item 0, last token logits: [_, _, false=1.0, true=2.0]
-        //   softmax([1.0, 2.0]): exp(1-2)=0.3679, exp(2-2)=1.0, denom=1.3679
-        //   P(yes) = 1.0 / 1.3679 = 0.7310585...
-        // batch item 1, last token logits: [_, _, false=2.0, true=0.0]
-        //   softmax([2.0, 0.0]): exp(2-2)=1.0, exp(0-2)=0.1353, denom=1.1353
-        //   P(yes) = 0.1353 / 1.1353 = 0.1192029...
         let logits = make_logits(vec![
-            // batch item 0: two tokens in sequence; only the LAST is read.
             vec![vec![9.0, 9.0, 9.0, 9.0], vec![0.0, 0.0, 1.0, 2.0]],
             vec![vec![9.0, 9.0, 9.0, 9.0], vec![0.0, 0.0, 2.0, 0.0]],
         ]);
@@ -442,7 +409,6 @@ mod tests {
             "expected P(yes) ~= 0.1192029 for item 1, got {}",
             scores[1]
         );
-        // Scores are already probabilities in [0, 1] — no sigmoid needed.
         for &s in &scores {
             assert!((0.0..=1.0).contains(&s), "score {s} must be in [0, 1]");
         }
@@ -450,7 +416,6 @@ mod tests {
 
     #[test]
     fn qwen3_scores_equal_logits_gives_half() {
-        // true == false logit -> softmax is exactly [0.5, 0.5].
         let logits = make_logits(vec![vec![vec![0.0, 0.0, 3.0, 3.0]]]);
         let view = logits.view();
         let scores = qwen3_scores(&view, 3, 2, &[0]).expect("scores must compute");
@@ -464,8 +429,6 @@ mod tests {
 
     #[test]
     fn qwen3_scores_only_reads_last_token() {
-        // First token strongly favors "no"; last token strongly favors "yes".
-        // A correct implementation ignores the first token entirely.
         let logits = make_logits(vec![vec![vec![0.0, 0.0, 100.0, -100.0], vec![0.0, 0.0, -100.0, 100.0]]]);
         let view = logits.view();
         let scores = qwen3_scores(&view, 3, 2, &[1]).expect("scores must compute");
@@ -478,10 +441,6 @@ mod tests {
 
     #[test]
     fn qwen3_scores_reads_last_unmasked_token_under_right_padding() {
-        // A right-padded row: real content at index 0 (favours "yes"), padding
-        // at index 1 (favours "no"). With last_token_indices = [0], the score
-        // must come from index 0 — proving we read the last *real* token, not
-        // the padded sequence end. A hardcoded seq_len-1 would score ~0 here.
         let logits = make_logits(vec![vec![vec![0.0, 0.0, -100.0, 100.0], vec![0.0, 0.0, 100.0, -100.0]]]);
         let view = logits.view();
         let scores = qwen3_scores(&view, 3, 2, &[0]).expect("scores must compute");

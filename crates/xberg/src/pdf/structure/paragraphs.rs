@@ -13,16 +13,11 @@ pub(super) fn merge_continuation_paragraphs(paragraphs: &mut Vec<PdfParagraph>) 
         return;
     }
 
-    // O(N) single-pass merge: drain the original vec and rebuild, avoiding
-    // the O(N²) cost of repeated Vec::remove shifts.
     let old = std::mem::take(paragraphs);
     let mut iter = old.into_iter();
-    // SAFETY: we returned early above when paragraphs.len() < 2, so `old`
-    // contains at least two elements and the first next() always succeeds.
     let mut current = iter.next().unwrap();
 
     for next in iter {
-        // Both must be body text (no heading, list, code, or formula)
         let both_body = current.heading_level.is_none()
             && next.heading_level.is_none()
             && !current.is_list_item
@@ -31,10 +26,7 @@ pub(super) fn merge_continuation_paragraphs(paragraphs: &mut Vec<PdfParagraph>) 
             && !next.is_code_block
             && !current.is_formula
             && !next.is_formula;
-        // Font sizes close enough
         let fonts_compatible = (current.dominant_font_size - next.dominant_font_size).abs() < 2.0;
-        // Merge when current doesn't end with terminator, or when next
-        // starts with a lowercase letter (sentence continuation).
         let continuation_signal = !ends_with_sentence_terminator(&current) || starts_with_lowercase_continuation(&next);
         let should_merge = both_body && fonts_compatible && continuation_signal;
 
@@ -86,13 +78,11 @@ fn ends_with_sentence_terminator(para: &PdfParagraph) -> bool {
 pub(super) fn split_embedded_list_items(paragraphs: &mut Vec<PdfParagraph>) {
     let old = std::mem::take(paragraphs);
     for para in old {
-        // Only split non-heading, non-list, non-code paragraphs
         if para.heading_level.is_some() || para.is_list_item || para.is_code_block || para.is_formula {
             paragraphs.push(para);
             continue;
         }
 
-        // Collect full text to check for embedded bullets
         let full_text: String = para
             .lines
             .iter()
@@ -101,19 +91,15 @@ pub(super) fn split_embedded_list_items(paragraphs: &mut Vec<PdfParagraph>) {
             .collect::<Vec<_>>()
             .join(" ");
 
-        // Count bullet occurrences — only split if there are multiple. The
-        // text repair pass normalizes `•` to middle dot, so accept both forms.
         let bullet_count = full_text.matches(['\u{2022}', '\u{00B7}']).count();
         if bullet_count < 2 {
             paragraphs.push(para);
             continue;
         }
 
-        // Split on bullet character boundaries
         let font_size = para.dominant_font_size;
         let is_bold = para.is_bold;
 
-        // Split the full text on bullet markers and produce separate paragraphs.
         let parts: Vec<&str> = full_text.split(['\u{2022}', '\u{00B7}']).collect();
         let before = parts[0].trim().trim_end_matches('\u{00C2}').trim();
         if !before.is_empty() {
@@ -184,8 +170,6 @@ fn text_to_paragraph(text: &str, font_size: f32, is_bold: bool, is_list_item: bo
 mod tests {
     use super::*;
 
-    // -- merge_continuation_paragraphs tests --
-
     fn make_body_paragraph(text: &str, font_size: f32) -> PdfParagraph {
         use crate::pdf::hierarchy::SegmentData;
 
@@ -230,7 +214,6 @@ mod tests {
 
     #[test]
     fn test_merge_lowercase_continuation() {
-        // Second paragraph starts with lowercase → merge even if first ends with period
         let mut paragraphs = vec![
             make_body_paragraph("The regulation requires.", 12.0),
             make_body_paragraph("and all operators must comply", 12.0),
@@ -241,7 +224,6 @@ mod tests {
 
     #[test]
     fn test_no_merge_different_font_sizes() {
-        // Different font sizes (>2pt) should prevent merging
         let mut paragraphs = vec![
             make_body_paragraph("First paragraph", 12.0),
             make_body_paragraph("second paragraph", 16.0),
@@ -252,7 +234,6 @@ mod tests {
 
     #[test]
     fn test_merge_no_terminator() {
-        // First ends without terminator → merge
         let mut paragraphs = vec![
             make_body_paragraph("The regulation requires", 12.0),
             make_body_paragraph("All operators must comply", 12.0),
@@ -263,7 +244,6 @@ mod tests {
 
     #[test]
     fn test_no_merge_terminated_uppercase() {
-        // First ends with period, second starts with uppercase → don't merge
         let mut paragraphs = vec![
             make_body_paragraph("The regulation requires compliance.", 12.0),
             make_body_paragraph("All operators must comply", 12.0),
@@ -287,9 +267,6 @@ mod tests {
 
     #[test]
     fn test_merge_clears_precomputed_text_on_heuristic_path() {
-        // Heuristic-path paragraphs have non-empty text. After merging, text must
-        // be cleared so assembly re-derives the full content from segments via
-        // join_line_texts_plain rather than returning only the first fragment.
         let mut p1 = make_body_paragraph("een indicative", 12.0);
         p1.text = "een indicative".to_string();
         let mut p2 = make_body_paragraph("van toenemende merkbekendheid", 12.0);
@@ -306,12 +283,10 @@ mod tests {
 
     #[test]
     fn test_merge_struct_tree_path_text_stays_empty() {
-        // Struct-tree paragraphs always have empty text — clearing is a no-op.
         let mut paragraphs = vec![
             make_body_paragraph("first sentence without terminator", 12.0),
             make_body_paragraph("second continues here", 12.0),
         ];
-        // text is already empty from make_body_paragraph
         assert!(paragraphs[0].text.is_empty());
         merge_continuation_paragraphs(&mut paragraphs);
         assert_eq!(paragraphs.len(), 1);

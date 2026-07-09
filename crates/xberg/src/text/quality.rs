@@ -48,10 +48,6 @@ static JS_FUNCTION_PATTERN: Lazy<Regex> = Lazy::new(|| {
 static CSS_RULES_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)\.[a-zA-Z][\w-]*\s*\{[^}]*\}").expect("CSS rules regex pattern is valid and should compile")
 });
-// SCRIPT_TAG_PATTERN and STYLE_TAG_PATTERN are replaced by the `count_tag_bytes` memmem scanner
-// below. The `(?is).*?` pattern over large inputs triggers the regex_automata BoundedBacktracker,
-// causing heap spikes (observed ~1.6 MiB combined in staging heap profiles). The scanner is O(n)
-// with zero regex allocation.
 
 static NAV_WORDS_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)\b(?:Skip to main content|Back to top|Main navigation|Site navigation)\b")
@@ -89,7 +85,6 @@ fn sum_match_lengths(text: &str, pattern: &Regex) -> usize {
 /// patterns trigger the `regex_automata` `BoundedBacktracker` on large inputs, causing
 /// multi-MiB transient allocations (observed in staging heap profiles at ~1.6 MiB combined).
 fn count_tag_bytes(text: &str, open_needle: &[u8], close_needle: &[u8]) -> usize {
-    // Lowercase once — ASCII tags only, so byte length is preserved.
     let lower = text.to_ascii_lowercase();
     let bytes = lower.as_bytes();
 
@@ -105,10 +100,8 @@ fn count_tag_bytes(text: &str, open_needle: &[u8], close_needle: &[u8]) -> usize
         };
         let open_start = pos + open_start;
 
-        // Find the end of the opening tag (the `>`).
         let tag_body_start = match bytes[open_start..].iter().position(|&b| b == b'>') {
             Some(rel) => open_start + rel + 1,
-            // Unclosed opening tag — nothing more to match.
             None => break,
         };
 
@@ -221,15 +214,11 @@ fn calculate_script_penalty(text: &str, total_chars: f64) -> f64 {
         return 0.0;
     }
 
-    // Fast early-exit using case-insensitive literal scan on a lowercased view.
-    // Avoids allocating the lowercase copy in the common case where no script noise is present.
     let bytes = text.as_bytes();
     if memmem::find(bytes, b"function").is_none()
         && memmem::find(bytes, b"<script").is_none()
         && memmem::find(bytes, b"<style").is_none()
     {
-        // None of the lowercase forms are present.  Check uppercase to avoid false negatives on
-        // ALL-CAPS inputs, then give up if neither is found.
         if memmem::find(bytes, b"FUNCTION").is_none()
             && memmem::find(bytes, b"<SCRIPT").is_none()
             && memmem::find(bytes, b"<STYLE").is_none()
@@ -238,9 +227,7 @@ fn calculate_script_penalty(text: &str, total_chars: f64) -> f64 {
         }
     }
 
-    // Truncate for the brace-bounded regex patterns — heuristic noise detection only.
     let truncated = if text.len() > JS_CSS_PATTERN_INPUT_CAP {
-        // Find a valid UTF-8 boundary at or before the cap.
         let mut end = JS_CSS_PATTERN_INPUT_CAP;
         while !text.is_char_boundary(end) {
             end -= 1;
@@ -250,11 +237,6 @@ fn calculate_script_penalty(text: &str, total_chars: f64) -> f64 {
         text
     };
 
-    // Asymmetric input lengths are deliberate: JS_FUNCTION/CSS_RULES use the
-    // truncated 64 KiB slice (their backtracker buffers scale with input length
-    // and the patterns are noise heuristics, so JS leakage past 64 KiB is
-    // acceptably under-counted). `count_tag_bytes` walks the full `text` because
-    // its memmem scanner is linear in input length and cheap regardless of size.
     let script_chars = sum_match_lengths(truncated, &JS_FUNCTION_PATTERN)
         + sum_match_lengths(truncated, &CSS_RULES_PATTERN)
         + count_tag_bytes(text, b"<script", b"</script>")

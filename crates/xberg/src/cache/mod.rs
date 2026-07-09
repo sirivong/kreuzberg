@@ -7,7 +7,6 @@ mod cleanup;
 mod core;
 mod utilities;
 
-// Re-export all public types and functions for backward compatibility
 pub use cleanup::{clear_cache_directory, get_cache_metadata};
 pub use core::{CacheStats, GenericCache};
 #[cfg(feature = "ocr")]

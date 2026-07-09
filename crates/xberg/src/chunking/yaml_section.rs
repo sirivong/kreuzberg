@@ -61,7 +61,6 @@ fn flatten_json(text: &str) -> Result<Vec<Section>> {
     if !json_val.is_object() {
         return Ok(Vec::new());
     }
-    // Convert JSON → YAML value tree (YAML is a superset of JSON)
     let yaml_str = serde_json::to_string(&json_val).unwrap_or_default();
     let yaml_val: serde_yaml_ng::Value = match serde_yaml_ng::from_str(&yaml_str) {
         Ok(v) => v,
@@ -112,8 +111,6 @@ fn flatten_value_tree(roots: impl Iterator<Item = (String, serde_yaml_ng::Value)
     while let Some((path, value)) = queue.pop_front() {
         match value {
             serde_yaml_ng::Value::Mapping(map) if !map.is_empty() => {
-                // Path is cloned per sibling; cost is O(depth) per node which
-                // is acceptable for typical config files.
                 for (k, v) in map {
                     if let Some(key_str) = k.as_str() {
                         let mut child_path = path.clone();
@@ -126,7 +123,6 @@ fn flatten_value_tree(roots: impl Iterator<Item = (String, serde_yaml_ng::Value)
                 sections.push(Section {
                     key: path.join(" > "),
                     value: format_yaml_value(&other),
-                    // Byte offsets not tracked; parsed values lack source positions
                     byte_start: 0,
                     byte_end: 0,
                 });
@@ -163,8 +159,6 @@ fn page_for_offset(offset: usize, boundaries: &[PageBoundary]) -> Option<u32> {
         .iter()
         .find(|b| offset >= b.byte_start && offset < b.byte_end)
         .map(|b| b.page_number)
-        // If not inside any boundary, use the last boundary when the offset equals
-        // the final byte_end (common when byte_start == byte_end == 0 on a single page).
         .or_else(|| boundaries.last().map(|b| b.page_number))
 }
 
@@ -180,9 +174,6 @@ fn build_chunks_from_sections(
         let prefix = format!("# {}", section.key);
         let content = format!("{}\n\n{}", prefix, section.value.trim());
 
-        // Derive page provenance from byte offsets against page_boundaries.
-        // YAML parsed values don't carry source positions, so byte_start/byte_end
-        // are both 0; page_for_offset returns the first (and usually only) page.
         let (first_page, last_page) = match page_boundaries {
             Some(b) if !b.is_empty() => (
                 page_for_offset(section.byte_start, b),
@@ -291,7 +282,6 @@ mod tests {
     fn test_nested_yaml() {
         let yaml = "app:\n  name: test\n  config:\n    debug: true\n    log_level: info";
         let result = chunk_yaml_by_sections(yaml, &make_config(), None).unwrap();
-        // Leaf sections: app > name, app > config > debug, app > config > log_level
         assert_eq!(result.chunk_count, 3);
         assert!(result.chunks[0].content.contains("# app > name"));
         assert!(result.chunks[0].content.contains("test"));
@@ -400,7 +390,6 @@ mod tests {
 
     #[test]
     fn test_oversized_section_split() {
-        // A single leaf with a very long value should get sub-split
         let long_text = "word ".repeat(500);
         let yaml = format!("description: |\n  {}\nother: ok", long_text.trim());
         let config = ChunkingConfig {
@@ -431,7 +420,6 @@ mod tests {
     fn test_flow_style_value() {
         let yaml = "ports: [80, 443]\nname: test";
         let result = chunk_yaml_by_sections(yaml, &make_config(), None).unwrap();
-        // ports is a leaf (array value), name is a leaf (scalar)
         assert_eq!(result.chunk_count, 2);
         assert!(result.chunks.iter().any(|c| c.content.contains("# ports")));
         assert!(result.chunks.iter().any(|c| c.content.contains("# name")));
@@ -451,7 +439,6 @@ mod tests {
     fn test_anchor_alias() {
         let yaml = "defaults: &defaults\n  adapter: postgres\nproduction:\n  <<: *defaults\n  host: prod-db";
         let result = chunk_yaml_by_sections(yaml, &make_config(), None).unwrap();
-        // defaults > adapter is a leaf, production has << and host as leaves
         assert_eq!(result.chunk_count, 3);
     }
 
@@ -478,8 +465,6 @@ mod tests {
         assert!(result.chunks.iter().any(|c| c.content.contains("# big")));
         assert!(result.chunks.iter().any(|c| c.content.contains("# small")));
     }
-
-    // --- New tests for nested YAML ---
 
     #[test]
     fn test_nested_yaml_creates_leaf_chunks() {
@@ -514,14 +499,11 @@ mod tests {
         assert!(!result.chunks[3].content.contains("parent1"));
     }
 
-    // --- JSON tests ---
-
     #[test]
     fn test_json_object_by_keys() {
         let json = r#"{"server": "localhost", "port": 8080, "debug": true}"#;
         let result = chunk_yaml_by_sections(json, &make_config(), None).unwrap();
         assert_eq!(result.chunk_count, 3);
-        // Key order may vary depending on JSON/YAML internal map ordering
         let all_content: String = result
             .chunks
             .iter()
@@ -558,7 +540,6 @@ mod tests {
         let json = r#"{"a":1,"b":{"c":2,"d":3},"e":"hello"}"#;
         let result = chunk_yaml_by_sections(json, &make_config(), None).unwrap();
         assert_eq!(result.chunk_count, 4);
-        // BFS order: a (leaf), e (leaf), then b's children (b>c, b>d)
         assert!(result.chunks[0].content.contains("# a"));
         assert!(result.chunks[1].content.contains("# e"));
         assert!(result.chunks[1].content.contains("hello"));
@@ -570,7 +551,6 @@ mod tests {
     fn test_json_empty_object() {
         let json = r#"{}"#;
         let result = chunk_yaml_by_sections(json, &make_config(), None).unwrap();
-        // Empty object has no keys to split — falls back to text chunker
         assert!(result.chunk_count <= 1);
     }
 
@@ -587,7 +567,6 @@ mod tests {
     fn test_invalid_yaml_falls_back() {
         let yaml = ":\n  - :\n  invalid:: yaml::: [unterminated";
         let result = chunk_yaml_by_sections(yaml, &make_config(), None).unwrap();
-        // Should not panic; falls back to text chunking
         assert!(result.chunk_count > 0);
     }
 
@@ -595,7 +574,6 @@ mod tests {
     fn test_malformed_json_falls_back() {
         let json = r#"{"key": "unterminated"#;
         let result = chunk_yaml_by_sections(json, &make_config(), None).unwrap();
-        // Should not panic; falls back to text chunking
         assert!(result.chunk_count > 0);
     }
 
@@ -611,7 +589,6 @@ mod tests {
 
     #[test]
     fn test_yaml_scalar_root_falls_back() {
-        // Root is a scalar, not a mapping — should fall back
         let yaml = "just a plain string";
         let result = chunk_yaml_by_sections(yaml, &make_config(), None).unwrap();
         assert!(result.chunk_count >= 1);

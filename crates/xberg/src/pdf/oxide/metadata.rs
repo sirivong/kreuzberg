@@ -57,7 +57,6 @@ fn extract_pdf_specific_metadata(doc: &mut OxideDocument) -> Result<PdfMetadata>
         .page_count()
         .map_err(|e| PdfError::MetadataExtractionFailed(format!("Failed to get page count: {}", e)))?;
 
-    // Get first page dimensions from MediaBox
     let (width, height) = if page_count > 0 {
         match doc.doc.get_page_media_box(0) {
             Ok((llx, lly, urx, ury)) => {
@@ -71,7 +70,6 @@ fn extract_pdf_specific_metadata(doc: &mut OxideDocument) -> Result<PdfMetadata>
         (None, None)
     };
 
-    // Extract producer from Info dictionary
     let producer = get_info_string(&mut doc.doc, "Producer");
 
     Ok(PdfMetadata {
@@ -119,12 +117,9 @@ fn extract_common_metadata(doc: &mut OxideDocument) -> Result<CommonPdfMetadata>
 /// key. Returns `None` if the Info dict is absent, the key is missing, or the
 /// value cannot be decoded as a string.
 fn get_info_string(doc: &mut pdf_oxide::PdfDocument, key: &str) -> Option<String> {
-    // Get Info reference from trailer
     let trailer = doc.trailer().clone();
     let info_ref_obj = trailer.as_dict()?.get("Info")?.clone();
 
-    // Resolve the reference to get the actual Info dictionary.
-    // The Info entry might be a direct dictionary or an indirect reference.
     let info_obj = match info_ref_obj.as_reference() {
         Some(obj_ref) => doc.load_object(obj_ref).ok()?,
         None => info_ref_obj,
@@ -134,7 +129,6 @@ fn get_info_string(doc: &mut pdf_oxide::PdfDocument, key: &str) -> Option<String
 
     let value = info_dict.get(key)?;
 
-    // PDF strings are stored as byte vectors; names as Strings
     match value {
         pdf_oxide::object::Object::String(bytes) => decode_pdf_string(bytes),
         pdf_oxide::object::Object::Name(name) => {
@@ -154,7 +148,6 @@ fn decode_pdf_string(bytes: &[u8]) -> Option<String> {
         return None;
     }
 
-    // Check for UTF-16BE BOM
     if bytes.len() >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF {
         let utf16: Vec<u16> = bytes[2..]
             .chunks_exact(2)
@@ -164,12 +157,10 @@ fn decode_pdf_string(bytes: &[u8]) -> Option<String> {
         let trimmed = decoded.trim().to_string();
         if trimmed.is_empty() { None } else { Some(trimmed) }
     } else if bytes.len() >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF {
-        // UTF-8 BOM
         let decoded = String::from_utf8_lossy(&bytes[3..]);
         let trimmed = decoded.trim().to_string();
         if trimmed.is_empty() { None } else { Some(trimmed) }
     } else {
-        // Try UTF-8 first, then fall back to Latin-1 (PDFDocEncoding)
         match std::str::from_utf8(bytes) {
             Ok(s) => {
                 let trimmed = s.trim().to_string();
@@ -248,9 +239,6 @@ fn build_page_structure(doc: &mut OxideDocument, boundaries: &[PageBoundary], co
         pages: if pages.is_empty() { None } else { Some(pages) },
     })
 }
-
-// --- Helper functions for parsing metadata strings ---
-// These mirror the implementations in `pdf::metadata`.
 
 fn parse_authors(author_str: &str) -> Vec<String> {
     let author_str = author_str.replace(" and ", ", ");
@@ -364,7 +352,7 @@ mod tests {
 
     #[test]
     fn test_decode_pdf_string_utf16be() {
-        let mut bytes = vec![0xFE, 0xFF]; // BOM
+        let mut bytes = vec![0xFE, 0xFF];
         bytes.extend_from_slice(&[0x00, b'H', 0x00, b'i']);
         assert_eq!(decode_pdf_string(&bytes), Some("Hi".to_string()));
     }

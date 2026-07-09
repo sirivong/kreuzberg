@@ -153,11 +153,7 @@ pub fn clear_command(cache_dir: Option<PathBuf>, format: WireFormat) -> Result<(
 
 /// Execute cache manifest command - outputs expected model files with checksums.
 pub fn manifest_command(format: WireFormat) -> Result<()> {
-    // Without at least one model-providing feature, every `extend` call
     // below is `#[cfg]`-stripped and `entries: Vec<_>` has no anchor for
-    // type inference — `e.size_bytes` on the closure further down then
-    // fails compilation with E0282. Bail with a clear error instead so
-    // (or similar minimal configurations) succeeds.
     #[cfg(not(any(feature = "paddle-ocr", feature = "layout-detection", feature = "ner-onnx")))]
     {
         let _ = format;
@@ -305,8 +301,6 @@ pub fn warm_command(
         let paddle_dir = cache_base.join("paddle-ocr");
         let manager = xberg::paddle_ocr::ModelManager::new(paddle_dir);
 
-        // ensure_all_models downloads v2 det (server+mobile), cls (PP-LCNet),
-        // doc_ori, v2 unified rec models, and all per-script rec families
         manager
             .ensure_all_models()
             .context("Failed to download PaddleOCR v2 models")?;
@@ -319,7 +313,6 @@ pub fn warm_command(
         let manager = xberg::layout::LayoutModelManager::new(Some(layout_dir));
 
         if all_table_models {
-            // Download rtdetr + tatr + all SLANeXT variants (~730MB)
             let was_cached = manager.is_rtdetr_cached() && manager.is_tatr_cached();
             if was_cached {
                 already_cached.push("layout (rtdetr, tatr, slanet variants)".to_string());
@@ -330,7 +323,6 @@ pub fn warm_command(
                 downloaded.push("layout (rtdetr, tatr, slanet variants)".to_string());
             }
         } else {
-            // Default: download only rtdetr + tatr
             let was_cached = manager.is_rtdetr_cached() && manager.is_tatr_cached();
             if was_cached {
                 already_cached.push("layout (rtdetr, tatr)".to_string());
@@ -403,7 +395,6 @@ pub fn warm_command(
         }
     }
 
-    // Tree-sitter grammar downloads
     #[cfg(feature = "tree-sitter")]
     {
         if all_grammars {

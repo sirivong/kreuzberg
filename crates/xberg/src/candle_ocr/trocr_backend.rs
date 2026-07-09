@@ -46,7 +46,6 @@ static ENGINE_POOL: LazyLock<RwLock<EnginePoolMap>> = LazyLock::new(|| RwLock::n
 fn get_or_init_engine(variant: TrocrVariant, preference: DevicePreference) -> crate::Result<Arc<TrocrEngine>> {
     let key = (variant_discriminant(variant), preference);
 
-    // Fast path: engine already in pool.
     {
         let pool = ENGINE_POOL.read();
         if let Some(engine) = pool.get(&key) {
@@ -54,7 +53,6 @@ fn get_or_init_engine(variant: TrocrVariant, preference: DevicePreference) -> cr
         }
     }
 
-    // Slow path: select the device and build the engine, then insert under write lock.
     let device = preference.select().map_err(|e| crate::XbergError::Ocr {
         message: format!("Failed to select compute device: {e}"),
         source: Some(Box::new(e)),
@@ -68,7 +66,6 @@ fn get_or_init_engine(variant: TrocrVariant, preference: DevicePreference) -> cr
     let new_engine = Arc::new(new_engine);
 
     let mut pool = ENGINE_POOL.write();
-    // Double-check: another thread may have inserted while we were building.
     if let Some(existing) = pool.get(&key) {
         return Ok(Arc::clone(existing));
     }
@@ -136,7 +133,7 @@ impl TrocrBackend {
                 "large-printed" => TrocrVariant::LargePrinted,
                 "base-handwritten" => TrocrVariant::BaseHandwritten,
                 "large-handwritten" => TrocrVariant::LargeHandwritten,
-                _ => TrocrVariant::BasePrinted, // default on unknown
+                _ => TrocrVariant::BasePrinted,
             });
         }
 
@@ -173,11 +170,9 @@ impl OcrBackend for TrocrBackend {
     /// in `self.variant`. Inference runs inside `tokio::task::spawn_blocking` so the
     /// async runtime is never blocked.
     async fn process_image(&self, image_bytes: &[u8], config: &OcrConfig) -> Result<ExtractedDocument> {
-        // Parse configuration
         let (parsed_variant, device) = Self::parse_options(config);
         let variant = parsed_variant.unwrap_or(self.variant);
 
-        // Validate image data
         if image_bytes.is_empty() {
             return Err(crate::XbergError::Validation {
                 message: "Empty image data provided to TrOCR".to_string(),
@@ -185,17 +180,11 @@ impl OcrBackend for TrocrBackend {
             });
         }
 
-        // Clone image bytes for the blocking task
         let image_bytes = image_bytes.to_vec();
 
-        // Run inference in a blocking task to avoid blocking the async runtime
         let content = tokio::task::spawn_blocking(move || {
-            // Retrieve a cached engine or initialise one on first use.
-            // Device selection happens inside get_or_init_engine on first call;
-            // subsequent calls for the same (variant, device) reuse the pooled engine.
             let engine = get_or_init_engine(variant, device)?;
 
-            // Process image through encoder-decoder pipeline
             let output = engine.process_image(&image_bytes).map_err(|e| crate::XbergError::Ocr {
                 message: format!("TrOCR inference failed: {}", e),
                 source: Some(Box::new(e)),
@@ -222,9 +211,6 @@ impl OcrBackend for TrocrBackend {
     }
 
     fn supports_language(&self, lang: &str) -> bool {
-        // TrOCR base-printed is trained primarily on English and works best
-        // on English text. Other variants may support other languages but
-        // comprehensive support requires additional fine-tuning.
         matches!(lang, "eng" | "en")
     }
 
@@ -269,7 +255,6 @@ mod tests {
     fn test_parse_options_defaults() {
         let config = OcrConfig::default();
         let (variant, device) = TrocrBackend::parse_options(&config);
-        // No "variant" key in options → None, caller falls back to self.variant
         assert_eq!(variant, None);
         assert_eq!(device, DevicePreference::Auto);
     }
@@ -303,21 +288,16 @@ mod tests {
 
     #[test]
     fn test_engine_pool_key_mapping() {
-        // Verify that variant_discriminant correctly maps variants to unique keys.
-        // This ensures that the pool's key function does not accidentally conflate
-        // different variants.
         let base_printed = variant_discriminant(TrocrVariant::BasePrinted);
         let large_printed = variant_discriminant(TrocrVariant::LargePrinted);
         let base_handwritten = variant_discriminant(TrocrVariant::BaseHandwritten);
         let large_handwritten = variant_discriminant(TrocrVariant::LargeHandwritten);
 
-        // All variants must have distinct discriminants
         assert_eq!(base_printed, 0);
         assert_eq!(large_printed, 1);
         assert_eq!(base_handwritten, 2);
         assert_eq!(large_handwritten, 3);
 
-        // Verify they are all unique
         let discriminants = [base_printed, large_printed, base_handwritten, large_handwritten];
         for (i, &d1) in discriminants.iter().enumerate() {
             for (j, &d2) in discriminants.iter().enumerate() {

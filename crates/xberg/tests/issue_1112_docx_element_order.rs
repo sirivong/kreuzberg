@@ -18,8 +18,6 @@ fn test_internal_document_walk_preserves_reading_order() {
     use xberg::types::extraction::Element;
     use xberg::types::internal::{ElementKind, InternalDocument, InternalElement};
 
-    // Build a minimal InternalDocument whose elements are in reading order:
-    //   Heading → Paragraph → ListItem → Table
     let mut doc = InternalDocument::new("docx");
     doc.mime_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document".to_string();
 
@@ -41,7 +39,6 @@ fn test_internal_document_walk_preserves_reading_order() {
         1,
     ));
 
-    // Insert a table at index 0 in the tables list.
     doc.tables.push(xberg::types::tables::Table {
         cells: vec![
             vec!["Header A".to_string(), "Header B".to_string()],
@@ -56,7 +53,6 @@ fn test_internal_document_walk_preserves_reading_order() {
 
     let elements: Vec<Element> = xberg::extraction::transform::convert_internal_elements_to_elements(&doc, &None);
 
-    // Verify reading order: Title, NarrativeText, ListItem × 2, Table.
     assert_eq!(
         elements.len(),
         5,
@@ -133,9 +129,6 @@ async fn test_docx_element_based_result_format_preserves_order() {
         .expect("ElementBased result must have elements");
     assert!(!elements.is_empty(), "Must have at least one element");
 
-    // Verify that heading-type elements precede or interleave with body text in document
-    // order — never all body text followed by all headings (that would indicate page-order
-    // scrambling).
     let first_heading_pos = elements
         .iter()
         .position(|e| matches!(e.element_type, ElementType::Title | ElementType::Heading));
@@ -144,9 +137,6 @@ async fn test_docx_element_based_result_format_preserves_order() {
         .rposition(|e| matches!(e.element_type, ElementType::Title | ElementType::Heading));
 
     if let (Some(first_h), Some(last_h)) = (first_heading_pos, last_heading_pos) {
-        // There must be at least one narrative/list element somewhere between or after the
-        // headings — verify that body text appears interspersed with headings, not all bunched
-        // at the start before all body text.
         let narrative_after_first_heading = elements[first_h..]
             .iter()
             .any(|e| matches!(e.element_type, ElementType::NarrativeText | ElementType::ListItem));

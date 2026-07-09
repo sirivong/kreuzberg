@@ -12,8 +12,6 @@
 
 use serde::{Deserialize, Serialize};
 
-// ── Delta primitives ──────────────────────────────────────────────────────────
-
 /// A single line in a unified-diff hunk.
 ///
 /// Defined here (rather than only in `crate::diff`) so `RevisionDelta` can
@@ -55,8 +53,6 @@ pub struct CellChange {
     /// Value after the change.
     pub to: String,
 }
-
-// ── Revision types ────────────────────────────────────────────────────────────
 
 /// A single tracked change embedded in a document.
 ///

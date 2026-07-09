@@ -320,20 +320,10 @@ pub fn build_extraction_config(pipeline: Pipeline) -> xberg::ExtractionConfig {
         Pipeline::Baseline => base,
         Pipeline::Layout => xberg::ExtractionConfig {
             layout: Some(LayoutDetectionConfig::default()),
-            // Drive the layout-for-markdown path: layout regions inform
-            // heading / table / list / figure detection in the structure
-            // pipeline.
             use_layout_for_markdown: true,
-            // Enable OCR fallback for pages with no native text (image-only pages).
-            // With force_ocr=false (default), xberg auto-detects empty pages
-            // and falls back to tesseract OCR only when needed.
             ocr: Some(xberg::core::config::OcrConfig {
                 backend: "tesseract".to_string(),
                 language: vec!["eng".to_string()],
-                // Content-based orientation rescue (ONNX PP-LCNet classifier) for
-                // pages that are still rotated after /Rotate metadata correction.
-                // Tesseract OSD is NOT used: it corrupts engine memory in the
-                // vendored build (uncatchable SIGABRT/SIGSEGV).
                 auto_rotate: true,
                 ..Default::default()
             }),
@@ -441,8 +431,6 @@ pub fn build_extraction_config(pipeline: Pipeline) -> xberg::ExtractionConfig {
         Pipeline::PdfOxideLayout => xberg::ExtractionConfig {
             pdf_options: Some(xberg::PdfConfig { ..Default::default() }),
             layout: Some(LayoutDetectionConfig::default()),
-            // Drive the layout-for-markdown path so the oxide extractor receives
-            // layout hints (heading/table/figure detection feeds the structure pipeline).
             use_layout_for_markdown: true,
             ocr: Some(xberg::core::config::OcrConfig {
                 backend: "tesseract".to_string(),
@@ -457,8 +445,6 @@ pub fn build_extraction_config(pipeline: Pipeline) -> xberg::ExtractionConfig {
                 ..Default::default()
             }),
             layout: Some(LayoutDetectionConfig::default()),
-            // Reading-order reordering requires layout hints; without this flag
-            // `maybe_run_layout_for_markdown` returns early and reading_order is a no-op.
             use_layout_for_markdown: true,
             ocr: Some(xberg::core::config::OcrConfig {
                 backend: "tesseract".to_string(),
@@ -467,7 +453,7 @@ pub fn build_extraction_config(pipeline: Pipeline) -> xberg::ExtractionConfig {
             }),
             ..base
         },
-        Pipeline::Docling | Pipeline::PaddleOcrPython | Pipeline::RapidOcr => base, // Not used for extraction — read from file
+        Pipeline::Docling | Pipeline::PaddleOcrPython | Pipeline::RapidOcr => base,
         Pipeline::LayoutSlanetWired => xberg::ExtractionConfig {
             layout: Some(LayoutDetectionConfig {
                 table_model: xberg::core::config::layout::TableModel::SlanetWired,
@@ -639,18 +625,9 @@ pub async fn extract_pipeline(
             let doc_name = doc.name.clone();
             let pipeline_name = pipeline.name().to_string();
 
-            // Apply per-page-scaled timeout for PDFs (layout detection can be expensive).
-            // The extraction_timeout_secs is set on the config and also scales the outer
-            // tokio timeout to ensure large documents get sufficient processing time.
             let extraction_timeout_secs = compute_extraction_timeout_secs(&doc_path, &doc.file_type);
             config.extraction_timeout_secs = Some(extraction_timeout_secs);
 
-            // Use AssertUnwindSafe + catch_unwind to handle panics in comrak or
-            // other extraction code without crashing the entire benchmark run.
-            // Also apply an outer timeout as a safety net (scaled 1.5x the extraction timeout).
-            // This outer timeout acts as a fallback in case the config timeout isn't fully respected.
-            // Never drop below the previous fixed 180s outer cap: non-PDF documents
-            // keep their old safety margin, PDFs scale up beyond it as needed.
             let outer_timeout_secs = ((extraction_timeout_secs as f64 * 1.5).ceil() as u64).max(180);
             let extraction_future = async {
                 tokio::time::timeout(
@@ -713,7 +690,6 @@ async fn run_pipeline(
 
     let content = content_opt.unwrap_or_default();
     let (tf1, sf1, order_score, per_type_sf1) = if content.is_empty() && time_ms > 170_000.0 {
-        // Likely a timeout — mark as NaN to exclude from averages
         (f64::NAN, f64::NAN, f64::NAN, std::collections::HashMap::new())
     } else {
         score_document(&content, gt_text, gt_markdown)
@@ -741,7 +717,7 @@ async fn run_pipeline(
 /// Run the full comparison across all documents and pipelines.
 pub async fn run_comparison(config: &ComparisonConfig) -> Result<Vec<DocResult>> {
     let filter = CorpusFilter {
-        file_types: None, // All formats with ground truth
+        file_types: None,
         require_ground_truth: true,
         require_markdown_ground_truth: true,
         name_patterns: config.name_filter.clone().into_iter().collect(),
@@ -803,13 +779,11 @@ pub fn print_comparison_table(results: &[DocResult]) {
         return;
     }
 
-    // Collect all pipeline names from results
     let pipeline_names: Vec<&str> = results
         .first()
         .map(|r| r.results.iter().map(|pr| pr.pipeline.name()).collect())
         .unwrap_or_default();
 
-    // Header
     eprint!("{:<25}", "Document");
     for name in &pipeline_names {
         eprint!(
@@ -822,7 +796,6 @@ pub fn print_comparison_table(results: &[DocResult]) {
     eprintln!();
     eprintln!("{}", "-".repeat(25 + pipeline_names.len() * 30));
 
-    // Rows
     for doc in results {
         eprint!("{:<25}", doc.name);
         for pr in &doc.results {
@@ -836,7 +809,6 @@ pub fn print_comparison_table(results: &[DocResult]) {
         eprintln!();
     }
 
-    // Averages
     eprintln!("{}", "-".repeat(25 + pipeline_names.len() * 30));
     eprint!("{:<25}", "AVERAGE");
     for (i, _) in pipeline_names.iter().enumerate() {
@@ -879,7 +851,6 @@ pub fn print_comparison_table(results: &[DocResult]) {
     }
     eprintln!();
 
-    // Report timeouts/errors per pipeline
     for (i, name) in pipeline_names.iter().enumerate() {
         let failed = results.iter().filter(|r| r.results[i].sf1.is_nan()).count();
         if failed > 0 {
@@ -894,13 +865,11 @@ pub fn print_per_format_summary(results: &[DocResult]) {
         return;
     }
 
-    // Collect pipeline names from the first result
     let pipeline_names: Vec<&str> = results
         .first()
         .map(|r| r.results.iter().map(|pr| pr.pipeline.name()).collect())
         .unwrap_or_default();
 
-    // Group by file_type
     let mut by_format: std::collections::BTreeMap<&str, Vec<&DocResult>> = std::collections::BTreeMap::new();
     for doc in results {
         by_format.entry(&doc.file_type).or_default().push(doc);
@@ -908,7 +877,6 @@ pub fn print_per_format_summary(results: &[DocResult]) {
 
     eprintln!("\nPer-Format Summary:");
 
-    // Header
     eprint!("{:<12} {:>5}", "Format", "Count");
     for name in &pipeline_names {
         eprint!("  {:>10} {:>10}", format!("{} SF1", name), format!("{} TF1", name));
@@ -917,7 +885,6 @@ pub fn print_per_format_summary(results: &[DocResult]) {
     let line_width = 12 + 5 + pipeline_names.len() * 22;
     eprintln!("{}", "\u{2500}".repeat(line_width));
 
-    // Rows
     for (format, docs) in &by_format {
         eprint!("{:<12} {:>5}", format, docs.len());
         for (i, _) in pipeline_names.iter().enumerate() {
@@ -976,7 +943,6 @@ pub fn write_comparison_json(results: &[DocResult], path: &std::path::Path) -> R
         .map(|r| r.results.iter().map(|pr| pr.pipeline.name().to_string()).collect())
         .unwrap_or_default();
 
-    // Per-format aggregation
     let mut by_format_map: std::collections::BTreeMap<String, Vec<&DocResult>> = std::collections::BTreeMap::new();
     for doc in results {
         by_format_map.entry(doc.file_type.clone()).or_default().push(doc);
@@ -1019,7 +985,6 @@ pub fn write_comparison_json(results: &[DocResult], path: &std::path::Path) -> R
         })
         .collect();
 
-    // Overall
     let _n = results.len() as f64;
     let overall_pipelines = pipeline_names
         .iter()
@@ -1108,11 +1073,9 @@ pub fn generate_guardrails(results: &[DocResult], threshold_factor: f64) -> Guar
     let mut contracts = Vec::new();
     for doc in results {
         for result in &doc.results {
-            // Skip NaN scores (timeouts/errors)
             if result.sf1.is_nan() || result.tf1.is_nan() {
                 continue;
             }
-            // Only include docs with meaningful scores
             if result.sf1 < 0.01 && result.tf1 < 0.01 {
                 continue;
             }
@@ -1231,7 +1194,6 @@ pub async fn run_with_guardrails(config: &ComparisonConfig) -> Result<i32> {
 fn run_diagnostics(config: &ComparisonConfig, results: &[DocResult]) -> Result<()> {
     use crate::diagnostics::{diagnose_document, write_diagnostic_files};
 
-    // Rebuild corpus to access GT paths
     let filter = CorpusFilter {
         file_types: None,
         require_ground_truth: true,
@@ -1314,7 +1276,7 @@ fn print_noise_summary(results: &[DocResult]) {
     let mut total_docs_with_noise = 0;
     let mut total_issues = 0;
     let mut kind_counts: HashMap<String, usize> = HashMap::new();
-    let mut noisy_docs: Vec<(String, String, usize, usize, usize)> = Vec::new(); // (doc, pipeline, errors, warnings, infos)
+    let mut noisy_docs: Vec<(String, String, usize, usize, usize)> = Vec::new();
 
     for doc_result in results {
         for pr in &doc_result.results {
@@ -1353,7 +1315,6 @@ fn print_noise_summary(results: &[DocResult]) {
         total_docs_with_noise, total_issues
     );
 
-    // Print kind breakdown
     eprintln!("\nBy kind:");
     let mut sorted_kinds: Vec<_> = kind_counts.into_iter().collect();
     sorted_kinds.sort_by_key(|b| std::cmp::Reverse(b.1));
@@ -1361,7 +1322,6 @@ fn print_noise_summary(results: &[DocResult]) {
         eprintln!("  {:<30} {}", kind, count);
     }
 
-    // Print top noisy docs (sorted by errors desc, then warnings desc)
     noisy_docs.sort_by(|a, b| b.2.cmp(&a.2).then(b.3.cmp(&a.3)));
     let show = noisy_docs.len().min(20);
     eprintln!("\nTop {} noisy documents:", show);
@@ -1420,8 +1380,6 @@ mod tests {
     #[test]
     fn test_score_document_empty() {
         let (tf1, sf1, order_score, per_type) = score_document("", "", None);
-        // F1 of two empty token sets: compute_f1 returns 1.0 when both are empty
-        // (or 0.0 depending on implementation). Just check it doesn't panic.
         let _ = tf1;
         assert!((sf1 - 0.0).abs() < f64::EPSILON);
         assert!((order_score - 0.0).abs() < f64::EPSILON);
@@ -1450,7 +1408,6 @@ mod tests {
             sf1 > 0.0,
             "SF1 should be positive when structural GT is provided, got {sf1}"
         );
-        // per_type may or may not have entries depending on scoring internals
         let _ = per_type;
     }
 
@@ -1458,7 +1415,6 @@ mod tests {
     fn test_pipeline_config_deterministic() {
         for pipeline in Pipeline::all_xberg() {
             let config = build_extraction_config(pipeline);
-            // Verify the config is valid (doesn't panic) and has markdown output
             assert_eq!(
                 format!("{:?}", config.output_format),
                 format!("{:?}", xberg::core::config::OutputFormat::Markdown),

@@ -59,7 +59,6 @@ pub(super) fn run_layout_for_pdf_pages(
     content: &[u8],
     layout_config: &LayoutDetectionConfig,
 ) -> Result<LayoutForMarkdownOutput> {
-    // --- 1. Open document ---
     let doc = pdf_oxide::PdfDocument::from_bytes(content.to_vec()).map_err(|e| XbergError::Parsing {
         message: format!("layout runner: failed to open PDF: {e}"),
         source: None,
@@ -74,17 +73,11 @@ pub(super) fn run_layout_for_pdf_pages(
         return Ok((Vec::new(), Vec::new(), Vec::new()));
     }
 
-    // --- 2. Initialise engine ---
     let mut engine = crate::layout::take_or_create_engine(layout_config)
         .map_err(|e| XbergError::Other(format!("layout runner: engine init failed: {e}")))?;
 
-    // pdf_oxide's renderer applies /Rotate, but text segments stay in raw
-    // MediaBox space. Rendered pages are rotated back to raw space below so
-    // that detection, hint conversion, and image-crop table recognition all
-    // share the text coordinate space.
     let page_rotations = crate::pdf::render::get_page_rotations(content, page_count);
 
-    // --- 3. Chunked render + detect ---
     let mut all_images: Vec<image::RgbImage> = Vec::with_capacity(page_count);
     let mut all_layout_results: Vec<PageLayoutResult> = Vec::with_capacity(page_count);
     let mut all_hints: Vec<Vec<LayoutHint>> = Vec::with_capacity(page_count);
@@ -95,9 +88,6 @@ pub(super) fn run_layout_for_pdf_pages(
         let chunk_end = (chunk_start + LAYOUT_BATCH_CHUNK_SIZE).min(page_count);
         let chunk_size = chunk_end - chunk_start;
 
-        // Phase A: render pages in this chunk.
-        // chunk_page_meta[k] = (page_width_pts, page_height_pts)
-        // chunk_images[k]    = Some(RgbImage) if the page rendered, else None
         let mut chunk_page_meta: Vec<(f32, f32)> = Vec::with_capacity(chunk_size);
         let mut chunk_images: Vec<Option<image::RgbImage>> = Vec::with_capacity(chunk_size);
 
@@ -131,9 +121,6 @@ pub(super) fn run_layout_for_pdf_pages(
                         None
                     }
                     Ok(img) => {
-                        // The render is /Rotate-applied; undo it so the image is in
-                        // raw MediaBox space like the text segments. /Rotate 90 means
-                        // "rotate 90° clockwise for display", so undo with 90° CCW.
                         let rotation = page_rotations.get(page_idx).copied().unwrap_or(0);
                         let rgb = img.into_rgb8();
                         Some(match rotation % 360 {
@@ -148,8 +135,6 @@ pub(super) fn run_layout_for_pdf_pages(
             chunk_images.push(rgb_opt);
         }
 
-        // Phase B: run detection on the successfully rendered pages.
-        // rendered_positions[k] = index into chunk_images that is Some.
         let rendered_positions: Vec<usize> = chunk_images
             .iter()
             .enumerate()
@@ -187,25 +172,20 @@ pub(super) fn run_layout_for_pdf_pages(
             }
         };
 
-        // Map detection results back to their position within this chunk.
         let mut detected_by_pos: Vec<Option<_>> = (0..chunk_size).map(|_| None).collect();
         for (&pos, result) in rendered_positions.iter().zip(detection_results) {
             detected_by_pos[pos] = Some(result);
         }
 
-        // Phase C: assemble outputs in page order, one entry per page.
         for k in 0..chunk_size {
             let (pw, ph) = chunk_page_meta[k];
             let rotation = page_rotations.get(chunk_start + k).copied().unwrap_or(0);
-            // Take the image out of the Option (None → 1×1 placeholder for downstream callers).
             let img = chunk_images[k].take().unwrap_or_else(|| image::RgbImage::new(1, 1));
 
             if let Some((detection, _timings)) = detected_by_pos[k].take() {
                 let image_width_px = img.width();
                 let image_height_px = img.height();
 
-                // Image was un-rotated to raw MediaBox space in Phase A, so
-                // pixel detections convert directly against the raw page dims.
                 let hints: Vec<LayoutHint> =
                     pixel_detection_to_layout_hints_pdf_space(&detection, image_width_px, image_height_px, pw, ph);
 
@@ -261,8 +241,6 @@ pub(super) fn maybe_run_layout_for_markdown(content: &[u8], config: &ExtractionC
         return (None, None, None);
     };
     if config.force_ocr {
-        // force_ocr runs every page through OCR, which has its own layout detection path.
-        // Running layout here too would be wasteful and produce conflicting hints.
         return (None, None, None);
     }
     match run_layout_for_pdf_pages(content, layout_config) {

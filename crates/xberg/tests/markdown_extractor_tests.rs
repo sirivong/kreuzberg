@@ -404,8 +404,6 @@ async fn test_special_characters_in_metadata() {
     assert!(title.expect("Operation failed").contains("&") || title.expect("Operation failed").contains("Part"));
 }
 
-// ── Quarto / R Markdown / pandoc-flavored markdown (issue #1203) ──────────────
-
 /// Extract through the full pipeline (registry routing + output-format renderer)
 /// so the rendered `content` reflects the chosen `OutputFormat`.
 async fn extract_markdown_as(
@@ -431,7 +429,6 @@ async fn test_quarto_qmd_extraction_end_to_end() {
         .expect("should extract Quarto document");
 
     assert_eq!(result.metadata.title.as_deref(), Some("Quarto Report"));
-    // Executable cell braces are stripped to the bare kernel name.
     assert!(
         result.content.contains("```python"),
         "python cell renders with clean language tag"
@@ -448,7 +445,6 @@ async fn test_quarto_qmd_extraction_end_to_end() {
         !result.content.contains("echo=FALSE"),
         "chunk options are dropped from the language tag"
     );
-    // Code body is preserved verbatim; nothing is executed.
     assert!(result.content.contains("import pandas as pd"));
     assert!(result.content.contains("summary(cars)"));
 }
@@ -481,7 +477,6 @@ async fn test_pandoc_flavored_markdown_end_to_end() {
         .await
         .expect("should extract pandoc-flavored markdown");
 
-    // Definition list, math, and task list all survive extraction.
     assert!(
         result.content.contains("Definition of term 1"),
         "definition list body present"

@@ -59,8 +59,6 @@ impl NerBackend for LlmBackend {
         let wire: EntityListWire = serde_json::from_value(value)
             .map_err(|e| crate::XbergError::parsing(format!("LLM NER backend returned malformed JSON: {e}")))?;
 
-        // Build a lookup table so the LLM's lower-cased response can be matched
-        // back to the original user-supplied label (which may be mixed-case).
         let label_lookup: std::collections::HashMap<String, String> = custom_labels
             .iter()
             .map(|l| (l.to_ascii_lowercase(), l.clone()))
@@ -69,8 +67,6 @@ impl NerBackend for LlmBackend {
         let mut out = Vec::with_capacity(wire.entities.len());
         for ent in wire.entities {
             let category = parse_category(&ent.category, &label_lookup);
-            // Reconcile reported text with source content — the LLM does not
-            // produce reliable byte offsets, so we look the match up ourselves.
             if let Some(start) = text.find(&ent.text) {
                 let end = start + ent.text.len();
                 out.push(Entity {
@@ -101,8 +97,6 @@ fn parse_category(raw: &str, custom_lookup: &std::collections::HashMap<String, S
         "phone" => EntityCategory::Phone,
         "url" => EntityCategory::Url,
         _ => {
-            // Prefer the user's exact label casing if this matches one of the
-            // custom labels they passed in.
             if let Some(label) = custom_lookup.get(&lower) {
                 EntityCategory::Custom(label.clone())
             } else {
@@ -135,8 +129,6 @@ async fn complete_with_json_schema(
     } else {
         categories.iter().map(category_label).collect()
     };
-    // Append user-supplied custom labels verbatim so the model can return them
-    // exactly as the caller wrote them.
     for label in custom_labels {
         if !category_strings.iter().any(|c| c.eq_ignore_ascii_case(label)) {
             category_strings.push(label.clone());

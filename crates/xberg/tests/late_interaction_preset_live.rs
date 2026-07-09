@@ -131,20 +131,11 @@ fn colbert_small_v1_query_augmentation_pads_query_not_document() {
         "document embedding data length must match num_tokens * dim"
     );
 
-    // ColBERT query augmentation pads every query to the preset's fixed
-    // query_max_length (32), with the padded positions kept attention-live —
-    // so the returned per-token row count for a query is always exactly
-    // query_max_length. This is the "[Q]-marker + query augmentation"
-    // behavior asserted here indirectly via the row count it produces.
     assert_eq!(
         query_embedding.num_tokens as usize, preset.query_max_length,
         "ColBERT query augmentation must pad the query to exactly query_max_length live token rows"
     );
 
-    // Documents are not query-padded, so the document's per-token row count
-    // must be strictly smaller than the fixed query length for this short
-    // input, and non-zero (at minimum [CLS], the [D] marker, one real token,
-    // and [SEP]).
     assert!(
         doc_embedding.num_tokens >= 4,
         "document embedding must retain at least [CLS], [D] marker, one real token, and [SEP], got {}",
@@ -155,8 +146,6 @@ fn colbert_small_v1_query_augmentation_pads_query_not_document() {
         "this short document must not reach the query augmentation length"
     );
 
-    // Every per-token vector is L2-normalized by the engine; assert that
-    // holds for both outputs (loose tolerance for f32 accumulation).
     for row in rows(query_embedding) {
         let norm: f32 = row.iter().map(|v| v * v).sum::<f32>().sqrt();
         assert!(

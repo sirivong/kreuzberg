@@ -123,9 +123,6 @@ async fn run_abstractive(
     )
     .await;
 
-    // LLM failure should not abort the extraction pipeline. Record a warning
-    // and return Ok so downstream processors and the caller still see the
-    // extracted content.
     let (text, usage) = match outcome {
         Ok(pair) => pair,
         Err(e) => {

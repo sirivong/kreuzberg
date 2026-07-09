@@ -25,9 +25,6 @@ use super::metadata::Metadata;
 use super::ocr_elements::{OcrBoundingGeometry, OcrConfidence, OcrElementLevel, OcrRotation};
 use super::tables::Table;
 use crate::types::ExtractedImage;
-// ============================================================================
-// ID Type
-// ============================================================================
 
 #[cfg_attr(alef, alef(skip))]
 /// Deterministic element identifier, generated via blake3 hashing.
@@ -115,9 +112,6 @@ impl AsRef<str> for InternalElementId {
         self.as_str()
     }
 }
-// ============================================================================
-// Internal Document
-// ============================================================================
 
 #[cfg_attr(alef, alef(skip))]
 /// The internal flat document representation.
@@ -294,8 +288,6 @@ impl InternalDocument {
 
     /// Push an element and return its index.
     pub fn push_element(&mut self, element: InternalElement) -> u32 {
-        // Safety: element count is bounded by available memory; u32::MAX (~4 billion)
-        // elements would require hundreds of GB, so truncation cannot occur in practice.
         let idx = self.elements.len() as u32;
         self.elements.push(element);
         idx
@@ -308,8 +300,6 @@ impl InternalDocument {
 
     /// Push a table and return its index (for use in `ElementKind::Table`).
     pub fn push_table(&mut self, table: Table) -> u32 {
-        // Safety: table count is bounded by document size; overflow at u32::MAX is
-        // practically unreachable (would require ~4 billion tables).
         let idx = self.tables.len() as u32;
         self.tables.push(table);
         idx
@@ -317,8 +307,6 @@ impl InternalDocument {
 
     /// Push an image and return its index (for use in `ElementKind::Image`).
     pub fn push_image(&mut self, image: ExtractedImage) -> u32 {
-        // Safety: image count is bounded by document size; overflow at u32::MAX is
-        // practically unreachable (would require ~4 billion images).
         let idx = self.images.len() as u32;
         self.images.push(image);
         idx
@@ -345,10 +333,6 @@ impl InternalDocument {
             .join("\n")
     }
 }
-
-// ============================================================================
-// Internal Element
-// ============================================================================
 
 /// A single element in the internal flat document.
 ///
@@ -396,7 +380,6 @@ pub struct InternalElement {
     /// citation key `"smith2024"`, figure label `"fig:diagram"`.
     pub anchor: Option<String>,
 
-    // === OCR-specific fields (zero-cost when None) ===
     /// OCR bounding geometry (rectangle or quadrilateral).
     pub ocr_geometry: Option<OcrBoundingGeometry>,
 
@@ -440,7 +423,7 @@ impl InternalElement {
         feature = "quality",
         feature = "chunking"
     ))]
-    #[allow(dead_code)] // callers live behind ocr/office/pdf/etc, not chunking alone
+    #[allow(dead_code)]
     pub(crate) fn with_page(mut self, page: u32) -> Self {
         self.page = Some(page);
         self
@@ -491,10 +474,6 @@ impl InternalElement {
     }
 }
 
-// ============================================================================
-// Element Kind
-// ============================================================================
-
 /// Semantic role of an internal element.
 ///
 /// Superset of [`NodeContent`](super::document_structure::NodeContent) variants
@@ -502,7 +481,6 @@ impl InternalElement {
 #[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ElementKind {
-    // --- Text-carrying ---
     /// Document title.
     Title,
     /// Section heading with level (1-6).
@@ -543,7 +521,6 @@ pub enum ElementKind {
     /// Structured metadata block (frontmatter, email headers).
     MetadataBlock,
 
-    // --- Container markers (optional, improve tree precision) ---
     /// Start of a list container.
     ListStart {
         /// `true` for ordered (numbered) lists; `false` for unordered (bullet) lists.
@@ -560,7 +537,6 @@ pub enum ElementKind {
     /// End of a generic group/section.
     GroupEnd,
 
-    // --- Structural ---
     /// Table reference. `table_index` is an index into `InternalDocument::tables`.
     Table {
         /// Index into `InternalDocument::tables` for the referenced table.
@@ -574,7 +550,6 @@ pub enum ElementKind {
     /// Page break marker.
     PageBreak,
 
-    // --- OCR ---
     /// OCR-detected text at a given hierarchical level.
     OcrText {
         /// Hierarchical level (word, line, paragraph, block) of this OCR element.
@@ -636,10 +611,6 @@ impl ElementKind {
     }
 }
 
-// ============================================================================
-// Relationships
-// ============================================================================
-
 /// A relationship between two elements in the document.
 ///
 /// During extraction, targets may be unresolved keys (`RelationshipTarget::Key`).
@@ -667,10 +638,8 @@ pub enum RelationshipTarget {
     Key(String),
 }
 
-// Re-export RelationshipKind from the public API module where it is defined.
 pub use super::document_structure::RelationshipKind;
 
-// Compile-time assertions: these types must be Send + Sync for concurrent extraction.
 const _: () = {
     #[allow(dead_code)]
     fn assert_send_sync<T: Send + Sync>() {}
@@ -680,10 +649,6 @@ const _: () = {
         assert_send_sync::<InternalElement>();
     }
 };
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 #[cfg(test)]
 mod tests {
@@ -707,8 +672,7 @@ mod tests {
     fn test_internal_element_id_format() {
         let id = InternalElementId::generate("title", "Hello", None, 0);
         assert!(id.as_str().starts_with("ie-"));
-        // 12 hex chars = 6 bytes
-        assert_eq!(id.as_str().len(), 3 + 12); // "ie-" + 12 hex
+        assert_eq!(id.as_str().len(), 3 + 12);
     }
 
     #[test]
@@ -776,19 +740,15 @@ mod tests {
         let mut doc = InternalDocument::new("pdf");
         doc.mime_type = "application/pdf".to_string();
 
-        // Title element
         let title = InternalElement::text(ElementKind::Title, "Test Document", 0);
         doc.push_element(title);
 
-        // Heading
         let heading = InternalElement::text(ElementKind::Heading { level: 2 }, "Introduction", 1);
         doc.push_element(heading);
 
-        // Paragraph
         let para = InternalElement::text(ElementKind::Paragraph, "Body text here.", 1);
         doc.push_element(para);
 
-        // ListStart + ListItem + ListEnd
         let list_start = InternalElement::text(ElementKind::ListStart { ordered: true }, "", 1);
         doc.push_element(list_start);
         let item = InternalElement::text(ElementKind::ListItem { ordered: true }, "First item", 2);
@@ -796,19 +756,15 @@ mod tests {
         let list_end = InternalElement::text(ElementKind::ListEnd, "", 1);
         doc.push_element(list_end);
 
-        // Code block
         let code = InternalElement::text(ElementKind::Code, "fn main() {}", 0);
         doc.push_element(code);
 
-        // PageBreak
         let pb = InternalElement::text(ElementKind::PageBreak, "", 0);
         doc.push_element(pb);
 
-        // Image reference (index 0, no actual image data needed for serde test)
         let img_elem = InternalElement::text(ElementKind::Image { image_index: 0 }, "", 0);
         doc.push_element(img_elem);
 
-        // OcrText
         let ocr = InternalElement::text(
             ElementKind::OcrText {
                 level: OcrElementLevel::Word,
@@ -818,7 +774,6 @@ mod tests {
         );
         doc.push_element(ocr);
 
-        // Relationships
         doc.push_relationship(Relationship {
             source: 0,
             target: RelationshipTarget::Index(2),
@@ -830,7 +785,6 @@ mod tests {
             kind: RelationshipKind::CrossReference,
         });
 
-        // Round-trip
         let json = serde_json::to_string(&doc).expect("serialize InternalDocument");
         let restored: InternalDocument = serde_json::from_str(&json).expect("deserialize InternalDocument");
 
@@ -839,7 +793,6 @@ mod tests {
         assert_eq!(restored.elements.len(), doc.elements.len());
         assert_eq!(restored.relationships.len(), doc.relationships.len());
 
-        // Spot-check element kinds
         assert_eq!(restored.elements[0].kind, ElementKind::Title);
         assert_eq!(restored.elements[1].kind, ElementKind::Heading { level: 2 });
         assert_eq!(restored.elements[4].kind, ElementKind::ListItem { ordered: true });
@@ -851,17 +804,14 @@ mod tests {
             }
         );
 
-        // Spot-check relationship targets
         assert_eq!(restored.relationships[0].target, RelationshipTarget::Index(2));
         assert_eq!(
             restored.relationships[1].target,
             RelationshipTarget::Key("introduction".to_string())
         );
 
-        // Element IDs survive the round-trip
         assert_eq!(restored.elements[0].id, doc.elements[0].id);
 
-        // ContentLayer default is preserved
         assert_eq!(restored.elements[0].layer, ContentLayer::Body);
     }
 
@@ -874,7 +824,6 @@ mod tests {
     fn should_cover_all_element_kind_variants() {
         let mut doc = InternalDocument::new("test");
 
-        // --- text-carrying variants -----------------------------------------
         doc.push_element(InternalElement::text(ElementKind::Title, "T", 0));
         assert_eq!(doc.elements.last().unwrap().kind, ElementKind::Title);
 
@@ -923,7 +872,6 @@ mod tests {
         doc.push_element(InternalElement::text(ElementKind::MetadataBlock, "---", 0));
         assert_eq!(doc.elements.last().unwrap().kind, ElementKind::MetadataBlock);
 
-        // --- container markers ----------------------------------------------
         doc.push_element(InternalElement::text(ElementKind::ListStart { ordered: true }, "", 0));
         assert_eq!(
             doc.elements.last().unwrap().kind,
@@ -945,7 +893,6 @@ mod tests {
         doc.push_element(InternalElement::text(ElementKind::GroupEnd, "", 0));
         assert_eq!(doc.elements.last().unwrap().kind, ElementKind::GroupEnd);
 
-        // --- structural -----------------------------------------------------
         doc.push_element(InternalElement::text(ElementKind::Table { table_index: 0 }, "", 0));
         assert_eq!(doc.elements.last().unwrap().kind, ElementKind::Table { table_index: 0 });
 
@@ -955,7 +902,6 @@ mod tests {
         doc.push_element(InternalElement::text(ElementKind::PageBreak, "", 0));
         assert_eq!(doc.elements.last().unwrap().kind, ElementKind::PageBreak);
 
-        // --- OCR: all four OcrElementLevel variants -------------------------
         for level in [
             OcrElementLevel::Word,
             OcrElementLevel::Line,
@@ -966,14 +912,11 @@ mod tests {
             assert_eq!(doc.elements.last().unwrap().kind, ElementKind::OcrText { level });
         }
 
-        // --- full round-trip ------------------------------------------------
         let json = serde_json::to_string(&doc).expect("serialize all-variant InternalDocument");
         let restored: InternalDocument = serde_json::from_str(&json).expect("deserialize all-variant InternalDocument");
 
-        // 15 text-carrying + 6 container + 3 structural + 4 OCR levels = 28
         assert_eq!(restored.elements.len(), doc.elements.len());
 
-        // Spot-check a selection of deserialized kinds across all groups.
         assert_eq!(restored.elements[0].kind, ElementKind::Title);
         assert_eq!(restored.elements[5].kind, ElementKind::Formula);
         assert_eq!(restored.elements[9].kind, ElementKind::Slide { number: 3 });
@@ -1004,17 +947,14 @@ mod tests {
     #[test]
     fn should_round_trip_relationship_targets() {
         let mut doc = InternalDocument::new("test");
-        // Add a couple of elements so indices are valid.
         doc.push_element(InternalElement::text(ElementKind::Paragraph, "source", 0));
         doc.push_element(InternalElement::text(ElementKind::Paragraph, "target", 0));
 
-        // Index target
         doc.push_relationship(Relationship {
             source: 0,
             target: RelationshipTarget::Index(1),
             kind: RelationshipKind::CrossReference,
         });
-        // Key target
         doc.push_relationship(Relationship {
             source: 0,
             target: RelationshipTarget::Key("anchor-abc".to_string()),
@@ -1030,7 +970,6 @@ mod tests {
             restored.relationships[1].target,
             RelationshipTarget::Key("anchor-abc".to_string())
         );
-        // Verify kind field also survives
         assert_eq!(restored.relationships[0].kind, RelationshipKind::CrossReference);
         assert_eq!(restored.relationships[1].kind, RelationshipKind::FootnoteReference);
     }

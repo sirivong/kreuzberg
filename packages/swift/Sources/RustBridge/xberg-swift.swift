@@ -882,6 +882,12 @@ public func imagePreprocessingMetadataFromJson<GenericIntoRustString: IntoRustSt
 public func formulaFromJson<GenericIntoRustString: IntoRustString>(_ json: GenericIntoRustString) throws -> Formula {
     try { let val = __swift_bridge__$formula_from_json({ let rustString = json.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); if val.is_ok { return Formula(ptr: val.ok_or_err!) } else { throw RustString(ptr: val.ok_or_err!) } }()
 }
+public func codeMetadataFromJson<GenericIntoRustString: IntoRustString>(_ json: GenericIntoRustString) throws -> CodeMetadata {
+    try { let val = __swift_bridge__$code_metadata_from_json({ let rustString = json.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); if val.is_ok { return CodeMetadata(ptr: val.ok_or_err!) } else { throw RustString(ptr: val.ok_or_err!) } }()
+}
+public func codeChunkInfoFromJson<GenericIntoRustString: IntoRustString>(_ json: GenericIntoRustString) throws -> CodeChunkInfo {
+    try { let val = __swift_bridge__$code_chunk_info_from_json({ let rustString = json.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); if val.is_ok { return CodeChunkInfo(ptr: val.ok_or_err!) } else { throw RustString(ptr: val.ok_or_err!) } }()
+}
 public func metadataFromJson<GenericIntoRustString: IntoRustString>(_ json: GenericIntoRustString) throws -> Metadata {
     try { let val = __swift_bridge__$metadata_from_json({ let rustString = json.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); if val.is_ok { return Metadata(ptr: val.ok_or_err!) } else { throw RustString(ptr: val.ok_or_err!) } }()
 }
@@ -1328,6 +1334,9 @@ public func uriKindFromJson<GenericIntoRustString: IntoRustString>(_ json: Gener
 }
 public func regionKindFromJson<GenericIntoRustString: IntoRustString>(_ json: GenericIntoRustString) throws -> RegionKind {
     try { let val = __swift_bridge__$region_kind_from_json({ let rustString = json.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); if val.is_ok { return RegionKind(ptr: val.ok_or_err!) } else { throw RustString(ptr: val.ok_or_err!) } }()
+}
+public func embeddingsEmbeddingBackendFromJson<GenericIntoRustString: IntoRustString>(_ json: GenericIntoRustString) throws -> EmbeddingsEmbeddingBackend {
+    try { let val = __swift_bridge__$embeddings_embedding_backend_from_json({ let rustString = json.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); if val.is_ok { return EmbeddingsEmbeddingBackend(ptr: val.ok_or_err!) } else { throw RustString(ptr: val.ok_or_err!) } }()
 }
 public func schemaComplianceFromJson<GenericIntoRustString: IntoRustString>(_ json: GenericIntoRustString) throws -> SchemaCompliance {
     try { let val = __swift_bridge__$schema_compliance_from_json({ let rustString = json.intoRustString(); rustString.isOwned = false; return rustString.ptr }()); if val.is_ok { return SchemaCompliance(ptr: val.ok_or_err!) } else { throw RustString(ptr: val.ok_or_err!) } }()
@@ -2007,6 +2016,12 @@ public func __alef_phantom_vec_footnote_definition() -> RustVec<FootnoteDefiniti
 public func __alef_phantom_vec_citation() -> RustVec<Citation> {
     RustVec(ptr: __swift_bridge__$__alef_phantom_vec_citation())
 }
+public func __alef_phantom_vec_code_metadata() -> RustVec<CodeMetadata> {
+    RustVec(ptr: __swift_bridge__$__alef_phantom_vec_code_metadata())
+}
+public func __alef_phantom_vec_code_chunk_info() -> RustVec<CodeChunkInfo> {
+    RustVec(ptr: __swift_bridge__$__alef_phantom_vec_code_chunk_info())
+}
 public func __alef_phantom_vec_docx_metadata() -> RustVec<DocxMetadata> {
     RustVec(ptr: __swift_bridge__$__alef_phantom_vec_docx_metadata())
 }
@@ -2147,6 +2162,9 @@ public func __alef_phantom_vec_reduction_level() -> RustVec<ReductionLevel> {
 }
 public func __alef_phantom_vec_region_kind() -> RustVec<RegionKind> {
     RustVec(ptr: __swift_bridge__$__alef_phantom_vec_region_kind())
+}
+public func __alef_phantom_vec_embeddings_embedding_backend() -> RustVec<EmbeddingsEmbeddingBackend> {
+    RustVec(ptr: __swift_bridge__$__alef_phantom_vec_embeddings_embedding_backend())
 }
 public func __alef_phantom_vec_schema_compliance() -> RustVec<SchemaCompliance> {
     RustVec(ptr: __swift_bridge__$__alef_phantom_vec_schema_compliance())
@@ -12874,6 +12892,187 @@ extension Formula: Vectorizable {
 
     public static func vecOfSelfLen(vecPtr: UnsafeMutableRawPointer) -> UInt {
         __swift_bridge__$Vec_Formula$len(vecPtr)
+    }
+}
+
+
+public class CodeMetadata: CodeMetadataRefMut {
+    public var isOwned: Bool = true
+
+    public override init(ptr: UnsafeMutableRawPointer) {
+        super.init(ptr: ptr)
+    }
+
+    deinit {
+        if isOwned {
+            __swift_bridge__$CodeMetadata$_free(ptr)
+        }
+    }
+}
+extension CodeMetadata {
+    public convenience init(_ chunks: RustVec<CodeChunkInfo>) {
+        self.init(ptr: __swift_bridge__$CodeMetadata$new({ let val = chunks; val.isOwned = false; return val.ptr }()))
+    }
+}
+public class CodeMetadataRefMut: CodeMetadataRef {
+    public override init(ptr: UnsafeMutableRawPointer) {
+        super.init(ptr: ptr)
+    }
+}
+public class CodeMetadataRef {
+    public var ptr: UnsafeMutableRawPointer
+
+    public init(ptr: UnsafeMutableRawPointer) {
+        self.ptr = ptr
+    }
+}
+extension CodeMetadataRef {
+    public func chunks() -> RustVec<RustString> {
+        RustVec(ptr: __swift_bridge__$CodeMetadata$chunks(ptr))
+    }
+}
+extension CodeMetadata: Vectorizable {
+    public static func vecOfSelfNew() -> UnsafeMutableRawPointer {
+        __swift_bridge__$Vec_CodeMetadata$new()
+    }
+
+    public static func vecOfSelfFree(vecPtr: UnsafeMutableRawPointer) {
+        __swift_bridge__$Vec_CodeMetadata$drop(vecPtr)
+    }
+
+    public static func vecOfSelfPush(vecPtr: UnsafeMutableRawPointer, value: CodeMetadata) {
+        __swift_bridge__$Vec_CodeMetadata$push(vecPtr, {value.isOwned = false; return value.ptr;}())
+    }
+
+    public static func vecOfSelfPop(vecPtr: UnsafeMutableRawPointer) -> Optional<Self> {
+        let pointer = __swift_bridge__$Vec_CodeMetadata$pop(vecPtr)
+        if pointer == nil {
+            return nil
+        } else {
+            return (CodeMetadata(ptr: pointer!) as! Self)
+        }
+    }
+
+    public static func vecOfSelfGet(vecPtr: UnsafeMutableRawPointer, index: UInt) -> Optional<CodeMetadataRef> {
+        let pointer = __swift_bridge__$Vec_CodeMetadata$get(vecPtr, index)
+        if pointer == nil {
+            return nil
+        } else {
+            return CodeMetadataRef(ptr: pointer!)
+        }
+    }
+
+    public static func vecOfSelfGetMut(vecPtr: UnsafeMutableRawPointer, index: UInt) -> Optional<CodeMetadataRefMut> {
+        let pointer = __swift_bridge__$Vec_CodeMetadata$get_mut(vecPtr, index)
+        if pointer == nil {
+            return nil
+        } else {
+            return CodeMetadataRefMut(ptr: pointer!)
+        }
+    }
+
+    public static func vecOfSelfAsPtr(vecPtr: UnsafeMutableRawPointer) -> UnsafePointer<CodeMetadataRef> {
+        UnsafePointer<CodeMetadataRef>(OpaquePointer(__swift_bridge__$Vec_CodeMetadata$as_ptr(vecPtr)))
+    }
+
+    public static func vecOfSelfLen(vecPtr: UnsafeMutableRawPointer) -> UInt {
+        __swift_bridge__$Vec_CodeMetadata$len(vecPtr)
+    }
+}
+
+
+public class CodeChunkInfo: CodeChunkInfoRefMut {
+    public var isOwned: Bool = true
+
+    public override init(ptr: UnsafeMutableRawPointer) {
+        super.init(ptr: ptr)
+    }
+
+    deinit {
+        if isOwned {
+            __swift_bridge__$CodeChunkInfo$_free(ptr)
+        }
+    }
+}
+public class CodeChunkInfoRefMut: CodeChunkInfoRef {
+    public override init(ptr: UnsafeMutableRawPointer) {
+        super.init(ptr: ptr)
+    }
+}
+public class CodeChunkInfoRef {
+    public var ptr: UnsafeMutableRawPointer
+
+    public init(ptr: UnsafeMutableRawPointer) {
+        self.ptr = ptr
+    }
+}
+extension CodeChunkInfoRef {
+    public func text() -> RustString {
+        RustString(ptr: __swift_bridge__$CodeChunkInfo$text(ptr))
+    }
+
+    public func contextPath() -> RustVec<RustString> {
+        RustVec(ptr: __swift_bridge__$CodeChunkInfo$context_path(ptr))
+    }
+
+    public func nodeTypes() -> RustVec<RustString> {
+        RustVec(ptr: __swift_bridge__$CodeChunkInfo$node_types(ptr))
+    }
+
+    public func byteStart() -> UInt {
+        __swift_bridge__$CodeChunkInfo$byte_start(ptr)
+    }
+
+    public func byteEnd() -> UInt {
+        __swift_bridge__$CodeChunkInfo$byte_end(ptr)
+    }
+}
+extension CodeChunkInfo: Vectorizable {
+    public static func vecOfSelfNew() -> UnsafeMutableRawPointer {
+        __swift_bridge__$Vec_CodeChunkInfo$new()
+    }
+
+    public static func vecOfSelfFree(vecPtr: UnsafeMutableRawPointer) {
+        __swift_bridge__$Vec_CodeChunkInfo$drop(vecPtr)
+    }
+
+    public static func vecOfSelfPush(vecPtr: UnsafeMutableRawPointer, value: CodeChunkInfo) {
+        __swift_bridge__$Vec_CodeChunkInfo$push(vecPtr, {value.isOwned = false; return value.ptr;}())
+    }
+
+    public static func vecOfSelfPop(vecPtr: UnsafeMutableRawPointer) -> Optional<Self> {
+        let pointer = __swift_bridge__$Vec_CodeChunkInfo$pop(vecPtr)
+        if pointer == nil {
+            return nil
+        } else {
+            return (CodeChunkInfo(ptr: pointer!) as! Self)
+        }
+    }
+
+    public static func vecOfSelfGet(vecPtr: UnsafeMutableRawPointer, index: UInt) -> Optional<CodeChunkInfoRef> {
+        let pointer = __swift_bridge__$Vec_CodeChunkInfo$get(vecPtr, index)
+        if pointer == nil {
+            return nil
+        } else {
+            return CodeChunkInfoRef(ptr: pointer!)
+        }
+    }
+
+    public static func vecOfSelfGetMut(vecPtr: UnsafeMutableRawPointer, index: UInt) -> Optional<CodeChunkInfoRefMut> {
+        let pointer = __swift_bridge__$Vec_CodeChunkInfo$get_mut(vecPtr, index)
+        if pointer == nil {
+            return nil
+        } else {
+            return CodeChunkInfoRefMut(ptr: pointer!)
+        }
+    }
+
+    public static func vecOfSelfAsPtr(vecPtr: UnsafeMutableRawPointer) -> UnsafePointer<CodeChunkInfoRef> {
+        UnsafePointer<CodeChunkInfoRef>(OpaquePointer(__swift_bridge__$Vec_CodeChunkInfo$as_ptr(vecPtr)))
+    }
+
+    public static func vecOfSelfLen(vecPtr: UnsafeMutableRawPointer) -> UInt {
+        __swift_bridge__$Vec_CodeChunkInfo$len(vecPtr)
     }
 }
 
@@ -26873,6 +27072,86 @@ extension RegionKind: Vectorizable {
 
     public static func vecOfSelfLen(vecPtr: UnsafeMutableRawPointer) -> UInt {
         __swift_bridge__$Vec_RegionKind$len(vecPtr)
+    }
+}
+
+
+public class EmbeddingsEmbeddingBackend: EmbeddingsEmbeddingBackendRefMut {
+    public var isOwned: Bool = true
+
+    public override init(ptr: UnsafeMutableRawPointer) {
+        super.init(ptr: ptr)
+    }
+
+    deinit {
+        if isOwned {
+            __swift_bridge__$EmbeddingsEmbeddingBackend$_free(ptr)
+        }
+    }
+}
+public class EmbeddingsEmbeddingBackendRefMut: EmbeddingsEmbeddingBackendRef {
+    public override init(ptr: UnsafeMutableRawPointer) {
+        super.init(ptr: ptr)
+    }
+}
+public class EmbeddingsEmbeddingBackendRef {
+    public var ptr: UnsafeMutableRawPointer
+
+    public init(ptr: UnsafeMutableRawPointer) {
+        self.ptr = ptr
+    }
+}
+extension EmbeddingsEmbeddingBackendRef {
+    public func to_string() -> RustString {
+        RustString(ptr: __swift_bridge__$EmbeddingsEmbeddingBackend$to_string(ptr))
+    }
+}
+extension EmbeddingsEmbeddingBackend: Vectorizable {
+    public static func vecOfSelfNew() -> UnsafeMutableRawPointer {
+        __swift_bridge__$Vec_EmbeddingsEmbeddingBackend$new()
+    }
+
+    public static func vecOfSelfFree(vecPtr: UnsafeMutableRawPointer) {
+        __swift_bridge__$Vec_EmbeddingsEmbeddingBackend$drop(vecPtr)
+    }
+
+    public static func vecOfSelfPush(vecPtr: UnsafeMutableRawPointer, value: EmbeddingsEmbeddingBackend) {
+        __swift_bridge__$Vec_EmbeddingsEmbeddingBackend$push(vecPtr, {value.isOwned = false; return value.ptr;}())
+    }
+
+    public static func vecOfSelfPop(vecPtr: UnsafeMutableRawPointer) -> Optional<Self> {
+        let pointer = __swift_bridge__$Vec_EmbeddingsEmbeddingBackend$pop(vecPtr)
+        if pointer == nil {
+            return nil
+        } else {
+            return (EmbeddingsEmbeddingBackend(ptr: pointer!) as! Self)
+        }
+    }
+
+    public static func vecOfSelfGet(vecPtr: UnsafeMutableRawPointer, index: UInt) -> Optional<EmbeddingsEmbeddingBackendRef> {
+        let pointer = __swift_bridge__$Vec_EmbeddingsEmbeddingBackend$get(vecPtr, index)
+        if pointer == nil {
+            return nil
+        } else {
+            return EmbeddingsEmbeddingBackendRef(ptr: pointer!)
+        }
+    }
+
+    public static func vecOfSelfGetMut(vecPtr: UnsafeMutableRawPointer, index: UInt) -> Optional<EmbeddingsEmbeddingBackendRefMut> {
+        let pointer = __swift_bridge__$Vec_EmbeddingsEmbeddingBackend$get_mut(vecPtr, index)
+        if pointer == nil {
+            return nil
+        } else {
+            return EmbeddingsEmbeddingBackendRefMut(ptr: pointer!)
+        }
+    }
+
+    public static func vecOfSelfAsPtr(vecPtr: UnsafeMutableRawPointer) -> UnsafePointer<EmbeddingsEmbeddingBackendRef> {
+        UnsafePointer<EmbeddingsEmbeddingBackendRef>(OpaquePointer(__swift_bridge__$Vec_EmbeddingsEmbeddingBackend$as_ptr(vecPtr)))
+    }
+
+    public static func vecOfSelfLen(vecPtr: UnsafeMutableRawPointer) -> UInt {
+        __swift_bridge__$Vec_EmbeddingsEmbeddingBackend$len(vecPtr)
     }
 }
 

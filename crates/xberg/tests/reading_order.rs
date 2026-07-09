@@ -47,7 +47,6 @@ fn text_reading_order_changes_output() {
 
     let content = load_test_pdf();
 
-    // Extract with reading_order = false (baseline)
     let mut config_no_ro = ExtractionConfig {
         output_format: OutputFormat::Plain,
         pdf_options: Some(PdfConfig {
@@ -56,8 +55,8 @@ fn text_reading_order_changes_output() {
         }),
         ..Default::default()
     };
-    config_no_ro.layout = Some(Default::default()); // Enable layout detection
-    config_no_ro.use_layout_for_markdown = true; // Needed for layout hints to be computed
+    config_no_ro.layout = Some(Default::default());
+    config_no_ro.use_layout_for_markdown = true;
 
     eprintln!(
         "Config no_ro: reading_order={}, layout={}, use_layout_for_markdown={}",
@@ -73,7 +72,6 @@ fn text_reading_order_changes_output() {
     let result_no_ro = extract_bytes_document_blocking(&content, "application/pdf", &config_no_ro)
         .expect("Failed to extract with reading_order=false");
 
-    // Extract with reading_order = true
     let mut config_with_ro = ExtractionConfig {
         output_format: OutputFormat::Plain,
         pdf_options: Some(PdfConfig {
@@ -82,8 +80,8 @@ fn text_reading_order_changes_output() {
         }),
         ..Default::default()
     };
-    config_with_ro.layout = Some(Default::default()); // Enable layout detection
-    config_with_ro.use_layout_for_markdown = true; // Needed for layout hints to be computed
+    config_with_ro.layout = Some(Default::default());
+    config_with_ro.use_layout_for_markdown = true;
 
     eprintln!(
         "Config with_ro: reading_order={}, layout={}, use_layout_for_markdown={}",
@@ -99,14 +97,12 @@ fn text_reading_order_changes_output() {
     let result_with_ro = extract_bytes_document_blocking(&content, "application/pdf", &config_with_ro)
         .expect("Failed to extract with reading_order=true");
 
-    // Both should produce text
     assert!(!result_no_ro.content.is_empty(), "No-RO extraction produced empty text");
     assert!(
         !result_with_ro.content.is_empty(),
         "With-RO extraction produced empty text"
     );
 
-    // Text outputs should differ (if they're identical, the feature is broken)
     if result_no_ro.content == result_with_ro.content {
         eprintln!("WARNING: text outputs are IDENTICAL with vs without reading_order");
         eprintln!("This suggests reading_order is not being applied to the plain-text path.");
@@ -135,7 +131,6 @@ fn markdown_reading_order_changes_output() {
 
     let content = load_test_pdf();
 
-    // Extract with reading_order = false (baseline)
     let mut config_no_ro = ExtractionConfig {
         output_format: OutputFormat::Markdown,
         pdf_options: Some(PdfConfig {
@@ -144,13 +139,12 @@ fn markdown_reading_order_changes_output() {
         }),
         ..Default::default()
     };
-    config_no_ro.layout = Some(Default::default()); // Enable layout detection
-    config_no_ro.use_layout_for_markdown = true; // Needed for layout hints to be computed
+    config_no_ro.layout = Some(Default::default());
+    config_no_ro.use_layout_for_markdown = true;
 
     let result_no_ro = extract_bytes_document_blocking(&content, "application/pdf", &config_no_ro)
         .expect("Failed to extract with reading_order=false");
 
-    // Extract with reading_order = true
     let mut config_with_ro = ExtractionConfig {
         output_format: OutputFormat::Markdown,
         pdf_options: Some(PdfConfig {
@@ -159,13 +153,12 @@ fn markdown_reading_order_changes_output() {
         }),
         ..Default::default()
     };
-    config_with_ro.layout = Some(Default::default()); // Enable layout detection
-    config_with_ro.use_layout_for_markdown = true; // Needed for layout hints to be computed
+    config_with_ro.layout = Some(Default::default());
+    config_with_ro.use_layout_for_markdown = true;
 
     let result_with_ro = extract_bytes_document_blocking(&content, "application/pdf", &config_with_ro)
         .expect("Failed to extract with reading_order=true");
 
-    // Both should produce markdown
     assert!(
         !result_no_ro.content.is_empty(),
         "No-RO markdown extraction produced empty text"
@@ -175,13 +168,11 @@ fn markdown_reading_order_changes_output() {
         "With-RO markdown extraction produced empty text"
     );
 
-    // Markdown outputs should differ (if they're identical, the feature is broken)
     if result_no_ro.content == result_with_ro.content {
         eprintln!("WARNING: markdown outputs are IDENTICAL with vs without reading_order");
         eprintln!("This confirms the bug: reading_order is not wired to the markdown path.");
         eprintln!("No-RO length: {}", result_no_ro.content.len());
         eprintln!("With-RO length: {}", result_with_ro.content.len());
-        // For now, report this as expected (the bug we're fixing)
         panic!("Markdown reading_order did not change output (this is the bug we're fixing)");
     } else {
         println!(

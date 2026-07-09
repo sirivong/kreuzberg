@@ -27,7 +27,6 @@ fn encrypted_pdf() -> Vec<u8> {
         )
         .done();
 
-    // Unique per call so the parallel tests don't race on one temp path.
     static COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
     let n = COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let path = std::env::temp_dir().join(format!("xberg_pw_fixture_{}_{n}.pdf", std::process::id()));
@@ -52,13 +51,7 @@ fn config_with_passwords(passwords: Vec<String>) -> ExtractionConfig {
 fn correct_password_authenticates_and_does_not_error() {
     let bytes = encrypted_pdf();
     let config = config_with_passwords(vec!["secret123".to_string()]);
-    // The correct password must authenticate: extraction succeeds rather than
     // erroring on the encrypted document. NOTE: recovering the *decrypted text*
-    // of an AES-256 stream is a pdf_oxide capability — with a builder-produced
-    // encrypted fixture pdf_oxide authenticates but currently returns empty
-    // content, so this asserts the xberg-side plumbing (auth + no error), not
-    // the decrypted bytes. Full text recovery lands when pdf_oxide can decrypt
-    // these streams.
     let result = extract_bytes_document_blocking(&bytes, PDF_MIME, &config);
     assert!(
         result.is_ok(),

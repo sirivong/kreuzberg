@@ -165,10 +165,6 @@ pub struct StructuralQuality {
     pub text_f1: f64,
 }
 
-// ---------------------------------------------------------------------------
-// Block parsing (unchanged)
-// ---------------------------------------------------------------------------
-
 /// Parse a markdown string into a sequence of typed blocks using pulldown-cmark.
 ///
 /// This uses a proper CommonMark parser, so it correctly handles all markdown
@@ -228,7 +224,6 @@ pub fn parse_markdown_blocks(md: &str) -> Vec<MdBlock> {
                 in_code_block = false;
                 let content = std::mem::take(&mut current_text);
                 if !content.trim().is_empty() {
-                    // Check if it's a math/formula block
                     let block_type = if content.trim().starts_with("\\")
                         || content.contains("\\frac")
                         || content.contains("\\sum")
@@ -273,13 +268,9 @@ pub fn parse_markdown_blocks(md: &str) -> Vec<MdBlock> {
                 table_content.push('|');
                 table_cell_idx = 0;
             }
-            Event::End(TagEnd::TableRow) => {
-                // Row already ended with last cell's |
-            }
+            Event::End(TagEnd::TableRow) => {}
             Event::Start(Tag::TableCell) => {
-                if table_cell_idx > 0 {
-                    // Cell separator already added by previous cell end
-                }
+                if table_cell_idx > 0 {}
                 table_cell_idx += 1;
             }
             Event::End(TagEnd::TableCell) => {
@@ -310,37 +301,30 @@ pub fn parse_markdown_blocks(md: &str) -> Vec<MdBlock> {
             }
             Event::Start(Tag::Image { dest_url, .. }) => {
                 flush_text(&mut current_text, &mut blocks, &mut index, MdBlockType::Paragraph);
-                // Store URL temporarily
                 current_text.push_str("![");
-                let _ = dest_url; // alt text comes as Text events
+                let _ = dest_url;
             }
-            Event::End(TagEnd::Image)
-                // current_text has "![alt text" — close it
-                if current_text.starts_with("![") => {
-                    current_text.push(']');
-                    blocks.push(MdBlock {
-                        block_type: MdBlockType::Image,
-                        content: std::mem::take(&mut current_text),
-                        index,
-                    });
-                    index += 1;
-                }
-            Event::Start(Tag::Paragraph)
-                if !in_list_item && !in_table => {
-                    flush_text(&mut current_text, &mut blocks, &mut index, MdBlockType::Paragraph);
-                }
-            Event::End(TagEnd::Paragraph)
-                if !in_list_item && !in_table => {
-                    flush_text(&mut current_text, &mut blocks, &mut index, MdBlockType::Paragraph);
-                }
-            Event::Start(Tag::Strong)
-                if !in_table && !in_code_block => {
-                    current_text.push_str("**");
-                }
-            Event::End(TagEnd::Strong)
-                if !in_table && !in_code_block => {
-                    current_text.push_str("**");
-                }
+            Event::End(TagEnd::Image) if current_text.starts_with("![") => {
+                current_text.push(']');
+                blocks.push(MdBlock {
+                    block_type: MdBlockType::Image,
+                    content: std::mem::take(&mut current_text),
+                    index,
+                });
+                index += 1;
+            }
+            Event::Start(Tag::Paragraph) if !in_list_item && !in_table => {
+                flush_text(&mut current_text, &mut blocks, &mut index, MdBlockType::Paragraph);
+            }
+            Event::End(TagEnd::Paragraph) if !in_list_item && !in_table => {
+                flush_text(&mut current_text, &mut blocks, &mut index, MdBlockType::Paragraph);
+            }
+            Event::Start(Tag::Strong) if !in_table && !in_code_block => {
+                current_text.push_str("**");
+            }
+            Event::End(TagEnd::Strong) if !in_table && !in_code_block => {
+                current_text.push_str("**");
+            }
             Event::Text(text) | Event::Code(text) => {
                 if in_table {
                     current_text.push_str(&text);
@@ -369,7 +353,6 @@ pub fn parse_markdown_blocks(md: &str) -> Vec<MdBlock> {
                 current_text.push_str(&text);
             }
             Event::DisplayMath(text) => {
-                // Display math ($$...$$) is a formula block
                 flush_text(&mut current_text, &mut blocks, &mut index, MdBlockType::Paragraph);
                 let trimmed = text.trim();
                 if !trimmed.is_empty() {
@@ -382,9 +365,6 @@ pub fn parse_markdown_blocks(md: &str) -> Vec<MdBlock> {
                 }
             }
             Event::Html(html) => {
-                // Extract text content from HTML blocks instead of skipping them.
-                // This handles cases where GT or extraction contains <b>, <table>,
-                // <p>, etc. instead of markdown equivalents.
                 let text = strip_html_tags(&html);
                 let trimmed = text.trim();
                 if !trimmed.is_empty() {
@@ -398,8 +378,6 @@ pub fn parse_markdown_blocks(md: &str) -> Vec<MdBlock> {
                 }
             }
             Event::InlineHtml(html) => {
-                // Strip HTML tags but keep text content for inline HTML.
-                // e.g., <b>bold</b> → "bold", <br> → ""
                 let text = strip_html_tags(&html);
                 if !text.is_empty() {
                     current_text.push_str(&text);
@@ -409,7 +387,6 @@ pub fn parse_markdown_blocks(md: &str) -> Vec<MdBlock> {
         }
     }
 
-    // Flush any remaining text
     flush_text(&mut current_text, &mut blocks, &mut index, MdBlockType::Paragraph);
 
     blocks
@@ -420,7 +397,6 @@ fn flush_text(text: &mut String, blocks: &mut Vec<MdBlock>, index: &mut usize, b
     let content = std::mem::take(text);
     let trimmed = content.trim();
     if !trimmed.is_empty() {
-        // If the block is a paragraph but looks like a math formula, classify as Formula.
         let actual_type = if block_type == MdBlockType::Paragraph && looks_like_formula(trimmed) {
             MdBlockType::Formula
         } else {
@@ -451,12 +427,6 @@ fn looks_like_formula(content: &str) -> bool {
         || (content.contains("^{") && content.contains("}"))
 }
 
-// Old manual parsing helpers removed — pulldown-cmark handles everything.
-
-// ---------------------------------------------------------------------------
-// Type compatibility matrix
-// ---------------------------------------------------------------------------
-
 /// Compute type compatibility score between an extracted block and a GT block.
 ///
 /// Returns a value in `[0.0, 1.0]` representing how compatible the types are:
@@ -469,71 +439,61 @@ fn type_compat(ext_block: &MdBlock, gt_block: &MdBlock) -> f64 {
     let ext = ext_block.block_type;
     let gt = gt_block.block_type;
 
-    // Exact match
     if ext == gt {
         return 1.0;
     }
 
-    // Heading ↔ Heading: partial credit based on level distance
     if let (Some(ext_level), Some(gt_level)) = (ext.heading_level(), gt.heading_level()) {
         let distance = (ext_level as i8 - gt_level as i8).unsigned_abs();
         return (1.0 - 0.1 * distance as f64).max(0.6);
     }
 
-    // Heading ↔ Paragraph: symmetric partial credit — wrong type but content preserved
     if ext.is_heading() && gt == MdBlockType::Paragraph {
         return 0.25;
     }
     if ext == MdBlockType::Paragraph && gt.is_heading() {
         if is_bold_wrapped(&ext_block.content) {
-            return 0.4; // bold paragraph is a plausible heading
+            return 0.4;
         }
-        return 0.25; // missed heading detection, but content is there
+        return 0.25;
     }
 
-    // ListItem ↔ Paragraph: structurally different but close
     if (ext == MdBlockType::ListItem && gt == MdBlockType::Paragraph)
         || (ext == MdBlockType::Paragraph && gt == MdBlockType::ListItem)
     {
         return 0.5;
     }
 
-    // Code ↔ Paragraph: code block false positives should get partial credit
     if (ext == MdBlockType::CodeBlock && gt == MdBlockType::Paragraph)
         || (ext == MdBlockType::Paragraph && gt == MdBlockType::CodeBlock)
     {
         return 0.2;
     }
 
-    // Code ↔ Formula: math content sometimes gets code-fenced
     if (ext == MdBlockType::CodeBlock && gt == MdBlockType::Formula)
         || (ext == MdBlockType::Formula && gt == MdBlockType::CodeBlock)
     {
         return 0.3;
     }
 
-    // Table ↔ Paragraph: table extraction failures
     if (ext == MdBlockType::Table && gt == MdBlockType::Paragraph)
         || (ext == MdBlockType::Paragraph && gt == MdBlockType::Table)
     {
         return 0.25;
     }
 
-    // Image ↔ Paragraph: image references sometimes rendered as paragraph text
     if (ext == MdBlockType::Image && gt == MdBlockType::Paragraph)
         || (ext == MdBlockType::Paragraph && gt == MdBlockType::Image)
     {
         return 0.5;
     }
 
-    // Table ↔ ListItem: table content sometimes extracted as list items
     if (ext == MdBlockType::Table && gt == MdBlockType::ListItem)
         || (ext == MdBlockType::ListItem && gt == MdBlockType::Table)
     {
         return 0.3;
     }
 
-    // Everything else cross-category: incompatible
     0.0
 }
 
@@ -552,7 +512,6 @@ fn strip_html_tags(html: &str) -> String {
             tag_name.clear();
         } else if ch == '>' && in_tag {
             in_tag = false;
-            // Convert <br> / <br/> to space
             let lower = tag_name.to_lowercase();
             if lower == "br" || lower == "br/" || lower == "/br" {
                 result.push(' ');
@@ -582,10 +541,6 @@ fn truncate_preview(s: &str, max_len: usize) -> String {
         format!("{}...", truncated.replace('\n', "\\n"))
     }
 }
-
-// ---------------------------------------------------------------------------
-// Scoring entry points
-// ---------------------------------------------------------------------------
 
 /// Compute structural quality by comparing extracted markdown against ground truth.
 ///
@@ -624,7 +579,6 @@ pub fn score_structural_quality_diagnostic(
     let gt_tokens = tokenize(ground_truth_md);
     let text_f1 = crate::quality::compute_f1(&ext_tokens, &gt_tokens);
 
-    // Build sets of matched indices
     let matched_gt_indices: std::collections::HashSet<usize> = match_results.iter().map(|m| m.gt_idx).collect();
     let mut matched_ext_indices: std::collections::HashSet<usize> = std::collections::HashSet::new();
     for m in &match_results {
@@ -634,7 +588,6 @@ pub fn score_structural_quality_diagnostic(
         }
     }
 
-    // Collect unmatched blocks
     let unmatched_gt: Vec<(usize, MdBlock)> = gt_blocks
         .iter()
         .enumerate()
@@ -649,7 +602,6 @@ pub fn score_structural_quality_diagnostic(
         .map(|(i, b)| (i, b.clone()))
         .collect();
 
-    // Collect cross-type matches (where gt type != ext type)
     let cross_type_matches: Vec<(MdBlock, MdBlock, f64, f64)> = match_results
         .iter()
         .filter(|m| gt_blocks[m.gt_idx].block_type != ext_blocks[m.ext_idx].block_type)
@@ -695,21 +647,14 @@ fn score_structural_quality_impl(extracted_md: &str, ground_truth_md: &str) -> S
         "scoring structural quality"
     );
 
-    // Global cross-type matching
     let (match_results, all_matches) = match_blocks_global(&gt_blocks, &ext_blocks);
 
-    // Compute weighted SF1 directly from global matches.
-    // Each match contributes its match_score weighted by the GT block's type weight.
-    // Unmatched GT blocks contribute 0 recall; unmatched ext blocks penalize precision.
     let structural_f1 = compute_weighted_sf1_from_matches(&gt_blocks, &ext_blocks, &match_results);
 
-    // Derive per-type scores for diagnostic breakdown
     let per_type = derive_per_type_scores(&gt_blocks, &ext_blocks, &match_results);
 
-    // Order score using longest increasing subsequence
     let order_score = compute_order_score(&all_matches);
 
-    // Text F1 (bag-of-words regression guard)
     let ext_tokens = tokenize(extracted_md);
     let gt_tokens = tokenize(ground_truth_md);
     let text_f1 = crate::quality::compute_f1(&ext_tokens, &gt_tokens);
@@ -733,10 +678,6 @@ fn score_structural_quality_impl(extracted_md: &str, ground_truth_md: &str) -> S
     }
 }
 
-// ---------------------------------------------------------------------------
-// Global cross-type matching
-// ---------------------------------------------------------------------------
-
 /// A matched pair of blocks with scoring details.
 #[derive(Debug, Clone)]
 struct BlockMatch {
@@ -756,7 +697,6 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
     let count_ext = ext_blocks.len();
 
     if count_gt == 0 || count_ext == 0 {
-        // Log unmatched blocks
         for (i, b) in gt_blocks.iter().enumerate() {
             tracing::trace!(
                 idx = i,
@@ -776,11 +716,6 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
         return (Vec::new(), Vec::new());
     }
 
-    // Complexity safeguard: use windowed matching for very large documents.
-    // Instead of comparing all O(n*m) pairs, we use a diagonal band approach:
-    // each GT block is only compared against nearby extracted blocks within a
-    // proportional window. This preserves reasonable matching quality while
-    // keeping computation bounded.
     if count_gt * count_ext > MAX_PAIRS_FOR_MATCHING {
         tracing::debug!(
             gt = count_gt,
@@ -790,12 +725,10 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
         return match_blocks_windowed(gt_blocks, ext_blocks);
     }
 
-    // Pre-tokenize all blocks
     let gt_tokens: Vec<Vec<String>> = gt_blocks.iter().map(|b| tokenize(&b.content)).collect();
     let ext_tokens: Vec<Vec<String>> = ext_blocks.iter().map(|b| tokenize(&b.content)).collect();
 
-    // Build candidate pairs across ALL types
-    let mut candidates: Vec<(usize, usize, f64, f64, f64, bool)> = Vec::new(); // (gi, ei, content_sim, compat, score, is_concat)
+    let mut candidates: Vec<(usize, usize, f64, f64, f64, bool)> = Vec::new();
 
     for (gi, gt_tok) in gt_tokens.iter().enumerate() {
         for (ei, ext_tok) in ext_tokens.iter().enumerate() {
@@ -804,8 +737,6 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
                 continue;
             }
 
-            // For Image ↔ Image matches, normalize content: any image placeholder
-            // matches any other regardless of filename/URL. Use 1.0 content similarity.
             let content_sim =
                 if ext_blocks[ei].block_type == MdBlockType::Image && gt_blocks[gi].block_type == MdBlockType::Image {
                     1.0
@@ -813,7 +744,6 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
                     crate::quality::compute_f1(ext_tok, gt_tok)
                 };
             let score = content_sim * compat;
-            // Raise threshold for short blocks to prevent spurious matches
             let min_threshold = if gt_tok.len().min(ext_tok.len()) < 5 {
                 0.20
             } else {
@@ -823,7 +753,6 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
                 candidates.push((gi, ei, content_sim, compat, score, false));
             }
 
-            // Adjacent concatenation: try ext[ei] + ext[ei+1]
             if ei + 1 < ext_tokens.len() {
                 let concat_compat = type_compat(&ext_blocks[ei], &gt_blocks[gi]);
                 if concat_compat <= 0.0 {
@@ -840,7 +769,6 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
         }
     }
 
-    // Greedy matching: sort by score descending
     candidates.sort_by(|a, b| b.4.partial_cmp(&a.4).unwrap_or(std::cmp::Ordering::Equal));
 
     let mut matched_gt: Vec<bool> = vec![false; count_gt];
@@ -850,7 +778,6 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
 
     for &(gi, ei, content_sim, compat, score, is_concat) in &candidates {
         if matched_gt[gi] || matched_ext[ei] {
-            // Log high-scoring rejected candidates
             if score > 0.5 {
                 tracing::trace!(
                     gt_idx = gi,
@@ -896,7 +823,6 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
         order_pairs.push((gt_blocks[gi].index, ext_blocks[ei].index));
     }
 
-    // Log unmatched GT blocks
     for (i, is_matched) in matched_gt.iter().enumerate() {
         if !is_matched {
             tracing::trace!(
@@ -908,7 +834,6 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
         }
     }
 
-    // Log unmatched extracted blocks
     for (i, is_matched) in matched_ext.iter().enumerate() {
         if !is_matched {
             tracing::trace!(
@@ -937,13 +862,10 @@ fn match_blocks_windowed(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<
     let count_gt = gt_blocks.len();
     let count_ext = ext_blocks.len();
 
-    // Window half-size: ensure total pairs <= MAX_PAIRS_FOR_MATCHING
-    // Total pairs = count_gt * (2 * half_window + 1), solve for half_window:
     let half_window = MAX_PAIRS_FOR_MATCHING
         .checked_div(count_gt)
         .map(|v| (v.max(1) - 1) / 2)
         .unwrap_or(0);
-    // Ensure minimum window of 10 blocks on each side for quality
     let half_window = half_window.max(10);
 
     tracing::debug!(
@@ -952,7 +874,6 @@ fn match_blocks_windowed(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<
         "windowed matching parameters"
     );
 
-    // Pre-tokenize all blocks
     let gt_tokens: Vec<Vec<String>> = gt_blocks.iter().map(|b| tokenize(&b.content)).collect();
     let ext_tokens: Vec<Vec<String>> = ext_blocks.iter().map(|b| tokenize(&b.content)).collect();
 
@@ -961,7 +882,6 @@ fn match_blocks_windowed(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<
     let mut candidates: Vec<(usize, usize, f64, f64, f64, bool)> = Vec::new();
 
     for gi in 0..count_gt {
-        // Expected position of this GT block in extracted output
         let center = (gi as f64 * ratio) as usize;
         let start = center.saturating_sub(half_window);
         let end = (center + half_window + 1).min(count_ext);
@@ -972,7 +892,6 @@ fn match_blocks_windowed(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<
                 continue;
             }
 
-            // For Image ↔ Image matches, normalize content similarity to 1.0
             let content_sim =
                 if ext_blocks[ei].block_type == MdBlockType::Image && gt_blocks[gi].block_type == MdBlockType::Image {
                     1.0
@@ -980,7 +899,6 @@ fn match_blocks_windowed(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<
                     crate::quality::compute_f1(&ext_tokens[ei], &gt_tokens[gi])
                 };
             let score = content_sim * compat;
-            // Raise threshold for short blocks to prevent spurious matches
             let min_threshold = if gt_tokens[gi].len().min(ext_tokens[ei].len()) < 5 {
                 0.20
             } else {
@@ -990,7 +908,6 @@ fn match_blocks_windowed(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<
                 candidates.push((gi, ei, content_sim, compat, score, false));
             }
 
-            // Adjacent concatenation
             if ei + 1 < count_ext && ei + 1 < end + 1 {
                 let concat_compat = type_compat(&ext_blocks[ei], &gt_blocks[gi]);
                 if concat_compat <= 0.0 {
@@ -1007,7 +924,6 @@ fn match_blocks_windowed(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<
         }
     }
 
-    // Greedy matching: sort by score descending
     candidates.sort_by(|a, b| b.4.partial_cmp(&a.4).unwrap_or(std::cmp::Ordering::Equal));
 
     let mut matched_gt: Vec<bool> = vec![false; count_gt];
@@ -1050,10 +966,6 @@ fn match_blocks_windowed(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<
     (results, order_pairs)
 }
 
-// ---------------------------------------------------------------------------
-// Weighted SF1 from global matches
-// ---------------------------------------------------------------------------
-
 /// Compute weighted structural F1 directly from global match results.
 ///
 /// Each GT block contributes to recall weighted by its type importance.
@@ -1067,8 +979,6 @@ fn compute_weighted_sf1_from_matches(gt_blocks: &[MdBlock], ext_blocks: &[MdBloc
         return 0.0;
     }
 
-    // Weighted recall: sum of (weight * match_score) for matched GT blocks
-    // divided by sum of weights for ALL GT blocks.
     let total_gt_weight: f64 = gt_blocks.iter().map(|b| b.block_type.weight()).sum();
     let matched_gt_weight: f64 = matches
         .iter()
@@ -1080,8 +990,6 @@ fn compute_weighted_sf1_from_matches(gt_blocks: &[MdBlock], ext_blocks: &[MdBloc
         0.0
     };
 
-    // Weighted precision: sum of (weight * match_score) for matched ext blocks
-    // divided by sum of weights for ALL ext blocks.
     let total_ext_weight: f64 = ext_blocks.iter().map(|b| b.block_type.weight()).sum();
     let matched_ext_weight: f64 = matches
         .iter()
@@ -1100,10 +1008,6 @@ fn compute_weighted_sf1_from_matches(gt_blocks: &[MdBlock], ext_blocks: &[MdBloc
     }
 }
 
-// ---------------------------------------------------------------------------
-// Per-type score derivation (diagnostic)
-// ---------------------------------------------------------------------------
-
 /// Derive per-type scores by grouping global matches by GT block type.
 ///
 /// This is for diagnostic breakdown only — the main SF1 uses
@@ -1114,7 +1018,6 @@ fn derive_per_type_scores(
     ext_blocks: &[MdBlock],
     matches: &[BlockMatch],
 ) -> HashMap<MdBlockType, TypeScore> {
-    // Collect all GT types present
     let mut gt_types: Vec<MdBlockType> = Vec::new();
     for b in gt_blocks {
         if !gt_types.contains(&b.block_type) {
@@ -1122,7 +1025,6 @@ fn derive_per_type_scores(
         }
     }
 
-    // Count actual extracted blocks by type
     let mut ext_type_counts: HashMap<MdBlockType, usize> = HashMap::new();
     for b in ext_blocks {
         *ext_type_counts.entry(b.block_type).or_insert(0) += 1;
@@ -1132,7 +1034,6 @@ fn derive_per_type_scores(
 
     for &block_type in &gt_types {
         let count_gt = gt_blocks.iter().filter(|b| b.block_type == block_type).count();
-        // Count ext blocks that matched GT blocks of this type
         let type_matches: Vec<&BlockMatch> = matches
             .iter()
             .filter(|m| gt_blocks[m.gt_idx].block_type == block_type)
@@ -1147,7 +1048,6 @@ fn derive_per_type_scores(
             1.0
         };
 
-        // For diagnostic precision, use matched_count as denominator
         let precision = if matched_count > 0 {
             sum_scores / matched_count as f64
         } else {
@@ -1184,10 +1084,6 @@ fn derive_per_type_scores(
     per_type
 }
 
-// ---------------------------------------------------------------------------
-// Weighted F1 and order scoring (unchanged logic)
-// ---------------------------------------------------------------------------
-
 /// Compute reading order score using longest increasing subsequence.
 fn compute_order_score(matches: &[(usize, usize)]) -> f64 {
     if matches.is_empty() {
@@ -1208,7 +1104,6 @@ fn longest_increasing_subsequence_length(seq: &[usize]) -> usize {
         return 0;
     }
 
-    // Patience sorting approach: O(n log n)
     let mut tails: Vec<usize> = Vec::new();
     for &val in seq {
         match tails.binary_search(&val) {
@@ -1224,10 +1119,6 @@ fn longest_increasing_subsequence_length(seq: &[usize]) -> usize {
     }
     tails.len()
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -1332,7 +1223,6 @@ mod tests {
         let extracted = "## Title\n\nBody text here.\n";
         let gt = "# Title\n\nBody text here.\n";
         let result = score_structural_quality(extracted, gt);
-        // H2 matching H1 should get 0.9 type compat * 1.0 content sim
         assert!(
             result.structural_f1 > 0.7,
             "expected >0.7 for off-by-1 heading, got {}",
@@ -1345,7 +1235,6 @@ mod tests {
         let extracted = "#### Deep Section\n\nBody text.\n";
         let gt = "# Deep Section\n\nBody text.\n";
         let result = score_structural_quality(extracted, gt);
-        // 0.7 type compat for off-by-3
         assert!(
             result.structural_f1 > 0.5,
             "expected >0.5 for off-by-3, got {}",
@@ -1363,7 +1252,6 @@ mod tests {
         let extracted = "**Pricing**\n\nDetails about pricing here.\n";
         let gt = "## Pricing\n\nDetails about pricing here.\n";
         let result = score_structural_quality(extracted, gt);
-        // Bold paragraph → heading gets 0.15 type compat
         assert!(
             result.structural_f1 > 0.0,
             "expected >0 for bold pseudo-heading, got {}",
@@ -1376,7 +1264,6 @@ mod tests {
         let extracted = "```\nE = mc^2\n```\n";
         let gt = "$$\nE = mc^2\n$$\n";
         let result = score_structural_quality(extracted, gt);
-        // Code ↔ Formula gets 0.3 type compat
         assert!(
             result.structural_f1 > 0.1,
             "expected >0.1 for code/formula cross-match, got {}",
@@ -1459,7 +1346,6 @@ mod tests {
             content: "X".into(),
             index: 0,
         };
-        // Should be floor of 0.6
         assert!((type_compat(&a, &b) - 0.6).abs() < 0.01);
     }
 
@@ -1525,20 +1411,14 @@ mod tests {
 
     #[test]
     fn test_flat_paragraphs_vs_headings_gives_partial_credit() {
-        // Simulates baseline pipeline: extracted has flat paragraphs,
-        // GT has headings + paragraphs. SF1 should be >0 because
-        // paragraph content matching heading content gets 0.25 type compat.
         let extracted = "Introduction\n\nThis is the first section content.\n\nMethods\n\nThis describes the methods used.\n\nResults\n\nHere are the results.\n";
         let gt = "# Introduction\n\nThis is the first section content.\n\n## Methods\n\nThis describes the methods used.\n\n## Results\n\nHere are the results.\n";
         let result = score_structural_quality(extracted, gt);
-        // Paragraphs matching headings (0.25 compat) + exact paragraph matches (1.0 compat)
-        // should give meaningful partial credit, not 0%
         assert!(
             result.structural_f1 > 0.15,
             "expected >0.15 for flat paragraphs vs headings, got {}",
             result.structural_f1
         );
-        // But should be less than perfect since heading structure is missing
         assert!(
             result.structural_f1 < 0.85,
             "expected <0.85 for flat paragraphs vs headings, got {}",
@@ -1548,11 +1428,9 @@ mod tests {
 
     #[test]
     fn test_zero_headings_extracted_many_headings_gt() {
-        // All content as paragraphs, GT has many headings but same text
         let extracted = "Title\n\nSection One\n\nContent of section one.\n\nSection Two\n\nContent of section two.\n";
         let gt = "# Title\n\n## Section One\n\nContent of section one.\n\n## Section Two\n\nContent of section two.\n";
         let result = score_structural_quality(extracted, gt);
-        // Should NOT be 0% — paragraphs match headings with 0.25 compat
         assert!(
             result.structural_f1 > 0.0,
             "SF1 should not be 0% when all text content matches but headings are missing"
@@ -1561,8 +1439,6 @@ mod tests {
 
     #[test]
     fn test_large_document_windowed_fallback() {
-        // Generate a document large enough to trigger the windowed fallback
-        // MAX_PAIRS_FOR_MATCHING = 40,000, so 201 * 201 = 40,401 > 40,000
         let mut gt_md = String::new();
         let mut ext_md = String::new();
         for i in 0..201 {
@@ -1574,7 +1450,6 @@ mod tests {
             ));
         }
         let result = score_structural_quality(&ext_md, &gt_md);
-        // Identical documents should score high even with windowed fallback
         assert!(
             result.structural_f1 > 0.8,
             "windowed fallback should score >0.8 for identical large documents, got {}",
@@ -1584,17 +1459,13 @@ mod tests {
 
     #[test]
     fn test_large_document_windowed_fallback_not_zero() {
-        // Large document with similar but not identical content
-        // Should NOT return 0% like the old fallback did
         let mut gt_md = String::new();
         let mut ext_md = String::new();
         for i in 0..201 {
             gt_md.push_str(&format!("# Heading {i}\n\nParagraph content {i}.\n\n"));
-            // Extracted has paragraphs instead of headings (flat extraction)
             ext_md.push_str(&format!("Heading {i}\n\nParagraph content {i}.\n\n"));
         }
         let result = score_structural_quality(&ext_md, &gt_md);
-        // Must be greater than 0 — the old code returned 0% for large docs
         assert!(
             result.structural_f1 > 0.0,
             "windowed fallback must not return SF1=0% for large documents with matching content, got {}",
@@ -1623,13 +1494,10 @@ mod tests {
         );
     }
 
-    // --- Fix 1: Bold markers preserved in parsed blocks ---
-
     #[test]
     fn test_bold_markers_preserved_in_paragraph() {
         let md = "**Pricing**\n\nDetails here.\n";
         let blocks = parse_markdown_blocks(md);
-        // The paragraph containing bold text should preserve ** markers
         let bold_block = blocks.iter().find(|b| b.content.contains("Pricing")).unwrap();
         assert!(
             is_bold_wrapped(&bold_block.content),
@@ -1690,12 +1558,8 @@ mod tests {
         );
     }
 
-    // --- Fix 2: Short block threshold ---
-
     #[test]
     fn test_short_block_spurious_match_prevented() {
-        // Two short blocks sharing a single common word should NOT match
-        // when type_compat is low (e.g., paragraph vs heading = 0.25)
         let ext_block = MdBlock {
             block_type: MdBlockType::Paragraph,
             content: "Yes".into(),
@@ -1707,21 +1571,15 @@ mod tests {
             index: 0,
         };
         let compat = type_compat(&ext_block, &gt_block);
-        // content_sim for identical single word = 1.0, compat = 0.25
-        // score = 0.25 which is >= 0.20, so it should still match for identical content
         assert!(compat * 1.0 >= 0.20, "identical short blocks should still match");
 
-        // But a low content_sim (e.g., 0.4) with low compat (0.25) = 0.1 should NOT match
-        // with the new threshold of 0.20 for short blocks
-        let score = 0.4 * 0.25; // = 0.1
+        let score = 0.4 * 0.25;
         assert!(
             score < 0.20,
             "low content_sim * low compat ({}) should be below short-block threshold 0.20",
             score
         );
     }
-
-    // --- Fix 3: Empty matches order score ---
 
     #[test]
     fn test_order_score_empty_matches_returns_zero() {
@@ -1745,12 +1603,8 @@ mod tests {
         );
     }
 
-    // --- Fix 4: Per-type count_extracted shows actual count ---
-
     #[test]
     fn test_per_type_count_extracted_is_actual_not_matched() {
-        // Extracted has 3 paragraphs, GT has 1 heading + 1 paragraph.
-        // Only 1 paragraph should match, but count_extracted for Paragraph should be 3.
         let extracted = "First paragraph.\n\nSecond paragraph.\n\nThird paragraph.\n";
         let gt = "# Heading\n\nFirst paragraph.\n";
         let result = score_structural_quality(extracted, gt);
@@ -1765,12 +1619,9 @@ mod tests {
 
     #[test]
     fn test_per_type_count_extracted_includes_unmatched() {
-        // GT has 2 headings, extracted has 5 headings (3 are spurious)
         let extracted = "# H1\n\n# H2\n\n# H3\n\n# H4\n\n# H5\n";
         let gt = "# H1\n\n# H2\n";
         let result = score_structural_quality(extracted, gt);
-        // count_extracted for headings should reflect all 5 extracted heading blocks,
-        // not just the 2 that matched
         let h1_count = result
             .per_type
             .get(&MdBlockType::Heading1)
@@ -1785,7 +1636,6 @@ mod tests {
 
     #[test]
     fn test_image_blocks_match_regardless_of_url() {
-        // Two image blocks with different filenames should match with high SF1
         let extracted = "# Title\n\n![diagram](image_0.png)\n\nSome text.\n";
         let gt = "# Title\n\n![diagram](figure1.jpg)\n\nSome text.\n";
         let result = score_structural_quality(extracted, gt);
@@ -1798,14 +1648,12 @@ mod tests {
 
     #[test]
     fn test_image_blocks_different_alt_text_still_match() {
-        // Image blocks with completely different content should still match by type
         let extracted = "![](image_0.png)\n";
         let gt = "![Figure 1: Overview](overview.pdf)\n";
         let ext_blocks = parse_markdown_blocks(extracted);
         let gt_blocks = parse_markdown_blocks(gt);
         assert_eq!(ext_blocks[0].block_type, MdBlockType::Image);
         assert_eq!(gt_blocks[0].block_type, MdBlockType::Image);
-        // When scored, they should achieve a perfect match since both are Image type
         let result = score_structural_quality(extracted, gt);
         assert!(
             result.structural_f1 >= 0.99,

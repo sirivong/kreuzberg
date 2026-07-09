@@ -23,8 +23,6 @@ use std::path::{Path, PathBuf};
 /// module-tagged [`crate::XbergError`] variant.
 pub(crate) type ErrCtor = fn(String) -> crate::XbergError;
 
-// ── ONNX Runtime diagnostics ──────────────────────────────────────────────────
-
 /// Returns installation instructions for ONNX Runtime.
 pub(crate) fn onnx_runtime_install_message() -> String {
     #[cfg(all(windows, target_env = "gnu"))]
@@ -82,8 +80,6 @@ fn ort_missing_or(err: ErrCtor, msg: String) -> crate::XbergError {
         err(msg)
     }
 }
-
-// ── Download / cross-process lock machinery ───────────────────────────────────
 
 /// How long a partial download must be idle before it is considered stale.
 const STALE_DOWNLOAD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30 * 60);
@@ -188,11 +184,6 @@ impl Drop for ProcessDownloadLock {
 #[cfg(target_family = "unix")]
 fn blocking_lock_exclusive(file: &std::fs::File) -> bool {
     use std::os::fd::AsRawFd;
-    // SAFETY: `file` is a live, open file owned by the caller for the duration
-    // of the call; `as_raw_fd()` yields a valid descriptor. `flock` with
-    // `LOCK_EX` (no `LOCK_NB`) blocks until the advisory lock is granted and
-    // mutates no Rust-visible state. The lock is released by `unlock_file` on
-    // drop or by the kernel when the process exits.
     #[allow(unsafe_code)]
     let result = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) };
     result == 0
@@ -201,8 +192,6 @@ fn blocking_lock_exclusive(file: &std::fs::File) -> bool {
 #[cfg(target_family = "unix")]
 fn unlock_file(file: &std::fs::File) {
     use std::os::fd::AsRawFd;
-    // SAFETY: `file` is a live, open file owned by the caller; `flock` with
-    // `LOCK_UN` releases any advisory lock and mutates no Rust-visible state.
     #[allow(unsafe_code)]
     unsafe {
         libc::flock(file.as_raw_fd(), libc::LOCK_UN);
@@ -326,22 +315,12 @@ fn download_model_files_inner(
     manifest: Option<&str>,
     err: ErrCtor,
 ) -> crate::Result<DownloadedModel> {
-    // Parse the checked-in sha256 manifest up front. A malformed compiled-in
-    // manifest is a build bug, so surface it rather than silently skipping
-    // verification. `None` (e.g. Custom repos) yields an empty manifest, which
-    // `verify_downloaded` treats as "nothing pinned".
     let manifest: Vec<(String, String)> = match manifest {
         Some(content) => crate::model_download::parse_sha256_manifest(content)
             .map_err(|e| err(format!("Invalid sha256 manifest for {repo_name}: {e}")))?,
         None => Vec::new(),
     };
 
-    // Serialize concurrent first-time downloads across processes. hf-hub's own
-    // lock is non-blocking and retries for only ~5s, far shorter than a 100MB+
-    // model download — racing processes would otherwise fail with
-    // LockAcquisition. Holding this blocking lock means exactly one process
-    // downloads while the rest wait, then find the model already cached. The
-    // guard is held for the whole function body via `_download_lock`.
     let _download_lock = ProcessDownloadLock::acquire(cache_directory, repo_name);
     cleanup_stale_locks(cache_directory, repo_name);
 
@@ -351,11 +330,6 @@ fn download_model_files_inner(
         .build()
         .map_err(|e| err(format!("Failed to create HF API client: {e}")))?;
 
-    // Every fetch runs under the wall-clock watchdog: hf-hub sets no read/connect timeout, so a
-    // firewalled host would otherwise wedge the whole pipeline at 0% CPU. `ApiRepo` is not `Clone`
-    // in hf-hub 0.4, but `Api` is — so each closure captures a cheap `Api` clone and rebuilds its
-    // `ApiRepo` via `api.model(..)` inside. The `LockAcquisition` hint is computed inside the
-    // closure (where the typed `ApiError` is still available) and folded into the returned string.
     let model = {
         let api = api.clone();
         let file = model_file.to_string();
@@ -375,8 +349,6 @@ fn download_model_files_inner(
     .map_err(|e| err(format!("Failed to download {model_file} from {repo_name}: {e}")))?;
     verify_downloaded(&manifest, model_file, &model, err)?;
 
-    // Sibling files (e.g. `model.onnx.data`) must be present in the same cache
-    // dir before ORT opens the model.
     for sibling in additional_files {
         let sib_path = {
             let api = api.clone();
@@ -394,9 +366,6 @@ fn download_model_files_inner(
         verify_downloaded(&manifest, sibling, &sib_path, err)?;
     }
 
-    // Companion files (tokenizer/config) live beside the model: in the model's
-    // own `<name>/` subdir for consolidated xberg-io repos, or at the repo root
-    // for standard HF layouts. `fetch_companion` tries the model dir then root.
     let model_dir = Path::new(model_file)
         .parent()
         .and_then(|p| p.to_str())
@@ -410,7 +379,6 @@ fn download_model_files_inner(
         .map_err(|e| err(format!("Failed to download config.json: {e}")))?;
     verify_downloaded(&manifest, &config_rel, &config, err)?;
 
-    // Optional — fall back to empty paths that load_tokenizer handles gracefully.
     let (special_tokens, special_tokens_rel) =
         fetch_companion(&api, repo_name, model_dir, "special_tokens_map.json").unwrap_or_default();
     verify_downloaded(&manifest, &special_tokens_rel, &special_tokens, err)?;
@@ -640,7 +608,6 @@ mod tests {
             let lock_file = tmp.path().join("models--org--model").join(".xberg-download.lock");
             assert!(lock_file.exists());
         }
-        // A second acquire after drop must succeed (lock released).
         let guard = ProcessDownloadLock::acquire(tmp.path(), "org/model");
         assert!(guard.is_some(), "should re-acquire after previous guard dropped");
     }
@@ -657,7 +624,6 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let file = tmp.path().join("model.onnx");
         std::fs::write(&file, b"tampered bytes").unwrap();
-        // Manifest pins a different (correct-length, all-zero) hash → mismatch.
         let manifest = vec![("name/model.onnx".to_string(), "0".repeat(64))];
         let result = verify_downloaded(&manifest, "name/model.onnx", &file, embed_err);
         assert!(result.is_err(), "tampered file must fail checksum verification");
@@ -667,7 +633,6 @@ mod tests {
     fn verify_downloaded_passes_on_checksum_match() {
         let tmp = tempfile::tempdir().unwrap();
         let file = tmp.path().join("model.onnx");
-        // Pre-computed SHA-256 of the exact bytes below (`shasum -a 256`).
         std::fs::write(&file, b"pinned content").unwrap();
         let digest = "28f10de8a12ace2df7c733d697168479b5707cdb2a21df8561cabda49473e3c1";
         let manifest = vec![("name/model.onnx".to_string(), digest.to_string())];
@@ -681,9 +646,7 @@ mod tests {
         let file = tmp.path().join("model.onnx");
         std::fs::write(&file, b"anything").unwrap();
         let manifest = vec![("other/model.onnx".to_string(), "0".repeat(64))];
-        // Path not in manifest (e.g. a Custom repo) → unverified, ok.
         verify_downloaded(&manifest, "name/model.onnx", &file, embed_err).expect("unlisted path is skipped");
-        // Empty repo path (optional companion not downloaded) → no-op.
         verify_downloaded(&manifest, "", &file, embed_err).expect("empty path is a no-op");
     }
 }

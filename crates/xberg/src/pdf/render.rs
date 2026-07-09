@@ -211,7 +211,6 @@ pub(crate) fn render_open_pdf_page_to_png(
     dpi: Option<i32>,
 ) -> Result<Vec<u8>> {
     let render_dpi = dpi.unwrap_or(150).max(1) as u32;
-    // Use the safeguarded path so callers also benefit from the wide-page fix.
     let rendered = render_page_with_safeguards(doc, page_index, render_dpi).map_err(|e| XbergError::Parsing {
         message: format!("Failed to render page {page_index}: {e}"),
         source: None,
@@ -312,7 +311,6 @@ pub(crate) fn build_minimal_pdf_with_mediabox(w: f32, h: f32) -> Vec<u8> {
     buf.extend_from_slice(b"2 0 obj\n<</Type /Pages /Kids [3 0 R] /Count 1>>\nendobj\n");
 
     let obj3_offset = buf.len();
-    // Note: MediaBox as array of 4 numbers [llx lly urx ury]
     let mb = format!("[0 0 {} {}]", w, h);
     buf.extend_from_slice(format!("3 0 obj\n<</Type /Page /MediaBox {} /Parent 2 0 R>>\nendobj\n", mb).as_bytes());
 
@@ -337,25 +335,19 @@ mod tests {
 
     #[test]
     fn test_choose_safe_dpi_normal_page_unchanged() {
-        // A4-ish at 150 dpi -> well under the limit
         let dpi = choose_safe_dpi(612.0, 792.0, 150);
         assert_eq!(dpi, 150);
     }
 
     #[test]
     fn test_choose_safe_dpi_extreme_wide_reduced() {
-        // Very wide single-page diagram (e.g. 20 000 pt wide)
-        // 20000pt × (150/72) = 41666.6px → factor ≈ 0.393 → 59 DPI → clamped to 72
         let dpi = choose_safe_dpi(20000.0, 200.0, 150);
         assert_eq!(dpi, 72);
     }
 
     #[test]
     fn test_render_pdf_page_to_png_very_wide_does_not_panic_or_hard_fail() {
-        // This would previously trigger the exact failure mode in #1078
-        // (render inside pdf_oxide fails for extreme MediaBox during OCR paths).
         let wide_pdf = build_minimal_pdf_with_mediabox(20000.0, 300.0);
-        // Should succeed (possibly at reduced DPI internally) instead of returning Err.
         let res = render_pdf_page_to_png(&wide_pdf, 0, None, None);
         assert!(
             res.is_ok(),

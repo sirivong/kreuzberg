@@ -328,7 +328,6 @@ mod tests {
 
     #[test]
     fn custom_model_type_head_defaults_when_absent_from_json() {
-        // Older configs / bindings that predate `head` must still deserialize.
         let json = r#"{"type": "custom", "model_id": "cross-encoder/ms-marco-MiniLM-L6-v2"}"#;
         let model: RerankerModelType = serde_json::from_str(json).unwrap();
         assert!(matches!(

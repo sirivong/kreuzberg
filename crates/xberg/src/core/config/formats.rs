@@ -175,7 +175,6 @@ mod tests {
             JupyterCellRendering::Both
         );
         assert!("nope".parse::<JupyterCellRendering>().is_err());
-        // serde renames to lowercase and round-trips.
         assert_eq!(
             serde_json::to_string(&JupyterCellRendering::Outputs).unwrap(),
             "\"outputs\""

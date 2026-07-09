@@ -111,7 +111,6 @@ pub fn read_resource(uri: &str) -> Result<ReadResourceResult, ErrorData> {
         }
 
         URI_OCR_LANGUAGES => {
-            // Canonical Tesseract ISO 639 language code list.
             let langs = serde_json::json!({
                 "languages": [
                     "afr","amh","ara","asm","aze","bel","ben","bod","bos","bul",
@@ -200,7 +199,6 @@ mod tests {
             assert!(v.get("languages").is_some());
             let langs = v["languages"].as_array().expect("languages should be array");
             assert!(!langs.is_empty());
-            // eng must be present
             let has_eng = langs.iter().any(|l| l.as_str() == Some("eng"));
             assert!(has_eng, "eng should be in OCR languages list");
         } else {

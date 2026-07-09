@@ -32,11 +32,6 @@ pub fn load_run_results(dir: &Path) -> Result<Vec<BenchmarkResult>> {
             let mut run_results: Vec<BenchmarkResult> = serde_json::from_str(&json_content)
                 .map_err(|e| Error::Benchmark(format!("Failed to parse {}: {}", path.display(), e)))?;
 
-            // Infer benchmark mode from the parent directory name.
-            // The runner outputs to `benchmark-results/{FRAMEWORK}-{MODE}/results.json`
-            // where MODE is "batch" or "single-file". The framework field inside
-            // results.json does NOT include the mode, so we tag it here to allow
-            // the aggregation to distinguish single vs batch results.
             let dir_name = dir.file_name().and_then(|n| n.to_str()).unwrap_or("");
             let is_batch = dir_name.ends_with("-batch");
 
@@ -48,7 +43,6 @@ pub fn load_run_results(dir: &Path) -> Result<Vec<BenchmarkResult>> {
                 }
             }
 
-            // Validate loaded results
             for result in &run_results {
                 crate::output::validate_result(result)
                     .map_err(|e| Error::Benchmark(format!("Invalid result in {}: {}", path.display(), e)))?;

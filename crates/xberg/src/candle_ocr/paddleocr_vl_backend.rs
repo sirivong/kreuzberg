@@ -71,7 +71,6 @@ fn get_or_init_engine(
 ) -> crate::Result<PooledEngine> {
     let key: PoolKey = (task, preference);
 
-    // Fast path: engine already in pool.
     {
         let pool = ENGINE_POOL.read();
         if let Some(engine) = pool.get(&key) {
@@ -79,7 +78,6 @@ fn get_or_init_engine(
         }
     }
 
-    // Slow path: select the device and build the engine, then insert under write lock.
     let candle_device = preference.select().map_err(|e| crate::XbergError::Ocr {
         message: format!("Failed to select compute device: {e}"),
         source: Some(Box::new(e)),
@@ -98,7 +96,6 @@ fn get_or_init_engine(
     let new_engine = Arc::new(Mutex::new(new_engine));
 
     let mut pool = ENGINE_POOL.write();
-    // Double-check: another thread may have inserted while we were building.
     if let Some(existing) = pool.get(&key) {
         return Ok(Arc::clone(existing));
     }
@@ -222,7 +219,6 @@ impl OcrBackend for PaddleOcrVlBackend {
     async fn process_image(&self, image_bytes: &[u8], config: &OcrConfig) -> Result<ExtractedDocument> {
         let (task, model_path, model_id, device) = Self::parse_options(config);
 
-        // Validate image data
         if image_bytes.is_empty() {
             return Err(crate::XbergError::Validation {
                 message: "Empty image data provided to PaddleOCR-VL".to_string(),
@@ -230,14 +226,9 @@ impl OcrBackend for PaddleOcrVlBackend {
             });
         }
 
-        // Clone image bytes for the blocking task.
         let image_bytes = image_bytes.to_vec();
 
-        // Run inference in a blocking task to avoid blocking the async runtime.
         let content = tokio::task::spawn_blocking(move || {
-            // An explicit model_path wins (offline / custom weights); otherwise
-            // auto-stage the weights named by model_id into the shared cache. Both
-            // do blocking I/O, so this runs inside spawn_blocking.
             let model_path = match model_path {
                 Some(p) => p,
                 None => super::model_stager::ensure_paddleocr_vl_16(&model_id)
@@ -249,7 +240,6 @@ impl OcrBackend for PaddleOcrVlBackend {
             };
             let engine = get_or_init_engine(&model_path, task, device)?;
 
-            // Lock the engine for mutation (KV cache is managed internally).
             let mut engine_guard = engine.lock();
             let output = engine_guard
                 .process_image(&image_bytes)
@@ -284,28 +274,13 @@ impl OcrBackend for PaddleOcrVlBackend {
     }
 
     fn supports_language(&self, _lang: &str) -> bool {
-        // PaddleOCR-VL supports 109+ languages as per the official model documentation.
-        // Accept all language codes.
         true
     }
 
     fn supported_languages(&self) -> Vec<String> {
-        // Major language codes supported by PaddleOCR-VL
         vec![
-            "eng", "en", // English
-            "zho", "zh", // Chinese (simplified and traditional)
-            "jpn", "ja", // Japanese
-            "kor", "ko", // Korean
-            "fra", "fr", // French
-            "deu", "de", // German
-            "spa", "es", // Spanish
-            "ita", "it", // Italian
-            "por", "pt", // Portuguese
-            "rus", "ru", // Russian
-            "ara", "ar", // Arabic
-            "hin", "hi", // Hindi
-            "tha", "th", // Thai
-            "vie", "vi", // Vietnamese
+            "eng", "en", "zho", "zh", "jpn", "ja", "kor", "ko", "fra", "fr", "deu", "de", "spa", "es", "ita", "it",
+            "por", "pt", "rus", "ru", "ara", "ar", "hin", "hi", "tha", "th", "vie", "vi",
         ]
         .iter()
         .map(|s| s.to_string())
@@ -317,8 +292,6 @@ impl OcrBackend for PaddleOcrVlBackend {
     }
 
     fn emits_structured_markdown(&self) -> bool {
-        // PaddleOCR-VL emits markdown output directly from the VLM,
-        // so the extraction pipeline should skip layout reconstruction stages.
         true
     }
 }

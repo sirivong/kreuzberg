@@ -152,8 +152,6 @@ impl RendererRegistry {
 
     /// Register built-in renderers.
     fn register_builtins(&mut self) {
-        // Built-in renderers do not go through validate_plugin_name
-        // since they are known-good names.
         self.renderers.insert(
             "markdown".to_string(),
             RegisteredRenderer::internal(Arc::new(MarkdownRenderer)),
@@ -421,8 +419,6 @@ mod tests {
         let doc = InternalDocument::new("text/plain");
 
         let result = registry.render("markdown", &doc).unwrap();
-        // Should not panic; empty doc produces empty or minimal output
-        // Verify rendering succeeds without panic
         let _ = result;
     }
 
@@ -432,7 +428,6 @@ mod tests {
         let doc = InternalDocument::new("text/plain");
 
         let result = registry.render("html", &doc).unwrap();
-        // Verify rendering succeeds without panic
         let _ = result;
     }
 
@@ -442,7 +437,6 @@ mod tests {
         let doc = InternalDocument::new("text/plain");
 
         let result = registry.render("djot", &doc).unwrap();
-        // Verify rendering succeeds without panic
         let _ = result;
     }
 
@@ -452,7 +446,6 @@ mod tests {
         let doc = InternalDocument::new("text/plain");
 
         let result = registry.render("plain", &doc).unwrap();
-        // Verify rendering succeeds without panic
         let _ = result;
     }
 }

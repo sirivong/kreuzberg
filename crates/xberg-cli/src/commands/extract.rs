@@ -126,10 +126,6 @@ pub fn batch_command(
 ) -> Result<()> {
     match format {
         WireFormat::Json => {
-            // Run files one at a time to capture per-file wall-clock timings.
-            // Per-file config overrides are honoured: files without an override use the
-            // batch-level config directly; files with an override use a one-shot batch of
-            // one item so the library's own merge logic applies.
             let mut results: Vec<ExtractedDocument> = Vec::with_capacity(uris.len());
             let mut errors: Vec<ExtractionErrorItem> = Vec::new();
             let mut per_file_ms: Vec<f64> = Vec::with_capacity(uris.len());
@@ -400,8 +396,6 @@ mod tests {
 
     #[test]
     fn write_extracted_images_uses_image_index_not_position() {
-        // If a document has images at index 3 and 7 (gaps due to filtered images),
-        // the files must be image_3.* and image_7.* to match markdown references.
         let dir = tempdir().unwrap();
         let images = vec![make_image(3, "png", b"abc"), make_image(7, "png", b"def")];
 

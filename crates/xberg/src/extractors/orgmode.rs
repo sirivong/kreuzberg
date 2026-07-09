@@ -104,7 +104,6 @@ impl OrgModeExtractor {
             }
         }
 
-        // Map standard fields from additional to typed Metadata fields
         metadata.title = additional
             .remove(&Cow::Borrowed("title"))
             .and_then(|v| v.as_str().map(|s| s.to_string()));
@@ -112,13 +111,11 @@ impl OrgModeExtractor {
             v.as_array()
                 .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
         });
-        // Remove the duplicate "author" key since we used "authors"
         additional.remove(&Cow::Borrowed("author"));
         metadata.keywords = additional.remove(&Cow::Borrowed("keywords")).and_then(|v| {
             v.as_array()
                 .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
         });
-        // Note: created_at is already set above from #+DATE
 
         metadata.additional = additional;
 
@@ -159,7 +156,6 @@ impl OrgModeExtractor {
 
         let lines = org.content_as_ref();
         if !lines.is_empty() {
-            // Join consecutive non-empty lines into paragraphs separated by blank lines
             let mut paragraph_lines: Vec<&str> = Vec::new();
             for line in lines {
                 let trimmed = line.trim();
@@ -266,7 +262,6 @@ impl OrgModeExtractor {
         let mut i = 0;
 
         while i < len {
-            // [[url][description]] or [[url]]
             if i + 1 < len
                 && bytes[i] == b'['
                 && bytes[i + 1] == b'['
@@ -286,10 +281,8 @@ impl OrgModeExtractor {
                 continue;
             }
 
-            // Org markup characters: *bold*, /italic/, _underline_, =verbatim=, ~code~, +strike+
             if bytes[i].is_ascii() && Self::is_org_markup_char(bytes[i]) {
                 let marker = bytes[i];
-                // Must be preceded by whitespace/BOL and followed by non-space
                 let preceded_ok =
                     i == 0 || bytes[i - 1].is_ascii_whitespace() || bytes[i - 1] == b'(' || bytes[i - 1] == b'"';
                 if preceded_ok
@@ -307,8 +300,6 @@ impl OrgModeExtractor {
                         b'_' => AnnotationKind::Underline,
                         b'=' | b'~' => AnnotationKind::Code,
                         b'+' => AnnotationKind::Strikethrough,
-                        // INVARIANT: `is_org_markup_char` only returns true for the five
-                        // bytes matched above; no other byte can reach this arm.
                         _ => unreachable!("byte not in is_org_markup_char set"),
                     };
                     if start < end_off {
@@ -323,7 +314,6 @@ impl OrgModeExtractor {
                 }
             }
 
-            // Decode the current UTF-8 character properly instead of casting byte to char
             let ch = &raw[i..];
             let c = ch.chars().next().unwrap();
             out.push(c);
@@ -343,7 +333,6 @@ impl OrgModeExtractor {
         let mut j = from;
         while j < bytes.len() {
             if bytes[j] == marker && j > from && !bytes[j - 1].is_ascii_whitespace() {
-                // Must be followed by whitespace, punctuation, or EOL
                 if j + 1 >= bytes.len()
                     || bytes[j + 1].is_ascii_whitespace()
                     || bytes[j + 1] == b'.'
@@ -412,12 +401,10 @@ impl OrgModeExtractor {
         let lines: Vec<&str> = org_text.lines().collect();
         let mut i = 0;
 
-        // Collect metadata directives from preamble
         let mut metadata_entries: Vec<(String, String)> = Vec::new();
         while i < lines.len() {
             let trimmed = lines[i].trim();
             if let Some(rest) = trimmed.strip_prefix("#+") {
-                // Block delimiters (BEGIN/END) are not metadata — stop preamble
                 let rest_upper = rest.to_ascii_uppercase();
                 if rest_upper.starts_with("BEGIN") || rest_upper.starts_with("END") {
                     break;
@@ -444,7 +431,6 @@ impl OrgModeExtractor {
         while i < lines.len() {
             let trimmed = lines[i].trim();
 
-            // Skip metadata directives in body (but not block delimiters)
             if trimmed.starts_with("#+")
                 && !trimmed.starts_with("#+BEGIN")
                 && !trimmed.starts_with("#+begin")
@@ -455,7 +441,6 @@ impl OrgModeExtractor {
                 continue;
             }
 
-            // Properties drawer
             if trimmed == ":PROPERTIES:" {
                 let mut props: Vec<(String, String)> = Vec::new();
                 i += 1;
@@ -483,7 +468,6 @@ impl OrgModeExtractor {
                 continue;
             }
 
-            // Headings
             if trimmed.starts_with('*') {
                 let mut level: u8 = 0;
                 for ch in trimmed.chars() {
@@ -496,7 +480,6 @@ impl OrgModeExtractor {
                 if level > 0 && trimmed.len() > level as usize && trimmed.as_bytes()[level as usize] == b' ' {
                     let raw_heading = trimmed[level as usize + 1..].trim();
                     if !raw_heading.is_empty() {
-                        // Strip TODO keywords and tags
                         let todo_keywords = ["TODO", "DONE", "NEXT", "WAITING", "CANCELLED", "CANCELED"];
                         let mut heading_text = raw_heading;
                         for kw in &todo_keywords {
@@ -508,7 +491,6 @@ impl OrgModeExtractor {
                                 }
                             }
                         }
-                        // Strip tags
                         if let Some(tag_start) = heading_text.rfind(" :") {
                             let potential_tags = &heading_text[tag_start + 1..];
                             if potential_tags.ends_with(':') && potential_tags.len() > 2 {
@@ -522,7 +504,6 @@ impl OrgModeExtractor {
                 }
             }
 
-            // Code blocks
             if trimmed.starts_with("#+BEGIN_SRC") || trimmed.starts_with("#+begin_src") {
                 let language: Option<&str> = trimmed.split_whitespace().nth(1);
                 i += 1;
@@ -543,7 +524,6 @@ impl OrgModeExtractor {
                 continue;
             }
 
-            // Quote blocks
             if trimmed.starts_with("#+BEGIN_QUOTE") || trimmed.starts_with("#+begin_quote") {
                 b.push_quote_start();
                 i += 1;
@@ -562,7 +542,6 @@ impl OrgModeExtractor {
                 continue;
             }
 
-            // Example blocks -> code blocks without language annotation
             if trimmed.starts_with("#+BEGIN_EXAMPLE") || trimmed.starts_with("#+begin_example") {
                 i += 1;
                 let mut block_content = String::new();
@@ -582,7 +561,6 @@ impl OrgModeExtractor {
                 continue;
             }
 
-            // Other BEGIN/END blocks
             if trimmed.starts_with("#+BEGIN_") || trimmed.starts_with("#+begin_") {
                 let block_type = trimmed
                     .split_whitespace()
@@ -612,7 +590,6 @@ impl OrgModeExtractor {
                 continue;
             }
 
-            // Tables
             if trimmed.starts_with('|') && trimmed.ends_with('|') {
                 let mut table_cells: Vec<Vec<String>> = Vec::new();
                 while i < lines.len() {
@@ -640,7 +617,6 @@ impl OrgModeExtractor {
                 continue;
             }
 
-            // Lists
             if !trimmed.is_empty() && Self::is_org_list_item(trimmed) {
                 let is_ordered = Self::is_org_ordered_item(trimmed);
                 b.push_list(is_ordered);
@@ -650,12 +626,9 @@ impl OrgModeExtractor {
                         break;
                     }
                     if Self::is_org_list_item(t) {
-                        // New list item — collect its text plus any continuation lines
                         let item_text = Self::strip_list_prefix(t);
                         let mut item_parts: Vec<&str> = vec![item_text];
                         i += 1;
-                        // Continuation lines: indented, not a new list item, not empty,
-                        // not a structural start
                         while i < lines.len() {
                             let raw_next = lines[i];
                             let next_t = raw_next.trim();
@@ -663,7 +636,6 @@ impl OrgModeExtractor {
                             {
                                 break;
                             }
-                            // Must be indented (original line starts with whitespace) to be continuation
                             if raw_next.starts_with(' ') || raw_next.starts_with('\t') {
                                 item_parts.push(next_t);
                                 i += 1;
@@ -674,7 +646,6 @@ impl OrgModeExtractor {
                         let joined_item = item_parts.join(" ");
                         b.push_list_item(&joined_item, is_ordered, vec![], None, None);
                     } else {
-                        // Non-list-item, non-empty line that isn't indented continuation — stop the list
                         break;
                     }
                 }
@@ -682,7 +653,6 @@ impl OrgModeExtractor {
                 continue;
             }
 
-            // Footnote definitions: [fn:name] definition text
             if trimmed.starts_with("[fn:") {
                 if let Some(close) = trimmed.find(']') {
                     let name = &trimmed[4..close];
@@ -697,10 +667,7 @@ impl OrgModeExtractor {
                 continue;
             }
 
-            // Regular paragraph with inline markup and internal links.
-            // Collect continuation lines to form a single paragraph (Bug fix: join hard-wrapped lines).
             if !trimmed.is_empty() {
-                // Check if the line is a standalone image link
                 if let Some((url, display, consumed_to)) = Self::parse_org_link(trimmed, 0)
                     && consumed_to == trimmed.len()
                     && Self::is_image_url(&url)
@@ -725,15 +692,12 @@ impl OrgModeExtractor {
                         ocr_confidence: None,
                         ocr_rotation: None,
                     });
-                    // Also emit a URI so path resolution can find the image
                     let label = if display == url { None } else { Some(display) };
                     b.push_uri(ExtractedUri::image(&url, label));
                     i += 1;
                     continue;
                 }
 
-                // Collect all continuation lines for this paragraph.
-                // A continuation line is a non-empty line that doesn't start a structural element.
                 let mut para_raw_lines: Vec<&str> = vec![trimmed];
                 let mut next = i + 1;
                 while next < lines.len() {
@@ -741,7 +705,6 @@ impl OrgModeExtractor {
                     if next_trimmed.is_empty() || Self::is_structural_start(next_trimmed) {
                         break;
                     }
-                    // Also stop if it looks like a standalone image link
                     if let Some((url, _, consumed_to)) = Self::parse_org_link(next_trimmed, 0)
                         && consumed_to == next_trimmed.len()
                         && Self::is_image_url(&url)
@@ -754,11 +717,9 @@ impl OrgModeExtractor {
 
                 let joined_raw = para_raw_lines.join(" ");
 
-                // Check for footnote references [fn:name]
                 let footnote_refs = Self::find_footnote_references(&joined_raw);
                 let (stripped, annotations) = Self::parse_inline_markup(&joined_raw);
 
-                // Extract URIs from link annotations
                 for ann in &annotations {
                     if let AnnotationKind::Link { url, .. } = &ann.kind
                         && !url.is_empty()
@@ -783,16 +744,13 @@ impl OrgModeExtractor {
                     }
                 }
 
-                // Check if the line contains internal links (org links to headings)
                 let idx = b.push_paragraph(&stripped, annotations, None, None);
 
-                // Emit footnote reference relationships
                 for fref in &footnote_refs {
                     let ref_idx = b.push_footnote_ref(&format!("[fn:{}]", fref), fref, None);
                     let _ = ref_idx;
                 }
 
-                // Check for internal org links [[#anchor]] or [[*heading]]
                 Self::extract_internal_links(&joined_raw, idx, &mut b);
 
                 i = next;
@@ -811,7 +769,6 @@ impl OrgModeExtractor {
         while let Some(pos) = line[search_from..].find("[[") {
             let abs_pos = search_from + pos;
             let after = &line[abs_pos + 2..];
-            // Find closing ]]
             let close = if let Some(desc_start) = after.find("][") {
                 after[desc_start + 2..]
                     .find("]]")
@@ -821,14 +778,13 @@ impl OrgModeExtractor {
             };
 
             if let Some(consumed) = close {
-                let link_content = &after[..consumed - 2]; // before ]]
+                let link_content = &after[..consumed - 2];
                 let url_part = if let Some(sep) = link_content.find("][") {
                     &link_content[..sep]
                 } else {
                     link_content
                 };
 
-                // Internal link patterns: #anchor, *heading, custom-id
                 if let Some(anchor) = url_part.strip_prefix('#') {
                     b.push_relationship(
                         source_idx,
@@ -853,7 +809,6 @@ impl OrgModeExtractor {
     /// Check if a trimmed line starts a new structural element (heading, block, table, list, etc.).
     /// Used to determine paragraph continuation boundaries.
     fn is_structural_start(trimmed: &str) -> bool {
-        // Heading
         if trimmed.starts_with('*') {
             let mut level: u8 = 0;
             for ch in trimmed.chars() {
@@ -867,7 +822,6 @@ impl OrgModeExtractor {
                 return true;
             }
         }
-        // Block delimiters
         if trimmed.starts_with("#+BEGIN")
             || trimmed.starts_with("#+begin")
             || trimmed.starts_with("#+END")
@@ -875,23 +829,18 @@ impl OrgModeExtractor {
         {
             return true;
         }
-        // Metadata directives
         if trimmed.starts_with("#+") {
             return true;
         }
-        // Properties drawer
         if trimmed == ":PROPERTIES:" || trimmed == ":END:" {
             return true;
         }
-        // Table
         if trimmed.starts_with('|') && trimmed.ends_with('|') {
             return true;
         }
-        // List item
         if Self::is_org_list_item(trimmed) {
             return true;
         }
-        // Footnote definition
         if trimmed.starts_with("[fn:") {
             return true;
         }
@@ -904,7 +853,6 @@ impl OrgModeExtractor {
         if t.starts_with("- ") || t.starts_with("+ ") {
             return true;
         }
-        // Ordered: 1. or 1)
         if let Some(space_pos) = t.find(' ')
             && space_pos > 0
             && space_pos < 5
@@ -947,7 +895,6 @@ impl OrgModeExtractor {
 
     /// Check if a URL points to an image based on its file extension.
     fn is_image_url(url: &str) -> bool {
-        // Strip optional "file:" prefix and query/fragment
         let path = url
             .strip_prefix("file:")
             .unwrap_or(url)
@@ -1067,7 +1014,6 @@ impl InternalDocumentExtractor for OrgModeExtractor {
         doc.mime_type = mime_type.to_string();
         doc.metadata = metadata;
 
-        // Add tables to InternalDocument
         for table in tables {
             doc.push_table(table);
         }
@@ -1301,7 +1247,6 @@ mod tests {
         let content = OrgModeExtractor::extract_content(&org);
 
         assert!(content.contains("AT&T"), "Description should be prioritized over URL");
-        // Inline markup is now stripped: [[url][desc]] → desc (not [desc])
         assert!(
             !content.contains("[["),
             "Raw org link syntax should be stripped by inline markup processing"
@@ -1310,7 +1255,6 @@ mod tests {
 
     #[test]
     fn test_emoji_and_cjk_with_inline_markup() {
-        // Multi-byte characters with OrgMode inline markup — must not panic
         let (text, annotations) = OrgModeExtractor::parse_inline_markup("🎉 *太字* テスト");
         assert!(text.contains("🎉"), "Emoji preserved");
         assert!(text.contains("太字"), "Bold content present");
@@ -1349,7 +1293,6 @@ mod tests {
             code.text.contains("def hello():"),
             "Code element should contain the function definition"
         );
-        // Check language attribute
         let lang = code
             .attributes
             .as_ref()
@@ -1397,7 +1340,6 @@ mod tests {
             code_elements[0].text.contains("Some example text"),
             "Code element should contain example content"
         );
-        // EXAMPLE blocks should have no language attribute
         let lang = code_elements[0].attributes.as_ref().and_then(|a| a.get("language"));
         assert!(lang.is_none(), "EXAMPLE blocks should not have a language attribute");
     }

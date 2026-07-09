@@ -56,8 +56,6 @@ pub struct Args {
     pub filter: Option<String>,
 }
 
-// ── Per-fixture result ────────────────────────────────────────────────────────
-
 struct FixtureRow {
     name: String,
     precision: f64,
@@ -66,8 +64,6 @@ struct FixtureRow {
     /// Additional metric label + value (e.g. type_correctness_rate for FormFields).
     extra: Option<(String, f64)>,
 }
-
-// ── Main runner ───────────────────────────────────────────────────────────────
 
 /// Run the field-quality benchmark for the given `args`.
 ///
@@ -80,8 +76,6 @@ pub async fn run(args: Args) -> Result<()> {
         Mode::Structured => run_structured(&args).await,
     }
 }
-
-// ── FormFields mode ───────────────────────────────────────────────────────────
 
 async fn run_form_fields(args: &Args) -> Result<()> {
     let fixtures = load_fixtures_with_gt(
@@ -107,12 +101,10 @@ async fn run_form_fields(args: &Args) -> Result<()> {
         let fixture_dir = fixture_path.parent().unwrap_or(Path::new("."));
         let gt = fixture.ground_truth.as_ref().expect("checked above");
 
-        // Resolve and parse the GT fields JSON
         let fields_json_path = fixture_dir.join(gt.fields_json.as_ref().expect("checked above"));
         let gt_value: serde_json::Value = load_json_file(&fields_json_path)
             .with_context(|| format!("failed to load fields_json from {}", fields_json_path.display()))?;
 
-        // Extract the document — form fields are on by default in PdfConfig
         let doc_path = fixture.resolve_document_path(fixture_dir);
         let extraction_config = xberg::ExtractionConfig {
             pdf_options: Some(xberg::PdfConfig::default()),
@@ -123,7 +115,6 @@ async fn run_form_fields(args: &Args) -> Result<()> {
             .await
             .with_context(|| format!("extraction failed for {}", doc_path.display()))?;
 
-        // Flatten form fields to JSON and score
         let pred_value = flatten_form_fields(&result.form_fields);
         let metrics = field_precision_recall_f1_normalized(&pred_value, &gt_value, &tol);
         let type_rate = type_correctness_rate(&pred_value, &gt_value);
@@ -151,8 +142,6 @@ async fn run_form_fields(args: &Args) -> Result<()> {
     Ok(())
 }
 
-// ── Formula mode ──────────────────────────────────────────────────────────────
-
 async fn run_formula(args: &Args) -> Result<()> {
     let fixtures = load_fixtures_with_gt(
         &args.fixtures,
@@ -175,13 +164,11 @@ async fn run_formula(args: &Args) -> Result<()> {
         let fixture_dir = fixture_path.parent().unwrap_or(Path::new("."));
         let gt = fixture.ground_truth.as_ref().expect("checked above");
 
-        // Resolve and parse the GT formulas JSON: { "formulas": ["...", ...] }
         let formulas_json_path = fixture_dir.join(gt.formulas_json.as_ref().expect("checked above"));
         let gt_value: serde_json::Value = load_json_file(&formulas_json_path)
             .with_context(|| format!("failed to load formulas_json from {}", formulas_json_path.display()))?;
         let gt_formulas = parse_formulas_array(&gt_value, &formulas_json_path)?;
 
-        // Extract with layout-enabled config so formula detection fires
         let doc_path = fixture.resolve_document_path(fixture_dir);
         let extraction_config = build_layout_config();
 
@@ -215,8 +202,6 @@ async fn run_formula(args: &Args) -> Result<()> {
     Ok(())
 }
 
-// ── Structured mode ───────────────────────────────────────────────────────────
-
 async fn run_structured(args: &Args) -> Result<()> {
     let dataset_name = match &args.dataset {
         Some(d) => d.as_str(),
@@ -229,7 +214,6 @@ async fn run_structured(args: &Args) -> Result<()> {
         }
     };
 
-    // Load StructuredFixtures from the datasets module.
     let fixtures_dir = &args.fixtures;
     let fixtures = load_structured_dataset(dataset_name, fixtures_dir);
 
@@ -245,7 +229,6 @@ async fn run_structured(args: &Args) -> Result<()> {
         }
     };
 
-    // Apply name filter if requested
     let filter = args.filter.as_deref();
     let fixtures: Vec<_> = fixtures
         .into_iter()
@@ -277,10 +260,6 @@ async fn run_structured(args: &Args) -> Result<()> {
             }
         };
 
-        // Build a flat JSON representation of the structured output for comparison.
-        // Here we use the content as a single-field value for a rough P/R/F1 signal.
-        // Richer structured output (e.g., tables) can be added when datasets provide
-        // JSON ground truth keyed to specific field paths.
         let pred_value = serde_json::json!({ "content": result.content });
         let gt_value = &fixture.ground_truth;
 
@@ -310,8 +289,6 @@ async fn run_structured(args: &Args) -> Result<()> {
     Ok(())
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
 /// Load all fixtures from `fixtures_dir`, optionally filtered by stem substring,
 /// keeping only those where the `GroundTruth` satisfies `predicate`.
 fn load_fixtures_with_gt(
@@ -327,10 +304,8 @@ fn load_fixtures_with_gt(
     let mut results = Vec::new();
     collect_fixture_files(fixtures_dir, &mut results)?;
 
-    // Parse each JSON file as a Fixture and filter
     let mut out = Vec::new();
     for path in results {
-        // Apply stem filter
         if let Some(pat) = filter {
             let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
             if !stem.contains(pat) {
@@ -343,7 +318,6 @@ fn load_fixtures_with_gt(
         let fixture: Fixture =
             serde_json::from_str(&contents).with_context(|| format!("failed to parse fixture {}", path.display()))?;
 
-        // Check if this fixture has the required GT field
         let has_gt = fixture.ground_truth.as_ref().map(&predicate).unwrap_or(false);
 
         if has_gt {
@@ -416,8 +390,6 @@ fn build_layout_config() -> xberg::ExtractionConfig {
             ..Default::default()
         }),
         layout: Some(xberg::LayoutDetectionConfig::default()),
-        // GLM-OCR inference on CPU is slow; 10 minutes is sufficient for
-        // multi-page formula documents without risking infinite hangs.
         extraction_timeout_secs: Some(600),
         ..Default::default()
     }
@@ -440,8 +412,6 @@ fn load_structured_dataset(
     }
 }
 
-// ── Table printing ────────────────────────────────────────────────────────────
-
 /// Print a P/R/F1 table (mirroring `comparison::print_comparison_table` style).
 fn print_table(rows: &[FixtureRow], title: &str, columns: &[&str]) {
     let has_extra = rows.iter().any(|r| r.extra.is_some());
@@ -451,7 +421,6 @@ fn print_table(rows: &[FixtureRow], title: &str, columns: &[&str]) {
     eprintln!("\n{}", title);
     eprintln!("{}", "=".repeat(title.len()));
 
-    // Header
     eprint!("{:<30}", "Fixture");
     for col in columns.iter().take(col_count) {
         eprint!(" {:>10}", col);
@@ -459,7 +428,6 @@ fn print_table(rows: &[FixtureRow], title: &str, columns: &[&str]) {
     eprintln!();
     eprintln!("{}", "-".repeat(row_width));
 
-    // Data rows
     for row in rows {
         eprint!("{:<30}", truncate(&row.name, 30));
         eprint!(" {:>9.1}%", row.precision * 100.0);
@@ -476,7 +444,6 @@ fn print_table(rows: &[FixtureRow], title: &str, columns: &[&str]) {
         return;
     }
 
-    // Average row
     eprintln!("{}", "-".repeat(row_width));
     eprint!("{:<30}", "AVERAGE");
     let avg_p = avg_metric(rows, |r| r.precision);

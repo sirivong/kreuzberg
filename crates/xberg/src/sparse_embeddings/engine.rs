@@ -99,16 +99,20 @@ impl SparseEmbeddingEngine {
 
         let mut ids_array = Vec::with_capacity(max_size);
         let mut mask_array = Vec::with_capacity(max_size);
-        let mut type_ids_array = Vec::with_capacity(max_size);
+        let mut type_ids_array = if self.need_token_type_ids {
+            Vec::with_capacity(max_size)
+        } else {
+            Vec::new()
+        };
         for encoding in &encodings {
             ids_array.extend(encoding.get_ids().iter().map(|&x| x as i64));
             mask_array.extend(encoding.get_attention_mask().iter().map(|&x| x as i64));
-            type_ids_array.extend(encoding.get_type_ids().iter().map(|&x| x as i64));
+            if self.need_token_type_ids {
+                type_ids_array.extend(encoding.get_type_ids().iter().map(|&x| x as i64));
+            }
         }
 
         let ids_tensor = ndarray::Array::from_shape_vec((batch_size, encoding_length), ids_array)
-            .map_err(|e| SparseEmbedError::Shape(e.to_string()))?;
-        let type_ids_tensor = ndarray::Array::from_shape_vec((batch_size, encoding_length), type_ids_array)
             .map_err(|e| SparseEmbedError::Shape(e.to_string()))?;
         let mask_nd = ndarray::Array::from_shape_vec((batch_size, encoding_length), mask_array)
             .map_err(|e| SparseEmbedError::Shape(e.to_string()))?;
@@ -118,12 +122,11 @@ impl SparseEmbeddingEngine {
             "attention_mask" => Value::from_array(mask_nd.clone())?,
         ];
         if self.need_token_type_ids {
+            let type_ids_tensor = ndarray::Array::from_shape_vec((batch_size, encoding_length), type_ids_array)
+                .map_err(|e| SparseEmbedError::Shape(e.to_string()))?;
             session_inputs.push(("token_type_ids".into(), Value::from_array(type_ids_tensor)?.into()));
         }
 
-        // SAFETY: ort::Session::run() takes &mut self but delegates to run_inner(&self)
-        // with zero actual mutation. The ONNX Runtime C API (OrtApi::Run) is documented
-        // as thread-safe for concurrent Run() calls on the same session.
         #[allow(unsafe_code)]
         let outputs = unsafe {
             let session_ptr = &self.session as *const Session as *mut Session;
@@ -131,7 +134,6 @@ impl SparseEmbeddingEngine {
         }
         .map_err(SparseEmbedError::Ort)?;
 
-        // MLM logits: [batch, seq, vocab].
         let (_, output_value) = outputs.iter().next().ok_or(SparseEmbedError::NoOutput)?;
         let logits: ArrayView<f32, Dim<IxDynImpl>> = output_value.try_extract_array().map_err(SparseEmbedError::Ort)?;
         let logits = logits
@@ -158,23 +160,48 @@ fn splade_pool(
     logits: &ndarray::ArrayView3<f32>,
     mask: &ndarray::Array2<i64>,
 ) -> Result<Vec<SparseEmbedding>, SparseEmbedError> {
-    // log(1 + relu(x)) — always >= 0, and 0 exactly where x <= 0.
-    let relu_log = logits.mapv(|x| (1.0_f32 + x.max(0.0)).ln());
-
-    // Zero out padded positions by broadcasting the mask over the vocab axis.
-    let mask_f = mask.mapv(|x| x as f32);
-    let mask_axis = mask_f.insert_axis(Axis(2));
-    let mask_b = mask_axis.broadcast(relu_log.dim()).ok_or_else(|| {
-        SparseEmbedError::Shape(format!(
+    let (batch, seq, vocab) = logits.dim();
+    if mask.dim() != (batch, seq) {
+        return Err(SparseEmbedError::Shape(format!(
             "attention mask {:?} cannot broadcast to logits {:?}",
             mask.dim(),
-            relu_log.dim()
-        ))
-    })?;
-    let weighted = &relu_log * &mask_b;
+            logits.dim()
+        )));
+    }
 
-    // Max-pool over the sequence axis -> [batch, vocab].
-    let scores = weighted.fold_axis(Axis(1), f32::NEG_INFINITY, |&r, &v| r.max(v));
+    // Fused relu -> log1p -> mask -> max-pool over the sequence axis, written
+    // directly into the [batch, vocab] accumulator. This avoids materializing
+    // the two full [batch, seq, vocab] intermediates the unfused version built
+    // (`relu_log` then the masked `weighted` array) before folding down to
+    // [batch, vocab] — same result, one pass, no extra allocation of that size.
+    //
+    // Padding MUST be masked to zero BEFORE the max, matching the original
+    // order of operations (activate -> mask -> pool): if a position is padding
+    // its contribution is forced to 0.0 rather than the activated logit, so it
+    // can never win the max over a real (usually positive) activation. Pooling
+    // before masking would let padded logits leak through whenever they exceed
+    // the real-token activations, corrupting the result.
+    let mut scores = ndarray::Array2::<f32>::from_elem((batch, vocab), f32::NEG_INFINITY);
+    for b in 0..batch {
+        let logits_b = logits.index_axis(Axis(0), b);
+        let mask_b = mask.index_axis(Axis(0), b);
+        let mut scores_b = scores.index_axis_mut(Axis(0), b);
+        for v in 0..vocab {
+            let mut max_val = f32::NEG_INFINITY;
+            for s in 0..seq {
+                let masked = if mask_b[s] != 0 {
+                    let x = logits_b[[s, v]];
+                    (1.0_f32 + x.max(0.0)).ln()
+                } else {
+                    0.0_f32
+                };
+                if masked > max_val {
+                    max_val = masked;
+                }
+            }
+            scores_b[v] = max_val;
+        }
+    }
 
     Ok(scores
         .outer_iter()
@@ -202,55 +229,40 @@ mod tests {
 
     #[test]
     fn splade_pool_produces_normalized_sparse_vector() {
-        // batch=1, seq=2, vocab=3. Only two vocab terms ever activate.
-        // token 0 logits: [ 2.0, -1.0, 0.5 ]
-        // token 1 logits: [ 0.0,  3.0, -2.0 ]
         let logits = Array3::from_shape_vec((1, 2, 3), vec![2.0, -1.0, 0.5, 0.0, 3.0, -2.0]).unwrap();
         let mask = Array2::from_shape_vec((1, 2), vec![1_i64, 1]).unwrap();
         let out = splade_pool(&logits.view(), &mask).unwrap();
         assert_eq!(out.len(), 1);
         let se = &out[0];
 
-        // Expected pre-norm scores per vocab term (max over seq of log(1+relu)):
-        // term0: max(ln(3), ln(1)) = ln(3)
-        // term1: max(ln(1)=0, ln(4)) = ln(4)
-        // term2: max(ln(1.5), ln(1)=0) = ln(1.5)
         let s0 = (3.0_f32).ln();
         let s1 = (4.0_f32).ln();
         let s2 = (1.5_f32).ln();
         let norm = (s0 * s0 + s1 * s1 + s2 * s2).sqrt();
 
-        // All three terms are strictly positive -> all present, ascending indices.
         assert_eq!(se.indices, vec![0, 1, 2]);
         assert_eq!(se.values.len(), 3);
         assert!((se.values[0] - s0 / norm).abs() < 1e-5);
         assert!((se.values[1] - s1 / norm).abs() < 1e-5);
         assert!((se.values[2] - s2 / norm).abs() < 1e-5);
 
-        // L2 norm of the emitted values is 1.
         let out_norm = se.values.iter().map(|v| v * v).sum::<f32>().sqrt();
         assert!((out_norm - 1.0).abs() < 1e-5);
     }
 
     #[test]
     fn splade_pool_drops_nonpositive_terms_and_masks_padding() {
-        // vocab term 1 only activates on a padded token -> must be dropped.
-        // batch=1, seq=2, vocab=2.
-        // token 0 (real): [ 1.0, -5.0 ]
-        // token 1 (pad):  [ -5.0, 4.0 ]
         let logits = Array3::from_shape_vec((1, 2, 2), vec![1.0, -5.0, -5.0, 4.0]).unwrap();
-        let mask = Array2::from_shape_vec((1, 2), vec![1_i64, 0]).unwrap(); // second token padded
+        let mask = Array2::from_shape_vec((1, 2), vec![1_i64, 0]).unwrap();
         let out = splade_pool(&logits.view(), &mask).unwrap();
         let se = &out[0];
-        // Only term 0 survives (term 1's activation was on the masked token).
         assert_eq!(se.indices, vec![0]);
         assert_eq!(se.values.len(), 1);
-        assert!((se.values[0] - 1.0).abs() < 1e-5); // single term -> normalized to 1.0
+        assert!((se.values[0] - 1.0).abs() < 1e-5);
     }
 
     #[test]
     fn splade_pool_all_zero_row_yields_empty_sparse_vector() {
-        // All logits <= 0 -> relu_log all zero -> empty sparse vector, no NaN.
         let logits = Array3::from_shape_vec((1, 2, 2), vec![-1.0, -2.0, -3.0, -4.0]).unwrap();
         let mask = Array2::from_shape_vec((1, 2), vec![1_i64, 1]).unwrap();
         let out = splade_pool(&logits.view(), &mask).unwrap();
@@ -260,11 +272,53 @@ mod tests {
 
     #[test]
     fn splade_pool_errors_on_mask_shape_mismatch() {
-        // mask seq (3) does not match logits seq (2) -> broadcast fails -> error,
-        // not a silent pool over unmasked padding.
         let logits = Array3::from_shape_vec((1, 2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
         let mask = Array2::from_shape_vec((1, 3), vec![1_i64, 1, 1]).unwrap();
         let err = splade_pool(&logits.view(), &mask).expect_err("mask/logits mismatch must error");
         assert!(matches!(err, SparseEmbedError::Shape(_)));
+    }
+
+    /// Regression guard for the fused relu/log1p/mask/max-pool rewrite: row 0
+    /// has a padded position with a logit far larger than any real-token
+    /// activation, and row 1 has no padding at all (a multi-term control row,
+    /// so L2 normalization can't hide a leaked padded value behind a
+    /// single-term row that trivially normalizes to 1.0). If masking were
+    /// applied after the max instead of before, row 0's score would be
+    /// dominated by the huge padded logit and diverge from the expected value.
+    #[test]
+    fn splade_pool_masks_before_max_multirow() {
+        // batch=2, seq=2, vocab=2.
+        // Row 0: position 0 real (vocab0=0.5, vocab1=-1.0), position 1 padding
+        // with huge logits that must be excluded from the max.
+        // Row 1: both positions real, no padding, used as a control.
+        let logits = Array3::from_shape_vec(
+            (2, 2, 2),
+            vec![
+                0.5, -1.0, // row 0, seq 0 (real)
+                100.0, 100.0, // row 0, seq 1 (padding, must be excluded)
+                0.5, -1.0, // row 1, seq 0 (real)
+                0.2, 0.3, // row 1, seq 1 (real)
+            ],
+        )
+        .unwrap();
+        let mask = Array2::from_shape_vec((2, 2), vec![1_i64, 0_i64, 1_i64, 1_i64]).unwrap();
+        let out = splade_pool(&logits.view(), &mask).unwrap();
+
+        // Row 0: only vocab index 0 is positive (log(1.5) from the real
+        // token); vocab index 1's real contribution is relu(-1.0) = 0, and the
+        // padded position must not contribute at all.
+        assert_eq!(out[0].indices, vec![0]);
+        assert!((out[0].values[0] - 1.0).abs() < 1e-5);
+
+        // Row 1 (no padding) must match the unfused computation directly:
+        // vocab0 = max(log(1.5), log(1.2)) = log(1.5); vocab1 = max(relu(-1)=0
+        // activated as log(1)=0, log(1.3)) = log(1.3).
+        let v0 = (1.5_f32).ln();
+        let v1 = (1.3_f32).ln();
+        let norm = (v0 * v0 + v1 * v1).sqrt();
+        assert_eq!(out[1].indices, vec![0, 1]);
+        assert_eq!(out[1].values.len(), 2);
+        assert!((out[1].values[0] - v0 / norm).abs() < 1e-5);
+        assert!((out[1].values[1] - v1 / norm).abs() < 1e-5);
     }
 }

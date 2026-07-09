@@ -55,11 +55,9 @@ pub(crate) async fn process_images_with_ocr(
     use tokio::sync::Semaphore;
     use tokio::task::JoinSet;
 
-    // Bound concurrency to prevent resource exhaustion with many images.
     let max_tasks = crate::core::config::concurrency::resolve_thread_budget(config.concurrency.as_ref());
     let semaphore = Arc::new(Semaphore::new(max_tasks));
 
-    // Each spawned task returns `(image_index, ocr_result)`.
     type OcrTaskResult = (usize, crate::Result<ExtractedDocument>);
     let mut join_set: JoinSet<OcrTaskResult> = JoinSet::new();
 
@@ -71,9 +69,6 @@ pub(crate) async fn process_images_with_ocr(
         ocr_config_clone.acceleration = acceleration.clone();
 
         join_set.spawn(async move {
-            // Acquire a semaphore permit before starting OCR work.
-            // The permit is held for the duration of the OCR task,
-            // ensuring at most max_tasks run simultaneously.
             let _permit = match permit.acquire().await {
                 Ok(p) => p,
                 Err(_) => {
@@ -110,8 +105,6 @@ pub(crate) async fn process_images_with_ocr(
     }
 
     while let Some(join_result) = join_set.join_next().await {
-        // JoinSet join error means the async wrapper itself panicked, which is
-        // not expected; propagate as a hard error.
         let (idx, ocr_result) = join_result.map_err(|e| crate::XbergError::Ocr {
             message: format!("OCR task panicked: {}", e),
             source: None,
@@ -119,11 +112,6 @@ pub(crate) async fn process_images_with_ocr(
 
         match ocr_result {
             Ok(extraction_result) => {
-                // Recursion prevention: the child ExtractedDocument explicitly
-                // disables image extraction (`images: None`) and omits all
-                // expensive post-processing fields (chunking, language detection,
-                // keywords, etc.) to prevent further extraction cycles and
-                // minimize overhead.
                 images[idx].ocr_result = Some(Box::new(ExtractedDocument {
                     content: extraction_result.content,
                     mime_type: extraction_result.mime_type,

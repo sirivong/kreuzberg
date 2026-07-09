@@ -27,7 +27,6 @@ fn determine_ocr_status(result: &ExtractedDocument, config: &ExtractionConfig) -
     match &result.metadata.format {
         Some(FormatMetadata::Ocr(_)) => OcrStatus::Used,
         Some(FormatMetadata::Image(_)) => {
-            // Image extractor overwrites Ocr -> Image format, so check config
             if config.ocr.is_some() || config.force_ocr {
                 OcrStatus::Used
             } else {
@@ -98,38 +97,99 @@ impl FrameworkAdapter for NativeAdapter {
     fn supports_format(&self, file_type: &str) -> bool {
         matches!(
             file_type.to_lowercase().as_str(),
-            // Documents
-            "pdf" | "docx" | "docm" | "dotx" | "dotm" | "dot" | "doc" | "odt" |
-            "pptx" | "ppsx" | "pptm" | "potx" | "potm" | "pot" | "ppt" |
-            "xlsx" | "xlsm" | "xlsb" | "xlam" | "xla" | "xltx" | "xlt" | "xls" | "ods" |
-            "dbf" | "hwp" | "hwpx" |
-            // Text formats
-            "txt" | "md" | "markdown" | "commonmark" | "html" | "htm" | "xml" | "rtf" | "rst" | "org" |
-            // Data formats
-            "json" | "yaml" | "yml" | "toml" | "csv" | "tsv" |
-            // Email
-            "eml" | "msg" |
-            // Archives
-            "zip" | "tar" | "gz" | "tgz" | "7z" |
-            // Images (OCR supported)
-            "bmp" | "gif" | "jpg" | "jpeg" | "png" | "tiff" | "tif" | "webp" |
-            "jp2" | "jpx" | "jpm" | "mj2" | "j2k" | "j2c" |
-            "jbig2" | "jb2" |
-            "pnm" | "pbm" | "pgm" | "ppm" |
-            // Academic/Publishing
-            "epub" | "fb2" | "bib" | "ris" | "nbib" | "enw" |
-            "ipynb" | "tex" | "latex" | "typst" | "typ" |
-            // Markup/Structured
-            "opml" | "dbk" | "docbook" | "jats" |
-            // Other
-            "svg" | "djot"
+            "pdf"
+                | "docx"
+                | "docm"
+                | "dotx"
+                | "dotm"
+                | "dot"
+                | "doc"
+                | "odt"
+                | "pptx"
+                | "ppsx"
+                | "pptm"
+                | "potx"
+                | "potm"
+                | "pot"
+                | "ppt"
+                | "xlsx"
+                | "xlsm"
+                | "xlsb"
+                | "xlam"
+                | "xla"
+                | "xltx"
+                | "xlt"
+                | "xls"
+                | "ods"
+                | "dbf"
+                | "hwp"
+                | "hwpx"
+                | "txt"
+                | "md"
+                | "markdown"
+                | "commonmark"
+                | "html"
+                | "htm"
+                | "xml"
+                | "rtf"
+                | "rst"
+                | "org"
+                | "json"
+                | "yaml"
+                | "yml"
+                | "toml"
+                | "csv"
+                | "tsv"
+                | "eml"
+                | "msg"
+                | "zip"
+                | "tar"
+                | "gz"
+                | "tgz"
+                | "7z"
+                | "bmp"
+                | "gif"
+                | "jpg"
+                | "jpeg"
+                | "png"
+                | "tiff"
+                | "tif"
+                | "webp"
+                | "jp2"
+                | "jpx"
+                | "jpm"
+                | "mj2"
+                | "j2k"
+                | "j2c"
+                | "jbig2"
+                | "jb2"
+                | "pnm"
+                | "pbm"
+                | "pgm"
+                | "ppm"
+                | "epub"
+                | "fb2"
+                | "bib"
+                | "ris"
+                | "nbib"
+                | "enw"
+                | "ipynb"
+                | "tex"
+                | "latex"
+                | "typst"
+                | "typ"
+                | "opml"
+                | "dbk"
+                | "docbook"
+                | "jats"
+                | "svg"
+                | "djot"
         )
     }
 
     async fn extract(&self, file_path: &Path, timeout: Duration, force_ocr: bool) -> Result<BenchmarkResult> {
         let file_size = std::fs::metadata(file_path).map_err(Error::Io)?.len();
 
-        // Apply force_ocr override when requested
         let config = if force_ocr && !self.config.force_ocr {
             let mut c = self.config.clone();
             c.force_ocr = true;
@@ -144,7 +204,6 @@ impl FrameworkAdapter for NativeAdapter {
 
         let start = Instant::now();
 
-        // Start extraction timing (same as total for native - no subprocess overhead)
         let extraction_start = Instant::now();
 
         let timed_result = tokio::time::timeout(timeout, extract_xberg_file(file_path, &config)).await;
@@ -157,9 +216,6 @@ impl FrameworkAdapter for NativeAdapter {
         let extraction_duration = extraction_start.elapsed();
         let duration = start.elapsed();
 
-        // Take a post-extraction snapshot before stopping the monitor.
-        // This provides a fallback memory measurement for sub-millisecond extractions
-        // where the background sampler may not have collected any samples.
         let post_sample = monitor.snapshot_current_memory();
         let mut samples = monitor.stop().await;
         if samples.is_empty() {
@@ -190,7 +246,7 @@ impl FrameworkAdapter for NativeAdapter {
                 error_kind,
                 duration,
                 extraction_duration: Some(extraction_duration),
-                subprocess_overhead: Some(Duration::ZERO), // No subprocess for native Rust
+                subprocess_overhead: Some(Duration::ZERO),
                 metrics: PerformanceMetrics {
                     peak_memory_bytes: resource_stats.peak_memory_bytes,
                     avg_cpu_percent: resource_stats.avg_cpu_percent,
@@ -246,7 +302,7 @@ impl FrameworkAdapter for NativeAdapter {
             error_kind,
             duration,
             extraction_duration: Some(extraction_duration),
-            subprocess_overhead: Some(Duration::ZERO), // No subprocess for native Rust
+            subprocess_overhead: Some(Duration::ZERO),
             metrics,
             quality: None,
             iterations: vec![],
@@ -270,12 +326,10 @@ impl FrameworkAdapter for NativeAdapter {
         timeout: Duration,
         force_ocr: &[bool],
     ) -> Result<Vec<BenchmarkResult>> {
-        // Early return if file_paths is empty
         if file_paths.is_empty() {
             return Ok(Vec::new());
         }
 
-        // If any file needs force_ocr, apply it to the config
         let any_force_ocr = force_ocr.iter().any(|&f| f);
         let config = if any_force_ocr && !self.config.force_ocr {
             let mut c = self.config.clone();
@@ -312,8 +366,6 @@ impl FrameworkAdapter for NativeAdapter {
         let resource_stats = ResourceMonitor::calculate_stats(&samples, &snapshots, baseline);
 
         if let Err(e) = batch_result {
-            // Create one failure result per file instead of a single aggregated failure
-            // Use the actual elapsed time divided by number of files
             let num_files = file_paths.len() as f64;
             let avg_duration_per_file = Duration::from_secs_f64(total_duration.as_secs_f64() / num_files.max(1.0));
             let error_kind = if timed_out {
@@ -340,8 +392,8 @@ impl FrameworkAdapter for NativeAdapter {
                         error_message: Some(e.to_string()),
                         error_kind,
                         duration: avg_duration_per_file,
-                        extraction_duration: Some(avg_duration_per_file), // For native, extraction = total
-                        subprocess_overhead: Some(Duration::ZERO),        // No subprocess for native Rust
+                        extraction_duration: Some(avg_duration_per_file),
+                        subprocess_overhead: Some(Duration::ZERO),
                         metrics: PerformanceMetrics {
                             peak_memory_bytes: resource_stats.peak_memory_bytes,
                             avg_cpu_percent: resource_stats.avg_cpu_percent,
@@ -366,23 +418,17 @@ impl FrameworkAdapter for NativeAdapter {
             return Ok(failure_results);
         }
 
-        // Get the actual extraction results with per-file timing from metadata
         let extraction_results = batch_result.unwrap();
 
-        // Fallback duration if metadata doesn't have timing (shouldn't happen with new code)
         let num_files = file_paths.len() as f64;
         let avg_duration_per_file = Duration::from_secs_f64(total_duration.as_secs_f64() / num_files.max(1.0));
 
-        // Create one result per file using actual per-file timing from extraction metadata
         let results: Vec<BenchmarkResult> = file_paths
             .iter()
             .zip(extraction_results.iter())
             .map(|(file_path, extraction_result)| {
                 let file_size = std::fs::metadata(file_path).map(|m| m.len()).unwrap_or(0);
 
-                // Read per-file extraction timing from metadata, fallback to average.
-                // Note: extraction_duration_ms is u64, so sub-millisecond extractions
-                // truncate to 0ms. Fall back to avg_duration_per_file in that case.
                 let extraction_duration = extraction_result
                     .metadata
                     .extraction_duration_ms
@@ -398,7 +444,6 @@ impl FrameworkAdapter for NativeAdapter {
 
                 let file_extension = file_path.extension().and_then(|e| e.to_str()).unwrap_or("").to_string();
 
-                // Check if this specific extraction had an error or empty content
                 let (success, error_message, error_kind) = if extraction_result.metadata.error.is_some() {
                     (
                         false,
@@ -415,7 +460,6 @@ impl FrameworkAdapter for NativeAdapter {
                     (true, None, ErrorKind::None)
                 };
 
-                // Amortize batch memory proportionally by file size
                 let file_fraction = if total_file_size > 0 {
                     file_size as f64 / total_file_size as f64
                 } else {
@@ -431,7 +475,7 @@ impl FrameworkAdapter for NativeAdapter {
                     error_kind,
                     duration: extraction_duration,
                     extraction_duration: Some(extraction_duration),
-                    subprocess_overhead: Some(Duration::ZERO), // No subprocess for native Rust
+                    subprocess_overhead: Some(Duration::ZERO),
                     metrics: PerformanceMetrics {
                         peak_memory_bytes: (resource_stats.peak_memory_bytes as f64 * file_fraction) as u64,
                         avg_cpu_percent: resource_stats.avg_cpu_percent,
@@ -465,8 +509,6 @@ impl FrameworkAdapter for NativeAdapter {
     }
 
     async fn setup(&self) -> Result<()> {
-        // Warm up the extraction pipeline: trigger lazy statics, plugin discovery,
-        // allocator warmup, etc. — equivalent to subprocess adapters' READY handshake.
         let warmup_pdf = tempfile::Builder::new()
             .suffix(".pdf")
             .tempfile()

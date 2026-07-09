@@ -623,6 +623,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   CitationMetadata dco_decode_box_autoadd_citation_metadata(dynamic raw);
 
   @protected
+  CodeMetadata dco_decode_box_autoadd_code_metadata(dynamic raw);
+
+  @protected
   ContentFilterConfig dco_decode_box_autoadd_content_filter_config(dynamic raw);
 
   @protected
@@ -956,7 +959,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   ClassificationLabel dco_decode_classification_label(dynamic raw);
 
   @protected
+  CodeChunkInfo dco_decode_code_chunk_info(dynamic raw);
+
+  @protected
   CodeContentMode dco_decode_code_content_mode(dynamic raw);
+
+  @protected
+  CodeMetadata dco_decode_code_metadata(dynamic raw);
 
   @protected
   ContentConfig dco_decode_content_config(dynamic raw);
@@ -1074,6 +1083,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EmbeddingModelType dco_decode_embedding_model_type(dynamic raw);
+
+  @protected
+  EmbeddingsEmbeddingBackend dco_decode_embeddings_embedding_backend(
+    dynamic raw,
+  );
 
   @protected
   Entity dco_decode_entity(dynamic raw);
@@ -1307,6 +1321,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ClassificationLabel> dco_decode_list_classification_label(dynamic raw);
+
+  @protected
+  List<CodeChunkInfo> dco_decode_list_code_chunk_info(dynamic raw);
 
   @protected
   List<ContributorRole> dco_decode_list_contributor_role(dynamic raw);
@@ -2752,6 +2769,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  CodeMetadata sse_decode_box_autoadd_code_metadata(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   ContentFilterConfig sse_decode_box_autoadd_content_filter_config(
     SseDeserializer deserializer,
   );
@@ -3185,7 +3207,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  CodeChunkInfo sse_decode_code_chunk_info(SseDeserializer deserializer);
+
+  @protected
   CodeContentMode sse_decode_code_content_mode(SseDeserializer deserializer);
+
+  @protected
+  CodeMetadata sse_decode_code_metadata(SseDeserializer deserializer);
 
   @protected
   ContentConfig sse_decode_content_config(SseDeserializer deserializer);
@@ -3311,6 +3339,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   EmbeddingModelType sse_decode_embedding_model_type(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  EmbeddingsEmbeddingBackend sse_decode_embeddings_embedding_backend(
     SseDeserializer deserializer,
   );
 
@@ -3584,6 +3617,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   List<ClassificationLabel> sse_decode_list_classification_label(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  List<CodeChunkInfo> sse_decode_list_code_chunk_info(
     SseDeserializer deserializer,
   );
 
@@ -5503,6 +5541,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_code_metadata(
+    CodeMetadata self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_content_filter_config(
     ContentFilterConfig self,
     SseSerializer serializer,
@@ -6076,10 +6120,16 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_code_chunk_info(CodeChunkInfo self, SseSerializer serializer);
+
+  @protected
   void sse_encode_code_content_mode(
     CodeContentMode self,
     SseSerializer serializer,
   );
+
+  @protected
+  void sse_encode_code_metadata(CodeMetadata self, SseSerializer serializer);
 
   @protected
   void sse_encode_content_config(ContentConfig self, SseSerializer serializer);
@@ -6252,6 +6302,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_embedding_model_type(
     EmbeddingModelType self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_embeddings_embedding_backend(
+    EmbeddingsEmbeddingBackend self,
     SseSerializer serializer,
   );
 
@@ -6615,6 +6671,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   @protected
   void sse_encode_list_classification_label(
     List<ClassificationLabel> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_code_chunk_info(
+    List<CodeChunkInfo> self,
     SseSerializer serializer,
   );
 

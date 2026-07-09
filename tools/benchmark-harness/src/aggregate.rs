@@ -281,7 +281,6 @@ pub struct DurationPercentiles {
 ///
 /// Calculates p50/p95/p99 percentiles for each group.
 pub fn aggregate_new_format(results: &[BenchmarkResult]) -> NewConsolidatedResults {
-    // Validate input
     if results.is_empty() {
         return NewConsolidatedResults {
             schema_version: SCHEMA_VERSION.to_string(),
@@ -307,16 +306,10 @@ pub fn aggregate_new_format(results: &[BenchmarkResult]) -> NewConsolidatedResul
         };
     }
 
-    // Group by aggregate key (see make_aggregate_key) and file type
     let mut by_framework_mode_format: HashMap<String, HashMap<String, Vec<&BenchmarkResult>>> = HashMap::new();
     let mut disk_sizes: HashMap<String, DiskSizeInfo> = HashMap::new();
     let mut file_types = std::collections::HashSet::new();
 
-    // Group results by their aggregate key and file type.
-    //
-    // Key format differs by family (see module-level doc):
-    //   xberg-*  →  "{framework_name}:{mode}"
-    //   competitors  →  "{framework}:{output_format}:{mode}"
     for result in results {
         let (framework, mode) = extract_framework_and_mode(&result.framework);
         let key = make_aggregate_key(framework, result.output_format, mode);
@@ -330,22 +323,14 @@ pub fn aggregate_new_format(results: &[BenchmarkResult]) -> NewConsolidatedResul
 
         file_types.insert(result.file_extension.clone());
 
-        // Collect disk sizes
         if let Some(disk_size) = &result.framework_capabilities.installation_size {
             disk_sizes.insert(framework.to_string(), disk_size.clone());
         }
     }
 
-    // Aggregate each key combination.
-    //
-    // Key shapes (see make_aggregate_key):
-    //   xberg-* →  "framework_name:mode"          (2 colon-separated parts)
-    //   competitors →  "framework:output_format:mode" (3 colon-separated parts)
     let mut aggregated_by_framework_mode = HashMap::new();
 
     for (framework_mode_format_key, file_type_results) in by_framework_mode_format {
-        // Retrieve output_format from the first result in this group; it is the same for all
-        // entries in the group because the key was built from result.output_format.
         let output_format = file_type_results
             .values()
             .flatten()
@@ -355,11 +340,9 @@ pub fn aggregate_new_format(results: &[BenchmarkResult]) -> NewConsolidatedResul
 
         let (framework, mode) = parse_aggregate_key(&framework_mode_format_key);
 
-        // Collect all results for this aggregate key group for cold start calculation
         let all_results: Vec<&BenchmarkResult> = file_type_results.values().flat_map(|v| v.iter().copied()).collect();
         let cold_start = aggregate_cold_starts(&all_results);
 
-        // Aggregate by file type
         let mut by_file_type = HashMap::new();
         for (file_type, results_for_type) in file_type_results {
             let aggregation = aggregate_by_ocr_status(&results_for_type);
@@ -385,13 +368,8 @@ pub fn aggregate_new_format(results: &[BenchmarkResult]) -> NewConsolidatedResul
         );
     }
 
-    // Build per-fixture results
     let per_fixture_results = build_per_fixture_results(results);
 
-    // Count distinct base frameworks (e.g. "docling", "xberg-markdown-baseline"), not
-    // framework:mode combinations. `aggregated_by_framework_mode.len()` counts the latter
-    // (21) and mislabels it as the framework count; the field is documented as "unique
-    // frameworks", so derive it from the base framework of each result instead.
     let framework_count = results
         .iter()
         .map(|r| extract_framework_and_mode(&r.framework).0)
@@ -482,10 +460,6 @@ fn aggregate_by_ocr_status(
 ) -> (Option<PerformancePercentiles>, Option<PerformancePercentiles>) {
     use crate::types::OcrStatus;
 
-    // OCR status grouping:
-    // - OcrStatus::Used → "with_ocr" group
-    // - OcrStatus::NotUsed → "no_ocr" group
-    // - OcrStatus::Unknown → infer from file type: image formats → "with_ocr", others → "no_ocr"
     let is_ocr_result = |r: &&BenchmarkResult| -> bool {
         match r.ocr_status {
             OcrStatus::Used => true,
@@ -523,7 +497,6 @@ fn aggregate_by_ocr_status(
 fn calculate_percentiles(results: &[&BenchmarkResult]) -> PerformancePercentiles {
     let successful: Vec<&BenchmarkResult> = results.iter().filter(|r| r.success).copied().collect();
 
-    // Extract values for percentile calculation with NaN filtering - HIGH PRIORITY FIX
     let mut durations: Vec<f64> = successful
         .iter()
         .map(|r| r.duration.as_secs_f64() * 1000.0)
@@ -532,13 +505,13 @@ fn calculate_percentiles(results: &[&BenchmarkResult]) -> PerformancePercentiles
 
     let mut throughputs: Vec<f64> = successful
         .iter()
-        .map(|r| r.metrics.throughput_bytes_per_sec / 1_000_000.0) // Convert to MB/s
-        .filter(|&v| v > 0.0 && v.is_finite()) // Filter zero values (invalid measurements)
+        .map(|r| r.metrics.throughput_bytes_per_sec / 1_000_000.0)
+        .filter(|&v| v > 0.0 && v.is_finite())
         .collect();
 
     let mut memories: Vec<f64> = successful
         .iter()
-        .map(|r| r.metrics.peak_memory_bytes as f64 / 1_000_000.0) // Convert to MB
+        .map(|r| r.metrics.peak_memory_bytes as f64 / 1_000_000.0)
         .filter(|&v| !v.is_nan() && v.is_finite())
         .collect();
 
@@ -548,13 +521,11 @@ fn calculate_percentiles(results: &[&BenchmarkResult]) -> PerformancePercentiles
         .filter(|&v| !v.is_nan() && v.is_finite())
         .collect();
 
-    // Sort for percentile calculation (NaN-safe)
     durations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     throughputs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     memories.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     extraction_durations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    // Build percentiles with NaN/Inf validation
     let duration = Percentiles {
         p50: sanitize_f64(percentile_r7(&durations, 0.50)),
         p95: sanitize_f64(percentile_r7(&durations, 0.95)),
@@ -614,7 +585,6 @@ fn calculate_percentiles(results: &[&BenchmarkResult]) -> PerformancePercentiles
         }
     }
 
-    // Quality percentiles
     let quality = {
         let mut f1_texts: Vec<f64> = successful
             .iter()
@@ -643,7 +613,6 @@ fn calculate_percentiles(results: &[&BenchmarkResult]) -> PerformancePercentiles
             f1_layouts.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             quality_scores.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-            // f1_layout is None if all results have f1_score_layout = None (plaintext mode)
             let f1_layout_p50 = if !f1_layouts.is_empty() {
                 Some(sanitize_f64(percentile_r7(&f1_layouts, 0.50)))
             } else {
@@ -704,7 +673,7 @@ fn aggregate_cold_starts(results: &[&BenchmarkResult]) -> Option<DurationPercent
     let cold_starts: Vec<f64> = results
         .iter()
         .filter_map(|r| r.cold_start_duration.map(|d| d.as_secs_f64() * 1000.0))
-        .filter(|&v| !v.is_nan() && v.is_finite()) // HIGH PRIORITY FIX: NaN filtering
+        .filter(|&v| !v.is_nan() && v.is_finite())
         .collect();
 
     if cold_starts.is_empty() {
@@ -731,7 +700,6 @@ fn aggregate_cold_starts(results: &[&BenchmarkResult]) -> Option<DurationPercent
 /// Returns `(framework_name, mode)` where `mode` is `"batch"` or `"single"`.
 fn extract_framework_and_mode(framework_name: &str) -> (&str, &str) {
     if let Some(base) = framework_name.strip_suffix("-batch") {
-        // Strip legacy -sync/-async suffixes from the base if present
         let normalized = base
             .strip_suffix("-sync")
             .or_else(|| base.strip_suffix("-async"))
@@ -767,9 +735,6 @@ fn make_aggregate_key(framework: &str, output_format: OutputFormat, mode: &str) 
 fn parse_aggregate_key(key: &str) -> (&str, &str) {
     let mut parts = key.rsplitn(2, ':');
     let mode = parts.next().unwrap_or("single");
-    // For xberg keys the remainder is just the framework name.
-    // For competitor keys the remainder is "framework:output_format" — we want only the
-    // framework portion, which is everything before the first colon.
     let remainder = parts.next().unwrap_or(key);
     let framework = remainder.split(':').next().unwrap_or(remainder);
     (framework, mode)
@@ -782,20 +747,15 @@ fn parse_aggregate_key(key: &str) -> (&str, &str) {
 /// (e.g., 1 BMP). This prevents frameworks that handle more file types or do OCR
 /// from being unfairly penalized in the overall ranking.
 fn build_comparison(by_framework_mode: &HashMap<String, FrameworkModeAggregation>) -> ComparisonData {
-    // Collect weighted median metrics per framework:mode
-    // (key, throughput_p50, memory_p50, quality_p50)
     let mut metrics: Vec<(String, f64, f64, f64)> = Vec::new();
 
     for (key, agg) in by_framework_mode {
-        // (value, weight) pairs for weighted averaging
         let mut throughputs: Vec<(f64, usize)> = Vec::new();
         let mut memories: Vec<(f64, usize)> = Vec::new();
         let mut qualities: Vec<(f64, usize)> = Vec::new();
 
         for ft in agg.by_file_type.values() {
             for perf in [&ft.no_ocr, &ft.with_ocr].into_iter().flatten() {
-                // Skip groups where all samples failed — their 0.0 values would
-                // pollute rankings (e.g., docling showing 0.0 MB/s when libGL is missing).
                 if perf.successful_sample_count == 0 {
                     continue;
                 }
@@ -830,7 +790,6 @@ fn build_comparison(by_framework_mode: &HashMap<String, FrameworkModeAggregation
         ));
     }
 
-    // Throughput ranking (higher = better)
     let mut thr = metrics.clone();
     thr.retain(|m| m.1.is_finite());
     thr.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
@@ -846,7 +805,6 @@ fn build_comparison(by_framework_mode: &HashMap<String, FrameworkModeAggregation
         })
         .collect();
 
-    // Memory ranking (lower = better)
     let mut mem = metrics.clone();
     mem.retain(|m| m.2.is_finite());
     mem.sort_by(|a, b| a.2.partial_cmp(&b.2).unwrap_or(std::cmp::Ordering::Equal));
@@ -862,7 +820,6 @@ fn build_comparison(by_framework_mode: &HashMap<String, FrameworkModeAggregation
         })
         .collect();
 
-    // Quality ranking (higher = better)
     let mut qual = metrics.clone();
     qual.retain(|m| m.3.is_finite());
     qual.sort_by(|a, b| b.3.partial_cmp(&a.3).unwrap_or(std::cmp::Ordering::Equal));
@@ -878,7 +835,6 @@ fn build_comparison(by_framework_mode: &HashMap<String, FrameworkModeAggregation
         })
         .collect();
 
-    // Deltas vs baseline (highest throughput framework)
     let mut deltas_vs_baseline = HashMap::new();
     if let Some(baseline) = metrics
         .iter()
@@ -908,9 +864,6 @@ fn build_comparison(by_framework_mode: &HashMap<String, FrameworkModeAggregation
         }
     }
 
-    // PDF-specific quality rankings (quality, TF1, SF1)
-    // Collect PDF quality metrics per framework:output_format:mode
-    // (key, quality, tf1, sf1, output_format)
     let mut pdf_metrics: Vec<(String, f64, f64, f64, OutputFormat)> = Vec::new();
     for (key, agg) in by_framework_mode {
         if let Some(pdf_ft) = agg.by_file_type.get("pdf") {
@@ -925,7 +878,6 @@ fn build_comparison(by_framework_mode: &HashMap<String, FrameworkModeAggregation
                     let w = perf.successful_sample_count;
                     qualities.push((q.quality_score_p50, w));
                     tf1s.push((q.f1_text_p50, w));
-                    // Only include f1_layout if present (markdown mode)
                     if let Some(layout) = q.f1_layout_p50 {
                         sf1s.push((layout, w));
                     }
@@ -1047,7 +999,6 @@ mod tests {
 
     #[test]
     fn test_extract_framework_and_mode() {
-        // Current xberg pipeline naming (format encoded in name)
         assert_eq!(
             extract_framework_and_mode("xberg-markdown-baseline"),
             ("xberg-markdown-baseline", "single")
@@ -1061,22 +1012,18 @@ mod tests {
             ("xberg-markdown-baseline", "batch")
         );
 
-        // Legacy -sync/-async suffixes are still stripped for backward compatibility
         assert_eq!(extract_framework_and_mode("xberg-sync"), ("xberg", "single"));
         assert_eq!(extract_framework_and_mode("xberg-async"), ("xberg", "single"));
 
-        // Batch mode is preserved
         assert_eq!(extract_framework_and_mode("xberg-batch"), ("xberg", "batch"));
         assert_eq!(extract_framework_and_mode("python-batch"), ("python", "batch"));
 
-        // No suffix defaults to single mode
         assert_eq!(extract_framework_and_mode("xberg"), ("xberg", "single"));
         assert_eq!(extract_framework_and_mode("docling"), ("docling", "single"));
     }
 
     #[test]
     fn test_make_aggregate_key_xberg_family() {
-        // xberg-* frameworks get slim keys (no redundant format component)
         assert_eq!(
             make_aggregate_key("xberg-markdown-baseline", OutputFormat::Markdown, "single"),
             "xberg-markdown-baseline:single"
@@ -1089,7 +1036,6 @@ mod tests {
 
     #[test]
     fn test_make_aggregate_key_competitors() {
-        // Competitor frameworks include format in key
         assert_eq!(
             make_aggregate_key("docling", OutputFormat::Markdown, "single"),
             "docling:markdown:single"
@@ -1102,7 +1048,6 @@ mod tests {
 
     #[test]
     fn test_aggregate_new_format_xberg_key_shape() {
-        // xberg-markdown-baseline results should produce slim keys
         let results = vec![
             create_test_result(
                 "xberg-markdown-baseline",
@@ -1161,7 +1106,6 @@ mod tests {
         let aggregated = aggregate_new_format(&results);
 
         assert_eq!(aggregated.by_framework_mode.len(), 2);
-        // "xberg-sync" is normalized to "xberg:markdown:single"
         assert!(aggregated.by_framework_mode.contains_key("xberg:markdown:single"));
         assert!(aggregated.by_framework_mode.contains_key("xberg:markdown:batch"));
 
@@ -1215,7 +1159,6 @@ mod tests {
 
     #[test]
     fn test_ocr_unknown_handling() {
-        // Test that Unknown OCR status is handled correctly
         let results = vec![BenchmarkResult {
             framework: "test-framework".to_string(),
             file_path: PathBuf::from("/tmp/test1.pdf"),
@@ -1241,14 +1184,13 @@ mod tests {
             file_extension: "pdf".to_string(),
             framework_capabilities: Default::default(),
             pdf_metadata: None,
-            ocr_status: OcrStatus::Unknown, // Unknown status
+            ocr_status: OcrStatus::Unknown,
             extracted_text: None,
             output_format: OutputFormat::Markdown,
         }];
 
         let aggregated = aggregate_new_format(&results);
 
-        // Unknown should be in no_ocr group
         let framework_mode = aggregated
             .by_framework_mode
             .get("test-framework:markdown:single")
@@ -1260,7 +1202,6 @@ mod tests {
 
     #[test]
     fn test_failed_results_excluded_from_percentiles() {
-        // Test that failed results don't affect percentile calculations
         let results = vec![
             BenchmarkResult {
                 framework: "test-framework".to_string(),
@@ -1295,7 +1236,7 @@ mod tests {
                 framework: "test-framework".to_string(),
                 file_path: PathBuf::from("/tmp/test2.pdf"),
                 file_size: 2048,
-                success: false, // Failed result
+                success: false,
                 error_message: Some("Test error".to_string()),
                 error_kind: ErrorKind::HarnessError,
                 duration: Duration::from_secs(0),
@@ -1331,12 +1272,9 @@ mod tests {
         let file_type = framework_mode.by_file_type.get("pdf").unwrap();
         let no_ocr = file_type.no_ocr.as_ref().unwrap();
 
-        // successful_sample_count should only count successful results
         assert_eq!(no_ocr.successful_sample_count, 1);
         assert_eq!(no_ocr.total_sample_count, 2);
-        // success_rate_percent should account for all results
-        assert_eq!(no_ocr.success_rate_percent, 50.0); // 1 success / 2 total = 50%
-        // Percentiles based on 1 successful result
+        assert_eq!(no_ocr.success_rate_percent, 50.0);
         assert_eq!(no_ocr.duration.p50, 100.0);
     }
 
@@ -1351,22 +1289,14 @@ mod tests {
 
     #[test]
     fn test_percentile_interpolation() {
-        // Test that p95 with [1,2,3,4,5] uses interpolation
         let sorted = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let p95 = percentile_r7(&sorted, 0.95);
 
-        // With linear interpolation: index = 0.95 * 4 = 3.8
-        // Result = values[3] * 0.2 + values[4] * 0.8 = 4.0 * 0.2 + 5.0 * 0.8 = 4.8
         assert!((p95 - 4.8).abs() < 0.01);
     }
 
-    // ============================================================================
-    // Tests for extraction_duration aggregation in new format
-    // ============================================================================
-
     #[test]
     fn test_calculate_percentiles_extraction_duration_all_present() {
-        // Test: All results have extraction_duration -> percentiles populated
         let mut result1 = create_test_result("framework1", "pdf", OcrStatus::NotUsed, 100, 1_000_000.0, 10_000_000);
         result1.extraction_duration = Some(Duration::from_millis(80));
 
@@ -1381,14 +1311,13 @@ mod tests {
 
         assert!(percentiles.extraction_duration.is_some());
         let ext_dur = percentiles.extraction_duration.as_ref().unwrap();
-        assert!((ext_dur.p50 - 120.0).abs() < 0.1); // median: 120
-        assert!(ext_dur.p95 > 120.0); // p95 should be between 120 and 160
+        assert!((ext_dur.p50 - 120.0).abs() < 0.1);
+        assert!(ext_dur.p95 > 120.0);
         assert!(ext_dur.p95 <= 160.0);
     }
 
     #[test]
     fn test_calculate_percentiles_extraction_duration_all_none() {
-        // Test: All results have extraction_duration = None -> extraction_duration None
         let result1 = create_test_result("framework1", "pdf", OcrStatus::NotUsed, 100, 1_000_000.0, 10_000_000);
         let result2 = create_test_result("framework1", "pdf", OcrStatus::NotUsed, 150, 1_000_000.0, 10_000_000);
         let result3 = create_test_result("framework1", "pdf", OcrStatus::NotUsed, 200, 1_000_000.0, 10_000_000);
@@ -1401,12 +1330,10 @@ mod tests {
 
     #[test]
     fn test_calculate_percentiles_extraction_duration_mixed() {
-        // Test: Mixed Some/None extraction_duration -> only Some values used
         let mut result1 = create_test_result("framework1", "pdf", OcrStatus::NotUsed, 100, 1_000_000.0, 10_000_000);
         result1.extraction_duration = Some(Duration::from_millis(80));
 
         let result2 = create_test_result("framework1", "pdf", OcrStatus::NotUsed, 150, 1_000_000.0, 10_000_000);
-        // result2.extraction_duration = None
 
         let mut result3 = create_test_result("framework1", "pdf", OcrStatus::NotUsed, 200, 1_000_000.0, 10_000_000);
         result3.extraction_duration = Some(Duration::from_millis(160));
@@ -1416,15 +1343,11 @@ mod tests {
 
         assert!(percentiles.extraction_duration.is_some());
         let ext_dur = percentiles.extraction_duration.as_ref().unwrap();
-        // Only 80 and 160 used, median should be 120
         assert!((ext_dur.p50 - 120.0).abs() < 0.1);
     }
 
     #[test]
     fn test_calculate_percentiles_extraction_duration_filters_invalid() {
-        // Test: NaN/infinite extraction durations filtered out
-        // Note: We can't directly create NaN with Duration, so we test the filtering logic
-        // by ensuring valid values are correctly processed
         let mut result1 = create_test_result("framework1", "pdf", OcrStatus::NotUsed, 100, 1_000_000.0, 10_000_000);
         result1.extraction_duration = Some(Duration::from_millis(80));
 
@@ -1437,7 +1360,6 @@ mod tests {
         let refs = vec![&result1, &result2, &result3];
         let percentiles = calculate_percentiles(&refs);
 
-        // All values should be present and valid
         assert!(percentiles.extraction_duration.is_some());
         let ext_dur = percentiles.extraction_duration.as_ref().unwrap();
         assert!(ext_dur.p50.is_finite());
@@ -1446,14 +1368,13 @@ mod tests {
 
     #[test]
     fn test_calculate_percentiles_extraction_duration_with_failed_results() {
-        // Test: Failed results excluded from extraction_duration calculation
         let mut result1 = create_test_result("framework1", "pdf", OcrStatus::NotUsed, 100, 1_000_000.0, 10_000_000);
         result1.extraction_duration = Some(Duration::from_millis(80));
 
         let mut result2_failed = create_test_result("framework1", "pdf", OcrStatus::NotUsed, 0, 0.0, 0);
         result2_failed.success = false;
         result2_failed.error_message = Some("Failed".to_string());
-        result2_failed.extraction_duration = Some(Duration::from_millis(50)); // Should be ignored
+        result2_failed.extraction_duration = Some(Duration::from_millis(50));
 
         let mut result3 = create_test_result("framework1", "pdf", OcrStatus::NotUsed, 200, 1_000_000.0, 10_000_000);
         result3.extraction_duration = Some(Duration::from_millis(160));
@@ -1461,17 +1382,15 @@ mod tests {
         let refs = vec![&result1, &result2_failed, &result3];
         let percentiles = calculate_percentiles(&refs);
 
-        // Only result1 and result3 should be used (80 and 160)
         assert!(percentiles.extraction_duration.is_some());
         let ext_dur = percentiles.extraction_duration.as_ref().unwrap();
-        assert_eq!(percentiles.successful_sample_count, 2); // Only 2 successful results
+        assert_eq!(percentiles.successful_sample_count, 2);
         assert_eq!(percentiles.total_sample_count, 3);
-        assert!((ext_dur.p50 - 120.0).abs() < 0.1); // median: 120
+        assert!((ext_dur.p50 - 120.0).abs() < 0.1);
     }
 
     #[test]
     fn test_aggregate_by_ocr_status_extraction_duration() {
-        // Test: Extraction duration aggregated correctly with OCR status split
         let mut result_no_ocr_1 =
             create_test_result("framework1", "pdf", OcrStatus::NotUsed, 100, 1_000_000.0, 10_000_000);
         result_no_ocr_1.extraction_duration = Some(Duration::from_millis(80));
@@ -1486,13 +1405,11 @@ mod tests {
         let refs = vec![&result_no_ocr_1, &result_no_ocr_2, &result_with_ocr];
         let (no_ocr, with_ocr) = aggregate_by_ocr_status(&refs);
 
-        // No OCR group
         assert!(no_ocr.is_some());
         let no_ocr_perf = no_ocr.unwrap();
         assert!(no_ocr_perf.extraction_duration.is_some());
-        assert_eq!(no_ocr_perf.extraction_duration.as_ref().unwrap().p50, 100.0); // median of [80, 120]
+        assert_eq!(no_ocr_perf.extraction_duration.as_ref().unwrap().p50, 100.0);
 
-        // With OCR group
         assert!(with_ocr.is_some());
         let with_ocr_perf = with_ocr.unwrap();
         assert!(with_ocr_perf.extraction_duration.is_some());
@@ -1501,7 +1418,6 @@ mod tests {
 
     #[test]
     fn test_aggregate_new_format_extraction_duration_preserved() {
-        // Test: aggregate_new_format preserves extraction_duration statistics
         let mut result1 = create_test_result("xberg-sync", "pdf", OcrStatus::NotUsed, 100, 1_000_000.0, 10_000_000);
         result1.extraction_duration = Some(Duration::from_millis(80));
 
@@ -1522,7 +1438,6 @@ mod tests {
 
     #[test]
     fn test_calculate_percentiles_extraction_duration_single_value() {
-        // Test: Single extraction_duration value -> all percentiles return that value
         let mut result = create_test_result("framework1", "pdf", OcrStatus::NotUsed, 100, 1_000_000.0, 10_000_000);
         result.extraction_duration = Some(Duration::from_millis(80));
 
@@ -1538,7 +1453,6 @@ mod tests {
 
     #[test]
     fn test_calculate_percentiles_extraction_duration_large_dataset() {
-        // Test: Large dataset with extraction_duration -> percentiles calculated correctly
         let mut results = vec![];
         for i in 1..=100 {
             let mut result =
@@ -1553,19 +1467,15 @@ mod tests {
         assert!(percentiles.extraction_duration.is_some());
         let ext_dur = percentiles.extraction_duration.as_ref().unwrap();
 
-        // p50 (median) of 1-100 scaled by 8: around 404-408ms
         assert!(ext_dur.p50 >= 400.0 && ext_dur.p50 <= 410.0);
 
-        // p95 should be higher than p50
         assert!(ext_dur.p95 > ext_dur.p50);
 
-        // p99 should be higher than p95
         assert!(ext_dur.p99 > ext_dur.p95);
     }
 
     #[test]
     fn test_calculate_percentiles_extraction_duration_no_extraction_some_failed() {
-        // Test: No extraction_duration data, some failures -> extraction_duration None
         let result1_failed = BenchmarkResult {
             framework: "test".to_string(),
             file_path: PathBuf::from("test1.pdf"),
@@ -1604,7 +1514,4 @@ mod tests {
         assert!(percentiles.extraction_duration.is_none());
         assert_eq!(percentiles.success_rate_percent, 50.0);
     }
-
-    // ============================================================================
-    // Tests for CPU aggregation
 }

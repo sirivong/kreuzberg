@@ -39,7 +39,6 @@ impl EmailExtractor {
     fn build_internal_document(email_result: &crate::types::EmailExtractionResult) -> InternalDocument {
         let mut builder = InternalDocumentBuilder::new("email");
 
-        // Push email headers as a metadata block
         let mut header_entries = Vec::new();
         if let Some(ref subject) = email_result.subject {
             header_entries.push(("Subject".to_string(), subject.clone()));
@@ -60,13 +59,8 @@ impl EmailExtractor {
             builder.push_metadata_block(&header_entries, None);
         }
 
-        // Push body content: if HTML body is available, walk the HTML
-        // document structure for richer extraction; otherwise fall back to
-        // plain text paragraph splitting.
         if let Some(ref html) = email_result.html_content {
             let html_doc = crate::extraction::html::structure::build_document_structure(html);
-            // Process root-level nodes (those without a parent) and their children recursively
-            // to avoid duplication and preserve structural integrity.
             for (idx, node) in html_doc.nodes.iter().enumerate() {
                 if node.parent.is_none() {
                     process_node(&html_doc, idx, &mut builder);
@@ -81,7 +75,6 @@ impl EmailExtractor {
             }
         }
 
-        // Add attachments section if any exist
         if !email_result.attachments.is_empty() {
             builder.push_paragraph("Attachments:", vec![], None, None);
             for att in &email_result.attachments {
@@ -124,7 +117,6 @@ fn process_node(
                 builder.end_list();
             }
             crate::types::NodeContent::ListItem { text } => {
-                // Determine if this item is ordered based on its parent list
                 let ordered = if let Some(parent_idx) = node.parent
                     && let Some(parent) = doc.nodes.get(parent_idx.0 as usize)
                     && let crate::types::NodeContent::List { ordered } = parent.content
@@ -135,14 +127,11 @@ fn process_node(
                 };
                 builder.push_list_item(text.as_str(), ordered, node.annotations.clone(), None, None);
 
-                // Process any nested content inside the list item (e.g. nested lists)
                 for &child_idx in &node.children {
                     process_node(doc, child_idx.0 as usize, builder);
                 }
             }
             crate::types::NodeContent::Table { grid } => {
-                // Span-aware flatten so merged cells keep column alignment
-                // (xberg-io/xberg#1223).
                 let rows = crate::extraction::grid_flatten::flatten_positioned_cells(
                     grid.rows as usize,
                     grid.cells
@@ -179,16 +168,8 @@ fn process_node(
                 for &child_idx in &node.children {
                     process_node(doc, child_idx.0 as usize, builder);
                 }
-                // InternalDocumentBuilder doesn't have an explicit end_admonition,
-                // it handles it via depth decrement in push_container_end if it's a container.
-                // Looking at push_admonition, it calls push_simple which DOES NOT increment depth.
-                // Wait, InternalDocumentBuilder::push_admonition:
-                // 325:         self.push_simple(ElementKind::Admonition, text, page, None, Vec::new(), Some(attrs), None)
-                // It's a leaf node in the current builder.
             }
             crate::types::NodeContent::Image { description, .. } => {
-                // html::structure doesn't extract image bytes, only metadata.
-                // We push it as a paragraph or use a placeholder if appropriate.
                 let text = description.as_deref().unwrap_or("[Image]");
                 builder.push_paragraph(text, vec![], None, None);
             }
@@ -233,8 +214,6 @@ impl SyncExtractor for EmailExtractor {
             .filter_map(|att| att.filename.clone().or_else(|| att.name.clone()))
             .collect();
 
-        // Filter out keys already represented in EmailMetadata to avoid
-        // flattened field conflicts (e.g. "attachments" as string vs Vec).
         const EMAIL_STRUCT_KEYS: &[&str] = &[
             "from_email",
             "from_name",
@@ -257,11 +236,9 @@ impl SyncExtractor for EmailExtractor {
             }
         }
 
-        // Build internal document from email content
         let mut doc = Self::build_internal_document(&email_result);
         doc.mime_type = mime_type.to_string();
 
-        // Move fields out of email_result now that all borrows above are complete.
         let subject = email_result.subject;
         let created_at = email_result.date;
         let from_name = email_result.metadata.get("from_name").cloned();
@@ -275,7 +252,6 @@ impl SyncExtractor for EmailExtractor {
             attachments: attachment_names,
         };
 
-        // Map from_name to standard authors field
         let authors = from_name.filter(|n| !n.is_empty()).map(|n| vec![n]);
 
         doc.metadata = Metadata {
@@ -287,10 +263,6 @@ impl SyncExtractor for EmailExtractor {
             ..Default::default()
         };
 
-        // Guard total extracted text against max_content_size to prevent a crafted
-        // email with a gigabytes-scale body from exhausting memory in downstream
-        // consumers. Checked once after the document is fully built so the limit
-        // acts as a document-level cap rather than a per-element cap.
         let mut budget = SecurityBudget::from_config(config);
         for elem in &doc.elements {
             budget.account_text(elem.text.len())?;
@@ -312,7 +284,6 @@ impl InternalDocumentExtractor for EmailExtractor {
         tracing::debug!(format = "email", size_bytes = content.len(), "extraction starting");
         let mut doc = self.extract_sync(content, mime_type, config)?;
 
-        // Recursively extract attachment content and nested messages when archive depth allows.
         if config.max_archive_depth > 0 {
             let fallback_codepage = config.email.as_ref().and_then(|e| e.msg_fallback_codepage);
             if let Ok(email_result) =
@@ -320,8 +291,6 @@ impl InternalDocumentExtractor for EmailExtractor {
             {
                 let (mut children, warnings) = extract_attachment_children(&email_result.attachments, config).await;
 
-                // Also extract nested message/rfc822 parts (e.g. from multipart/digest)
-                // as separate ArchiveEntry children for recursive processing.
                 if mime_type == "message/rfc822" {
                     let (nested_children, nested_warnings) = extract_nested_message_children(content, config).await;
                     children.extend(nested_children);
@@ -389,8 +358,6 @@ pub(crate) async fn extract_attachment_children(
             .or_else(|| attachment.name.clone())
             .unwrap_or_else(|| format!("attachment_{}", idx));
 
-        // Detect MIME type from bytes, falling back to extension-based detection,
-        // then to the attachment's declared MIME type.
         let detected_mime = crate::core::mime::detect_mime_type_from_bytes(bytes)
             .ok()
             .or_else(|| {
@@ -407,7 +374,6 @@ pub(crate) async fn extract_attachment_children(
             _ => continue,
         };
 
-        // Enforce per-embedded-file size cap before recursive extraction.
         if config
             .max_embedded_file_bytes
             .is_some_and(|cap| bytes.len() as u64 > cap)
@@ -530,7 +496,6 @@ mod tests {
     fn test_email_extractor_uses_config() {
         use crate::core::config::EmailConfig;
 
-        // Extractor with email config set should not panic or error on invalid data
         let config = ExtractionConfig {
             email: Some(EmailConfig {
                 msg_fallback_codepage: Some(1251),
@@ -538,7 +503,6 @@ mod tests {
             ..Default::default()
         };
         let extractor = EmailExtractor::new();
-        // Empty data returns a validation error — config is still used without panic
         let result = extractor.extract_sync(b"", "application/vnd.ms-outlook", &config);
         assert!(result.is_err());
     }
@@ -580,21 +544,6 @@ Content-Type: text/html; charset=utf-8
             .extract_sync(eml.as_bytes(), "message/rfc822", &config)
             .unwrap();
 
-        // Elements should be:
-        // 1. Metadata block (headers)
-        // 2. Paragraph ("Introduction.")
-        // 3. Table
-        // 4. List Start
-        // 5. List Item 1
-        // 6. List Item 2
-        // 7. List End
-        // 8. Paragraph ("Conclusion.")
-
-        // Assertions:
-        // 1. We should have a Table element (table_index: 0)
-        // 2. We should have exactly one List Start and List End
-        // 3. We should NOT have duplicate list items as paragraphs
-
         let has_table = doc
             .elements
             .iter()
@@ -610,16 +559,8 @@ Content-Type: text/html; charset=utf-8
             .filter(|e| matches!(e.kind, crate::types::internal::ElementKind::Paragraph))
             .count();
 
-        // Current implementation fails:
-        // - Table is missing (has_table = false)
-        // - List items are duplicated as paragraphs (paragraph_count will be higher than 3 if they are duplicated)
-        // Note: MetadataBlock is also a paragraph in the current builder? No, it's a MetadataBlock.
-        // Wait, current EmailExtractor pushes "Attachments:" as a paragraph (if it exists).
-
         assert!(has_table, "Table element should be present");
         assert_eq!(list_item_count, 2, "Should have 2 list items");
-        // Expected paragraphs: "Introduction.", "Conclusion." = 2
-        // If duplicates are present, "First item" and "Second item" will also be paragraphs.
         assert_eq!(
             paragraph_count, 2,
             "Should have exactly 2 body paragraphs (no duplicates)"
@@ -628,8 +569,6 @@ Content-Type: text/html; charset=utf-8
 
     #[test]
     fn test_content_size_guard_fires_when_limit_exceeded() {
-        // Build an email whose body text exceeds a tiny max_content_size.
-        // The guard must return XbergError::Security.
         use crate::extractors::security::SecurityLimits;
 
         let long_body = "x".repeat(1000);
@@ -637,7 +576,7 @@ Content-Type: text/html; charset=utf-8
 
         let config = ExtractionConfig {
             security_limits: Some(SecurityLimits {
-                max_content_size: 10, // 10 bytes — the body is 1000 bytes
+                max_content_size: 10,
                 ..SecurityLimits::default()
             }),
             ..Default::default()
@@ -660,7 +599,6 @@ Content-Type: text/html; charset=utf-8
 
     #[test]
     fn test_content_size_guard_passes_for_normal_email() {
-        // A normal short email must not be rejected by the content-size guard.
         let eml = "From: sender@example.com\r\nSubject: Hi\r\n\r\nHello world.";
         let config = ExtractionConfig::default();
         let extractor = EmailExtractor::new();

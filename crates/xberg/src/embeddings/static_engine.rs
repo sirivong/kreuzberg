@@ -60,19 +60,12 @@ impl StaticEmbeddingEngine {
         if texts.is_empty() {
             return Vec::new();
         }
-        // Defensive: mirrors `EmbeddingEngine::embed` — a host-language binding
-        // may pass batch_size=0 if its config mirror omits the serde default.
         let batch_size = if batch_size == 0 { 32 } else { batch_size };
         let owned: Vec<String> = texts.iter().map(|t| t.as_ref().to_string()).collect();
         self.model.encode_with_args(&owned, max_length, batch_size)
     }
 }
 
-// SAFETY: `StaticModel` holds a `tokenizers::Tokenizer` (Send + Sync) plus owned
-// or 'static-borrowed `ndarray` embedding data with no interior mutability, so
-// sharing a `StaticEmbeddingEngine` across threads via `Arc` (as `ENGINE_CACHE`
-// does) introduces no data race. Nothing here mutates through a shared
-// reference; `encode_with_args` only reads.
 #[allow(unsafe_code)]
 unsafe impl Send for StaticEmbeddingEngine {}
 #[allow(unsafe_code)]
@@ -147,10 +140,6 @@ mod download {
             .and_then(|f| f.to_str())
             .unwrap_or("model.safetensors");
 
-        // Every hosted static-embedding file is pinned in the embeddings sha256
-        // manifest; verify each fetched file against it (fail-closed on tamper),
-        // mirroring `crate::onnx::download_model_files`. Files absent from the
-        // manifest (Custom repos) are left unverified.
         let manifest = crate::model_download::parse_sha256_manifest(super::super::EMBEDDING_SHA256_MANIFEST)
             .map_err(|e| crate::XbergError::embedding(format!("Invalid embedding sha256 manifest: {e}")))?;
         let verify = |repo_path: &str, local: &Path| -> crate::Result<()> {
@@ -229,7 +218,6 @@ mod tests {
 
         let tokenizer_json = tokenizer.to_string(false).expect("serialize tokenizer");
 
-        // 4 rows (vocab size) x 3 dims (embedding dimension), deterministic values.
         const ROWS: usize = 4;
         const COLS: usize = 3;
         let mut embeddings = Vec::with_capacity(ROWS * COLS);

@@ -32,7 +32,6 @@ pub(crate) fn ensure_ort_available() {
 
 #[cfg(not(feature = "ort-bundled"))]
 fn try_discover_ort() -> Result<(), &'static str> {
-    // Already set and valid?
     if let Ok(path) = std::env::var("ORT_DYLIB_PATH")
         && std::path::Path::new(&path).exists()
     {
@@ -43,7 +42,6 @@ fn try_discover_ort() -> Result<(), &'static str> {
 
     for path in candidates {
         if std::path::Path::new(path).exists() {
-            // SAFETY: single-threaded inside Once::call_once
             #[allow(unsafe_code)]
             unsafe {
                 std::env::set_var("ORT_DYLIB_PATH", path);
@@ -116,10 +114,6 @@ pub(crate) fn apply_execution_providers(
     use crate::core::config::acceleration::ExecutionProviderType;
     use ort::ep::ExecutionProvider;
 
-    // Resolve the execution provider. An `XBERG_ORT_EP` env override wins over the
-    // configured provider so operators can force (and A/B) an EP without a recompile,
-    // across every ORT subsystem that shares this function (layout, embeddings,
-    // PaddleOCR, reranker, auto-rotate, transcription).
     let provider = std::env::var("XBERG_ORT_EP")
         .ok()
         .and_then(|e| match e.trim().to_ascii_lowercase().as_str() {
@@ -133,10 +127,6 @@ pub(crate) fn apply_execution_providers(
         .unwrap_or_else(|| accel.map(|a| a.provider.clone()).unwrap_or(ExecutionProviderType::Auto));
     let device_id = accel.map(|a| a.device_id).unwrap_or(0);
 
-    // Build a CoreML EP, honoring optional env tuning for A/B experiments. Defaults to
-    // ORT's own defaults (NeuralNetwork format / All compute units) when unset, so the
-    // committed behavior is unchanged. `XBERG_COREML_FORMAT` = mlprogram|neuralnetwork;
-    // `XBERG_COREML_UNITS` = all|cpu_and_ne|cpu_and_gpu|cpu_only.
     fn build_coreml_ep() -> ort::ep::CoreML {
         use ort::ep::coreml::{ComputeUnits, ModelFormat};
         let mut ep = ort::ep::CoreML::default();

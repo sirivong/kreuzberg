@@ -4,11 +4,6 @@
 
 use std::time::Duration;
 
-// `BufReader`/`Read`/`Path`/`sha2` back `verify_sha256`, which is only compiled for the
-// model-manager features that checksum their downloads. `PathBuf` is likewise only
-// referenced by the HF-download and cache-dir helpers. Gate the imports to those features
-// so an `embeddings`/`reranker`/`transcription`-only build (which reaches this module solely
-// for the always-compiled download watchdog below) stays warning-clean.
 #[cfg(any(
     feature = "paddle-ocr",
     feature = "layout-detection",
@@ -54,15 +49,12 @@ use std::path::PathBuf;
 /// embedding model pulls parked at 0% CPU behind a host firewall). We cap each fetch so a dead
 /// network fails fast and the caller can degrade. Generous by default because a cold GB-scale model
 /// legitimately takes minutes; override with `XBERG_MODEL_DOWNLOAD_TIMEOUT_SECS`.
-// dead_code: the watchdog is always compiled but only *called* from features that download models
-// (embeddings / reranker / transcription / the OCR + NER managers). A no-download-feature build
-// legitimately never reaches it; suppress the lint rather than fragment the guard behind a cfg.
 #[allow(dead_code)]
 const DEFAULT_MODEL_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// Resolve the model-download deadline, honoring `XBERG_MODEL_DOWNLOAD_TIMEOUT_SECS` (seconds; a
 /// value of 0 or unparseable falls back to the default).
-#[allow(dead_code)] // see DEFAULT_MODEL_DOWNLOAD_TIMEOUT: called only from download-feature builds.
+#[allow(dead_code)]
 pub(crate) fn model_download_timeout() -> Duration {
     std::env::var("XBERG_MODEL_DOWNLOAD_TIMEOUT_SECS")
         .ok()
@@ -78,7 +70,7 @@ pub(crate) fn model_download_timeout() -> Duration {
 /// degrade (skip the model-backed backend) rather than hang. The worker thread cannot be
 /// force-killed — it stays parked on the socket until the OS tears the connection down — but it
 /// holds no lock the pipeline needs, so progress resumes. `label` names the fetch in the log/error.
-#[allow(dead_code)] // see DEFAULT_MODEL_DOWNLOAD_TIMEOUT: called only from download-feature builds.
+#[allow(dead_code)]
 pub(crate) fn with_download_deadline<T, F>(label: &str, f: F) -> Result<T, String>
 where
     F: FnOnce() -> Result<T, String> + Send + 'static,
@@ -155,8 +147,6 @@ fn download_lock(key: &str) -> std::sync::Arc<std::sync::Mutex<()>> {
 pub(crate) fn hf_download(repo_id: &str, remote_filename: &str) -> Result<PathBuf, String> {
     tracing::info!(repo = repo_id, filename = remote_filename, "Downloading via hf-hub");
 
-    // Serialize concurrent fetches of this exact file; the guard is released once the
-    // blob is in the hf-hub cache, so waiters return the warm copy immediately.
     let file_lock = download_lock(&format!("{repo_id}/{remote_filename}"));
     let _guard = file_lock.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
 
@@ -165,10 +155,6 @@ pub(crate) fn hf_download(repo_id: &str, remote_filename: &str) -> Result<PathBu
         .build()
         .map_err(|e| format!("Failed to initialize HuggingFace Hub API: {e}"))?;
 
-    // Wrap the blocking fetch in the wall-clock watchdog so a firewalled HuggingFace host can no
-    // longer hang the extraction pipeline forever (hf-hub sets no read/connect timeout). `ApiRepo`
-    // is not `Clone` in hf-hub 0.4, but `Api` is, so the closure captures a cheap `Api` clone and
-    // rebuilds its `ApiRepo` via `api.model(..)` inside.
     let cached_path = {
         let api = api.clone();
         let filename = remote_filename.to_string();
@@ -287,19 +273,12 @@ mod download_deadline_tests {
 
     #[test]
     fn with_download_deadline_returns_ok_for_fast_closure() {
-        // A closure that finishes well within the (default, generous) deadline must pass its
-        // value straight through untouched.
         let result = with_download_deadline("fast", || Ok::<i32, String>(42));
         assert_eq!(result, Ok(42), "fast closure must return its Ok value verbatim");
     }
 
-    // The env var `XBERG_MODEL_DOWNLOAD_TIMEOUT_SECS` is process-global, so the two tests that
-    // mutate it are folded into one serial test rather than racing under the parallel runner.
     #[test]
     fn deadline_reads_env_override_and_aborts_a_hung_closure() {
-        // First: the override resolves as the exact configured ceiling.
-        // SAFETY: env mutation in the 2024 edition is unsafe; this var is exclusive to these tests
-        // and only read at call time, so the set/read/remove sequence here has no observer to race.
         #[allow(unsafe_code)]
         unsafe {
             std::env::set_var("XBERG_MODEL_DOWNLOAD_TIMEOUT_SECS", "1");
@@ -310,15 +289,12 @@ mod download_deadline_tests {
             "explicit override must win"
         );
 
-        // Second: simulate a wedged (firewalled) download — a closure that sleeps far past the
-        // 1s ceiling must be abandoned with Err("...timed out...") in ~1s, never the full sleep.
         let started = Instant::now();
         let result = with_download_deadline("hung", || {
             std::thread::sleep(Duration::from_secs(10));
             Ok::<(), String>(())
         });
         let elapsed = started.elapsed();
-        // SAFETY: restore process state so sibling tests see the default (same reasoning as above).
         #[allow(unsafe_code)]
         unsafe {
             std::env::remove_var("XBERG_MODEL_DOWNLOAD_TIMEOUT_SECS");
@@ -354,10 +330,8 @@ mod tests {
              bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb  tokenizer.json\n",
         )
         .expect("valid manifest");
-        // `./` stripped, order preserved, checksum lowercased.
         assert_eq!(entries[0], ("config.json".to_string(), "a".repeat(64)));
         assert_eq!(entries[1].0, "tokenizer.json");
-        // All comments → empty (callers decide whether that is an error).
         assert!(parse_sha256_manifest("# only comments\n").unwrap().is_empty());
     }
 
@@ -377,9 +351,7 @@ mod tests {
         let a2 = download_lock("xberg-io/layout-models/rtdetr/model.onnx");
         let b = download_lock("xberg-io/layout-models/tatr/model.onnx");
 
-        // Same file → same lock, so concurrent fetches of it serialize.
         assert!(std::sync::Arc::ptr_eq(&a1, &a2), "same key must share one lock");
-        // Different file → different lock, so unrelated downloads stay parallel.
         assert!(!std::sync::Arc::ptr_eq(&a1, &b), "distinct keys must not share a lock");
     }
 
@@ -388,8 +360,6 @@ mod tests {
         use std::sync::Arc;
         use std::sync::atomic::{AtomicUsize, Ordering};
 
-        // If the same-key lock were not exclusive, the two threads' critical sections
-        // would overlap and `in_flight` would exceed 1.
         let in_flight = Arc::new(AtomicUsize::new(0));
         let max_seen = Arc::new(AtomicUsize::new(0));
 

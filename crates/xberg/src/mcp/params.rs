@@ -125,8 +125,6 @@ fn extract_inputs_schema(generator: &mut schemars::SchemaGenerator) -> schemars:
     })
 }
 
-// These param structs are constructed by the rmcp framework via serde deserialization,
-// not directly in Rust code, so clippy's dead_code lint is a false positive.
 #[allow(dead_code)]
 #[derive(Debug, serde::Deserialize, serde::Serialize, schemars::JsonSchema)]
 pub struct DownloadGrammarsParams {

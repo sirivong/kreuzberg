@@ -10,7 +10,6 @@ use super::bounding_box::BoundingBox;
 use crate::pdf::error::{PdfError, Result};
 use pdfium_render::prelude::*;
 
-// Magic number constants
 const DEFAULT_FONT_SIZE: f32 = 12.0;
 const MERGE_INTERSECTION_THRESHOLD: f32 = 0.05;
 const MERGE_X_THRESHOLD_MULTIPLIER: f32 = 2.0;
@@ -205,27 +204,22 @@ pub(crate) fn extract_chars_with_fonts(page: &PdfPage) -> Result<Vec<CharData>> 
     let char_count = chars.len();
     let mut char_data_list = Vec::with_capacity(char_count);
 
-    // Use indexed access instead of iterator to avoid potential PDFium issues
     for i in 0..char_count {
         let Ok(pdf_char) = chars.get(i) else {
             continue;
         };
 
-        // Get character unicode - skip if not available
         let Some(ch) = pdf_char.unicode_char() else {
             continue;
         };
 
-        // Get font size - use DEFAULT_FONT_SIZE if not available
         let font_size = pdf_char.unscaled_font_size().value;
         let font_size = if font_size > 0.0 { font_size } else { DEFAULT_FONT_SIZE };
 
-        // Get character bounds - skip character if bounds not available
         let Ok(bounds) = pdf_char.loose_bounds() else {
             continue;
         };
 
-        // Extract position and size information
         let char_data = CharData {
             text: ch.to_string(),
             x: bounds.left().value,
@@ -300,7 +294,6 @@ pub(crate) fn merge_chars_into_blocks(chars: Vec<CharData>) -> Vec<TextBlock> {
         return Vec::new();
     }
 
-    // Create bounding boxes for each character
     let mut char_boxes: Vec<(CharData, BoundingBox)> = chars
         .into_iter()
         .map(|char_data| {
@@ -314,10 +307,8 @@ pub(crate) fn merge_chars_into_blocks(chars: Vec<CharData>) -> Vec<TextBlock> {
         })
         .collect();
 
-    // Sort by position (top to bottom, then left to right)
     char_boxes.sort_by(|a, b| a.1.top.total_cmp(&b.1.top).then_with(|| a.1.left.total_cmp(&b.1.left)));
 
-    // Greedy merging using union-find-like approach
     let mut blocks: Vec<Vec<CharData>> = Vec::new();
     let mut used = vec![false; char_boxes.len()];
 
@@ -330,7 +321,6 @@ pub(crate) fn merge_chars_into_blocks(chars: Vec<CharData>) -> Vec<TextBlock> {
         let mut block_bbox = char_boxes[i].1;
         used[i] = true;
 
-        // Try to merge with nearby characters
         let mut changed = true;
         while changed {
             changed = false;
@@ -343,29 +333,21 @@ pub(crate) fn merge_chars_into_blocks(chars: Vec<CharData>) -> Vec<TextBlock> {
                 let next_char = &char_boxes[j];
                 let next_bbox = char_boxes[j].1;
 
-                // Calculate merge thresholds based on font size
                 let avg_font_size = (block_bbox.bottom - block_bbox.top).max(next_bbox.bottom - next_bbox.top);
 
                 let intersection_ratio = block_bbox.intersection_ratio(&next_bbox);
 
-                // Check individual component distances
                 let (self_center_x, self_center_y) = block_bbox.center();
                 let (other_center_x, other_center_y) = next_bbox.center();
                 let dx = (self_center_x - other_center_x).abs();
                 let dy = (self_center_y - other_center_y).abs();
 
-                // Separate thresholds for X and Y to handle different scenarios
-                // Horizontal merging: allow up to 2-3 character widths apart (typical letter spacing)
-                // Width per character ≈ 0.6 * font_size, spacing between chars ≈ 0.3 * font_size
                 let x_threshold = avg_font_size * MERGE_X_THRESHOLD_MULTIPLIER;
-                // Vertical merging: allow characters on same line (Y threshold is font height)
                 let y_threshold = avg_font_size * MERGE_Y_THRESHOLD_MULTIPLIER;
 
-                // Merge if close enough in both dimensions or overlapping
                 let merge_by_distance = (dx < x_threshold) && (dy < y_threshold);
                 if merge_by_distance || intersection_ratio > MERGE_INTERSECTION_THRESHOLD {
                     current_block.push(next_char.0.clone());
-                    // Expand bounding box
                     block_bbox.left = block_bbox.left.min(next_bbox.left);
                     block_bbox.top = block_bbox.top.min(next_bbox.top);
                     block_bbox.right = block_bbox.right.max(next_bbox.right);
@@ -379,13 +361,11 @@ pub(crate) fn merge_chars_into_blocks(chars: Vec<CharData>) -> Vec<TextBlock> {
         blocks.push(current_block);
     }
 
-    // Convert blocks to TextBlock objects
     blocks
         .into_iter()
         .map(|block| {
             let text = block.iter().map(|c| c.text.clone()).collect::<String>();
 
-            // Calculate bounding box and average font size in a single fold operation
             let (min_x, min_y, max_x, max_y, total_font_size) = block.iter().fold(
                 (f32::INFINITY, f32::INFINITY, f32::NEG_INFINITY, f32::NEG_INFINITY, 0.0),
                 |(min_x, min_y, max_x, max_y, total_font_size), char_data| {
@@ -401,7 +381,6 @@ pub(crate) fn merge_chars_into_blocks(chars: Vec<CharData>) -> Vec<TextBlock> {
 
             let avg_font_size = total_font_size / block.len() as f32;
 
-            // Bounding box coordinates (allow negative values from PDFs)
             TextBlock {
                 text,
                 bbox: BoundingBox {

@@ -174,7 +174,6 @@ pub(super) fn extract_section_names<R: Read + Seek>(container: &mut PptxContaine
         Err(_) => return Ok(HashMap::new()),
     };
 
-    // Build ordered slide-id → position map from <p:sldIdLst><p:sldId id="N"/>
     let mut id_to_position: HashMap<u32, u32> = HashMap::new();
     for node in doc.descendants() {
         if node.has_tag_name((PRESENTATIONML_NAMESPACE, "sldIdLst")) {
@@ -197,7 +196,6 @@ pub(super) fn extract_section_names<R: Read + Seek>(container: &mut PptxContaine
         return Ok(HashMap::new());
     }
 
-    // Find <p14:sectionLst> inside <p:extLst> and map slide positions to section names
     let mut result: HashMap<u32, String> = HashMap::new();
     for node in doc.descendants() {
         if node.has_tag_name((PRESENTATIONML_2010_NAMESPACE, "sectionLst")) {
@@ -261,13 +259,11 @@ mod tests {
     fn make_pptx_with_sections(slide_ids: &[(u32, &str)], sections: &[(&str, &[u32])]) -> Vec<u8> {
         use std::io::Write;
 
-        // Build <p:sldIdLst>
         let mut sld_id_lst = String::new();
         for (i, (id, _)) in slide_ids.iter().enumerate() {
             sld_id_lst.push_str(&format!(r#"<p:sldId id="{}" r:id="rId{}"/>"#, id, i + 1));
         }
 
-        // Build <p14:sectionLst>
         let mut section_lst = String::new();
         for (name, ids) in sections {
             let mut sld_ids = String::new();
@@ -364,10 +360,7 @@ mod tests {
 
     #[test]
     fn test_extract_section_names_no_sections() {
-        let pptx = make_pptx_with_sections(
-            &[(256, "slides/slide1.xml"), (257, "slides/slide2.xml")],
-            &[], // no sections
-        );
+        let pptx = make_pptx_with_sections(&[(256, "slides/slide1.xml"), (257, "slides/slide2.xml")], &[]);
         let mut container = PptxContainer::from_bytes(&pptx).unwrap();
         let sections = extract_section_names(&mut container).unwrap();
 
@@ -391,7 +384,6 @@ mod tests {
     fn test_extract_section_names_invalid_utf8_returns_empty() {
         use std::io::Write;
 
-        // Build a PPTX with a presentation.xml containing invalid UTF-8 bytes.
         let mut buffer = Vec::new();
         let mut zip = ZipWriter::new(Cursor::new(&mut buffer));
         let opts = SimpleFileOptions::default();
@@ -408,7 +400,6 @@ mod tests {
         zip.start_file("ppt/_rels/presentation.xml.rels", opts).unwrap();
         zip.write_all(b"<?xml version=\"1.0\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide\" Target=\"slides/slide1.xml\"/></Relationships>").unwrap();
 
-        // Write invalid UTF-8 bytes into presentation.xml
         zip.start_file("ppt/presentation.xml", opts).unwrap();
         zip.write_all(b"\xff\xfe invalid utf8 \x80\x81\x82").unwrap();
 
@@ -418,7 +409,6 @@ mod tests {
         let _ = zip.finish().unwrap();
 
         let mut container = PptxContainer::from_bytes(&buffer).unwrap();
-        // Must not panic; returns empty map gracefully.
         let sections = extract_section_names(&mut container).unwrap();
         assert!(
             sections.is_empty(),

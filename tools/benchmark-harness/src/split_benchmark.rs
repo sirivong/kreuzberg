@@ -179,7 +179,6 @@ fn boundary_prf1(predicted: &BTreeSet<u32>, truth: &BTreeSet<u32>) -> (f64, f64,
     let pred: BTreeSet<u32> = predicted.iter().copied().filter(|&p| p != 1).collect();
     let gt: BTreeSet<u32> = truth.iter().copied().filter(|&p| p != 1).collect();
 
-    // Both empty → a single-document PDF correctly left unsplit: vacuously perfect.
     if pred.is_empty() && gt.is_empty() {
         return (1.0, 1.0, 1.0);
     }
@@ -284,13 +283,11 @@ pub async fn run_split_benchmark(config: &SplitBenchmarkConfig) -> Result<Vec<Sp
             continue;
         }
 
-        // --- Boundary accuracy under default thresholds ---
         let gt_starts: BTreeSet<u32> = fixture.boundaries.iter().map(|b| b.start_page).collect();
         let boundaries = boundaries_from_extraction_result(&doc, &MultidocThresholds::default());
         let predicted = segment_starts(&boundaries, total_pages);
         let (precision, recall, f1) = boundary_prf1(&predicted, &gt_starts);
 
-        // --- Reconstruction fidelity + single-parse timing (GT ranges) ---
         let gt_ranges: Vec<std::ops::RangeInclusive<u32>> =
             fixture.boundaries.iter().map(|b| b.start_page..=b.end_page).collect();
         let split_cfg = SplitConfig {
@@ -311,7 +308,6 @@ pub async fn run_split_benchmark(config: &SplitBenchmarkConfig) -> Result<Vec<Sp
             .join("\n\n");
         let reconstruction_tf1 = compute_quality(&reconstructed, &doc.content).f1_score_text;
 
-        // Per-segment counts must match the partitioned collections.
         let counts_ok = segments.iter().all(|s| {
             let d = &s.document;
             d.counts.pages == d.pages.as_ref().map_or(0, Vec::len)
@@ -319,7 +315,6 @@ pub async fn run_split_benchmark(config: &SplitBenchmarkConfig) -> Result<Vec<Sp
                 && d.counts.images == d.images.as_ref().map_or(0, Vec::len)
         });
 
-        // Naive baseline: re-parse the whole PDF once per GT segment.
         let t = Instant::now();
         for _ in 0..gt_ranges.len() {
             let _ = extract_whole(&bytes).await?;
@@ -354,7 +349,6 @@ pub async fn run_split_benchmark(config: &SplitBenchmarkConfig) -> Result<Vec<Sp
 pub async fn run_threshold_sweep(config: &SplitBenchmarkConfig) -> Result<Vec<SweepCell>> {
     let fixtures = load_split_fixtures(&config.fixtures_dir)?;
 
-    // Parse every fixture once; keep (doc, total_pages, gt_starts) in memory.
     let mut parsed: Vec<(ExtractedDocument, u32, BTreeSet<u32>)> = Vec::new();
     for fixture in &fixtures {
         let Ok(bytes) = std::fs::read(&fixture.document_path) else {
@@ -522,7 +516,6 @@ mod tests {
 
     #[test]
     fn prf1_page_one_is_ignored() {
-        // Only page 1 predicted/truth → treated as empty internal sets → perfect.
         let starts: BTreeSet<u32> = [1].into_iter().collect();
         assert_eq!(boundary_prf1(&starts, &starts), (1.0, 1.0, 1.0));
     }
@@ -537,7 +530,6 @@ mod tests {
 
     #[test]
     fn prf1_partial_detection() {
-        // GT starts at 3 and 5; predicted only 3 (plus false positive 7).
         let pred: BTreeSet<u32> = [1, 3, 7].into_iter().collect();
         let truth: BTreeSet<u32> = [1, 3, 5].into_iter().collect();
         let (p, r, _f1) = boundary_prf1(&pred, &truth);

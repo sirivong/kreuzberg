@@ -37,9 +37,6 @@ fn map_class(class: LayoutClass) -> LayoutHintClass {
         LayoutClass::PageHeader => LayoutHintClass::PageHeader,
         LayoutClass::PageFooter => LayoutHintClass::PageFooter,
         LayoutClass::Table => LayoutHintClass::Table,
-        // Charts are a refinement of Picture; map them identically so that the
-        // opt-in (glm-only) chart understanding introduces zero change to the
-        // layout-hint pipeline when disabled.
         LayoutClass::Picture | LayoutClass::Chart => LayoutHintClass::Picture,
         LayoutClass::Text => LayoutHintClass::Text,
         _ => LayoutHintClass::Other,
@@ -135,15 +132,12 @@ mod tests {
         assert_eq!(hints.len(), 1);
         let h = &hints[0];
 
-        // Scale factors: sx = 595/1240 ≈ 0.47984, sy = 842/1754 ≈ 0.48005.
         let sx = 595.0_f32 / 1240.0;
         let sy = 842.0_f32 / 1754.0;
 
-        // x is scaled but not flipped.
         assert!((h.left - 124.0 * sx).abs() < 0.01, "left scaling: got {}", h.left);
         assert!((h.right - 1116.0 * sx).abs() < 0.01, "right scaling: got {}", h.right);
 
-        // y is scaled AND flipped: image_y → page_height_pts - image_y * sy.
         let expected_top = 842.0 - 100.0 * sy;
         let expected_bottom = 842.0 - 200.0 * sy;
         assert!(
@@ -159,8 +153,6 @@ mod tests {
             expected_bottom
         );
 
-        // Sanity: a heading in the top of the image should land near the top
-        // of the PDF page (large y in PDF-space), not near the bottom.
         assert!(
             h.top > 700.0,
             "heading at image y=100 should map to PDF y near top (≈ {}), got {}",

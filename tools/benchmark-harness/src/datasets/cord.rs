@@ -37,7 +37,6 @@ pub fn load(root: &Path, split: Split) -> Result<Vec<StructuredFixture>> {
     let schema = load_cord_schema()?;
     let mut fixtures = Vec::new();
 
-    // Parse manifest for (document, gt_json) pairs
     for line in manifest_content.lines() {
         let line = line.trim();
         if line.is_empty() || line.starts_with('#') {
@@ -61,10 +60,6 @@ pub fn load(root: &Path, split: Split) -> Result<Vec<StructuredFixture>> {
 
         let mut gt_json: Value = serde_json::from_str(&fs::read_to_string(&gt_path)?)?;
 
-        // CORD v2 GT serializes `menu` as either a single object OR an array of
-        // objects depending on the receipt. Normalise to always-array so paths
-        // are stable across fixtures and so the LLM has a single target shape
-        // to satisfy. The schema below requires `menu` as an array.
         normalize_cord_menu(&mut gt_json);
 
         fixtures.push(StructuredFixture {

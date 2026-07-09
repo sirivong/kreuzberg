@@ -319,8 +319,6 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize tracing with env-filter support.
-    // Use RUST_LOG=benchmark_harness::markdown_quality=debug for scoring diagnostics.
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .with_writer(std::io::stderr)
@@ -381,7 +379,6 @@ async fn main() -> Result<()> {
             use benchmark_harness::{AdapterRegistry, BenchmarkRunner};
             use std::sync::Arc;
 
-            // Validate framework names: alphanumeric, hyphens, underscores only
             for framework in &frameworks {
                 if !framework.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
                     return Err(benchmark_harness::Error::Benchmark(format!(
@@ -407,12 +404,8 @@ async fn main() -> Result<()> {
 
             let mut registry = AdapterRegistry::new();
 
-            // Helper to check if a framework should be initialized
-            // When specific frameworks are requested, only initialize those
-            // When no frameworks are specified (empty list), initialize all available
             let should_init = |name: &str| -> bool { frameworks.is_empty() || frameworks.iter().any(|f| f == name) };
 
-            // Helper macro for registering adapters conditionally
             macro_rules! try_register {
                 ($name:expr, $create_fn:expr, $count:expr) => {
                     if should_init($name) {
@@ -431,8 +424,6 @@ async fn main() -> Result<()> {
                 };
             }
 
-            // Wave 2: xberg-cli adapter registration
-            // Supports 3 pipelines (baseline, layout, paddle-ocr) x 2 output formats x single+batch modes
             use benchmark_harness::XbergPipeline;
             use benchmark_harness::adapters::create_xberg_adapter;
 
@@ -448,7 +439,6 @@ async fn main() -> Result<()> {
                     };
                     let framework_name = format!("xberg-{}-{}", format_slug, pipeline.as_str());
                     if should_init(&framework_name) {
-                        // Single-file mode
                         match create_xberg_adapter(*pipeline, *format, false) {
                             Ok(adapter) => {
                                 if let Err(err) = registry.register(Arc::new(adapter)) {
@@ -461,10 +451,8 @@ async fn main() -> Result<()> {
                             Err(err) => eprintln!("[adapter] ✗ {} (initialization failed: {})", framework_name, err),
                         }
 
-                        // Batch mode
                         let batch_name = format!("{}-batch", framework_name);
                         if should_init(&batch_name) && !matches!(config.benchmark_mode, BenchmarkMode::Batch) {
-                            // Skip registering batch in batch mode (would be redundant)
                             match create_xberg_adapter(*pipeline, *format, true) {
                                 Ok(adapter) => {
                                     if let Err(err) = registry.register(Arc::new(adapter)) {
@@ -488,12 +476,9 @@ async fn main() -> Result<()> {
             };
             eprintln!("[adapter] Xberg CLI: {}/{} available", xberg_count, total_requested);
 
-            // Third-party frameworks: in batch mode, skip most (no native batch APIs),
-            // but allow liteparse through since it has native batch support via lit batch-parse.
             let mut external_count = 0;
 
             if !matches!(config.benchmark_mode, BenchmarkMode::Batch) {
-                // Single-file mode: register all external adapters
                 use benchmark_harness::adapters::{
                     create_docling_adapter, create_liteparse_adapter, create_markitdown_adapter, create_mineru_adapter,
                     create_pymupdf4llm_adapter, create_tika_adapter, create_unstructured_adapter,
@@ -507,7 +492,6 @@ async fn main() -> Result<()> {
                 try_register!("mineru", || create_mineru_adapter(ocr), external_count);
                 try_register!("liteparse", || create_liteparse_adapter(ocr), external_count);
             } else {
-                // Batch mode: only liteparse has native batch support (lit batch-parse)
                 use benchmark_harness::adapters::create_liteparse_adapter;
                 try_register!("liteparse", || create_liteparse_adapter(ocr), external_count);
                 eprintln!("[adapter] Batch mode: only liteparse available (uses native lit batch-parse API)");
@@ -520,7 +504,6 @@ async fn main() -> Result<()> {
             );
             eprintln!("[adapter] Total adapters: {} available", xberg_count + external_count);
 
-            // Track which requested frameworks failed to initialize
             // NOTE: This check must run AFTER all adapters (xberg + external) are registered
             let mut failed_frameworks = Vec::new();
             for name in &frameworks {
@@ -536,13 +519,11 @@ async fn main() -> Result<()> {
                 );
             }
 
-            // Parse output format
             let parsed_format = OutputFormat::from_str(&output_format).map_err(benchmark_harness::Error::Config)?;
 
             let mut runner = BenchmarkRunner::with_output_format(config, registry, parsed_format);
             runner.load_fixtures(&fixtures)?;
 
-            // Apply sharding if requested
             if let Some(ref shard_spec) = shard {
                 let parts: Vec<&str> = shard_spec.split('/').collect();
                 if parts.len() != 2 {
@@ -606,7 +587,6 @@ async fn main() -> Result<()> {
 
             use benchmark_harness::{write_by_extension_analysis, write_json};
 
-            // Always output JSON format
             let output_file = output.join("results.json");
             write_json(&results, &output_file)?;
             println!("\nResults written to: {}", output_file.display());
@@ -615,7 +595,6 @@ async fn main() -> Result<()> {
             write_by_extension_analysis(&results, &by_ext_file)?;
             println!("Per-extension analysis written to: {}", by_ext_file.display());
 
-            // Fail if any requested frameworks failed to initialize
             if !failed_frameworks.is_empty() {
                 return Err(benchmark_harness::Error::Benchmark(format!(
                     "Requested framework(s) failed to initialize: {}",
@@ -623,7 +602,6 @@ async fn main() -> Result<()> {
                 )));
             }
 
-            // Fail if no extractions succeeded (binding compile/link/runtime failure)
             if !results.is_empty() && success_count == 0 {
                 return Err(benchmark_harness::Error::Benchmark(format!(
                     "All {} extraction(s) failed. The framework likely failed to compile, link, or start.",
@@ -682,12 +660,11 @@ async fn main() -> Result<()> {
                 if let Some(cs) = &agg.cold_start {
                     eprintln!("    Cold start p50: {:.2} ms", cs.p50_ms);
                 }
-                let _ = key; // used as map key
+                let _ = key;
             }
 
             std::fs::create_dir_all(&output).map_err(benchmark_harness::Error::Io)?;
 
-            // Single unified output file
             let output_file = output.join("aggregated.json");
             let json = serde_json::to_string_pretty(&aggregated)
                 .map_err(|e| benchmark_harness::Error::Benchmark(format!("Failed to serialize results: {}", e)))?;
@@ -801,7 +778,6 @@ async fn main() -> Result<()> {
 
             let sort_metric = SortMetric::parse(&sort_by).unwrap_or_default();
 
-            // Resolve --group into doc filter (merges with --doc if both provided)
             let doc_filter = {
                 let mut patterns: Vec<String> = doc.unwrap_or_default();
                 if let Some(ref group_name) = group {
@@ -819,7 +795,6 @@ async fn main() -> Result<()> {
                 patterns
             };
 
-            // Per-pipeline profiling: run each pipeline separately with its own ProfileGuard
             if let Some(ref prof_dir) = profile_dir {
                 use benchmark_harness::profiling::ProfileGuard;
 
@@ -845,7 +820,6 @@ async fn main() -> Result<()> {
                     let profiling_result = guard.finish()?;
                     profiling_result.generate_flamegraph(&svg_path)?;
 
-                    // Print summary for this pipeline
                     print_pipeline_table(&results, sort_metric, None);
                 }
 
@@ -925,8 +899,6 @@ async fn main() -> Result<()> {
                 guardrails_out,
             };
 
-            // Optional CPU profiling of the single-parse path (no-op without the
-            // `profiling` feature).
             let results = if let Some(ref svg_path) = profile_out {
                 use benchmark_harness::profiling::ProfileGuard;
                 if let Some(parent) = svg_path.parent() {
@@ -1053,9 +1025,6 @@ async fn main() -> Result<()> {
 
             run(args)
                 .await
-                // `{:#}` renders the full anyhow context chain (e.g. the
-                // underlying extraction / model-download error), not just the
-                // top-level "extraction failed for X" wrapper.
                 .map_err(|e| benchmark_harness::Error::Benchmark(format!("{e:#}")))
         }
 
@@ -1089,7 +1058,6 @@ async fn main() -> Result<()> {
                 println!("  {}: {}{}{} - {}", name, size_str, sys_str, status, info.description);
             }
 
-            // Create parent directory if needed
             if let Some(parent) = output.parent() {
                 std::fs::create_dir_all(parent).map_err(benchmark_harness::Error::Io)?;
             }

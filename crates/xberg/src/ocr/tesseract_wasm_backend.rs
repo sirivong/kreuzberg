@@ -110,11 +110,6 @@ impl OcrBackend for TesseractWasmBackend {
             });
         }
 
-        // The in-memory WASI Tesseract loads a single traineddata blob per call: `init_5`
-        // takes one buffer and there is no `TESSDATA_PREFIX` directory on WASM, so this
-        // backend recognizes one language at a time (like the PaddleOCR and VLM backends).
-        // Use the primary effective language — defaulted to English and blank-filtered by
-        // `effective_languages` — and warn rather than silently drop any extras.
         let languages = config.effective_languages();
         let language = languages[0].clone();
         if languages.len() > 1 {

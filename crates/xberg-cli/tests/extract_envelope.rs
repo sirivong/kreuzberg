@@ -63,8 +63,6 @@ fn fixture_exists(path: &Path) -> bool {
     path.exists() && path.is_file()
 }
 
-// ── extract --format json envelope ──────────────────────────────────────────
-
 #[test]
 fn test_extract_json_has_result_and_timing() {
     build_binary();
@@ -88,7 +86,6 @@ fn test_extract_json_has_result_and_timing() {
 
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).expect("stdout is not valid JSON");
 
-    // Envelope shape
     assert!(json.get("result").is_some(), "missing 'result' key in envelope");
     let extraction_time_ms = json
         .get("extraction_time_ms")
@@ -99,17 +96,13 @@ fn test_extract_json_has_result_and_timing() {
         "extraction_time_ms must be positive, got {extraction_time_ms}"
     );
 
-    // ocr_used field must exist as a bool
     let ocr_used = json["result"]["metadata"]
         .get("ocr_used")
         .expect("'result.metadata.ocr_used' must be present")
         .as_bool()
         .expect("'result.metadata.ocr_used' must be a boolean");
-    // For a native-text PDF without --force-ocr, OCR should NOT have run.
     assert!(!ocr_used, "expected ocr_used=false for native PDF extraction");
 }
-
-// ── batch --format json envelope ─────────────────────────────────────────────
 
 #[test]
 fn test_batch_json_has_results_and_timing() {
@@ -141,7 +134,6 @@ fn test_batch_json_has_results_and_timing() {
 
     let json: serde_json::Value = serde_json::from_slice(&output.stdout).expect("stdout is not valid JSON");
 
-    // Envelope shape
     let results = json
         .get("results")
         .and_then(|v| v.as_array())
@@ -165,7 +157,6 @@ fn test_batch_json_has_results_and_timing() {
         assert!(ms > 0.0, "per_file_ms[{i}] must be positive, got {ms}");
     }
 
-    // Each result must have metadata.ocr_used as a bool
     for (i, result) in results.iter().enumerate() {
         assert!(
             result["metadata"].get("ocr_used").and_then(|v| v.as_bool()).is_some(),
@@ -173,8 +164,6 @@ fn test_batch_json_has_results_and_timing() {
         );
     }
 }
-
-// ── --pdf-backend validation ─────────────────────────────────────────────────
 
 #[test]
 fn test_pdf_backend_invalid_value_exits_nonzero() {

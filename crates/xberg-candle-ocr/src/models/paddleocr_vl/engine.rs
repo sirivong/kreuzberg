@@ -78,26 +78,22 @@ impl PaddleOcrVlEngine {
     /// * `device` - Candle device (CPU, CUDA, Metal)
     /// * `dtype` - Data type (F32, F16, BF16)
     pub fn new(model_path: &str, task: PaddleOcrVlTask, device: Device, dtype: DType) -> Result<Self> {
-        // Load main config
         let config_file = std::path::Path::new(model_path).join("config.json");
         let config_str = std::fs::read_to_string(&config_file)
             .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Read config: {}", e)))?;
         let config: PaddleOCRVLConfig = serde_json::from_str(&config_str)
             .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Parse config: {}", e)))?;
 
-        // Load preprocessor config
         let processor_config_file = std::path::Path::new(model_path).join("preprocessor_config.json");
         let processor_config_str = std::fs::read_to_string(&processor_config_file)
             .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Read preprocessor_config: {}", e)))?;
         let processor_config: PaddleOCRVLPreprocessorConfig = serde_json::from_str(&processor_config_str)
             .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Parse preprocessor_config: {}", e)))?;
 
-        // Load tokenizer
         let tokenizer_file = std::path::Path::new(model_path).join("tokenizer.json");
         let tokenizer = Tokenizer::from_file(&tokenizer_file)
             .map_err(|e| CandleOcrError::Tokenizer(format!("Load tokenizer: {}", e)))?;
 
-        // Load model weights
         let model_file = {
             let safetensors_path = std::path::Path::new(model_path).join("model.safetensors");
             let bin_path = std::path::Path::new(model_path).join("pytorch_model.bin");
@@ -119,8 +115,6 @@ impl PaddleOcrVlEngine {
             candle_nn::VarBuilder::from_pth(&model_file, dtype, &device)
                 .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Load pth: {}", e)))?
         } else {
-            // SAFETY: We're using mmaped_safetensors with a valid file path. The file is read-only
-            // and the lifetime is scoped to this function, ensuring memory safety.
             #[allow(unsafe_code)]
             unsafe {
                 candle_nn::VarBuilder::from_mmaped_safetensors(&[&model_file], dtype, &device)
@@ -131,7 +125,6 @@ impl PaddleOcrVlEngine {
         let model = PaddleOCRVLModel::new(config.clone(), vb, vec![2])
             .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Model init: {}", e)))?;
 
-        // Resolve special token IDs from tokenizer
         let bos_token_id = tokenizer.token_to_id("<|begin_of_sentence|>").unwrap_or(1);
         let eos_token_id = tokenizer
             .token_to_id("</s>")
@@ -160,7 +153,6 @@ impl PaddleOcrVlEngine {
     /// Process an image and return the recognized text as markdown.
     pub fn process_image(&mut self, image_bytes: &[u8]) -> Result<CandleOcrOutput> {
         tracing::debug!(image_size = image_bytes.len(), task = %self.task, "PaddleOCR-VL: starting inference");
-        // Decode image
         let img = image::load_from_memory(image_bytes)
             .map_err(|e| CandleOcrError::InferenceFailed(format!("Decode image: {}", e)))?;
         let img = img.to_rgb8();
@@ -168,7 +160,6 @@ impl PaddleOcrVlEngine {
         let (img_width, img_height) = (img.width(), img.height());
         tracing::debug!(width = img_width, height = img_height, "PaddleOCR-VL: image dimensions");
 
-        // Prepare mean/std tensors from processor config
         let img_mean = Tensor::new(
             &[[
                 self.processor_config.image_mean[0] as f32,
@@ -193,12 +184,10 @@ impl PaddleOcrVlEngine {
         .reshape((3, 1, 1))
         .map_err(|e| CandleOcrError::InferenceFailed(format!("Reshape std: {}", e)))?;
 
-        // Process image
         let dyn_img = image::DynamicImage::ImageRgb8(img);
         let pixel_values = self.processor.process_img(&dyn_img, &img_mean, &img_std)?;
         let (pixel_values, grid_thw) = self.processor.process_vision_tensor(&pixel_values)?;
 
-        // Build input tokens
         let grid_vec = grid_thw
             .to_vec2::<u32>()
             .map_err(|e| CandleOcrError::InferenceFailed(format!("Grid shape: {}", e)))?;
@@ -220,14 +209,11 @@ impl PaddleOcrVlEngine {
 
         let max_length = 4096;
 
-        // Clear KV cache
         tracing::debug!("PaddleOCR-VL: clearing cache and starting generation");
         self.model.clear_kv_cache();
 
-        // Run generation
         let generated_tokens = self.generate(&input_ids, &pixel_values, &grid_thw, max_length)?;
 
-        // Decode tokens to text
         let output_text = self
             .tokenizer
             .decode(&generated_tokens, true)
@@ -316,7 +302,6 @@ impl PaddleOcrVlEngine {
             "PaddleOCR-VL: starting greedy decoding"
         );
 
-        // Image mask over the prompt (1 for image tokens, 0 for text).
         let image_mask: Vec<u32> = prompt_tokens
             .iter()
             .map(|&token| u32::from(token == self.config.image_token_id))
@@ -326,9 +311,6 @@ impl PaddleOcrVlEngine {
             .unsqueeze(0)
             .map_err(|e| CandleOcrError::InferenceFailed(format!("Unsqueeze mask: {}", e)))?;
 
-        // cache_position starting at 0 makes the forward pass compute the full
-        // multimodal rope index for the prompt (and reset any cached rope delta
-        // from a previous image).
         let cache_position = Tensor::arange(0u32, prompt_len as u32, &self.device)
             .map_err(|e| CandleOcrError::InferenceFailed(format!("Cache position: {}", e)))?;
 
@@ -348,9 +330,6 @@ impl PaddleOcrVlEngine {
         let max_new_tokens = max_length.saturating_sub(prompt_len);
 
         for step in 0..max_new_tokens {
-            // The forward pass narrows to the last position, so logits is
-            // [1, 1, vocab]; argmax over the vocab dim yields [1, 1] — squeeze
-            // the two length-1 dims to a scalar token id.
             let next_token = logits
                 .argmax(candle_core::D::Minus1)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Argmax: {}", e)))?
@@ -385,8 +364,6 @@ impl PaddleOcrVlEngine {
                 break;
             }
 
-            // Feed the new token back at its absolute position; the KV cache
-            // holds the prompt and all previously generated tokens.
             let next_input = Tensor::new(&[next_token], &self.device)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Next token tensor: {}", e)))?
                 .unsqueeze(0)

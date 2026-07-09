@@ -75,37 +75,19 @@ pub(crate) async fn extract_vlm_regions(
 
             let region_kind = match hint.class_name {
                 LayoutHintClass::Picture => RegionKind::Figure,
-                // Dense tables are not currently intercepted here — the
-                // existing table extraction pipeline handles them. This arm
-                // is reserved for future use when the table model is Disabled.
                 _ => continue,
             };
 
-            // The hints produced by `pixel_detection_to_layout_hints_pdf_space`
-            // use PDF coordinate space (y=0 at bottom).  The layout images are in
-            // pixel space (y=0 at top).  The layout runner stores raw pixel-space
-            // bounding boxes in the `LayoutHint` structs *before* any coordinate
-            // conversion for the markdown pipeline.
-            //
-            // However, `layout_hints` here are *already converted* to PDF space.
-            // To crop the raster image we need to invert back to pixel space:
-            //   pixel_y1 = img_height - pdf_top
-            //   pixel_y2 = img_height - pdf_bottom
-            //
-            // All coordinates are clamped to image bounds.
             let pdf_top = hint.top;
             let pdf_bottom = hint.bottom;
             let pdf_left = hint.left;
             let pdf_right = hint.right;
 
-            // Compute pixel bounds (clamped to image dimensions).
-            // pdf_top corresponds to the smaller pixel_y (near image top).
             let pixel_y1 = (img_height as f32 - pdf_top).max(0.0).min(img_height as f32) as u32;
             let pixel_y2 = (img_height as f32 - pdf_bottom).max(0.0).min(img_height as f32) as u32;
             let pixel_x1 = pdf_left.max(0.0).min(img_width as f32) as u32;
             let pixel_x2 = pdf_right.max(0.0).min(img_width as f32) as u32;
 
-            // Ensure the crop box has positive area in the right direction.
             let (y_top, y_bot) = if pixel_y1 <= pixel_y2 {
                 (pixel_y1, pixel_y2)
             } else {
@@ -130,10 +112,8 @@ pub(crate) async fn extract_vlm_regions(
                 continue;
             }
 
-            // Crop the region from the page raster.
             let crop = image::imageops::crop_imm(page_image, x_left, y_top, crop_w, crop_h).to_image();
 
-            // Encode crop as PNG for the VLM call.
             let mut png_buf = Cursor::new(Vec::<u8>::new());
             let encode_result = image::codecs::png::PngEncoder::new(&mut png_buf).write_image(
                 crop.as_raw(),
@@ -225,14 +205,12 @@ mod tests {
 
     #[test]
     fn test_low_confidence_hints_are_skipped() {
-        // Confidence below MIN_REGION_CONFIDENCE must not be extracted.
         let hint = make_hint(LayoutHintClass::Picture, 0.3);
         assert!(hint.confidence < MIN_REGION_CONFIDENCE);
     }
 
     #[test]
     fn test_non_picture_hints_are_skipped() {
-        // Only Picture class triggers VLM extraction in the current implementation.
         let non_picture = [
             LayoutHintClass::Text,
             LayoutHintClass::SectionHeader,
@@ -246,15 +224,9 @@ mod tests {
             LayoutHintClass::ListItem,
             LayoutHintClass::Other,
         ];
-        // Verify that RegionKind has no mapping for non-picture classes.
-        // This test documents the contract; new classes added to the match
-        // arm must update this list.
         for class in non_picture {
             let hint = make_hint(class, 0.9);
-            // We cannot call extract_vlm_regions without an async runtime and
-            // real images. The test is structural — it verifies the list above
-            // and keeps documentation accurate.
-            let _ = hint; // suppress unused warning
+            let _ = hint;
         }
     }
 

@@ -16,11 +16,11 @@ pub(crate) type PdfExtractionPhaseResult = (
     Vec<Table>,
     Option<Vec<PageContent>>,
     Option<Vec<PageBoundary>>,
-    Option<crate::types::internal::InternalDocument>, // pre-rendered structured doc (when output_format == Markdown/Djot/Html)
-    bool,                                             // has_font_encoding_issues (unicode map errors detected)
-    Option<Vec<PdfAnnotation>>,                       // extracted annotations (when extract_annotations is enabled)
-    Option<Vec<crate::types::ExtractedImage>>, // extracted images (when extract_images or ocr_inline_images is enabled)
-    Vec<crate::types::PdfFormField>,           // extracted form fields (when extract_form_fields is enabled)
+    Option<crate::types::internal::InternalDocument>,
+    bool,
+    Option<Vec<PdfAnnotation>>,
+    Option<Vec<crate::types::ExtractedImage>>,
+    Vec<crate::types::PdfFormField>,
 );
 
 /// Extract text, metadata, tables, and annotations from a PDF document using the pdf_oxide backend.
@@ -54,7 +54,6 @@ pub(crate) fn extract_all_from_oxide_document(
         .unwrap_or(&[]);
     let mut doc = crate::pdf::oxide::OxideDocument::open_bytes_with_passwords(content, passwords)?;
 
-    // --- Text + metadata (single pass) ---
     #[cfg_attr(not(feature = "layout-detection"), allow(unused_mut))]
     let (mut native_text, boundaries, page_contents, pdf_metadata) =
         crate::pdf::oxide::text::extract_text_and_metadata(&mut doc, Some(config)).map_err(|e| {
@@ -64,9 +63,6 @@ pub(crate) fn extract_all_from_oxide_document(
             }
         })?;
 
-    // --- Reading-order reordering (layout-guided) ---
-    // When `reading_order` is enabled and layout hints are available, reorder text spans
-    // to natural reading order (top-to-bottom per column, left-to-right across columns).
     #[cfg(feature = "layout-detection")]
     if config.pdf_options.as_ref().is_some_and(|opts| opts.reading_order)
         && let Some(hints) = layout_hints
@@ -83,26 +79,13 @@ pub(crate) fn extract_all_from_oxide_document(
         };
     }
     #[cfg(not(feature = "layout-detection"))]
-    let _ = layout_hints; // Suppress unused variable warning
+    let _ = layout_hints;
 
-    // --- Tables ---
-    // Three-tier detection, each tier running only on pages the previous left empty:
-    //   1. native  — strict Lines strategy (≥3 cols), high precision
-    //   2. bordered — relaxed Lines strategy (≥2 cols), catches 2-column bordered tables
-    //   3. heuristic — text-edge fallback for unruled tables (invoice line items, etc.)
-    // Individual tier failures must not block text extraction — each falls back to an
-    // empty vec and logs at warn so operators can diagnose missing tables without losing
-    // the rest of the document.
-    // Skipped entirely when `pdf_options.extract_tables` is `false`.
     let extract_tables_flag = config.pdf_options.as_ref().is_none_or(|opts| opts.extract_tables);
     let allow_single_column = config
         .pdf_options
         .as_ref()
         .is_some_and(|o| o.allow_single_column_tables);
-    // pdf_oxide's tategaki reading-order strategy can panic on a total-order
-    // violation while extracting words for table detection (#1198). Contain the
-    // whole table phase: a panic falls back to no tables + a warn, preserving the
-    // already-extracted page text rather than aborting the document.
     let tables = if extract_tables_flag {
         crate::pdf::oxide::guard_oxide_panic(
             || -> Result<Vec<Table>> {
@@ -140,7 +123,6 @@ pub(crate) fn extract_all_from_oxide_document(
         Vec::new()
     };
 
-    // --- Annotations ---
     let annotations = if config.pdf_options.as_ref().is_some_and(|opts| opts.extract_annotations) {
         let extracted = crate::pdf::oxide::annotations::extract_annotations(&mut doc);
         if extracted.is_empty() { None } else { Some(extracted) }
@@ -148,8 +130,6 @@ pub(crate) fn extract_all_from_oxide_document(
         None
     };
 
-    // --- Extracted images (data + OCR) ---
-    // Positions are derived from extracted data — no separate decompression pass needed.
     let images_extraction_enabled =
         config.needs_image_data() || config.pdf_options.as_ref().map(|p| p.extract_images).unwrap_or(false);
 
@@ -168,14 +148,12 @@ pub(crate) fn extract_all_from_oxide_document(
                     source: None,
                 })?;
 
-        // Derive positions from the capped set — no second decompression pass.
         let positions: Vec<(u32, u32)> = extracted
             .iter()
             .map(|img| (img.page_number.unwrap_or(1), img.image_index))
             .collect();
         (Some(extracted), positions)
     } else {
-        // inject_placeholders is gated on images_extraction_enabled, so empty is correct.
         (None, Vec::new())
     };
 
@@ -183,8 +161,6 @@ pub(crate) fn extract_all_from_oxide_document(
         return Err(crate::error::XbergError::Cancelled);
     }
 
-    // Pre-render structured document for output formats that benefit from headings,
-    // or when hierarchy extraction is explicitly enabled.
     let hierarchy_enabled = config
         .pdf_options
         .as_ref()
@@ -210,9 +186,6 @@ pub(crate) fn extract_all_from_oxide_document(
             .map(|cf| (cf.strip_repeating_text, cf.include_headers, cf.include_footers))
             .unwrap_or((true, false, false));
 
-        // Extract font-metric segments from oxide for heading detection.
-        // When the PDF has a reliable structure tree, segments carry pre-assigned
-        // heading roles (assigned_role) and the pipeline can skip font-size clustering.
         #[cfg_attr(not(feature = "layout-detection"), allow(unused_mut))]
         let (mut all_page_segments, used_structure_tree) = crate::pdf::oxide::hierarchy::extract_all_segments(&mut doc)
             .map_err(|e| crate::error::XbergError::Parsing {
@@ -220,9 +193,6 @@ pub(crate) fn extract_all_from_oxide_document(
                 source: None,
             })?;
 
-        // Apply reading-order reordering to segments if enabled and layout hints available.
-        // This ensures block-level order (heading, paragraph, list, etc.) reflects
-        // column-major reading order in multi-column documents.
         #[cfg(feature = "layout-detection")]
         if config.pdf_options.as_ref().is_some_and(|opts| opts.reading_order)
             && let Some(hints) = layout_hints
@@ -252,9 +222,6 @@ pub(crate) fn extract_all_from_oxide_document(
             "oxide structure: extracted segments for heading detection"
         );
 
-        // Same gate as the oxide path: only inject placeholders when image extraction
-        // is explicitly enabled. Prevents base64 data from leaking into results when
-        // the caller sets extract_images=false (fixes #796).
         let inject_placeholders =
             images_extraction_enabled && config.images.as_ref().map(|c| c.inject_placeholders).unwrap_or(false);
 
@@ -315,7 +282,6 @@ pub(crate) fn extract_all_from_oxide_document(
 
     let has_font_encoding_issues = false;
 
-    // --- Form fields (AcroForm / XFA) ---
     let form_fields = if config.pdf_options.as_ref().is_none_or(|opts| opts.extract_form_fields) {
         crate::pdf::oxide::forms::extract_form_fields(&mut doc)
     } else {
@@ -369,7 +335,6 @@ fn apply_reading_order_reordering(
     let mut reordered_pages = Vec::with_capacity(page_count);
 
     for (page_idx, hints) in layout_hints_per_page.iter().enumerate().take(page_count) {
-        // Extract spans for this page
         let spans = crate::pdf::oxide::text::extract_spans_from_page(&mut doc.doc, page_idx).map_err(|e| {
             crate::error::XbergError::Parsing {
                 message: format!(
@@ -380,17 +345,12 @@ fn apply_reading_order_reordering(
             }
         })?;
 
-        // Determine span emission order: reorder by layout when hints exist,
-        // otherwise keep the original extraction order. Every page must contribute
-        // text — skipping hint-free or span-empty pages would silently drop their
-        // content from the joined output.
         let span_order: Vec<usize> = if hints.is_empty() {
             (0..spans.len()).collect()
         } else {
             reading_order::reorder_spans_by_layout(&spans, hints)
         };
 
-        // Rebuild page text in (possibly reordered) order.
         let mut page_text = String::new();
         for &span_idx in &span_order {
             if span_idx < spans.len() {
@@ -402,11 +362,9 @@ fn apply_reading_order_reordering(
     }
 
     if reordered_pages.is_empty() {
-        // No pages were reordered; return original text
         return Ok(native_text.to_string());
     }
 
-    // Reconstruct full text in reading order
     let result = reordered_pages.join("\n\n");
     Ok(result)
 }
@@ -416,39 +374,31 @@ mod tests {
 
     #[test]
     fn test_bounding_box_coordinate_conversion() {
-        // Test the bounding box computation logic independently
-        // Simulate words at known positions and verify the resulting bbox
         let page_height = 800.0_f64;
 
-        // Simulated word positions in image coordinates (y=0 at top)
-        // Word 1: left=50, top=100, width=200, height=20
-        // Word 2: left=50, top=130, width=250, height=20
         let img_left = 50.0_f64;
         let img_top = 100.0_f64;
-        let img_right = 300.0_f64; // max(50+200, 50+250)
-        let img_bottom = 150.0_f64; // max(100+20, 130+20)
+        let img_right = 300.0_f64;
+        let img_bottom = 150.0_f64;
 
         let bbox = crate::types::BoundingBox {
             x0: img_left,
-            y0: page_height - img_bottom, // 800 - 150 = 650
+            y0: page_height - img_bottom,
             x1: img_right,
-            y1: page_height - img_top, // 800 - 100 = 700
+            y1: page_height - img_top,
         };
 
         assert_eq!(bbox.x0, 50.0);
-        assert_eq!(bbox.y0, 650.0); // bottom in PDF coords
+        assert_eq!(bbox.y0, 650.0);
         assert_eq!(bbox.x1, 300.0);
-        assert_eq!(bbox.y1, 700.0); // top in PDF coords
-        // y1 > y0 confirms the table is above the bottom
+        assert_eq!(bbox.y1, 700.0);
         assert!(bbox.y1 > bbox.y0);
     }
 
     #[test]
     fn test_bounding_box_coordinate_conversion_different_scales() {
-        // Test with different page height and word positions
         let page_height = 1000.0_f64;
 
-        // Words spanning from top=50 to bottom=400
         let img_left = 100.0_f64;
         let img_top = 50.0_f64;
         let img_right = 600.0_f64;
@@ -456,28 +406,26 @@ mod tests {
 
         let bbox = crate::types::BoundingBox {
             x0: img_left,
-            y0: page_height - img_bottom, // 1000 - 400 = 600
+            y0: page_height - img_bottom,
             x1: img_right,
-            y1: page_height - img_top, // 1000 - 50 = 950
+            y1: page_height - img_top,
         };
 
         assert_eq!(bbox.x0, 100.0);
         assert_eq!(bbox.y0, 600.0);
         assert_eq!(bbox.x1, 600.0);
         assert_eq!(bbox.y1, 950.0);
-        // Height of table: 950 - 600 = 350 pixels
         assert_eq!(bbox.y1 - bbox.y0, 350.0);
     }
 
     #[test]
     fn test_bounding_box_coordinate_conversion_preserves_width() {
-        // Width should be preserved during coordinate transformation
-        let page_height = 595.0_f64; // Standard letter page height
+        let page_height = 595.0_f64;
 
         let img_left = 72.0_f64;
-        let img_right = 522.0_f64; // width = 450
+        let img_right = 522.0_f64;
         let img_top = 36.0_f64;
-        let img_bottom = 300.0_f64; // height = 264
+        let img_bottom = 300.0_f64;
 
         let bbox = crate::types::BoundingBox {
             x0: img_left,

@@ -24,7 +24,6 @@ use xberg_candle_ocr::models::GlmOcrTask;
 async fn glm_ocr_backend_process_image_returns_hello_world() {
     let image_bytes = include_bytes!("../../../fixtures/images/test_hello_world.png");
 
-    // Construct the backend via its public constructor.
     let backend = GlmOcrBackend::new(GlmOcrTask::default(), LayoutMode::WholePage);
 
     let config = OcrConfig::default();

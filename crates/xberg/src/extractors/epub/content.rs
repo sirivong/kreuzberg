@@ -317,7 +317,6 @@ pub(super) fn extract_text_from_xhtml_budgeted(xhtml: &str, budget: &mut Securit
 }
 
 fn extract_text_from_xhtml_with_budget(xhtml: &str, budget: Option<&mut SecurityBudget>) -> String {
-    // Try direct XML tree traversal first (lossless path).
     let result = match budget {
         Some(b) => try_extract_via_roxmltree_budgeted(xhtml, b),
         None => try_extract_via_roxmltree_unbounded(xhtml),
@@ -326,7 +325,6 @@ fn extract_text_from_xhtml_with_budget(xhtml: &str, budget: Option<&mut Security
         return text;
     }
 
-    // Fallback: strip HTML tags character-by-character.
     let normalized = normalize_xhtml(xhtml);
     strip_html_tags(&normalized)
 }
@@ -481,7 +479,6 @@ fn visit_node_budgeted(node: roxmltree::Node<'_, '_>, output: &mut String, budge
     match node.node_type() {
         roxmltree::NodeType::Text => {
             let text = node.text().unwrap_or("");
-            // Entity / billion-laughs check on raw text node value.
             if budget.check_entity(text).is_err() {
                 return;
             }
@@ -671,8 +668,6 @@ mod tests {
         assert!(text.contains("Hello") && text.contains("World"));
     }
 
-    // --- Direct XHTML extraction tests ---
-
     #[test]
     fn test_extract_text_from_xhtml_basic() {
         let xhtml = r#"<?xml version="1.0" encoding="UTF-8"?>
@@ -687,7 +682,6 @@ mod tests {
         let result = extract_text_from_xhtml(xhtml);
         assert!(result.contains("Chapter One"), "got: {result}");
         assert!(result.contains("This is paragraph text."), "got: {result}");
-        // head/title content should not appear in body text
         assert!(!result.contains("Test"), "head title should be excluded, got: {result}");
     }
 
@@ -748,7 +742,6 @@ mod tests {
         assert!(result.contains("Paragraph two."), "got: {result}");
         assert!(result.contains("Item A"), "got: {result}");
         assert!(result.contains("Item B"), "got: {result}");
-        // The two paragraphs should be on different lines
         assert!(result.contains('\n'), "should have newlines, got: {result}");
     }
 
@@ -761,7 +754,6 @@ mod tests {
   </body>
 </html>"#;
         let result = extract_text_from_xhtml(xhtml);
-        // Text content should be preserved; no markdown syntax introduced
         assert!(result.contains("bold"), "got: {result}");
         assert!(result.contains("italic"), "got: {result}");
         assert!(!result.contains("**"), "no markdown bold, got: {result}");
@@ -770,7 +762,6 @@ mod tests {
 
     #[test]
     fn test_extract_text_from_xhtml_fallback_for_invalid_xml() {
-        // Malformed XHTML that roxmltree cannot parse should fall back to tag stripping.
         let bad_xhtml = "<p>Hello <b>World</b> unclosed <p>second";
         let result = extract_text_from_xhtml(bad_xhtml);
         assert!(result.contains("Hello"), "got: {result}");

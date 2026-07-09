@@ -398,7 +398,6 @@ impl XbergMcp {
         &self,
         Parameters(params): Parameters<super::params::CacheWarmParams>,
     ) -> Result<CallToolResult, rmcp::ErrorData> {
-        // Validate embedding_model is not an empty string
         if let Some(ref name) = params.embedding_model
             && name.trim().is_empty()
         {
@@ -603,19 +602,13 @@ fn complete_impl(request: CompleteRequestParams) -> Result<CompleteResult, rmcp:
     let arg_value = &request.argument.value;
 
     let candidates: Vec<String> = match &request.r#ref {
-        Reference::Prompt(prompt_ref) => {
-            match (prompt_ref.name.as_str(), arg_name.as_str()) {
-                // OCR language completions for extract_with_ocr
-                (_, "languages") => complete_ocr_languages(arg_value),
-                // Embedding preset completions for semantic_search
-                (_, "preset") => complete_embedding_presets(arg_value),
-                // Chunker type completions for semantic_search
-                (_, "chunker_type") => complete_chunker_types(arg_value),
-                // output_format for extract_document
-                (_, "output_format") => complete_output_formats(arg_value),
-                _ => vec![],
-            }
-        }
+        Reference::Prompt(prompt_ref) => match (prompt_ref.name.as_str(), arg_name.as_str()) {
+            (_, "languages") => complete_ocr_languages(arg_value),
+            (_, "preset") => complete_embedding_presets(arg_value),
+            (_, "chunker_type") => complete_chunker_types(arg_value),
+            (_, "output_format") => complete_output_formats(arg_value),
+            _ => vec![],
+        },
         Reference::Resource(_) => vec![],
         _ => vec![],
     };
@@ -636,7 +629,6 @@ fn complete_ocr_languages(prefix: &str) -> Vec<String> {
         "swe", "syr", "tam", "tat", "tel", "tgk", "tgl", "tha", "tir", "ton", "tur", "uig", "ukr", "urd", "uzb", "vie",
         "yid", "yor",
     ];
-    // The value may be a comma-separated list; complete the last segment.
     let last = prefix.split(',').next_back().unwrap_or(prefix).trim();
     all.iter()
         .filter(|lang| lang.starts_with(last))
@@ -833,7 +825,6 @@ async fn mcp_shutdown_signal() {
             Ok(s) => s,
             Err(e) => {
                 tracing::warn!("Failed to install SIGTERM handler: {}", e);
-                // Fall back to Ctrl-C only.
                 tokio::signal::ctrl_c()
                     .await
                     .unwrap_or_else(|e| tracing::warn!("Failed to listen for Ctrl-C: {}", e));
@@ -1163,7 +1154,6 @@ mod tests {
                 .unwrap_or_else(|| panic!("tool '{name}' should have annotations"))
         };
 
-        // Local, side-effect-free info tools: read-only, idempotent, closed-world.
         for name in [
             "detect_mime_type",
             "cache_stats",
@@ -1184,7 +1174,6 @@ mod tests {
             assert_eq!(a.open_world_hint, Some(true), "{name} may fetch URLs");
         }
 
-        // Destructive cache deletion: explicitly not read-only.
         let clear = annotations_for("cache_clear");
         assert_eq!(
             clear.read_only_hint,
@@ -1193,7 +1182,6 @@ mod tests {
         );
         assert_eq!(clear.destructive_hint, Some(true), "cache_clear is destructive");
 
-        // Downloads model files from HuggingFace: writes cache, reaches the open world.
         let warm = annotations_for("cache_warm");
         assert_eq!(warm.read_only_hint, Some(false), "cache_warm writes the cache");
         assert_eq!(
@@ -1303,7 +1291,6 @@ mod tests {
         } else {
             panic!("Expected content in result");
         }
-        // Verify structured_content is also present
         assert!(
             call_result.structured_content.is_some(),
             "get_version should have structured_content"
@@ -1335,7 +1322,6 @@ mod tests {
         } else {
             panic!("Expected content in result");
         }
-        // Verify structured_content is also present
         assert!(
             call_result.structured_content.is_some(),
             "cache_manifest should have structured_content"
@@ -1362,8 +1348,6 @@ mod tests {
         assert_eq!(structured["summary"]["results"], 0);
         assert_eq!(structured["summary"]["errors"], 0);
     }
-
-    // --- New tests for capabilities, resources, prompts, completions, output_schema ---
 
     #[test]
     fn test_capabilities_declare_resources_prompts_completions() {
@@ -1446,7 +1430,6 @@ mod tests {
 
     #[test]
     fn test_complete_ocr_language_by_prefix() {
-        // "en" prefix should match "eng"
         let candidates = complete_ocr_languages("en");
         assert!(!candidates.is_empty(), "should return candidates for prefix 'en'");
         assert!(

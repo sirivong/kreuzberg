@@ -85,8 +85,6 @@ pub fn compare(a: &ExtractedDocument, b: &ExtractedDocument, opts: &DiffOptions)
     }
 }
 
-// ── Content diff ─────────────────────────────────────────────────────────────
-
 fn diff_content(a: &str, b: &str, opts: &DiffOptions) -> Vec<DiffHunk> {
     let a_text = apply_truncation(a, opts.max_content_chars);
     let b_text = apply_truncation(b, opts.max_content_chars);
@@ -162,8 +160,6 @@ fn apply_truncation(text: &str, limit: Option<usize>) -> Option<String> {
     })
 }
 
-// ── Table diff ────────────────────────────────────────────────────────────────
-
 fn diff_tables(a_tables: &[Table], b_tables: &[Table]) -> (Vec<Table>, Vec<Table>, Vec<TableDiff>) {
     let min_len = a_tables.len().min(b_tables.len());
     let mut tables_changed = Vec::new();
@@ -184,18 +180,11 @@ fn diff_tables(a_tables: &[Table], b_tables: &[Table]) -> (Vec<Table>, Vec<Table
                 });
             }
         } else {
-            // Different shape — a structural replacement. Report the old table as
-            // removed and the new one as added so the diff carries what actually
-            // changed. The previous code emitted an empty TableDiff (no cell
-            // changes, and the tables never surfaced in added/removed), so a
-            // table that gained a row or column produced an information-free
-            // "changed" entry (xberg-io/xberg#1223).
             tables_removed.push(a_t.clone());
             tables_added.push(b_t.clone());
         }
     }
 
-    // Trailing tables present on only one side.
     if a_tables.len() > b_tables.len() {
         tables_removed.extend(a_tables[min_len..].iter().cloned());
     } else if b_tables.len() > a_tables.len() {
@@ -238,8 +227,6 @@ fn diff_cells(a: &Table, b: &Table) -> Vec<CellChange> {
     changes
 }
 
-// ── Metadata diff ─────────────────────────────────────────────────────────────
-
 fn diff_metadata(a: &crate::types::metadata::Metadata, b: &crate::types::metadata::Metadata) -> serde_json::Value {
     let a_val = serde_json::to_value(a).unwrap_or(serde_json::Value::Null);
     let b_val = serde_json::to_value(b).unwrap_or(serde_json::Value::Null);
@@ -270,8 +257,6 @@ fn diff_metadata(a: &crate::types::metadata::Metadata, b: &crate::types::metadat
 
     serde_json::json!({ "added": added, "removed": removed, "changed": changed })
 }
-
-// ── Embedded diff ─────────────────────────────────────────────────────────────
 
 fn diff_embedded(
     a_children: Option<&[ArchiveEntry]>,
@@ -331,8 +316,6 @@ fn is_nonempty_metadata_diff(val: &serde_json::Value) -> bool {
     val != &empty_obj
 }
 
-// ── Tests ─────────────────────────────────────────────────────────────────────
-
 #[cfg(all(test, feature = "diff"))]
 mod tests {
     use super::*;
@@ -368,8 +351,6 @@ mod tests {
         }
     }
 
-    // ── identical inputs ──────────────────────────────────────────────────────
-
     #[test]
     fn should_produce_empty_diff_for_identical_inputs() {
         let a = empty_result();
@@ -394,8 +375,6 @@ mod tests {
         );
         assert!(!is_nonempty_diff(&diff));
     }
-
-    // ── content diff ─────────────────────────────────────────────────────────
 
     #[test]
     fn should_produce_one_hunk_for_single_line_change() {
@@ -425,15 +404,10 @@ mod tests {
 
         assert_eq!(diff.content_diff.len(), 1);
         let hunk = &diff.content_diff[0];
-        // With 3-line context the hunk expands to include surrounding lines.
-        // Three-line text with change at line 1 (0-indexed): context pulls the
-        // hunk start back to line 0 (beginning of file).
         assert_eq!(hunk.from_line, 0);
         assert_eq!(hunk.to_line, 0);
-        // All 3 lines appear: one context, one changed, one context.
         assert_eq!(hunk.from_count, 3);
         assert_eq!(hunk.to_count, 3);
-        // The hunk must contain the changed lines.
         let has_removed = hunk
             .lines
             .iter()
@@ -460,8 +434,6 @@ mod tests {
         );
         assert!(!diff.tables_changed.is_empty(), "table change expected");
     }
-
-    // ── table diff ───────────────────────────────────────────────────────────
 
     /// Regression for #1223: a table that changes shape (gains a column) at the
     /// same index must be reported as removed + added, not as an information-free
@@ -520,8 +492,6 @@ mod tests {
         assert_eq!(diff.tables_removed[0].cells[0][0], "OLD");
         assert!(diff.tables_added.is_empty());
     }
-
-    // ── embedded diff ─────────────────────────────────────────────────────────
 
     #[test]
     fn should_detect_added_embedded_child() {

@@ -395,7 +395,6 @@ async fn test_rtf_list_simple_extraction() {
 
     assert!(content.contains("new"), "Should extract 'new list' text");
 
-    // Verify list items are extracted (list structure preserved as separate text)
     assert!(
         content.contains("one") && content.contains("two") && content.contains("sub"),
         "Should extract all list items"
@@ -619,7 +618,6 @@ async fn test_rtf_word_sample_matches_docx_metadata_and_content() {
         "RTF content should include the same body text as DOCX"
     );
 
-    // Compare typed metadata fields (both DOCX and RTF now use typed fields)
     assert_eq!(
         rtf_result.metadata.created_by.as_deref(),
         docx_result.metadata.created_by.as_deref(),
@@ -752,7 +750,6 @@ async fn test_rtf_comprehensive_extraction_alignment() {
             expected
         );
     }
-    // Verify table structure is recognized (tables are stored as structured nodes)
     assert!(
         !rtf_result.tables.is_empty(),
         "Should extract structured tables from RTF"

@@ -70,21 +70,15 @@ fn maybe_transcode_utf16(data: &[u8]) -> Option<Vec<u8>> {
         return None;
     }
 
-    // Unambiguous BOM checks
     let (is_le, skip) = if data[0] == 0xFF && data[1] == 0xFE {
         (true, 2)
     } else if data[0] == 0xFE && data[1] == 0xFF {
         (false, 2)
     } else if data.len() >= 16 {
-        // No BOM, but check for alternating null bytes in the first 16 bytes.
-        // This is a common pattern for UTF-16 encoded EML files starting with ASCII headers.
         let is_le_heuristic = data[1] == 0x00 && data[3] == 0x00 && data[5] == 0x00 && data[7] == 0x00;
         let is_be_heuristic = data[0] == 0x00 && data[2] == 0x00 && data[4] == 0x00 && data[6] == 0x00;
 
         if is_le_heuristic || is_be_heuristic {
-            // chardetng often labels UTF-16 (with nulls) as UTF-8; treat that
-            // (and windows-1252) as confirmation the heuristic is right and
-            // any specific legacy encoding as evidence to bail.
             let mut detector = chardetng::EncodingDetector::new(chardetng::Iso2022JpDetection::Allow);
             detector.feed(data, true);
             let guess = detector.guess(None, chardetng::Utf8Detection::Allow);
@@ -118,7 +112,6 @@ fn maybe_transcode_utf16(data: &[u8]) -> Option<Vec<u8>> {
 
 /// Parse .eml file content (RFC822 format)
 pub(crate) fn parse_eml_content(data: &[u8]) -> Result<EmailExtractionResult> {
-    // Transcode UTF-16 to UTF-8 if a BOM is detected
     let data = if let Some(transcoded) = maybe_transcode_utf16(data) {
         std::borrow::Cow::Owned(transcoded)
     } else {
@@ -163,15 +156,9 @@ pub(crate) fn parse_eml_content(data: &[u8]) -> Result<EmailExtractionResult> {
         })
         .unwrap_or_else(Vec::new);
 
-    // Extract date: prefer the raw Date header text (preserves original format),
-    // falling back to mail_parser's parsed DateTime → RFC 3339.
-    // mail_parser parses standard RFC 2822 dates into HeaderValue::DateTime,
-    // losing the original string. For non-standard dates (ISO 8601, invalid strings),
-    // it may produce garbled output. We extract the raw header from the email bytes.
     let date = extract_raw_date_header(&data).or_else(|| {
         message.date().and_then(|d| {
             let rfc3339 = d.to_rfc3339();
-            // Reject obviously garbled dates (year 2000, month 0)
             if rfc3339.starts_with("2000-00") || rfc3339.starts_with("0000-") {
                 None
             } else {
@@ -182,7 +169,6 @@ pub(crate) fn parse_eml_content(data: &[u8]) -> Result<EmailExtractionResult> {
 
     let message_id = message.message_id().map(|id| id.to_string());
 
-    // Extract threading and additional headers
     let reply_to: Vec<String> = message
         .reply_to()
         .map(|addrs| {
@@ -205,37 +191,22 @@ pub(crate) fn parse_eml_content(data: &[u8]) -> Result<EmailExtractionResult> {
         .map(|list| list.iter().map(|s| s.to_string()).collect())
         .unwrap_or_default();
 
-    // Extract additional raw headers from email bytes
     let raw_headers = extract_raw_headers(&data);
 
-    // Iterate over all body parts to capture content from multipart messages.
-    // Also recurse into nested message/rfc822 parts (multipart/digest emails).
-    //
-    // Determine if message content should be treated as HTML based on MIME type.
-    // This check happens early so we can gather the appropriate body content.
     let should_treat_as_html = message
         .content_type()
         .and_then(|ct| ct.subtype())
         .map(|subtype| subtype.eq_ignore_ascii_case("html"))
         .unwrap_or(false);
 
-    // Important: mail-parser's `body_text()` auto-converts HTML to plain text
-    // using a naive tag-stripping approach that does NOT remove <script> or
-    // <style> content. We only trust `body_text()` when the message has at
-    // least one genuine `text/plain` part (PartType::Text). For HTML-only
-    // emails we fall through to `clean_html_content()` which uses
-    // html-to-markdown-rs or regex-based stripping that properly handles scripts.
     let has_genuine_text_part = has_genuine_text_body(&message);
     let plain_text = if has_genuine_text_part || should_treat_as_html {
-        // Extract text for both genuine text/plain parts AND HTML-only emails
-        // (for HTML emails, this gets the raw HTML which we'll clean later)
         let mut all_text = Vec::new();
         let mut i = 0;
         while let Some(text) = message.body_text(i) {
             all_text.push(text.to_string());
             i += 1;
         }
-        // Extract text from nested message/rfc822 sub-messages (e.g. multipart/digest).
         collect_nested_message_text(&message, &mut all_text);
         if all_text.is_empty() {
             None
@@ -254,7 +225,6 @@ pub(crate) fn parse_eml_content(data: &[u8]) -> Result<EmailExtractionResult> {
             all_html.push(html.to_string());
             i += 1;
         }
-        // Extract HTML from nested message/rfc822 sub-messages.
         collect_nested_message_html(&message, &mut all_html);
         if all_html.is_empty() {
             None
@@ -265,9 +235,6 @@ pub(crate) fn parse_eml_content(data: &[u8]) -> Result<EmailExtractionResult> {
         None
     };
 
-    // For single-part HTML emails, mail-parser may not find any parts via body_html()
-    // when the message structure is NOT multipart. Fallback: if MIME type is HTML-only
-    // and we have plain_text from body_text(), use that as the HTML content.
     let html_content = if should_treat_as_html && html_content.is_none() && plain_text.is_some() {
         plain_text.clone()
     } else {
@@ -275,8 +242,6 @@ pub(crate) fn parse_eml_content(data: &[u8]) -> Result<EmailExtractionResult> {
     };
 
     let content = if let Some(html) = &html_content {
-        // Strip script/style and tags so direct callers see clean text.
-        // The extractor pipeline rebuilds structure from html_content separately.
         clean_html_content(html)
     } else if let Some(plain) = &plain_text {
         plain.clone()
@@ -322,7 +287,6 @@ pub(crate) fn parse_eml_content(data: &[u8]) -> Result<EmailExtractionResult> {
         &attachments,
     );
 
-    // Add threading headers to metadata
     if !reply_to.is_empty() {
         metadata.insert("reply_to".to_string(), reply_to.join(", "));
     }
@@ -333,12 +297,10 @@ pub(crate) fn parse_eml_content(data: &[u8]) -> Result<EmailExtractionResult> {
         metadata.insert("references".to_string(), references.join(", "));
     }
 
-    // Add raw headers (Content-Type, MIME-Version, X-Mailer, List-Id, List-Unsubscribe)
     for (key, value) in &raw_headers {
         metadata.insert(key.clone(), value.clone());
     }
 
-    // Add structured attachment metadata (filename, size, mime_type per attachment)
     if !attachments.is_empty() {
         let attachment_details: Vec<String> = attachments
             .iter()
@@ -413,13 +375,11 @@ fn collect_nested_message_text(message: &mail_parser::Message<'_>, out: &mut Vec
     use mail_parser::PartType;
     for part in &message.parts {
         if let PartType::Message(sub_msg) = &part.body {
-            // Collect direct text bodies from the sub-message.
             let mut i = 0;
             while let Some(text) = sub_msg.body_text(i) {
                 out.push(text.to_string());
                 i += 1;
             }
-            // Recurse further in case of deeply nested messages.
             collect_nested_message_text(sub_msg, out);
         }
     }
@@ -457,14 +417,12 @@ pub(crate) fn parse_msg_content(data: &[u8], fallback_codepage: Option<u32>) -> 
     use std::borrow::Cow;
     use std::io::Cursor;
 
-    // Try strict CFB parsing first; fall back to lenient padding.
     let padded: Cow<'_, [u8]>;
     let data_ref: &[u8] = match cfb::CompoundFile::open(Cursor::new(data)) {
         Ok(_) => data,
         Err(_first_err) => {
             padded = pad_cfb_to_fat_size(data);
             if std::ptr::eq(padded.as_ref(), data) {
-                // Padding didn't help – propagate original error.
                 return Err(XbergError::parsing(format!("Failed to parse MSG file: {_first_err}")));
             }
             &padded
@@ -487,7 +445,6 @@ pub(crate) fn parse_msg_content(data: &[u8], fallback_codepage: Option<u32>) -> 
 fn pad_cfb_to_fat_size(data: &[u8]) -> std::borrow::Cow<'_, [u8]> {
     use std::borrow::Cow;
 
-    // OLE header is at least 76 bytes; magic D0 CF 11 E0 A1 B1 1A E1.
     if data.len() < 76 || data[..4] != [0xD0, 0xCF, 0x11, 0xE0] {
         return Cow::Borrowed(data);
     }
@@ -498,14 +455,10 @@ fn pad_cfb_to_fat_size(data: &[u8]) -> std::borrow::Cow<'_, [u8]> {
     }
     let sector_size = 1u64 << sector_power;
 
-    // Number of FAT sectors is at header offset 44 (LE u32).
     let fat_sectors = u32::from_le_bytes([data[44], data[45], data[46], data[47]]) as u64;
-    // Each FAT sector holds sector_size/4 entries; each entry maps one sector.
     let fat_entries = fat_sectors * (sector_size / 4);
-    // File must be at least: 1 header sector + fat_entries data sectors.
     let needed = (1 + fat_entries) * sector_size;
 
-    // Cap at 256 MB to avoid pathological headers causing huge allocations.
     if needed > 256 * 1024 * 1024 || (data.len() as u64) >= needed {
         return Cow::Borrowed(data);
     }
@@ -544,11 +497,8 @@ fn decompress_rtf_compressed(data: &[u8]) -> Option<Vec<u8>> {
     let comp_size = u32::from_le_bytes(data[0..4].try_into().ok()?) as usize;
     let raw_size = u32::from_le_bytes(data[4..8].try_into().ok()?);
     let magic = u32::from_le_bytes(data[8..12].try_into().ok()?);
-    // _crc at 12..16 — we skip validation, matching common implementations.
 
-    // "LZFu" (0x75465a4c) = compressed, "MELA" (0x414c454d) = uncompressed.
     if magic == 0x414c_454d {
-        // Uncompressed: raw RTF follows the 16-byte header.
         return Some(data.get(16..16 + comp_size.saturating_sub(12))?.to_vec());
     }
     if magic != 0x75465a4c {
@@ -561,7 +511,6 @@ fn decompress_rtf_compressed(data: &[u8]) -> Option<Vec<u8>> {
     let mut dict_write = prebuf_len;
 
     let input = data.get(16..)?;
-    // comp_size includes the 12 bytes after the first u32, so input length should be comp_size - 12.
     let end = (comp_size.saturating_sub(12)).min(input.len());
 
     let mut output = Vec::with_capacity((raw_size as usize).min(MAX_RTF_DECOMPRESSED_CAPACITY));
@@ -577,7 +526,6 @@ fn decompress_rtf_compressed(data: &[u8]) -> Option<Vec<u8>> {
             }
 
             if control & (1 << bit) != 0 {
-                // Dictionary reference: 2 bytes, big-endian style.
                 let hi = *input.get(pos)? as u16;
                 let lo = *input.get(pos + 1)? as u16;
                 pos += 2;
@@ -592,7 +540,6 @@ fn decompress_rtf_compressed(data: &[u8]) -> Option<Vec<u8>> {
                     dict_write += 1;
                 }
             } else {
-                // Literal byte.
                 let byte = *input.get(pos)?;
                 pos += 1;
                 output.push(byte);
@@ -616,21 +563,17 @@ fn strip_rtf_to_plain_text(rtf: &[u8]) -> String {
     let len = bytes.len();
     let mut output = String::with_capacity(len / 2);
     let mut i = 0;
-    // Track brace depth; skip content inside `{\*...}` destinations.
     let mut skip_depth: Option<usize> = None;
     let mut depth: usize = 0;
-    // Skip the `{\rtfN ...}` header group preamble up to the first \par or body text.
 
     while i < len {
         match bytes[i] {
             b'{' => {
                 depth += 1;
                 i += 1;
-                // Detect `{\*` destinations — these are metadata groups we skip.
                 if i + 1 < len && bytes[i] == b'\\' && bytes.get(i + 1) == Some(&b'*') && skip_depth.is_none() {
                     skip_depth = Some(depth);
                 }
-                // Detect `{\fonttbl`, `{\colortbl`, `{\stylesheet`, `{\info` — skip these.
                 if skip_depth.is_none() {
                     let rest = &text[i..];
                     if rest.starts_with("\\fonttbl")
@@ -657,7 +600,6 @@ fn strip_rtf_to_plain_text(rtf: &[u8]) -> String {
                     break;
                 }
                 match bytes[i] {
-                    // Escaped literal characters.
                     b'\\' => {
                         output.push('\\');
                         i += 1;
@@ -671,7 +613,6 @@ fn strip_rtf_to_plain_text(rtf: &[u8]) -> String {
                         i += 1;
                     }
                     b'\'' => {
-                        // \'XX hex escape — decode as windows-1252.
                         i += 1;
                         if i + 2 <= len {
                             if let Ok(hex_str) = std::str::from_utf8(&bytes[i..i + 2])
@@ -685,8 +626,7 @@ fn strip_rtf_to_plain_text(rtf: &[u8]) -> String {
                         }
                     }
                     b'u' if i + 1 < len && (bytes[i + 1].is_ascii_digit() || bytes[i + 1] == b'-') => {
-                        // \uN — unicode escape followed by an ANSI substitution char.
-                        i += 1; // skip 'u'
+                        i += 1;
                         let start = i;
                         if i < len && bytes[i] == b'-' {
                             i += 1;
@@ -702,25 +642,20 @@ fn strip_rtf_to_plain_text(rtf: &[u8]) -> String {
                                 output.push(ch);
                             }
                         }
-                        // Skip optional space delimiter after the number.
                         if i < len && bytes[i] == b' ' {
                             i += 1;
                         }
-                        // Skip the ANSI substitution character (usually `?`).
                         if i < len && bytes[i] != b'\\' && bytes[i] != b'{' && bytes[i] != b'}' {
                             i += 1;
                         }
                     }
                     _ => {
-                        // Read the control word.
                         let word_start = i;
                         while i < len && bytes[i].is_ascii_alphabetic() {
                             i += 1;
                         }
                         let word = &text[word_start..i];
 
-                        // Skip optional numeric parameter.
-                        // Skip optional numeric parameter position tracking (position advanced below).
                         if i < len && (bytes[i] == b'-' || bytes[i].is_ascii_digit()) {
                             if bytes[i] == b'-' {
                                 i += 1;
@@ -730,7 +665,6 @@ fn strip_rtf_to_plain_text(rtf: &[u8]) -> String {
                             }
                         }
 
-                        // Consume optional space delimiter.
                         if i < len && bytes[i] == b' ' {
                             i += 1;
                         }
@@ -738,14 +672,12 @@ fn strip_rtf_to_plain_text(rtf: &[u8]) -> String {
                         match word {
                             "par" | "line" => output.push('\n'),
                             "tab" => output.push('\t'),
-                            // `\pard`, `\plain`, `\b`, `\i`, etc. — formatting, skip.
                             _ => {}
                         }
                     }
                 }
             }
             b'\r' | b'\n' if skip_depth.is_none() => {
-                // RTF uses \par for line breaks; literal newlines are ignored.
                 i += 1;
             }
             _ if skip_depth.is_some() => {
@@ -758,7 +690,6 @@ fn strip_rtf_to_plain_text(rtf: &[u8]) -> String {
         }
     }
 
-    // Collapse multiple blank lines and trim.
     let mut result = String::with_capacity(output.len());
     let mut prev_newline_count = 0u32;
     for ch in output.chars() {
@@ -781,30 +712,24 @@ fn extract_msg_from_cfb<F: std::io::Read + std::io::Seek>(
     comp: &mut cfb::CompoundFile<F>,
     fallback_codepage: Option<u32>,
 ) -> Result<EmailExtractionResult> {
-    // --- message-level properties ------------------------------------------
-
-    // Read the message code page. File-specified codepage always wins;
-    // fall back to user-configured fallback, then windows-1252.
-    let codepage = read_msg_int_prop(comp, "", 0x3FFD) // PR_MESSAGE_CODEPAGE
-        .or_else(|| read_msg_int_prop(comp, "", 0x3FDE)) // PR_INTERNET_CPID
+    let codepage = read_msg_int_prop(comp, "", 0x3FFD)
+        .or_else(|| read_msg_int_prop(comp, "", 0x3FDE))
         .or(fallback_codepage);
 
-    let subject = read_msg_string_prop(comp, "", 0x0037, codepage); // PR_SUBJECT
-    let sender_name = read_msg_string_prop(comp, "", 0x0C1A, codepage); // PR_SENDER_NAME
-    let sender_email = read_msg_string_prop(comp, "", 0x0C1F, codepage) // PR_SENDER_EMAIL_ADDRESS
-        .or_else(|| read_msg_string_prop(comp, "", 0x0065, codepage)) // PR_SENT_REPRESENTING_EMAIL
+    let subject = read_msg_string_prop(comp, "", 0x0037, codepage);
+    let sender_name = read_msg_string_prop(comp, "", 0x0C1A, codepage);
+    let sender_email = read_msg_string_prop(comp, "", 0x0C1F, codepage)
+        .or_else(|| read_msg_string_prop(comp, "", 0x0065, codepage))
         .filter(|s| !s.is_empty());
     let from_email = sender_email;
-    let body = read_msg_string_prop(comp, "", 0x1000, codepage); // PR_BODY
-    let html_body = read_msg_string_prop(comp, "", 0x1013, codepage); // PR_BODY_HTML
-    let message_id = read_msg_string_prop(comp, "", 0x1035, codepage) // PR_INTERNET_MESSAGE_ID
-        .filter(|s| !s.is_empty());
+    let body = read_msg_string_prop(comp, "", 0x1000, codepage);
+    let html_body = read_msg_string_prop(comp, "", 0x1013, codepage);
+    let message_id = read_msg_string_prop(comp, "", 0x1035, codepage).filter(|s| !s.is_empty());
 
-    // --- date: prefer PR_CLIENT_SUBMIT_TIME, fall back to transport headers ---
-    let date = read_msg_filetime_prop(comp, "", 0x0039) // PR_CLIENT_SUBMIT_TIME
-        .or_else(|| read_msg_filetime_prop(comp, "", 0x0E06)) // PR_MESSAGE_DELIVERY_TIME
+    let date = read_msg_filetime_prop(comp, "", 0x0039)
+        .or_else(|| read_msg_filetime_prop(comp, "", 0x0E06))
         .or_else(|| {
-            let headers = read_msg_string_prop(comp, "", 0x007D, codepage); // PR_TRANSPORT_MESSAGE_HEADERS
+            let headers = read_msg_string_prop(comp, "", 0x007D, codepage);
             headers.as_ref().and_then(|h| {
                 h.lines()
                     .find(|line| line.starts_with("Date:"))
@@ -812,10 +737,8 @@ fn extract_msg_from_cfb<F: std::io::Read + std::io::Seek>(
             })
         });
 
-    // --- recipients: read from substorages for full email addresses -----------
     let (to_emails, cc_emails, bcc_emails) = read_msg_recipients(comp, codepage);
 
-    // PR_RTF_COMPRESSED (0x1009) — binary stream, PT_BINARY (0102).
     let rtf_body = read_msg_stream(comp, "__substg1.0_10090102")
         .and_then(|data| decompress_rtf_compressed(&data))
         .map(|rtf| strip_rtf_to_plain_text(&rtf))
@@ -834,8 +757,6 @@ fn extract_msg_from_cfb<F: std::io::Read + std::io::Seek>(
         String::new()
     };
 
-    // --- attachment storages -----------------------------------------------
-
     let attach_paths: Vec<String> = comp
         .walk()
         .filter(|e| e.is_storage() && e.name().starts_with("__attach_"))
@@ -844,18 +765,17 @@ fn extract_msg_from_cfb<F: std::io::Read + std::io::Seek>(
 
     let mut attachments = Vec::with_capacity(attach_paths.len());
     for path in &attach_paths {
-        let long_name = read_msg_string_prop(comp, path, 0x3707, codepage); // PR_ATTACH_LONG_FILENAME
-        let short_name = read_msg_string_prop(comp, path, 0x3704, codepage); // PR_ATTACH_FILENAME
-        let display_name = read_msg_string_prop(comp, path, 0x3001, codepage); // PR_DISPLAY_NAME
-        let extension = read_msg_string_prop(comp, path, 0x3703, codepage); // PR_ATTACH_EXTENSION
-        let mime_tag = read_msg_string_prop(comp, path, 0x370E, codepage); // PR_ATTACH_MIME_TAG
+        let long_name = read_msg_string_prop(comp, path, 0x3707, codepage);
+        let short_name = read_msg_string_prop(comp, path, 0x3704, codepage);
+        let display_name = read_msg_string_prop(comp, path, 0x3001, codepage);
+        let extension = read_msg_string_prop(comp, path, 0x3703, codepage);
+        let mime_tag = read_msg_string_prop(comp, path, 0x370E, codepage);
 
         let filename = long_name
             .or(short_name)
             .or_else(|| display_name.clone())
             .or_else(|| extension.map(|ext| format!("attachment{ext}")));
 
-        // Read binary attachment data directly — no hex encoding.
         let bin_path = format!("{path}/__substg1.0_37010102");
         let binary_data = read_msg_stream(comp, &bin_path);
         let size = binary_data.as_ref().map(Vec::len);
@@ -875,8 +795,6 @@ fn extract_msg_from_cfb<F: std::io::Read + std::io::Seek>(
             data: att_data,
         });
     }
-
-    // --- metadata ----------------------------------------------------------
 
     let mut metadata = HashMap::new();
     if let Some(ref subj) = subject {
@@ -921,8 +839,6 @@ fn extract_msg_from_cfb<F: std::io::Read + std::io::Seek>(
         metadata,
     })
 }
-
-// --- MSG / CFB helper functions --------------------------------------------
 
 /// Read a raw CFB stream by path; returns `None` for missing or empty streams.
 fn read_msg_stream<F: std::io::Read + std::io::Seek>(comp: &mut cfb::CompoundFile<F>, path: &str) -> Option<Vec<u8>> {
@@ -976,7 +892,6 @@ fn read_msg_int_prop<F: std::io::Read + std::io::Seek>(
     let mut buf = Vec::new();
     stream.read_to_end(&mut buf).ok()?;
 
-    // Message-level properties have a 32-byte header; recipient/attachment have 8-byte.
     let header_size: usize = if base.is_empty() { 32 } else { 8 };
     let mut offset = header_size;
 
@@ -985,7 +900,6 @@ fn read_msg_int_prop<F: std::io::Read + std::io::Seek>(
         let pid = u16::from_le_bytes([buf[offset + 2], buf[offset + 3]]);
 
         if pid == prop_id && ptype == 0x0003 {
-            // PT_LONG — value sits in the first 4 bytes of the 8-byte value field
             return Some(u32::from_le_bytes(buf[offset + 8..offset + 12].try_into().ok()?));
         }
         offset += 16;
@@ -1003,12 +917,10 @@ fn read_msg_string_prop<F: std::io::Read + std::io::Seek>(
     prop_id: u16,
     codepage: Option<u32>,
 ) -> Option<String> {
-    // Try PT_UNICODE (001F) first.
     let unicode_path = format!("{base}/__substg1.0_{prop_id:04X}001F");
     if let Some(buf) = read_msg_stream(comp, &unicode_path) {
         return Some(decode_utf16le_bytes(&buf));
     }
-    // Fallback to PT_STRING8 (001E), decoded with the message code page.
     let ansi_path = format!("{base}/__substg1.0_{prop_id:04X}001E");
     read_msg_stream(comp, &ansi_path).map(|buf| {
         let encoding = codepage
@@ -1041,17 +953,14 @@ fn read_msg_filetime_prop<F: std::io::Read + std::io::Seek>(
     let mut buf = Vec::new();
     stream.read_to_end(&mut buf).ok()?;
 
-    // Message-level properties have a 32-byte header; recipient/attachment have 8-byte.
     let header_size: usize = if base.is_empty() { 32 } else { 8 };
     let mut offset = header_size;
 
     while offset + 16 <= buf.len() {
-        // MAPI property entry: prop_type (2) + prop_id (2) + flags (4) + value (8)
         let ptype = u16::from_le_bytes([buf[offset], buf[offset + 1]]);
         let pid = u16::from_le_bytes([buf[offset + 2], buf[offset + 3]]);
 
         if pid == prop_id && ptype == 0x0040 {
-            // PT_SYSTIME
             let filetime = u64::from_le_bytes(buf[offset + 8..offset + 16].try_into().ok()?);
             return filetime_to_iso8601(filetime);
         }
@@ -1062,7 +971,6 @@ fn read_msg_filetime_prop<F: std::io::Read + std::io::Seek>(
 
 /// Convert a Windows FILETIME (100-ns intervals since 1601-01-01) to ISO 8601.
 fn filetime_to_iso8601(filetime: u64) -> Option<String> {
-    // Epoch offset: difference between 1601-01-01 and 1970-01-01 in 100-ns intervals
     const EPOCH_DIFF: u64 = 116_444_736_000_000_000;
     if filetime < EPOCH_DIFF {
         return None;
@@ -1071,12 +979,10 @@ fn filetime_to_iso8601(filetime: u64) -> Option<String> {
     let secs = (hundred_ns / 10_000_000) as i64;
     let nanos = ((hundred_ns % 10_000_000) * 100) as u32;
 
-    // Format manually to avoid pulling in chrono
     let days_since_epoch = secs / 86400;
     let time_of_day = secs % 86400;
     let (hour, min, sec) = (time_of_day / 3600, (time_of_day % 3600) / 60, time_of_day % 60);
 
-    // Civil date calculation from days since 1970-01-01 (algorithm from Howard Hinnant)
     let z = days_since_epoch + 719468;
     let era = (if z >= 0 { z } else { z - 146096 }) / 146097;
     let doe = z - era * 146097;
@@ -1091,8 +997,7 @@ fn filetime_to_iso8601(filetime: u64) -> Option<String> {
     if nanos == 0 {
         Some(format!("{y:04}-{m:02}-{d:02}T{hour:02}:{min:02}:{sec:02}+00:00"))
     } else {
-        // Include sub-second precision
-        let frac = nanos / 1_000_000; // milliseconds
+        let frac = nanos / 1_000_000;
         Some(format!(
             "{y:04}-{m:02}-{d:02}T{hour:02}:{min:02}:{sec:02}.{frac:03}+00:00"
         ))
@@ -1106,7 +1011,6 @@ fn read_msg_recipients<F: std::io::Read + std::io::Seek>(
     comp: &mut cfb::CompoundFile<F>,
     codepage: Option<u32>,
 ) -> (Vec<String>, Vec<String>, Vec<String>) {
-    // Collect recipient storage paths
     let recip_paths: Vec<String> = comp
         .walk()
         .filter(|e| e.is_storage() && e.name().starts_with("__recip_version1.0_"))
@@ -1118,9 +1022,9 @@ fn read_msg_recipients<F: std::io::Read + std::io::Seek>(
     let mut bcc_emails = Vec::new();
 
     for path in &recip_paths {
-        let display_name = read_msg_string_prop(comp, path, 0x3001, codepage); // PR_DISPLAY_NAME
-        let email_addr = read_msg_string_prop(comp, path, 0x39FE, codepage) // PR_SMTP_ADDRESS
-            .or_else(|| read_msg_string_prop(comp, path, 0x3003, codepage)) // PR_EMAIL_ADDRESS
+        let display_name = read_msg_string_prop(comp, path, 0x3001, codepage);
+        let email_addr = read_msg_string_prop(comp, path, 0x39FE, codepage)
+            .or_else(|| read_msg_string_prop(comp, path, 0x3003, codepage))
             .filter(|s| !s.is_empty());
 
         let formatted = match (&display_name, &email_addr) {
@@ -1132,13 +1036,12 @@ fn read_msg_recipients<F: std::io::Read + std::io::Seek>(
             _ => continue,
         };
 
-        // Read PR_RECIPIENT_TYPE from properties stream
         let recip_type = read_msg_recip_type(comp, path);
         match recip_type {
-            1 => to_emails.push(formatted),  // MAPI_TO
-            2 => cc_emails.push(formatted),  // MAPI_CC
-            3 => bcc_emails.push(formatted), // MAPI_BCC
-            _ => to_emails.push(formatted),  // Default to To
+            1 => to_emails.push(formatted),
+            2 => cc_emails.push(formatted),
+            3 => bcc_emails.push(formatted),
+            _ => to_emails.push(formatted),
         }
     }
 
@@ -1160,15 +1063,12 @@ fn read_msg_recip_type<F: std::io::Read + std::io::Seek>(comp: &mut cfb::Compoun
         return 0;
     }
 
-    // Recipient properties have 8-byte header
     let mut offset = 8;
     while offset + 16 <= buf.len() {
-        // MAPI property entry: prop_type (2) + prop_id (2) + flags (4) + value (8)
         let ptype = u16::from_le_bytes([buf[offset], buf[offset + 1]]);
         let pid = u16::from_le_bytes([buf[offset + 2], buf[offset + 3]]);
 
         if pid == 0x0C15 && ptype == 0x0003 {
-            // PT_LONG
             return u32::from_le_bytes([buf[offset + 8], buf[offset + 9], buf[offset + 10], buf[offset + 11]]);
         }
         offset += 16;
@@ -1183,27 +1083,24 @@ fn read_msg_recip_type<F: std::io::Read + std::io::Seek>(comp: &mut cfb::Compoun
 fn extract_raw_date_header(data: &[u8]) -> Option<String> {
     let text = utf8_validation::from_utf8(data).ok()?;
 
-    // Find the end of headers (blank line)
     let header_end = text
         .find("\r\n\r\n")
         .or_else(|| text.find("\n\n"))
-        .unwrap_or(text.len().min(8192)); // Cap scan to 8KB
+        .unwrap_or(text.len().min(8192));
 
     let headers = &text[..header_end];
 
-    // Find Date: header (case-insensitive start, then exact field name)
     let mut date_value = None;
     for line in headers.lines() {
         if let Some(val) = line.strip_prefix("Date:").or_else(|| line.strip_prefix("date:")) {
             date_value = Some(val.trim().to_string());
         } else if date_value.is_some() && (line.starts_with(' ') || line.starts_with('\t')) {
-            // Continuation line (folded header)
             if let Some(ref mut dv) = date_value {
                 dv.push(' ');
                 dv.push_str(line.trim());
             }
         } else if date_value.is_some() {
-            break; // Next header field
+            break;
         }
     }
 
@@ -1221,15 +1118,13 @@ fn extract_raw_headers(data: &[u8]) -> HashMap<String, String> {
         Err(_) => return headers,
     };
 
-    // Find the end of headers (blank line)
     let header_end = text
         .find("\r\n\r\n")
         .or_else(|| text.find("\n\n"))
-        .unwrap_or(text.len().min(16384)); // Cap scan to 16KB
+        .unwrap_or(text.len().min(16384));
 
     let header_section = &text[..header_end];
 
-    // Headers to extract (case-insensitive key, metadata key)
     let target_headers: &[(&str, &str)] = &[
         ("content-type:", "content_type"),
         ("mime-version:", "mime_version"),
@@ -1244,7 +1139,6 @@ fn extract_raw_headers(data: &[u8]) -> HashMap<String, String> {
 
     for line in header_section.lines() {
         if line.starts_with(' ') || line.starts_with('\t') {
-            // Continuation line (folded header)
             if current_key.is_some() {
                 current_value.push(' ');
                 current_value.push_str(line.trim());
@@ -1252,7 +1146,6 @@ fn extract_raw_headers(data: &[u8]) -> HashMap<String, String> {
             continue;
         }
 
-        // Flush previous header if matched
         if let Some(key) = current_key {
             if !current_value.is_empty() {
                 headers.insert(key.to_string(), current_value.clone());
@@ -1261,7 +1154,6 @@ fn extract_raw_headers(data: &[u8]) -> HashMap<String, String> {
             current_value.clear();
         }
 
-        // Check if current line matches any target header
         let line_lower = line.to_lowercase();
         for &(prefix, meta_key) in target_headers {
             if line_lower.starts_with(prefix) {
@@ -1272,7 +1164,6 @@ fn extract_raw_headers(data: &[u8]) -> HashMap<String, String> {
         }
     }
 
-    // Flush last header
     if let Some(key) = current_key
         && !current_value.is_empty()
     {
@@ -1332,7 +1223,6 @@ pub(crate) fn build_email_text_output(result: &EmailExtractionResult) -> String 
 
     text_parts.push(result.content.clone());
 
-    // Attachment names live in metadata only; do not inline an "Attachments:" section.
     text_parts.join("\n")
 }
 
@@ -1341,7 +1231,6 @@ fn clean_html_content(html: &str) -> String {
         return String::new();
     }
 
-    // Use html-to-markdown converter in plain text mode when available
     #[cfg(feature = "html")]
     {
         if let Ok(text) = crate::extraction::html::convert_html_to_markdown(
@@ -1356,7 +1245,6 @@ fn clean_html_content(html: &str) -> String {
         }
     }
 
-    // Fallback: regex-based HTML stripping
     let cleaned = script_regex().replace_all(html, "");
     let cleaned = style_regex().replace_all(&cleaned, "");
     let cleaned = html_tag_regex().replace_all(&cleaned, "");
@@ -1451,8 +1339,6 @@ mod tests {
             "Should contain text: {}",
             cleaned
         );
-        // Whitespace may be collapsed or converted to newlines depending on
-        // whether the html feature is enabled (block-level elements → newlines).
         assert!(
             !cleaned.contains("  "),
             "Should not have consecutive spaces: {}",
@@ -1581,7 +1467,6 @@ mod tests {
         };
 
         let output = build_email_text_output(&result);
-        // Attachment names are stored in metadata, not in text output
         assert!(!output.contains("Attachments:"));
         assert!(output.contains("Hello World"));
     }
@@ -1903,10 +1788,6 @@ mod tests {
 
     #[test]
     fn test_html_only_eml_script_stripping() {
-        // Regression test: HTML-only emails must strip <script> content.
-        // mail-parser's body_text() auto-converts HTML to text via a naive
-        // tag-stripper that preserves script content. We must detect this
-        // case and use clean_html_content() instead.
         let eml_data = std::fs::read(concat!(
             env!("CARGO_MANIFEST_DIR"),
             "/../../test_documents/email/html_only.eml"
@@ -1932,7 +1813,6 @@ mod tests {
 
     #[test]
     fn test_parse_msg_content_invalid_with_fallback() {
-        // With a user-configured fallback, invalid data still returns an error.
         let result = parse_msg_content(b"not a msg file", Some(1251));
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), XbergError::Parsing { .. }));
@@ -1940,8 +1820,6 @@ mod tests {
 
     #[test]
     fn test_extract_email_content_invalid_codepage_is_silent() {
-        // Unknown codepage 99999 should not cause an error on a valid EML file.
-        // EML ignores fallback_codepage (it's MSG-only), so this tests no panic.
         let eml = b"From: a@b.com\r\nSubject: Test\r\n\r\nBody";
         let result = extract_email_content(eml, "message/rfc822", Some(99999));
         assert!(result.is_ok());
@@ -1949,7 +1827,6 @@ mod tests {
 
     #[test]
     fn test_parse_msg_default_unchanged_with_real_fixture() {
-        // This is a Western English fixture, so windows-1252 default is correct.
         let data = include_bytes!("../../../../test_documents/vendored/unstructured/msg/fake-email.msg");
         let result = parse_msg_content(data, None).unwrap();
         assert!(!result.content.is_empty());
@@ -1957,8 +1834,6 @@ mod tests {
 
     #[test]
     fn test_parse_msg_invalid_codepage_falls_back_silently() {
-        // An unrecognized fallback codepage (99999) silently degrades to windows-1252.
-        // For a Western English fixture the output is identical to the no-fallback case.
         let data = include_bytes!("../../../../test_documents/vendored/unstructured/msg/fake-email.msg");
         let result_invalid = parse_msg_content(data, Some(99999)).unwrap();
         let result_default = parse_msg_content(data, None).unwrap();
@@ -2076,44 +1951,31 @@ mod tests {
 
     #[test]
     fn test_decompress_rtf_compressed_crafted_raw_size_does_not_over_allocate() {
-        // Regression for #1058: raw_size = 0xFFFF_FFFF must not cause a 4 GiB
-        // Vec::with_capacity call. The capacity hint is capped to
-        // MAX_RTF_DECOMPRESSED_CAPACITY; decompression must still return normally.
         let mut data = Vec::with_capacity(20);
-        // comp_size = 16 → end = (16 - 12).min(input.len()) = 4
         data.extend_from_slice(&16u32.to_le_bytes());
-        // raw_size = attacker-controlled maximum
         data.extend_from_slice(&0xFFFF_FFFFu32.to_le_bytes());
-        // magic = LZFu (compressed path)
         data.extend_from_slice(&0x75465a4cu32.to_le_bytes());
-        // crc (skipped)
         data.extend_from_slice(&0u32.to_le_bytes());
-        // Four literal payload bytes (all control-flag=0 → four literal copies)
         data.extend_from_slice(&[0x00, b'A', b'B', b'C']);
 
         let result = decompress_rtf_compressed(&data);
-        // Must return Some with a tiny output — not OOM, not None.
         let out = result.expect("should decompress without error");
         assert!(out.len() < 16, "output should be tiny, not a huge allocation");
     }
 
     #[test]
     fn test_decompress_rtf_compressed_cap_is_hint_only() {
-        // Verify MAX_RTF_DECOMPRESSED_CAPACITY is a *hint*, not a hard truncation.
-        // Set raw_size = 1 (under-estimate), produce 24 bytes of output, and
-        // assert the Vec grew past the hint to hold the full decompressed payload.
         let payload: &[u8] = &[
-            0x00, b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', // group 1: 8 literals
-            0x00, b'I', b'J', b'K', b'L', b'M', b'N', b'O', b'P', // group 2: 8 literals
-            0x00, b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X', // group 3: 8 literals
+            0x00, b'A', b'B', b'C', b'D', b'E', b'F', b'G', b'H', 0x00, b'I', b'J', b'K', b'L', b'M', b'N', b'O', b'P',
+            0x00, b'Q', b'R', b'S', b'T', b'U', b'V', b'W', b'X',
         ];
         let comp_size = (12 + payload.len()) as u32;
-        let raw_size = 1u32; // deliberate under-estimate — hint only, not a truncation limit
+        let raw_size = 1u32;
         let mut data: Vec<u8> = Vec::new();
         data.extend_from_slice(&comp_size.to_le_bytes());
         data.extend_from_slice(&raw_size.to_le_bytes());
-        data.extend_from_slice(&0x75465a4cu32.to_le_bytes()); // LZFu
-        data.extend_from_slice(&0u32.to_le_bytes()); // crc
+        data.extend_from_slice(&0x75465a4cu32.to_le_bytes());
+        data.extend_from_slice(&0u32.to_le_bytes());
         data.extend_from_slice(payload);
 
         let out = decompress_rtf_compressed(&data).expect("should decompress");
@@ -2133,22 +1995,20 @@ mod tests {
     #[test]
     fn test_decompress_rtf_compressed_bad_magic() {
         let mut data = [0u8; 16];
-        // Set a bogus magic value.
         data[8..12].copy_from_slice(&0xDEAD_BEEFu32.to_le_bytes());
         assert!(decompress_rtf_compressed(&data).is_none());
     }
 
     #[test]
     fn test_decompress_rtf_compressed_uncompressed_magic() {
-        // MELA magic (0x414c454d) means the payload is uncompressed RTF.
         let rtf_payload = b"{\\rtf1 Hello}";
         let comp_size = (rtf_payload.len() + 12) as u32;
         let raw_size = rtf_payload.len() as u32;
         let mut data = Vec::new();
         data.extend_from_slice(&comp_size.to_le_bytes());
         data.extend_from_slice(&raw_size.to_le_bytes());
-        data.extend_from_slice(&0x414c_454du32.to_le_bytes()); // MELA
-        data.extend_from_slice(&0u32.to_le_bytes()); // CRC
+        data.extend_from_slice(&0x414c_454du32.to_le_bytes());
+        data.extend_from_slice(&0u32.to_le_bytes());
         data.extend_from_slice(rtf_payload);
 
         let result = decompress_rtf_compressed(&data).unwrap();
@@ -2173,19 +2033,17 @@ mod tests {
 
     #[test]
     fn test_strip_rtf_to_plain_text_unicode() {
-        // \u8364? is the euro sign, with `?` as ANSI substitution.
         let rtf = b"{\\rtf1 Price: \\u8364?100}";
         let result = strip_rtf_to_plain_text(rtf);
-        assert!(result.contains('\u{20AC}')); // Euro sign
+        assert!(result.contains('\u{20AC}'));
         assert!(result.contains("100"));
     }
 
     #[test]
     fn test_strip_rtf_to_plain_text_hex_escape() {
-        // \'e9 is e-acute in windows-1252.
         let rtf = b"{\\rtf1 caf\\'e9}";
         let result = strip_rtf_to_plain_text(rtf);
-        assert!(result.contains("caf\u{00e9}")); // cafe with accent
+        assert!(result.contains("caf\u{00e9}"));
     }
 
     #[test]
@@ -2213,34 +2071,24 @@ mod tests {
 
     #[test]
     fn test_maybe_transcode_utf16_robustness() {
-        // 1. Tiny ambiguous ASCII sample (4 bytes with nulls)
-        // Should NOT be transcoded because it's too short (< 16 bytes)
         let tiny_ambiguous = b"t\0e\0";
         assert!(maybe_transcode_utf16(tiny_ambiguous).is_none());
 
-        // 2. Real UTF-16LE with BOM
-        // Should ALWAYS be transcoded
         let mut with_bom_le = vec![0xFF, 0xFE];
         with_bom_le.extend_from_slice(&"Test".encode_utf16().flat_map(|u| u.to_le_bytes()).collect::<Vec<u8>>());
         let result = maybe_transcode_utf16(&with_bom_le).expect("Should transcode LE with BOM");
         assert_eq!(String::from_utf8(result).unwrap(), "Test");
 
-        // 3. Real UTF-16BE with BOM
-        // Should ALWAYS be transcoded
         let mut with_bom_be = vec![0xFE, 0xFF];
         with_bom_be.extend_from_slice(&"Test".encode_utf16().flat_map(|u| u.to_be_bytes()).collect::<Vec<u8>>());
         let result = maybe_transcode_utf16(&with_bom_be).expect("Should transcode BE with BOM");
         assert_eq!(String::from_utf8(result).unwrap(), "Test");
 
-        // 4. Long UTF-16LE without BOM (e.g. "Subject: ...")
-        // Should be transcoded because it's long enough (>= 16 bytes) and matches the null pattern
         let long_text = "Subject: This is a long enough string to trigger the heuristic.";
         let long_utf16_le: Vec<u8> = long_text.encode_utf16().flat_map(|u| u.to_le_bytes()).collect();
         let result = maybe_transcode_utf16(&long_utf16_le).expect("Should transcode long non-BOM LE");
         assert_eq!(String::from_utf8(result).unwrap(), long_text);
 
-        // 5. Long UTF-8 without nulls
-        // Should NOT be transcoded
         let long_utf8 = b"Subject: This is a normal UTF-8 string without any null bytes.";
         assert!(maybe_transcode_utf16(long_utf8).is_none());
     }

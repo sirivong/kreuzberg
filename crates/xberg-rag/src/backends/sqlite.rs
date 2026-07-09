@@ -40,8 +40,6 @@ use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::instrument;
 
-// ── sqlite-vec registration ──────────────────────────────────────────────────
-
 /// Register the sqlite-vec extension with SQLite's auto-extension mechanism.
 ///
 /// Called once before the first `Connection::open*`. Every subsequent connection
@@ -50,35 +48,17 @@ use tracing::instrument;
 #[allow(unsafe_code)]
 fn register_sqlite_vec_once() {
     static INIT: std::sync::Once = std::sync::Once::new();
-    INIT.call_once(|| {
-        // SAFETY: `sqlite3_vec_init` is the canonical SQLite extension entry point
-        // from the statically-linked sqlite-vec library. Its actual C signature is
-        //
-        //     int sqlite3_vec_init(sqlite3*, char**, const sqlite3_api_routines*)
-        //
-        // which matches the auto-extension callback contract. The sqlite-vec Rust
-        // crate declares the symbol as `fn()` (no args, no return) for linker
-        // purposes only; we recover the correct function pointer type by casting
-        // through a raw `*const ()`, identical to the pattern in sqlite-vec's own
-        // test suite. SQLite's runtime then calls the function with the three
-        // correct arguments. `Once` guarantees exactly one registration per
-        // process, preventing duplicate-registration errors.
-        unsafe {
-            // The target type is the auto-extension callback:
-            //   unsafe extern "C" fn(*mut sqlite3, *mut *mut c_char, *const sqlite3_api_routines) -> c_int
-            type AutoExtFn = unsafe extern "C" fn(
-                *mut rusqlite::ffi::sqlite3,
-                *mut *mut std::ffi::c_char,
-                *const rusqlite::ffi::sqlite3_api_routines,
-            ) -> std::ffi::c_int;
-            rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute::<*const (), AutoExtFn>(
-                sqlite_vec::sqlite3_vec_init as *const (),
-            )));
-        }
+    INIT.call_once(|| unsafe {
+        type AutoExtFn = unsafe extern "C" fn(
+            *mut rusqlite::ffi::sqlite3,
+            *mut *mut std::ffi::c_char,
+            *const rusqlite::ffi::sqlite3_api_routines,
+        ) -> std::ffi::c_int;
+        rusqlite::ffi::sqlite3_auto_extension(Some(std::mem::transmute::<*const (), AutoExtFn>(
+            sqlite_vec::sqlite3_vec_init as *const (),
+        )));
     });
 }
-
-// ── Error helpers ────────────────────────────────────────────────────────────
 
 fn be(e: rusqlite::Error) -> RagError {
     RagError::Backend(Box::new(e))
@@ -88,7 +68,26 @@ fn io_be(msg: &str) -> RagError {
     RagError::Backend(Box::new(std::io::Error::other(msg.to_string())))
 }
 
-// ── Encoding / decoding ──────────────────────────────────────────────────────
+/// Truncate `items` to the top `k` elements by `cmp`, in the same order a full
+/// `sort_by(cmp)` followed by `truncate(k)` would produce.
+///
+/// When `k` is smaller than `items.len()`, partitions with
+/// [`slice::select_nth_unstable_by`] (`O(n)`) to isolate the top-k elements
+/// before sorting only that k-slice (`O(k log k)`), instead of fully sorting
+/// all `n` elements (`O(n log n)`). Falls back to a plain sort when `k` is not
+/// smaller than the input (nothing to save) or is `0` (nothing to sort).
+fn truncate_top_k_by<T, F>(items: &mut Vec<T>, k: usize, mut cmp: F)
+where
+    F: FnMut(&T, &T) -> std::cmp::Ordering,
+{
+    if k < items.len() {
+        if k > 0 {
+            items.select_nth_unstable_by(k - 1, &mut cmp);
+        }
+        items.truncate(k);
+    }
+    items.sort_by(cmp);
+}
 
 /// Encode a `Vec<f32>` as little-endian bytes for sqlite-vec MATCH parameters.
 fn encode_vec(v: &[f32]) -> Vec<u8> {
@@ -202,8 +201,6 @@ fn now_unix() -> i64 {
         .unwrap_or(0)
 }
 
-// ── Per-collection virtual-table name helpers ────────────────────────────────
-
 fn vec_table(rowid: i64) -> String {
     format!("vec_c{rowid}")
 }
@@ -211,8 +208,6 @@ fn vec_table(rowid: i64) -> String {
 fn fts_table(rowid: i64) -> String {
     format!("fts_c{rowid}")
 }
-
-// ── Schema setup ─────────────────────────────────────────────────────────────
 
 const BASE_SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS collections (
@@ -288,7 +283,6 @@ fn migrate_chunk_side_vector_columns(conn: &Connection) -> rusqlite::Result<()> 
 }
 
 fn setup_pragmas(conn: &Connection, in_memory: bool) -> rusqlite::Result<()> {
-    // WAL mode requires a real file; in-memory databases only support DELETE mode.
     if in_memory {
         conn.execute_batch("PRAGMA foreign_keys = ON;")
     } else {
@@ -299,8 +293,6 @@ fn setup_pragmas(conn: &Connection, in_memory: bool) -> rusqlite::Result<()> {
         )
     }
 }
-
-// ── Collection row helper ────────────────────────────────────────────────────
 
 struct CollectionRow {
     rowid: i64,
@@ -328,8 +320,6 @@ fn get_collection_row(conn: &Connection, name: &str) -> rusqlite::Result<Option<
         Err(e) => Err(e),
     }
 }
-
-// ── Row structs for internal retrieval ──────────────────────────────────────
 
 struct ChunkRow {
     id: String,
@@ -411,12 +401,6 @@ fn doc_to_summary(id: &DocumentId, rec: &DocumentRecord, ingested_at: i64) -> Do
     }
 }
 
-// ── In-process filter evaluation ─────────────────────────────────────────────
-//
-// All filter predicates are evaluated in Rust after SQL retrieval. This avoids
-// translating the Filter IR into SQL (which would require careful quoting of
-// arbitrary field paths) and is safe for v1 collection sizes.
-
 fn resolve_field_value(field: &FilterField, doc: &DocumentRecord, chunk: &ChunkRecord) -> Option<serde_json::Value> {
     let parsed = field.parse().ok()?;
     match parsed.namespace {
@@ -429,8 +413,6 @@ fn resolve_field_value(field: &FilterField, doc: &DocumentRecord, chunk: &ChunkR
             "keywords" => serde_json::to_value(&doc.keywords).ok(),
             "labels" => Some(doc.labels.clone()),
             "entities" => Some(doc.entities.clone()),
-            // ingested_at is not in DocumentRecord; callers can filter by it
-            // if the backend stored it — for Rust evaluation we can't see it here
             "ingested_at" => None,
             path if path.starts_with("metadata.") => json_pointer(&doc.metadata, &path["metadata.".len()..]),
             _ => None,
@@ -504,8 +486,6 @@ fn eval_filter(filter: &Filter, doc: &DocumentRecord, chunk: &ChunkRecord) -> bo
     }
 }
 
-// ── Transaction helper ────────────────────────────────────────────────────────
-
 /// Run `f` inside a `BEGIN IMMEDIATE … COMMIT` transaction.
 ///
 /// On error, rolls back and returns the error. Uses `&Connection` (not
@@ -527,8 +507,6 @@ where
         }
     }
 }
-
-// ── The store struct ──────────────────────────────────────────────────────────
 
 /// An embedded vector store backed by SQLite (`rusqlite`) + the `sqlite-vec`
 /// vector-search extension.
@@ -607,8 +585,6 @@ impl SqliteVectorStore {
     }
 }
 
-// ── VectorStore implementation ────────────────────────────────────────────────
-
 #[async_trait]
 impl VectorStore for SqliteVectorStore {
     fn name(&self) -> &str {
@@ -620,16 +596,8 @@ impl VectorStore for SqliteVectorStore {
             full_text: true,
             hybrid: true,
             filtering: true,
-            // Sparse is a brute-force scan over the stored side vectors (no
-            // dedicated index), analogous to the vec0 scan. Late-interaction is
-            // NOT exhaustive here: it seeds candidates via dense KNN over
-            // query_vector (recall bounded by candidate_k) and reranks only
-            // that set with MaxSim — see `RetrieveMode::LateInteraction` for
-            // how this differs from the in-memory backend's exhaustive scan.
             sparse: true,
             late_interaction: true,
-            // sqlite-vec vec0 performs exact brute-force scan (Flat).
-            // HNSW is not implemented by sqlite-vec 0.1.x.
             index_methods: vec![IndexMethod::Flat],
         }
     }
@@ -643,24 +611,22 @@ impl VectorStore for SqliteVectorStore {
                 Some(row) if row.spec.embedding_dim != spec.embedding_dim => {
                     Err(RagError::CollectionAlreadyExists(spec.name))
                 }
-                Some(_) => Ok(()), // Compatible; idempotent.
-                None => {
-                    with_tx(conn, || {
-                        let dim = spec.embedding_dim;
-                        let m = metric_str(spec.distance_metric);
-                        let idx = index_method_str(spec.index_method);
-                        conn.execute(
-                            "INSERT INTO collections (name, embedding_dim, distance_metric, index_method)
+                Some(_) => Ok(()),
+                None => with_tx(conn, || {
+                    let dim = spec.embedding_dim;
+                    let m = metric_str(spec.distance_metric);
+                    let idx = index_method_str(spec.index_method);
+                    conn.execute(
+                        "INSERT INTO collections (name, embedding_dim, distance_metric, index_method)
                              VALUES (?1, ?2, ?3, ?4)",
-                            params![spec.name, dim, m, idx],
-                        )
-                        .map_err(be)?;
-                        let rowid = conn.last_insert_rowid();
-                        let vt = vec_table(rowid);
-                        let ft = fts_table(rowid);
-                        // DDL inside a transaction is allowed in SQLite.
-                        conn.execute_batch(&format!(
-                            "CREATE VIRTUAL TABLE IF NOT EXISTS {vt} USING vec0(
+                        params![spec.name, dim, m, idx],
+                    )
+                    .map_err(be)?;
+                    let rowid = conn.last_insert_rowid();
+                    let vt = vec_table(rowid);
+                    let ft = fts_table(rowid);
+                    conn.execute_batch(&format!(
+                        "CREATE VIRTUAL TABLE IF NOT EXISTS {vt} USING vec0(
                                  chunk_id TEXT PRIMARY KEY,
                                  embedding float[{dim}] distance_metric={m}
                              );
@@ -668,11 +634,10 @@ impl VectorStore for SqliteVectorStore {
                                  chunk_id UNINDEXED,
                                  content
                              );"
-                        ))
-                        .map_err(be)?;
-                        Ok(())
-                    })
-                }
+                    ))
+                    .map_err(be)?;
+                    Ok(())
+                }),
             }
         })
         .await
@@ -731,7 +696,6 @@ impl VectorStore for SqliteVectorStore {
                 .ok_or_else(|| RagError::CollectionNotFound(collection.clone()))?;
             let dim = row.spec.embedding_dim;
 
-            // Dimension + side-vector validation before any writes.
             for chunk in &chunks {
                 if chunk.embedding.len() as u32 != dim {
                     return Err(RagError::EmbeddingDimMismatch {
@@ -746,7 +710,6 @@ impl VectorStore for SqliteVectorStore {
             let ft = fts_table(row.rowid);
 
             with_tx(conn, || {
-                // Resolve identity: reuse existing id for known external_id.
                 let doc_id: DocumentId = match document.external_id.as_deref() {
                     Some(ext) => {
                         let mut stmt = conn
@@ -754,7 +717,6 @@ impl VectorStore for SqliteVectorStore {
                             .map_err(be)?;
                         match stmt.query_row(params![collection, ext], |r| r.get::<_, String>(0)) {
                             Ok(id) => {
-                                // Replace: delete old chunks from all tables.
                                 delete_chunks_for_doc(conn, &id, &vt, &ft)?;
                                 DocumentId(id)
                             }
@@ -767,7 +729,6 @@ impl VectorStore for SqliteVectorStore {
                     None => insert_new_document(conn, &collection, &document, &store_name)?,
                 };
 
-                // Update document row if it already existed (upsert metadata).
                 conn.execute(
                     "UPDATE documents SET
                          external_id = ?2, title = ?3, mime = ?4, source_uri = ?5,
@@ -790,7 +751,6 @@ impl VectorStore for SqliteVectorStore {
                 )
                 .map_err(be)?;
 
-                // Insert chunks.
                 for chunk in &chunks {
                     let chunk_id = ChunkId(format!("{}:{}", doc_id.0, chunk.ordinal));
                     let blob = encode_vec(&chunk.embedding);
@@ -816,14 +776,12 @@ impl VectorStore for SqliteVectorStore {
                     )
                     .map_err(be)?;
 
-                    // Insert into vec0 virtual table.
                     conn.execute(
                         &format!("INSERT INTO {vt} (chunk_id, embedding) VALUES (?1, ?2)"),
                         params![chunk_id.0, blob],
                     )
                     .map_err(be)?;
 
-                    // Insert into FTS5 virtual table.
                     conn.execute(
                         &format!("INSERT INTO {ft} (chunk_id, content) VALUES (?1, ?2)"),
                         params![chunk_id.0, chunk.content],
@@ -882,7 +840,6 @@ impl VectorStore for SqliteVectorStore {
             let vt = vec_table(row.rowid);
             let ft = fts_table(row.rowid);
 
-            // Load all (doc_id, DocumentRecord) pairs in the collection.
             let doc_ids: Vec<String> = {
                 let mut stmt = conn
                     .prepare_cached("SELECT id FROM documents WHERE collection = ?1")
@@ -898,7 +855,6 @@ impl VectorStore for SqliteVectorStore {
                 let Some((doc_rec, _)) = load_document_record(conn, doc_id).map_err(be)? else {
                     continue;
                 };
-                // Load chunks for this document.
                 let chunk_ids: Vec<String> = {
                     let mut stmt = conn
                         .prepare_cached(
@@ -911,9 +867,7 @@ impl VectorStore for SqliteVectorStore {
                         .collect::<rusqlite::Result<Vec<_>>>()
                         .map_err(be)?
                 };
-                // A document matches if any chunk satisfies the filter.
                 let matches = chunk_ids.iter().any(|cid| {
-                    // Load full chunk for filter evaluation.
                     conn.query_row(
                         "SELECT ordinal, external_id, content, embedding, chunk_metadata
                          FROM chunks WHERE id = ?1",
@@ -924,7 +878,7 @@ impl VectorStore for SqliteVectorStore {
                                 external_id: r.get(1)?,
                                 ordinal: r.get::<_, u32>(0)?,
                                 content: r.get(2)?,
-                                embedding: Vec::new(), // not needed for filter
+                                embedding: Vec::new(),
                                 sparse_embedding: None,
                                 multi_vector: None,
                                 chunk_metadata: serde_json::from_str(&meta_str).unwrap_or(serde_json::Value::Null),
@@ -1026,12 +980,10 @@ impl VectorStore for SqliteVectorStore {
 
             let primary_latency_ms = t0.elapsed().as_millis() as u64;
 
-            // Apply Rust-side filter.
             if let Some(ref filter) = query.filter {
                 chunks = filter_chunks(conn, chunks, filter)?;
             }
 
-            // Attach document summaries if requested.
             if query.include_document {
                 for chunk in &mut chunks {
                     if let Some((rec, iat)) = load_document_record(conn, &chunk.document_id.0).map_err(be)? {
@@ -1040,7 +992,6 @@ impl VectorStore for SqliteVectorStore {
                 }
             }
 
-            // Deduplicate per document (keep best score per document).
             if query.group_by_document {
                 let mut seen: std::collections::HashMap<DocumentId, ()> = std::collections::HashMap::new();
                 chunks.retain(|c| seen.insert(c.document_id.clone(), ()).is_none());
@@ -1099,8 +1050,6 @@ impl VectorStore for SqliteVectorStore {
     }
 }
 
-// ── Private helper functions ─────────────────────────────────────────────────
-
 /// Insert a new document row with a rowid-derived id and return the id.
 fn insert_new_document(
     conn: &Connection,
@@ -1108,7 +1057,6 @@ fn insert_new_document(
     document: &DocumentRecord,
     store_name: &str,
 ) -> RagResult<DocumentId> {
-    // Insert a placeholder to obtain a stable rowid.
     conn.execute(
         "INSERT INTO documents
              (id, collection, external_id, title, mime, source_uri,
@@ -1142,7 +1090,6 @@ fn insert_new_document(
 /// Delete all chunks for `doc_id` from `chunks`, `vec0`, and `fts5` tables.
 /// Returns the number of rows removed from `chunks`.
 fn delete_chunks_for_doc(conn: &Connection, doc_id: &str, vec_tbl: &str, fts_tbl: &str) -> RagResult<usize> {
-    // Collect chunk ids first.
     let chunk_ids: Vec<String> = {
         let mut stmt = conn
             .prepare_cached("SELECT id FROM chunks WHERE document_id = ?1")
@@ -1169,11 +1116,9 @@ fn delete_chunks_for_doc(conn: &Connection, doc_id: &str, vec_tbl: &str, fts_tbl
 fn filter_chunks(conn: &Connection, chunks: Vec<RetrievedChunk>, filter: &Filter) -> RagResult<Vec<RetrievedChunk>> {
     let mut out = Vec::with_capacity(chunks.len());
     for chunk in chunks {
-        // Load the document record for filter evaluation.
         let Some((doc_rec, _)) = load_document_record(conn, &chunk.document_id.0).map_err(be)? else {
             continue;
         };
-        // Load the chunk record (content + metadata).
         let Some(chunk_rec) = conn
             .query_row(
                 "SELECT ordinal, external_id, content, embedding, chunk_metadata
@@ -1185,7 +1130,7 @@ fn filter_chunks(conn: &Connection, chunks: Vec<RetrievedChunk>, filter: &Filter
                         ordinal: r.get::<_, u32>(0)?,
                         external_id: r.get(1)?,
                         content: r.get(2)?,
-                        embedding: Vec::new(), // not needed for filter evaluation
+                        embedding: Vec::new(),
                         sparse_embedding: None,
                         multi_vector: None,
                         chunk_metadata: serde_json::from_str(&meta_str).unwrap_or(serde_json::Value::Null),
@@ -1202,8 +1147,6 @@ fn filter_chunks(conn: &Connection, chunks: Vec<RetrievedChunk>, filter: &Filter
     }
     Ok(out)
 }
-
-// ── Retrieval sub-functions ──────────────────────────────────────────────────
 
 fn retrieve_vector(
     conn: &Connection,
@@ -1229,12 +1172,10 @@ fn retrieve_vector(
     let ids: Vec<String> = knn.iter().map(|(id, _)| id.clone()).collect();
     let rows = load_chunks_by_ids(conn, &ids).map_err(be)?;
 
-    // sqlite-vec returns ascending distance (lower = more similar).
-    // Convert to a 0-1 similarity: similarity = 1 / (1 + distance).
     knn.iter()
         .filter_map(|(cid, dist)| {
             let row = rows.iter().find(|r| &r.id == cid)?;
-            let score = 1.0 / (1.0 + dist); // monotone transform, preserves rank
+            let score = 1.0 / (1.0 + dist);
             Some(Ok(RetrievedChunk {
                 id: ChunkId(cid.clone()),
                 document_id: DocumentId(row.document_id.clone()),
@@ -1257,7 +1198,6 @@ fn retrieve_fts(
     candidate_k: i64,
     query: &RetrieveQuery,
 ) -> RagResult<Vec<RetrievedChunk>> {
-    // FTS5: rank is BM25 (negative; more-negative = more relevant).
     let sql = format!(
         "SELECT chunk_id, -rank AS score FROM {fts_tbl}
          WHERE content MATCH ?1
@@ -1309,7 +1249,6 @@ fn retrieve_hybrid(
     candidate_k: i64,
     query: &RetrieveQuery,
 ) -> RagResult<Vec<RetrievedChunk>> {
-    // Run vector arm (if a query vector was provided).
     let vec_hits: Vec<(String, f32)> = if let Some(qv) = query_vector {
         let blob = encode_vec(qv);
         let sql = format!(
@@ -1327,7 +1266,6 @@ fn retrieve_hybrid(
         Vec::new()
     };
 
-    // Run FTS arm.
     let fts_hits: Vec<(String, f32)> = {
         let sql = format!(
             "SELECT chunk_id, -rank AS score FROM {fts_tbl}
@@ -1344,14 +1282,11 @@ fn retrieve_hybrid(
         .map_err(be)?
     };
 
-    // Run sparse arm (only when the caller supplied a sparse query vector).
     let sparse_hits: Vec<(String, f32)> = match query_sparse {
         Some(qs) => sparse_scan(conn, collection, qs, candidate_k)?,
         None => Vec::new(),
     };
 
-    // Reciprocal Rank Fusion over the (up to) three arms.
-    // Value tuple: (rrf_score, vec_score, fts_score, sparse_score).
     let mut rrf_map: std::collections::HashMap<String, (f32, f32, f32, f32)> = std::collections::HashMap::new();
 
     for (rank, (cid, dist)) in vec_hits.iter().enumerate() {
@@ -1374,21 +1309,22 @@ fn retrieve_hybrid(
         entry.3 = *sparse_score;
     }
 
-    // Sort by RRF score descending.
     let mut ranked: Vec<(String, f32, f32, f32, f32)> = rrf_map
         .into_iter()
         .map(|(id, (rrf, vec, fts, sparse))| (id, rrf, vec, fts, sparse))
         .collect();
-    ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    ranked.truncate(candidate_k as usize);
+    truncate_top_k_by(&mut ranked, candidate_k.max(0) as usize, |a, b| {
+        b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let ids: Vec<String> = ranked.iter().map(|(id, ..)| id.clone()).collect();
     let rows = load_chunks_by_ids(conn, &ids).map_err(be)?;
+    let rows_by_id: std::collections::HashMap<&str, &ChunkRow> = rows.iter().map(|r| (r.id.as_str(), r)).collect();
 
     ranked
         .iter()
         .filter_map(|(cid, rrf, vec, fts, sparse)| {
-            let row = rows.iter().find(|r| &r.id == cid)?;
+            let row = rows_by_id.get(cid.as_str()).copied()?;
             Some(Ok(RetrievedChunk {
                 id: ChunkId(cid.clone()),
                 document_id: DocumentId(row.document_id.clone()),
@@ -1440,8 +1376,9 @@ fn sparse_scan(
             (score > 0.0).then_some((id, score))
         })
         .collect();
-    scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    scored.truncate(limit.max(0) as usize);
+    truncate_top_k_by(&mut scored, limit.max(0) as usize, |a, b| {
+        b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal)
+    });
     Ok(scored)
 }
 
@@ -1456,10 +1393,11 @@ fn retrieve_sparse(
     let scored = sparse_scan(conn, collection, query_sparse, candidate_k)?;
     let ids: Vec<String> = scored.iter().map(|(id, _)| id.clone()).collect();
     let rows = load_chunks_by_ids(conn, &ids).map_err(be)?;
+    let rows_by_id: std::collections::HashMap<&str, &ChunkRow> = rows.iter().map(|r| (r.id.as_str(), r)).collect();
     scored
         .iter()
         .filter_map(|(cid, score)| {
-            let row = rows.iter().find(|r| &r.id == cid)?;
+            let row = rows_by_id.get(cid.as_str()).copied()?;
             Some(Ok(RetrievedChunk {
                 id: ChunkId(cid.clone()),
                 document_id: DocumentId(row.document_id.clone()),
@@ -1489,7 +1427,6 @@ fn retrieve_late_interaction(
     candidate_k: i64,
     query: &RetrieveQuery,
 ) -> RagResult<Vec<RetrievedChunk>> {
-    // Seed candidates via dense KNN.
     let blob = encode_vec(query_vector);
     let sql = format!(
         "SELECT chunk_id FROM {vec_tbl}
@@ -1506,7 +1443,6 @@ fn retrieve_late_interaction(
         return Ok(Vec::new());
     }
 
-    // Load candidate multi-vectors and rescore with MaxSim.
     let placeholders = std::iter::repeat_n("?", ids.len()).collect::<Vec<_>>().join(",");
     let load_sql = format!(
         "SELECT id, document_id, ordinal, external_id, content, multi_vector, chunk_metadata
@@ -1517,12 +1453,12 @@ fn retrieve_late_interaction(
         .query_map(params_from_iter(ids.iter()), |r| {
             let meta_str: String = r.get(6)?;
             Ok((
-                r.get::<_, String>(0)?,         // id
-                r.get::<_, String>(1)?,         // document_id
-                r.get::<_, u32>(2)?,            // ordinal
-                r.get::<_, Option<String>>(3)?, // external_id
-                r.get::<_, String>(4)?,         // content
-                r.get::<_, Vec<u8>>(5)?,        // multi_vector blob
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, u32>(2)?,
+                r.get::<_, Option<String>>(3)?,
+                r.get::<_, String>(4)?,
+                r.get::<_, Vec<u8>>(5)?,
                 serde_json::from_str(&meta_str).unwrap_or(serde_json::Value::Null),
             ))
         })
@@ -1549,8 +1485,6 @@ fn retrieve_late_interaction(
     scored.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
     Ok(scored)
 }
-
-// ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -1605,14 +1539,12 @@ mod tests {
         store
     }
 
-    // ── ensure_collection ────────────────────────────────────────────────────
-
     #[tokio::test]
     async fn ensure_collection_creates_and_is_idempotent() {
         let store = empty_store().await;
         let spec = CollectionSpec::new("col", 4);
         store.ensure_collection(&spec).await.unwrap();
-        store.ensure_collection(&spec).await.unwrap(); // idempotent
+        store.ensure_collection(&spec).await.unwrap();
         let got = store.get_collection("col").await.unwrap().unwrap();
         assert_eq!(got.embedding_dim, 4);
     }
@@ -1627,8 +1559,6 @@ mod tests {
             .unwrap_err();
         assert!(matches!(err, RagError::CollectionAlreadyExists(_)));
     }
-
-    // ── upsert_document ──────────────────────────────────────────────────────
 
     #[tokio::test]
     async fn upsert_then_retrieve_vector_roundtrip() {
@@ -1649,14 +1579,13 @@ mod tests {
         let out = store.retrieve("docs", &q).await.unwrap();
         assert_eq!(out.mode, RetrieveMode::Vector);
         assert_eq!(out.chunks.len(), 2);
-        // First result should be the "near" chunk (cosine distance closest to [1,0,0]).
         assert_eq!(out.chunks[0].content.as_deref(), Some("near"));
     }
 
     #[tokio::test]
     async fn dimension_mismatch_rejected_at_upsert() {
         let store = store_with_col(3).await;
-        let bad = vec![mk_chunk(0, "x", vec![1.0, 0.0])]; // dim=2 vs spec=3
+        let bad = vec![mk_chunk(0, "x", vec![1.0, 0.0])];
         let err = store.upsert_document("docs", &mk_doc(""), &bad).await.unwrap_err();
         assert!(matches!(err, RagError::EmbeddingDimMismatch { expected: 3, got: 2 }));
     }
@@ -1680,7 +1609,6 @@ mod tests {
         assert_eq!(stats.documents, 1, "should still be one document");
         assert_eq!(stats.chunks, 1, "old chunk replaced by new chunk");
 
-        // Check content is updated.
         let q = RetrieveQuery {
             query_vector: Some(vec![0.0, 1.0]),
             include_content: true,
@@ -1689,8 +1617,6 @@ mod tests {
         let out = store.retrieve("docs", &q).await.unwrap();
         assert_eq!(out.chunks[0].content.as_deref(), Some("v2"));
     }
-
-    // ── full-text retrieval ──────────────────────────────────────────────────
 
     #[tokio::test]
     async fn full_text_retrieve_roundtrip() {
@@ -1724,8 +1650,6 @@ mod tests {
         );
     }
 
-    // ── hybrid retrieval ─────────────────────────────────────────────────────
-
     #[tokio::test]
     async fn hybrid_retrieve_returns_results() {
         let store = store_with_col(2).await;
@@ -1747,8 +1671,6 @@ mod tests {
         let ps = out.chunks[0].primary_score;
         assert!(matches!(ps, PrimaryScore::Hybrid { .. }));
     }
-
-    // ── blob round-trips ─────────────────────────────────────────────────────
 
     #[test]
     fn sparse_blob_roundtrips() {
@@ -1784,8 +1706,6 @@ mod tests {
         assert_eq!(decode_multi_vector(&[0, 0, 0]), None);
     }
 
-    // ── sparse retrieval ─────────────────────────────────────────────────────
-
     async fn upsert_sparse_chunk(store: &SqliteVectorStore, content: &str, embedding: Vec<f32>, sparse: SparseVector) {
         let mut chunk = mk_chunk(0, content, embedding);
         chunk.sparse_embedding = Some(sparse);
@@ -1795,7 +1715,6 @@ mod tests {
     #[tokio::test]
     async fn sparse_retrieve_ranks_by_overlap() {
         let store = store_with_col(2).await;
-        // "match" shares indices 1 & 3 with the query; "other" shares nothing.
         upsert_sparse_chunk(&store, "match", vec![1.0, 0.0], sv(&[1, 3], &[2.0, 2.0])).await;
         upsert_sparse_chunk(&store, "other", vec![0.0, 1.0], sv(&[5, 9], &[2.0, 2.0])).await;
 
@@ -1817,7 +1736,6 @@ mod tests {
         let store = store_with_col(2).await;
         let q = RetrieveQuery {
             mode: RetrieveMode::Sparse,
-            // indices not strictly ascending -> ill-formed.
             query_sparse: Some(sv(&[3, 1], &[1.0, 1.0])),
             ..RetrieveQuery::vector(10)
         };
@@ -1829,7 +1747,7 @@ mod tests {
     async fn upsert_rejects_malformed_sparse_chunk() {
         let store = store_with_col(2).await;
         let mut chunk = mk_chunk(0, "bad", vec![1.0, 0.0]);
-        chunk.sparse_embedding = Some(sv(&[1, 2, 3], &[1.0])); // len mismatch
+        chunk.sparse_embedding = Some(sv(&[1, 2, 3], &[1.0]));
         let err = store
             .upsert_document("docs", &mk_doc("bad"), &[chunk])
             .await
@@ -1837,16 +1755,13 @@ mod tests {
         assert!(matches!(err, RagError::InvalidQuery(_)));
     }
 
-    // ── late-interaction retrieval ───────────────────────────────────────────
-
     #[tokio::test]
     async fn late_interaction_rescores_dense_candidates() {
         let store = store_with_col(2).await;
-        // Both chunks are dense-retrievable; the multi-vector decides the order.
         let mut a = mk_chunk(0, "a", vec![1.0, 0.0]);
-        a.multi_vector = Some(mv(1, 2, &[1.0, 0.0])); // aligns with query token
+        a.multi_vector = Some(mv(1, 2, &[1.0, 0.0]));
         let mut b = mk_chunk(0, "b", vec![0.9, 0.1]);
-        b.multi_vector = Some(mv(1, 2, &[0.0, 1.0])); // orthogonal to query token
+        b.multi_vector = Some(mv(1, 2, &[0.0, 1.0]));
         store.upsert_document("docs", &mk_doc("a"), &[a]).await.unwrap();
         store.upsert_document("docs", &mk_doc("b"), &[b]).await.unwrap();
 
@@ -1886,8 +1801,6 @@ mod tests {
         );
     }
 
-    // ── 3-arm hybrid ─────────────────────────────────────────────────────────
-
     #[tokio::test]
     async fn hybrid_fuses_sparse_arm() {
         let store = store_with_col(2).await;
@@ -1909,14 +1822,11 @@ mod tests {
         };
         let out = store.retrieve("docs", &q).await.unwrap();
         assert!(!out.chunks.is_empty());
-        // The sparse arm should have contributed a non-zero component.
         let PrimaryScore::Hybrid { sparse, .. } = out.chunks[0].primary_score else {
             panic!("expected hybrid primary score");
         };
         assert!(sparse > 0.0, "sparse arm should contribute to the fused score");
     }
-
-    // ── delete_by_filter ─────────────────────────────────────────────────────
 
     #[tokio::test]
     async fn delete_by_filter_removes_matching_documents() {
@@ -1950,8 +1860,6 @@ mod tests {
         assert_eq!(stats.chunks, 1);
     }
 
-    // ── drop_collection ──────────────────────────────────────────────────────
-
     #[tokio::test]
     async fn drop_collection_removes_all_data() {
         let store = store_with_col(2).await;
@@ -1970,8 +1878,6 @@ mod tests {
         let err = store.drop_collection("ghost").await.unwrap_err();
         assert!(matches!(err, RagError::CollectionNotFound(_)));
     }
-
-    // ── collection_stats ─────────────────────────────────────────────────────
 
     #[tokio::test]
     async fn collection_stats_tracks_documents_and_chunks() {

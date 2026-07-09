@@ -19,7 +19,7 @@ pub(crate) fn assemble_internal_document(
     pages: Vec<Vec<PdfParagraph>>,
     tables: &[crate::types::Table],
     images: Option<&[crate::types::ExtractedImage]>,
-    image_positions: &[(u32, u32)], // (page_idx, image_index) for image placeholders
+    image_positions: &[(u32, u32)],
 ) -> InternalDocument {
     tracing::debug!(
         page_count = pages.len(),
@@ -30,14 +30,12 @@ pub(crate) fn assemble_internal_document(
     );
     let mut builder = InternalDocumentBuilder::new("pdf");
 
-    // Group tables by page number (1-indexed → 0-indexed)
     let mut tables_by_page: std::collections::BTreeMap<u32, Vec<&crate::types::Table>> =
         std::collections::BTreeMap::new();
     for table in tables {
         tables_by_page.entry(table.page_number).or_default().push(table);
     }
 
-    // Group image positions by page
     let mut images_by_page: std::collections::BTreeMap<u32, Vec<u32>> = std::collections::BTreeMap::new();
     for &(page_idx, image_index) in image_positions {
         images_by_page.entry(page_idx).or_default().push(image_index);
@@ -48,15 +46,12 @@ pub(crate) fn assemble_internal_document(
         let page_num = Some((page_idx + 1) as u32);
         let page_tables = tables_by_page.remove(&((page_idx + 1) as u32));
 
-        // Check whether this page has any content (paragraphs, tables, or images).
         let page_has_content = !paragraphs.is_empty()
             || page_tables
                 .as_ref()
                 .is_some_and(|t| t.iter().any(|tb| !tb.markdown.trim().is_empty()))
             || images_by_page.contains_key(&((page_idx + 1) as u32));
 
-        // Insert page break only between pages that both have content, so that
-        // blank leading/trailing pages do not produce spurious thematic breaks.
         if page_has_content && has_emitted_content {
             builder.push_page_break();
         }
@@ -80,10 +75,8 @@ pub(crate) fn assemble_internal_document(
             has_emitted_content = true;
         }
 
-        // Inject image placeholders for this page
         if let Some(image_indices) = images_by_page.get(&((page_idx + 1) as u32)) {
             for &image_index in image_indices {
-                // Determine text content from OCR result if available
                 let ocr_text = images
                     .and_then(|imgs| imgs.get(image_index as usize))
                     .and_then(|img| img.ocr_result.as_ref())
@@ -98,7 +91,6 @@ pub(crate) fn assemble_internal_document(
         }
     }
 
-    // Append tables for pages beyond what we have paragraphs for
     for (&page_idx, page_tables) in &tables_by_page {
         let page_num = Some(page_idx + 1);
         for &table in page_tables {
@@ -114,7 +106,6 @@ pub(crate) fn assemble_internal_document(
         }
     }
 
-    // Inject image placeholders for page 0 (unknown page)
     if let Some(image_indices) = images_by_page.get(&0) {
         for &image_index in image_indices {
             let elem = crate::types::internal::InternalElement::text(ElementKind::Image { image_index }, "", 0);
@@ -135,12 +126,10 @@ fn assemble_page_elements(builder: &mut InternalDocumentBuilder, paragraphs: &[P
     let mut in_list = false;
 
     for (para_idx, para) in paragraphs.iter().enumerate() {
-        // Skip captions — they are emitted after their parent element
         if para.caption_for.is_some() {
             continue;
         }
 
-        // Manage list container markers
         if para.is_list_item && !in_list {
             builder.push_list(list_item_is_ordered(para));
             in_list = true;
@@ -151,7 +140,6 @@ fn assemble_page_elements(builder: &mut InternalDocumentBuilder, paragraphs: &[P
 
         let elem_idx = push_paragraph_element(builder, para, page);
 
-        // Emit captions as relationships
         emit_caption_elements(builder, paragraphs, para_idx, page, elem_idx);
     }
 
@@ -167,7 +155,6 @@ fn assemble_page_elements_with_tables(
     tables: &[&crate::types::Table],
     page: Option<u32>,
 ) {
-    // Split tables into positioned (have bounding box) and unpositioned
     let mut positioned: Vec<(f32, &crate::types::Table)> = Vec::new();
     let mut unpositioned: Vec<&crate::types::Table> = Vec::new();
 
@@ -183,16 +170,13 @@ fn assemble_page_elements_with_tables(
         }
     }
 
-    // Sort positioned tables by y-position descending (top of page first in PDF coords)
     positioned.sort_by(|a, b| b.0.total_cmp(&a.0));
 
-    // Build interleaved elements list
     enum PageElement<'a> {
         Paragraph(usize, &'a PdfParagraph),
         Table(&'a crate::types::Table),
     }
 
-    // Index-tagged elements to preserve input order on fallback (category F bug fix).
     let mut elements: Vec<(usize, f32, PageElement)> = Vec::new();
     let mut insertion_index = 0usize;
 
@@ -210,16 +194,10 @@ fn assemble_page_elements_with_tables(
         insertion_index += 1;
     }
 
-    // Sort by y descending (top of page first in PDF coordinates)
     elements.sort_by(|a, b| b.1.total_cmp(&a.1));
 
-    // Validate sort consistency: if sorted order is visually inconsistent
-    // (e.g., second region's Y-top > first region's Y-bottom by threshold),
-    // fall back to natural input order to prevent layout reordering (category F).
-    // This avoids scrambling tabular data sequences on OCR-rendered pages.
     if !is_sort_visually_consistent_with_y_index(&elements) {
         tracing::debug!("Sort order is visually inconsistent; falling back to natural input order");
-        // Revert to unsorted order (input order) by sorting on insertion index
         elements.sort_by_key(|e| e.0);
     }
 
@@ -228,7 +206,6 @@ fn assemble_page_elements_with_tables(
     for (_, _, elem) in &elements {
         match elem {
             PageElement::Paragraph(para_idx, para) => {
-                // Manage list container markers
                 if para.is_list_item && !in_list {
                     builder.push_list(list_item_is_ordered(para));
                     in_list = true;
@@ -260,7 +237,6 @@ fn assemble_page_elements_with_tables(
         builder.end_list();
     }
 
-    // Append unpositioned tables at end of page
     for table in &unpositioned {
         let bbox = table.bounding_box.map(|bb| BoundingBox {
             x0: bb.x0,
@@ -282,7 +258,6 @@ fn push_paragraph_element(builder: &mut InternalDocumentBuilder, para: &PdfParag
         y1: bb.3 as f64,
     });
 
-    // Log element classification for debugging.
     tracing::debug!(
         heading = ?para.heading_level,
         list = para.is_list_item,
@@ -296,9 +271,6 @@ fn push_paragraph_element(builder: &mut InternalDocumentBuilder, para: &PdfParag
         "emitting element"
     );
 
-    // Get text: prefer para.text (full-text path) over segment joining.
-    // Hyphen finalization runs post-join: the spaced-hyphen artifact only
-    // exists once separate hyphen text runs are joined with spaces.
     let get_text = |para: &PdfParagraph| -> String {
         let text = if !para.text.is_empty() {
             para.text.clone()
@@ -336,11 +308,8 @@ fn push_paragraph_element(builder: &mut InternalDocumentBuilder, para: &PdfParag
 
     if para.is_list_item {
         let text = get_text(para);
-        // Numbered markers ("1." / "3)") make this an ordered list item so the
-        // renderer emits "1." markers instead of degrading to bullets.
         let ordered = list_item_is_ordered(para);
         let normalized = normalize_list_text(&text);
-        // For full-text path, block-level bold annotation; for structure tree, extract inline annotations
         let annotations = if !para.text.is_empty() && para.is_bold {
             vec![TextAnnotation {
                 start: 0,
@@ -374,9 +343,7 @@ fn push_paragraph_element(builder: &mut InternalDocumentBuilder, para: &PdfParag
         return builder.push_paragraph(&text, annotations, page, bbox);
     }
 
-    // Default: body paragraph
     if !para.text.is_empty() {
-        // Full-text path: text is already correct, add block-level bold if applicable
         let annotations = if para.is_bold {
             vec![TextAnnotation {
                 start: 0,
@@ -388,7 +355,6 @@ fn push_paragraph_element(builder: &mut InternalDocumentBuilder, para: &PdfParag
         };
         builder.push_paragraph(&para.text, annotations, page, bbox)
     } else {
-        // Structure tree path: extract inline annotations from segments
         let (text, annotations) = extract_text_and_annotations(para);
         builder.push_paragraph(&text, annotations, page, bbox)
     }
@@ -454,13 +420,11 @@ fn extract_text_and_annotations(para: &PdfParagraph) -> (String, Vec<TextAnnotat
         let bold = all_segments[i].is_bold;
         let italic = all_segments[i].is_italic;
 
-        // Find run of segments with the same formatting
         let run_start = i;
         while i < all_segments.len() && all_segments[i].is_bold == bold && all_segments[i].is_italic == italic {
             i += 1;
         }
 
-        // Collect words for this run
         let mut run_words: Vec<&str> = Vec::new();
         for seg in &all_segments[run_start..i] {
             for word in seg.text.split_whitespace() {
@@ -468,7 +432,6 @@ fn extract_text_and_annotations(para: &PdfParagraph) -> (String, Vec<TextAnnotat
             }
         }
 
-        // Add space between previous text and this run
         if !text.is_empty() && !run_words.is_empty() {
             let prev_last = all_segments[run_start - 1]
                 .text
@@ -478,7 +441,6 @@ fn extract_text_and_annotations(para: &PdfParagraph) -> (String, Vec<TextAnnotat
             let next_first = all_segments[run_start].text.split_whitespace().next().unwrap_or("");
 
             if should_dehyphenate(prev_last, next_first) {
-                // Remove trailing hyphen
                 text.pop();
             } else if needs_space_between(prev_last, next_first) {
                 text.push(' ');
@@ -487,12 +449,11 @@ fn extract_text_and_annotations(para: &PdfParagraph) -> (String, Vec<TextAnnotat
 
         let span_start = text.len();
 
-        // Build run text with CJK-aware joining
         for (wi, &word) in run_words.iter().enumerate() {
             if wi > 0 {
                 let prev = run_words[wi - 1];
                 if should_dehyphenate(prev, word) {
-                    text.pop(); // remove '-'
+                    text.pop();
                 } else if needs_space_between(prev, word) {
                     text.push(' ');
                 }
@@ -502,7 +463,6 @@ fn extract_text_and_annotations(para: &PdfParagraph) -> (String, Vec<TextAnnotat
 
         let span_end = text.len();
 
-        // Add annotations for this run
         if span_start < span_end {
             if bold {
                 annotations.push(TextAnnotation {
@@ -630,10 +590,7 @@ fn list_item_is_ordered(para: &PdfParagraph) -> bool {
 /// Normalize list item text: strip bullet/number prefixes and return clean text.
 fn normalize_list_text(text: &str) -> String {
     let trimmed = text.trim_start();
-    const BULLET_CHARS: &[char] = &[
-        '\u{2022}', // • BULLET
-        '\u{00B7}', // · MIDDLE DOT
-    ];
+    const BULLET_CHARS: &[char] = &['\u{2022}', '\u{00B7}'];
     for &ch in BULLET_CHARS {
         if trimmed.starts_with(ch) {
             return trimmed[ch.len_utf8()..].trim_start().to_string();
@@ -651,7 +608,6 @@ fn normalize_list_text(text: &str) -> String {
             return trimmed[ch.len_utf8()..].trim_start().to_string();
         }
     }
-    // Numbered prefix: strip "1. " or "1) "
     let bytes = trimmed.as_bytes();
     let digit_end = bytes.iter().position(|&b| !b.is_ascii_digit()).unwrap_or(0);
     if digit_end > 0 && digit_end < bytes.len() {
@@ -666,21 +622,18 @@ fn normalize_list_text(text: &str) -> String {
 
 /// Guess whether page furniture is a header or footer based on vertical position.
 fn guess_furniture_layer(para: &PdfParagraph) -> ContentLayer {
-    // Use the layout class hint if available
     match para.layout_class {
         Some(LayoutHintClass::PageHeader) => ContentLayer::Header,
         Some(LayoutHintClass::PageFooter) => ContentLayer::Footer,
         Some(LayoutHintClass::Footnote) => ContentLayer::Footnote,
         _ => {
-            // Heuristic: if baseline_y is high on the page (>700 in PDF coords),
-            // it's likely a header. If low (<100), it's a footer.
             if let Some(first_line) = para.lines.first() {
                 if first_line.baseline_y > 700.0 {
                     ContentLayer::Header
                 } else if first_line.baseline_y < 100.0 {
                     ContentLayer::Footer
                 } else {
-                    ContentLayer::Header // default for furniture
+                    ContentLayer::Header
                 }
             } else {
                 ContentLayer::Header
@@ -705,17 +658,12 @@ fn is_sort_visually_consistent<T>(elements: &[(f32, T)]) -> bool {
         return true;
     }
 
-    // Check for significant jumps in Y position that would indicate reordering.
-    // In PDF coordinates, descending sort means: elements with higher Y come first.
-    // If we have Y = [900, 850, 910], the second jump (850 → 910) is a violation.
-    const REORDER_THRESHOLD: f32 = 50.0; // ~half a typical line height
+    const REORDER_THRESHOLD: f32 = 50.0;
 
     for i in 1..elements.len() {
         let prev_y = elements[i - 1].0;
         let curr_y = elements[i].0;
 
-        // In descending sort, we expect curr_y <= prev_y (with some tolerance for columns).
-        // A violation is when curr_y > prev_y by more than the threshold.
         if curr_y > prev_y + REORDER_THRESHOLD {
             tracing::debug!(
                 prev_y,
@@ -738,7 +686,7 @@ fn is_sort_visually_consistent_with_y_index<T>(elements: &[(usize, f32, T)]) -> 
         return true;
     }
 
-    const REORDER_THRESHOLD: f32 = 50.0; // ~half a typical line height
+    const REORDER_THRESHOLD: f32 = 50.0;
 
     for i in 1..elements.len() {
         let prev_y = elements[i - 1].1;
@@ -842,7 +790,6 @@ mod tests {
             vec![make_paragraph("Page 2", None)],
         ];
         let doc = assemble_internal_document(pages, &[], None, &[]);
-        // Should have page break between pages + 2 paragraphs
         let paragraphs: Vec<_> = doc
             .elements
             .iter()
@@ -904,22 +851,17 @@ mod tests {
         let pages = vec![vec![make_paragraph("Text", None)]];
         let tables = vec![crate::types::Table {
             cells: vec![],
-            markdown: "   ".to_string(), // Whitespace-only markdown
+            markdown: "   ".to_string(),
             page_number: 1,
             bounding_box: None,
         }];
         let doc = assemble_internal_document(pages, &tables, None, &[]);
-        // Table with whitespace-only markdown should be skipped
         assert!(doc.tables.is_empty() || doc.tables.iter().all(|t| t.markdown.trim().is_empty()));
     }
 
     #[test]
     fn test_no_page_break_when_leading_page_empty() {
-        // Blank first page, content on second page — no PageBreak should be emitted.
-        let pages = vec![
-            vec![], // empty page 1
-            vec![make_paragraph("Content on page 2", None)],
-        ];
+        let pages = vec![vec![], vec![make_paragraph("Content on page 2", None)]];
         let doc = assemble_internal_document(pages, &[], None, &[]);
         assert!(
             !doc.elements.iter().any(|e| matches!(e.kind, ElementKind::PageBreak)),
@@ -936,11 +878,7 @@ mod tests {
 
     #[test]
     fn test_no_page_break_when_trailing_page_empty() {
-        // Content on first page, blank second page — no PageBreak should be emitted.
-        let pages = vec![
-            vec![make_paragraph("Content on page 1", None)],
-            vec![], // empty page 2
-        ];
+        let pages = vec![vec![make_paragraph("Content on page 1", None)], vec![]];
         let doc = assemble_internal_document(pages, &[], None, &[]);
         assert!(
             !doc.elements.iter().any(|e| matches!(e.kind, ElementKind::PageBreak)),
@@ -950,7 +888,6 @@ mod tests {
 
     #[test]
     fn test_page_break_between_content_pages() {
-        // Both pages have content — PageBreak should be inserted between them.
         let pages = vec![
             vec![make_paragraph("Page 1", None)],
             vec![make_paragraph("Page 2", None)],
@@ -964,7 +901,6 @@ mod tests {
 
     #[test]
     fn test_no_page_break_single_page() {
-        // Single page with content — no PageBreak.
         let pages = vec![vec![make_paragraph("Only page", None)]];
         let doc = assemble_internal_document(pages, &[], None, &[]);
         assert!(
@@ -976,7 +912,6 @@ mod tests {
     #[test]
     fn test_image_elements_injected_with_positions() {
         let pages = vec![vec![make_paragraph("Page with image", None)]];
-        // Image at page 1 (1-indexed), image_index = 0
         let image_positions = vec![(1u32, 0u32)];
         let doc = assemble_internal_document(pages, &[], None, &image_positions);
 
@@ -1052,18 +987,12 @@ mod tests {
     fn test_caption_skipped_in_main_flow() {
         let para1 = make_paragraph("Main text", None);
         let mut caption = make_paragraph("Caption text", None);
-        caption.caption_for = Some(0); // Caption for para at index 0
+        caption.caption_for = Some(0);
         let pages = vec![vec![para1, caption]];
         let doc = assemble_internal_document(pages, &[], None, &[]);
-        // Main text paragraph should be present
         assert!(doc.elements.iter().any(|e| e.text == "Main text"));
-        // Caption should be present as a separate element with italic annotation
         assert!(doc.elements.iter().any(|e| e.text == "Caption text"));
     }
-
-    // ========================================================================
-    // W2.A: Inline emphasis (bold/italic) preservation tests
-    // ========================================================================
 
     fn bold_segment(text: &str) -> SegmentData {
         SegmentData {
@@ -1081,8 +1010,6 @@ mod tests {
 
     #[test]
     fn test_w2a_inline_bold_and_italic_annotations_preserved() {
-        // Create a paragraph with mixed bold/italic/regular segments.
-        // Expected: annotations should mark bold and italic spans.
         let segments = vec![
             plain_segment("Normal "),
             bold_segment("bold"),
@@ -1102,7 +1029,7 @@ mod tests {
         let lines = vec![line];
         let word_count = PdfParagraph::compute_word_count("", &lines);
         let para = PdfParagraph {
-            text: String::new(), // Use structure tree path (empty text)
+            text: String::new(),
             lines,
             dominant_font_size: 12.0,
             heading_level: None,
@@ -1123,7 +1050,6 @@ mod tests {
         let elem = &doc.elements[0];
         assert!(!elem.text.is_empty(), "Paragraph text should be populated");
 
-        // Check that annotations are present for bold and italic
         let has_bold = elem.annotations.iter().any(|a| matches!(a.kind, AnnotationKind::Bold));
         let has_italic = elem
             .annotations
@@ -1144,7 +1070,6 @@ mod tests {
 
     #[test]
     fn test_w2a_consecutive_bold_segments_grouped() {
-        // Multiple consecutive bold segments should produce a single bold annotation covering all of them.
         let segments = vec![bold_segment("This"), bold_segment(" is"), bold_segment(" bold")];
 
         let line = PdfLine {
@@ -1176,7 +1101,6 @@ mod tests {
         let doc = assemble_internal_document(vec![vec![para]], &[], None, &[]);
         let elem = &doc.elements[0];
 
-        // Should have bold annotation covering the full text (or most of it)
         let bold_anns: Vec<_> = elem
             .annotations
             .iter()
@@ -1190,7 +1114,6 @@ mod tests {
             elem.annotations
         );
 
-        // The bold annotation should cover a significant portion of the text
         if !bold_anns.is_empty() {
             let bold = bold_anns[0];
             let coverage = (bold.end - bold.start) as usize;
@@ -1203,10 +1126,6 @@ mod tests {
             );
         }
     }
-
-    // ========================================================================
-    // Regression tests for issue #966 — merged H1 must not drop content
-    // ========================================================================
 
     /// Build a heading paragraph that mirrors the production pipeline: both `text`
     /// and `lines` are populated.  `push_paragraph_element` prefers `para.text` when
@@ -1256,9 +1175,6 @@ mod tests {
 
     #[test]
     fn test_merged_h1_text_appears_in_assembled_document() {
-        // Regression for issue #966.  Simulates the state after merge_consecutive_h1s
-        // has run and correctly synced para.text to "KAISUN HOLDINGS LIMITED".
-        // Verifies that push_paragraph_element emits both words — not just the first.
         let merged_para = make_production_h1("KAISUN HOLDINGS LIMITED");
         let pages = vec![vec![merged_para]];
         let doc = assemble_internal_document(pages, &[], None, &[]);
@@ -1284,9 +1200,6 @@ mod tests {
 
     #[test]
     fn test_separate_h1s_each_appear_in_assembled_document() {
-        // Verifies that assemble_internal_document emits one heading element per
-        // received paragraph — it never calls merge_consecutive_h1s, so this
-        // tests assembly non-dropping, not the continuation guard itself.
         let pages = vec![vec![
             make_production_h1("HR 22"),
             make_production_h1("HR 28"),
@@ -1310,17 +1223,12 @@ mod tests {
 
     #[test]
     fn test_sort_consistency_detects_reordering() {
-        // Test that sort consistency check detects when Y-positions jump backward
-        // (category F: layout reordering on OCR pages).
-
-        // Enum to mimic PageElement without importing it
         enum TestElement {
             A,
             B,
             C,
         }
 
-        // Consistent sort (Y descending): 900, 850, 800 — no violations
         let consistent: Vec<(f32, TestElement)> = vec![
             (900.0, TestElement::A),
             (850.0, TestElement::B),
@@ -1331,22 +1239,20 @@ mod tests {
             "Descending Y-order should be visually consistent"
         );
 
-        // Inconsistent sort: 900, 750, 810 — violation at index 2 (750 → 810)
         let inconsistent: Vec<(f32, TestElement)> = vec![
             (900.0, TestElement::A),
             (750.0, TestElement::B),
-            (810.0, TestElement::C), // Jump backward > 50 points
+            (810.0, TestElement::C),
         ];
         assert!(
             !is_sort_visually_consistent(&inconsistent),
             "Y-order with backward jump should be detected as inconsistent"
         );
 
-        // Edge case: small gaps within threshold are OK (columns)
         let columns: Vec<(f32, TestElement)> = vec![
             (900.0, TestElement::A),
-            (880.0, TestElement::B), // 20 points below threshold
-            (870.0, TestElement::C), // 10 points below threshold
+            (880.0, TestElement::B),
+            (870.0, TestElement::C),
         ];
         assert!(
             is_sort_visually_consistent(&columns),
@@ -1356,92 +1262,29 @@ mod tests {
 
     #[test]
     fn test_indexed_sort_fallback_restores_input_order() {
-        // Verify that indexed elements can be sorted by Y descending, and then
-        // restored to input order via insertion index when sort is inconsistent.
-        // This tests the category F bug fix: the fallback must actually restore order.
-
         enum TestElement {
             A,
             B,
             C,
         }
 
-        // Create elements in input order with scrambled Y-positions that will
-        // trigger inconsistent sort detection after Y-descending sort.
-        // Example: Y = [100, 800, 300] in input order. After descending sort:
-        // [800, 300, 100]. This produces a violation: 300 < 800, then 100 < 300 is OK,
-        // but we need 300 to jump back past 100 to trigger the check.
-        // Better: Y = [100, 900, 200] → after desc sort [900, 200, 100] → 200 < 900 OK,
-        // 100 < 200 OK. We need the reverse: [100, 900, 950] → after desc sort [950, 900, 100]
-        // → 900 < 950 OK, but then 100 < 900 OK. Let's use 1000, 50, 100 instead.
-        // After desc sort: [1000, 100, 50]. Check: 100 vs 1000 is -900 (OK, descending).
-        // Then 50 vs 100 is -50 (OK). We need an actual jump FORWARD.
-        // Try: [100, 900, 850] → desc sort gives [900, 850, 100] → 850 < 900 OK (20 point drop),
-        // then 100 < 850 OK (-750 is not > +50, it's negative so passes).
-        // We need curr_y > prev_y, which means ascending in PDF coords within descending order.
-        // Try: [1000, 100, 110] → desc sort [1000, 110, 100] → prev=1000, curr=110 (OK, -890),
-        // then prev=110, curr=100 (OK, -10). Still not triggering.
-        // The key: "curr_y > prev_y + REORDER_THRESHOLD" means curr_y jumps UP in PDF coords
-        // after descending sort. Example: [900, 500, 700] → desc [900, 700, 500] → OK.
-        // We need [900, 750, 810] but verify the issue: desc sort [900, 810, 750].
-        // Index 1: prev=900, curr=810 → 810 > 900+50? NO. 810 not > 950. OK.
-        // Index 2: prev=810, curr=750 → 750 > 810+50? NO. Not > 860. OK. This is consistent!
-        // To trigger inconsistency: need curr_y > prev_y + 50 AFTER descending sort.
-        // Example: [100, 900, 400] → desc [900, 400, 100]. Index 1: 400 > 900+50? NO.
-        // Index 2: 100 > 400+50? NO. Still consistent.
-        // We need input that when desc-sorted produces a forward jump > 50.
-        // Example: [900, 100, 950] → desc [950, 900, 100]. Index 1: 900 > 950+50? NO.
-        // Let me think differently: input [50, 950, 900, 100] → desc [950, 900, 100, 50].
-        // Index 1: 900 > 950+50? NO. Index 2: 100 > 900+50? NO. Index 3: 50 > 100+50? NO.
-        // Actually, to get curr_y > prev_y when sorted descending, we'd need elements
-        // to be *out of order* after sorting, which shouldn't happen. The issue is that
-        // the test is checking the POST-SORT order for consistency. Let me re-read the code:
-        // After desc sort on Y, if inconsistent, we sort by input index to restore order.
-        // So the test should create an input, sort it, detect it's inconsistent, then restore.
-        // For the sort to be inconsistent post-Y-sort, we need Y values that when sorted
-        // descending produce a sequence with a big forward jump. That's actually impossible
-        // by definition—descending sort always produces descending values.
-        // Wait: I think the real issue is the input itself has the problem. The function
-        // receives unsorted input, sorts by Y desc, then checks if the result is consistent.
-        // In real-world PDFs, if OCR scrambles Y positions, sorting by Y descending might
-        // produce a wildly inconsistent order that violates the threshold check.
-        // Let me create a real scenario: paragraphs with Y = [700, 100, 650] (scrambled OCR).
-        // After sort by Y desc: [(100, _), (650, _), (700, _)]. Wait, that's ascending.
-        // Sort BY DESCENDING means: sort_by(|a, b| b.cmp(a)), which sorts 700, 650, 100.
-        // After sorting: Y = [700, 650, 100]. Consistency check: 650 > 700+50? NO. 100 > 650+50? NO.
-        // Still consistent. The threshold is 50 points, so we need a jump > 50 in the descending order.
-        // To get a backward jump in descending order, we'd need input like [600, 100, 700].
-        // Desc sort: [700, 600, 100]. Check: 600 > 700+50? NO. 100 > 600+50? NO. Consistent.
-        // The algorithm seems to only trigger on inputs that have a very specific scramble.
-        // Let me check the original test case in the code: (900, 750, 810).
-        // After desc sort: (900, 810, 750). Check: 810 > 900+50? NO. Consistent.
-        // But the original test in the function uses input [900, 750, 810] and expects inconsistent!
-        // Oh wait, that test uses the UNINDEXED version. Let me recheck the real logic.
-        // Re-reading test at line 1270: input is (900, 750, 810) which is ALREADY SORTED (supposed to be desc),
-        // but 750 < 810 is an inconsistency in a descending sequence.
-        // The test directly creates a (f32, T) vec representing post-sort state, not pre-sort.
-        // So my indexed test should do the same: create post-sort state that is inconsistent.
         let mut elements: Vec<(usize, f32, TestElement)> = vec![
-            (0, 900.0, TestElement::A), // Already-sorted (desc) at input index 0
-            (1, 750.0, TestElement::B), // Already-sorted (desc) at input index 1
-            (2, 810.0, TestElement::C), // Jump FORWARD from 750 to 810: inconsistent at input index 2
+            (0, 900.0, TestElement::A),
+            (1, 750.0, TestElement::B),
+            (2, 810.0, TestElement::C),
         ];
 
-        // Verify inconsistent (this is the post-sort state, so no sort call needed)
         assert!(
             !is_sort_visually_consistent_with_y_index(&elements),
             "Scrambled Y positions (900, 750, 810) should be detected as inconsistent (750→810 jumps forward)"
         );
 
-        // Apply fallback: restore to input order (index 0, 1, 2)
         elements.sort_by_key(|e| e.0);
 
-        // Verify restoration
         assert_eq!(elements[0].0, 0, "First element should be at insertion index 0");
         assert_eq!(elements[1].0, 1, "Second element should be at insertion index 1");
         assert_eq!(elements[2].0, 2, "Third element should be at insertion index 2");
 
-        // Verify that Y-positions are now in input order, not sorted order
         assert_eq!(elements[0].1, 900.0, "First element in input order should have Y=900");
         assert_eq!(elements[1].1, 750.0, "Second element in input order should have Y=750");
         assert_eq!(elements[2].1, 810.0, "Third element in input order should have Y=810");

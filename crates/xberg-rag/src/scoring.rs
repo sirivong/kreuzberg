@@ -36,10 +36,6 @@ fn dot(a: &[f32], b: &[f32]) -> f32 {
 /// in a single linear pass (both inputs are assumed sorted per
 /// [`SparseVector`]'s contract).
 pub(crate) fn sparse_dot(a: &SparseVector, b: &SparseVector) -> f32 {
-    // Defence in depth: the store validates `is_well_formed` before scoring, but
-    // bound the cursors by the shorter of each vector's parallel arrays so a
-    // malformed `SparseVector` (values shorter than indices) can never index
-    // out of bounds and panic the retrieve call.
     let a_len = a.indices.len().min(a.values.len());
     let b_len = b.indices.len().min(b.values.len());
     let mut i = 0usize;
@@ -80,8 +76,6 @@ mod tests {
 
     #[test]
     fn sparse_dot_computes_overlap_only() {
-        // a: {1: 2.0, 3: 1.0, 5: 4.0}, b: {2: 1.0, 3: 3.0, 5: 2.0}
-        // overlap: index 3 -> 1.0*3.0=3.0, index 5 -> 4.0*2.0=8.0 => 11.0
         let a = sv(&[1, 3, 5], &[2.0, 1.0, 4.0]);
         let b = sv(&[2, 3, 5], &[1.0, 3.0, 2.0]);
         assert_eq!(sparse_dot(&a, &b), 11.0);
@@ -101,7 +95,6 @@ mod tests {
 
     #[test]
     fn multi_vector_rows_splits_row_major_data() {
-        // 2 tokens x dim 3
         let v = mv(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
         let rows: Vec<&[f32]> = v.rows().collect();
         assert_eq!(rows, vec![&[1.0, 2.0, 3.0][..], &[4.0, 5.0, 6.0][..]]);
@@ -111,19 +104,12 @@ mod tests {
     fn multi_vector_rows_dim_zero_is_empty() {
         let v = mv(0, 0, &[]);
         assert_eq!(v.rows().count(), 0);
-        // Guard against a hypothetical malformed record where dim=0 but data
-        // is non-empty: chunks_exact(0) would panic, so rows() must special-case it.
         let malformed = mv(0, 0, &[1.0, 2.0, 3.0]);
         assert_eq!(malformed.rows().count(), 0);
     }
 
     #[test]
     fn max_sim_hand_computed() {
-        // Query: 2 tokens, dim 2: [[1,0], [0,1]]
-        // Doc:   2 tokens, dim 2: [[1,0], [1,1]]
-        // Row0 [1,0] vs doc rows: dot([1,0],[1,0])=1, dot([1,0],[1,1])=1 -> max=1
-        // Row1 [0,1] vs doc rows: dot([0,1],[1,0])=0, dot([0,1],[1,1])=1 -> max=1
-        // Sum = 2.0
         let q = mv(2, 2, &[1.0, 0.0, 0.0, 1.0]);
         let d = mv(2, 2, &[1.0, 0.0, 1.0, 1.0]);
         assert_eq!(max_sim(&q, &d), 2.0);

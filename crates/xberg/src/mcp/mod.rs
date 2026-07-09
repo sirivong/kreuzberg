@@ -34,8 +34,6 @@ pub(crate) mod resources;
 pub(crate) mod schema;
 mod server;
 
-// Re-export public API for backward compatibility
-
 #[allow(unused_imports)]
 pub use server::start_mcp_server;
 #[cfg(feature = "mcp-http")]

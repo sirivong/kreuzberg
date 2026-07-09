@@ -53,7 +53,6 @@ fn get_or_init_engine(
 ) -> crate::Result<PooledEngine> {
     let key = (preference, dtype);
 
-    // Fast path: engine already in pool.
     {
         let pool = ENGINE_POOL.read();
         if let Some(engine) = pool.get(&key) {
@@ -61,7 +60,6 @@ fn get_or_init_engine(
         }
     }
 
-    // Slow path: select the device and build the engine, then insert under write lock.
     let device = preference.select().map_err(|e| crate::XbergError::Ocr {
         message: format!("Failed to select compute device: {e}"),
         source: Some(Box::new(e)),
@@ -82,7 +80,6 @@ fn get_or_init_engine(
     let new_engine = Arc::new(parking_lot::Mutex::new(new_engine));
 
     let mut pool = ENGINE_POOL.write();
-    // Double-check: another thread may have inserted while we were building.
     if let Some(existing) = pool.get(&key) {
         return Ok(Arc::clone(existing));
     }
@@ -186,7 +183,6 @@ impl OcrBackend for DeepseekOcrBackend {
     /// Returns an error if the image is empty, model_path is not provided,
     /// the model fails to initialize, or inference fails.
     async fn process_image(&self, image_bytes: &[u8], config: &OcrConfig) -> Result<ExtractedDocument> {
-        // Validate image data first so callers get the most specific error.
         if image_bytes.is_empty() {
             return Err(crate::XbergError::Validation {
                 message: "Empty image data provided to DeepSeek-OCR".to_string(),
@@ -204,7 +200,6 @@ impl OcrBackend for DeepseekOcrBackend {
         let image_bytes = image_bytes.to_vec();
         let dtype = self.dtype;
 
-        // Run inference in a blocking task to avoid blocking the async runtime.
         let content = tokio::task::spawn_blocking(move || {
             let engine = get_or_init_engine(device, dtype, &model_path, version)?;
             let mut engine_guard = engine.lock();
@@ -240,27 +235,13 @@ impl OcrBackend for DeepseekOcrBackend {
     }
 
     fn supports_language(&self, _lang: &str) -> bool {
-        // DeepSeek-OCR is trained on multilingual data. Accept all language codes.
         true
     }
 
     fn supported_languages(&self) -> Vec<String> {
-        // Major language codes supported by DeepSeek-OCR
         vec![
-            "eng", "en", // English
-            "zho", "zh", // Chinese (simplified and traditional)
-            "jpn", "ja", // Japanese
-            "kor", "ko", // Korean
-            "fra", "fr", // French
-            "deu", "de", // German
-            "spa", "es", // Spanish
-            "ita", "it", // Italian
-            "por", "pt", // Portuguese
-            "rus", "ru", // Russian
-            "ara", "ar", // Arabic
-            "hin", "hi", // Hindi
-            "tha", "th", // Thai
-            "vie", "vi", // Vietnamese
+            "eng", "en", "zho", "zh", "jpn", "ja", "kor", "ko", "fra", "fr", "deu", "de", "spa", "es", "ita", "it",
+            "por", "pt", "rus", "ru", "ara", "ar", "hin", "hi", "tha", "th", "vie", "vi",
         ]
         .iter()
         .map(|s| s.to_string())
@@ -272,7 +253,6 @@ impl OcrBackend for DeepseekOcrBackend {
     }
 
     fn emits_structured_markdown(&self) -> bool {
-        // DeepSeek-OCR emits markdown output directly from the VLM.
         true
     }
 }

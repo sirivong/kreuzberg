@@ -143,8 +143,6 @@ mod tests {
     use super::*;
     use crate::types::{HeadingContext, HeadingLevel};
 
-    // ── heading_path_from_context ───────────────────────────────────────────
-
     #[test]
     fn heading_path_from_context_none_returns_empty() {
         let path = heading_path_from_context(&None);
@@ -183,14 +181,12 @@ mod tests {
         });
         let path = heading_path_from_context(&ctx);
         assert_eq!(path, vec!["Guide", "Setup", "Prerequisites"]);
-        // Outermost (h1) is index 0, deepest (h3) is last.
         assert_eq!(path[0], "Guide");
         assert_eq!(path[2], "Prerequisites");
     }
 
     #[test]
     fn heading_path_from_context_empty_headings_vec() {
-        // HeadingContext with zero headings should yield an empty path.
         let ctx = Some(HeadingContext { headings: vec![] });
         let path = heading_path_from_context(&ctx);
         assert!(path.is_empty());
@@ -204,8 +200,6 @@ mod tests {
 
     #[test]
     fn test_build_chunk_config_zero_clamps_to_default() {
-        // Passing 0 must not panic — text-splitter requires non-zero capacity.
-        // The clamp should silently use DEFAULT_CHUNK_SIZE (1000).
         let result = build_chunk_config(0, 0, true);
         assert!(result.is_ok(), "zero max_characters must be clamped, not panic");
     }
@@ -265,7 +259,6 @@ mod tests {
     #[test]
     fn test_build_chunks_offset_from_source() {
         let source = "AAAAABBBBBCCCCC";
-        // Overlapping slices from source
         let text_chunks = vec![&source[0..5], &source[3..8], &source[6..11]];
         let result = build_chunks(source, text_chunks, None).unwrap();
 

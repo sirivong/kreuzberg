@@ -3,15 +3,11 @@
 use xberg::types::ExtractedDocument;
 use xberg::{EnrichedResult, EnrichmentConfig, enrich};
 
-// ── helpers ───────────────────────────────────────────────────────────────────
-
 fn bare_result(content: &str) -> ExtractedDocument {
     let mut result = ExtractedDocument::default();
     result.content = content.to_string();
     result
 }
-
-// ── tests ─────────────────────────────────────────────────────────────────────
 
 /// A default config is a no-op: the extraction passes through unchanged and
 /// every enrichment field is `None`.
@@ -77,17 +73,12 @@ async fn enrich_classification_leaves_other_stages_none() {
         ..Default::default()
     };
 
-    // We do not actually call the LLM in unit tests, so we only check that
-    // absent features remain None. If the LLM key is absent the call will
-    // fail; wrap in an ignore-on-error for the non-LLM CI environment.
     if let Ok(enriched) = enrich(extraction, &config).await {
-        // Classification ran (or returned empty on empty pages), everything else is None.
         #[cfg(feature = "ner")]
         assert!(enriched.entities.is_none());
         #[cfg(feature = "captioning")]
         assert!(enriched.captions.is_none());
     }
-    // LLM unavailable in this environment — that is acceptable for a unit test.
 }
 
 /// Stub NerBackend that returns two hardcoded entities.

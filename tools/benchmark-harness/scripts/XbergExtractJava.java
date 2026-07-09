@@ -52,7 +52,6 @@ public final class XbergExtractJava {
     private static String[] parseRequest(String line) {
         String trimmed = line.trim();
         if (trimmed.startsWith("{")) {
-            // Minimal JSON parsing for {"path": "...", "force_ocr": true/false}
             int pathStart = trimmed.indexOf("\"path\"");
             String path = "";
             boolean forceOcr = false;
@@ -73,7 +72,6 @@ public final class XbergExtractJava {
             return new String[] {path, String.valueOf(forceOcr)};
         }
 
-        // Plain file path
         return new String[] {trimmed, "false"};
     }
 
@@ -81,7 +79,6 @@ public final class XbergExtractJava {
         boolean ocrEnabled = false;
         List<String> positionalArgs = new ArrayList<>();
 
-        // Parse OCR flags
         for (String arg : args) {
             if ("--ocr".equals(arg)) {
                 ocrEnabled = true;
@@ -163,7 +160,6 @@ public final class XbergExtractJava {
             debugLog("Server mode starting", "");
         }
 
-        // Signal readiness after JVM + JNI initialization is complete
         System.out.println("READY");
         System.out.flush();
 
@@ -178,7 +174,6 @@ public final class XbergExtractJava {
                 continue;
             }
 
-            // Determine OCR config for this request
             boolean useOcr = ocrEnabled || forceOcr;
             ExtractionConfig benchConfig = buildBenchmarkConfig(useOcr);
 
@@ -372,8 +367,6 @@ public final class XbergExtractJava {
         return value != null ? quote(value) : "null";
     }
 
-    // CPD-OFF: quote() is intentionally duplicated in standalone benchmark scripts (no shared
-    // classpath)
     private static String quote(String value) {
         if (value == null) {
             return "null";
@@ -415,7 +408,6 @@ public final class XbergExtractJava {
         sb.append('"');
         return sb.toString();
     }
-    // CPD-ON
 
     private static String fullMessage(Throwable e) {
         StringBuilder sb = new StringBuilder();

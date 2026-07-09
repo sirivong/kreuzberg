@@ -29,7 +29,6 @@ fn detect_image_format_from_bytes(data: &[u8]) -> &'static str {
     } else if data.starts_with(b"BM") {
         "bmp"
     } else if data.len() >= 8 && data[0..4] == [0x00, 0x00, 0x00, 0x0C] && data[4..8] == [0x6A, 0x50, 0x20, 0x20] {
-        // JPEG 2000: 12-byte box starting with length 0x0000000C and type "jP  "
         "jpeg2000"
     } else {
         "raw"
@@ -73,7 +72,6 @@ fn extract_n_images_from_xobject_resources(
         None => return Ok(Vec::new()),
     };
 
-    // Resolve the XObject dictionary (it may be an indirect reference).
     let xobj_owned;
     let xobj_obj = if let Some(r) = xobj_entry.as_reference() {
         match doc.doc.load_object(r) {
@@ -95,7 +93,6 @@ fn extract_n_images_from_xobject_resources(
         None => return Ok(Vec::new()),
     };
 
-    // Collect and sort keys for deterministic ordering across calls.
     let mut names: Vec<String> = xobj_dict.keys().cloned().collect();
     names.sort();
 
@@ -113,17 +110,12 @@ fn extract_n_images_from_xobject_resources(
 
         let obj_ref = val.as_reference();
 
-        // Fast skip: is_form_xobject peeks at /Subtype without loading the stream.
-        // Returns true for Form XObjects (and conservatively for unknowns) so that
-        // we do not waste a load_object call on non-image XObjects.
         if let Some(r) = obj_ref
             && doc.doc.is_form_xobject(r)
         {
             continue;
         }
 
-        // Load the XObject: fetches the stream dictionary + compressed bytes.
-        // Decompression (the expensive step) happens inside extract_image_from_xobject.
         let loaded;
         let xobj = if let Some(r) = obj_ref {
             match doc.doc.load_object(r) {
@@ -140,21 +132,11 @@ fn extract_n_images_from_xobject_resources(
             val
         };
 
-        // Guard: verify /Subtype = /Image before decompressing. is_form_xobject
-        // returns true (conservative) for some non-Image types, so this check
-        // filters those that slipped through.
         if xobj.as_dict().and_then(|d| d.get("Subtype")).and_then(|s| s.as_name()) != Some("Image") {
             continue;
         }
 
-        // Decompress. This is the expensive step — it happens at most `limit` times
-        // per page, which is what this function is designed to guarantee.
-        match pdf_oxide::extractors::extract_image_from_xobject(
-            Some(&doc.doc),
-            xobj,
-            obj_ref,
-            None, // color_space_map: document-level resolution via doc
-        ) {
+        match pdf_oxide::extractors::extract_image_from_xobject(Some(&doc.doc), xobj, obj_ref, None) {
             Ok(img) => images.push(img),
             Err(e) => {
                 tracing::debug!(
@@ -243,7 +225,6 @@ pub(crate) fn extract_images_with_data(
     max_images_per_page: Option<u32>,
     cancel_token: Option<&CancellationToken>,
 ) -> Result<Vec<crate::types::ExtractedImage>> {
-    // When the cap is zero no image can ever pass through — skip decompression entirely.
     if max_images_per_page == Some(0) {
         return Ok(Vec::new());
     }
@@ -267,19 +248,12 @@ pub(crate) fn extract_images_with_data(
             break;
         }
 
-        // For a positive cap use XObject resource enumeration to stop decompression
-        // after `limit` images. This avoids the eager cost of pdf_oxide::extract_images
-        // which decompresses every image on the page before returning.
-        // Fallback: if the XObject path returns nothing (e.g. page uses only inline
-        // images), retry with the full eager path and apply .take() manually.
-        // xberg#989 tracks getting inline-image support into the capped path.
         let oxide_images = match max_images_per_page.map(|n| n as usize) {
             Some(limit) => {
                 let xobj_images = extract_n_images_from_xobject_resources(doc, page_idx, limit).unwrap_or_default();
                 if !xobj_images.is_empty() {
                     xobj_images
                 } else {
-                    // Fallback: page may use only inline images.
                     match doc.doc.extract_images(page_idx) {
                         Ok(imgs) => imgs.into_iter().take(limit).collect(),
                         Err(e) => {
@@ -298,14 +272,11 @@ pub(crate) fn extract_images_with_data(
             },
         };
 
-        let page_number = (page_idx + 1) as u32; // Xberg uses 1-indexed page numbers
+        let page_number = (page_idx + 1) as u32;
         for oxide_img in &oxide_images {
             let (data, format) = match oxide_img.data() {
                 pdf_oxide::extractors::ImageData::Jpeg(jpeg_bytes) => {
                     let data_bytes = Bytes::copy_from_slice(jpeg_bytes);
-                    // Validate that the data actually starts with JPEG magic bytes.
-                    // pdf_oxide may return JPEG format for data that lacks proper headers,
-                    // so detect the actual format from magic bytes.
                     let actual_format = detect_image_format_from_bytes(data_bytes.as_ref());
                     (data_bytes, Cow::Borrowed(actual_format))
                 }
@@ -364,7 +335,6 @@ mod tests {
 
     #[test]
     fn test_raw_pixels_to_png_grayscale() {
-        // 2×2 grayscale: 4 bytes, one per pixel.
         let pixels: Vec<u8> = vec![0x00, 0x80, 0xc0, 0xff];
         let result = raw_pixels_to_png(2, 2, &pdf_oxide::extractors::PixelFormat::Grayscale, &pixels);
         let bytes = result.expect("grayscale 2×2 must encode without error");
@@ -377,13 +347,7 @@ mod tests {
 
     #[test]
     fn test_raw_pixels_to_png_rgb() {
-        // 2×2 RGB: 12 bytes, 3 per pixel.
-        let pixels: Vec<u8> = vec![
-            0xff, 0x00, 0x00, // red
-            0x00, 0xff, 0x00, // green
-            0x00, 0x00, 0xff, // blue
-            0xff, 0xff, 0xff, // white
-        ];
+        let pixels: Vec<u8> = vec![0xff, 0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xff];
         let result = raw_pixels_to_png(2, 2, &pdf_oxide::extractors::PixelFormat::RGB, &pixels);
         let bytes = result.expect("RGB 2×2 must encode without error");
         assert!(
@@ -395,8 +359,6 @@ mod tests {
 
     #[test]
     fn test_raw_pixels_to_png_cmyk_converts_to_rgb_png() {
-        // 1×2 CMYK: 8 bytes, 4 per pixel.
-        // (0,0,0,255) = pure black; (0,0,0,0) = white.
         let pixels: Vec<u8> = vec![0x00, 0x00, 0x00, 0xff, 0x00, 0x00, 0x00, 0x00];
         let result = raw_pixels_to_png(1, 2, &pdf_oxide::extractors::PixelFormat::CMYK, &pixels);
         let bytes = result.expect("CMYK 1×2 must encode without error");
@@ -405,7 +367,6 @@ mod tests {
             "output must be a PNG; got {:02x?}",
             &bytes[..4.min(bytes.len())]
         );
-        // Verify the PNG decodes to an RGB image (CMYK was converted to RGB before encoding).
         let decoded = image::load_from_memory(&bytes).expect("decoded PNG must be valid");
         assert_eq!(decoded.width(), 1);
         assert_eq!(decoded.height(), 2);
@@ -413,7 +374,6 @@ mod tests {
 
     #[test]
     fn test_raw_pixels_to_png_size_mismatch_returns_error() {
-        // 4×4 grayscale needs 16 bytes; supply only 4 — must be an error, not a panic.
         let pixels: Vec<u8> = vec![0x00, 0x80, 0xc0, 0xff];
         let result = raw_pixels_to_png(4, 4, &pdf_oxide::extractors::PixelFormat::Grayscale, &pixels);
         assert!(
@@ -424,7 +384,6 @@ mod tests {
 
     #[test]
     fn test_raw_pixels_to_png_rgb_size_mismatch_returns_error() {
-        // 2×2 RGB needs 12 bytes; supply 9 (divisible by 3 but wrong total).
         let pixels: Vec<u8> = vec![0xff; 9];
         let result = raw_pixels_to_png(2, 2, &pdf_oxide::extractors::PixelFormat::RGB, &pixels);
         assert!(result.is_err(), "mismatched RGB buffer must return Err");
@@ -432,8 +391,6 @@ mod tests {
 
     #[test]
     fn test_raw_pixels_to_png_cmyk_odd_length_returns_error() {
-        // 1×1 CMYK needs exactly 4 bytes; supply 3. chunks_exact(4) drops the remainder,
-        // producing an empty rgb vec. from_raw(1, 1, []) returns None → must be Err, not panic.
         let pixels: Vec<u8> = vec![0x00, 0x00, 0x00];
         let result = raw_pixels_to_png(1, 1, &pdf_oxide::extractors::PixelFormat::CMYK, &pixels);
         assert!(
@@ -500,7 +457,6 @@ mod tests {
 
         let bytes = std::fs::read(&pdf_path).expect("failed to read test PDF");
 
-        // Full run (no cancel) — establishes the expected upper bound.
         let mut doc_full = crate::pdf::oxide::OxideDocument::open_bytes(&bytes).expect("failed to open PDF");
         let full_result =
             extract_images_with_data(&mut doc_full, None, None).expect("uncancelled extraction must not error");
@@ -510,8 +466,6 @@ mod tests {
             .page_count()
             .expect("page_count must succeed on the fixture");
 
-        // Skip if the fixture has only one page or no images — mid-run cancellation
-        // between pages cannot be demonstrated.
         if page_count <= 1 || full_count == 0 {
             eprintln!(
                 "SKIP test_cancellation_fires_between_pages: nougat_039.pdf has {} page(s) \
@@ -521,9 +475,6 @@ mod tests {
             return;
         }
 
-        // Run with a token that a background thread cancels after 20ms.
-        // For a 67KB 2-page PDF on CI hardware this window typically lands between
-        // pages 0 and 1, but both earlier and later cancellations are correct.
         let mut doc_cancel = crate::pdf::oxide::OxideDocument::open_bytes(&bytes).expect("failed to open PDF");
         let token = CancellationToken::new();
         let token_clone = token.clone();
@@ -538,13 +489,11 @@ mod tests {
 
         handle.join().expect("background thread must not panic");
 
-        // The token must have been set by the time the handle joins.
         assert!(
             token.is_cancelled(),
             "token must be cancelled after background thread fires"
         );
 
-        // Cancellation must never produce more images than an uncancelled run.
         assert!(
             result.len() <= full_count,
             "cancelled extraction returned {} image(s); uncancelled returned {}; \
@@ -587,42 +536,32 @@ mod tests {
     /// headers, we can detect the actual format.
     #[test]
     fn test_detect_image_format_from_bytes() {
-        // JPEG magic bytes: FF D8 FF
         let jpeg_data = b"\xff\xd8\xff\xe0\x00\x10JFIF";
         assert_eq!(detect_image_format_from_bytes(jpeg_data), "jpeg");
 
-        // PNG magic bytes: 89 50 4E 47 0D 0A 1A 0A
         let png_data = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR";
         assert_eq!(detect_image_format_from_bytes(png_data), "png");
 
-        // GIF magic bytes: 47 49 46 38
         let gif_data = b"GIF89a";
         assert_eq!(detect_image_format_from_bytes(gif_data), "gif");
 
-        // TIFF (little-endian) magic: 49 49 (II)
         let tiff_le = b"II\x2a\x00";
         assert_eq!(detect_image_format_from_bytes(tiff_le), "tiff");
 
-        // TIFF (big-endian) magic: 4D 4D (MM)
         let tiff_be = b"MM\x00\x2a";
         assert_eq!(detect_image_format_from_bytes(tiff_be), "tiff");
 
-        // BMP magic: 42 4D (BM)
         let bmp_data = b"BM\x00\x00\x00";
         assert_eq!(detect_image_format_from_bytes(bmp_data), "bmp");
 
-        // JPEG 2000 magic: 00 00 00 0C 6A 50 20 20 (jP  box header)
         let jp2_data = b"\x00\x00\x00\x0cjP  ";
         assert_eq!(detect_image_format_from_bytes(jp2_data), "jpeg2000");
 
-        // Unknown format should return "raw"
         let raw_data = b"\x00\x01\x02\x03\x04\x05";
         assert_eq!(detect_image_format_from_bytes(raw_data), "raw");
 
-        // Empty data should return "raw"
         assert_eq!(detect_image_format_from_bytes(b""), "raw");
 
-        // Incomplete JPEG header should return "raw"
         let incomplete = b"\xff\xd8";
         assert_eq!(detect_image_format_from_bytes(incomplete), "raw");
     }

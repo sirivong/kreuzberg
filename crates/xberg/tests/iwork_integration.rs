@@ -16,8 +16,6 @@ mod iwork_tests {
         PathBuf::from(manifest).join("../../test_documents/iwork").join(name)
     }
 
-    // ── MIME type detection integration tests ───────────────────────────
-
     #[test]
     fn test_mime_detection_numbers_file() {
         let path = test_doc_path("test.numbers");
@@ -48,8 +46,6 @@ mod iwork_tests {
         );
     }
 
-    // ── Extraction integration tests ─────────────────────────────────────
-
     #[tokio::test]
     #[cfg(feature = "tokio-runtime")]
     async fn test_extract_numbers_document() {
@@ -66,7 +62,6 @@ mod iwork_tests {
             .await
             .expect("Extraction should not fail on valid file");
 
-        // A valid Numbers file should produce some text output
         assert!(
             !result.content.is_empty(),
             "Numbers extraction should produce non-empty text. Got: {:?}",
@@ -86,13 +81,10 @@ mod iwork_tests {
         let content = std::fs::read(&path).expect("Failed to read test.pages");
         let config = ExtractionConfig::default();
 
-        // Extraction should not panic — it may produce empty content if the
-        // fixture is a stub (non-Snappy compressed IWA), but should not error.
         let result = extract_bytes_document(&content, "application/x-iwork-pages-sffpages", &config)
             .await
             .expect("Extraction should not fail on valid ZIP file");
 
-        // For any valid .pages file, extraction should succeed (even if empty)
         assert!(
             result.mime_type.as_ref() == "application/x-iwork-pages-sffpages",
             "MIME type should be preserved in result"

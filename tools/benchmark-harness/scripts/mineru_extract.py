@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import os
 
-# Force CPU-only mode to avoid GPU discovery errors in CI
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 os.environ.setdefault("ONNXRUNTIME_PROVIDERS", "CPUExecutionProvider")
 os.environ.setdefault("MINERU_DEVICE_MODE", "cpu")
@@ -29,8 +28,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-# Try importing MinerU's Python API to avoid subprocess overhead.
-# The API surface has changed across versions, so we attempt several known entry points.
 try:
     from magic_pdf.pipe.UNIPipe import UNIPipe  # noqa: F401
 
@@ -64,8 +61,6 @@ def _extract_via_cli(file_path: str, ocr_enabled: bool) -> str:
             check=False,
         )
 
-        # Check for output files first — ONNX Runtime may emit warnings to
-        # stderr even when extraction succeeds.
         md_files = list(output_dir.rglob("*.md"))
         if md_files:
             return md_files[0].read_text(encoding="utf-8")
@@ -79,8 +74,6 @@ def _extract_via_cli(file_path: str, ocr_enabled: bool) -> str:
 def _extract_via_api(file_path: str, ocr_enabled: bool) -> str:
     """Extract using MinerU Python API (preferred, avoids subprocess overhead)."""
     # NOTE: The MinerU Python API is not yet stable. This is a best-effort attempt
-    # using the UNIPipe interface. If this fails at runtime, the caller should
-    # fall back to CLI extraction.
     from magic_pdf.pipe.UNIPipe import UNIPipe
     from magic_pdf.rw.DiskReaderWriter import DiskReaderWriter
 
@@ -107,17 +100,17 @@ def _strip_markdown(text: str) -> str:
     global _MD_STRIP_RE
     if _MD_STRIP_RE is None:
         _MD_STRIP_RE = [
-            (re.compile(r"^#{1,6}\s+", re.MULTILINE), ""),  # ATX headings
-            (re.compile(r"^\s*[-*+]\s+", re.MULTILINE), ""),  # bullet markers
-            (re.compile(r"^\s*\d+\.\s+", re.MULTILINE), ""),  # ordered list markers
-            (re.compile(r"^>\s?", re.MULTILINE), ""),  # blockquotes
-            (re.compile(r"```[a-zA-Z0-9_-]*\n?"), ""),  # code fences
-            (re.compile(r"`([^`]+)`"), r"\1"),  # inline code
-            (re.compile(r"\*\*([^*]+)\*\*"), r"\1"),  # bold
-            (re.compile(r"\*([^*]+)\*"), r"\1"),  # italic
-            (re.compile(r"!\[([^\]]*)\]\([^)]*\)"), r"\1"),  # images
-            (re.compile(r"\[([^\]]+)\]\([^)]*\)"), r"\1"),  # links
-            (re.compile(r"^\s*\|.*\|\s*$", re.MULTILINE), ""),  # table rows (drop)
+            (re.compile(r"^#{1,6}\s+", re.MULTILINE), ""),
+            (re.compile(r"^\s*[-*+]\s+", re.MULTILINE), ""),
+            (re.compile(r"^\s*\d+\.\s+", re.MULTILINE), ""),
+            (re.compile(r"^>\s?", re.MULTILINE), ""),
+            (re.compile(r"```[a-zA-Z0-9_-]*\n?"), ""),
+            (re.compile(r"`([^`]+)`"), r"\1"),
+            (re.compile(r"\*\*([^*]+)\*\*"), r"\1"),
+            (re.compile(r"\*([^*]+)\*"), r"\1"),
+            (re.compile(r"!\[([^\]]*)\]\([^)]*\)"), r"\1"),
+            (re.compile(r"\[([^\]]+)\]\([^)]*\)"), r"\1"),
+            (re.compile(r"^\s*\|.*\|\s*$", re.MULTILINE), ""),
         ]
     out = text
     for pattern, repl in _MD_STRIP_RE:
@@ -133,7 +126,6 @@ def extract_sync(file_path: str, ocr_enabled: bool, output_format: str = "markdo
         try:
             markdown = _extract_via_api(file_path, ocr_enabled)
         except Exception:
-            # Fall back to CLI if Python API fails at runtime
             markdown = _extract_via_cli(file_path, ocr_enabled)
     else:
         markdown = _extract_via_cli(file_path, ocr_enabled)
@@ -157,7 +149,6 @@ def extract_batch(file_paths: list[str], ocr_enabled: bool, output_format: str =
     for file_path in file_paths:
         try:
             payload = extract_sync(file_path, ocr_enabled, output_format)
-            # Remove per-file timing; we'll replace with batch timing below
             payload.pop("_extraction_time_ms", None)
             results.append(payload)
         except Exception as e:
@@ -235,7 +226,6 @@ def _run_with_timeout(fn, args, timeout):
         parent_conn.close()
         return result
     except Exception:
-        # Fork not available — fall back to in-process extraction
         try:
             return fn(*args)
         except Exception as e:
@@ -310,7 +300,6 @@ def main() -> None:
             if len(file_paths) != 1:
                 print("Error: sync mode requires exactly one file", file=sys.stderr)
                 sys.exit(1)
-            # Wrap sync extraction in timeout protection to handle hangs during initialization
             if timeout is not None:
                 payload = _run_with_timeout(extract_sync, (file_paths[0], ocr_enabled, output_format), timeout)
             else:

@@ -25,13 +25,10 @@ fn merged_header_keeps_column_alignment() {
         .expect("extraction must succeed");
     let table = doc.tables.first().expect("a table must be extracted");
 
-    // Header merges columns 0-1 into "Fuse"; "Circuit" must stay in the last
-    // column, and the data rows must line up under it.
     let joined = table.cells.iter().flatten().cloned().collect::<Vec<_>>().join(" | ");
     assert!(joined.contains("Fuse"), "merged header present: {joined}");
     assert!(joined.contains("Circuit"), "circuit header present: {joined}");
 
-    // The 101 data row must stay ordered 101, 40A, Blower — not shifted.
     let data_row = table
         .cells
         .iter()

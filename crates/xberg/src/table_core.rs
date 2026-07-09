@@ -62,13 +62,11 @@ pub(crate) fn detect_columns(words: &[HocrWord], column_threshold: u32) -> Vec<u
         return Vec::new();
     }
 
-    // Group words by approximate x-position
     let mut position_groups: Vec<Vec<u32>> = Vec::new();
 
     for word in words {
         let x_pos = word.left;
 
-        // Find existing group within threshold
         let mut found_group = false;
         for group in &mut position_groups {
             if let Some(&first_pos) = group.first()
@@ -80,13 +78,11 @@ pub(crate) fn detect_columns(words: &[HocrWord], column_threshold: u32) -> Vec<u
             }
         }
 
-        // Create new group if not found
         if !found_group {
             position_groups.push(vec![x_pos]);
         }
     }
 
-    // Calculate median for each group
     let mut columns: Vec<u32> = position_groups
         .iter()
         .filter(|group| !group.is_empty())
@@ -98,7 +94,6 @@ pub(crate) fn detect_columns(words: &[HocrWord], column_threshold: u32) -> Vec<u
         })
         .collect();
 
-    // Sort columns left to right
     columns.sort_unstable();
     columns
 }
@@ -113,19 +108,16 @@ pub(crate) fn detect_rows(words: &[HocrWord], row_threshold_ratio: f64) -> Vec<u
         return Vec::new();
     }
 
-    // Calculate median height for threshold
     let mut heights: Vec<u32> = words.iter().map(|w| w.height).collect();
     heights.sort_unstable();
     let median_height = heights[heights.len() / 2];
     let row_threshold = (median_height as f64 * row_threshold_ratio) as u32;
 
-    // Group words by approximate y-center
     let mut position_groups: Vec<Vec<f64>> = Vec::new();
 
     for word in words {
         let y_center = word.y_center();
 
-        // Find existing group within threshold
         let mut found_group = false;
         for group in &mut position_groups {
             if let Some(&first_pos) = group.first()
@@ -137,13 +129,11 @@ pub(crate) fn detect_rows(words: &[HocrWord], row_threshold_ratio: f64) -> Vec<u
             }
         }
 
-        // Create new group if not found
         if !found_group {
             position_groups.push(vec![y_center]);
         }
     }
 
-    // Calculate median for each group
     let mut rows: Vec<u32> = position_groups
         .iter()
         .filter(|group| !group.is_empty())
@@ -155,7 +145,6 @@ pub(crate) fn detect_rows(words: &[HocrWord], row_threshold_ratio: f64) -> Vec<u
         })
         .collect();
 
-    // Sort rows top to bottom
     rows.sort_unstable();
     rows
 }
@@ -188,7 +177,6 @@ fn remove_empty_rows_and_columns(table: Vec<Vec<String>>) -> Vec<Vec<String>> {
         return table;
     }
 
-    // Find non-empty columns
     let num_cols = table[0].len();
     let mut non_empty_cols: Vec<bool> = vec![false; num_cols];
 
@@ -200,7 +188,6 @@ fn remove_empty_rows_and_columns(table: Vec<Vec<String>>) -> Vec<Vec<String>> {
         }
     }
 
-    // Filter rows and columns
     table
         .into_iter()
         .filter(|row| row.iter().any(|cell| !cell.trim().is_empty()))
@@ -232,7 +219,6 @@ pub(crate) fn reconstruct_table(
         return Vec::new();
     }
 
-    // Detect table structure
     let col_positions = detect_columns(words, column_threshold);
     let row_positions = detect_rows(words, row_threshold_ratio);
 
@@ -240,12 +226,10 @@ pub(crate) fn reconstruct_table(
         return Vec::new();
     }
 
-    // Initialize table grid
     let num_rows = row_positions.len();
     let num_cols = col_positions.len();
     let mut table: Vec<Vec<Vec<String>>> = vec![vec![vec![]; num_cols]; num_rows];
 
-    // Assign words to cells
     for word in words {
         if let (Some(r), Some(c)) = (
             find_row_index(&row_positions, word),
@@ -257,7 +241,6 @@ pub(crate) fn reconstruct_table(
         }
     }
 
-    // Combine words within cells
     let result: Vec<Vec<String>> = table
         .into_iter()
         .map(|row| {
@@ -273,7 +256,6 @@ pub(crate) fn reconstruct_table(
         })
         .collect();
 
-    // Remove empty rows and columns
     remove_empty_rows_and_columns(result)
 }
 
@@ -293,18 +275,15 @@ pub(crate) fn table_to_markdown(table: &[Vec<String>]) -> String {
 
     let mut markdown = String::new();
 
-    // Add rows
     for (row_idx, row) in table.iter().enumerate() {
         markdown.push('|');
         for cell in row {
             markdown.push(' ');
-            // Escape pipes in cell content
             markdown.push_str(&cell.replace('|', "\\|"));
             markdown.push_str(" |");
         }
         markdown.push('\n');
 
-        // Add header separator after first row
         if row_idx == 0 {
             markdown.push('|');
             for _ in 0..num_cols {
@@ -347,7 +326,6 @@ mod tests {
 
     #[test]
     fn test_nan_safe_sort_does_not_panic() {
-        // total_cmp is a proper total order; NaN sorts after all finite values (ascending).
         let mut values: Vec<f64> = vec![1.0, f64::NAN, 2.0];
         values.sort_by(|a, b| a.total_cmp(b));
         assert_eq!(values.len(), 3);
@@ -526,7 +504,6 @@ mod tests {
     #[test]
     fn test_reconstruct_table_intra_cell_word_spacing() {
         let words = vec![
-            // Row 1 (header)
             HocrWord {
                 text: "Chose".to_string(),
                 left: 57,
@@ -543,7 +520,6 @@ mod tests {
                 height: 12,
                 confidence: 95.0,
             },
-            // Row 2: "Chose 1" and "Truc 1"
             HocrWord {
                 text: "Chose".to_string(),
                 left: 57,
@@ -554,7 +530,7 @@ mod tests {
             },
             HocrWord {
                 text: "1".to_string(),
-                left: 90, // 3px gap from "Chose" which ends at 85
+                left: 90,
                 top: 510,
                 width: 6,
                 height: 12,
@@ -570,13 +546,12 @@ mod tests {
             },
             HocrWord {
                 text: "1".to_string(),
-                left: 332, // 5px gap from "Truc" which ends at 327
+                left: 332,
                 top: 510,
                 width: 5,
                 height: 12,
                 confidence: 95.0,
             },
-            // Row 3: "Chose 2" and "Truc 2"
             HocrWord {
                 text: "Chose".to_string(),
                 left: 57,
@@ -611,14 +586,11 @@ mod tests {
             },
         ];
 
-        // Use a large column threshold (>33px) to avoid splitting "Chose" and "1"
         let table = reconstruct_table(&words, 60, 0.5);
 
-        // Should produce a 3x2 table, not 3x4
         assert_eq!(table.len(), 3, "Expected 3 rows, got {}", table.len());
         assert_eq!(table[0].len(), 2, "Expected 2 columns in row 0, got {}", table[0].len());
 
-        // Verify cell contents are correctly merged
         assert_eq!(table[0][0], "Chose", "Header row 1, col 1");
         assert_eq!(table[0][1], "Truc", "Header row 1, col 2");
         assert_eq!(table[1][0], "Chose 1", "Row 2, col 1 should contain merged text");

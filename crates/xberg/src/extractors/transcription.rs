@@ -23,10 +23,6 @@ use crate::{Result, XbergError};
 use async_trait::async_trait;
 use tokio::task;
 
-// ---------------------------------------------------------------------------
-// Process-wide engine cache
-// ---------------------------------------------------------------------------
-
 /// Process-wide cache of loaded `WhisperEngine` instances, keyed by the
 /// canonical model paths (encoder|tokenizer). Mirrors the pattern in
 /// `crate::reranking::get_or_init_engine`.
@@ -81,7 +77,6 @@ impl Plugin for TranscriptionExtractor {
     }
 
     fn initialize(&self) -> Result<()> {
-        // Nothing heavy at registration time. Model loading is lazy.
         Ok(())
     }
 
@@ -99,8 +94,6 @@ impl InternalDocumentExtractor for TranscriptionExtractor {
         mime_type: &str,
         config: &ExtractionConfig,
     ) -> Result<InternalDocument> {
-        // The registry already validated the MIME, but we still need the
-        // runtime config block.
         let tcfg = config.transcription.as_ref().filter(|c| c.enabled).ok_or_else(|| {
             XbergError::transcription(
                 "Transcription requested for audio/video input, but no `transcription` \
@@ -110,7 +103,6 @@ impl InternalDocumentExtractor for TranscriptionExtractor {
             )
         })?;
 
-        // Hard size limit (defense in depth — the caller may also have set one).
         if let Some(max_b) = tcfg.max_bytes
             && content.len() as u64 > max_b
         {
@@ -121,7 +113,6 @@ impl InternalDocumentExtractor for TranscriptionExtractor {
             )));
         }
 
-        // Decode PCM and read audio tags on the blocking pool in one pass.
         let bytes_owned = content.to_vec();
         let max_bytes_for_decode = tcfg.max_bytes;
         let (pcm, tags): (PcmAudio, crate::transcription::tags::AudioTags) = task::spawn_blocking(move || {
@@ -132,7 +123,6 @@ impl InternalDocumentExtractor for TranscriptionExtractor {
         .await
         .map_err(|e| XbergError::transcription_with_source("Decoder task panicked", e))??;
 
-        // Duration limit (after we know the real duration).
         if let Some(max_dur) = tcfg.max_duration_ms
             && pcm.duration_ms > max_dur
         {
@@ -142,7 +132,6 @@ impl InternalDocumentExtractor for TranscriptionExtractor {
             )));
         }
 
-        // Resolve model paths (downloads on first use if allow_network = true).
         let paths = {
             let model = tcfg.model;
             let cache_dir = tcfg.model_cache_dir.clone();
@@ -180,8 +169,6 @@ impl InternalDocumentExtractor for TranscriptionExtractor {
     }
 
     fn supported_mime_types(&self) -> &[&str] {
-        // These must exactly match the entries we added to FORMATS in core/mime.rs
-        // (plus the aliases the registry already normalizes).
         &[
             "audio/mpeg",
             "audio/mp4",
@@ -193,13 +180,12 @@ impl InternalDocumentExtractor for TranscriptionExtractor {
     }
 
     fn priority(&self) -> i32 {
-        50 // Normal default — users can override with a higher-priority custom plugin
+        50
     }
 }
 
 impl SyncExtractor for TranscriptionExtractor {
     fn extract_sync(&self, content: &[u8], mime_type: &str, config: &ExtractionConfig) -> Result<InternalDocument> {
-        // Sync path used when no tokio runtime is available.
         let tcfg = config.transcription.as_ref().filter(|c| c.enabled).ok_or_else(|| {
             XbergError::transcription(
                 "Transcription requested for audio/video input, but no `transcription` \
@@ -231,7 +217,6 @@ impl SyncExtractor for TranscriptionExtractor {
             )));
         }
 
-        // Resolve model paths (downloads on first use if allow_network = true).
         let paths = ensure_whisper_model(
             tcfg.model,
             tcfg.model_cache_dir.as_deref(),
@@ -314,7 +299,7 @@ mod tests {
     #[test]
     fn test_sync_no_config_returns_error() {
         let ext = TranscriptionExtractor;
-        let cfg = ExtractionConfig::default(); // no transcription block
+        let cfg = ExtractionConfig::default();
         let result = ext.extract_sync(&[], "audio/mpeg", &cfg);
         assert!(result.is_err(), "expected error when no transcription config");
         let msg = result.unwrap_err().to_string();
@@ -353,10 +338,6 @@ mod tests {
 
     #[test]
     fn test_sync_duration_limit_enforced() {
-        // Read a real WAV fixture so symphonia can probe and decode it — the
-        // duration limit is checked after successful decode, so we need valid
-        // audio bytes.  max_duration_ms=0 means any non-empty decoded audio
-        // (silence-1s.wav is ~1000 ms) exceeds the limit immediately.
         let wav_path =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../test_documents/audio/silence-1s.wav");
         let bytes = std::fs::read(&wav_path).unwrap_or_else(|e| panic!("missing audio fixture {wav_path:?}: {e}"));
@@ -400,8 +381,6 @@ mod tests {
             "unexpected: {msg}"
         );
     }
-
-    // ── build_audio_document unit tests ──────────────────────────────────────
 
     fn make_pcm(duration_ms: u64) -> PcmAudio {
         PcmAudio {
@@ -460,7 +439,6 @@ mod tests {
     fn test_build_audio_document_falls_back_to_pcm_properties() {
         use crate::types::metadata::FormatMetadata;
 
-        // Tags have no audio properties — should fall back to PCM values.
         let tags = AudioTags::default();
         let pcm = make_pcm(60_000);
         let doc = build_audio_document(tags, &pcm, "audio/wav");

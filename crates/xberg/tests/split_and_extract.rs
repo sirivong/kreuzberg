@@ -29,8 +29,6 @@ async fn auto_split_covers_all_pages_contiguously() {
 
     assert!(!segments.is_empty(), "auto split must produce at least one segment");
 
-    // Segments are contiguous starting at page 1, and each document's page count
-    // matches its declared range span.
     let mut expected_start = 1u32;
     for segment in &segments {
         assert_eq!(
@@ -60,7 +58,6 @@ async fn page_ranges_split_slices_requested_pages() {
     }
     let bytes = std::fs::read(get_test_file_path("pdf/multi_page.pdf")).expect("read multi_page.pdf");
 
-    // Learn the page count from a full auto pass, then split page 1 vs the rest.
     let full = split_and_extract(&bytes, &SplitConfig::default())
         .await
         .expect("auto split to learn page count");

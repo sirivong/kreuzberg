@@ -44,7 +44,6 @@ mod tests {
     use super::*;
     use crate::core::config::LlmConfig;
 
-    // Uses `axum` to stand up a stub server, which is only available under the `api` feature.
     #[cfg(feature = "api")]
     #[tokio::test]
     async fn test_client_path_normalization_with_base_url() {
@@ -56,7 +55,6 @@ mod tests {
 
         let app = Router::new().fallback(post(
             move |_method: axum::http::Method, uri: axum::http::Uri, headers: axum::http::HeaderMap| async move {
-                // Assert no double slash in the path
                 assert_eq!(uri.path(), "/v1/chat/completions");
 
                 let auth = headers
@@ -87,7 +85,6 @@ mod tests {
             axum::serve(listener, app).await.unwrap();
         });
 
-        // Use a base URL with a trailing slash to test normalization
         let base_url = format!("http://{}/v1/", addr);
         let config = LlmConfig {
             model: "openai/gpt-4o".to_string(),
@@ -127,6 +124,5 @@ mod tests {
         };
 
         let _ = create_client(&config).unwrap();
-        // Sanitization logic verified via manual/integration testing.
     }
 }

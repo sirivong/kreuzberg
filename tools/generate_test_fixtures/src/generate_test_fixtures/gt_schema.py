@@ -21,9 +21,6 @@ from typing import Any
 
 from . import __version__
 
-# Single source of truth for the ``generated_by`` field. Including the
-# package version + the calling script's import path makes regressions easy
-# to triage by-eye in test failures.
 TOOL_NAME = "generate-test-fixtures"
 
 
@@ -76,8 +73,6 @@ def write_ground_truth(
     try:
         relative = fixture_path.resolve().relative_to(repo_root.resolve())
     except ValueError:
-        # Fixture is outside the repo (e.g. tmp_path in tests). Store the
-        # absolute path so the loader at least surfaces a useful error.
         relative = fixture_path.resolve()
 
     gt = GroundTruth(
@@ -88,9 +83,6 @@ def write_ground_truth(
         generated_by=f"{TOOL_NAME} {__version__} ({generator})",
     )
     sidecar_path.write_text(json.dumps(asdict(gt), indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-
-# ── Expectation builders ─────────────────────────────────────────────────────
 
 
 def revisions_expectation(

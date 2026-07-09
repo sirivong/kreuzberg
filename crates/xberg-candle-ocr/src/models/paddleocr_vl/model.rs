@@ -19,7 +19,6 @@ use crate::vendor::aha::{
 
 use super::config::{PaddleOCRVLConfig, PaddleOCRVLRopeScalingConfig, PaddleOCRVLVisionConfig};
 
-// Helper function for vision position indexing
 fn get_vision_next_indices(input_ids: &Tensor, vision_start_token_id: u32) -> Result<Tensor> {
     let input_vec = input_ids
         .to_vec1::<u32>()
@@ -243,7 +242,6 @@ impl SiglipVisionEmbeddings {
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Get img_num: {}", e)))?;
             let mut start = 0usize;
 
-            // Compute base grid size from num_positions: base = sqrt(num_positions)
             let base = (self.num_positions as f64).sqrt() as usize;
             if base * base != self.num_positions {
                 return Err(CandleOcrError::InferenceFailed(format!(
@@ -252,7 +250,6 @@ impl SiglipVisionEmbeddings {
                 )));
             }
 
-            // Get all base position embeddings: indices 0..num_positions
             let base_pos_indices = Tensor::arange(0u32, self.num_positions as u32, embeddings.device())
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Arange indices: {}", e)))?;
             let base_pos_embeds = self
@@ -279,28 +276,21 @@ impl SiglipVisionEmbeddings {
                     .i(start..end)
                     .map_err(|e| CandleOcrError::InferenceFailed(format!("Index embeds: {}", e)))?;
 
-                // Interpolate position embeddings from base grid to actual grid size
-                // base_pos_embeds shape: (num_positions, embed_dim)
-                // Reshape to (1, base, base, embed_dim)
                 let pos_embed_reshaped = base_pos_embeds
                     .reshape((1, base, base, self.embed_dim))
                     .map_err(|e| CandleOcrError::InferenceFailed(format!("Reshape pos embed: {}", e)))?;
 
-                // Permute to (1, embed_dim, base, base) for interpolation
                 let pos_embed_chw = pos_embed_reshaped
                     .permute(vec![0, 3, 1, 2])
                     .map_err(|e| CandleOcrError::InferenceFailed(format!("Permute for interp: {}", e)))?;
 
-                // Interpolate to (1, embed_dim, h, w) using bilinear
                 let pos_embed_interp = interpolate_bilinear(&pos_embed_chw, (h, w), Some(false), None)
                     .map_err(|e| CandleOcrError::InferenceFailed(format!("Interpolate pos: {}", e)))?;
 
-                // Permute back to (1, h, w, embed_dim)
                 let pos_embed_hwc = pos_embed_interp
                     .permute(vec![0, 2, 3, 1])
                     .map_err(|e| CandleOcrError::InferenceFailed(format!("Permute back: {}", e)))?;
 
-                // Reshape to (h*w, embed_dim) and add to patch embeddings
                 let pos_embed_flat = pos_embed_hwc
                     .squeeze(0)
                     .map_err(|e| CandleOcrError::InferenceFailed(format!("Squeeze: {}", e)))?
@@ -591,8 +581,6 @@ impl Ernie4_5Model {
 
         let mut xs = inputs_embeds.clone();
 
-        // Causal mask for the multi-token prefill; single-token decode steps
-        // attend over the whole KV cache, which is exactly the visible past.
         let attention_mask: Option<Tensor> = if seq_len <= 1 {
             None
         } else {
@@ -699,7 +687,6 @@ impl PaddleOCRVLModel {
                 #[allow(unused_assignments)]
                 let mut text_end = 0u32;
 
-                // Try to find vision tokens
                 if let Ok(vision_indices) = get_vision_next_indices(&input_ids_i, self.cfg.vision_start_token_id) {
                     let vision_tokens = vision_indices
                         .to_vec1::<u32>()
@@ -751,10 +738,6 @@ impl PaddleOCRVLModel {
 
                                 llm_pos_ids_list.push(pos_ids);
 
-                                // Vision patch position IDs (t, h, w) — the mrope layout the
-                                // decoder splits by rope_scaling.mrope_section. Images carry a
-                                // single frame with no temporal stride, so every patch shares the
-                                // frame position start_idx + text_len.
                                 let grid_numel = (llm_grid_t as usize) * (llm_grid_h as usize) * (llm_grid_w as usize);
                                 let t_index = Tensor::full(start_idx + text_len, grid_numel, input_ids_i.device())
                                     .map_err(|e| CandleOcrError::InferenceFailed(format!("T full: {}", e)))?;
@@ -796,7 +779,6 @@ impl PaddleOCRVLModel {
                     }
                 }
 
-                // Handle trailing text
                 let input_len = input_ids_i
                     .dim(0)
                     .map_err(|e| CandleOcrError::InferenceFailed(format!("Input len: {}", e)))?;
@@ -854,7 +836,6 @@ impl PaddleOCRVLModel {
 
             Ok((position_ids.contiguous()?, mrope_position_deltas))
         } else {
-            // No vision: simple text-only position IDs
             let position_ids = Tensor::arange(0_u32, input_ids.dim(D::Minus1)? as u32, input_ids.device())
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Arrange: {}", e)))?
                 .unsqueeze(0)
@@ -937,11 +918,6 @@ impl PaddleOCRVLModel {
                 .forward(&image_embed, image_grid_thw)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Projector forward: {}", e)))?;
 
-            // Apply image mask to embed using position-agnostic scatter.
-            // image_embed is [num_vision_tokens, hidden_size] (dense, post-projector).
-            // inputs_embeds is [1, seq_len, hidden_size].
-            // image_mask is [1, seq_len] with 1 at positions where image tokens belong.
-
             let (_b, seq_len, hidden_size) = inputs_embeds
                 .dims3()
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Get dims: {}", e)))?;
@@ -950,7 +926,6 @@ impl PaddleOCRVLModel {
                 .dim(0)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Get image_embed dim: {}", e)))?;
 
-            // Extract positions where mask is 1
             let mask_flat = image_mask
                 .flatten_all()
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Flatten mask: {}", e)))?;
@@ -966,7 +941,6 @@ impl PaddleOCRVLModel {
                 }
             }
 
-            // Guard: number of 1s in mask must equal num_vision_tokens
             if image_positions.len() != num_vision_tokens as usize {
                 return Err(CandleOcrError::InferenceFailed(format!(
                     "Image mask has {} positions but num_vision_tokens is {}",
@@ -975,11 +949,9 @@ impl PaddleOCRVLModel {
                 )));
             }
 
-            // Create index tensor for scatter
             let index = Tensor::from_vec(image_positions, (num_vision_tokens as usize,), inputs_embeds.device())
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Create index: {}", e)))?;
 
-            // Build keep mask: 1 where mask is 0 (text positions), 0 where mask is 1 (image positions)
             let keep = image_mask
                 .to_dtype(inputs_embeds.dtype())
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Mask to_dtype: {}", e)))?
@@ -990,19 +962,16 @@ impl PaddleOCRVLModel {
                 .unsqueeze(D::Minus1)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Unsqueeze keep: {}", e)))?;
 
-            // Zero out image positions in inputs_embeds
             let flat = inputs_embeds
                 .reshape((seq_len, hidden_size))
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Reshape: {}", e)))?
                 .broadcast_mul(&keep)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Broadcast mul: {}", e)))?;
 
-            // Convert image_embed to correct dtype
             let image_embed = image_embed
                 .to_dtype(inputs_embeds.dtype())
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Image embed to_dtype: {}", e)))?;
 
-            // Scatter vision embeddings into their mask positions
             let merged = flat
                 .index_add(&index, &image_embed, 0)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Index add: {}", e)))?;
@@ -1045,9 +1014,6 @@ impl PaddleOCRVLModel {
                     .to_dtype(candle_core::DType::U32)
                     .map_err(|e| CandleOcrError::InferenceFailed(format!("U32: {}", e)))?
             } else if let Some(rope_deltas) = self.rope_deltas.as_ref() {
-                // Decode steps arrive without an explicit cache_position (the
-                // InferenceModel::forward_step path); the token's absolute position
-                // is seqlen_offset, so continue the mrope positions from there.
                 Tensor::from_vec(vec![seqlen_offset as u32], 1, inputs_embeds.device())
                     .map_err(|e| CandleOcrError::InferenceFailed(format!("Offset tensor: {}", e)))?
                     .i(0)
@@ -1187,7 +1153,6 @@ mod tests {
             pad_token_id: 0,
             rms_norm_eps: 1e-6,
             rope_scaling: PaddleOCRVLRopeScalingConfig {
-                // mrope_section entries must sum to head_dim / 2 (= 8 / 2 = 4).
                 mrope_section: vec![1, 1, 2],
                 rope_type: "mrope".to_string(),
                 scaling_type: "mrope".to_string(),
@@ -1224,12 +1189,10 @@ mod tests {
 
         let encoder = SiglipEncoder::new(vb, &cfg)?;
 
-        // SiglipVisionEmbeddings::forward unsqueezes to (1, num_patches, hidden_size).
         let num_patches = 4usize;
         let xs = Tensor::zeros((1, num_patches, cfg.hidden_size), DType::F32, &dev)
             .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?;
 
-        // grid_thw: [t=1, h=2, w=2] → 1 image of 2×2 spatial patches
         let grid_thw = Tensor::new(&[[1u32, 2u32, 2u32]], &dev)
             .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?;
 
@@ -1262,42 +1225,32 @@ mod tests {
 
         let embeddings = SiglipVisionEmbeddings::new(vb, &cfg)?;
 
-        // Verify base num_positions: (28/14)^2 = 4
         assert_eq!(embeddings.num_positions, 4, "tiny config should have 4 base positions");
 
-        let base = (embeddings.num_positions as f64).sqrt() as usize; // base = 2
-        let h = 32usize; // target grid height, much larger than base
-        let w = 32usize; // target grid width, much larger than base
+        let base = (embeddings.num_positions as f64).sqrt() as usize;
+        let h = 32usize;
+        let w = 32usize;
 
-        // Get base position embeddings: (num_positions, embed_dim) = (4, 16)
         let base_pos_indices = Tensor::arange(0u32, embeddings.num_positions as u32, &dev)?;
         let base_pos_embeds = embeddings.position_embedding.forward(&base_pos_indices)?;
 
         assert_eq!(base_pos_embeds.dims(), &[embeddings.num_positions, cfg.hidden_size]);
 
-        // Reshape to (1, base, base, embed_dim) = (1, 2, 2, 16)
         let pos_embed_reshaped = base_pos_embeds.reshape((1, base, base, cfg.hidden_size))?;
         assert_eq!(pos_embed_reshaped.dims(), &[1, 2, 2, 16]);
 
-        // Permute to (1, embed_dim, base, base) = (1, 16, 2, 2)
         let pos_embed_chw = pos_embed_reshaped.permute(vec![0, 3, 1, 2])?;
         assert_eq!(pos_embed_chw.dims(), &[1, 16, 2, 2]);
 
-        // Interpolate to (1, embed_dim, h, w) = (1, 16, 32, 32)
         let pos_embed_interp = interpolate_bilinear(&pos_embed_chw, (h, w), Some(false), None)?;
         assert_eq!(pos_embed_interp.dims(), &[1, 16, 32, 32]);
 
-        // Permute back to (1, h, w, embed_dim) = (1, 32, 32, 16)
         let pos_embed_hwc = pos_embed_interp.permute(vec![0, 2, 3, 1])?;
         assert_eq!(pos_embed_hwc.dims(), &[1, 32, 32, 16]);
 
-        // Reshape to (h*w, embed_dim) = (1024, 16)
         let pos_embed_flat = pos_embed_hwc.squeeze(0)?.reshape((h * w, cfg.hidden_size))?;
         assert_eq!(pos_embed_flat.dims(), &[1024, 16]);
 
-        // SUCCESS: interpolation completed without panic and produces correct shape.
-        // On CUDA, the old code would have failed with "Grid vec1: device-side assert triggered"
-        // because it tried to index position_embedding (size 4) with indices 0..1024.
         Ok(())
     }
 
@@ -1339,7 +1292,6 @@ mod tests {
 
         let batch = 1usize;
         let seq_len = 6usize;
-        // All tokens are plain text (no vision_start_token_id among them).
         let input_ids = Tensor::arange(0u32, (batch * seq_len) as u32, &dev)
             .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?
             .reshape((batch, seq_len))
@@ -1358,8 +1310,6 @@ mod tests {
             "text-only mrope_deltas should be (batch, 1)"
         );
 
-        // The position IDs for text-only should form a simple [0..seq_len) range
-        // broadcast across all 3 rope sections.
         let first_row = position_ids
             .i((0usize, 0usize, ..))
             .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?
@@ -1388,12 +1338,9 @@ mod tests {
 
         let model = PaddleOCRVLModel::new(cfg.clone(), vb, vec![2])?;
 
-        // tiny_vision_config has spatial_merge_size = 1, so grid (1, 8, 26) yields an
-        // 8 × 26 LLM grid — the exact non-square shape from the CI failure.
         let (grid_t, grid_h, grid_w) = (1u32, 8u32, 26u32);
         let num_image_tokens = (grid_t * grid_h * grid_w) as usize;
 
-        // Layout: 3 text tokens, vision_start, 208 image tokens, 2 trailing text tokens.
         let mut tokens: Vec<u32> = vec![1, 2, 3, cfg.vision_start_token_id];
         tokens.extend(std::iter::repeat_n(cfg.image_token_id, num_image_tokens));
         tokens.extend([5, 6]);
@@ -1423,13 +1370,10 @@ mod tests {
             })
             .collect::<crate::error::Result<_>>()?;
 
-        // Text prefix (3 text tokens + vision_start): sequential 0..4 on every row.
         for row in &rows {
             assert_eq!(&row[..4], &[0, 1, 2, 3], "text prefix should be sequential on all rows");
         }
 
-        // Image block starts at position 4. t stays constant; h increments per grid row
-        // (each value spanning grid_w tokens); w increments per column (cycling per row).
         let st = 4u32;
         for idx in 0..num_image_tokens {
             let (r, c) = (idx as u32 / grid_w, idx as u32 % grid_w);
@@ -1438,7 +1382,6 @@ mod tests {
             assert_eq!(rows[2][4 + idx], st + c, "w row should increment per grid column");
         }
 
-        // Trailing text resumes after the image block's max position (st + grid_w - 1).
         let trail_start = st + grid_w;
         for row in &rows {
             assert_eq!(
@@ -1448,7 +1391,6 @@ mod tests {
             );
         }
 
-        // Delta = (max position + 1) - seq_len.
         let delta = mrope_deltas
             .i((0usize, 0usize))
             .and_then(|t| t.to_scalar::<i64>())
@@ -1477,8 +1419,6 @@ mod tests {
 
         let mut model = PaddleOCRVLModel::new(cfg.clone(), vb, vec![2])?;
 
-        // Text-only prefill with cache_position starting at 0: computes the rope
-        // index and caches rope_deltas.
         let prompt_len = 5usize;
         let input_ids = Tensor::arange(1u32, 1 + prompt_len as u32, &dev)
             .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?
@@ -1494,8 +1434,6 @@ mod tests {
             "prefill should return last-position logits"
         );
 
-        // Decode step: one new token, no cache_position — the token's absolute
-        // position is carried by seqlen_offset alone.
         let next_input = Tensor::new(&[7u32], &dev)
             .map_err(|e| crate::CandleOcrError::InferenceFailed(e.to_string()))?
             .reshape((1, 1))

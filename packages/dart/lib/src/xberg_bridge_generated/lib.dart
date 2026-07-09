@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'lib.freezed.dart';
 
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DocumentExtractorDartCallbacks`, `EmbeddingBackendDartCallbacks`, `OcrBackendDartCallbacks`, `PostProcessorDartCallbacks`, `RendererDartCallbacks`, `RerankerBackendDartCallbacks`, `TokenizerBackendDartCallbacks`, `ValidatorDartCallbacks`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `backend_type`, `can_handle`, `count_tokens`, `dimensions`, `embed`, `emits_structured_markdown`, `estimated_duration_ms`, `extract`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `name`, `name`, `name`, `name`, `name`, `name`, `name`, `name`, `priority`, `priority`, `priority`, `process_document`, `process_image_file`, `process_image`, `process`, `processing_stage`, `render_result`, `rerank`, `should_process`, `should_validate`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `supported_languages`, `supported_mime_types`, `supports_document_processing`, `supports_language`, `supports_table_detection`, `validate`, `version`, `version`, `version`, `version`, `version`, `version`, `version`, `version`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `backend_type`, `can_handle`, `count_tokens`, `dimensions`, `embed`, `emits_structured_markdown`, `estimated_duration_ms`, `extract`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `name`, `name`, `name`, `name`, `name`, `name`, `name`, `name`, `priority`, `priority`, `priority`, `process_document`, `process_image_file`, `process_image`, `process`, `processing_stage`, `render_result`, `rerank`, `should_process`, `should_validate`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `supported_languages`, `supported_mime_types`, `supports_document_processing`, `supports_language`, `supports_table_detection`, `validate`, `version`, `version`, `version`, `version`, `version`, `version`, `version`, `version`
 
 /// Extract content from a single bytes or URI input.
 Future<ExtractionResult> extract({
@@ -539,6 +539,12 @@ Future<ImagePreprocessingMetadata> createImagePreprocessingMetadataFromJson({
 
 Future<Formula> createFormulaFromJson({required String json}) =>
     RustLib.instance.api.crateCreateFormulaFromJson(json: json);
+
+Future<CodeMetadata> createCodeMetadataFromJson({required String json}) =>
+    RustLib.instance.api.crateCreateCodeMetadataFromJson(json: json);
+
+Future<CodeChunkInfo> createCodeChunkInfoFromJson({required String json}) =>
+    RustLib.instance.api.crateCreateCodeChunkInfoFromJson(json: json);
 
 Future<Metadata> createMetadataFromJson({required String json}) =>
     RustLib.instance.api.crateCreateMetadataFromJson(json: json);
@@ -2297,6 +2303,15 @@ enum ChunkType {
   /// Code block or preformatted content.
   codeBlock,
 
+  /// Function or method definition (tree-sitter structured code chunking).
+  function,
+
+  /// Class, struct, interface, or trait definition (tree-sitter structured code chunking).
+  class_,
+
+  /// Module, namespace, or top-level file scope (tree-sitter structured code chunking).
+  module,
+
   /// Embedded or referenced image content.
   image,
 
@@ -2613,6 +2628,56 @@ class ClassificationLabel {
           confidence == other.confidence;
 }
 
+/// A single structurally-meaningful code chunk produced by tree-sitter parsing.
+///
+/// Purpose-built payload owned by xberg — deliberately does not expose the upstream
+/// `tree_sitter_language_pack` types, so binding generators never need to resolve an
+/// external crate's types across FFI/language boundaries.
+class CodeChunkInfo {
+  /// The raw source text of this chunk.
+  final String text;
+
+  /// Hierarchical path of enclosing structural items (e.g. `["MyClass", "my_method"]`).
+  final List<String> contextPath;
+
+  /// Tree-sitter node kinds that appear at the top level of this chunk (e.g.
+  /// `"function_definition"`, `"class_definition"`).
+  final List<String> nodeTypes;
+
+  /// Inclusive start byte offset of this chunk in the original source.
+  final PlatformInt64 byteStart;
+
+  /// Exclusive end byte offset of this chunk in the original source.
+  final PlatformInt64 byteEnd;
+
+  const CodeChunkInfo({
+    required this.text,
+    required this.contextPath,
+    required this.nodeTypes,
+    required this.byteStart,
+    required this.byteEnd,
+  });
+
+  @override
+  int get hashCode =>
+      text.hashCode ^
+      contextPath.hashCode ^
+      nodeTypes.hashCode ^
+      byteStart.hashCode ^
+      byteEnd.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CodeChunkInfo &&
+          runtimeType == other.runtimeType &&
+          text == other.text &&
+          contextPath == other.contextPath &&
+          nodeTypes == other.nodeTypes &&
+          byteStart == other.byteStart &&
+          byteEnd == other.byteEnd;
+}
+
 /// Content rendering mode for code extraction.
 ///
 /// Controls how extracted code content is represented in the `content` field
@@ -2626,6 +2691,28 @@ enum CodeContentMode {
 
   /// Emit function/class headings + docstrings (no code bodies).
   structure,
+}
+
+/// Code-format metadata: the structural chunks produced by tree-sitter parsing.
+///
+/// Wrapped by [`FormatMetadata::Code`]. Kept as a named struct (rather than an inline
+/// enum-variant body) so serde can tag it under internal tagging and utoipa can emit a
+/// referenceable `CodeMetadata` component in the OpenAPI schema.
+class CodeMetadata {
+  /// Structural code chunks (function/class/module boundaries).
+  final List<CodeChunkInfo> chunks;
+
+  const CodeMetadata({required this.chunks});
+
+  @override
+  int get hashCode => chunks.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CodeMetadata &&
+          runtimeType == other.runtimeType &&
+          chunks == other.chunks;
 }
 
 /// Content extraction and conversion configuration.
@@ -4606,7 +4693,7 @@ class EmbeddedFile {
 /// Configures embedding generation using ONNX models via the vendored embedding engine.
 /// Requires the `embeddings` feature to be enabled.
 class EmbeddingConfig {
-  /// The embedding model to use (defaults to "balanced" preset if not specified)
+  /// The embedding model to use (defaults to "gte-modernbert-base" preset if not specified)
   final EmbeddingModelType model;
 
   /// Whether to normalize embedding vectors (recommended for cosine similarity)
@@ -4745,6 +4832,23 @@ sealed class EmbeddingModelType with _$EmbeddingModelType {
     /// Name the backend was registered under via `register_embedding_backend`.
     required String name,
   }) = EmbeddingModelType_Plugin;
+}
+
+/// Inference backend that an [`EmbeddingPreset`] runs on.
+///
+/// `Onnx` presets require the `embeddings` feature (ONNX Runtime, not available on
+/// WASM/Android x86_64 emulator). `Static` presets require `static-embeddings`
+/// (pure-Rust model2vec inference, no ORT — the only dense-embedding backend
+/// available on `no-ort-target`).
+///
+/// Defaults to `Onnx` via `#[serde(default)]` so every existing preset payload
+/// (which predates this field) keeps deserializing without change.
+enum EmbeddingsEmbeddingBackend {
+  /// ONNX Runtime transformer inference (the historical, default backend).
+  onnx,
+
+  /// Pure-Rust static (model2vec) inference — no ONNX Runtime.
+  static_,
 }
 
 /// A single named entity detected in the extracted text.
@@ -6808,9 +6912,19 @@ sealed class FormatMetadata with _$FormatMetadata {
   const factory FormatMetadata.audio({required AudioMetadata field0}) =
       FormatMetadata_Audio;
 
-  /// Code (tree-sitter analyzable source). The structured analysis result is exposed
-  /// via `ExtractedDocument::code_intelligence`; this variant only tags the format.
-  const factory FormatMetadata.code() = FormatMetadata_Code;
+  /// Code (tree-sitter analyzable source). Carries the structural chunks (function,
+  /// class, and module boundaries) produced by the tree-sitter extractor, consumed by
+  /// the chunking pipeline to emit structure-aware `Chunk`s instead of falling back to
+  /// text-based splitting.
+  ///
+  /// Wraps [`CodeMetadata`] (a named struct) rather than `Vec<CodeChunkInfo>` directly:
+  /// `FormatMetadata` is internally tagged (`#[serde(tag = "format_type")]`), and serde
+  /// cannot serialize a tagged newtype variant that wraps a sequence — the tag has no
+  /// map to live in. Wrapping a struct gives serde a map to hold the tag, and keeps this
+  /// variant shape consistent with every sibling (`Variant(XMetadata)`) so the derived
+  /// OpenAPI discriminator can reference a named component schema.
+  const factory FormatMetadata.code({required CodeMetadata field0}) =
+      FormatMetadata_Code;
 }
 
 /// Block-level element in a Djot document.
@@ -8231,7 +8345,7 @@ class LanguageDetectionConfig {
 ///
 /// Since v5.0.0.
 class LateInteractionConfig {
-  /// The late-interaction model to use (defaults to the "colbert" preset).
+  /// The late-interaction model to use (defaults to the "gte-moderncolbert" preset).
   final LateInteractionModelType model;
 
   /// Batch size for local ONNX inference.
@@ -10464,12 +10578,14 @@ class PaddleOcrConfig {
   /// A legacy `"mobile"`/`"server"` tier under v6 falls back to `"medium"`.
   final String modelTier;
 
-  /// Model generation: `"pp-ocrv5"` (default) or `"pp-ocrv6"`.
+  /// Model generation: `"pp-ocrv6"` (default) or `"pp-ocrv5"`.
   ///
   /// PP-OCRv6 adds a unified CJK+Latin+JA/KO recognition model with `medium`/`small`/`tiny`
   /// tiers (see `model_tier`). Scripts outside the v6 unified coverage (Arabic, Cyrillic,
   /// Devanagari, Greek, Tamil, Telugu, Thai) transparently fall back to the PP-OCRv5
-  /// per-script recognition models. Defaults to `"pp-ocrv5"` so existing configs are unchanged.
+  /// per-script recognition models. Defaults to `"pp-ocrv6"`; the default `model_tier`
+  /// (`"mobile"`) resolves to the v6 `"medium"` tier. Select `"pp-ocrv5"` to pin the
+  /// legacy per-script/unified fleet.
   final String modelVersion;
 
   const PaddleOcrConfig({
@@ -12659,7 +12775,7 @@ sealed class RerankerModelType with _$RerankerModelType {
     /// Maximum token sequence length for the tokenizer.
     ///
     /// Stored as `i64` for FFI compatibility across language bindings.
-    /// Treated as a non-negative value; negative values are clamped to the model default.
+    /// Must be positive; a non-positive value is rejected with a validation error.
     required PlatformInt64 maxLength,
 
     /// Scoring head for the ONNX model's output tensor.
@@ -13094,7 +13210,7 @@ class SparseEmbedding {
 ///
 /// Since v5.0.0.
 class SparseEmbeddingConfig {
-  /// The sparse-embedding model to use (defaults to the "splade" preset).
+  /// The sparse-embedding model to use (defaults to the "opensearch-v3-distill" preset).
   final SparseEmbeddingModelType model;
 
   /// Batch size for local ONNX inference.

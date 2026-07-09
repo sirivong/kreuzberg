@@ -50,7 +50,6 @@
 //! - Processing large documents in batches
 //! - Maintaining context across chunk boundaries
 
-// Module declarations
 pub mod boundaries;
 pub mod boundary_detection;
 mod builder;
@@ -67,8 +66,7 @@ mod tokenizer_cache;
 pub mod validation;
 mod yaml_section;
 
-// Re-export submodule types and functions
-pub use config::{ChunkSizing, ChunkerType, ChunkingConfig, ChunkingResult}; // ChunkingConfig re-exported from core::config::processing
+pub use config::{ChunkSizing, ChunkerType, ChunkingConfig, ChunkingResult};
 pub use core::chunk_text;
 pub(crate) use core::chunk_text_with_heading_source;
 pub use processor::ChunkingProcessor;

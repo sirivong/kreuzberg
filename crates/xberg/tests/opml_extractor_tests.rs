@@ -499,7 +499,6 @@ async fn test_opml_content_quality_all_files() {
 async fn test_opml_extractor_registration() {
     use xberg::plugins::registry::get_document_extractor_registry;
 
-    // Trigger initialization via a real extraction call so the registry is populated.
     let _ = extract_bytes_document(
         b"<opml/>",
         "text/x-opml",

@@ -203,14 +203,6 @@ pub use tokenizer::{
 pub use traits::Plugin;
 pub use validator::{Validator, clear_validators, list_validators, register_validator, unregister_validator};
 
-// Alef trait-bridge codegen derives `xberg::plugins::{trait_snake}::{fn_name}`
-// from the `registry_getter = "...::get_{trait_snake}_registry"` config (see
-// `host_function_path` in alef-codegen). Our actual modules are named differently
-// (`ocr` not `ocr_backend`, `processor` not `post_processor`, `embedding` not
-// `embedding_backend`), and `validator` / `renderer` are private. These public
-// alias modules expose the lifecycle wrappers at the alef-derived path so the
-// generated code resolves without forcing a xberg-side rename or alef-side
-// path-override field.
 /// Re-exports for the OCR backend plugin type, used by alef-generated bindings.
 pub mod ocr_backend {
     pub use super::{OcrBackend, clear_ocr_backends, list_ocr_backends, register_ocr_backend, unregister_ocr_backend};
@@ -252,20 +244,11 @@ pub mod document_extractor {
     };
 }
 
-// Used by `embed_texts`/`embed_texts_async`'s Plugin dispatch arms (in
-// embeddings/mod.rs), which only exist when `embed_texts` itself is compiled
-// (`embeddings` or `static-embeddings`) AND `tokio-runtime` is enabled — the
-// arm drives an async trait method (`EmbeddingBackend::embed`) and needs a
-// Tokio executor. A plain `tokio-runtime`-only build (no embedding feature at
-// all) never compiles `embed_texts`, so this import would otherwise go unused.
 #[cfg(all(
     feature = "tokio-runtime",
     any(feature = "embeddings", feature = "static-embeddings")
 ))]
 pub(crate) use registry::get_embedding_backend_registry;
 
-// Self-healing initializer for the global OCR backend registry. Re-exported at
-// crate visibility so the image extractor can re-seed the built-in backends
-// after `clear_ocr_backends` empties the registry.
 #[cfg(any(feature = "ocr", feature = "ocr-wasm", feature = "ocr-pipeline"))]
 pub(crate) use ocr::ensure_ocr_backends_initialized;

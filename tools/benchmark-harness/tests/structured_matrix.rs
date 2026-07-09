@@ -51,16 +51,13 @@ struct PerProviderMetrics {
 
 #[tokio::test]
 async fn test_structured_extraction_matrix() -> Result<()> {
-    // Load .env for API keys
     let _ = dotenvy::dotenv();
 
-    // Determine dataset root
     let datasets_root = env::var("XBERG_DATASETS_ROOT").unwrap_or_else(|_| {
         let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
         format!("{}/.xberg/datasets", home)
     });
 
-    // Load CORD fixtures
     let fixtures_path = format!("{}/CORD/test", datasets_root);
     if !PathBuf::from(&fixtures_path).exists() {
         eprintln!("Skipping test: CORD dataset not found at {}", fixtures_path);
@@ -82,7 +79,6 @@ async fn test_structured_extraction_matrix() -> Result<()> {
 
     eprintln!("Loaded {} CORD fixtures", fixtures.len());
 
-    // Check that all API keys are available
     let mut unavailable_keys = Vec::new();
     for provider in PROVIDERS {
         if env::var(provider.api_key_env).is_err() {
@@ -98,7 +94,6 @@ async fn test_structured_extraction_matrix() -> Result<()> {
     let mut per_provider_results: HashMap<String, PerProviderMetrics> = HashMap::new();
     let mut all_latencies: HashMap<String, Vec<f64>> = HashMap::new();
 
-    // Run each provider against all fixtures
     for provider in PROVIDERS {
         eprintln!("\nTesting provider: {} ({})", provider.name, provider.model);
 
@@ -115,7 +110,6 @@ async fn test_structured_extraction_matrix() -> Result<()> {
         for (i, fixture) in fixtures.iter().enumerate() {
             let start = Instant::now();
 
-            // Run extraction
             let config = ExtractionConfig {
                 structured_extraction: Some(StructuredExtractionConfig {
                     schema: fixture.schema.clone(),
@@ -146,7 +140,6 @@ async fn test_structured_extraction_matrix() -> Result<()> {
             let elapsed_ms = start.elapsed().as_secs_f64() * 1000.0;
             latencies.push(elapsed_ms);
 
-            // Capture LLM usage across all calls this extraction made.
             if let Some(usages) = &result.llm_usage {
                 for usage in usages {
                     total_tokens += usage
@@ -156,23 +149,19 @@ async fn test_structured_extraction_matrix() -> Result<()> {
                 }
             }
 
-            // Extract structured output
             let Some(extraction) = result.structured_output else {
                 eprintln!("  [{}] No structured output", i);
                 error_count += 1;
                 continue;
             };
 
-            // Validate against schema
             if is_valid_against_schema(&extraction, &fixture.schema) {
                 schema_validity_passes += 1;
             }
 
-            // Compute F1
             let metrics = field_precision_recall_f1(&extraction, &fixture.ground_truth);
             f1_scores.push(metrics.f1);
 
-            // Type correctness
             let type_rate = type_correctness_rate(&extraction, &fixture.ground_truth);
             type_correctness_scores.push(type_rate);
 
@@ -187,7 +176,6 @@ async fn test_structured_extraction_matrix() -> Result<()> {
             );
         }
 
-        // Compute aggregates
         let mean_f1 = if !f1_scores.is_empty() {
             f1_scores.iter().sum::<f64>() / f1_scores.len() as f64
         } else {
@@ -243,7 +231,6 @@ async fn test_structured_extraction_matrix() -> Result<()> {
             error_count
         );
 
-        // Gate: schema validity >= 50%
         if schema_validity_rate < 0.5 {
             eprintln!(
                 "  WARNING: schema_validity_rate {:.1}% < 50% threshold",
@@ -254,11 +241,9 @@ async fn test_structured_extraction_matrix() -> Result<()> {
         per_provider_results.insert(provider.name.to_string(), metrics);
     }
 
-    // Write reports — anchored at the crate root so the test is location-independent.
     let bench_out_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("bench-out");
     fs::create_dir_all(&bench_out_dir).context("Failed to create bench-out directory")?;
 
-    // Markdown report
     let mut md_report = format!(
         "# CORD Structured Extraction Matrix\n\n\
          **Timestamp**: {}\n\
@@ -307,7 +292,6 @@ async fn test_structured_extraction_matrix() -> Result<()> {
 
     eprintln!("\nMarkdown report written to {:?}", md_path);
 
-    // JSON sidecar with raw metrics
     let json_metrics: Vec<Value> = per_provider_results
         .values()
         .map(|m| {

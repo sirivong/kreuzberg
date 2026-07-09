@@ -57,10 +57,8 @@ fn cosine(a: &[f32], b: &[f32]) -> f32 {
 #[test]
 #[ignore = "downloads a ~130MB ONNX model and requires ONNX Runtime; run with --ignored"]
 fn test_raising_max_sequence_length_lets_the_tail_contribute() {
-    // A shared >512-token prefix, plus a distinctive tail that only survives when
-    // truncation is raised above 512 tokens.
-    let prefix = long_body(560); // ~560 tokens, already past the 512 default
-    let tail = long_body(400).replace("alpha", "omega"); // distinct vocabulary in the tail
+    let prefix = long_body(560);
+    let tail = long_body(400).replace("alpha", "omega");
     let full_text = format!("{prefix} {tail}");
 
     let embed = |cfg: &EmbeddingConfig, text: &str| -> Vec<f32> {
@@ -74,8 +72,6 @@ fn test_raising_max_sequence_length_lets_the_tail_contribute() {
     let cfg_512 = custom_config(Some(512));
     let cfg_1024 = custom_config(Some(1024));
 
-    // (1) Prefix-only invariant at 512: appending a tail beyond token 512 must NOT
-    //     change the embedding when truncation stays at 512.
     let prefix_only_512 = embed(&cfg_512, &prefix);
     let full_512 = embed(&cfg_512, &full_text);
     let sim_prefix_vs_full_at_512 = cosine(&prefix_only_512, &full_512);
@@ -86,8 +82,6 @@ fn test_raising_max_sequence_length_lets_the_tail_contribute() {
          text should embed like its prefix (cosine {sim_prefix_vs_full_at_512:.6})"
     );
 
-    // (2) Raising to 1024 lets the tail contribute: the full-text embedding must
-    //     diverge from the 512-truncated one.
     let full_1024 = embed(&cfg_1024, &full_text);
     let sim_512_vs_1024 = cosine(&full_512, &full_1024);
     eprintln!("cosine(full@512, full@1024) = {sim_512_vs_1024:.6}");

@@ -63,10 +63,6 @@ use crate::core::config::layout::LayoutDetectionConfig;
 ))]
 use crate::model_cache::ModelCache;
 
-// ---------------------------------------------------------------------------
-// Engine + model caching — all gated on `layout-detection` (requires ORT)
-// ---------------------------------------------------------------------------
-
 /// Global cached layout engine.
 ///
 /// Used by the image extractor (layout-detection + ocr/ocr-wasm) and the
@@ -148,7 +144,6 @@ pub(crate) fn return_engine(engine: LayoutEngine) {
 pub(crate) fn take_or_create_tatr(
     accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
 ) -> Option<models::tatr::TatrModel> {
-    // Fast path: if we already know TATR is unavailable, skip immediately.
     if let Some(&false) = TATR_TRIED.get() {
         return None;
     }
@@ -163,12 +158,10 @@ pub(crate) fn take_or_create_tatr(
 
     match result {
         Ok(model) => {
-            // Mark as available (no-op if already set to true).
             TATR_TRIED.get_or_init(|| true);
             Some(model)
         }
         Err(e) => {
-            // Only log and set the flag on the first failure.
             TATR_TRIED.get_or_init(|| {
                 tracing::warn!("TATR table structure model unavailable, table structure recognition disabled: {e}");
                 false
@@ -183,10 +176,6 @@ pub(crate) fn take_or_create_tatr(
 pub(crate) fn return_tatr(model: models::tatr::TatrModel) {
     CACHED_TATR.put(model);
 }
-
-// ---------------------------------------------------------------------------
-// SLANeXT table model caching
-// ---------------------------------------------------------------------------
 
 /// Global cached SLANeXT wired model.
 #[cfg(all(feature = "layout-detection", feature = "pdf"))]
@@ -284,8 +273,6 @@ pub(crate) fn is_tatr_available() -> bool {
 pub(crate) fn is_slanet_available() -> bool {
     if SLANET_WIRED_TRIED.get().is_none() && SLANET_WIRELESS_TRIED.get().is_none() && SLANET_PLUS_TRIED.get().is_none()
     {
-        // Side effect: take_or_create_slanet populates SLANET_WIRED_TRIED.
-        // We drop the model — the caller will reload from cache when needed.
         drop(take_or_create_slanet("slanet_wired", None));
     }
     SLANET_WIRED_TRIED.get().copied().unwrap_or(false)

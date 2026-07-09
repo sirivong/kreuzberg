@@ -20,10 +20,6 @@ use super::common::{
     parse_metadata_entries,
 };
 
-// ============================================================================
-// Node constructor helper
-// ============================================================================
-
 /// Allocate a comrak AST node in the arena with the given `NodeValue`.
 fn mk<'a>(arena: &'a comrak::Arena<'a>, value: NodeValue) -> &'a AstNode<'a> {
     let ast = Ast::new(value, LineColumn { line: 0, column: 0 });
@@ -44,18 +40,12 @@ fn normalize_text(text: &str) -> String {
     let mut result = String::with_capacity(text.len());
     let mut prev_space = false;
     for ch in text.chars() {
-        // Replace literal newlines with spaces (these are mid-paragraph line breaks
-        // from PDF text extraction, not intentional line breaks). Without this,
-        // comrak escapes them as `&#10;` in CommonMark output.
-        // Also strip control characters (< 0x20) except tab, which catches STX
-        // (0x02) that pdf_oxide emits as soft-hyphen markers and would become `&#2;`.
         if ch == '\n' || ch == ' ' {
             if !prev_space {
                 result.push(' ');
             }
             prev_space = true;
         } else if ch < '\u{20}' && ch != '\t' {
-            // Strip control characters (STX, etc.) — don't even emit a space.
         } else {
             prev_space = false;
             result.push(ch);
@@ -64,31 +54,22 @@ fn normalize_text(text: &str) -> String {
     result
 }
 
-// ============================================================================
-// Paragraph consolidation
-// ============================================================================
-
 /// Check whether ALL annotations on an element cover the full text with the
 /// same annotation kind.  Returns the kind if so.
 fn uniform_annotation_kind(elem: &InternalElement) -> Option<&AnnotationKind> {
-    // Find the single formatting annotation (bold/italic/strikethrough) that covers
-    // the full text. Ignore non-formatting annotations like FontSize, Color, Custom.
     let mut formatting_ann: Option<&AnnotationKind> = None;
     for ann in &elem.annotations {
         match &ann.kind {
             AnnotationKind::Bold | AnnotationKind::Italic | AnnotationKind::Strikethrough => {
                 if ann.start == 0 && ann.end as usize >= elem.text.len() {
                     if formatting_ann.is_some() {
-                        // Multiple formatting annotations — not uniform
                         return None;
                     }
                     formatting_ann = Some(&ann.kind);
                 } else {
-                    // Partial formatting annotation — not uniform
                     return None;
                 }
             }
-            // Skip non-formatting annotations (FontSize, Color, etc.)
             _ => {}
         }
     }
@@ -116,7 +97,6 @@ fn consolidate_paragraphs(elements: &[InternalElement]) -> Vec<ConsolidatedEleme
     while i < elements.len() {
         let elem = &elements[i];
 
-        // Only consolidate body-layer paragraphs with a uniform annotation.
         if elem.kind == ElementKind::Paragraph && elem.layer == ContentLayer::Body && !elem.text.is_empty() {
             let uniform = uniform_annotation_kind(elem);
             tracing::trace!(
@@ -133,14 +113,9 @@ fn consolidate_paragraphs(elements: &[InternalElement]) -> Vec<ConsolidatedEleme
             && !elem.text.is_empty()
             && let Some(kind) = uniform_annotation_kind(elem)
         {
-            // Merge consecutive same-format paragraphs that are mid-sentence.
-            // Word-wrap artifacts (DOCX where each visual line is a <w:p>) produce
-            // fragments ending with commas or mid-word. We merge until we hit a
-            // line that ends with sentence-terminal punctuation (. ! ? :).
             let mut merged_text = elem.text.clone();
             let mut j = i + 1;
             while j < elements.len() {
-                // Stop if accumulated text ends at a sentence boundary
                 if ends_at_sentence_boundary(&merged_text) {
                     break;
                 }
@@ -160,7 +135,6 @@ fn consolidate_paragraphs(elements: &[InternalElement]) -> Vec<ConsolidatedEleme
             }
 
             if j > i + 1 {
-                // We merged multiple paragraphs.
                 tracing::debug!(
                     start_idx = i,
                     end_idx = j,
@@ -223,10 +197,6 @@ enum ElementView<'a> {
     },
 }
 
-// ============================================================================
-// Inline annotation building
-// ============================================================================
-
 /// Build inline comrak nodes from text with byte-range annotations.
 ///
 /// Sorts annotations by start position, preferring wider spans first and `Link`
@@ -248,9 +218,6 @@ fn build_inlines<'a>(
     }
 
     let mut sorted: Vec<&TextAnnotation> = annotations.iter().collect();
-    // Sort by start ascending, then by span-width descending (wider spans are
-    // outer wrappers), then by kind priority so Link is the outermost node when
-    // ranges are equal (gives [**text**](url) rather than **[text](url)**).
     sorted.sort_by_key(|a| {
         let width = a.end.saturating_sub(a.start);
         let priority: u8 = match &a.kind {
@@ -266,13 +233,9 @@ fn build_inlines<'a>(
 
     while i < sorted.len() {
         let ann = sorted[i];
-        // Clamp to text length, then snap to valid UTF-8 char boundaries.
-        // Annotation byte offsets can land inside multi-byte characters
-        // (e.g. Cyrillic «»), which would panic on slice indexing.
         let start = text.ceil_char_boundary(ann.start.min(len) as usize) as u32;
         let end = text.floor_char_boundary(ann.end.min(len) as usize) as u32;
 
-        // Already consumed as an inner annotation of a previous span.
         if start < pos {
             tracing::trace!(
                 ann_start = start,
@@ -284,14 +247,11 @@ fn build_inlines<'a>(
             continue;
         }
 
-        // Skip degenerate annotations where boundary snapping collapsed the range.
         if start >= end {
             i += 1;
             continue;
         }
 
-        // Gap text before this annotation.
-        // `pos` is always on a char boundary (starts at 0, updated to floor-snapped `end`).
         if start > pos {
             let gap = &text[pos as usize..start as usize];
             if !gap.is_empty() {
@@ -301,8 +261,6 @@ fn build_inlines<'a>(
 
         let span = &text[start as usize..end as usize];
 
-        // Collect annotations fully contained within [start, end) and translate
-        // their byte offsets to be relative to `start` for the recursive call.
         let inner: Vec<TextAnnotation> = sorted[i + 1..]
             .iter()
             .filter_map(|ia| {
@@ -323,12 +281,6 @@ fn build_inlines<'a>(
         append_annotated_span(arena, parent, span, &ann.kind, &inner);
         pos = end;
 
-        // Advance past annotations whose start falls inside [start, end).
-        // This covers two cases: (a) annotations fully contained within the
-        // current span that were passed as `inner` to the recursive call, and
-        // (b) partially-overlapping annotations (start inside, end outside)
-        // that the inner filter rejected. Both are intentionally dropped — the
-        // partially-overlapping case has no unambiguous nesting semantics.
         i += 1;
         while i < sorted.len() {
             let ns = text.ceil_char_boundary(sorted[i].start.min(len) as usize) as u32;
@@ -340,7 +292,6 @@ fn build_inlines<'a>(
         }
     }
 
-    // Trailing text after last annotation.
     if (pos as usize) < text.len() {
         let tail = &text[pos as usize..];
         if !tail.is_empty() {
@@ -366,14 +317,12 @@ fn append_annotated_span<'a>(
     kind: &AnnotationKind,
     inner: &[TextAnnotation],
 ) {
-    // For inline formatting kinds, trim whitespace and emit it outside the markers.
     let (leading_ws, trimmed, trailing_ws) = if matches!(
         kind,
         AnnotationKind::Bold | AnnotationKind::Italic | AnnotationKind::Strikethrough
     ) {
         let trimmed = span.trim();
         if trimmed.is_empty() {
-            // All whitespace — just emit as plain text
             if !span.is_empty() {
                 parent.append(mk_text(arena, span));
             }
@@ -386,8 +335,6 @@ fn append_annotated_span<'a>(
         ("", span, "")
     };
 
-    // When leading whitespace was trimmed, shift inner annotation offsets so
-    // they remain correct relative to `trimmed` rather than `span`.
     let leading_len = leading_ws.len() as u32;
     let trimmed_len = trimmed.len() as u32;
     let adjusted_inner: Vec<TextAnnotation>;
@@ -413,7 +360,6 @@ fn append_annotated_span<'a>(
         &adjusted_inner
     };
 
-    // Emit leading whitespace outside the marker
     if !leading_ws.is_empty() {
         parent.append(mk_text(arena, leading_ws));
     }
@@ -430,11 +376,6 @@ fn append_annotated_span<'a>(
             parent.append(emph);
         }
         AnnotationKind::Code => {
-            // CommonMark inline code spans are literals — formatting cannot be
-            // nested inside them. inner_for_node is intentionally ignored here.
-            //
-            // comrak also panics on Code nodes with empty literal (index out of
-            // bounds in cm.rs when checking literal_bytes[0]). Skip those too.
             if !trimmed.is_empty() {
                 let code = mk(
                     arena,
@@ -479,26 +420,18 @@ fn append_annotated_span<'a>(
                     title: title.as_deref().unwrap_or("").to_string(),
                 })),
             );
-            // Link doesn't trim whitespace so inner offsets are already relative
-            // to trimmed (= span); use inner directly rather than inner_for_node.
             build_inlines(arena, link, trimmed, inner);
             parent.append(link);
         }
-        // Color, FontSize, Custom -- no comrak equivalent; emit as plain text.
         AnnotationKind::Color { .. } | AnnotationKind::FontSize { .. } | AnnotationKind::Custom { .. } => {
             parent.append(mk_text(arena, trimmed));
         }
     }
 
-    // Emit trailing whitespace outside the marker
     if !trailing_ws.is_empty() {
         parent.append(mk_text(arena, trailing_ws));
     }
 }
-
-// ============================================================================
-// Table building
-// ============================================================================
 
 /// Build a comrak `Table` subtree from a 2-D cell grid.
 fn build_table<'a>(arena: &'a comrak::Arena<'a>, cells: &[Vec<String>]) -> &'a AstNode<'a> {
@@ -533,10 +466,6 @@ fn build_table<'a>(arena: &'a comrak::Arena<'a>, cells: &[Vec<String>]) -> &'a A
     table_node
 }
 
-// ============================================================================
-// Container stack
-// ============================================================================
-
 /// An entry on the container stack, tracking what comrak node to append
 /// children into.
 struct ContainerEntry<'a> {
@@ -550,10 +479,6 @@ enum ContainerKind {
     BlockQuote,
     Group,
 }
-
-// ============================================================================
-// Public API
-// ============================================================================
 
 /// Build a comrak AST from an `InternalDocument`.
 ///
@@ -574,7 +499,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
         "building comrak AST"
     );
 
-    // Container stack: each entry holds the comrak node to append into.
     let mut container_stack: Vec<ContainerEntry<'a>> = Vec::new();
 
     /// Return the current parent node (top of container stack, or root).
@@ -586,8 +510,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
         let orig_idx = consolidated_elem.original_index();
         let view = consolidated_elem.resolve(&doc.elements);
 
-        // For merged elements, we know they are body paragraphs -- proceed.
-        // For original elements, apply the standard filters.
         let (elem_kind, elem_text, elem_annotations, elem_depth, _elem_anchor, elem_attributes) = match &view {
             ElementView::Ref(elem) => {
                 if !is_body_element(elem) {
@@ -595,7 +517,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                 }
                 if is_container_end(elem) {
                     handle_container_end(&elem.kind, &mut state);
-                    // Pop the container stack.
                     match elem.kind {
                         ElementKind::ListEnd => pop_container(&mut container_stack, ContainerKind::List),
                         ElementKind::QuoteEnd => pop_container(&mut container_stack, ContainerKind::BlockQuote),
@@ -621,8 +542,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
 
         let parent = current_parent(&root, &container_stack);
 
-        // List nodes can only contain Item/TaskItem children; redirect non-Item
-        // blocks to the last Item, synthesising one if none exists yet (#1096).
         let parent = if matches!(parent.data.borrow().value, NodeValue::List(..))
             && !matches!(elem_kind, ElementKind::ListItem { .. } | ElementKind::ListEnd)
         {
@@ -633,7 +552,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
             match last_item {
                 Some(item) => item,
                 None => {
-                    // No Item yet — synthesise one, mirroring the List's metadata.
                     let list_meta = match parent.data.borrow().value {
                         NodeValue::List(ref m) => *m,
                         _ => unreachable!(),
@@ -701,9 +619,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                 build_inlines(arena, item_para, elem_text, elem_annotations);
                 item.append(item_para);
 
-                // Item nodes can only be children of List nodes. If parent is not
-                // a List (orphaned ListItem without ListStart/ListEnd wrappers),
-                // create an implicit List wrapper to maintain a valid AST.
                 let list_parent = if matches!(parent.data.borrow().value, NodeValue::List(..)) {
                     parent
                 } else {
@@ -747,8 +662,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
             }
 
             ElementKind::Formula => {
-                // Math is an inline node in comrak — it cannot be a direct child
-                // of block containers like Document. Wrap in a Paragraph.
                 let math = mk(
                     arena,
                     NodeValue::Math(NodeMath {
@@ -769,7 +682,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                         let table_node = build_table(arena, &table.cells);
                         parent.append(table_node);
                     } else if !table.markdown.trim().is_empty() {
-                        // Fallback: embed pre-rendered markdown as an HTML block.
                         let para = mk(arena, NodeValue::Paragraph);
                         para.append(mk_text(arena, &table.markdown));
                         parent.append(para);
@@ -782,8 +694,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                 let desc = image.and_then(|img| img.description.as_deref()).unwrap_or("");
                 let url = match image {
                     None => {
-                        // image_index is out-of-bounds — no corresponding entry in doc.images.
-                        // Skip to avoid emitting a broken link with no context.
                         if desc.is_empty() {
                             continue;
                         }
@@ -795,10 +705,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                         } else if let Some(ref path) = img.source_path {
                             path.clone()
                         } else {
-                            // The image is known to exist in the document (pdf_oxide detected it)
-                            // but its pixel data could not be extracted (too small, encoding
-                            // failure, etc.). Emit a stable placeholder filename so the link
-                            // appears in markdown output rather than being silently dropped.
                             format!("image_{}.bin", image_index)
                         }
                     }
@@ -850,10 +756,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                             ix: n,
                         })),
                     );
-                    // Footnote references are inline nodes -- they must live
-                    // inside a container that accepts inlines (Paragraph,
-                    // Heading, TableCell).  Try to append to the last child of
-                    // parent if it is a Paragraph; otherwise create a new one.
                     let inline_parent = if let Some(last) = parent.last_child() {
                         if matches!(last.data.borrow().value, NodeValue::Paragraph) {
                             last
@@ -871,19 +773,11 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                 }
             }
 
-            ElementKind::FootnoteDefinition => {
-                // Collected and rendered at the end.
-            }
+            ElementKind::FootnoteDefinition => {}
 
-            ElementKind::Citation => {
-                // Rendered at the end of the document.
-            }
+            ElementKind::Citation => {}
 
-            ElementKind::PageBreak => {
-                // PageBreak is structural metadata, not rendered content.
-                // Page separation is handled by paragraph breaks between elements.
-                // Rendering as ThematicBreak (-----) pollutes output and hurts scoring.
-            }
+            ElementKind::PageBreak => {}
 
             ElementKind::Slide { .. } => {
                 parent.append(mk(arena, NodeValue::ThematicBreak));
@@ -920,7 +814,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                     .unwrap_or("note");
                 let title = elem_attributes.and_then(|attrs| attrs.get("title").map(|s| s.as_str()));
 
-                // Try to map to a GFM alert type.
                 let alert_type = match kind_str.to_lowercase().as_str() {
                     "note" => Some(comrak::nodes::AlertType::Note),
                     "tip" | "hint" => Some(comrak::nodes::AlertType::Tip),
@@ -948,7 +841,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                     }
                     parent.append(alert);
                 } else {
-                    // Fallback: blockquote with bold title.
                     let bq = mk(arena, NodeValue::BlockQuote);
                     let title_display = title.unwrap_or(kind_str);
                     let title_para = mk(arena, NodeValue::Paragraph);
@@ -1013,11 +905,7 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                 };
                 let list_node = mk(arena, NodeValue::List(list_meta));
 
-                // In CommonMark, nested lists must be children of an Item node,
-                // not direct children of a List. If parent is a List, append
-                // to its last Item child (sublists belong to the preceding item).
                 let target = if matches!(parent.data.borrow().value, NodeValue::List(..)) {
-                    // Find last Item child, or create one if none exists
                     let last_item = parent
                         .children()
                         .filter(|c| matches!(c.data.borrow().value, NodeValue::Item(..) | NodeValue::TaskItem(..)))
@@ -1025,7 +913,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                     match last_item {
                         Some(item) => item,
                         None => {
-                            // Create an implicit empty Item to host the sublist
                             let item = mk(arena, NodeValue::Item(list_meta));
                             parent.append(item);
                             item
@@ -1042,9 +929,7 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                 });
             }
 
-            ElementKind::ListEnd => {
-                // Handled in the container-end check above.
-            }
+            ElementKind::ListEnd => {}
 
             ElementKind::QuoteStart => {
                 state.push_container(NestingKind::BlockQuote, elem_depth);
@@ -1056,31 +941,19 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                 });
             }
 
-            ElementKind::QuoteEnd => {
-                // Handled in the container-end check above.
-            }
+            ElementKind::QuoteEnd => {}
 
             ElementKind::GroupStart => {
                 state.push_container(NestingKind::Group, elem_depth);
-                // Groups don't have a direct comrak equivalent.  We use a
-                // transparent wrapper -- just push the current parent so
-                // children go to the same place.  We still need a stack entry
-                // so that GroupEnd pops correctly.
                 container_stack.push(ContainerEntry {
                     node: parent,
                     kind: ContainerKind::Group,
                 });
             }
 
-            ElementKind::GroupEnd => {
-                // Handled in the container-end check above.
-            }
+            ElementKind::GroupEnd => {}
         }
     }
-
-    // ========================================================================
-    // Footnote definitions
-    // ========================================================================
 
     let defs = footnotes.definitions();
     for entry in defs {
@@ -1097,10 +970,6 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
         fndef.append(para);
         root.append(fndef);
     }
-
-    // ========================================================================
-    // Citations (as footnote definitions)
-    // ========================================================================
 
     for elem in &doc.elements {
         if elem.kind == ElementKind::Citation {
@@ -1141,10 +1010,6 @@ fn pop_container(stack: &mut Vec<ContainerEntry<'_>>, target: ContainerKind) {
         }
     }
 }
-
-// ============================================================================
-// Tests
-// ============================================================================
 
 #[cfg(test)]
 mod tests {
@@ -1286,7 +1151,6 @@ mod tests {
     #[test]
     fn test_paragraph_consolidation() {
         let mut b = InternalDocumentBuilder::new("test");
-        // Two consecutive fully-italic paragraphs should merge.
         let ann1 = vec![TextAnnotation {
             start: 0,
             end: 5,
@@ -1301,16 +1165,11 @@ mod tests {
         b.push_paragraph("World", ann2, None, None);
         let doc = b.build();
         let out = render(&doc);
-        // Should be merged into a single italic span.
         assert!(out.contains("*Hello World*"), "got: {}", out);
     }
 
     #[test]
     fn test_annotation_on_multibyte_char_boundary() {
-        // Regression: annotation byte offsets that land inside a multi-byte
-        // UTF-8 character (e.g. Cyrillic «») must not panic.
-        // «ярко»: each char is 2 bytes → « 0..2, я 2..4, р 4..6, к 6..8, о 8..10, » 10..12.
-        // Annotation starts at byte 1 (inside «) and ends at byte 11 (inside »).
         let mut b = InternalDocumentBuilder::new("test");
         let ann = vec![TextAnnotation {
             start: 1,
@@ -1325,9 +1184,7 @@ mod tests {
 
     #[test]
     fn test_annotation_on_valid_multibyte_boundaries() {
-        // Annotations on correct char boundaries must still produce formatting.
         let mut b = InternalDocumentBuilder::new("test");
-        // "Привет" = 12 bytes, " " = 1, "мир" = 6 → 19 bytes total.
         let ann = vec![TextAnnotation {
             start: 0,
             end: 12,
@@ -1408,7 +1265,7 @@ mod tests {
         ));
         let mut doc = b.build();
         doc.images.push(ExtractedImage {
-            data: bytes::Bytes::new(), // empty — extraction failed
+            data: bytes::Bytes::new(),
             format: std::borrow::Cow::Borrowed("unknown"),
             image_index: 0,
             page_number: Some(1),
@@ -1444,11 +1301,11 @@ mod tests {
         let mut b = InternalDocumentBuilder::new("test");
         b.push_paragraph("Only text.", vec![], None, None);
         b.push_element(crate::types::internal::InternalElement::text(
-            ElementKind::Image { image_index: 99 }, // no such image
+            ElementKind::Image { image_index: 99 },
             "",
             0,
         ));
-        let doc = b.build(); // doc.images is empty
+        let doc = b.build();
         let out = render(&doc);
         assert!(
             !out.contains("image_99"),
@@ -1458,7 +1315,6 @@ mod tests {
         assert!(out.contains("Only text."), "paragraph must still render; got: {}", out);
     }
 
-    // issue #1096: stray non-Item block before the first ListItem must not panic
     #[test]
     fn test_heading_directly_under_list_does_not_panic() {
         let mut b = InternalDocumentBuilder::new("test");
@@ -1470,7 +1326,6 @@ mod tests {
         assert!(out.contains("1 (7)"), "heading text must appear in output; got: {out}");
     }
 
-    // issue #1096: Paragraph variant of the stray-block case
     #[test]
     fn test_paragraph_directly_under_list_does_not_panic() {
         let mut b = InternalDocumentBuilder::new("test");
@@ -1485,7 +1340,6 @@ mod tests {
         );
     }
 
-    // issue #1096: stray heading before first item, then a real item — both must appear
     #[test]
     fn test_heading_before_first_list_item_then_real_item() {
         let mut b = InternalDocumentBuilder::new("test");
@@ -1499,7 +1353,6 @@ mod tests {
         assert!(out.contains("Real item"), "real list item must appear; got: {out}");
     }
 
-    // issue #1096: ordered list variant — implicit Item must inherit ordered list_meta
     #[test]
     fn test_ordered_list_with_stray_heading_does_not_panic() {
         let mut b = InternalDocumentBuilder::new("test");
@@ -1519,11 +1372,8 @@ mod tests {
         );
     }
 
-    // ── #1086: overlapping annotations (bold + hyperlink same range) ─────────
-
     #[test]
     fn test_link_annotation() {
-        // Baseline: plain hyperlink with no formatting renders correctly.
         let mut b = InternalDocumentBuilder::new("test");
         b.push_paragraph(
             "click here",
@@ -1652,10 +1502,6 @@ mod tests {
     /// "Visit **docs** here" where the link covers the whole phrase.
     #[test]
     fn test_bold_contained_within_link_span() {
-        // text:  "Visit docs here"
-        //         0     6   10  15
-        // Bold:  [6, 10) → "docs"
-        // Link:  [0, 15) → whole phrase
         let mut b = InternalDocumentBuilder::new("test");
         b.push_paragraph(
             "Visit docs here",
@@ -1694,8 +1540,6 @@ mod tests {
     #[test]
     fn test_partial_overlap_annotation_is_dropped() {
         let mut b = InternalDocumentBuilder::new("test");
-        // "Hello world" — Link covers "Hello w" [0,7], Bold covers "world" starting
-        // at index 6 and ending at 11 (past the link boundary).
         b.push_paragraph(
             "Hello world",
             vec![
@@ -1718,17 +1562,14 @@ mod tests {
         );
         let doc = b.build();
         let out = render(&doc);
-        // The link covers "Hello w"; the partially-overlapping Bold is dropped.
         assert!(
             out.contains("[Hello w](https://example.com)"),
             "partial-overlap Bold must be dropped; got: {out}"
         );
-        // The trailing "orld" (after the link) renders as plain text.
         assert!(
             out.contains("orld"),
             "text after partial overlap must still render; got: {out}"
         );
-        // No stray bold markers should appear.
         assert!(
             !out.contains("**"),
             "no bold markers expected for partial overlap; got: {out}"
@@ -1808,7 +1649,6 @@ mod tests {
 
     #[test]
     fn test_non_overlapping_link_and_bold_unaffected() {
-        // "Hello world" — bold covers "Hello", link covers "world"
         let mut b = InternalDocumentBuilder::new("test");
         b.push_paragraph(
             "Hello world",

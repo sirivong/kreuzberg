@@ -102,9 +102,6 @@ const PADDLEOCR_VL_16_FILES: &[&str] = &[
 fn ensure_model(model: &HfModel) -> Result<PathBuf, String> {
     let files = manifest_files(model.manifest)?;
 
-    // `hf-hub` lands every file of a repo revision in the same snapshot directory, so
-    // fetching all manifest files leaves the whole set side by side for the engine's
-    // directory scan. Capture that directory from the first fetched file.
     let mut dir: Option<PathBuf> = None;
     for (name, sha256) in &files {
         let path = hf_download(model.repo, name)?;
@@ -126,7 +123,6 @@ mod tests {
     fn paddleocr_vl_16_manifest_covers_every_file_the_engine_reads() {
         let files = manifest_files(PADDLEOCR_VL_16.manifest).expect("bundled manifest must parse");
         let names: Vec<&str> = files.iter().map(|(name, _)| name.as_str()).collect();
-        // The engine reads config + tokenizer; the processor reads preprocessor_config.
         for required in [
             "config.json",
             "preprocessor_config.json",
@@ -190,7 +186,6 @@ mod tests {
             verify_sha256(&path, sha256, name).expect("staged file must match manifest checksum");
         }
 
-        // A second call with a warm cache must still succeed (hf-hub serves the cached copy).
         ensure_model(&model).expect("warm cache must succeed");
     }
 }

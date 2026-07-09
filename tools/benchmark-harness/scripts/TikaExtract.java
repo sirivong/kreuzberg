@@ -172,9 +172,6 @@ public final class TikaExtract {
     }
 
     private static void processServerMode(boolean ocrEnabled) throws Exception {
-        // Pre-create shared parser and OCR config to avoid per-file construction overhead.
-        // AutoDetectParser is thread-safe and reusable. Only BodyContentHandler and Metadata
-        // need to be recreated per extraction since they accumulate state.
         AutoDetectParser sharedParser = new AutoDetectParser();
         TesseractOCRConfig sharedOcrConfig = new TesseractOCRConfig();
         if (!ocrEnabled) {
@@ -183,7 +180,6 @@ public final class TikaExtract {
             sharedOcrConfig.setLanguage("eng");
         }
 
-        // Signal readiness after JVM + Tika parser initialization
         System.out.println("READY");
         System.out.flush();
 
@@ -194,7 +190,6 @@ public final class TikaExtract {
                 if (filePath.isEmpty()) {
                     continue;
                 }
-                // Parse JSON request if the harness sends {"path":"...", "force_ocr": ...}
                 if (filePath.startsWith("{")) {
                     filePath = parseJsonPath(filePath);
                 }
@@ -322,7 +317,6 @@ public final class TikaExtract {
         if (idx < 0) {
             return json;
         }
-        // Skip past "path" key, colon, optional whitespace, and opening quote
         idx = json.indexOf(':', idx + PATH_KEY_LENGTH);
         if (idx < 0) {
             return json;
@@ -339,8 +333,6 @@ public final class TikaExtract {
         return json.substring(start, end);
     }
 
-    // CPD-OFF: quote() is intentionally duplicated in standalone benchmark scripts (no shared
-    // classpath)
     private static String quote(String value) {
         if (value == null) {
             return "null";
@@ -382,7 +374,6 @@ public final class TikaExtract {
         sb.append('"');
         return sb.toString();
     }
-    // CPD-ON
 
     private static void debugLog(String key, String value) {
         if (value == null) {

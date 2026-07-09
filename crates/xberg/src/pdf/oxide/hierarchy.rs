@@ -46,11 +46,6 @@ fn extract_segments_from_page_inner(
     page_index: usize,
     mcid_roles: &HashMap<u32, Option<u8>>,
 ) -> Result<Vec<SegmentData>> {
-    // Extract spans using column-aware reading order (same as markdown path).
-    // This ensures that in multi-column layouts, elements are read top-to-bottom
-    // per column, left-to-right across columns, matching the reading order used
-    // in markdown extraction. Without this, column-2 headings would be dropped
-    // during the hierarchy/elements pipeline while remaining in the markdown output.
     let page_text_data = match doc
         .doc
         .extract_page_text_with_options(page_index, pdf_oxide::document::ReadingOrder::ColumnAware)
@@ -69,7 +64,6 @@ fn extract_segments_from_page_inner(
     let segments: Vec<SegmentData> = spans
         .into_iter()
         .filter(|span| {
-            // Skip page furniture (headers/footers/watermarks)
             if span.artifact_type.is_some() {
                 return false;
             }
@@ -79,12 +73,9 @@ fn extract_segments_from_page_inner(
             let is_bold = span.font_weight == pdf_oxide::layout::text_block::FontWeight::Bold;
             let bbox = &span.bbox;
 
-            // pdf_oxide bbox is already in PDF coordinates (y=0 at bottom, larger = higher on page).
-            // Store directly — no conversion needed.
             let pdf_baseline_y = bbox.y;
             let pdf_y = bbox.y;
 
-            // Look up structure-tree heading role via MCID
             let assigned_role = span.mcid.and_then(|mcid| mcid_roles.get(&mcid).copied()).flatten();
 
             SegmentData {
@@ -136,8 +127,6 @@ fn dedupe_redrawn_segments(segments: Vec<SegmentData>) -> Vec<SegmentData> {
         }) {
             prev.is_bold |= seg.is_bold;
             prev.is_italic |= seg.is_italic;
-            // The larger draw wins the font-size signal so heading clustering
-            // sees one consistent size for the visually rendered glyphs.
             if seg.font_size > prev.font_size {
                 prev.font_size = seg.font_size;
             }
@@ -157,7 +146,6 @@ fn dedupe_redrawn_segments(segments: Vec<SegmentData>) -> Vec<SegmentData> {
 /// Returns `(segments, used_structure_tree)`. When `used_structure_tree` is true,
 /// the caller should skip font-size clustering and use the pre-assigned roles.
 fn extract_segments_with_structure_tree(doc: &mut OxideDocument) -> Result<(Vec<Vec<SegmentData>>, bool)> {
-    // Check MarkInfo — cheap, no tree parsing required
     let mark_info = match doc.doc.mark_info() {
         Ok(mi) => mi,
         Err(e) => {
@@ -175,7 +163,6 @@ fn extract_segments_with_structure_tree(doc: &mut OxideDocument) -> Result<(Vec<
         return Ok((Vec::new(), false));
     }
 
-    // Parse the structure tree
     let struct_tree = match doc.doc.structure_tree() {
         Ok(Some(tree)) => tree,
         Ok(None) => {
@@ -188,12 +175,8 @@ fn extract_segments_with_structure_tree(doc: &mut OxideDocument) -> Result<(Vec<
         }
     };
 
-    // Traverse the tree once for all pages
     let all_page_content = pdf_oxide::structure::traverse_structure_tree_all_pages(&struct_tree);
 
-    // Count heading elements across all pages — require meaningful coverage
-    // to avoid trusting a tree that only has 1-2 tagged headings but misses
-    // most section headers (common in partially-tagged PDFs).
     let heading_count: usize = all_page_content
         .values()
         .flat_map(|contents| contents.iter())
@@ -208,7 +191,6 @@ fn extract_segments_with_structure_tree(doc: &mut OxideDocument) -> Result<(Vec<
         return Ok((Vec::new(), false));
     }
 
-    // Build per-page MCID → heading-level maps
     let page_count = doc.doc.page_count().map_err(|e| {
         crate::pdf::error::PdfError::TextExtractionFailed(format!("pdf_oxide: failed to get page count: {e}"))
     })?;
@@ -217,7 +199,6 @@ fn extract_segments_with_structure_tree(doc: &mut OxideDocument) -> Result<(Vec<
     let mut total_role_assigned = 0usize;
 
     for page_idx in 0..page_count {
-        // Build MCID → role map for this page
         let mcid_roles: HashMap<u32, Option<u8>> = all_page_content
             .get(&(page_idx as u32))
             .map(|contents| {
@@ -259,13 +240,11 @@ fn extract_segments_with_structure_tree(doc: &mut OxideDocument) -> Result<(Vec<
 ///
 /// Tuple of (per-page segment vectors, structure-tree-used flag).
 pub(crate) fn extract_all_segments(doc: &mut OxideDocument) -> Result<(Vec<Vec<SegmentData>>, bool)> {
-    // Try structure tree first
     let (tree_segments, used_tree) = extract_segments_with_structure_tree(doc)?;
     if used_tree && !tree_segments.is_empty() {
         return Ok((tree_segments, true));
     }
 
-    // Fallback: plain font-metric extraction
     let page_count = doc.doc.page_count().map_err(|e| {
         crate::pdf::error::PdfError::TextExtractionFailed(format!("pdf_oxide: failed to get page count: {e}"))
     })?;
@@ -295,16 +274,7 @@ mod tests {
     /// This test verifies that segment extraction uses column-aware reading order,
     /// consistent with the markdown extraction path.
     #[test]
-    fn test_hierarchy_uses_column_aware_reading_order() {
-        // This test just verifies that the code path compiles and the method
-        // extract_page_text_with_options is being called with ColumnAware.
-        // A full integration test would require a real two-column PDF and
-        // would be better placed as an integration test with actual PDF fixtures.
-
-        // The key assertion is in the code review: hierarchy.rs now calls
-        // extract_page_text_with_options(page_index, ReadingOrder::ColumnAware)
-        // instead of extract_spans(page_index), matching the markdown path.
-    }
+    fn test_hierarchy_uses_column_aware_reading_order() {}
 
     fn seg(text: &str, x: f32, y: f32, font_size: f32, is_bold: bool) -> SegmentData {
         SegmentData {
@@ -345,9 +315,6 @@ mod tests {
 
     #[test]
     fn should_collapse_issue_1114_shift_variants() {
-        // The pdfplumber issue-1114 fixture re-draws "Horizontal shift" at dx=5.7pt
-        // and "Vertical shift" at dy=3.7pt (18pt font). Both offsets are well inside
-        // the span's own extent, so they must collapse.
         let out = super::dedupe_redrawn_segments(vec![
             seg("Horizontal shift", 117.6, 237.0, 18.0, false),
             seg("Horizontal shift", 123.3, 237.0, 18.0, false),
@@ -359,8 +326,6 @@ mod tests {
 
     #[test]
     fn should_keep_identical_digits_in_adjacent_table_cells() {
-        // Same short string 6pt apart is two real table cells, not a re-draw:
-        // the relative tolerance (half the span extent) must not swallow it.
         let out = super::dedupe_redrawn_segments(vec![
             seg("1", 100.0, 500.0, 10.0, false),
             seg("1", 106.0, 500.0, 10.0, false),

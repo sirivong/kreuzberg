@@ -428,7 +428,6 @@ fn apply_multipart_config_fields(
 )]
 #[cfg_attr(feature = "otel", tracing::instrument(name = "api.health"))]
 pub(crate) async fn health_handler() -> Json<HealthResponse> {
-    // Get plugin status
     let plugin_status = crate::plugins::startup_validation::PluginHealthStatus::check();
 
     Json(HealthResponse {
@@ -769,7 +768,6 @@ pub(crate) async fn detect_handler(
         ))
     })?;
 
-    // Try detection from bytes first, fall back to extension-based detection
     let mime_type = crate::core::mime::detect_mime_type_from_bytes(&data).or_else(|_| {
         if let Some(ref name) = file_name {
             crate::core::mime::detect_mime_type(name, false)
@@ -880,7 +878,6 @@ pub(crate) async fn cache_manifest_handler() -> Json<ManifestResponse> {
 )]
 #[cfg_attr(feature = "otel", tracing::instrument(name = "api.cache_warm", skip(request)))]
 pub(crate) async fn cache_warm_handler(JsonApi(request): JsonApi<WarmRequest>) -> Result<Json<WarmResponse>, ApiError> {
-    // Validate embedding_model is not an empty string
     if let Some(ref name) = request.embedding_model
         && name.trim().is_empty()
     {
@@ -1088,7 +1085,6 @@ pub(crate) async fn extract_async_handler(
 
         store.set_running(&jid, super::jobs::now_rfc3339());
 
-        // Default to 5 minutes if no extraction timeout is configured.
         let timeout_secs = effective_config.extraction_timeout_secs.unwrap_or(300);
         let timeout_dur = std::time::Duration::from_secs(timeout_secs);
 
@@ -1237,7 +1233,6 @@ mod tests {
     async fn test_detect_handler_no_file_returns_400() {
         let app = test_router();
 
-        // Send a request without multipart content type - should get an error
         let response = app
             .oneshot(
                 Request::builder()
@@ -1250,7 +1245,6 @@ mod tests {
             .await
             .unwrap();
 
-        // Should fail because no file field is provided
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 
@@ -1269,7 +1263,6 @@ mod tests {
             .await
             .unwrap();
 
-        // With no features requesting downloads, should succeed
         assert_eq!(response.status(), StatusCode::OK);
 
         let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
@@ -1440,7 +1433,6 @@ mod tests {
         use crate::api::types::{JobState, JobStatus};
         use tower::Service;
 
-        // Use a single mutable service so both requests share the same ApiState.
         let mut app = test_router();
         let boundary = "pollboundary456";
         let body = format!(
@@ -1475,7 +1467,6 @@ mod tests {
         let job_id = async_resp.job_id;
         assert!(!job_id.is_empty(), "job_id from POST must be non-empty");
 
-        // Poll until the background task completes (or 2 s).
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(2);
         let final_status = loop {
             let poll_req: Request<Body> = Request::builder()
@@ -1531,7 +1522,6 @@ mod tests {
 
         let mut app = test_router();
         let boundary = "badboundary789";
-        // Submit a file with a MIME type that no extractor supports.
         let body = format!(
             "--{boundary}\r\nContent-Disposition: form-data; name=\"files\"; filename=\"bad.xyz\"\r\nContent-Type: application/x-unsupported-format\r\n\r\ngarbage\r\n--{boundary}--\r\n",
             boundary = boundary
@@ -1558,7 +1548,6 @@ mod tests {
         let async_resp: AsyncJobResponse = serde_json::from_slice(&post_bytes).expect("parses as AsyncJobResponse");
         let job_id = async_resp.job_id;
 
-        // Poll until the background task reaches a terminal state (or 2s).
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(2);
         let final_status = loop {
             let poll_req: Request<Body> = Request::builder()
@@ -1587,9 +1576,6 @@ mod tests {
             tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         };
 
-        // The unified extraction API records per-input failures in the result
-        // envelope's `errors` array rather than failing the whole job; a job
-        // only enters `Failed` on a top-level error or timeout.
         assert_eq!(
             final_status.state,
             JobState::Completed,

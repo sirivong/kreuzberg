@@ -258,8 +258,6 @@ mod tests {
     /// not the worker's embedded `CITATION_INSTRUCTION` text.
     const TEST_CITATION_INSTRUCTION: &str = "\n\n---\n\nFORMAT EACH FIELD WITH value/page/bbox/confidence.\n";
 
-    // --- substitution behavior (exercised through build_prompt) ---
-
     #[test]
     fn context_substitution_all_vars_present() {
         let mut context = serde_json::Map::new();
@@ -351,8 +349,6 @@ mod tests {
 
         assert!(prompt.system.contains("Strict mode: true"));
     }
-
-    // --- assembly behavior (literal templates, no Preset) ---
 
     #[test]
     fn text_only_includes_excerpt() {
@@ -540,17 +536,13 @@ mod tests {
         );
 
         let user_text = prompt.user_text.unwrap();
-        // The fenced excerpt is capped; full 300k input never appears verbatim.
         assert!(!user_text.contains(&"b".repeat(300_000)));
         assert!(user_text.contains(&"b".repeat(1000)));
     }
 
     #[test]
     fn multibyte_excerpt_truncation_does_not_panic() {
-        // '世' is 3 bytes in UTF-8; a byte budget of 100 lands mid-character
-        // (100 % 3 == 1), so a naive byte slice would panic. The excerpt is
-        // truncated to the preceding char boundary instead.
-        let multibyte = "世".repeat(200); // 600 bytes
+        let multibyte = "世".repeat(200);
         let max_bytes = 100usize;
 
         let prompt = build_prompt(
@@ -563,11 +555,9 @@ mod tests {
             max_bytes,
         );
         let user_text = prompt.user_text.expect("text-only mode yields user text");
-        // Truncated at a char boundary: at most `max_bytes` bytes, all valid UTF-8.
         assert!(user_text.len() <= max_bytes);
         assert!(user_text.chars().all(|c| c == '世'));
 
-        // Same for the vision-fallback assembly.
         let confidence = ExtractionConfidence {
             text_coverage: 1.0,
             ocr_aggregate: None,
@@ -584,7 +574,6 @@ mod tests {
             None,
             max_bytes,
         );
-        // Did not panic and produced a valid prompt.
         assert!(fallback.user_text.expect("fallback user text").contains('世'));
     }
 }

@@ -49,9 +49,7 @@ function parseRequest(line: string): { path: string; forceOcr: boolean } {
     try {
       const req = JSON.parse(trimmed);
       return { path: req.path || "", forceOcr: req.force_ocr || false };
-    } catch {
-      // Fall through to plain path
-    }
+    } catch {}
   }
   return { path: trimmed, forceOcr: false };
 }
@@ -138,7 +136,6 @@ async function runServer(ocrEnabled: boolean): Promise<void> {
     terminal: false,
   });
 
-  // Signal readiness after Node + NAPI initialization
   console.log("READY");
 
   for await (const line of rl) {

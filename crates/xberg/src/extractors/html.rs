@@ -51,11 +51,6 @@ impl HtmlExtractor {
     ) -> crate::Result<InternalDocument> {
         let mut b = InternalDocumentBuilder::new("html");
 
-        // Track which nodes are list containers so we can manage open/close
-        // We need to walk top-level nodes and handle children via the tree structure.
-        // html-to-markdown uses a flat array with parent/children indices.
-        // We do a depth-first walk using the children structure.
-
         let root_indices: Vec<usize> = doc_structure
             .nodes
             .iter()
@@ -114,7 +109,6 @@ impl HtmlExtractor {
                 }
                 HC::ListItem { text } => {
                     budget.enter()?;
-                    // Determine if parent is ordered
                     let ordered = node
                         .parent
                         .and_then(|p| doc.nodes.get(p as usize))
@@ -125,7 +119,6 @@ impl HtmlExtractor {
                     budget.account_text(text.len())?;
                     b.push_list_item(text, ordered, annotations, None, None);
 
-                    // Recurse into children (e.g. nested lists inside this item)
                     if !node.children.is_empty() {
                         let child_indices: Vec<usize> = node.children.iter().map(|&i| i as usize).collect();
                         Self::walk_nodes(doc, &child_indices, b, inject_placeholders, budget)?;
@@ -135,9 +128,6 @@ impl HtmlExtractor {
                 HC::Table { grid } => {
                     let cell_count = grid.cells.len();
                     budget.add_cells(cell_count)?;
-                    // The crate assigns `col` naively (no rowspan reservation), so
-                    // a cell under a rowspan would shift left into the spanning
-                    // column (xberg-io/xberg#1223); re-derive true positions.
                     let cells = crate::extraction::grid_flatten::flatten_positioned_cells(
                         grid.rows as usize,
                         grid.cells
@@ -161,7 +151,6 @@ impl HtmlExtractor {
                         budget.account_text(display.len())?;
                         b.push_paragraph(&display, vec![], None, None);
                     }
-                    // Always collect image URI reference regardless of inject_placeholders
                     if let Some(img_src) = src.as_ref().filter(|s| !s.is_empty()) {
                         b.push_uri(ExtractedUri::image(img_src.as_str(), description.clone()));
                     }
@@ -180,7 +169,6 @@ impl HtmlExtractor {
                 }
                 HC::DefinitionList => {
                     budget.enter()?;
-                    // Walk children (DefinitionItem nodes)
                     let child_indices: Vec<usize> = node.children.iter().map(|&i| i as usize).collect();
                     Self::walk_nodes(doc, &child_indices, b, inject_placeholders, budget)?;
                     budget.leave();
@@ -199,7 +187,6 @@ impl HtmlExtractor {
                     b.push_group_end();
                     budget.leave();
                 }
-                // Skip RawBlock (script/style content) and MetadataBlock (handled by metadata extraction)
                 HC::RawBlock { .. } | HC::MetadataBlock { .. } => {}
             }
         }
@@ -275,40 +262,30 @@ fn push_link_uris_from_annotations(annotations: &[TextAnnotation], text: &str, b
 /// is about to be stored as the Markdown output of an HTML extraction.
 pub(crate) fn normalize_html_markdown(raw: String) -> String {
     let lines: Vec<&str> = raw.lines().collect();
-    // First pass: convert setext headings → ATX headings, strip trailing whitespace.
-    // This produces a flat Vec<String> where setext pairs are collapsed to a single line.
     let mut pass1: Vec<String> = Vec::with_capacity(lines.len());
     let mut i = 0;
     while i < lines.len() {
         let line = lines[i];
-        let line_trimmed = line.trim_end(); // strip trailing whitespace
+        let line_trimmed = line.trim_end();
 
-        // Check whether the *next* line is a setext heading underline.
-        // setext H1: next line is all `=` with length >= 1
-        // setext H2: next line is all `-` with length >= 1 (but not a table separator
-        //            which starts after a `|`-prefixed line)
         if i + 1 < lines.len() {
             let next = lines[i + 1].trim();
             let is_setext_h1 = !next.is_empty() && next.chars().all(|c| c == '=');
-            // Only treat as setext H2 if the current line is non-empty (to avoid
-            // converting horizontal rules or list separators).
             let is_setext_h2 = !next.is_empty()
                 && next.chars().all(|c| c == '-')
                 && !line_trimmed.trim().is_empty()
                 && !line_trimmed.trim().starts_with('|');
 
             if is_setext_h1 {
-                // Emit as ATX H1 and skip the underline
                 let heading_text = line_trimmed.trim();
                 pass1.push(format!("# {heading_text}"));
-                i += 2; // skip current line + underline
+                i += 2;
                 continue;
             }
             if is_setext_h2 {
-                // Emit as ATX H2 and skip the underline
                 let heading_text = line_trimmed.trim();
                 pass1.push(format!("## {heading_text}"));
-                i += 2; // skip current line + underline
+                i += 2;
                 continue;
             }
         }
@@ -317,22 +294,19 @@ pub(crate) fn normalize_html_markdown(raw: String) -> String {
         i += 1;
     }
 
-    // Second pass: ensure a blank line before every ATX heading that is not at
-    // the start of the file and not already preceded by a blank line.
     let mut result = String::with_capacity(raw.len());
     for (idx, line) in pass1.iter().enumerate() {
         let is_atx_heading = line.starts_with('#');
         if is_atx_heading && idx > 0 {
             let prev = &pass1[idx - 1];
             if !prev.is_empty() {
-                result.push('\n'); // inject blank line separator
+                result.push('\n');
             }
         }
         result.push_str(line);
         result.push('\n');
     }
 
-    // Ensure single trailing newline (GFM rule)
     let trimmed_len = result.trim_end().len();
     if trimmed_len == 0 {
         return String::new();
@@ -369,7 +343,6 @@ pub(crate) fn apply_content_filter_to_html_options(
     }
 
     let mut opts = options.unwrap_or_default();
-    // Merge with any existing strip_tags rather than replacing them.
     for tag in tags_to_strip {
         if !opts.strip_tags.contains(&tag) {
             opts.strip_tags.push(tag);
@@ -404,8 +377,6 @@ impl SyncExtractor for HtmlExtractor {
             .map(|s| s.to_string())
             .unwrap_or_else(|_| String::from_utf8_lossy(content).into_owned());
 
-        // Apply content filter to HTML conversion options: strip <header>/<footer>
-        // elements when the corresponding flags are false.
         let html_options =
             apply_content_filter_to_html_options(config.html_options.clone(), config.content_filter.as_ref());
 
@@ -422,8 +393,6 @@ impl SyncExtractor for HtmlExtractor {
         for (i, t) in table_data.into_iter().enumerate() {
             let grid = &t.grid;
             budget.add_cells(grid.cells.len())?;
-            // Re-derive positions: the crate grid's `col` does not reserve
-            // rowspan columns (xberg-io/xberg#1223).
             let cells = crate::extraction::grid_flatten::flatten_positioned_cells(
                 grid.rows as usize,
                 grid.cells
@@ -438,7 +407,6 @@ impl SyncExtractor for HtmlExtractor {
             });
         }
 
-        // Extract standard metadata fields from HtmlMetadata before consuming into FormatMetadata
         let meta_title = html_metadata.as_ref().and_then(|m| m.title.clone());
         let meta_authors = html_metadata
             .as_ref()
@@ -455,10 +423,6 @@ impl SyncExtractor for HtmlExtractor {
 
         let format_metadata = html_metadata.map(|m: HtmlMetadata| crate::types::FormatMetadata::Html(Box::new(m)));
 
-        // Signal that the extractor already formatted the output so the pipeline
-        // does not double-convert.
-        // Markdown content is normalized to GFM: setext headings → ATX, trailing
-        // whitespace removed. Djot is passed through as-is (different lint rules apply).
         let (pre_formatted, pre_rendered) = match config.output_format {
             OutputFormat::Markdown => {
                 let normalized = normalize_html_markdown(content_text.clone());
@@ -468,9 +432,6 @@ impl SyncExtractor for HtmlExtractor {
             _ => (None, None),
         };
 
-        // Build InternalDocument from html-to-markdown's DocumentStructure.
-        // If the structure has nodes, map them to InternalDocument elements.
-        // Otherwise, fall back to a single paragraph with the converter's text output.
         let inject_placeholders = config
             .images
             .as_ref()
@@ -480,8 +441,6 @@ impl SyncExtractor for HtmlExtractor {
         let mut doc = if let Some(ref structure) = doc_structure {
             let mapped = Self::map_document_structure(structure, inject_placeholders, &mut budget)?;
             if mapped.elements.is_empty() && !content_text.is_empty() {
-                // Structure collector didn't produce nodes (e.g. only images/lists which
-                // aren't collected yet). Use the converter's text as a paragraph.
                 let mut b = InternalDocumentBuilder::new("html");
                 b.push_paragraph(&content_text, vec![], None, None);
                 b.build()
@@ -509,12 +468,10 @@ impl SyncExtractor for HtmlExtractor {
         doc.mime_type = mime_type.to_string();
         doc.pre_rendered_content = pre_rendered;
 
-        // Add tables to InternalDocument
         for table in tables {
             doc.push_table(table);
         }
 
-        // Extract inline images when image extraction is configured
         let should_extract_images = config.needs_image_data();
 
         if should_extract_images {
@@ -534,7 +491,6 @@ impl SyncExtractor for HtmlExtractor {
                     InlineImageFormat::Other(ref s) => Cow::Owned(s.clone()),
                 };
 
-                // Classify image based on metadata and visual properties
                 let (image_kind, kind_confidence) = crate::extraction::image_kind::classify(
                     &img.data,
                     format.as_ref(),
@@ -770,14 +726,12 @@ mod tests {
 
         let tables = extract_tables(html);
 
-        // Should find at least 2 tables: outer + nested
         assert!(
             tables.len() >= 2,
             "Expected at least 2 tables (outer + nested), found {}",
             tables.len()
         );
 
-        // Find the nested table (has Task ID header)
         let nested = tables
             .iter()
             .find(|t| {
@@ -826,9 +780,7 @@ mod tests {
         let result =
             crate::extraction::derive::derive_extraction_result(result, true, crate::core::config::OutputFormat::Plain);
 
-        // Tables come from document structure extraction (single source now)
         assert!(!result.tables.is_empty(), "Should have at least one table");
-        // Verify table content
         let table = &result.tables[0];
         assert_eq!(table.cells.len(), 3);
         assert_eq!(table.cells[0], vec!["Name", "Age"]);
@@ -897,14 +849,11 @@ mod tests {
         let result =
             crate::extraction::derive::derive_extraction_result(result, true, crate::core::config::OutputFormat::Plain);
 
-        // Content should already be in djot format
         assert_eq!(result.mime_type, "text/html");
         let original_content = result.content.clone();
 
-        // Simulate pipeline format application
         let pipeline_result = crate::core::pipeline::apply_output_format(result.clone(), OutputFormat::Djot);
 
-        // Content should be identical - no re-conversion should occur
         assert_eq!(pipeline_result.content, original_content);
         assert_eq!(pipeline_result.mime_type, "text/html");
     }
@@ -924,12 +873,11 @@ mod tests {
     async fn test_extract_sync_plain_text_has_content() {
         let html = r#"<h1>Title</h1><p>Hello world</p>"#;
         let extractor = HtmlExtractor::new();
-        let config = ExtractionConfig::default(); // Plain text
+        let config = ExtractionConfig::default();
         let result = extractor
             .extract_content(html.as_bytes(), "text/html", &config)
             .await
             .unwrap();
-        // Check that InternalDocument has elements
         assert!(
             !result.elements.is_empty(),
             "InternalDocument should have elements, got: {:?}",
@@ -967,7 +915,6 @@ mod tests {
         let mut budget = SecurityBudget::from_limits(&SecurityLimits::default());
         let doc = HtmlExtractor::map_document_structure(&doc_structure, true, &mut budget).unwrap();
 
-        // Check that no element contains CSS or script content
         for elem in &doc.elements {
             let text = elem.text.as_str();
             assert!(
@@ -1018,7 +965,6 @@ mod tests {
             "inject_placeholders=false should not produce image markdown placeholder, got: '{}'",
             content
         );
-        // URI should still be collected
         assert!(
             !doc.uris.is_empty(),
             "Image URI should still be collected when inject_placeholders=false"
@@ -1028,10 +974,6 @@ mod tests {
             "Should have URI for test.png"
         );
     }
-
-    // =========================================================================
-    // normalize_html_markdown tests
-    // =========================================================================
 
     #[test]
     fn test_normalize_converts_setext_h1_to_atx() {
@@ -1069,7 +1011,6 @@ mod tests {
         let input = "Some text\n# Heading\n".to_string();
         let output = normalize_html_markdown(input);
         let lines: Vec<&str> = output.lines().collect();
-        // Find the heading line and assert the line before it is blank
         let heading_idx = lines.iter().position(|l| l.starts_with("# Heading")).unwrap();
         assert!(heading_idx > 0, "heading should not be at line 0");
         assert!(
@@ -1083,7 +1024,6 @@ mod tests {
     fn test_normalize_atx_heading_at_file_start_no_blank_line_needed() {
         let input = "# Top Heading\n\nSome text.\n".to_string();
         let output = normalize_html_markdown(input.clone());
-        // When heading is the very first line, no blank line should be prepended
         assert!(
             output.starts_with("# Top Heading"),
             "heading at file start should not have leading blank line, got: {output:?}"
@@ -1144,10 +1084,8 @@ mod tests {
         let (content, metadata, _, _) =
             crate::extraction::html::convert_html_to_markdown_with_tables(html, Some(options), None).unwrap();
 
-        // Content should still be extracted
         assert!(content.contains("Content Heading"));
 
-        // But metadata should be None when extract_metadata=false
         assert!(
             metadata.is_none() || metadata.as_ref().unwrap().is_empty(),
             "Metadata should be None or empty when extract_metadata=false, but got: {:?}",
@@ -1179,10 +1117,8 @@ mod tests {
         let (content, metadata, _, _) =
             crate::extraction::html::convert_html_to_markdown_with_tables(html, Some(options), None).unwrap();
 
-        // Content should be extracted
         assert!(content.contains("Content Heading"));
 
-        // Metadata should be present when extract_metadata=true
         assert!(metadata.is_some(), "Metadata should be Some when extract_metadata=true");
         let meta = metadata.unwrap();
         assert_eq!(

@@ -138,7 +138,6 @@ def _run_with_timeout(fn, args, timeout):
         parent_conn.close()
         return result
     except Exception:
-        # Fork not available — fall back to in-process extraction
         try:
             return fn(*args)
         except Exception as e:
@@ -217,7 +216,6 @@ def main() -> None:
             print(f"Error extracting with Unstructured: {e}", file=sys.stderr)
             sys.exit(1)
     else:
-        # Legacy mode: first arg is the file path directly
         try:
             payload = extract_sync(args[0], ocr_enabled, output_format)
             print(json.dumps(payload), end="")

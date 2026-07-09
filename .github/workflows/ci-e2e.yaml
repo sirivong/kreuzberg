@@ -38,9 +38,6 @@ env:
   CARGO_INCREMENTAL: 0
   CARGO_PROFILE_DEV_DEBUG: 0
   RUST_BACKTRACE: full
-  # Swift crashes at the FFI boundary print a symbolicated backtrace instead of a
-  # bare SIGABRT, so a failing e2e run yields actionable data (see the swift
-  # Linux-ARM64 Option<handle> decode crash).
   SWIFT_BACKTRACE: "enable=yes,sanitize=yes,cache=yes"
   RUST_MIN_STACK: 16777216
   ORT_VERSION: "1.24.2"
@@ -70,9 +67,6 @@ jobs:
         with:
           submodules: recursive
 
-      # Build FFI is the slowest job in ci-e2e (full cargo release with --features all).
-      # Hash every file that actually affects the FFI ABI or the embedded core lib, then
-      # restore from cache when unchanged. The hash also gates the build steps below.
       - name: Compute FFI source hash
         id: ffi-hash
         shell: bash
@@ -151,8 +145,6 @@ jobs:
     if: github.repository == 'xberg-io/xberg' && github.actor != 'dependabot[bot]'
     needs: [build-ffi]
     runs-on: ${{ matrix.runs-on }}
-    # Swift gets extra headroom so the post-crash capture (core lldb + live lldb
-    # re-run + build bisect) isn't cut off before it uploads the diagnostics.
     timeout-minutes: ${{ matrix.lang == 'swift' && 90 || 60 }}
     strategy:
       fail-fast: false
@@ -363,11 +355,6 @@ jobs:
         if: matrix.lang == 'kotlin-android'
         uses: android-actions/setup-android@v3
         with:
-          # setup-android@v3 dropped the `api-level` / `build-tools-version`
-          # inputs (they were ignored with a workflow warning) and the legacy
-          # `sdkmanager tools` install path now fails with exit code 1 because
-          # Google removed the "tools" package. Use the modern `packages`
-          # input to declare exactly what we need.
           packages: "platforms;android-35 build-tools;35.0.0"
           accept-android-sdk-licenses: true
 
@@ -462,9 +449,6 @@ jobs:
           DYLD_LIBRARY_PATH: ${{ env.DYLD_LIBRARY_PATH || '' }}
           TESSDATA_PREFIX: "/usr/share/tesseract-ocr/5/tessdata"
 
-      # Swift e2e crashes on Linux-arm64 only, with a bare `fatalError` and no
-      # backtrace in the log — unreproducible on macOS. Run it with full crash
-      # instrumentation so a single CI failure yields actionable data.
       - name: Run e2e tests (swift, instrumented)
         if: matrix.lang == 'swift'
         shell: bash
@@ -473,10 +457,6 @@ jobs:
           LD_LIBRARY_PATH: ${{ env.LD_LIBRARY_PATH }}
           DYLD_LIBRARY_PATH: ${{ env.DYLD_LIBRARY_PATH || '' }}
           TESSDATA_PREFIX: "/usr/share/tesseract-ocr/5/tessdata"
-          # interactive=no is critical in CI (the default prompt has no TTY and can
-          # swallow the report); the rest maximizes detail. The backtrace goes to
-          # stderr, which we capture via `tee` below (a bad output-to=path could make
-          # the runtime reject the whole option string, so we don't risk it).
           SWIFT_BACKTRACE: "enable=yes,sanitize=yes,cache=yes,interactive=no,symbolicate=full,threads=all,registers=all,images=all,demangle=yes"
         run: |
           mkdir -p /tmp/swift-crash
@@ -547,9 +527,6 @@ jobs:
             e2e/swift_e2e/**/*.log
           if-no-files-found: warn
 
-      # Diagnostics for a failed e2e run — logs, generated sources, and any crash
-      # reports. Combined with RUST_BACKTRACE=full / SWIFT_BACKTRACE above, a failure
-      # yields actionable data instead of a bare exit code.
       - name: Upload e2e diagnostics on failure
         if: failure()
         uses: actions/upload-artifact@v7

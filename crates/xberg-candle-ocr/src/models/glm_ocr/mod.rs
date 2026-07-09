@@ -207,28 +207,21 @@ mod engine {
         /// and safetensors from the GLM-OCR HuggingFace repo. Constructs the
         /// vision encoder, connector, and decoder modules.
         pub fn new(task: GlmOcrTask, device: Device, dtype: DType) -> Result<Self> {
-            // BF16 on Metal is unsupported in candle 0.10 (kernel gap).
             if matches!(dtype, candle_core::DType::BF16) && device.is_metal() {
                 return Err(CandleOcrError::InferenceFailed(
                     "BF16 on Metal is unsupported in candle 0.10 (kernel gap). Use DType::F32 instead.".into(),
                 ));
             }
 
-            // Initialize HuggingFace API for weight downloads
             let api = hf_hub::api::sync::Api::new()
                 .map_err(|e| CandleOcrError::ModelLoadFailed(format!("HF API init: {}", e)))?;
 
-            // `ApiRepo` is not `Clone` in hf-hub 0.4, but `Api` and `Repo` are, so keep the repo
-            // spec around and let each watchdog closure rebuild its `ApiRepo` via `api.repo(..)`.
             let repo_spec = hf_hub::Repo::with_revision(
                 "zai-org/GLM-OCR".to_string(),
                 hf_hub::RepoType::Model,
                 "main".to_string(),
             );
 
-            // hf-hub sets no read/connect timeout, so a firewalled host would hang these blocking
-            // `.get()` calls forever. Run each under the wall-clock watchdog.
-            // Load and parse config.json
             let config_file = {
                 let api = api.clone();
                 let repo_spec = repo_spec.clone();
@@ -242,15 +235,6 @@ mod engine {
             let config: GlmOcrConfig = serde_json::from_str(&config_str)
                 .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Config parse error: {}", e)))?;
 
-            // The upstream preprocessor_config.json uses key names
-            // (`temporal_patch_size`, `merge_size`, nested `size.shortest_edge`)
-            // that differ from our flat `PreprocessConfig` schema. The
-            // canonical GLM-OCR preprocess defaults already encode the right
-            // values, so skip the parse and use `PreprocessConfig::default()`
-            // directly. A future pass can wire in custom preprocessor configs
-            // if/when fine-tunes ship divergent settings.
-
-            // Load tokenizer
             let tokenizer_file = {
                 let api = api.clone();
                 let repo_spec = repo_spec.clone();
@@ -262,7 +246,6 @@ mod engine {
             let tokenizer = Tokenizer::from_file(&tokenizer_file)
                 .map_err(|e| CandleOcrError::Tokenizer(format!("Tokenizer load error: {}", e)))?;
 
-            // Load model weights: try model.safetensors first, fall back to index if sharded
             let single_weight = {
                 let api = api.clone();
                 let repo_spec = repo_spec.clone();
@@ -273,7 +256,6 @@ mod engine {
             let model_files = match single_weight {
                 Ok(f) => vec![f],
                 Err(_) => {
-                    // Try loading sharded weights via index file
                     let index_file = {
                         let api = api.clone();
                         let repo_spec = repo_spec.clone();
@@ -298,7 +280,6 @@ mod engine {
                         CandleOcrError::ModelLoadFailed(format!("Failed to parse safetensors index: {}", e))
                     })?;
 
-                    // Extract unique weight file names from the index
                     let mut files = std::collections::HashSet::new();
                     if let Some(weights) = index.get("weight_map").and_then(|m| m.as_object()) {
                         for (_key, val) in weights {
@@ -308,7 +289,6 @@ mod engine {
                         }
                     }
 
-                    // Download all shards
                     let mut result = Vec::new();
                     for filename in files {
                         let shard_file = {
@@ -331,8 +311,6 @@ mod engine {
 
             tracing::debug!("Loading GLM-OCR weights from {:?}", model_files);
 
-            // SAFETY: We're using mmaped_safetensors with valid file paths. The files are read-only
-            // and the lifetime is scoped to this function, ensuring memory safety.
             #[allow(unsafe_code)]
             let vb = if model_files.len() == 1 {
                 unsafe {
@@ -340,7 +318,6 @@ mod engine {
                         .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Failed to load safetensors: {}", e)))?
                 }
             } else {
-                // Multiple shards: use from_mmaped_safetensors with all files
                 unsafe {
                     let file_refs: Vec<&std::path::Path> = model_files.iter().map(|f| f.as_path()).collect();
                     VarBuilder::from_mmaped_safetensors(&file_refs, dtype, &device).map_err(|e| {
@@ -349,19 +326,8 @@ mod engine {
                 }
             };
 
-            // Resolve special tokens from tokenizer, with fallback to canonical IDs
             let special = tokenizer::resolve_special_tokens(&tokenizer)?;
 
-            // Build model components.
-            //
-            // Upstream weight layout (verified against
-            // `model.safetensors` header for zai-org/GLM-OCR):
-            //   - Vision encoder + connector share `model.visual.*` root
-            //     (vision owns `patch_embed`, `blocks.*`, `post_layernorm`;
-            //     connector owns `downsample`, `merger`).
-            //   - Decoder trunk lives at `model.language_model.*`.
-            //   - LM head is top-level (`lm_head.weight`), NOT nested under
-            //     `model.language_model.*` despite that being the apparent parent.
             let visual_vb = vb.pp("model").pp("visual");
 
             let vision = CogVit::new(&config.vision_config, visual_vb.clone(), device.clone())
@@ -426,13 +392,11 @@ mod engine {
 
         fn process_image_inner(&self, image_bytes: &[u8], task: GlmOcrTask) -> Result<CandleOcrOutput> {
             tracing::debug!(image_size = image_bytes.len(), task = %task, "GLM-OCR: starting inference");
-            // Load and preprocess image
             let preprocess_config = preprocess::PreprocessConfig::default();
             let (pixel_values, grid_thw) =
                 preprocess::preprocess(image_bytes, &preprocess_config, &self.device, self.dtype)?;
             super::glm_debug_tensor("pixel_values", &pixel_values);
 
-            // Extract grid dimensions for token count calculation
             let grid_vec = grid_thw
                 .to_vec2::<u32>()
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Grid shape error: {}", e)))?;
@@ -440,7 +404,6 @@ mod engine {
             let h_patches = g[1] as usize;
             let w_patches = g[2] as usize;
 
-            // Vision encoder outputs (B, num_image_tokens, vision_hidden)
             let vision_embeds = {
                 let vision = self.vision.lock();
                 vision
@@ -449,7 +412,6 @@ mod engine {
             };
             super::glm_debug_tensor("vision_embeds", &vision_embeds);
 
-            // Project to text-hidden space: (B, num_image_tokens, text_hidden) or reduced via downsampling
             let projected = {
                 let connector = self.connector.lock();
                 connector
@@ -458,17 +420,11 @@ mod engine {
             };
             super::glm_debug_tensor("projected", &projected);
 
-            // The connector's downsample Conv2d uses kernel=stride=spatial_merge_size,
-            // collapsing (h_patches, w_patches) → (h_patches/merge, w_patches/merge).
-            // smart_resize rounds the input dims to multiples of patch_size *
-            // temporal_patch_size = 28, so both grid axes are guaranteed even.
             let merge = self.config.connector_config.spatial_merge_size.max(1);
             let h_merged = h_patches / merge;
             let w_merged = w_patches / merge;
             let num_image_tokens_after_merge = h_merged * w_merged;
 
-            // Build input token IDs following the upstream chat template:
-            // [gMASK]<sop><|user|>\n<|begin_of_image|><|image|>×N<|end_of_image|>{prompt}<|assistant|>\n
             let (input_ids, image_tokens_start) = tokenizer::build_input_ids(
                 &self.special,
                 &self.tokenizer,
@@ -476,7 +432,6 @@ mod engine {
                 num_image_tokens_after_merge,
             )?;
 
-            // Embed text tokens
             let ids_vec: Vec<i64> = input_ids.iter().map(|&id| id as i64).collect();
             let input_ids_tensor = Tensor::new(ids_vec.as_slice(), &self.device)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Token tensor creation: {}", e)))?
@@ -490,9 +445,6 @@ mod engine {
                     .map_err(|e| CandleOcrError::InferenceFailed(format!("Text embedding: {}", e)))?
             };
 
-            // Splice vision embeddings into text embeddings
-            // Replace placeholder tokens (image_tokens_start..image_tokens_start + num_image_tokens_after_merge)
-            // with the projected vision embeddings
             let input_embeds = Self::splice_embeddings(
                 &text_embeds,
                 &projected,
@@ -502,15 +454,6 @@ mod engine {
             super::glm_debug_tensor("text_embeds", &text_embeds);
             super::glm_debug_tensor("input_embeds", &input_embeds);
 
-            // Build 3-axis M-RoPE position_ids: (3, 1, seq_len) where rows are
-            // [t, h, w]. Layout per upstream `Glm4vRotaryEmbedding.get_rope_index`:
-            //   * tokens before the vision region get t = h = w = index;
-            //   * vision-placeholder tokens form a 2-D grid anchored at
-            //     `image_tokens_start`: t = image_tokens_start (constant),
-            //     h = image_tokens_start + row, w = image_tokens_start + col,
-            //     flattened row-major across (h_merged, w_merged);
-            //   * tokens after the vision region resume at
-            //     `image_tokens_start + max(h_merged, w_merged)` and increment.
             let seq_len = input_embeds
                 .dim(1)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Seq len: {}", e)))?;
@@ -544,7 +487,6 @@ mod engine {
                 }
             }
 
-            // Pack into a single (3, 1, seq_len) tensor.
             let mut packed: Vec<u32> = Vec::with_capacity(3 * seq_len);
             packed.extend_from_slice(&t_positions);
             packed.extend_from_slice(&h_positions);
@@ -552,14 +494,8 @@ mod engine {
             let prefill_position_ids = Tensor::from_vec(packed, (3, 1, seq_len), &self.device)
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Position tensor: {}", e)))?;
 
-            // First decoded token continues from the end of the prefill range.
-            // After the vision region the indices keep climbing; the next
-            // decoded token's position is exactly `post_vision_base + (seq_len -
-            // vision_end)`, which is one past the last text position in the
-            // prefill window.
             let next_text_pos_start = (post_vision_base + (seq_len - vision_end)) as u32;
 
-            // Run autoregressive generation with proper M-RoPE positions.
             let output_ids = {
                 let mut decoder = self.decoder.lock();
                 decoder.clear_kv_cache();
@@ -576,7 +512,6 @@ mod engine {
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Generation: {}", e)))?
             };
 
-            // Decode output tokens to text
             let output_text = tokenizer::decode_output(&self.tokenizer, &output_ids)?;
 
             if output_text.trim().is_empty() {
@@ -724,7 +659,6 @@ mod tests {
 
     #[test]
     fn detect_structured_markdown_rejects_single_dash() {
-        // A single line beginning with "- " is OCR typography noise, not a list.
         assert!(!engine::GlmOcrEngine::detect_structured_markdown(
             "- hyphen but not a list"
         ));

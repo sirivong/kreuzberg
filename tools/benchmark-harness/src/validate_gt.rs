@@ -34,10 +34,6 @@ pub struct ValidateGtReport {
     pub low_diversity_gt: Vec<String>,
 }
 
-// ---------------------------------------------------------------------------
-// HTML detection
-// ---------------------------------------------------------------------------
-
 /// Common HTML tags that should not appear in GFM ground truth.
 const HTML_TAG_NAMES: &[&str] = &[
     "table", "tr", "td", "th", "b", "strong", "i", "em", "div", "span", "p", "br", "a ", "code", "pre", "img", "sup",
@@ -47,9 +43,6 @@ const HTML_TAG_NAMES: &[&str] = &[
 /// Build a regex that matches opening or self-closing HTML tags for the names
 /// listed in [`HTML_TAG_NAMES`].
 fn html_tag_regex() -> Regex {
-    // Build alternation: `table|tr|td|…|h[1-6]`
-    // We handle the special "a " entry by converting it to `a\s` so it only
-    // matches `<a ` (anchor with attributes) and not random words starting with "a".
     let alts: Vec<String> = HTML_TAG_NAMES
         .iter()
         .map(|t| {
@@ -77,16 +70,13 @@ fn strip_fenced_code_blocks(text: &str) -> String {
     for line in text.lines() {
         let trimmed = line.trim_start();
         if in_fence {
-            // Check if this line closes the current fence
             if trimmed.starts_with(&fence_marker) && trimmed.trim() == fence_marker {
                 in_fence = false;
                 fence_marker.clear();
             }
-            // Skip all lines inside fence (including open/close)
             continue;
         }
 
-        // Check for opening fence: ``` or ~~~  (3+ chars)
         let opens_backtick = trimmed.starts_with("```");
         let opens_tilde = trimmed.starts_with("~~~");
         if opens_backtick || opens_tilde {
@@ -117,10 +107,6 @@ pub fn detect_html_tags(content: &str) -> Vec<String> {
     re.find_iter(&cleaned).map(|m| m.as_str().to_string()).collect()
 }
 
-// ---------------------------------------------------------------------------
-// HTML-to-GFM conversion
-// ---------------------------------------------------------------------------
-
 /// Convert common HTML tags to their GFM equivalents.
 ///
 /// This intentionally does **not** attempt to convert `<table>` blocks — those
@@ -135,44 +121,34 @@ pub fn convert_html_to_gfm(content: &str) -> (String, usize) {
             let re = Regex::new($re).expect("regex");
             let before_len = text.len();
             let new = re.replace_all(&text, $rep);
-            // Count by number of matches (cheaper than diffing strings)
             let n = re.find_iter(&text).count();
             if n > 0 {
                 text = new.into_owned();
                 count += n;
             }
-            let _ = before_len; // suppress unused warning
+            let _ = before_len;
         }};
     }
 
-    // <b>text</b> or <strong>text</strong> → **text**
     apply!(r"(?is)<(?:b|strong)>(.*?)</(?:b|strong)>", "**$1**");
 
-    // <i>text</i> or <em>text</em> → *text*
     apply!(r"(?is)<(?:i|em)>(.*?)</(?:i|em)>", "*$1*");
 
-    // <code>text</code> → `text`
     apply!(r"(?is)<code>(.*?)</code>", "`$1`");
 
-    // <a href="url">text</a> → [text](url)
     apply!(
         r#"(?is)<a\s+(?:[^>]*\s+)?href=["']([^"']*)["'][^>]*>(.*?)</a>"#,
         "[$2]($1)"
     );
 
-    // <br>, <br/>, <br /> → newline
     apply!(r"(?i)<br\s*/?>", "\n");
 
-    // <hr>, <hr/>, <hr /> → ---
     apply!(r"(?i)<hr\s*/?>", "---");
 
-    // <sup>text</sup> → text (no GFM equivalent)
     apply!(r"(?is)<sup>(.*?)</sup>", "$1");
 
-    // <sub>text</sub> → text
     apply!(r"(?is)<sub>(.*?)</sub>", "$1");
 
-    // <pre>text</pre> → fenced code block
     {
         let re = Regex::new(r"(?is)<pre>(.*?)</pre>").expect("pre regex");
         let n = re.find_iter(&text).count();
@@ -187,17 +163,12 @@ pub fn convert_html_to_gfm(content: &str) -> (String, usize) {
         }
     }
 
-    // Strip <div>, </div>, <span>, </span>, <p>, </p> keeping content
     apply!(r"(?i)</?div(?:\s[^>]*)?>", "");
     apply!(r"(?i)</?span(?:\s[^>]*)?>", "");
     apply!(r"(?i)</?p(?:\s[^>]*)?>", "");
 
     (text, count)
 }
-
-// ---------------------------------------------------------------------------
-// Main validation entry point
-// ---------------------------------------------------------------------------
 
 /// Walk fixture JSON files, resolve GT paths, and produce a validation report.
 ///
@@ -236,10 +207,8 @@ pub fn validate_ground_truth(config: &ValidateGtConfig) -> Result<ValidateGtRepo
             continue;
         };
 
-        // Resolve paths relative to the fixture file's parent directory.
         let fixture_dir = fixture_path.parent().unwrap_or(Path::new("."));
 
-        // --- text GT ---
         if let Some(ref tf) = gt.text_file {
             let text_path = fixture_dir.join(tf);
             if text_path.exists() {
@@ -252,7 +221,6 @@ pub fn validate_ground_truth(config: &ValidateGtConfig) -> Result<ValidateGtRepo
             report.missing_text_gt += 1;
         }
 
-        // --- markdown GT ---
         if let Some(md_rel) = &gt.markdown_file {
             let md_path = fixture_dir.join(md_rel);
             if md_path.exists() {
@@ -269,10 +237,6 @@ pub fn validate_ground_truth(config: &ValidateGtConfig) -> Result<ValidateGtRepo
 
     Ok(report)
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 /// Recursively collect `*.json` files under `dir`.
 fn collect_json_files(dir: &Path) -> Result<Vec<PathBuf>> {
@@ -379,10 +343,6 @@ fn check_html_in_markdown(path: &Path, fix: bool, report: &mut ValidateGtReport)
     }
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -391,7 +351,6 @@ mod tests {
     fn test_html_tag_detection() {
         let tags = detect_html_tags("<b>bold</b> and <i>italic</i> and <table><tr><td>cell</td></tr></table>");
         assert!(!tags.is_empty(), "should detect HTML tags");
-        // Should find <b>, </b>, <i>, </i>, <table>, <tr>, <td>, </td>, </tr>, </table>
         assert!(tags.iter().any(|t| t.contains("b>")), "should detect <b>");
         assert!(tags.iter().any(|t| t.contains("table")), "should detect <table>");
     }

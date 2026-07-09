@@ -494,8 +494,6 @@ pub(crate) fn ensure_ocr_backends_initialized() {
         }
     }
 
-    // Re-check under the write lock: another thread may have re-seeded the
-    // registry between dropping the read lock and acquiring the write lock.
     registry.write().ensure_defaults();
 }
 
@@ -688,7 +686,6 @@ mod tests {
         assert!(result.is_ok());
     }
 
-    // A backend that reads backend_options and adjusts its output accordingly.
     struct OptionAwareBackend;
 
     impl Plugin for OptionAwareBackend {
@@ -755,7 +752,6 @@ mod tests {
     async fn test_backend_options_unknown_keys_silently_ignored() {
         let backend = OptionAwareBackend;
 
-        // Keys not used by this backend should not cause any error.
         let config = OcrConfig {
             backend_options: Some(serde_json::json!({
                 "unknown_key": "value",

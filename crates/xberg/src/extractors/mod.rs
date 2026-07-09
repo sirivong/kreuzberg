@@ -464,8 +464,7 @@ mod tests {
         let extractor_names = reg.list();
 
         #[allow(unused_mut)]
-        let mut expected_count = 5; // plain-text, markdown, structured, djot, csv
-        // transcription-extractor is only present when the feature is compiled in
+        let mut expected_count = 5;
         assert!(extractor_names.contains(&"plain-text-extractor".to_string()));
         assert!(extractor_names.contains(&"markdown-extractor".to_string()));
         assert!(extractor_names.contains(&"structured-extractor".to_string()));

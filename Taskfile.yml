@@ -1,39 +1,6 @@
 version: "3"
 
 # ============================================================================
-# xberg — Root Taskfile
-# ============================================================================
-# Primary development interface. Rust core tasks delegate to .task/languages/rust.yml.
-# All binding language operations (setup, build, test, lint, format, clean,
-# update, upgrade, publish) are handled by alef v0.15.48.
-#
-# Command patterns:
-#   task setup         -> install all dependencies
-#   task build         -> build Rust core only (debug)
-#   task build:all     -> build core + bindings (debug)
-#   task build:release -> build Rust core only (release)
-#   task test          -> run all tests
-#   task e2e:all       -> generate + build + run e2e tests for all bindings
-#   task test:cov      -> tests with coverage
-#   task format        -> format Rust code
-#   task lint          -> lint via poly
-#   task update        -> compatible dependency updates (minor versions only)
-#   task upgrade       -> breaking dependency upgrades (latest versions)
-#   task clean         -> remove all build artifacts
-#   task publish:*     -> alef publish validate/prepare/build/package
-#   task rust:*        -> Rust-specific tasks
-#   task python:*      -> Python-specific tasks
-#   task node:*        -> Node/TypeScript-specific tasks
-#   task ruby:*        -> Ruby-specific tasks
-#   task php:*         -> PHP-specific tasks
-#   task go:*          -> Go-specific tasks
-#   task java:*        -> Java-specific tasks
-#   task csharp:*      -> C#-specific tasks
-#   task elixir:*      -> Elixir-specific tasks
-#   task dart:*        -> Dart-specific tasks
-#   task swift:*       -> Swift-specific tasks
-#   task kotlin-android:* -> Kotlin/Android-specific tasks
-#   task zig:*         -> Zig-specific tasks
 # ============================================================================
 
 includes:
@@ -80,13 +47,11 @@ includes:
     flatten: true
 
 tasks:
-  # === Default ===
   default:
     desc: "List available tasks"
     cmds:
       - task --list
 
-  # === Setup ===
   setup:
     desc: "Install all dependencies and setup development environment"
     cmds:
@@ -95,7 +60,6 @@ tasks:
       - command -v poly >/dev/null 2>&1 || brew install goldziher/tap/poly
       - poly hooks install
 
-  # === Build ===
   build:
     desc: "Build Rust core library only (debug)"
     cmds:
@@ -132,7 +96,6 @@ tasks:
     cmds:
       - task: rust:cli:build
 
-  # === Test ===
   test:
     desc: "Run Rust core tests"
     cmds:
@@ -160,7 +123,6 @@ tasks:
     cmds:
       - task: test:cov
 
-  # === Lint & Format ===
   lint:
     desc: "Lint all code via poly"
     cmds:
@@ -202,7 +164,6 @@ tasks:
     cmds:
       - task: rust:check:mobile
 
-  # === Update / Upgrade ===
   update:
     desc: "Update all dependencies within major versions (minor patches only)"
     cmds:
@@ -242,7 +203,6 @@ tasks:
         ignore_error: true
       - gau --update .
 
-  # === Coverage ===
   cov:rust:
     desc: "Generate Rust coverage report"
     cmds:
@@ -254,13 +214,11 @@ tasks:
       - task: rust:test:ci
       - alef test --coverage
 
-  # === Version ===
   versions:sync:
     desc: "Synchronize version from Cargo.toml to all package manifests"
     cmds:
       - task: version:sync
 
-  # === Alef lifecycle ===
   alef:generate:
     desc: "Regenerate all Alef-managed outputs (formatting via poly, no build)"
     cmds:
@@ -284,11 +242,8 @@ tasks:
   alef:docs:
     desc: "Generate API reference documentation"
     cmds:
-      # Output path comes from alef.toml [workspace.docs] reference_output
-      # (docs-site/src/content/docs/reference) — no --output override.
       - alef docs
 
-  # === E2E tests ===
   e2e:generate:
     desc: "Generate E2E tests for all languages from fixtures"
     cmds:
@@ -407,11 +362,6 @@ tasks:
 
   swift:e2e:
     desc: "Run Swift e2e tests"
-    # Delegate to alef (like every other language) rather than hand-orchestrating the build.
-    # The old flow ran `alef e2e generate --lang swift` at test time, which recomputes alef's
-    # input-sources hash — that stats the sibling-repo crawlberg sources declared in alef.toml
-    # (`../crawlberg/...`), which exist locally but not in CI, breaking the swift job. alef.toml
-    # [crates.test.swift] already defines the build (`before`) and mock-server e2e command.
     cmds:
       - alef test --e2e --lang swift
 
@@ -420,7 +370,6 @@ tasks:
     cmds:
       - alef test --e2e --lang zig
 
-  # === Publish ===
   publish:validate:
     desc: "Validate publish manifests are consistent"
     cmds:
@@ -441,7 +390,6 @@ tasks:
     cmds:
       - alef publish package -o dist/
 
-  # === Language binding lint/format ===
   go:lint:
     desc: "Lint Go binding with golangci-lint"
     cmds:
@@ -596,7 +544,6 @@ tasks:
       - zig build test
     dir: packages/zig
 
-  # === Clean ===
   clean:
     desc: "Remove build artifacts across all languages"
     cmds:

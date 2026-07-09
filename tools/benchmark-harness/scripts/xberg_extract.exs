@@ -1,20 +1,9 @@
 #!/usr/bin/env elixir
-# Xberg Elixir extraction wrapper for benchmark harness.
-#
-# Supports two modes:
-# - sync: synchronous extraction
-# - batch: batch extraction
 
 require Logger
 
-# Suppress ALL log output to stdout — any stray log messages corrupt JSON output.
-# Must be done before any Xberg modules are loaded, as Plugin.Registry
-# emits a [debug] message during module initialization.
 Logger.configure(level: :none)
 
-# Guard Logger backend configuration — :standard_error device may not be
-# available in all subprocess contexts, and writing to it during boot can
-# crash the BEAM VM with {badarg, io:put_chars(:standard_error, ...)}
 try do
   Logger.configure_backend(:console, device: :standard_error)
 rescue
@@ -59,19 +48,14 @@ defmodule XbergExtract do
   """
   def sanitize_content(nil), do: ""
   def sanitize_content(content) when is_binary(content) do
-    # Ensure valid UTF-8 — drop invalid byte sequences
     valid_utf8 = case :unicode.characters_to_binary(content) do
       {:error, valid_part, _invalid} -> valid_part
       {:incomplete, valid_part, _rest} -> valid_part
       valid when is_binary(valid) -> valid
     end
 
-    # Strip control characters except \n, \r, \t (which Jason escapes properly)
     no_control = String.replace(valid_utf8, ~r/[\x00-\x08\x0b\x0c\x0e-\x1f]/, "")
 
-    # Strip lone Unicode surrogates (U+D800-U+DFFF) which are invalid in JSON
-    # These appear as byte sequences in UTF-8: ED A0 80-ED AF BF (high) and ED B0 80-ED BF BF (low)
-    # Note: PCRE in UTF-8 mode rejects surrogate codepoints, so we match the raw bytes instead
     String.replace(no_control, ~r/\xED[\xA0-\xBF][\x80-\xBF]/, "")
   end
 
@@ -101,12 +85,10 @@ defmodule XbergExtract do
   def determine_ocr_used(metadata, ocr_enabled) do
     format_type = cond do
       is_map(metadata) ->
-      # Check root level first (flat metadata from Rust JSON)
       root = Map.get(metadata, "format_type", Map.get(metadata, :format_type, nil))
       if root do
         root
       else
-        # struct_to_map/1 nests format fields under "format" key — check there too
         fmt = Map.get(metadata, "format", Map.get(metadata, :format, nil))
         if is_map(fmt), do: Map.get(fmt, "format_type", Map.get(fmt, :format_type, "")), else: ""
       end
@@ -120,8 +102,6 @@ defmodule XbergExtract do
     end
   end
 
-  # Parse a request line as either plain path or JSON request.
-  # Returns {path, force_ocr} tuple.
   defp parse_request(line) do
     trimmed = String.trim(line)
     if String.starts_with?(trimmed, "{") do
@@ -251,7 +231,6 @@ defmodule XbergExtract do
   def run_server(config \\ %{}, ocr_enabled \\ false) do
     debug_log("=== SERVER MODE START ===")
 
-    # Signal readiness after BEAM VM + NIF initialization
     IO.puts("READY")
 
     IO.stream(:stdio, :line)
@@ -260,7 +239,6 @@ defmodule XbergExtract do
       {file_path, force_ocr} = parse_request(line)
       debug_log("Processing file: #{file_path}, force_ocr: #{force_ocr}")
 
-      # Merge force_ocr into config if enabled
       request_config =
       if force_ocr do
         Map.put(config, "ocr", %{"backend" => "tesseract"})
@@ -268,7 +246,6 @@ defmodule XbergExtract do
         config
       end
 
-      # Use force_ocr or ocr_enabled flag
       effective_ocr = ocr_enabled or force_ocr
 
       try do
@@ -330,7 +307,6 @@ defmodule XbergExtract do
     debug_log("ARGV: #{inspect(args)}")
     debug_log("ARGV length: #{length(args)}")
 
-    # Parse OCR flags
     {ocr_enabled, remaining_args} =
     Enum.reduce(args, {false, []}, fn
       "--ocr", {_, acc} -> {true, acc}
@@ -402,7 +378,6 @@ defmodule XbergExtract do
         case extract_batch(file_paths, config, ocr_enabled) do
           {:ok, results} ->
           try do
-            # Always return a JSON array, even for a single file
             json = Jason.encode!(results)
 
             debug_log("Output JSON: #{String.slice(json, 0..200)}...")
@@ -436,13 +411,11 @@ defmodule XbergExtract do
   end
 end
 
-# Start the application and run main
 case Application.ensure_all_started(:xberg) do
   {:ok, _apps} ->
   :ok
 
   {:error, reason} ->
-  # Write error to stderr (guard against missing device)
   try do
     IO.puts(:stderr, "Failed to start :xberg application: #{inspect(reason)}")
   rescue
@@ -451,7 +424,6 @@ case Application.ensure_all_started(:xberg) do
     _, _ -> :ok
   end
 
-  # In server mode, output an error JSON so the harness doesn't see EOF
   if Enum.member?(System.argv(), "server") do
     IO.puts(Jason.encode!(%{
     "error" => "Application startup failed: #{inspect(reason)}",
@@ -463,6 +435,5 @@ case Application.ensure_all_started(:xberg) do
   System.halt(1)
 end
 
-# Parse args and run
 args = System.argv()
 XbergExtract.main(args)

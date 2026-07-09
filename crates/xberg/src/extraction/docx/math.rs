@@ -9,8 +9,6 @@ use crate::extractors::security::{SecurityBudget, SecurityError};
 use quick_xml::Reader;
 use quick_xml::events::Event;
 
-// --- MathNode tree ---
-
 #[derive(Debug, Clone)]
 enum FracType {
     Bar,
@@ -88,8 +86,6 @@ enum MathNode {
     },
 }
 
-// --- Public entry points ---
-
 /// Collect an `m:oMathPara` subtree and convert to LaTeX (display math).
 /// The reader should be positioned right after the `<m:oMathPara>` start tag.
 pub(crate) fn collect_and_convert_omath_para(
@@ -97,11 +93,9 @@ pub(crate) fn collect_and_convert_omath_para(
     budget: &mut SecurityBudget,
 ) -> Result<String, SecurityError> {
     let children = collect_children(reader, b"m:oMathPara", budget)?;
-    // An oMathPara may contain multiple oMath elements; render each.
     let mut parts = Vec::new();
     for child in &children {
         if let MathNode::Group { children: inner } = child {
-            // This is the result of an m:oMath inside m:oMathPara
             let rendered = render_nodes(inner);
             if !rendered.is_empty() {
                 parts.push(rendered);
@@ -109,7 +103,6 @@ pub(crate) fn collect_and_convert_omath_para(
         }
     }
     if parts.is_empty() {
-        // Fallback: render all children directly
         Ok(render_nodes(&children))
     } else {
         Ok(parts.join(" \\\\ "))
@@ -125,8 +118,6 @@ pub(crate) fn collect_and_convert_omath(
     let children = collect_children(reader, b"m:oMath", budget)?;
     Ok(render_nodes(&children))
 }
-
-// --- Tree builder ---
 
 /// Recursively collect child nodes until the matching close tag.
 fn collect_children(
@@ -200,12 +191,10 @@ fn collect_children(
                         nodes.push(collect_spre(reader, budget)?);
                     }
                     b"m:oMath" => {
-                        // Nested oMath (e.g. inside oMathPara)
                         let inner = collect_children(reader, b"m:oMath", budget)?;
                         nodes.push(MathNode::Group { children: inner });
                     }
                     _ => {
-                        // Unknown element — skip it entirely
                         skip_to_end(reader, &tag);
                     }
                 }
@@ -439,7 +428,7 @@ fn collect_frac_pr(reader: &mut Reader<&[u8]>, budget: &mut SecurityBudget) -> R
 fn collect_rad(reader: &mut Reader<&[u8]>, budget: &mut SecurityBudget) -> Result<MathNode, SecurityError> {
     let mut deg = Vec::new();
     let mut body = Vec::new();
-    let mut deg_hide = true; // default: no degree shown (plain \sqrt)
+    let mut deg_hide = true;
     let mut buf = Vec::new();
 
     loop {
@@ -496,7 +485,7 @@ fn collect_rad_pr(reader: &mut Reader<&[u8]>, budget: &mut SecurityBudget) -> Re
 
 /// Collect an m:nary (n-ary operator) element.
 fn collect_nary(reader: &mut Reader<&[u8]>, budget: &mut SecurityBudget) -> Result<MathNode, SecurityError> {
-    let mut chr = "\u{222B}".to_string(); // default: integral
+    let mut chr = "\u{222B}".to_string();
     let mut sub = Vec::new();
     let mut sup = Vec::new();
     let mut body = Vec::new();
@@ -701,7 +690,7 @@ fn collect_func(reader: &mut Reader<&[u8]>, budget: &mut SecurityBudget) -> Resu
 
 /// Collect an m:acc (accent) element.
 fn collect_acc(reader: &mut Reader<&[u8]>, budget: &mut SecurityBudget) -> Result<MathNode, SecurityError> {
-    let mut chr = "\u{0302}".to_string(); // default: combining circumflex accent (hat)
+    let mut chr = "\u{0302}".to_string();
     let mut body = Vec::new();
     let mut buf = Vec::new();
 
@@ -863,7 +852,7 @@ fn collect_limupp(reader: &mut Reader<&[u8]>, budget: &mut SecurityBudget) -> Re
 /// Collect an m:bar element.
 fn collect_bar(reader: &mut Reader<&[u8]>, budget: &mut SecurityBudget) -> Result<MathNode, SecurityError> {
     let mut body = Vec::new();
-    let mut top = true; // default: overline
+    let mut top = true;
     let mut buf = Vec::new();
 
     loop {
@@ -1070,7 +1059,6 @@ fn collect_element_body(
                 } else if tag == b"m:e" {
                     children.extend(collect_children(reader, b"m:e", budget)?);
                 } else {
-                    // Try to collect as a math element
                     skip_to_end(reader, &tag);
                 }
             }
@@ -1088,8 +1076,6 @@ fn collect_element_body(
 
     Ok(children)
 }
-
-// --- Helpers ---
 
 /// Get the `m:val` attribute value from a start/empty element.
 fn get_m_val(e: &quick_xml::events::BytesStart) -> Option<String> {
@@ -1124,8 +1110,6 @@ fn skip_to_end(reader: &mut Reader<&[u8]>, tag: &[u8]) {
         buf.clear();
     }
 }
-
-// --- LaTeX renderer ---
 
 /// Render a slice of MathNodes to LaTeX.
 fn render_nodes(nodes: &[MathNode]) -> String {
@@ -1180,7 +1164,6 @@ fn render_node(node: &MathNode, out: &mut String) {
             FracType::Linear | FracType::Skewed => {
                 let num_s = render_nodes(num);
                 let den_s = render_nodes(den);
-                // Wrap in braces if multi-character
                 if num_s.len() > 1 {
                     out.push('{');
                     out.push_str(&num_s);
@@ -1256,7 +1239,6 @@ fn render_node(node: &MathNode, out: &mut String) {
         }
         MathNode::Func { name, body } => {
             let func_name = render_nodes(name);
-            // Check if it's a known LaTeX function
             let latex_func = match func_name.trim() {
                 "sin" => "\\sin",
                 "cos" => "\\cos",
@@ -1371,7 +1353,6 @@ fn render_node(node: &MathNode, out: &mut String) {
 /// Render base nodes, wrapping in braces if needed for subscript/superscript.
 fn render_group(nodes: &[MathNode], out: &mut String) {
     let rendered = render_nodes(nodes);
-    // Wrap in braces if multi-character or contains special chars
     let needs_braces = rendered.chars().count() > 1 && !rendered.starts_with('\\') && !rendered.starts_with('{');
     if needs_braces {
         out.push('{');
@@ -1393,12 +1374,9 @@ fn render_run_text(text: &str, out: &mut String) {
     }
 }
 
-// --- Character mapping tables ---
-
 /// Map a Unicode character to its LaTeX command (if any).
 fn unicode_to_latex(ch: char) -> Option<&'static str> {
     match ch {
-        // Greek lowercase
         '\u{03B1}' => Some("\\alpha "),
         '\u{03B2}' => Some("\\beta "),
         '\u{03B3}' => Some("\\gamma "),
@@ -1413,7 +1391,7 @@ fn unicode_to_latex(ch: char) -> Option<&'static str> {
         '\u{03BC}' => Some("\\mu "),
         '\u{03BD}' => Some("\\nu "),
         '\u{03BE}' => Some("\\xi "),
-        '\u{03BF}' => Some("o"), // omicron is just 'o' in LaTeX
+        '\u{03BF}' => Some("o"),
         '\u{03C0}' => Some("\\pi "),
         '\u{03C1}' => Some("\\rho "),
         '\u{03C2}' => Some("\\varsigma "),
@@ -1424,7 +1402,6 @@ fn unicode_to_latex(ch: char) -> Option<&'static str> {
         '\u{03C7}' => Some("\\chi "),
         '\u{03C8}' => Some("\\psi "),
         '\u{03C9}' => Some("\\omega "),
-        // Greek uppercase
         '\u{0393}' => Some("\\Gamma "),
         '\u{0394}' => Some("\\Delta "),
         '\u{0398}' => Some("\\Theta "),
@@ -1436,7 +1413,6 @@ fn unicode_to_latex(ch: char) -> Option<&'static str> {
         '\u{03A6}' => Some("\\Phi "),
         '\u{03A8}' => Some("\\Psi "),
         '\u{03A9}' => Some("\\Omega "),
-        // Operators
         '\u{00B1}' => Some("\\pm "),
         '\u{2213}' => Some("\\mp "),
         '\u{00D7}' => Some("\\times "),
@@ -1445,7 +1421,6 @@ fn unicode_to_latex(ch: char) -> Option<&'static str> {
         '\u{2217}' => Some("\\ast "),
         '\u{2218}' => Some("\\circ "),
         '\u{2219}' => Some("\\bullet "),
-        // Relations
         '\u{2264}' => Some("\\leq "),
         '\u{2265}' => Some("\\geq "),
         '\u{2260}' => Some("\\neq "),
@@ -1460,7 +1435,6 @@ fn unicode_to_latex(ch: char) -> Option<&'static str> {
         '\u{2208}' => Some("\\in "),
         '\u{2209}' => Some("\\notin "),
         '\u{220B}' => Some("\\ni "),
-        // Arrows
         '\u{2190}' => Some("\\leftarrow "),
         '\u{2192}' => Some("\\rightarrow "),
         '\u{2191}' => Some("\\uparrow "),
@@ -1470,7 +1444,6 @@ fn unicode_to_latex(ch: char) -> Option<&'static str> {
         '\u{21D2}' => Some("\\Rightarrow "),
         '\u{21D4}' => Some("\\Leftrightarrow "),
         '\u{21A6}' => Some("\\mapsto "),
-        // Special symbols
         '\u{221E}' => Some("\\infty "),
         '\u{2202}' => Some("\\partial "),
         '\u{2207}' => Some("\\nabla "),
@@ -1494,7 +1467,6 @@ fn unicode_to_latex(ch: char) -> Option<&'static str> {
         '\u{2111}' => Some("\\Im "),
         '\u{2118}' => Some("\\wp "),
         '\u{2135}' => Some("\\aleph "),
-        // N-ary operators (when used as text)
         '\u{2211}' => Some("\\sum "),
         '\u{220F}' => Some("\\prod "),
         '\u{222B}' => Some("\\int "),
@@ -1528,7 +1500,6 @@ fn nary_chr_to_latex(chr: &str) -> String {
             _ => {}
         }
     }
-    // Fallback: use the character directly
     chr.to_string()
 }
 
@@ -1539,14 +1510,14 @@ fn delim_chr_to_latex(chr: &str) -> String {
         "{" => "\\{".to_string(),
         "}" => "\\}".to_string(),
         "|" => "|".to_string(),
-        "\u{2016}" => "\\|".to_string(), // double vertical bar
+        "\u{2016}" => "\\|".to_string(),
         "\u{2329}" | "\u{27E8}" => "\\langle".to_string(),
         "\u{232A}" | "\u{27E9}" => "\\rangle".to_string(),
         "\u{230A}" => "\\lfloor".to_string(),
         "\u{230B}" => "\\rfloor".to_string(),
         "\u{2308}" => "\\lceil".to_string(),
         "\u{2309}" => "\\rceil".to_string(),
-        "" => ".".to_string(), // empty delimiter
+        "" => ".".to_string(),
         _ => chr.to_string(),
     }
 }
@@ -1576,7 +1547,6 @@ fn accent_chr_to_latex(chr: &str) -> String {
             _ => {}
         }
     }
-    // Fallback
     "\\hat".to_string()
 }
 
@@ -1589,7 +1559,6 @@ mod tests {
         let wrapped = format!("<m:oMath>{}</m:oMath>", xml);
         let mut reader = Reader::from_str(&wrapped);
         reader.config_mut().trim_text(false);
-        // Skip to the start tag
         let mut buf = Vec::new();
         loop {
             match reader.read_event_into(&mut buf) {
@@ -1836,7 +1805,6 @@ mod tests {
 
     #[test]
     fn test_nested_quadratic_formula() {
-        // x = \frac{-b \pm \sqrt{b^{2} - 4ac}}{2a}
         let latex = omml_to_latex(
             r#"<m:r><m:t>x=</m:t></m:r>
             <m:f>
@@ -1885,14 +1853,12 @@ mod tests {
 
     #[test]
     fn test_run_with_rpr() {
-        // m:rPr should be skipped, not treated as text
         let latex = omml_to_latex(r#"<m:r><m:rPr><m:sty m:val="p"/></m:rPr><m:t>x</m:t></m:r>"#);
         assert_eq!(latex, "x");
     }
 
     #[test]
     fn test_nary_integral_default() {
-        // When no chr is specified, default is integral
         let latex = omml_to_latex(
             r#"<m:nary>
                 <m:naryPr/>

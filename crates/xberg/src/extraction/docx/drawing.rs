@@ -126,7 +126,7 @@ pub(crate) fn parse_drawing(reader: &mut Reader<&[u8]>) -> Drawing {
         image_ref: None,
     };
 
-    let mut depth = 1; // We've already consumed the <w:drawing> start
+    let mut depth = 1;
     let mut buf = Vec::new();
 
     loop {
@@ -159,7 +159,6 @@ pub(crate) fn parse_drawing(reader: &mut Reader<&[u8]>) -> Drawing {
                                 offset: position,
                             });
                         }
-                        // parse_position consumes through the end tag, so no depth change
                     }
                     b"positionV" => {
                         let relative_from = get_attr(e, b"relativeFrom").unwrap_or_else(|| "paragraph".to_string());
@@ -170,11 +169,8 @@ pub(crate) fn parse_drawing(reader: &mut Reader<&[u8]>) -> Drawing {
                                 offset: position,
                             });
                         }
-                        // parse_position consumes through the end tag, so no depth change
                     }
                     b"blip" => {
-                        // <a:blip> can appear as Start (when it has children like <a:extLst>)
-                        // Extract r:embed or r:link from the opening tag attributes.
                         if drawing.image_ref.is_none() {
                             drawing.image_ref = get_attr(e, b"embed").or_else(|| get_attr(e, b"link"));
                         }
@@ -281,7 +277,6 @@ fn parse_position(reader: &mut Reader<&[u8]>, element_name: &str) -> Option<i64>
                 {
                     result = text.parse::<i64>().ok();
                 }
-                // Consume the posOffset end tag
                 let mut end_buf = Vec::new();
                 let _ = reader.read_event_into(&mut end_buf);
             }
@@ -330,7 +325,6 @@ mod tests {
         let mut reader = Reader::from_reader(xml);
         let mut buf = Vec::new();
 
-        // Consume opening tag and any events before <w:drawing>
         loop {
             match reader.read_event_into(&mut buf) {
                 Ok(Event::Start(e)) if e.local_name().as_ref() as &[u8] == b"drawing" => {
@@ -641,13 +635,10 @@ mod tests {
             image_ref: Some("rId5".to_string()),
         };
 
-        // Serialize to JSON
         let json = serde_json::to_string(&drawing).expect("Failed to serialize");
 
-        // Deserialize back
         let deserialized: Drawing = serde_json::from_str(&json).expect("Failed to deserialize");
 
-        // Verify round-trip
         assert_eq!(drawing, deserialized);
     }
 }

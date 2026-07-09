@@ -53,8 +53,6 @@ fn glm_ocr_paired_pipeline_smoke_via_process_image_with_task() {
 
     eprintln!("Engine constructed. Running process_image_with_task on test image...");
 
-    // Call process_image_with_task explicitly — this is the dispatch entry-point
-    // used by the paired-mode backend for each cropped region.
     let output = engine
         .process_image_with_task(image_bytes, GlmOcrTask::Ocr)
         .expect("Failed to process image with task");

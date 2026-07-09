@@ -20,7 +20,6 @@ fn extract(bytes: &[u8], mime: &str) -> String {
 /// replace them with U+FFFD.
 #[test]
 fn plain_text_latin1_decodes_without_replacement() {
-    // "café naïve résumé" in ISO-8859-1.
     let latin1: &[u8] = b"caf\xe9 na\xefve r\xe9sum\xe9";
     let content = extract(latin1, "text/plain");
     assert!(

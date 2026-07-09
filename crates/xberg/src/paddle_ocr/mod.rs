@@ -54,25 +54,25 @@ pub use model_manager::{ModelCacheStats, ModelManager, ModelManifestEntry};
 /// PaddleOCR supports 15+ optimized language models covering 80+ languages
 /// via 11 script-family recognition models (all PP-OCRv5).
 pub const SUPPORTED_LANGUAGES: &[&str] = &[
-    "ch",          // Chinese (Simplified)
-    "en",          // English
-    "french",      // French
-    "german",      // German
-    "korean",      // Korean
-    "japan",       // Japanese
-    "chinese_cht", // Chinese (Traditional)
-    "latin",       // Latin script languages
-    "cyrillic",    // Cyrillic script languages
-    "thai",        // Thai
-    "greek",       // Greek
-    "arabic",      // Arabic script languages
-    "devanagari",  // Hindi, Marathi, Sanskrit, Nepali
-    "tamil",       // Tamil
-    "telugu",      // Telugu
+    "ch",
+    "en",
+    "french",
+    "german",
+    "korean",
+    "japan",
+    "chinese_cht",
+    "latin",
+    "cyrillic",
+    "thai",
+    "greek",
+    "arabic",
+    "devanagari",
+    "tamil",
+    "telugu",
 ];
 
 /// Check if a language code is supported by PaddleOCR.
-#[allow(dead_code)] // consumed by `paddle-ocr`; types crate ships it for ABI shape
+#[allow(dead_code)]
 pub(crate) fn is_language_supported(lang: &str) -> bool {
     SUPPORTED_LANGUAGES.contains(&lang)
 }
@@ -98,7 +98,7 @@ pub(crate) fn is_language_supported(lang: &str) -> bool {
 /// | `devanagari` | Hindi, Marathi, Sanskrit, Nepali |
 /// | `tamil` | Tamil |
 /// | `telugu` | Telugu |
-#[allow(dead_code)] // consumed by `paddle-ocr`; types crate ships it for ABI shape
+#[allow(dead_code)]
 pub(crate) fn language_to_script_family(paddle_lang: &str) -> &'static str {
     match paddle_lang {
         "en" => "english",
@@ -117,10 +117,9 @@ pub(crate) fn language_to_script_family(paddle_lang: &str) -> &'static str {
 }
 
 /// Map Xberg language codes to PaddleOCR language codes.
-#[allow(dead_code)] // consumed by `paddle-ocr`; types crate ships it for ABI shape
+#[allow(dead_code)]
 pub(crate) fn map_language_code(xberg_code: &str) -> Option<&'static str> {
     match xberg_code {
-        // Direct mappings
         "ch" | "chi_sim" | "zho" | "zh" | "chinese" => Some("ch"),
         "en" | "eng" | "english" => Some("en"),
         "fr" | "fra" | "french" => Some("french"),
@@ -133,16 +132,11 @@ pub(crate) fn map_language_code(xberg_code: &str) -> Option<&'static str> {
         }
         "th" | "tha" | "thai" => Some("thai"),
         "el" | "ell" | "greek" => Some("greek"),
-        // Arabic script languages
         "ar" | "ara" | "arabic" | "fa" | "fas" | "persian" | "ur" | "urd" | "urdu" => Some("arabic"),
-        // Devanagari script languages
         "hi" | "hin" | "hindi" | "mr" | "mar" | "marathi" | "sa" | "san" | "sanskrit" | "ne" | "nep" | "nepali"
         | "devanagari" => Some("devanagari"),
-        // Tamil
         "ta" | "tam" | "tamil" => Some("tamil"),
-        // Telugu
         "te" | "tel" | "telugu" => Some("telugu"),
-        // Latin script fallback for European languages
         "latin" | "es" | "spa" | "spanish" | "it" | "ita" | "italian" | "pt" | "por" | "portuguese" | "nl" | "nld"
         | "dutch" | "pl" | "pol" | "polish" | "sv" | "swe" | "swedish" | "da" | "dan" | "danish" | "no" | "nor"
         | "norwegian" | "fi" | "fin" | "finnish" | "cs" | "ces" | "czech" | "sk" | "slk" | "slovak" | "hr" | "hrv"

@@ -53,7 +53,6 @@ fn make_glyph_jitter_pdf(jitter_pt: f32) -> Vec<u8> {
         ));
     }
 
-    // Assemble PDF object by object, recording byte offsets for the xref table.
     let mut pdf: Vec<u8> = Vec::new();
 
     macro_rules! push {
@@ -189,7 +188,6 @@ fn make_word_gap_pdf() -> Vec<u8> {
 /// A PDF with normal word-level text (no per-glyph Tj, no jitter).
 /// `is_fragmented_span_list` must return false and content must be unchanged.
 fn make_normal_prose_pdf() -> Vec<u8> {
-    // Single BT block — all words in one run; no glyph-level fragmentation.
     let stream = "BT /F1 12 Tf 72 700 Td (The quick brown fox) Tj ET\n";
     assemble_single_page_pdf(stream)
 }
@@ -326,7 +324,6 @@ fn test_two_line_pdf_stays_two_lines() {
         content.contains("SecondLine"),
         "output must contain 'SecondLine'; got: {content:?}"
     );
-    // The two lines must be separated (not merged into one line).
     let line_count = content.lines().count();
     assert!(
         line_count >= 2,
@@ -351,7 +348,6 @@ fn test_word_gap_produces_space() {
         content.contains("World"),
         "output must contain 'World'; got: {content:?}"
     );
-    // Both words must appear with some separator (space or newline) between them.
     assert!(
         content.contains("Hello World") || content.contains("Hello\nWorld"),
         "output must have 'Hello World' or 'Hello\\nWorld'; got: {content:?}"
@@ -418,7 +414,6 @@ fn test_5pt_jitter_coalesced() {
 /// This guards against false positives on poetry, code columns, and similar layouts.
 #[test]
 fn test_genuine_single_char_lines_not_collapsed() {
-    // Five stacked single-character spans at 20 pt y-intervals — genuinely one char per line.
     let stream = "BT /F1 12 Tf 1 0 0 1 72.00 700.00 Tm (A) Tj ET\n\
                   BT /F1 12 Tf 1 0 0 1 72.00 680.00 Tm (B) Tj ET\n\
                   BT /F1 12 Tf 1 0 0 1 72.00 660.00 Tm (C) Tj ET\n\
@@ -430,11 +425,9 @@ fn test_genuine_single_char_lines_not_collapsed() {
         .expect("single-char-per-line PDF should extract without error");
 
     let content = result.content.trim().to_string();
-    // All five characters must be present.
     for ch in ["A", "B", "C", "D", "E"] {
         assert!(content.contains(ch), "output must contain '{ch}'; got: {content:?}");
     }
-    // Characters must NOT be collapsed onto a single line; expect ≥ 5 separate lines.
     let line_count = content.lines().count();
     assert!(
         line_count >= 5,

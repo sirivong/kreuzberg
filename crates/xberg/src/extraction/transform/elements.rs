@@ -35,11 +35,10 @@ pub(crate) fn detect_list_items(text: &str) -> Vec<ListItemMetadata> {
     for line in lines {
         let line_start_offset = current_byte_offset;
         let trimmed = line.trim_start();
-        let indent_level = (line.len() - trimmed.len()) / 2; // Estimate indent level
+        let indent_level = (line.len() - trimmed.len()) / 2;
 
         let byte_end = line_start_offset + line.len();
 
-        // Advance past the line ending: handle \r\n (CRLF) and \n (LF)
         let next_offset = if byte_end < text.len() {
             let rest = &text.as_bytes()[byte_end..];
             if rest.starts_with(b"\r\n") {
@@ -53,7 +52,6 @@ pub(crate) fn detect_list_items(text: &str) -> Vec<ListItemMetadata> {
             byte_end
         };
 
-        // Check for bullet points
         if let Some(stripped) = trimmed.strip_prefix('-')
             && (stripped.starts_with(' ') || stripped.is_empty())
         {
@@ -93,11 +91,6 @@ pub(crate) fn detect_list_items(text: &str) -> Vec<ListItemMetadata> {
             continue;
         }
 
-        // Check for numbered lists (e.g., "1.", "2.", etc.)
-        // Skip when the line is the only list-like line in its \n\n-bounded block AND
-        // starts with an uppercase letter after the dot — that pattern is a chapter
-        // heading ("1. Introduction"), not a list item.  Lowercase-initial lone lines
-        // ("1. go there alone") are real list items and must not be suppressed.
         if let Some(pos) = trimmed.find('.') {
             let prefix = &trimmed[..pos];
             let uppercase_initial = trimmed[pos + 1..].chars().nth(1).is_some_and(|c| c.is_uppercase());
@@ -119,7 +112,6 @@ pub(crate) fn detect_list_items(text: &str) -> Vec<ListItemMetadata> {
             }
         }
 
-        // Check for lettered lists (e.g., "a.", "b.", "A.", "B.")
         if let Some(pos) = trimmed.find('.') {
             let prefix = &trimmed[..pos];
             if prefix.len() == 1
@@ -139,7 +131,6 @@ pub(crate) fn detect_list_items(text: &str) -> Vec<ListItemMetadata> {
             }
         }
 
-        // Check for indented items (more than 4 spaces)
         if indent_level >= 2 && !trimmed.is_empty() {
             items.push(ListItemMetadata {
                 list_type: ListType::Indented,
@@ -173,7 +164,6 @@ pub(crate) fn detect_list_items(text: &str) -> Vec<ListItemMetadata> {
 ///
 /// An ElementId suitable for referencing this semantic element
 pub(crate) fn generate_element_id(text: &str, element_type: ElementType, page_number: Option<u32>) -> ElementId {
-    // Simple deterministic hash using wrapping multiplication
     let type_hash = format!("{:?}", element_type)
         .bytes()
         .fold(0u64, |acc, b| acc.wrapping_mul(31).wrapping_add(b as u64));
@@ -234,7 +224,6 @@ pub(super) fn add_paragraphs(elements: &mut Vec<Element>, text: &str, page_numbe
         return;
     }
 
-    // Split on double newlines to detect paragraph boundaries
     for paragraph in text.split("\n\n").filter(|p| !p.trim().is_empty()) {
         let para_text = paragraph.trim();
         if para_text.is_empty() {

@@ -62,7 +62,6 @@ impl ExtractionConfig {
             validate_chunking_params, validate_language_code, validate_ocr_backend, validate_token_reduction_level,
         };
 
-        // XBERG_OCR_LANGUAGE override
         if let Ok(lang) = std::env::var("XBERG_OCR_LANGUAGE") {
             validate_language_code(&lang)?;
             if self.ocr.is_none() {
@@ -73,7 +72,6 @@ impl ExtractionConfig {
             }
         }
 
-        // XBERG_OCR_BACKEND override
         if let Ok(backend) = std::env::var("XBERG_OCR_BACKEND") {
             validate_ocr_backend(&backend)?;
             if self.ocr.is_none() {
@@ -84,7 +82,6 @@ impl ExtractionConfig {
             }
         }
 
-        // XBERG_CHUNKING_MAX_CHARS override
         if let Ok(max_chars_str) = std::env::var("XBERG_CHUNKING_MAX_CHARS") {
             let max_chars: usize = max_chars_str.parse().map_err(|_| XbergError::Validation {
                 message: format!(
@@ -106,13 +103,11 @@ impl ExtractionConfig {
             }
 
             if let Some(ref mut chunking) = self.chunking {
-                // Validate against current overlap before updating
                 validate_chunking_params(max_chars, chunking.overlap)?;
                 chunking.max_characters = max_chars;
             }
         }
 
-        // XBERG_CHUNKING_MAX_OVERLAP override
         if let Ok(max_overlap_str) = std::env::var("XBERG_CHUNKING_MAX_OVERLAP") {
             let max_overlap: usize = max_overlap_str.parse().map_err(|_| XbergError::Validation {
                 message: format!(
@@ -127,13 +122,11 @@ impl ExtractionConfig {
             }
 
             if let Some(ref mut chunking) = self.chunking {
-                // Validate against current max_characters before updating
                 validate_chunking_params(chunking.max_characters, max_overlap)?;
                 chunking.overlap = max_overlap;
             }
         }
 
-        // XBERG_CACHE_ENABLED override
         if let Ok(cache_str) = std::env::var("XBERG_CACHE_ENABLED") {
             let cache_enabled = match cache_str.to_lowercase().as_str() {
                 "true" => true,
@@ -151,7 +144,6 @@ impl ExtractionConfig {
             self.use_cache = cache_enabled;
         }
 
-        // XBERG_TOKEN_REDUCTION_MODE override
         if let Ok(mode) = std::env::var("XBERG_TOKEN_REDUCTION_MODE") {
             validate_token_reduction_level(&mode)?;
             if self.token_reduction.is_none() {
@@ -165,7 +157,6 @@ impl ExtractionConfig {
             }
         }
 
-        // XBERG_OUTPUT_FORMAT override
         if let Ok(val) = std::env::var("XBERG_OUTPUT_FORMAT") {
             self.output_format = val.parse().map_err(|e: String| XbergError::Validation {
                 message: format!("Invalid value for XBERG_OUTPUT_FORMAT: {}", e),
@@ -173,7 +164,6 @@ impl ExtractionConfig {
             })?;
         }
 
-        // XBERG_CHUNKING_TOKENIZER override
         #[cfg(feature = "chunking-tokenizers")]
         if let Ok(model) = std::env::var("XBERG_CHUNKING_TOKENIZER") {
             if model.is_empty() {
@@ -192,8 +182,6 @@ impl ExtractionConfig {
             }
         }
 
-        // XBERG_LAYOUT_PRESET override (backward compat: enables layout detection).
-        // Only one model (RT-DETR) exists, so the specific preset value is ignored.
         #[cfg(feature = "layout-detection")]
         if let Ok(preset) = std::env::var("XBERG_LAYOUT_PRESET") {
             let lower = preset.to_lowercase();
@@ -209,11 +197,9 @@ impl ExtractionConfig {
             if self.layout.is_none() {
                 self.layout = Some(super::super::layout::LayoutDetectionConfig::default());
             }
-            // preset value is accepted but ignored -- only RT-DETR is available
             let _ = lower;
         }
 
-        // XBERG_DISABLE_OCR override
         if let Ok(val) = std::env::var("XBERG_DISABLE_OCR") {
             self.disable_ocr = match val.to_lowercase().as_str() {
                 "true" | "1" => true,
@@ -230,7 +216,6 @@ impl ExtractionConfig {
             };
         }
 
-        // XBERG_LLM_MODEL override
         if let Ok(value) = std::env::var("XBERG_LLM_MODEL") {
             if value.is_empty() {
                 return Err(XbergError::Validation {
@@ -260,7 +245,6 @@ impl ExtractionConfig {
             }
         }
 
-        // XBERG_LLM_API_KEY override
         if let Ok(value) = std::env::var("XBERG_LLM_API_KEY") {
             if value.is_empty() {
                 return Err(XbergError::Validation {
@@ -290,7 +274,6 @@ impl ExtractionConfig {
             }
         }
 
-        // XBERG_LLM_BASE_URL override
         if let Ok(value) = std::env::var("XBERG_LLM_BASE_URL") {
             if value.is_empty() {
                 return Err(XbergError::Validation {
@@ -320,7 +303,6 @@ impl ExtractionConfig {
             }
         }
 
-        // XBERG_VLM_OCR_MODEL override
         if let Ok(value) = std::env::var("XBERG_VLM_OCR_MODEL") {
             if value.is_empty() {
                 return Err(XbergError::Validation {
@@ -348,7 +330,6 @@ impl ExtractionConfig {
             }
         }
 
-        // XBERG_VLM_EMBEDDING_MODEL override
         if let Ok(value) = std::env::var("XBERG_VLM_EMBEDDING_MODEL") {
             if value.is_empty() {
                 return Err(XbergError::Validation {
@@ -377,11 +358,6 @@ impl ExtractionConfig {
             }
         }
 
-        // XBERG_EMBEDDING_PLUGIN_NAME override.
-        // Selects an already-registered in-process embedding backend by name.
-        // Setting this together with XBERG_VLM_EMBEDDING_MODEL is rejected — they
-        // configure mutually-exclusive embedding sources and the result of "both set"
-        // would otherwise depend on source order in this function. Pick one.
         let plugin_name = std::env::var("XBERG_EMBEDDING_PLUGIN_NAME").ok();
         if plugin_name.is_some() && std::env::var("XBERG_VLM_EMBEDDING_MODEL").is_ok() {
             return Err(XbergError::Validation {
@@ -414,7 +390,7 @@ impl ExtractionConfig {
 }
 
 #[cfg(test)]
-#[allow(unsafe_code)] // env mutation in 2024 edition is unsafe; tests serialize via ENV_LOCK
+#[allow(unsafe_code)]
 mod tests {
     use super::*;
     use crate::core::config::processing::EmbeddingModelType;
@@ -424,7 +400,6 @@ mod tests {
     static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     fn clear_embedding_env() {
-        // SAFETY: callers hold ENV_LOCK so no other thread is reading these vars.
         unsafe {
             std::env::remove_var("XBERG_EMBEDDING_PLUGIN_NAME");
             std::env::remove_var("XBERG_VLM_EMBEDDING_MODEL");
@@ -435,7 +410,6 @@ mod tests {
     fn embedding_plugin_and_vlm_embedding_model_are_mutually_exclusive() {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         clear_embedding_env();
-        // SAFETY: see clear_embedding_env.
         unsafe {
             std::env::set_var("XBERG_EMBEDDING_PLUGIN_NAME", "my-embedder");
             std::env::set_var("XBERG_VLM_EMBEDDING_MODEL", "openai/text-embedding-3-small");
@@ -457,7 +431,6 @@ mod tests {
     fn empty_embedding_plugin_name_rejected() {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         clear_embedding_env();
-        // SAFETY: see clear_embedding_env.
         unsafe { std::env::set_var("XBERG_EMBEDDING_PLUGIN_NAME", "") };
         let mut config = ExtractionConfig::default();
         let err = config
@@ -474,7 +447,6 @@ mod tests {
     fn embedding_plugin_env_sets_chunking_embedding_to_plugin_variant() {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|p| p.into_inner());
         clear_embedding_env();
-        // SAFETY: see clear_embedding_env.
         unsafe { std::env::set_var("XBERG_EMBEDDING_PLUGIN_NAME", "my-embedder") };
         let mut config = ExtractionConfig::default();
         config

@@ -41,8 +41,6 @@ pub(crate) fn resolve_span_grid<C>(
     row_span: impl Fn(&C) -> u32,
     mut place: impl FnMut(u32, u32, &C),
 ) -> u32 {
-    // `occupied_until[col]` is the exclusive row index up to which the column is
-    // covered by a rowspan from an earlier row.
     let mut occupied_until: Vec<u32> = Vec::new();
     for (row_idx, row) in rows.iter().enumerate() {
         let row_idx = row_idx as u32;
@@ -114,7 +112,6 @@ mod tests {
 
     #[test]
     fn rowspan_reserves_column() {
-        // Row 0: [Alpha(rowspan 2), Alice, 10]; Row 1: [Bob, 20].
         let rows = vec![
             vec![
                 SpanCell::new("Alpha", 2, 1),
@@ -125,7 +122,6 @@ mod tests {
         ];
         let grid = flatten_spanned_rows(&rows);
         assert_eq!(grid[0], vec!["Alpha", "Alice", "10"]);
-        // Bob must land in column 1, not shift into Alpha's column.
         assert_eq!(grid[1], vec!["", "Bob", "20"]);
     }
 

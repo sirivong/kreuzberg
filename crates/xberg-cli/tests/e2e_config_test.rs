@@ -54,7 +54,6 @@ fn create_test_config(dir: &TempDir, name: &str, content: &str) -> PathBuf {
 
 /// Helper to encode string as base64.
 fn to_base64(input: &str) -> String {
-    // Manual base64 encoding
     const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let bytes = input.as_bytes();
     let mut result = String::new();
@@ -88,10 +87,6 @@ fn to_base64(input: &str) -> String {
     result
 }
 
-// ============================================================================
-// Test 1: --config-json inline flag with complex configuration
-// ============================================================================
-
 #[test]
 fn test_cli_config_json_inline() {
     build_binary();
@@ -122,10 +117,6 @@ fn test_cli_config_json_inline() {
     assert!(!stdout.is_empty(), "Output should not be empty");
 }
 
-// ============================================================================
-// Test 2: --config-json-base64 flag for base64-encoded configuration
-// ============================================================================
-
 #[test]
 fn test_cli_config_json_base64() {
     build_binary();
@@ -136,7 +127,6 @@ fn test_cli_config_json_base64() {
         return;
     }
 
-    // Encode JSON config as base64
     let json_config = r#"{"use_cache": false}"#;
     let base64_config = to_base64(json_config);
 
@@ -160,10 +150,6 @@ fn test_cli_config_json_base64() {
     assert!(!stdout.is_empty(), "Output should not be empty");
 }
 
-// ============================================================================
-// Test 3: Flag precedence verification (CLI flags > JSON > file > defaults)
-// ============================================================================
-
 #[test]
 fn test_cli_flag_precedence() {
     build_binary();
@@ -176,7 +162,6 @@ fn test_cli_flag_precedence() {
 
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
 
-    // Create a config file with specific settings
     let config_content = r#"
 use_cache = true
 
@@ -185,7 +170,6 @@ max_chars = 1024
 "#;
     let config_path = create_test_config(&temp_dir, "config.toml", config_content);
 
-    // CLI flag should override config file setting
     let output = Command::new(get_binary_path())
         .args([
             "extract",
@@ -204,10 +188,6 @@ max_chars = 1024
         String::from_utf8_lossy(&output.stderr)
     );
 }
-
-// ============================================================================
-// Test 4: --output-format flag with all variants (plain, markdown, djot, html)
-// ============================================================================
 
 #[test]
 fn test_cli_output_format_all_variants() {
@@ -239,10 +219,6 @@ fn test_cli_output_format_all_variants() {
     }
 }
 
-// ============================================================================
-// Test 5: Output formats (text vs json) for extraction result
-// ============================================================================
-
 #[test]
 fn test_cli_result_format() {
     build_binary();
@@ -253,7 +229,6 @@ fn test_cli_result_format() {
         return;
     }
 
-    // Test text output format
     let output_text = Command::new(get_binary_path())
         .args(["extract", test_file.as_str(), "--format", "text"])
         .output()
@@ -268,7 +243,6 @@ fn test_cli_result_format() {
     let text_content = String::from_utf8_lossy(&output_text.stdout);
     assert!(!text_content.is_empty(), "Text output should not be empty");
 
-    // Test JSON output format
     let output_json = Command::new(get_binary_path())
         .args(["extract", test_file.as_str(), "--format", "json"])
         .output()
@@ -288,7 +262,6 @@ fn test_cli_result_format() {
         json_content
     );
 
-    // Verify JSON has expected envelope+result structure
     if let Ok(value) = parsed {
         assert!(
             value.get("result").is_some(),
@@ -309,10 +282,6 @@ fn test_cli_result_format() {
     }
 }
 
-// ============================================================================
-// Test 6: Deprecated --content-format flag warning
-// ============================================================================
-
 #[test]
 fn test_cli_content_format_deprecated_warning() {
     build_binary();
@@ -323,26 +292,18 @@ fn test_cli_content_format_deprecated_warning() {
         return;
     }
 
-    // The deprecated --content-format should still work but may show warning
     let output = Command::new(get_binary_path())
         .args(["extract", test_file.as_str(), "--content-format", "plain"])
         .output()
         .expect("Failed to execute extract with --content-format");
 
-    // Command should either succeed or show expected deprecation behavior
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    // Note: We're checking that the command doesn't crash; deprecation warning behavior
-    // depends on implementation details
     assert!(
         output.status.success() || !stdout.is_empty(),
         "Command should succeed or produce output"
     );
 }
-
-// ============================================================================
-// Test 7: Config merge scenarios - multiple configuration sources
-// ============================================================================
 
 #[test]
 fn test_cli_config_merge_scenarios() {
@@ -356,7 +317,6 @@ fn test_cli_config_merge_scenarios() {
 
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
 
-    // Create a base config file
     let config_content = r#"
 use_cache = true
 
@@ -365,7 +325,6 @@ max_chars = 1024
 "#;
     let config_path = create_test_config(&temp_dir, "base.toml", config_content);
 
-    // Merge: config file + inline JSON (JSON should override matching keys)
     let output = Command::new(get_binary_path())
         .args([
             "extract",
@@ -385,10 +344,6 @@ max_chars = 1024
     );
 }
 
-// ============================================================================
-// Test 8: Invalid JSON error handling
-// ============================================================================
-
 #[test]
 fn test_cli_invalid_json_error() {
     build_binary();
@@ -404,25 +359,19 @@ fn test_cli_invalid_json_error() {
             "extract",
             test_file.as_str(),
             "--config-json",
-            r#"{"invalid json without closing"#, // Malformed JSON
+            r#"{"invalid json without closing"#,
         ])
         .output()
         .expect("Failed to execute command");
 
-    // Should fail gracefully with error message
     assert!(!output.status.success(), "Command should fail with invalid JSON");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
-    // Should contain some error indication
     assert!(
         !stderr.is_empty() || !String::from_utf8_lossy(&output.stdout).is_empty(),
         "Should provide feedback about invalid JSON"
     );
 }
-
-// ============================================================================
-// Test 9: Config flag conflicts
-// ============================================================================
 
 #[test]
 fn test_cli_conflicts() {
@@ -438,7 +387,6 @@ fn test_cli_conflicts() {
     let config_content = "use_cache = true\n";
     let config_path = create_test_config(&temp_dir, "config.toml", config_content);
 
-    // Using both --config-json and --config-json-base64 might conflict
     let json_config = r#"{"use_cache": false}"#;
     let base64_config = to_base64(json_config);
 
@@ -456,15 +404,8 @@ fn test_cli_conflicts() {
         .output()
         .expect("Failed to execute command with potential conflicts");
 
-    // The behavior here depends on implementation:
-    // Either it should succeed (last flag wins) or show an error (mutually exclusive)
-    // We verify that the command completes without crashing
     let _ = output.status.success();
 }
-
-// ============================================================================
-// Test 10: Real end-to-end extraction with new config formats
-// ============================================================================
 
 #[test]
 fn test_cli_real_extraction() {
@@ -476,7 +417,6 @@ fn test_cli_real_extraction() {
         return;
     }
 
-    // Full E2E test: extract with multiple new flags
     let output = Command::new(get_binary_path())
         .args([
             "extract",
@@ -499,11 +439,9 @@ fn test_cli_real_extraction() {
 
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    // Should be valid JSON output
     let parsed: Result<serde_json::Value, _> = serde_json::from_str(&stdout);
     assert!(parsed.is_ok(), "E2E output should be valid JSON, got: {}", stdout);
 
-    // Verify envelope+result structure
     if let Ok(value) = parsed {
         assert!(value.get("result").is_some(), "Missing 'result' envelope field");
         assert!(
@@ -521,10 +459,6 @@ fn test_cli_real_extraction() {
     }
 }
 
-// ============================================================================
-// Additional Edge Cases and Robustness Tests
-// ============================================================================
-
 #[test]
 fn test_cli_empty_config_json() {
     build_binary();
@@ -535,7 +469,6 @@ fn test_cli_empty_config_json() {
         return;
     }
 
-    // Empty JSON object should use defaults
     let output = Command::new(get_binary_path())
         .args(["extract", test_file.as_str(), "--config-json", "{}"])
         .output()
@@ -554,18 +487,11 @@ fn test_cli_multiple_output_format_variants() {
         return;
     }
 
-    // Test case-insensitive format argument
     let output = Command::new(get_binary_path())
-        .args([
-            "extract",
-            test_file.as_str(),
-            "--output-format",
-            "MARKDOWN", // uppercase should work or fail predictably
-        ])
+        .args(["extract", test_file.as_str(), "--output-format", "MARKDOWN"])
         .output()
         .expect("Failed to execute");
 
-    // Either succeeds with case-insensitive parsing or fails gracefully
     let _ = output.status.success();
 }
 
@@ -579,7 +505,6 @@ fn test_cli_config_json_with_nested_objects() {
         return;
     }
 
-    // Complex nested JSON configuration
     let complex_config = r#"
 {
     "use_cache": false,

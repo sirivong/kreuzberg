@@ -122,15 +122,15 @@ fn default_true() -> bool {
 }
 
 fn default_max_duration_ms() -> Option<u64> {
-    Some(30 * 60 * 1000) // 30 minutes
+    Some(30 * 60 * 1000)
 }
 
 fn default_max_bytes() -> Option<u64> {
-    Some(512 * 1024 * 1024) // 512 MiB
+    Some(512 * 1024 * 1024)
 }
 
 fn default_timeout_ms() -> Option<u64> {
-    Some(10 * 60 * 1000) // 10 minutes
+    Some(10 * 60 * 1000)
 }
 
 /// Supported Whisper model sizes.
@@ -184,7 +184,6 @@ mod tests {
     fn test_serde_omits_none_fields() {
         let cfg = TranscriptionConfig::default();
         let json = serde_json::to_string(&cfg).unwrap();
-        // language and cache_dir should be omitted when None
         assert!(!json.contains("language"));
         assert!(!json.contains("model_cache_dir"));
     }

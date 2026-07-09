@@ -31,10 +31,7 @@ pub(crate) fn extract_exif_data(bytes: &[u8]) -> HashMap<String, String> {
     };
     let exif: Exif = iter.into();
 
-    // Extensive tag coverage: identity, timestamps, exposure, lens, GPS, thumbnail,
-    // colour space, and provenance.
     const TAGS: &[(ExifTag, &str)] = &[
-        // Identity / provenance
         (ExifTag::Make, "Make"),
         (ExifTag::Model, "Model"),
         (ExifTag::Software, "Software"),
@@ -44,7 +41,6 @@ pub(crate) fn extract_exif_data(bytes: &[u8]) -> HashMap<String, String> {
         (ExifTag::CameraSerialNumber, "CameraSerialNumber"),
         (ExifTag::ImageUniqueID, "ImageUniqueID"),
         (ExifTag::ExifVersion, "ExifVersion"),
-        // Timestamps
         (ExifTag::ModifyDate, "DateTime"),
         (ExifTag::DateTimeOriginal, "DateTimeOriginal"),
         (ExifTag::CreateDate, "DateTimeDigitized"),
@@ -54,7 +50,6 @@ pub(crate) fn extract_exif_data(bytes: &[u8]) -> HashMap<String, String> {
         (ExifTag::SubSecTime, "SubSecTime"),
         (ExifTag::SubSecTimeOriginal, "SubSecTimeOriginal"),
         (ExifTag::SubSecTimeDigitized, "SubSecTimeDigitized"),
-        // Image geometry / resolution
         (ExifTag::ImageWidth, "ImageWidth"),
         (ExifTag::ImageHeight, "ImageHeight"),
         (ExifTag::ExifImageWidth, "ExifImageWidth"),
@@ -64,7 +59,6 @@ pub(crate) fn extract_exif_data(bytes: &[u8]) -> HashMap<String, String> {
         (ExifTag::YResolution, "YResolution"),
         (ExifTag::ResolutionUnit, "ResolutionUnit"),
         (ExifTag::ColorSpace, "ColorSpace"),
-        // Exposure
         (ExifTag::ExposureTime, "ExposureTime"),
         (ExifTag::FNumber, "FNumber"),
         (ExifTag::ApertureValue, "ApertureValue"),
@@ -86,14 +80,12 @@ pub(crate) fn extract_exif_data(bytes: &[u8]) -> HashMap<String, String> {
         (ExifTag::Contrast, "Contrast"),
         (ExifTag::Saturation, "Saturation"),
         (ExifTag::Sharpness, "Sharpness"),
-        // Lens
         (ExifTag::FocalLength, "FocalLength"),
         (ExifTag::FocalLengthIn35mmFilm, "FocalLengthIn35mmFilm"),
         (ExifTag::LensMake, "LensMake"),
         (ExifTag::LensModel, "LensModel"),
         (ExifTag::LensSpecification, "LensSpecification"),
         (ExifTag::LensSerialNumber, "LensSerialNumber"),
-        // GPS
         (ExifTag::GPSLatitudeRef, "GPSLatitudeRef"),
         (ExifTag::GPSLatitude, "GPSLatitude"),
         (ExifTag::GPSLongitudeRef, "GPSLongitudeRef"),
@@ -110,7 +102,6 @@ pub(crate) fn extract_exif_data(bytes: &[u8]) -> HashMap<String, String> {
         (ExifTag::GPSImgDirectionRef, "GPSImgDirectionRef"),
         (ExifTag::GPSMapDatum, "GPSMapDatum"),
         (ExifTag::GPSProcessingMethod, "GPSProcessingMethod"),
-        // Thumbnail
         (ExifTag::ThumbnailOffset, "ThumbnailOffset"),
         (ExifTag::ThumbnailLength, "ThumbnailLength"),
     ];

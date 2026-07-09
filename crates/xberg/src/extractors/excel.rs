@@ -189,9 +189,6 @@ impl ExcelExtractor {
                 }
                 builder.push_table_from_cells(cells, Some(page_number), None);
 
-                // Build per-sheet content: heading (when named) + markdown table.
-                // Sheet name is escaped so markdown-significant characters in the name
-                // don't produce double headings or broken inline elements.
                 let page_content = if sheet.name.is_empty() {
                     sheet.markdown.clone()
                 } else {
@@ -202,7 +199,6 @@ impl ExcelExtractor {
                     )
                 };
 
-                // Wrap the sheet table in Arc for zero-copy sharing.
                 let arc_table = Arc::new(Table {
                     cells: cells.clone(),
                     markdown: sheet.markdown.clone(),
@@ -223,9 +219,6 @@ impl ExcelExtractor {
                     sheet_name: name_opt,
                 });
             } else {
-                // Empty sheet: emit a PageContent so page index == sheet index.
-                // Content is always "## <name>\n\n" (or empty string) so that
-                // concatenating per-page content never mashes two headings together.
                 let content = match name_opt.as_deref() {
                     Some(n) => format!("## {}\n\n", Self::escape_sheet_name_for_heading(n)),
                     None => String::new(),
@@ -285,7 +278,6 @@ impl ExcelExtractor {
         let mut additional = AHashMap::new();
         let wb_meta = &workbook.metadata;
 
-        // Map office metadata to standard Metadata fields
         let title = wb_meta.get("title").cloned();
         let subject = wb_meta.get("subject").cloned();
         let created_by = wb_meta.get("created_by").or_else(|| wb_meta.get("creator")).cloned();
@@ -301,7 +293,6 @@ impl ExcelExtractor {
         });
         let language = wb_meta.get("language").cloned();
 
-        // Put remaining metadata into additional map (excluding standard fields)
         for (key, value) in &workbook.metadata {
             match key.as_str() {
                 "title" | "subject" | "created_by" | "creator" | "modified_by" | "created_at" | "modified_at"
@@ -327,10 +318,8 @@ impl ExcelExtractor {
             ..Default::default()
         };
 
-        // Transfer revision headers extracted from xl/revisions/revisionHeaders.xml.
         doc.revisions = workbook.revisions.clone();
 
-        // Scan for DDE / external-call formulas and attach any warnings found.
         for warning in scan_for_dde_warnings(workbook) {
             doc.processing_warnings.push(warning);
         }
@@ -476,7 +465,6 @@ mod tests {
                 let rows = c.len();
                 let cols = c.iter().map(|r| r.len()).max().unwrap_or(0);
                 let count = c.iter().flat_map(|r| r.iter()).filter(|s| !s.is_empty()).count();
-                // Build a minimal markdown table for test assertions
                 let mut md = String::new();
                 for (i, row) in c.iter().enumerate() {
                     md.push('|');
@@ -535,8 +523,6 @@ mod tests {
 
     #[test]
     fn test_prebuilt_pages_always_some() {
-        // Even an empty workbook sets prebuilt_pages to Some(vec![]) so callers
-        // can rely on .is_some() to detect that this format supports paging.
         let workbook = make_workbook(vec![]);
         let doc = ExcelExtractor::build_internal_document(&workbook);
         assert!(doc.prebuilt_pages.is_some());
@@ -555,7 +541,6 @@ mod tests {
         let pages = doc.prebuilt_pages.as_ref().unwrap();
         assert_eq!(pages.len(), 1);
         assert_eq!(pages[0].page_number, 1);
-        // sheet_name carries the raw sheet name; section_name is PPTX-only
         assert_eq!(pages[0].sheet_name.as_deref(), Some("Sheet1"));
         assert_eq!(pages[0].section_name, None);
         assert!(pages[0].content.contains("Sheet1"));
@@ -565,8 +550,6 @@ mod tests {
 
     #[test]
     fn test_single_sheet_content_matches_flat_content() {
-        // The concatenation of per-sheet page content should equal what the flat
-        // extraction produces (heading text + table rows visible in elements).
         let cells = vec![
             vec!["Col1".to_string(), "Col2".to_string()],
             vec!["r1".to_string(), "r2".to_string()],
@@ -576,9 +559,7 @@ mod tests {
 
         let pages = doc.prebuilt_pages.as_ref().unwrap();
         assert_eq!(pages.len(), 1);
-        // Page content must start with the heading
         assert!(pages[0].content.starts_with("## Data"));
-        // Page content must include the table markdown
         assert!(pages[0].content.contains("Col1"));
         assert!(pages[0].content.contains("r1"));
     }
@@ -601,12 +582,10 @@ mod tests {
         let pages = doc.prebuilt_pages.as_ref().unwrap();
         assert_eq!(pages.len(), 3);
 
-        // Page numbers are 1-indexed and match sheet order
         assert_eq!(pages[0].page_number, 1);
         assert_eq!(pages[1].page_number, 2);
         assert_eq!(pages[2].page_number, 3);
 
-        // sheet_name carries the raw sheet name; section_name is PPTX-only and must be None
         assert_eq!(pages[0].sheet_name.as_deref(), Some("First"));
         assert_eq!(pages[1].sheet_name.as_deref(), Some("Second"));
         assert_eq!(pages[2].sheet_name.as_deref(), Some("Third"));
@@ -614,19 +593,16 @@ mod tests {
         assert_eq!(pages[1].section_name, None);
         assert_eq!(pages[2].section_name, None);
 
-        // Each page's content is only that sheet's markdown (not other sheets)
         assert!(pages[0].content.contains("First"));
         assert!(!pages[0].content.contains("Second"));
         assert!(pages[1].content.contains("Second"));
         assert!(!pages[1].content.contains("First"));
         assert!(pages[2].content.contains("Third"));
 
-        // Each page has exactly one table
         assert_eq!(pages[0].tables.len(), 1);
         assert_eq!(pages[1].tables.len(), 1);
         assert_eq!(pages[2].tables.len(), 1);
 
-        // Tables carry the right cells
         assert_eq!(pages[0].tables[0].cells[0][0], "A");
         assert_eq!(pages[1].tables[0].cells[0][0], "X");
         assert_eq!(pages[2].tables[0].cells[0][0], "P");
@@ -634,9 +610,6 @@ mod tests {
 
     #[test]
     fn test_top_level_tables_populated_for_multi_sheet_workbook() {
-        // ExtractedDocument.tables (top-level) must be populated after XLSX extraction
-        // and the count must equal the number of sheets with data. This is the primary
-        // backward-compat surface for callers that do not read .pages.
         let sheet1_cells = vec![
             vec!["H1".to_string(), "H2".to_string()],
             vec!["r1c1".to_string(), "r1c2".to_string()],
@@ -650,19 +623,16 @@ mod tests {
         ]);
         let doc = ExcelExtractor::build_internal_document(&workbook);
 
-        // Top-level tables come from the builder's push_table_from_cells calls
         assert_eq!(
             doc.tables.len(),
             3,
             "top-level tables count must equal number of sheets with data"
         );
 
-        // Table page numbers must align with sheet order (1-indexed)
         assert_eq!(doc.tables[0].page_number, 1);
         assert_eq!(doc.tables[1].page_number, 2);
         assert_eq!(doc.tables[2].page_number, 3);
 
-        // Spot-check cell content to confirm identity
         assert_eq!(doc.tables[0].cells[0][0], "H1");
         assert_eq!(doc.tables[1].cells[0][0], "X");
         assert_eq!(doc.tables[2].cells[0][0], "P");
@@ -670,12 +640,11 @@ mod tests {
 
     #[test]
     fn test_empty_sheet_in_middle_produces_page_at_correct_index() {
-        // An empty sheet must still emit a PageContent so page index == sheet index.
         let sheet1_cells = vec![vec!["A".to_string()]];
         let sheet3_cells = vec![vec!["C".to_string()]];
         let workbook = make_workbook(vec![
             make_sheet("First", Some(sheet1_cells)),
-            make_sheet("Empty", None), // empty — no table_cells
+            make_sheet("Empty", None),
             make_sheet("Third", Some(sheet3_cells)),
         ]);
         let doc = ExcelExtractor::build_internal_document(&workbook);
@@ -687,28 +656,22 @@ mod tests {
         assert_eq!(pages[1].page_number, 2);
         assert_eq!(pages[2].page_number, 3);
 
-        // Empty sheet has no tables and is marked blank
         assert_eq!(pages[1].tables.len(), 0);
         assert_eq!(pages[1].is_blank, Some(true));
-        // sheet_name is still set; section_name is PPTX-only
         assert_eq!(pages[1].sheet_name.as_deref(), Some("Empty"));
         assert_eq!(pages[1].section_name, None);
-        // Empty-sheet content must end with "\n\n" so per-page concatenation
-        // produces a blank line between two adjacent headings.
         assert!(
             pages[1].content.ends_with("\n\n"),
             "empty-sheet content must end with two newlines, got: {:?}",
             pages[1].content
         );
 
-        // Non-empty sheets are not blank
         assert_eq!(pages[0].is_blank, Some(false));
         assert_eq!(pages[2].is_blank, Some(false));
     }
 
     #[test]
     fn test_empty_sheet_cells_vec_produces_page_at_correct_index() {
-        // table_cells = Some(vec![]) (present but empty) is treated the same as None.
         let workbook = make_workbook(vec![
             make_sheet("HasData", Some(vec![vec!["x".to_string()]])),
             make_sheet("EmptyCells", Some(vec![])),
@@ -725,7 +688,6 @@ mod tests {
 
     #[test]
     fn test_sheet_order_preserved() {
-        // Natural workbook sheet order must be reflected in page order.
         let workbook = make_workbook(vec![
             make_sheet("Z", Some(vec![vec!["z".to_string()]])),
             make_sheet("A", Some(vec![vec!["a".to_string()]])),
@@ -739,10 +701,7 @@ mod tests {
         assert_eq!(pages[2].sheet_name.as_deref(), Some("M"));
     }
 
-    // ---- DDE / external-call formula scanning tests --------------------------
-
     fn make_dde_workbook(cell_value: &str) -> ExcelWorkbook {
-        // Single sheet "Sheet1" with the given cell at R1C1.
         make_workbook(vec![make_sheet("Sheet1", Some(vec![vec![cell_value.to_string()]]))])
     }
 
@@ -782,7 +741,6 @@ mod tests {
 
     #[test]
     fn test_cmd_pipe_formula_emits_warning() {
-        // Classic CSV injection via DDE cmd shell gadget.
         let workbook = make_dde_workbook("=cmd|' /c calc'!A0");
         let warnings = scan_for_dde_warnings(&workbook);
         assert_eq!(warnings.len(), 1);
@@ -791,8 +749,6 @@ mod tests {
 
     #[test]
     fn test_benign_formula_string_no_warning() {
-        // Calamine sometimes emits bare formula text for SUM/AVERAGE etc.
-        // These must not produce warnings.
         for safe in &["=SUM(A1:A2)", "=AVERAGE(B:B)", "hello world", "42", ""] {
             let workbook = make_dde_workbook(safe);
             let warnings = scan_for_dde_warnings(&workbook);
@@ -807,7 +763,6 @@ mod tests {
 
     #[test]
     fn test_dde_warning_cap_at_100() {
-        // Build a single sheet with 200 DDE cells and verify warnings are capped.
         let cells: Vec<Vec<String>> = (0..200)
             .map(|i| vec![format!("=DDE(\"app\",\"topic\",\"item{}\")", i)])
             .collect();
@@ -823,7 +778,6 @@ mod tests {
 
     #[test]
     fn test_dde_formula_case_insensitive() {
-        // Pattern must fire regardless of case.
         for variant in &[
             "=dde(\"app\",\"t\",\"i\")",
             "=DdE(\"a\",\"b\",\"c\")",
@@ -837,7 +791,6 @@ mod tests {
 
     #[test]
     fn test_workbook_to_internal_document_includes_dde_warnings() {
-        // Verify the integration: workbook_to_internal_document must attach DDE warnings.
         let workbook = make_workbook(vec![make_sheet(
             "Injection",
             Some(vec![
@@ -857,8 +810,6 @@ mod tests {
 
     #[test]
     fn test_sheet_name_markdown_escape_in_heading() {
-        // A sheet named "## Profit (2025) [Q1]" must not produce a double heading
-        // ("## ## Profit...") and must not render as a markdown link.
         let cells = vec![
             vec!["Revenue".to_string(), "Cost".to_string()],
             vec!["100".to_string(), "80".to_string()],
@@ -869,25 +820,19 @@ mod tests {
         let pages = doc.prebuilt_pages.as_ref().unwrap();
         assert_eq!(pages.len(), 1);
 
-        // The raw sheet name is stored unescaped in sheet_name
         assert_eq!(pages[0].sheet_name.as_deref(), Some("## Profit (2025) [Q1]"));
 
-        // The heading in content must not start with "## ##" (double heading)
         assert!(
             !pages[0].content.starts_with("## ##"),
             "double heading detected: {:?}",
             &pages[0].content[..pages[0].content.find('\n').unwrap_or(pages[0].content.len())]
         );
-        // The heading line must not contain an unescaped "[Q1]" that renders as a link
         let first_line = pages[0].content.lines().next().unwrap_or("");
-        // Unescaped "[Q1]" followed by "(..." is what creates a link; after escaping
-        // the "[" is preceded by a backslash so the pattern "[Q1]" → "\[Q1\]"
         assert!(
             !first_line.contains("[Q1]") || first_line.contains("\\["),
             "unescaped markdown link syntax in heading: {:?}",
             first_line
         );
-        // Content must still contain the heading marker and the word "Profit"
         assert!(pages[0].content.starts_with("## "), "content must start with H2 marker");
         assert!(pages[0].content.contains("Profit"));
     }

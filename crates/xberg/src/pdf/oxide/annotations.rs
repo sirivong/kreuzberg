@@ -45,10 +45,6 @@ pub(crate) fn extract_annotations(doc: &mut OxideDocument) -> Vec<PdfAnnotation>
         };
 
         for annot in page_annotations {
-            // Skip Widget (form field) and Popup annotations.
-            // Widget annotations represent form field UI elements; the actual form fields
-            // are extracted separately via the forms module (pdf/oxide/forms.rs) which
-            // accesses the AcroForm dictionary directly, so they are not duplicated here.
             if matches!(
                 annot.subtype_enum,
                 pdf_oxide::AnnotationSubtype::Widget | pdf_oxide::AnnotationSubtype::Popup
@@ -58,10 +54,8 @@ pub(crate) fn extract_annotations(doc: &mut OxideDocument) -> Vec<PdfAnnotation>
 
             let annotation_type = map_annotation_subtype(annot.subtype_enum);
 
-            // Extract content: for Link annotations, try URI from action first
             let content = extract_annotation_content(&annot);
 
-            // Extract bounding box from rect [x1, y1, x2, y2]
             let bounding_box = annot.rect.map(|rect| BoundingBox {
                 x0: rect[0],
                 y0: rect[1],
@@ -99,7 +93,6 @@ fn map_annotation_subtype(subtype: pdf_oxide::AnnotationSubtype) -> PdfAnnotatio
 /// For Link annotations, attempts to retrieve the URI from the associated
 /// action. Falls back to the generic `contents` field for all types.
 fn extract_annotation_content(annot: &pdf_oxide::Annotation) -> Option<String> {
-    // For Link annotations, try to extract the URI from the action
     if annot.subtype_enum == pdf_oxide::AnnotationSubtype::Link
         && let Some(ref action) = annot.action
     {
@@ -111,7 +104,6 @@ fn extract_annotation_content(annot: &pdf_oxide::Annotation) -> Option<String> {
         }
     }
 
-    // Fall back to the generic annotation contents
     annot.contents.as_ref().filter(|s| !s.is_empty()).cloned()
 }
 

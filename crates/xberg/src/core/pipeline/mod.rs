@@ -56,11 +56,9 @@ use initialization::{get_processors_from_cache, initialize_features, initialize_
 ))]
 #[cfg_attr(alef, alef(skip))]
 pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) -> Result<ExtractedDocument> {
-    // Propagate rendering preferences from config into the document.
     doc.ocr_text_only = config.images.as_ref().map(|i| i.ocr_text_only).unwrap_or(false);
     doc.append_ocr_text = config.images.as_ref().map(|i| i.append_ocr_text).unwrap_or(false);
 
-    // 1. Process extracted images with OCR if configured
     #[cfg(all(feature = "ocr", feature = "tokio-runtime"))]
     let image_ocr_enabled = config.images.as_ref().map(|i| i.run_ocr_on_images).unwrap_or(true);
     #[cfg(all(feature = "ocr", feature = "tokio-runtime"))]
@@ -88,11 +86,6 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
     replace_embedded_image_markdown_with_ocr(&mut doc);
     append_embedded_image_ocr_text(&mut doc);
 
-    // Pre-render markdown for the chunker's heading context resolution when:
-    // - Markdown chunking is configured
-    // - Output format is not already Markdown (which would produce formatted_content anyway)
-    // Plain-text rendering strips heading markers, so the markdown chunker needs
-    // a separate markdown rendering to build the heading hierarchy for chunk metadata.
     #[cfg(feature = "chunking")]
     let chunker_heading_source = {
         let needs_markdown = config.chunking.as_ref().is_some_and(|c| {
@@ -106,9 +99,6 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
         }
     };
 
-    // Pre-render styled HTML before `doc` is consumed by `derive_extraction_result`.
-    // When `html` is active and the caller has configured `html_output`, we
-    // render the document here and inject the result after derivation.
     #[cfg(feature = "html")]
     let styled_html_prerender: Option<String> = {
         use crate::plugins::InternalRenderer as _;
@@ -133,11 +123,6 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
         }
     };
 
-    // 2. Derive ExtractedDocument from InternalDocument
-    // Clone the document before derivation consumes it so that downstream steps
-    // (element-based result format) can walk the native reading order instead of
-    // reassembling from per-page reconstruction. DOCX in particular has no native
-    // page boundaries, so per-page reconstruction scrambles element order.
     let doc_for_elements = if config.result_format == crate::types::ResultFormat::ElementBased {
         Some(doc.clone())
     } else {
@@ -148,15 +133,11 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
         crate::extraction::derive::derive_extraction_result(doc, include_structure, config.output_format.clone());
     result.internal_document = doc_for_elements;
 
-    // Inject pre-rendered styled HTML (overrides the default render_html output).
     #[cfg(feature = "html")]
     if let Some(html) = styled_html_prerender {
         result.formatted_content = Some(html);
     }
 
-    // Temporarily store pre-rendered markdown for chunker heading context.
-    // Tracked separately so we can remove it after chunking — apply_output_format
-    // must not swap this into result.content when output_format is Plain.
     #[cfg(feature = "chunking")]
     let chunker_only_markdown = result.formatted_content.is_none();
     #[cfg(feature = "chunking")]
@@ -164,9 +145,6 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
         result.formatted_content = Some(md);
     }
 
-    // Re-encode extracted images to the caller-requested output format.
-    // Runs after OCR (which needed the source bytes) and before post-processors
-    // (captioning, QR) that consume `data` + `format` together.
     #[cfg(feature = "image-encode")]
     if let Some(ref image_cfg) = config.images {
         apply_output_format_pass(&mut result, image_cfg);
@@ -176,7 +154,6 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
         apply_data_base64_pass(&mut result, image_cfg);
     }
 
-    // 2. Prepare post-processing pipeline
     let pp_config = config.postprocessor.as_ref();
     let postprocessing_enabled = pp_config.is_none_or(|c| c.enabled);
 
@@ -206,8 +183,6 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
     execute_language_detection(&mut result, config)?;
     execute_chunking(&mut result, config)?;
 
-    // Clear temporary markdown if it was only stored for chunker heading context.
-    // This prevents apply_output_format from swapping it into result.content.
     #[cfg(feature = "chunking")]
     if chunker_only_markdown {
         result.formatted_content = None;
@@ -238,10 +213,10 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
     apply_element_transform(&mut result, config);
     normalize_nfc(&mut result);
 
-    // Run LLM-based structured extraction BEFORE output formatting
-    // so extraction sees plain text, not markdown/HTML
-    // TODO(wasm-llm): hosted structured extraction should run on wasm through
-    // liter-llm's wasm-http backend once browser/runtime support is wired.
+    // ~keep Run LLM-based structured extraction BEFORE output formatting
+    // ~keep so extraction sees plain text, not markdown/HTML
+    // ~keep TODO(wasm-llm): hosted structured extraction should run on wasm through
+    // ~keep liter-llm's wasm-http backend once browser/runtime support is wired.
     #[cfg(all(feature = "liter-llm", not(target_arch = "wasm32")))]
     if let Some(ref structured_config) = config.structured_extraction {
         match crate::llm::structured::extract_structured(&result.content, structured_config).await {
@@ -259,8 +234,8 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
         }
     }
 
-    // TODO(wasm-llm): keep wasm in the fallback branch until structured
-    // extraction has an async wasm-compatible runtime path.
+    // ~keep TODO(wasm-llm): keep wasm in the fallback branch until structured
+    // ~keep extraction has an async wasm-compatible runtime path.
     #[cfg(any(not(feature = "liter-llm"), target_arch = "wasm32"))]
     if config.structured_extraction.is_some() {
         result.processing_warnings.push(crate::types::ProcessingWarning {
@@ -269,24 +244,13 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
         });
     }
 
-    // Apply output format conversion as the final step
     result = apply_output_format(result, config.output_format.clone());
 
-    // Populate cheap structural counts (pages/tables/images). Runs on every
-    // extraction path regardless of feature flags — see `DocumentCounts`.
     populate_document_counts(&mut result);
 
-    // Populate the typed extraction-quality confidence (P5). Downstream
-    // consumers read a real `ocr_aggregate` — the mean of OCR recognition
-    // confidences — from this typed field instead of reparsing JSON. The core
-    // does not yet compute per-page text coverage, so `text_coverage` defaults
-    // to 1.0 (matching prior behavior); schema compliance is unknown at extract
-    // time and recorded as `AllValid`. Structured consumers recompute the
-    // combined score with their own schema-compliance signal.
     #[cfg(feature = "heuristics")]
     {
         use crate::heuristics::confidence::{ConfidenceSignals, ConfidenceWeights, SchemaCompliance, score_confidence};
-        // Placeholder until per-page text coverage is computed in core.
         const DEFAULT_TEXT_COVERAGE: f32 = 1.0;
         let signals =
             ConfidenceSignals::from_extraction_result(&result, SchemaCompliance::AllValid, DEFAULT_TEXT_COVERAGE);
@@ -325,7 +289,6 @@ pub async fn run_pipeline(mut doc: InternalDocument, config: &ExtractionConfig) 
 #[cfg(not(feature = "tokio-runtime"))]
 #[cfg_attr(alef, alef(skip))]
 pub fn run_pipeline_sync(doc: InternalDocument, config: &ExtractionConfig) -> Result<ExtractedDocument> {
-    // Pre-render markdown for chunker heading context (same logic as async path).
     #[cfg(feature = "chunking")]
     let chunker_heading_source = {
         let needs_markdown = config.chunking.as_ref().is_some_and(|c| {
@@ -339,7 +302,6 @@ pub fn run_pipeline_sync(doc: InternalDocument, config: &ExtractionConfig) -> Re
         }
     };
 
-    // Pre-render styled HTML before `doc` is consumed (mirrors async path).
     #[cfg(feature = "html")]
     let styled_html_prerender: Option<String> = {
         use crate::plugins::InternalRenderer as _;
@@ -364,9 +326,6 @@ pub fn run_pipeline_sync(doc: InternalDocument, config: &ExtractionConfig) -> Re
         }
     };
 
-    // 1. Derive ExtractedDocument from InternalDocument
-    // Clone the document before derivation so element-based transformation can use
-    // the native reading order. Mirrors the async pipeline.
     let doc_for_elements = if config.result_format == crate::types::ResultFormat::ElementBased {
         Some(doc.clone())
     } else {
@@ -377,7 +336,6 @@ pub fn run_pipeline_sync(doc: InternalDocument, config: &ExtractionConfig) -> Re
         crate::extraction::derive::derive_extraction_result(doc, include_structure, config.output_format.clone());
     result.internal_document = doc_for_elements;
 
-    // Inject pre-rendered styled HTML.
     #[cfg(feature = "html")]
     if let Some(html) = styled_html_prerender {
         result.formatted_content = Some(html);
@@ -390,9 +348,6 @@ pub fn run_pipeline_sync(doc: InternalDocument, config: &ExtractionConfig) -> Re
         result.formatted_content = Some(md);
     }
 
-    // Re-encode extracted images to the caller-requested output format.
-    // Mirrors the async pipeline so WASM/sync callers also get SVG sanitize
-    // and the configured raster output format applied.
     #[cfg(feature = "image-encode")]
     if let Some(ref image_cfg) = config.images {
         apply_output_format_pass(&mut result, image_cfg);
@@ -402,7 +357,6 @@ pub fn run_pipeline_sync(doc: InternalDocument, config: &ExtractionConfig) -> Re
         apply_data_base64_pass(&mut result, image_cfg);
     }
 
-    // 2. Run synchronous post-processing
     execute_chunking(&mut result, config)?;
 
     #[cfg(feature = "chunking")]
@@ -416,24 +370,13 @@ pub fn run_pipeline_sync(doc: InternalDocument, config: &ExtractionConfig) -> Re
     apply_element_transform(&mut result, config);
     normalize_nfc(&mut result);
 
-    // Apply output format conversion as the final step
     result = apply_output_format(result, config.output_format.clone());
 
-    // Populate cheap structural counts (pages/tables/images). Runs on every
-    // extraction path regardless of feature flags — see `DocumentCounts`.
     populate_document_counts(&mut result);
 
-    // Populate the typed extraction-quality confidence (P5). Downstream
-    // consumers read a real `ocr_aggregate` — the mean of OCR recognition
-    // confidences — from this typed field instead of reparsing JSON. The core
-    // does not yet compute per-page text coverage, so `text_coverage` defaults
-    // to 1.0 (matching prior behavior); schema compliance is unknown at extract
-    // time and recorded as `AllValid`. Structured consumers recompute the
-    // combined score with their own schema-compliance signal.
     #[cfg(feature = "heuristics")]
     {
         use crate::heuristics::confidence::{ConfidenceSignals, ConfidenceWeights, SchemaCompliance, score_confidence};
-        // Placeholder until per-page text coverage is computed in core.
         const DEFAULT_TEXT_COVERAGE: f32 = 1.0;
         let signals =
             ConfidenceSignals::from_extraction_result(&result, SchemaCompliance::AllValid, DEFAULT_TEXT_COVERAGE);
@@ -483,8 +426,6 @@ fn apply_output_format_pass(
     use crate::core::config::extraction::ImageOutputFormat;
     use crate::core::image_encode::re_encode;
 
-    // When the svg feature is active we still need to run even in Native mode
-    // for the sanitize pass on SVG images.
     #[cfg(not(feature = "svg"))]
     if matches!(config.output_format, ImageOutputFormat::Native) {
         return;
@@ -667,6 +608,5 @@ fn normalize_nfc(result: &mut ExtractedDocument) {
             }
         }
     }
-    // Suppress unused variable warning when quality feature is disabled
     let _ = result;
 }

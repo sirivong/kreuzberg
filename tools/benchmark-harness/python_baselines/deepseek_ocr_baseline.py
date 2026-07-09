@@ -31,7 +31,6 @@ from typing import Any
 import PIL.Image
 from transformers import AutoModel, AutoTokenizer
 
-# Logging setup
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -72,15 +71,11 @@ def extract_sync(
     start = time.perf_counter()
 
     try:
-        # Load and preprocess image
         image = PIL.Image.open(file_path).convert("RGB")
 
-        # Tokenize (processor API variant)
-        # DeepSeek API: tokenizer([image], return_tensors="pt")
         inputs = tokenizer([image], return_tensors="pt")
         inputs = {k: v.to(device) for k, v in inputs.items()}
 
-        # Generate markdown
         with __import__("torch").no_grad():
             outputs = model.generate(
                 **inputs,
@@ -89,7 +84,6 @@ def extract_sync(
                 temperature=1.0,
             )
 
-        # Decode to text
         content = tokenizer.decode(outputs[0], skip_special_tokens=True)
         duration_ms = (time.perf_counter() - start) * 1000.0
 
@@ -147,7 +141,6 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # Create output directory
     args.output.mkdir(parents=True, exist_ok=True)
 
     log.info("=" * 70)
@@ -160,12 +153,10 @@ def main() -> None:
     log.info(f"Output directory: {args.output}")
     log.info("=" * 70)
 
-    # Check fixture directory
     if not args.fixtures.exists():
         log.error(f"Fixtures directory not found: {args.fixtures}")
         sys.exit(1)
 
-    # Load model and tokenizer
     log.info("Loading DeepSeek-OCR model... (first run will download ~2.7 GB)")
     try:
         model = AutoModel.from_pretrained(
@@ -185,7 +176,6 @@ def main() -> None:
         log.error(f"Failed to load model: {e}")
         sys.exit(1)
 
-    # Find image files
     image_files = sorted(f for f in args.fixtures.rglob("*") if _is_image_file(f))
     log.info(f"Found {len(image_files)} image files")
 
@@ -193,7 +183,6 @@ def main() -> None:
         log.warning("No image files found in fixtures directory")
         sys.exit(0)
 
-    # Process fixtures
     successful = 0
     failed = 0
 
@@ -202,7 +191,6 @@ def main() -> None:
 
         result = extract_sync(str(img_path), model, tokenizer, device=args.device)
 
-        # Save output
         fixture_stem = img_path.stem
         output_file = args.output / f"{fixture_stem}.deepseek-ocr.expected.txt"
 
@@ -216,7 +204,6 @@ def main() -> None:
             timing_file.write_text(str(int(result["_extraction_time_ms"])), encoding="utf-8")
             log.info(f"  Saved: {output_file.name} ({result['_extraction_time_ms']:.0f} ms)")
 
-    # Summary
     log.info("=" * 70)
     log.info("DeepSeek-OCR baseline generation complete")
     log.info(f"  Processed: {len(image_files)}")

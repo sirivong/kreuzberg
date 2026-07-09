@@ -18,7 +18,6 @@ where
 {
     let mut router = PromptRouter::new();
 
-    // --- extract_document ---
     router.add_route(PromptRoute::new_dyn(
         Prompt::new(
             "extract_document",
@@ -61,7 +60,6 @@ where
         },
     ));
 
-    // --- extract_with_ocr ---
     router.add_route(PromptRoute::new_dyn(
         Prompt::new(
             "extract_with_ocr",
@@ -119,7 +117,6 @@ where
         },
     ));
 
-    // --- semantic_search ---
     router.add_route(PromptRoute::new_dyn(
         Prompt::new(
             "semantic_search",
@@ -193,7 +190,6 @@ mod tests {
 
     #[test]
     fn test_prompt_router_has_expected_prompts() {
-        // Use () as a stand-in server type since the router is generic over S.
         let router = build_prompt_router::<()>();
         assert!(
             router.has_route("extract_document"),

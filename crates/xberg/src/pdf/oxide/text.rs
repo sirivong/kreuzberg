@@ -52,7 +52,6 @@ pub(crate) fn extract_spans_from_page(
 ) -> Result<Vec<crate::extractors::pdf::reading_order::TextSpan>> {
     use pdf_oxide::document::ReadingOrder;
 
-    // Contain pdf_oxide reading-order sort panics (#1198) on the layout path too.
     let page_text_data = super::guard_oxide_panic(
         || {
             doc.extract_page_text_with_options(page_index, ReadingOrder::ColumnAware)
@@ -100,8 +99,6 @@ pub(crate) fn extract_text_from_oxide_document(
     if let Some(config) = page_config {
         extract_text_with_tracking(doc, config)
     } else if needs_boundaries {
-        // Use a default PageConfig (no markers, no per-page content) purely for
-        // boundary tracking required by mixed-OCR and OCR quality evaluation.
         let default_config = PageConfig::default();
         extract_text_with_tracking(doc, &default_config)
     } else {
@@ -185,12 +182,10 @@ fn extract_text_with_tracking(doc: &mut OxideDocument, config: &PageConfig) -> R
             sample_count += 1;
         }
 
-        // Insert page marker before the page content (for ALL pages including page 1)
         if config.insert_page_markers {
             let marker = config.marker_format.replace("{page_num}", &page_number.to_string());
             content.push_str(&marker);
         } else if page_idx > 0 {
-            // Only add separator between pages when markers are disabled
             content.push_str("\n\n");
         }
 
@@ -210,8 +205,6 @@ fn extract_text_with_tracking(doc: &mut OxideDocument, config: &PageConfig) -> R
             let is_blank = Some(crate::extraction::blank_detection::is_page_text_blank(&cleaned));
             pages.push(PageContent {
                 page_number: page_number as u32,
-                // Must match result.content (also cleaned) so recompute_boundaries_from_pages
-                // can locate this page via exact substring search.
                 content: cleaned.into_owned(),
                 tables: Vec::new(),
                 image_indices: Vec::new(),
@@ -266,13 +259,11 @@ fn collect_widget_field_values(doc: &pdf_oxide::PdfDocument, page_index: usize) 
             if value.is_empty() {
                 return None;
             }
-            // Mid-Y in PDF coordinates: Y=0 at bottom, higher = upper on page.
             let mid_y = a.rect.map_or(f64::NEG_INFINITY, |r| (r[1] + r[3]) / 2.0);
             Some((mid_y, value))
         })
         .collect();
 
-    // Descending sort: highest PDF-Y (top of page) first.
     widgets.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
     widgets
 }
@@ -333,21 +324,12 @@ fn is_fragmented_span_list(spans: &[pdf_oxide::layout::TextSpan]) -> bool {
         let prev = &window[0];
         let cur = &window[1];
 
-        // Per-glyph BT/ET fragmentation always produces single-character spans.
-        // Word-level spans (> 3 chars) cannot be glyph-positioning artifacts and
-        // must not count toward the disorder total — this is the primary false-positive
-        // guard for paragraphs where line breaks naturally reset x.
         if prev.text.chars().count() > 3 || cur.text.chars().count() > 3 {
             continue;
         }
 
         let y_gap = (prev.bbox.y - cur.bbox.y).abs();
 
-        // When bbox.height is zero (common for pdf_oxide on some font descriptors),
-        // fall back to the absolute Word jitter ceiling rather than a font-size fraction.
-        // A fraction (font_size * 0.25) scales with font size: for a 24 pt font it
-        // reaches 6 pt, which overlaps with normal tight leading and produces false
-        // positives on height-zero span lists from legitimate documents.
         let eff_height = prev.bbox.height.max(cur.bbox.height);
         let same_line = if eff_height > 0.0 {
             y_gap < eff_height * 0.5
@@ -382,7 +364,6 @@ fn rebuild_text_from_fragmented_spans(spans: &[pdf_oxide::layout::TextSpan]) -> 
     let mut sorted: Vec<&pdf_oxide::layout::TextSpan> = spans.iter().collect();
     sorted.sort_by(|a, b| b.bbox.y.partial_cmp(&a.bbox.y).unwrap_or(std::cmp::Ordering::Equal));
 
-    // Group by chained y-proximity.
     let mut groups: Vec<Vec<&pdf_oxide::layout::TextSpan>> = Vec::new();
     for span in sorted {
         let belongs = groups.last().is_some_and(|g| {
@@ -430,14 +411,8 @@ fn rebuild_text_from_fragmented_spans(spans: &[pdf_oxide::layout::TextSpan]) -> 
 /// events, which occur when ColumnAware ordering groups spans by y-level rather than
 /// reading order; repaired by re-sorting on position rather than relying on stream order.
 fn extract_page_text_column_aware(doc: &mut pdf_oxide::PdfDocument, page_index: usize) -> Result<String> {
-    // Collect Widget field values before the mutable borrow for text extraction.
-    // `get_annotations` takes `&self`, so the immutable borrow ends before the
-    // `&mut self` call to `extract_page_text_with_options` below.
     let widgets = collect_widget_field_values(doc, page_index);
 
-    // pdf_oxide's ColumnAware reading-order sort can panic on total-order violations
-    // for some glyph geometries (#1198); contain it so a bad page fails gracefully
-    // instead of unwinding through the async boundary and aborting the extraction.
     let page_text_data = super::guard_oxide_panic(
         || {
             doc.extract_page_text_with_options(page_index, ReadingOrder::ColumnAware)
@@ -454,9 +429,6 @@ fn extract_page_text_column_aware(doc: &mut pdf_oxide::PdfDocument, page_index: 
         },
     )?;
 
-    // Issue #962: Word-exported PDFs position each glyph in its own BT…ET block with a
-    // sinusoidal y-jitter. pdf_oxide's ColumnAware ordering groups spans by y-level, so
-    // glyph-level spans appear out of reading order. Detect via x-resets and rebuild.
     if is_fragmented_span_list(&page_text_data.spans) {
         tracing::debug!(
             span_count = page_text_data.spans.len(),
@@ -467,7 +439,6 @@ fn extract_page_text_column_aware(doc: &mut pdf_oxide::PdfDocument, page_index: 
         return Ok(text);
     }
 
-    // Compute median line height for paragraph break detection.
     let mut heights: Vec<f32> = page_text_data.spans.iter().map(|s| s.bbox.height).collect();
     heights.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let median_height = if heights.is_empty() {
@@ -484,8 +455,6 @@ fn extract_page_text_column_aware(doc: &mut pdf_oxide::PdfDocument, page_index: 
         "paragraph break detection initialized"
     );
 
-    // Assemble text from column-aware ordered spans, filtering out artifacts
-    // (headers, footers, watermarks, page numbers) to keep main body content only.
     let mut text = String::with_capacity(page_text_data.spans.len() * 20);
     let mut prev_span: Option<&pdf_oxide::layout::TextSpan> = None;
 
@@ -493,8 +462,6 @@ fn extract_page_text_column_aware(doc: &mut pdf_oxide::PdfDocument, page_index: 
         if let Some(prev) = prev_span {
             let prev_end_x = prev.bbox.x + prev.bbox.width;
             let y_gap = (prev.bbox.y - span.bbox.y).abs();
-            // Use font_size as fallback when bbox.height is near-zero (defense in depth
-            // for spans that don't form a long enough run to trigger is_fragmented_span_list).
             let eff_height = span.bbox.height.max(prev.bbox.height).max(span.font_size * 0.5);
             let same_line = y_gap < eff_height * 0.5;
 
@@ -561,11 +528,9 @@ mod tests {
     fn disorder_spans(count: usize) -> Vec<TextSpan> {
         let font_size = 12.0_f32;
         let mut spans = Vec::with_capacity(count + 1);
-        // First span at x=300; each subsequent span is reset to the left.
         let mut x = 300.0_f32;
         for _i in 0..=count {
             spans.push(span("A", x, 700.0, 0.0, font_size));
-            // Next span resets leftward so cur.x < prev.x - font_size
             x = x - font_size - 1.0;
         }
         spans
@@ -582,7 +547,6 @@ mod tests {
 
     #[test]
     fn fragmentation_not_detected_below_threshold() {
-        // One fewer disorder event than required must NOT trigger reconstruction.
         let spans = disorder_spans(MIN_DISORDER_COUNT - 1);
         assert!(
             !is_fragmented_span_list(&spans),
@@ -593,7 +557,6 @@ mod tests {
 
     #[test]
     fn long_spans_never_count_toward_disorder() {
-        // A span list with many x-resets but all spans > 3 chars must return false.
         let font_size = 12.0_f32;
         let mut spans = Vec::new();
         let mut x = 500.0_f32;
@@ -609,12 +572,7 @@ mod tests {
 
     #[test]
     fn large_y_gap_not_classified_as_same_line() {
-        // Two short spans separated by 14 pt (normal line spacing) with an x-reset.
-        // With zero heights, MAX_GLYPH_JITTER_PT = 5.0, so 14 pt gap is above the ceiling.
-        let spans = vec![
-            span("A", 300.0, 700.0, 0.0, 12.0),
-            span("B", 50.0, 686.0, 0.0, 12.0), // y_gap=14, x resets
-        ];
+        let spans = vec![span("A", 300.0, 700.0, 0.0, 12.0), span("B", 50.0, 686.0, 0.0, 12.0)];
         assert!(
             !is_fragmented_span_list(&spans),
             "14 pt y-gap must not be classified as same-line (MAX_GLYPH_JITTER_PT={MAX_GLYPH_JITTER_PT})"

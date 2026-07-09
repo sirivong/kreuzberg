@@ -21,8 +21,6 @@ fn grid_span_keeps_column_alignment() {
         eprintln!("skipping: fixture not present at {path:?}");
         return;
     };
-    // PPTX builds structured tables from the markdown round-trip, so the
-    // structured `doc.tables` surface is only populated under Markdown output.
     let cfg = ExtractionConfig {
         output_format: xberg::OutputFormat::Markdown,
         ..Default::default()
@@ -30,13 +28,10 @@ fn grid_span_keeps_column_alignment() {
     let doc = extract_bytes_document_blocking(&bytes, PPTX_MIME, &cfg).expect("extraction must succeed");
     let table = doc.tables.first().expect("a table must be extracted");
 
-    // Header cell "Fuse" spans columns 0-1 (gridSpan=2); "Circuit" must stay in
-    // the last column, and the data rows must line up under it.
     let joined = table.cells.iter().flatten().cloned().collect::<Vec<_>>().join(" | ");
     assert!(joined.contains("Fuse"), "merged header present: {joined}");
     assert!(joined.contains("Circuit"), "circuit header present: {joined}");
 
-    // The 101 data row must stay ordered 101, 40A, Blower — not shifted.
     let data_row = table
         .cells
         .iter()

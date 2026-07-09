@@ -26,7 +26,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-# Logging setup
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -55,7 +54,6 @@ def _load_paddleocr_vl() -> Any:
     2. paddleocr with VL support (open-source fork)
     """
     try:
-        # Try paddlex first (higher-level, recommended)
         from paddlex import create_model
 
         log.info("Using PaddleX SDK")
@@ -65,11 +63,9 @@ def _load_paddleocr_vl() -> Any:
         pass
 
     try:
-        # Fallback: paddleocr with VL support
         from paddleocr import OCR
 
         log.info("Using PaddleOCR (open-source)")
-        # VL variant: high performance, structured output
         model = OCR(use_angle_cls=True, lang="en", version="v4")
         return ("paddleocr", model)
     except ImportError as exc:
@@ -85,7 +81,6 @@ def extract_sync_paddlex(
 
     try:
         result = model.predict(img_file=file_path)
-        # PaddleX returns structured output; convert to markdown
         content = _format_paddlex_result(result)
         duration_ms = (time.perf_counter() - start) * 1000.0
 
@@ -122,7 +117,6 @@ def extract_sync_paddleocr(
 
     try:
         result = model.ocr(file_path, cls=True)
-        # PaddleOCR returns list of lines with bboxes and text
         content = _format_paddleocr_result(result)
         duration_ms = (time.perf_counter() - start) * 1000.0
 
@@ -152,15 +146,12 @@ def extract_sync_paddleocr(
 
 def _format_paddlex_result(result: Any) -> str:
     """Convert PaddleX result to plaintext."""
-    # PaddleX returns structured Document or similar
-    # Extract text content in line order
     lines = []
     if hasattr(result, "text"):
         return str(result.text)
     if isinstance(result, dict) and "text" in result:
         return str(result["text"])
     if isinstance(result, list):
-        # List of paragraphs/lines
         for item in result:
             if isinstance(item, str):
                 lines.append(item)
@@ -171,15 +162,12 @@ def _format_paddlex_result(result: Any) -> str:
 
 def _format_paddleocr_result(result: Any) -> str:
     """Convert PaddleOCR result to plaintext."""
-    # PaddleOCR returns: list[list[tuple[[x,y], [x,y], ...], (text, confidence)]]]
-    # Flatten to text lines
     lines = []
     if result is None:
         return ""
 
     for line_item in result:
         if isinstance(line_item, list):
-            # Each element is (bbox, (text, confidence))
             for item in line_item:
                 if isinstance(item, (list, tuple)) and len(item) >= 2:
                     text_data = item[1]
@@ -219,7 +207,6 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # Create output directory
     args.output.mkdir(parents=True, exist_ok=True)
 
     log.info("=" * 70)
@@ -232,12 +219,10 @@ def main() -> None:
     log.info(f"Output directory: {args.output}")
     log.info("=" * 70)
 
-    # Check fixture directory
     if not args.fixtures.exists():
         log.error(f"Fixtures directory not found: {args.fixtures}")
         sys.exit(1)
 
-    # Load model
     log.info("Loading PaddleOCR-VL model... (first run will download ~700MB-2GB)")
     try:
         backend, model = _load_paddleocr_vl()
@@ -247,7 +232,6 @@ def main() -> None:
         log.error("Install with: pip install -r requirements.txt")
         sys.exit(1)
 
-    # Find image files
     image_files = sorted(f for f in args.fixtures.rglob("*") if _is_image_file(f))
     log.info(f"Found {len(image_files)} image files")
 
@@ -255,7 +239,6 @@ def main() -> None:
         log.warning("No image files found in fixtures directory")
         sys.exit(0)
 
-    # Process fixtures
     successful = 0
     failed = 0
     extract_fn = extract_sync_paddlex if backend == "paddlex" else extract_sync_paddleocr
@@ -265,7 +248,6 @@ def main() -> None:
 
         result = extract_fn(str(img_path), model)
 
-        # Save output
         fixture_stem = img_path.stem
         output_file = args.output / f"{fixture_stem}.paddleocr-vl.expected.txt"
 
@@ -279,7 +261,6 @@ def main() -> None:
             timing_file.write_text(str(int(result["_extraction_time_ms"])), encoding="utf-8")
             log.info(f"  Saved: {output_file.name} ({result['_extraction_time_ms']:.0f} ms)")
 
-    # Summary
     log.info("=" * 70)
     log.info("PaddleOCR-VL baseline generation complete")
     log.info(f"  Processed: {len(image_files)}")
