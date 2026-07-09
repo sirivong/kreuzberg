@@ -214,7 +214,7 @@ async fn test_multipage_pdf_extraction() {
     let pdf_path = get_test_file_path("pdfs/multi_page.pdf");
 
     let start = Instant::now();
-    let result = extract_uri_document(&pdf_path, None, &config).await;
+    let result = helpers::extract_uri_document(&pdf_path, None, &config).await;
     let duration = start.elapsed();
 
     assert!(result.is_ok(), "Multi-page PDF extraction should succeed");
@@ -286,13 +286,13 @@ fn test_ocr_multipage_efficiency() {
     let file_path = get_test_file_path("images/ocr_image.jpg");
 
     let start = Instant::now();
-    let result1 = extract_uri_document_blocking(&file_path, None, &config);
+    let result1 = helpers::extract_uri_document_blocking(&file_path, None, &config);
     let first_duration = start.elapsed();
 
     assert!(result1.is_ok(), "First OCR should succeed");
 
     let start = Instant::now();
-    let result2 = extract_uri_document_blocking(&file_path, None, &config);
+    let result2 = helpers::extract_uri_document_blocking(&file_path, None, &config);
     let second_duration = start.elapsed();
 
     assert!(result2.is_ok(), "Second OCR should succeed");
