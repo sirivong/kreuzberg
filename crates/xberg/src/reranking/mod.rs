@@ -122,6 +122,10 @@ pub struct RerankerPreset {
 ///
 /// Since v5.0.0.
 #[cfg(feature = "reranker-presets")]
+/// SHA-256 manifest pinning every hosted reranker preset file, verified at
+/// download time by [`crate::onnx::download_model_files`].
+pub(crate) const RERANKER_SHA256_MANIFEST: &str = include_str!("presets.sha256sum");
+
 pub static RERANKER_PRESETS: LazyLock<Vec<RerankerPreset>> = LazyLock::new(|| {
     vec![
         RerankerPreset {
@@ -391,7 +395,14 @@ fn get_or_init_engine(
         // cross-encoder pair encoding is applied at inference time via `EncodeInput::Dual`,
         // so the tokenizer is configured identically to the dense-embedding case.
         let files =
-            crate::onnx::download_model_files(repo_name, model_file, additional_files, &cache_directory, rerank_err)?;
+            crate::onnx::download_model_files(
+                repo_name,
+                model_file,
+                additional_files,
+                &cache_directory,
+                Some(RERANKER_SHA256_MANIFEST),
+                rerank_err,
+            )?;
         let tokenizer = crate::onnx::load_tokenizer(&files, max_length, rerank_err)?;
         let session = crate::onnx::build_session(&files.model, accel.as_ref(), rerank_err)?;
 
@@ -773,6 +784,30 @@ pub async fn rerank_async(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Fail-closed guarantee: every hosted reranker preset's weight file (and any
+    /// external-data sibling) must be pinned in `presets.sha256sum`.
+    #[test]
+    fn every_preset_file_is_pinned_in_manifest() {
+        let manifest = crate::model_download::parse_sha256_manifest(RERANKER_SHA256_MANIFEST).unwrap();
+        let pinned: std::collections::HashSet<&str> = manifest.iter().map(|(p, _)| p.as_str()).collect();
+        for preset in RERANKER_PRESETS.iter() {
+            assert!(
+                pinned.contains(preset.model_file.as_str()),
+                "preset {} model_file {} is not pinned in presets.sha256sum",
+                preset.name,
+                preset.model_file
+            );
+            for sibling in &preset.additional_files {
+                assert!(
+                    pinned.contains(sibling.as_str()),
+                    "preset {} additional file {} is not pinned in presets.sha256sum",
+                    preset.name,
+                    sibling
+                );
+            }
+        }
+    }
 
     #[test]
     fn empty_documents_returns_empty_vec() {

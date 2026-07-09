@@ -90,12 +90,15 @@ mod download {
     /// Fetch a single file, trying `<model_dir>/<file_name>` before falling
     /// back to `<file_name>` at the repo root (mirrors `crate::onnx::fetch_companion`'s
     /// layout convention for `xberg-io/embedding-models`).
+    ///
+    /// Returns the local cache path plus the repo-relative path that resolved, so
+    /// the caller can verify it against the pinned sha256 manifest.
     fn fetch(
         api: &hf_hub::api::sync::Api,
         repo_name: &str,
         model_dir: &str,
         file_name: &str,
-    ) -> crate::Result<PathBuf> {
+    ) -> crate::Result<(PathBuf, String)> {
         let candidates: Vec<String> = if model_dir.is_empty() {
             vec![file_name.to_string()]
         } else {
@@ -110,7 +113,7 @@ mod download {
             match crate::model_download::with_download_deadline(&format!("{repo}/{candidate}"), move || {
                 api.model(repo).get(&path).map_err(|e| e.to_string())
             }) {
-                Ok(resolved) => return Ok(resolved),
+                Ok(resolved) => return Ok((resolved, candidate)),
                 Err(e) => last_err = e,
             }
         }
@@ -144,9 +147,25 @@ mod download {
             .and_then(|f| f.to_str())
             .unwrap_or("model.safetensors");
 
-        let model_path = fetch(&api, repo_name, model_dir, model_file_name)?;
-        let tokenizer_path = fetch(&api, repo_name, model_dir, "tokenizer.json")?;
-        let config_path = fetch(&api, repo_name, model_dir, "config.json")?;
+        // Every hosted static-embedding file is pinned in the embeddings sha256
+        // manifest; verify each fetched file against it (fail-closed on tamper),
+        // mirroring `crate::onnx::download_model_files`. Files absent from the
+        // manifest (Custom repos) are left unverified.
+        let manifest = crate::model_download::parse_sha256_manifest(super::super::EMBEDDING_SHA256_MANIFEST)
+            .map_err(|e| crate::XbergError::embedding(format!("Invalid embedding sha256 manifest: {e}")))?;
+        let verify = |repo_path: &str, local: &Path| -> crate::Result<()> {
+            if let Some((_, sha256)) = manifest.iter().find(|(path, _)| path == repo_path) {
+                crate::model_download::verify_sha256(local, sha256, repo_path).map_err(crate::XbergError::embedding)?;
+            }
+            Ok(())
+        };
+
+        let (model_path, model_rel) = fetch(&api, repo_name, model_dir, model_file_name)?;
+        verify(&model_rel, &model_path)?;
+        let (tokenizer_path, tokenizer_rel) = fetch(&api, repo_name, model_dir, "tokenizer.json")?;
+        verify(&tokenizer_rel, &tokenizer_path)?;
+        let (config_path, config_rel) = fetch(&api, repo_name, model_dir, "config.json")?;
+        verify(&config_rel, &config_path)?;
 
         let model_bytes = std::fs::read(&model_path)
             .map_err(|e| crate::XbergError::embedding(format!("Failed to read {model_path:?}: {e}")))?;

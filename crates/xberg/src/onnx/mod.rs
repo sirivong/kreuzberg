@@ -238,15 +238,24 @@ pub(crate) struct DownloadedModel {
 ///
 /// Serializes concurrent first-time downloads across processes via a blocking
 /// cross-process advisory lock, and self-heals stale `.lock`/`.part` files.
+///
+/// `manifest` is the module's checked-in `presets.sha256sum` (compiled in via
+/// `include_str!`). Every downloaded file whose repo-relative path appears in the
+/// manifest is verified against its pinned SHA-256 and the download fails on a
+/// mismatch (fail-closed against a tampered/rolled-back mirror). Files absent from
+/// the manifest — `Custom` repos, which ship no manifest — are downloaded without
+/// verification, preserving the existing behaviour for user-supplied models. Pass
+/// `None` to skip verification entirely.
 pub(crate) fn download_model_files(
     repo_name: &str,
     model_file: &str,
     additional_files: &[String],
     cache_directory: &Path,
+    manifest: Option<&str>,
     err: ErrCtor,
 ) -> crate::Result<DownloadedModel> {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        download_model_files_inner(repo_name, model_file, additional_files, cache_directory, err)
+        download_model_files_inner(repo_name, model_file, additional_files, cache_directory, manifest, err)
     })) {
         Ok(result) => result,
         Err(payload) => {
@@ -264,12 +273,15 @@ pub(crate) fn download_model_files(
 /// Standard HF repos keep the model in `onnx/` but the tokenizer at the root, so
 /// the root fallback covers those (and arbitrary `Custom` repos). Runs each
 /// candidate under the download watchdog.
+///
+/// Returns the local cache path plus the repo-relative path that actually
+/// resolved, so the caller can look that path up in the sha256 manifest.
 fn fetch_companion(
     api: &hf_hub::api::sync::Api,
     repo_name: &str,
     model_dir: Option<&str>,
     file_name: &str,
-) -> Result<PathBuf, String> {
+) -> Result<(PathBuf, String), String> {
     let candidates: Vec<String> = match model_dir {
         Some(dir) if !dir.is_empty() => vec![format!("{dir}/{file_name}"), file_name.to_string()],
         _ => vec![file_name.to_string()],
@@ -282,11 +294,28 @@ fn fetch_companion(
         match crate::model_download::with_download_deadline(&format!("{repo}/{candidate}"), move || {
             api.model(repo).get(&path).map_err(|e| e.to_string())
         }) {
-            Ok(path) => return Ok(path),
+            Ok(path) => return Ok((path, candidate)),
             Err(e) => last_err = e,
         }
     }
     Err(last_err)
+}
+
+/// Verify a downloaded file against the module's sha256 manifest.
+///
+/// When `manifest` lists `repo_path`, the file at `local` must hash to the pinned
+/// value or an error is returned (fail-closed against tamper/rollback). Paths not
+/// in the manifest are left unverified — this covers `Custom` repos (no manifest)
+/// and any companion a preset deliberately does not pin. An empty `repo_path`
+/// (an optional companion that was not downloaded) is a no-op.
+fn verify_downloaded(manifest: &[(String, String)], repo_path: &str, local: &Path, err: ErrCtor) -> crate::Result<()> {
+    if repo_path.is_empty() {
+        return Ok(());
+    }
+    if let Some((_, sha256)) = manifest.iter().find(|(path, _)| path == repo_path) {
+        crate::model_download::verify_sha256(local, sha256, repo_path).map_err(err)?;
+    }
+    Ok(())
 }
 
 fn download_model_files_inner(
@@ -294,8 +323,19 @@ fn download_model_files_inner(
     model_file: &str,
     additional_files: &[String],
     cache_directory: &Path,
+    manifest: Option<&str>,
     err: ErrCtor,
 ) -> crate::Result<DownloadedModel> {
+    // Parse the checked-in sha256 manifest up front. A malformed compiled-in
+    // manifest is a build bug, so surface it rather than silently skipping
+    // verification. `None` (e.g. Custom repos) yields an empty manifest, which
+    // `verify_downloaded` treats as "nothing pinned".
+    let manifest: Vec<(String, String)> = match manifest {
+        Some(content) => crate::model_download::parse_sha256_manifest(content)
+            .map_err(|e| err(format!("Invalid sha256 manifest for {repo_name}: {e}")))?,
+        None => Vec::new(),
+    };
+
     // Serialize concurrent first-time downloads across processes. hf-hub's own
     // lock is non-blocking and retries for only ~5s, far shorter than a 100MB+
     // model download — racing processes would otherwise fail with
@@ -333,21 +373,25 @@ fn download_model_files_inner(
         })
     }
     .map_err(|e| err(format!("Failed to download {model_file} from {repo_name}: {e}")))?;
+    verify_downloaded(&manifest, model_file, &model, err)?;
 
     // Sibling files (e.g. `model.onnx.data`) must be present in the same cache
     // dir before ORT opens the model.
     for sibling in additional_files {
-        let api = api.clone();
-        let repo = repo_name.to_string();
-        let sib = sibling.clone();
-        crate::model_download::with_download_deadline(&format!("{repo}/{sibling}"), move || {
-            api.model(repo).get(&sib).map_err(|e| e.to_string())
-        })
-        .map_err(|e| {
-            err(format!(
-                "Failed to download sibling file {sibling} from {repo_name}: {e}"
-            ))
-        })?;
+        let sib_path = {
+            let api = api.clone();
+            let repo = repo_name.to_string();
+            let sib = sibling.clone();
+            crate::model_download::with_download_deadline(&format!("{repo}/{sibling}"), move || {
+                api.model(repo).get(&sib).map_err(|e| e.to_string())
+            })
+            .map_err(|e| {
+                err(format!(
+                    "Failed to download sibling file {sibling} from {repo_name}: {e}"
+                ))
+            })?
+        };
+        verify_downloaded(&manifest, sibling, &sib_path, err)?;
     }
 
     // Companion files (tokenizer/config) live beside the model: in the model's
@@ -358,16 +402,22 @@ fn download_model_files_inner(
         .and_then(|p| p.to_str())
         .filter(|s| !s.is_empty());
 
-    let tokenizer = fetch_companion(&api, repo_name, model_dir, "tokenizer.json")
+    let (tokenizer, tokenizer_rel) = fetch_companion(&api, repo_name, model_dir, "tokenizer.json")
         .map_err(|e| err(format!("Failed to download tokenizer.json: {e}")))?;
+    verify_downloaded(&manifest, &tokenizer_rel, &tokenizer, err)?;
 
-    let config = fetch_companion(&api, repo_name, model_dir, "config.json")
+    let (config, config_rel) = fetch_companion(&api, repo_name, model_dir, "config.json")
         .map_err(|e| err(format!("Failed to download config.json: {e}")))?;
+    verify_downloaded(&manifest, &config_rel, &config, err)?;
 
     // Optional — fall back to empty paths that load_tokenizer handles gracefully.
-    let special_tokens = fetch_companion(&api, repo_name, model_dir, "special_tokens_map.json").unwrap_or_default();
+    let (special_tokens, special_tokens_rel) =
+        fetch_companion(&api, repo_name, model_dir, "special_tokens_map.json").unwrap_or_default();
+    verify_downloaded(&manifest, &special_tokens_rel, &special_tokens, err)?;
 
-    let tokenizer_config = fetch_companion(&api, repo_name, model_dir, "tokenizer_config.json").unwrap_or_default();
+    let (tokenizer_config, tokenizer_config_rel) =
+        fetch_companion(&api, repo_name, model_dir, "tokenizer_config.json").unwrap_or_default();
+    verify_downloaded(&manifest, &tokenizer_config_rel, &tokenizer_config, err)?;
 
     Ok(DownloadedModel {
         model,
@@ -600,5 +650,40 @@ mod tests {
     fn resolve_cache_dir_honors_override() {
         let custom = PathBuf::from("/tmp/custom-xberg-cache");
         assert_eq!(resolve_cache_dir("embeddings", Some(custom.clone())), custom);
+    }
+
+    #[test]
+    fn verify_downloaded_errors_on_checksum_mismatch() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file = tmp.path().join("model.onnx");
+        std::fs::write(&file, b"tampered bytes").unwrap();
+        // Manifest pins a different (correct-length, all-zero) hash → mismatch.
+        let manifest = vec![("name/model.onnx".to_string(), "0".repeat(64))];
+        let result = verify_downloaded(&manifest, "name/model.onnx", &file, embed_err);
+        assert!(result.is_err(), "tampered file must fail checksum verification");
+    }
+
+    #[test]
+    fn verify_downloaded_passes_on_checksum_match() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file = tmp.path().join("model.onnx");
+        // Pre-computed SHA-256 of the exact bytes below (`shasum -a 256`).
+        std::fs::write(&file, b"pinned content").unwrap();
+        let digest = "28f10de8a12ace2df7c733d697168479b5707cdb2a21df8561cabda49473e3c1";
+        let manifest = vec![("name/model.onnx".to_string(), digest.to_string())];
+        verify_downloaded(&manifest, "name/model.onnx", &file, embed_err)
+            .expect("matching file must pass verification");
+    }
+
+    #[test]
+    fn verify_downloaded_skips_unlisted_and_empty_paths() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file = tmp.path().join("model.onnx");
+        std::fs::write(&file, b"anything").unwrap();
+        let manifest = vec![("other/model.onnx".to_string(), "0".repeat(64))];
+        // Path not in manifest (e.g. a Custom repo) → unverified, ok.
+        verify_downloaded(&manifest, "name/model.onnx", &file, embed_err).expect("unlisted path is skipped");
+        // Empty repo path (optional companion not downloaded) → no-op.
+        verify_downloaded(&manifest, "", &file, embed_err).expect("empty path is a no-op");
     }
 }

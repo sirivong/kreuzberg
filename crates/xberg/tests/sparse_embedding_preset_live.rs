@@ -21,7 +21,10 @@ fn opensearch_v3_distill_sparse_embeds() {
     let preset = xberg::get_sparse_embedding_preset("opensearch-v3-distill").expect("preset must exist");
     assert_eq!(preset.model_repo, "xberg-io/sparse-embeddings");
     assert_eq!(preset.model_file, "opensearch-v3-distill/model.onnx");
-    assert_eq!(preset.additional_files, vec!["opensearch-v3-distill/model.onnx.data".to_string()]);
+    assert_eq!(
+        preset.additional_files,
+        vec!["opensearch-v3-distill/model.onnx.data".to_string()]
+    );
 
     let config = SparseEmbeddingConfig {
         model: SparseEmbeddingModelType::Preset {

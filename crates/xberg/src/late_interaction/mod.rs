@@ -117,6 +117,10 @@ pub struct LateInteractionPreset {
 /// Self-hosted on `xberg-io/late-interaction-models` (mirror of the Apache-2.0
 /// `answerdotai/answerai-colbert-small-v1`, weights unmodified); pinned via the
 /// checked-in `presets.sha256sum` manifest.
+/// SHA-256 manifest pinning every hosted late-interaction preset file, verified
+/// at download time by [`crate::onnx::download_model_files`].
+pub(crate) const LATE_INTERACTION_SHA256_MANIFEST: &str = include_str!("presets.sha256sum");
+
 pub static LATE_INTERACTION_PRESETS: LazyLock<Vec<LateInteractionPreset>> = LazyLock::new(|| {
     vec![
         LateInteractionPreset {
@@ -353,7 +357,14 @@ fn get_or_init_engine(
 
     crate::ort_discovery::ensure_ort_available();
 
-    let files = crate::onnx::download_model_files(repo_name, model_file, additional_files, &cache_directory, late_err)?;
+    let files = crate::onnx::download_model_files(
+        repo_name,
+        model_file,
+        additional_files,
+        &cache_directory,
+        Some(LATE_INTERACTION_SHA256_MANIFEST),
+        late_err,
+    )?;
     let tokenizer = crate::onnx::load_tokenizer(&files, max_length, late_err)?;
     let session = crate::onnx::build_session(&files.model, accel.as_ref(), late_err)?;
 
@@ -471,6 +482,30 @@ pub async fn embed_multi_vector_async(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Fail-closed guarantee: every hosted late-interaction preset's weight file (and
+    /// any external-data sibling) must be pinned in `presets.sha256sum`.
+    #[test]
+    fn every_preset_file_is_pinned_in_manifest() {
+        let manifest = crate::model_download::parse_sha256_manifest(LATE_INTERACTION_SHA256_MANIFEST).unwrap();
+        let pinned: std::collections::HashSet<&str> = manifest.iter().map(|(p, _)| p.as_str()).collect();
+        for preset in LATE_INTERACTION_PRESETS.iter() {
+            assert!(
+                pinned.contains(preset.model_file.as_str()),
+                "preset {} model_file {} is not pinned in presets.sha256sum",
+                preset.name,
+                preset.model_file
+            );
+            for sibling in &preset.additional_files {
+                assert!(
+                    pinned.contains(sibling.as_str()),
+                    "preset {} additional file {} is not pinned in presets.sha256sum",
+                    preset.name,
+                    sibling
+                );
+            }
+        }
+    }
 
     #[test]
     fn preset_catalog_is_nonempty_and_lookup_works() {

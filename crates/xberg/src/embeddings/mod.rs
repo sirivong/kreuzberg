@@ -185,6 +185,10 @@ pub struct EmbeddingPreset {
 }
 
 /// All available embedding presets.
+/// SHA-256 manifest pinning every hosted embedding preset file, verified at
+/// download time by [`crate::onnx::download_model_files`].
+pub(crate) const EMBEDDING_SHA256_MANIFEST: &str = include_str!("presets.sha256sum");
+
 pub static EMBEDDING_PRESETS: LazyLock<Vec<EmbeddingPreset>> = LazyLock::new(|| {
     vec![
         EmbeddingPreset {
@@ -446,8 +450,14 @@ fn get_or_init_engine(
         // Most presets are a single self-contained ONNX file; large fp32 exports
         // (Qwen3-Embedding, Arctic-v2.0) additionally ship an external-data
         // `model.onnx.data` sibling that ORT loads by relative path at session build.
-        let files =
-            crate::onnx::download_model_files(repo_name, model_file, additional_files, &cache_directory, embed_err)?;
+        let files = crate::onnx::download_model_files(
+            repo_name,
+            model_file,
+            additional_files,
+            &cache_directory,
+            Some(EMBEDDING_SHA256_MANIFEST),
+            embed_err,
+        )?;
         let tokenizer = crate::onnx::load_tokenizer(&files, max_sequence_length, embed_err)?;
         let session = crate::onnx::build_session(&files.model, accel.as_ref(), embed_err)?;
 
@@ -1046,6 +1056,31 @@ pub async fn embed_texts_async<T: AsRef<str> + Send + 'static>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Fail-closed guarantee: every hosted preset's weight file (and any external-data
+    /// sibling) must be pinned in `presets.sha256sum`, so `download_model_files` can
+    /// verify it. Guards against a preset being added without a matching manifest entry.
+    #[test]
+    fn every_preset_file_is_pinned_in_manifest() {
+        let manifest = crate::model_download::parse_sha256_manifest(EMBEDDING_SHA256_MANIFEST).unwrap();
+        let pinned: std::collections::HashSet<&str> = manifest.iter().map(|(p, _)| p.as_str()).collect();
+        for preset in EMBEDDING_PRESETS.iter() {
+            assert!(
+                pinned.contains(preset.model_file.as_str()),
+                "preset {} model_file {} is not pinned in presets.sha256sum",
+                preset.name,
+                preset.model_file
+            );
+            for sibling in &preset.additional_files {
+                assert!(
+                    pinned.contains(sibling.as_str()),
+                    "preset {} additional file {} is not pinned in presets.sha256sum",
+                    preset.name,
+                    sibling
+                );
+            }
+        }
+    }
 
     #[test]
     fn test_get_preset() {
