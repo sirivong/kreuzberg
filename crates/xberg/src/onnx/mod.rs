@@ -256,6 +256,39 @@ pub(crate) fn download_model_files(
     }
 }
 
+/// Fetch a companion file (tokenizer/config/…) trying the model's own directory
+/// first, then the repo root.
+///
+/// Consolidated repos (e.g. `xberg-io/reranker-models`) co-locate every file for
+/// a model under a `<name>/` subdir, so `<model_dir>/tokenizer.json` is correct.
+/// Standard HF repos keep the model in `onnx/` but the tokenizer at the root, so
+/// the root fallback covers those (and arbitrary `Custom` repos). Runs each
+/// candidate under the download watchdog.
+fn fetch_companion(
+    api: &hf_hub::api::sync::Api,
+    repo_name: &str,
+    model_dir: Option<&str>,
+    file_name: &str,
+) -> Result<PathBuf, String> {
+    let candidates: Vec<String> = match model_dir {
+        Some(dir) if !dir.is_empty() => vec![format!("{dir}/{file_name}"), file_name.to_string()],
+        _ => vec![file_name.to_string()],
+    };
+    let mut last_err = String::new();
+    for candidate in candidates {
+        let api = api.clone();
+        let repo = repo_name.to_string();
+        let path = candidate.clone();
+        match crate::model_download::with_download_deadline(&format!("{repo}/{candidate}"), move || {
+            api.model(repo).get(&path).map_err(|e| e.to_string())
+        }) {
+            Ok(path) => return Ok(path),
+            Err(e) => last_err = e,
+        }
+    }
+    Err(last_err)
+}
+
 fn download_model_files_inner(
     repo_name: &str,
     model_file: &str,
@@ -313,43 +346,23 @@ fn download_model_files_inner(
         .map_err(|e| err(format!("Failed to download sibling file {sibling} from {repo_name}: {e}")))?;
     }
 
-    let tokenizer = {
-        let api = api.clone();
-        let repo = repo_name.to_string();
-        crate::model_download::with_download_deadline(&format!("{repo}/tokenizer.json"), move || {
-            api.model(repo).get("tokenizer.json").map_err(|e| e.to_string())
-        })
-    }
-    .map_err(|e| err(format!("Failed to download tokenizer.json: {e}")))?;
+    // Companion files (tokenizer/config) live beside the model: in the model's
+    // own `<name>/` subdir for consolidated xberg-io repos, or at the repo root
+    // for standard HF layouts. `fetch_companion` tries the model dir then root.
+    let model_dir = Path::new(model_file).parent().and_then(|p| p.to_str()).filter(|s| !s.is_empty());
 
-    let config = {
-        let api = api.clone();
-        let repo = repo_name.to_string();
-        crate::model_download::with_download_deadline(&format!("{repo}/config.json"), move || {
-            api.model(repo).get("config.json").map_err(|e| e.to_string())
-        })
-    }
-    .map_err(|e| err(format!("Failed to download config.json: {e}")))?;
+    let tokenizer = fetch_companion(&api, repo_name, model_dir, "tokenizer.json")
+        .map_err(|e| err(format!("Failed to download tokenizer.json: {e}")))?;
 
-    // Optional — fall back to empty paths that load_tokenizer handles gracefully, but still under
-    // the deadline so a hang on an optional file cannot stall the pipeline either.
-    let special_tokens = {
-        let api = api.clone();
-        let repo = repo_name.to_string();
-        crate::model_download::with_download_deadline(&format!("{repo}/special_tokens_map.json"), move || {
-            api.model(repo).get("special_tokens_map.json").map_err(|e| e.to_string())
-        })
-    }
-    .unwrap_or_else(|_| PathBuf::new());
+    let config = fetch_companion(&api, repo_name, model_dir, "config.json")
+        .map_err(|e| err(format!("Failed to download config.json: {e}")))?;
 
-    let tokenizer_config = {
-        let api = api.clone();
-        let repo = repo_name.to_string();
-        crate::model_download::with_download_deadline(&format!("{repo}/tokenizer_config.json"), move || {
-            api.model(repo).get("tokenizer_config.json").map_err(|e| e.to_string())
-        })
-    }
-    .unwrap_or_else(|_| PathBuf::new());
+    // Optional — fall back to empty paths that load_tokenizer handles gracefully.
+    let special_tokens =
+        fetch_companion(&api, repo_name, model_dir, "special_tokens_map.json").unwrap_or_default();
+
+    let tokenizer_config =
+        fetch_companion(&api, repo_name, model_dir, "tokenizer_config.json").unwrap_or_default();
 
     Ok(DownloadedModel {
         model,
@@ -479,6 +492,11 @@ pub(crate) fn build_session(
 
 /// Resolve the cache directory for a module's models, honoring an explicit
 /// override and otherwise falling back to `~/.cache/xberg/<module>/`.
+///
+/// Only `sparse_embeddings` and `late_interaction` route through this shared
+/// helper; `embeddings`/`reranking` keep their own local wrappers, so gate it to
+/// its callers to avoid a dead-code warning in reranker/embeddings-only builds.
+#[cfg(any(feature = "sparse-embeddings", feature = "late-interaction"))]
 pub(crate) fn resolve_cache_dir(module: &str, cache_dir: Option<PathBuf>) -> PathBuf {
     cache_dir.unwrap_or_else(|| crate::cache_dir::resolve_cache_dir(module))
 }
@@ -572,6 +590,7 @@ mod tests {
         assert!(guard.is_some(), "should re-acquire after previous guard dropped");
     }
 
+    #[cfg(any(feature = "sparse-embeddings", feature = "late-interaction"))]
     #[test]
     fn resolve_cache_dir_honors_override() {
         let custom = PathBuf::from("/tmp/custom-xberg-cache");

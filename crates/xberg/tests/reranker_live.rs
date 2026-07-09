@@ -122,7 +122,8 @@ async fn bge_reranker_base_english_top_ranks_first() {
     assert!(!suites.is_empty(), "must have English fixtures");
 
     let preset = get_reranker_preset("bge-reranker-base").expect("preset must exist");
-    assert_eq!(preset.model_repo, "BAAI/bge-reranker-base");
+    assert_eq!(preset.model_repo, "xberg-io/reranker-models");
+    assert_eq!(preset.model_file, "bge-reranker-base/model.onnx");
 
     for suite in suites {
         let results = run_preset_inference("bge-reranker-base", suite)
@@ -150,7 +151,8 @@ async fn jina_reranker_v1_turbo_en_english_top_ranks_first() {
     let suites = pick_suites(&fixture.suites, &["en"]);
 
     let preset = get_reranker_preset("jina-reranker-v1-turbo-en").expect("preset must exist");
-    assert_eq!(preset.model_repo, "jinaai/jina-reranker-v1-turbo-en");
+    assert_eq!(preset.model_repo, "xberg-io/reranker-models");
+    assert_eq!(preset.model_file, "jina-reranker-v1-turbo-en/model.onnx");
 
     for suite in suites {
         let results = run_preset_inference("jina-reranker-v1-turbo-en", suite)
@@ -186,8 +188,8 @@ async fn bge_reranker_v2_m3_loads_via_additional_files() {
     }
 
     let preset = get_reranker_preset("bge-reranker-v2-m3").expect("preset must exist");
-    assert_eq!(preset.model_repo, "rozgo/bge-reranker-v2-m3");
-    assert_eq!(preset.model_file, "model.onnx");
+    assert_eq!(preset.model_repo, "xberg-io/reranker-models");
+    assert_eq!(preset.model_file, "bge-reranker-v2-m3/model.onnx");
     assert_eq!(
         preset.additional_files,
         vec!["model.onnx.data".to_string()],
