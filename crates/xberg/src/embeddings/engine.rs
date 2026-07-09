@@ -257,10 +257,18 @@ fn last_pool(tensor: &ArrayView<f32, Dim<IxDynImpl>>, attention_mask: Array2<i64
     let (batch, seq_len, hidden) = tensor3.dim();
     let mut pooled = Array2::<f32>::zeros((batch, hidden));
     for b in 0..batch {
-        let last_index = (0..seq_len)
-            .rev()
-            .find(|&t| attention_mask[[b, t]] != 0)
-            .unwrap_or(seq_len - 1);
+        let last_index = (0..seq_len).rev().find(|&t| attention_mask[[b, t]] != 0).unwrap_or_else(|| {
+            // A fully-masked row should never reach here — `embed_texts` rejects
+            // empty inputs and the tokenizer always emits at least one content
+            // token. If it does, fall back to the final position but warn, since
+            // the pooled vector is then a padding token's embedding (silently
+            // plausible but wrong) rather than a real representation.
+            tracing::warn!(
+                batch_row = b,
+                "last-token pooling saw an all-zero attention mask; falling back to the final position"
+            );
+            seq_len - 1
+        });
         pooled.row_mut(b).assign(&tensor3.slice(s![b, last_index, ..]));
     }
     Ok(pooled)
@@ -502,5 +510,53 @@ mod tests {
         assert_eq!(normalized.len(), 3);
         let norm: f32 = normalized.iter().map(|x| x * x).sum::<f32>().sqrt();
         assert!((norm - 1.0).abs() < 1e-6, "L2 norm should be ~1.0");
+    }
+
+    /// last_pool picks the final non-pad token per row, robust to right- and
+    /// left-padding (mask scans from the end), and degrades to the last
+    /// position for an all-zero mask.
+    #[test]
+    fn last_pool_selects_last_non_pad_token_per_row() {
+        // batch=3, seq=3, hidden=2
+        let tensor = ndarray::Array3::from_shape_vec(
+            (3, 3, 2),
+            vec![
+                10.0, 11.0, 20.0, 21.0, 99.0, 99.0, // row 0: right-padded, real tokens at 0,1
+                77.0, 77.0, 30.0, 31.0, 40.0, 41.0, // row 1: left-padded, real tokens at 1,2
+                50.0, 51.0, 60.0, 61.0, 70.0, 71.0, // row 2: no padding
+            ],
+        )
+        .unwrap();
+        // masks: right-pad [1,1,0], left-pad [0,1,1], full [1,1,1]
+        let mask = Array2::from_shape_vec((3, 3), vec![1, 1, 0, 0, 1, 1, 1, 1, 1]).unwrap();
+        let view = tensor.view().into_dyn();
+        let pooled = last_pool(&view, mask).unwrap();
+
+        assert_eq!(pooled.dim(), (3, 2));
+        assert_eq!(pooled.row(0).to_vec(), vec![20.0, 21.0], "right-pad: last real token is index 1, not the pad at 2");
+        assert_eq!(pooled.row(1).to_vec(), vec![40.0, 41.0], "left-pad: last real token is index 2");
+        assert_eq!(pooled.row(2).to_vec(), vec![70.0, 71.0], "no pad: last token is index 2");
+    }
+
+    /// last_pool passes a 2D (already-pooled) tensor through unchanged.
+    #[test]
+    fn last_pool_passes_through_2d_tensor() {
+        let tensor = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let view = tensor.view().into_dyn();
+        let mask = Array2::from_shape_vec((2, 1), vec![1, 1]).unwrap();
+        let pooled = last_pool(&view, mask).unwrap();
+        assert_eq!(pooled, tensor);
+    }
+
+    /// mean_pool averages only the unmasked tokens.
+    #[test]
+    fn mean_pool_averages_unmasked_tokens() {
+        // batch=1, seq=3, hidden=2; third token is padding and must be excluded.
+        let tensor = ndarray::Array3::from_shape_vec((1, 3, 2), vec![2.0, 4.0, 4.0, 8.0, 100.0, 100.0]).unwrap();
+        let mask = Array2::from_shape_vec((1, 3), vec![1, 1, 0]).unwrap();
+        let view = tensor.view().into_dyn();
+        let pooled = mean_pool(&view, mask).unwrap();
+        // mean of tokens 0 and 1 only: ([2,4] + [4,8]) / 2 = [3,6]
+        assert_eq!(pooled.row(0).to_vec(), vec![3.0, 6.0]);
     }
 }
