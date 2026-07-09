@@ -20,7 +20,7 @@ use std::path::PathBuf;
 /// Since v5.0.0.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LateInteractionConfig {
-    /// The late-interaction model to use (defaults to the "colbert" preset).
+    /// The late-interaction model to use (defaults to the "gte-moderncolbert" preset).
     #[serde(
         default = "default_late_interaction_model",
         deserialize_with = "deserialize_null_model"
@@ -119,7 +119,7 @@ pub enum LateInteractionModelType {
 impl Default for LateInteractionModelType {
     fn default() -> Self {
         Self::Preset {
-            name: "colbert".to_string(),
+            name: "gte-moderncolbert".to_string(),
         }
     }
 }
@@ -160,9 +160,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn default_config_uses_colbert_preset() {
+    fn default_config_uses_gte_moderncolbert_preset() {
         let config = LateInteractionConfig::default();
-        assert!(matches!(config.model, LateInteractionModelType::Preset { name } if name == "colbert"));
+        assert!(matches!(config.model, LateInteractionModelType::Preset { name } if name == "gte-moderncolbert"));
         assert_eq!(config.batch_size, 16);
         assert_eq!(config.max_length, 512);
         assert_eq!(config.query_max_length, 32);
@@ -172,7 +172,7 @@ mod tests {
     fn null_model_deserializes_to_default() {
         let json = r#"{"model": null}"#;
         let config: LateInteractionConfig = serde_json::from_str(json).unwrap();
-        assert!(matches!(config.model, LateInteractionModelType::Preset { name } if name == "colbert"));
+        assert!(matches!(config.model, LateInteractionModelType::Preset { name } if name == "gte-moderncolbert"));
     }
 
     #[test]

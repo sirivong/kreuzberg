@@ -118,17 +118,36 @@ pub struct LateInteractionPreset {
 /// `answerdotai/answerai-colbert-small-v1`, weights unmodified); pinned via the
 /// checked-in `presets.sha256sum` manifest.
 pub static LATE_INTERACTION_PRESETS: LazyLock<Vec<LateInteractionPreset>> = LazyLock::new(|| {
-    vec![LateInteractionPreset {
-        name: "colbert".to_string(),
-        model_repo: "xberg-io/late-interaction-models".to_string(),
-        model_file: "colbert-small-v1/model.onnx".to_string(),
-        additional_files: Vec::new(),
-        max_length: 512,
-        query_max_length: 32,
-        dim: 96,
-        description: "AnswerAI ColBERT small v1 — English multi-vector late-interaction retrieval (Apache-2.0)."
-            .to_string(),
-    }]
+    vec![
+        LateInteractionPreset {
+            name: "colbert".to_string(),
+            model_repo: "xberg-io/late-interaction-models".to_string(),
+            model_file: "colbert-small-v1/model.onnx".to_string(),
+            additional_files: Vec::new(),
+            max_length: 512,
+            query_max_length: 32,
+            dim: 96,
+            description: "AnswerAI ColBERT small v1 — English multi-vector late-interaction retrieval (Apache-2.0)."
+                .to_string(),
+        },
+        LateInteractionPreset {
+            name: "gte-moderncolbert".to_string(),
+            // Self-hosted export of lightonai/GTE-ModernColBERT-v1 (Apache-2.0): a
+            // ModernBERT encoder plus the PyLate Dense 768→128 projection, exported to
+            // ONNX (opset 17) emitting per-token `[batch, seq, 128]` embeddings. Not
+            // L2-normalized in-graph — the MaxSim engine normalizes per token. The
+            // ColBERT `[Q]`/`[D]` marker tokens are prepended by the engine.
+            model_repo: "xberg-io/late-interaction-models".to_string(),
+            model_file: "gte-moderncolbert-v1/model.onnx".to_string(),
+            additional_files: Vec::new(),
+            max_length: 512,
+            query_max_length: 32,
+            dim: 128,
+            description: "LightOn GTE-ModernColBERT v1 — ModernBERT long-context multi-vector \
+                late-interaction retrieval, 128-dim tokens (Apache-2.0)."
+                .to_string(),
+        },
+    ]
 });
 
 /// Look up a bundled ColBERT preset by exact name.
