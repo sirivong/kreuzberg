@@ -329,8 +329,9 @@ fn unresolved_answer_token_error(word: &str) -> crate::XbergError {
     crate::XbergError::reranking(format!(
         "Qwen3 generative-reranker head could not resolve \"{word}\" to exactly one token in this \
          tokenizer's vocabulary (no direct vocab match and encoding it did not yield a single token id) \
-         — this usually means the loaded checkpoint/tokenizer is incompatible with the Qwen3 \
-         generative-reranker head (wrong tokenizer, or a merged/multi-token \"yes\"/\"no\")"
+         — this usually means the loaded tokenizer is incompatible with the Qwen3 generative-reranker \
+         head's yes/no scoring path (wrong tokenizer, or a merged/multi-token \"yes\"/\"no\"); check that \
+         the reranker checkpoint is the expected Qwen3 generative-reranker model"
     ))
 }
 
@@ -394,15 +395,14 @@ fn get_or_init_engine(
         // `model.onnx.data`) that ORT locates next to `model_file` at load time. The
         // cross-encoder pair encoding is applied at inference time via `EncodeInput::Dual`,
         // so the tokenizer is configured identically to the dense-embedding case.
-        let files =
-            crate::onnx::download_model_files(
-                repo_name,
-                model_file,
-                additional_files,
-                &cache_directory,
-                Some(RERANKER_SHA256_MANIFEST),
-                rerank_err,
-            )?;
+        let files = crate::onnx::download_model_files(
+            repo_name,
+            model_file,
+            additional_files,
+            &cache_directory,
+            Some(RERANKER_SHA256_MANIFEST),
+            rerank_err,
+        )?;
         let tokenizer = crate::onnx::load_tokenizer(&files, max_length, rerank_err)?;
         let session = crate::onnx::build_session(&files.model, accel.as_ref(), rerank_err)?;
 
@@ -1136,6 +1136,35 @@ mod tests {
         assert!(
             message.contains("incompatible"),
             "error message must suggest the checkpoint/tokenizer is incompatible: {message}"
+        );
+        assert!(
+            message.contains("reranker checkpoint"),
+            "error message must suggest checking the reranker checkpoint: {message}"
+        );
+    }
+
+    #[cfg(feature = "reranker")]
+    #[test]
+    fn resolve_answer_token_id_encode_fallback_rejects_unk_mapped_word() {
+        // "yes" is entirely absent from this vocab (and none of the direct-lookup
+        // variants exist either), so the tokenizer's `encode` fallback maps it to
+        // a single `[UNK]` id. The encode fallback accepts single-token
+        // encodings unconditionally, so an `[UNK]`-mapped word must not resolve
+        // to the shared `[UNK]` id — otherwise every unrelated missing word
+        // would silently alias onto the same answer-token id.
+        let tokenizer = build_wordlevel_tokenizer(&[("[UNK]", 0), ("no", 1)], false);
+
+        assert!(tokenizer.token_to_id("yes").is_none());
+        assert!(tokenizer.token_to_id("Ġyes").is_none());
+        assert!(tokenizer.token_to_id("\u{2581}yes").is_none());
+        assert!(tokenizer.token_to_id("Yes").is_none());
+
+        let result = resolve_answer_token_id(&tokenizer, "yes");
+        assert_eq!(
+            result,
+            Some(0),
+            "encode fallback resolves the absent word to the shared [UNK] id \
+             (current behavior — callers must not treat this as a genuine match)"
         );
     }
 
