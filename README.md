@@ -631,6 +631,18 @@ Run `xberg --help` or `xberg <command> --help` for detailed options.
 
 ---
 
+## Migration
+
+Xberg is the direct continuation of **Kreuzberg** — v5 is the Xberg-branded line. Coming from Kreuzberg v4?
+
+- **v4 keeps working** and is maintained as **LTS** at [kreuzberg-dev/kreuzberg-lts](https://github.com/kreuzberg-dev/kreuzberg-lts) (docs at [kreuzberg.dev](https://kreuzberg.dev)) with critical fixes until the end of 2026, best effort. The v4 LTS line is MIT-licensed.
+- **Package names moved** from `kreuzberg` to `xberg` (PyPI `xberg`, npm `@xberg-io/xberg`, crates `xberg`, Maven `io.xberg:xberg`). Existing Go pins to `github.com/kreuzberg-dev/kreuzberg` still resolve; v5 is `github.com/xberg-io/xberg` and v4 LTS is `github.com/kreuzberg-dev/kreuzberg-lts/v4`.
+- **The R binding is removed in v5** — stay on v4 LTS if you need it.
+
+See the full **[migration guide](https://docs.xberg.io/migration/from-kreuzberg-v4/)**.
+
+---
+
 ## Documentation
 
 Full guides, API references for every binding, format reference, and configuration docs live at **[xberg.io](https://docs.xberg.io/)**.
