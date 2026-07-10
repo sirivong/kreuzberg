@@ -2912,7 +2912,12 @@ jobs:
 
   homebrew-bottles:
     name: Build Homebrew bottle (${{ matrix.bottle_tag }})
-    needs: [prepare, publish-homebrew-formula]
+    # Depends on finalize so the GitHub Release is out of draft before the bottle
+    # build's `brew install` fetches the source tarball: the formula now pins a
+    # release-asset URL (stable bytes, uploaded by publish-homebrew-formula), and
+    # draft-release assets are not publicly downloadable. In dry-run finalize is
+    # skipped, so this job is skipped too (no asset is uploaded to point at).
+    needs: [prepare, publish-homebrew-formula, finalize-github-release-after-uploads]
     if: ${{ needs.prepare.outputs.release_homebrew == 'true' && needs.prepare.outputs.is_tag == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
