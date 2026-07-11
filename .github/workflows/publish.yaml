@@ -1747,7 +1747,11 @@ jobs:
         id: bundle
         with:
           crate-name: xberg-swift
-          artifact-name: XbergSwift
+          # Must match the asset filename the alef-generated root Package.swift
+          # binaryTarget resolves: `<name>.artifactbundle.zip`. The manifest
+          # references Xberg-rs.artifactbundle.zip, so the uploaded asset (named
+          # after artifact-name) must be Xberg-rs, not XbergSwift, or SwiftPM 404s.
+          artifact-name: Xberg-rs
           include-macos-x86_64: "false"
           include-ios-x86_64: "false"
       - uses: actions/upload-artifact@v7
@@ -2665,7 +2669,11 @@ jobs:
           rewrite-native-deps: "true"
           dry-run: ${{ needs.prepare.outputs.dry_run }}
 
-      - uses: xberg-io/actions/publish-hex@v1
+      # Pinned to the commit that cd's into package-dir before `mix hex.publish`
+      # (rc.22 failed: the pre-built-tarball path ran mix at the repo root →
+      # "Could not find a Mix.Project"). Not yet on the @v1 float; revert to @v1
+      # once v1 is advanced past 3a8364c.
+      - uses: xberg-io/actions/publish-hex@3a8364c79e59ae7bb0d847426f94657a740550f2
         with:
           package-dir: packages/elixir
           tarball-path: ${{ steps.build-hex.outputs.archive-path }}
@@ -2744,7 +2752,22 @@ jobs:
             tar -xzf "$art" -C "$tmp"
             stage_root="$(find "$tmp" -maxdepth 1 -mindepth 1 -type d | head -1)"
             mkdir -p "$out/$rid"
-            cp "$stage_root"/lib/* "$out/$rid/"
+            # Ship shared libraries only. packages/zig/build.zig links xberg_ffi
+            # dynamically (linkSystemLibrary), so the per-platform static archives
+            # (libxberg_ffi.a, 500-760MB each) are dead weight. Bundling all five
+            # platforms' .a produced a 1.15GB release tarball whose upload to
+            # uploads.github.com failed; shared libs alone are ~70-105MB/platform.
+            shopt -s nullglob
+            copied=0
+            for lib in "$stage_root"/lib/*.so "$stage_root"/lib/*.so.* \
+                       "$stage_root"/lib/*.dylib "$stage_root"/lib/*.dll; do
+              cp "$lib" "$out/$rid/"
+              copied=1
+            done
+            shopt -u nullglob
+            if [ "$copied" -eq 0 ]; then
+              echo "::warning::no shared library found for $rid under $stage_root/lib — skipping"
+            fi
             cp "$stage_root"/include/*.h "$out/include/" 2>/dev/null || true
             rm -rf "$tmp"
           done
