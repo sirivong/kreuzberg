@@ -544,6 +544,43 @@ jobs:
           use-napi-cross: "false"
           pack-target-tarball: node-bindings-${{ matrix.target }}.tar.gz
 
+      - name: Vendor macOS dylib closure (libheif + codecs) into the .node package
+        if: contains(matrix.target, 'apple-darwin')
+        shell: bash
+        run: |
+          set -euo pipefail
+          # build-node-napi staged the .node (+ vendored ONNX Runtime, which is
+          # @rpath-relocatable) into crates/xberg-node/npm/<platform>/ and packed
+          # the tarball. libheif and its transitive codec closure (libde265,
+          # libx265, libaom, libsharpyuv, libvmaf, ...) are still absolute
+          # Homebrew paths in the .node, so vendor them beside it (@loader_path)
+          # and repack — otherwise the darwin package fails to dlopen on any Mac
+          # without those exact Homebrew formulae installed.
+          node_file="$(find crates/xberg-node/npm -maxdepth 2 -name '*.node' -type f | head -1)"
+          [ -n "$node_file" ] || { echo "::error::no .node staged under crates/xberg-node/npm"; exit 1; }
+          platform_dir="$(dirname "$node_file")"
+          bash scripts/ci/vendor-macos-node-dylibs.sh "$platform_dir"
+          # Reconcile the platform package.json `files` with every binary now on
+          # disk so npm pack ships the whole closure.
+          node -e '
+            const fs = require("fs"), path = require("path");
+            const dir = process.argv[1];
+            const p = path.join(dir, "package.json");
+            const pkg = JSON.parse(fs.readFileSync(p, "utf8"));
+            const ship = /\.(node|dylib|dll)$|\.so(\.[0-9]+)*$/;
+            const onDisk = fs.readdirSync(dir).filter((f) => ship.test(f));
+            pkg.files = [...new Set([...(pkg.files || []), ...onDisk])].sort();
+            fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + "\n");
+            console.log("reconciled files:", JSON.stringify(pkg.files));
+          ' "$platform_dir"
+          # Repack the per-target tarball with the same layout build-node-napi
+          # uses (npm/ tree + root index.js/index.d.ts), overwriting the
+          # pre-vendor one.
+          members=(npm)
+          [ -f crates/xberg-node/index.js ] && members+=(index.js)
+          [ -f crates/xberg-node/index.d.ts ] && members+=(index.d.ts)
+          tar -czf "node-bindings-${{ matrix.target }}.tar.gz" -C crates/xberg-node "${members[@]}"
+
       - uses: actions/upload-artifact@v7
         with:
           name: node-bindings-${{ matrix.target }}
@@ -717,6 +754,25 @@ jobs:
         with:
           crate-dir: crates/xberg-wasm
           pack-tarball: "true"
+
+      - name: Smoke test — Node can load the wasm glue
+        working-directory: crates/xberg-wasm
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Guards the exact rc.21 regression: the wasm-pack nodejs glue carried
+          # unresolvable require("env") / require("wasi_snapshot_preview1") calls
+          # that threw on load. scripts/fix-wasi-imports.mjs (run by build:all)
+          # must have stubbed them; if not, a plain require() throws here and
+          # fails the job before a broken package can publish. Load-only (no
+          # tessdata needed) so it is fast and network-free.
+          node -e '
+            const wasm = require("./pkg/nodejs/xberg_wasm.js");
+            if (typeof wasm.extract !== "function" || typeof wasm.WasmExtractInput !== "function") {
+              console.error("wasm glue loaded but expected exports are missing"); process.exit(1);
+            }
+            console.log("wasm nodejs glue loaded; exports present:", Object.keys(wasm).length);
+          '
 
       - uses: actions/upload-artifact@v7
         with:
@@ -2240,10 +2296,34 @@ jobs:
           # exactly those sub-packages. Platform dirs that napi created but no
           # job built (e.g. win32-arm64-msvc) have a package.json but no .node —
           # skip them so we never publish an empty package or reference it.
+          # Extract each artifact in ISOLATION and copy only the platform dirs
+          # that actually contain a built .node. `napi create-npm-dirs` stamps a
+          # package.json stub for EVERY platform into EVERY artifact, so a blind
+          # `tar -xzf` of all artifacts onto one shared tree lets a later
+          # artifact's empty stub clobber the dylib-aware package.json a
+          # platform's own artifact produced — resetting `files` to just the
+          # .node, which makes `npm pack` silently drop the vendored ORT dylib
+          # (rc.21 shipped darwin-arm64/-x64 + linux-arm64-gnu broken this way).
+          # Copying only dirs-that-have-a-.node makes the merge a union of
+          # populated dirs, immune to extraction order.
           rm -rf crates/xberg-node/npm
           mkdir -p crates/xberg-node/npm
           for pkg in node-artifacts/*.tar.gz; do
-            tar -xzf "${pkg}" -C crates/xberg-node
+            scratch="$(mktemp -d)"
+            tar -xzf "${pkg}" -C "${scratch}"
+            for dir in "${scratch}"/npm/*/; do
+              if ls "${dir}"*.node >/dev/null 2>&1; then
+                # strip trailing slash so `cp -R src dest/` copies the dir
+                # itself, not its contents (BSD/macOS cp semantics; harmless
+                # on the GNU cp used in CI).
+                cp -R "${dir%/}" crates/xberg-node/npm/
+              fi
+            done
+            # index.js / index.d.ts ride at the tarball root on the macOS and
+            # Windows legs and are identical across targets; copy when present.
+            [ -f "${scratch}/index.js" ] && cp -f "${scratch}/index.js" crates/xberg-node/index.js
+            [ -f "${scratch}/index.d.ts" ] && cp -f "${scratch}/index.d.ts" crates/xberg-node/index.d.ts
+            rm -rf "${scratch}"
           done
 
           # Pack each platform sub-package (only those that shipped a binary).
