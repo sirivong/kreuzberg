@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Post-build patch for the wasm-pack `nodejs` target output.
+ * Post-build patch for the wasm-pack target output (nodejs + web + bundler + deno).
  *
  * Problem: the `ocr-wasm` feature links `xberg-tesseract` (Tesseract +
  * Leptonica cross-compiled with the WASI SDK for wasm32-wasi) into the
@@ -8,77 +8,52 @@
  * `.cargo/config.toml`'s `--allow-multiple-definition` for the target). The
  * resulting `xberg_wasm_bg.wasm` therefore imports the `env` (Leptonica's
  * `mkstemp`/`system`) and `wasi_snapshot_preview1` (standard WASI preview1
- * syscalls) modules, and wasm-bindgen's `--target nodejs` glue emits:
+ * syscalls) modules. wasm-bindgen's glue re-exposes those as host imports:
  *
- *   const import1 = require("env");
- *   const import3 = require("wasi_snapshot_preview1");
- *   ...
+ *   - nodejs target (CommonJS):
+ *       const import1 = require("env");
+ *       const import3 = require("wasi_snapshot_preview1");
+ *   - web / bundler / deno targets (ESM):
+ *       import * as import1 from "env";
+ *       import * as import3 from "wasi_snapshot_preview1";
  *
- * Neither "env" nor "wasi_snapshot_preview1" is a real Node built-in, so
- * `require('@xberg-io/xberg-wasm')` throws `Cannot find module 'env'`
- * immediately, before the WASM module is even instantiated. Separately, the
- * generated `__wbg_get_imports()` return object has one duplicate "env" /
- * "wasi_snapshot_preview1" key per imported *symbol* (JS object literals keep
- * only the last value per key), which is harmless once every occurrence
- * points at the same stub object.
+ * Neither "env" nor "wasi_snapshot_preview1" is a real module. On Node this
+ * throws `Cannot find module 'env'` on require; in a **browser** the ESM
+ * loader throws `Failed to resolve module specifier "env"` before the WASM is
+ * ever instantiated. Both failure modes must be fixed, so every generated
+ * target — not just nodejs — needs the imports stripped and replaced with
+ * inline stubs. (An earlier version of this script patched only the nodejs
+ * target on the incorrect assumption that ESM targets were unaffected; the
+ * browser ESM loader proves otherwise, which broke the live WASM demo.)
  *
- * Fix: strip the `require(...)` statements, replace every reference to the
- * per-symbol import variables with two shared stub objects, and deduplicate
- * the resulting object-literal keys. All OCR/table-detection work happens on
- * image bytes already resident in WASM linear memory, so the stubs never
- * need a real filesystem or shell: they report "no filesystem here"
- * (WASI errno values) for path-based syscalls and answer `fd_read`/`fd_write`/
- * `clock_time_get`/`environ_*` with harmless real values so Tesseract/
- * Leptonica's initialization and buffered stdio calls succeed.
+ * Fix: strip the import statements (require for CJS, `import * as` for ESM),
+ * replace every reference to the per-symbol import variables with two shared
+ * stub objects, and (CJS only) deduplicate the resulting object-literal keys.
+ * Duplicate object keys are harmless once every occurrence points at the same
+ * stub object (JS keeps the last value per key), so the ESM path skips the
+ * dedup. All OCR/table-detection work happens on image bytes already resident
+ * in WASM linear memory, so the stubs never need a real filesystem or shell:
+ * they report "no filesystem here" (WASI errno values) for path-based
+ * syscalls and answer `fd_read`/`fd_write`/`clock_time_get`/`environ_*` with
+ * harmless real values so Tesseract/Leptonica's initialization and buffered
+ * stdio calls succeed.
  *
- * Runs against `pkg/nodejs/xberg_wasm.js` (the only wasm-pack target that
- * uses CommonJS `require()` for its WASI/env imports; `web`/`bundler`/`deno`
- * targets use ESM `import` and are handled by wasm-bindgen without invoking
- * Node's module resolver, so they are unaffected by this specific failure
- * mode). Idempotent: running twice is a no-op.
+ * Idempotent: running twice is a no-op (guarded on the `__wasi_stubs__`
+ * marker). The pkg directory defaults to `../pkg` relative to this script but
+ * can be overridden with `XBERG_WASM_PKG_DIR` for testing against an extracted
+ * published bundle.
  */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const jsFile = path.join(__dirname, "..", "pkg", "nodejs", "xberg_wasm.js");
+const pkgDir = process.env.XBERG_WASM_PKG_DIR ?? path.join(__dirname, "..", "pkg");
 
-if (!fs.existsSync(jsFile)) {
-  console.log(`[fix-wasi-imports] ${jsFile} not found, skipping.`);
-  process.exit(0);
-}
-
-let content = fs.readFileSync(jsFile, "utf-8");
-const originalContent = content;
-
-if (content.includes("__wasi_stubs__")) {
-  console.log("[fix-wasi-imports] already patched, skipping.");
-  process.exit(0);
-}
-
-const hasCjsImports = content.includes('require("env")') || content.includes('require("wasi_snapshot_preview1")');
-if (!hasCjsImports) {
-  console.log("[fix-wasi-imports] no env/wasi_snapshot_preview1 require() calls found, skipping.");
-  process.exit(0);
-}
-
-console.log('[fix-wasi-imports] patching require("env") / require("wasi_snapshot_preview1") in xberg_wasm.js...');
-
-const cjsPattern = /^const (import\d+) = require\("(env|wasi_snapshot_preview1)"\);?$/gm;
-const envImports = [];
-const wasiImports = [];
-for (const match of content.matchAll(cjsPattern)) {
-  const [, varName, moduleName] = match;
-  (moduleName === "env" ? envImports : wasiImports).push(varName);
-}
-
-console.log(`[fix-wasi-imports] found ${envImports.length} env import(s), ${wasiImports.length} wasi import(s).`);
-
-content = content.replace(/^const import\d+ = require\("(env|wasi_snapshot_preview1)"\);?\n/gm, "");
-
-const stubCode = `// __wasi_stubs__ - inline replacements for the unresolvable "env" /
-// "wasi_snapshot_preview1" require() targets. See fix-wasi-imports.mjs for
+// ── Shared stub source ───────────────────────────────────────────────────────
+// Injected verbatim just before `function __wbg_get_imports()` in every target.
+const STUB_CODE = `// __wasi_stubs__ - inline replacements for the unresolvable "env" /
+// "wasi_snapshot_preview1" import targets. See fix-wasi-imports.mjs for
 // the full rationale; this block is injected by that script.
 let __wasi_mem_ref = { memory: null };
 function __wasi_view() {
@@ -168,64 +143,154 @@ const __wasi_stubs__ = {
 
 `;
 
-const getImportsIdx = content.indexOf("function __wbg_get_imports()");
-if (getImportsIdx === -1) {
-  console.error("[fix-wasi-imports] ERROR: could not find __wbg_get_imports() in xberg_wasm.js");
-  process.exit(1);
-}
-content = content.slice(0, getImportsIdx) + stubCode + content.slice(getImportsIdx);
-
-for (const varName of envImports) content = content.replaceAll(varName, "__env_stubs__");
-for (const varName of wasiImports) content = content.replaceAll(varName, "__wasi_stubs__");
-
-// Deduplicate the "env" / "wasi_snapshot_preview1" keys in the import object
-// literal returned by __wbg_get_imports() -- every occurrence now points at
-// the same stub object, so only one key per module needs to survive.
-const returnBlockStart = content.indexOf('"./xberg_wasm_bg.js": import0,');
-if (returnBlockStart !== -1) {
-  const returnBlockEnd = content.indexOf("};", returnBlockStart);
-  if (returnBlockEnd !== -1) {
-    const returnBlock = content.slice(returnBlockStart, returnBlockEnd);
-    let seenEnv = false;
-    let seenWasi = false;
-    const dedupedLines = returnBlock.split("\n").filter((line) => {
-      const trimmed = line.trim();
-      if (trimmed.startsWith('"env"')) {
-        if (seenEnv) return false;
-        seenEnv = true;
-      }
-      if (trimmed.startsWith('"wasi_snapshot_preview1"')) {
-        if (seenWasi) return false;
-        seenWasi = true;
-      }
-      return true;
-    });
-    content = content.slice(0, returnBlockStart) + dedupedLines.join("\n") + content.slice(returnBlockEnd);
+function injectStubs(content) {
+  const getImportsIdx = content.indexOf("function __wbg_get_imports()");
+  if (getImportsIdx === -1) {
+    throw new Error("could not find __wbg_get_imports()");
   }
-} else {
-  console.log("[fix-wasi-imports] WARNING: could not find the import-object return block to dedupe.");
+  return content.slice(0, getImportsIdx) + STUB_CODE + content.slice(getImportsIdx);
 }
 
-// Give the stubs access to WASM linear memory once the instance exists.
-// wasm-bindgen's nodejs target instantiates synchronously via
-// `let wasmInstance = new WebAssembly.Instance(wasmModule, __wbg_get_imports());`.
-const instantiatePattern = /^(let wasmInstance = new WebAssembly\.Instance\(.*\);)$/m;
-if (instantiatePattern.test(content)) {
-  content = content.replace(
-    instantiatePattern,
-    "$1\n// Populate WASI memory reference for stubs that write output values\n__wasi_mem_ref.memory = wasmInstance.exports.memory;",
-  );
-} else {
-  console.log(
-    "[fix-wasi-imports] WARNING: could not find the WebAssembly.Instance instantiation to inject the memory reference.",
-  );
-}
+// ── nodejs (CommonJS) target ────────────────────────────────────────────────
+function patchCjs(jsFile) {
+  let content = fs.readFileSync(jsFile, "utf-8");
 
-if (content === originalContent) {
-  console.log("[fix-wasi-imports] no changes needed.");
-} else {
+  const hasCjsImports = content.includes('require("env")') || content.includes('require("wasi_snapshot_preview1")');
+  if (!hasCjsImports) {
+    console.log(`[fix-wasi-imports] ${rel(jsFile)}: no env/wasi require() calls, skipping.`);
+    return;
+  }
+
+  console.log(`[fix-wasi-imports] ${rel(jsFile)}: patching require("env") / require("wasi_snapshot_preview1")…`);
+
+  const cjsPattern = /^const (import\d+) = require\("(env|wasi_snapshot_preview1)"\);?$/gm;
+  const envImports = [];
+  const wasiImports = [];
+  for (const match of content.matchAll(cjsPattern)) {
+    const [, varName, moduleName] = match;
+    (moduleName === "env" ? envImports : wasiImports).push(varName);
+  }
+
+  content = content.replace(/^const import\d+ = require\("(env|wasi_snapshot_preview1)"\);?\n/gm, "");
+  content = injectStubs(content);
+
+  // Precise reference replacement on the import-object return block so we never
+  // corrupt identifiers by substring (import1 ⊂ import10). Every reference of
+  // shape `"env": importN` / `"wasi_snapshot_preview1": importN` is rewritten.
+  content = content
+    .replace(/("env":\s*)import\d+/g, "$1__env_stubs__")
+    .replace(/("wasi_snapshot_preview1":\s*)import\d+/g, "$1__wasi_stubs__");
+
+  // Deduplicate the "env" / "wasi_snapshot_preview1" keys in the import object
+  // literal — cosmetic (all point at the same stub) but keeps the glue tidy.
+  const returnBlockStart = content.indexOf('"./xberg_wasm_bg.js": import0,');
+  if (returnBlockStart !== -1) {
+    const returnBlockEnd = content.indexOf("};", returnBlockStart);
+    if (returnBlockEnd !== -1) {
+      const returnBlock = content.slice(returnBlockStart, returnBlockEnd);
+      let seenEnv = false;
+      let seenWasi = false;
+      const dedupedLines = returnBlock.split("\n").filter((line) => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('"env"')) {
+          if (seenEnv) return false;
+          seenEnv = true;
+        }
+        if (trimmed.startsWith('"wasi_snapshot_preview1"')) {
+          if (seenWasi) return false;
+          seenWasi = true;
+        }
+        return true;
+      });
+      content = content.slice(0, returnBlockStart) + dedupedLines.join("\n") + content.slice(returnBlockEnd);
+    }
+  }
+
+  // Give the stubs access to WASM linear memory once the instance exists.
+  const instantiatePattern = /^(let wasmInstance = new WebAssembly\.Instance\(.*\);)$/m;
+  if (instantiatePattern.test(content)) {
+    content = content.replace(
+      instantiatePattern,
+      "$1\n// Populate WASI memory reference for stubs that write output values\n__wasi_mem_ref.memory = wasmInstance.exports.memory;",
+    );
+  } else {
+    console.log(`[fix-wasi-imports] ${rel(jsFile)}: WARNING: could not find WebAssembly.Instance to wire memory.`);
+  }
+
   fs.writeFileSync(jsFile, content);
   console.log(
-    `[fix-wasi-imports] replaced ${envImports.length + wasiImports.length} external imports with inline stubs. Done.`,
+    `[fix-wasi-imports] ${rel(jsFile)}: replaced ${envImports.length + wasiImports.length} require() import(s) with stubs.`,
   );
 }
+
+// ── web / bundler / deno (ESM) targets ──────────────────────────────────────
+function patchEsm(jsFile) {
+  let content = fs.readFileSync(jsFile, "utf-8");
+
+  const esmPattern = /^import \* as (import\d+) from "(env|wasi_snapshot_preview1)"\s*;?$/gm;
+  const matches = [...content.matchAll(esmPattern)];
+  if (matches.length === 0) {
+    console.log(`[fix-wasi-imports] ${rel(jsFile)}: no env/wasi ESM imports, skipping.`);
+    return;
+  }
+
+  console.log(`[fix-wasi-imports] ${rel(jsFile)}: patching import * from "env"/"wasi_snapshot_preview1"…`);
+
+  content = content.replace(/^import \* as import\d+ from "(env|wasi_snapshot_preview1)"\s*;?\n/gm, "");
+  content = injectStubs(content);
+
+  // Precise reference replacement (avoids import1 ⊂ import10 corruption).
+  content = content
+    .replace(/("env":\s*)import\d+/g, "$1__env_stubs__")
+    .replace(/("wasi_snapshot_preview1":\s*)import\d+/g, "$1__wasi_stubs__");
+
+  // Wire linear memory so stubs that write output values can reach it. Two
+  // shapes exist: web/bundler use __wbg_finalize_init(instance, module); deno
+  // instantiates at top level via instantiateStreaming.
+  const finalizePattern =
+    /(function __wbg_finalize_init\(instance, module\) \{\s*\n\s*wasmInstance = instance;\s*\n\s*wasm = instance\.exports;)/;
+  const denoPattern = /(\n\s*const wasm = wasmInstance\.exports;)/;
+  if (finalizePattern.test(content)) {
+    content = content.replace(
+      finalizePattern,
+      "$1\n    // Populate WASI memory reference for stubs that write output values\n    __wasi_mem_ref.memory = instance.exports.memory;",
+    );
+  } else if (denoPattern.test(content)) {
+    content = content.replace(
+      denoPattern,
+      "$1\n// Populate WASI memory reference for stubs that write output values\n__wasi_mem_ref.memory = wasmInstance.exports.memory;",
+    );
+  } else {
+    console.log(`[fix-wasi-imports] ${rel(jsFile)}: WARNING: could not find an init site to wire memory.`);
+  }
+
+  fs.writeFileSync(jsFile, content);
+  console.log(`[fix-wasi-imports] ${rel(jsFile)}: replaced ${matches.length} ESM import(s) with stubs.`);
+}
+
+function rel(p) {
+  return path.relative(pkgDir, p) || path.basename(p);
+}
+
+function patchTarget(target, kind) {
+  const jsFile = path.join(pkgDir, target, "xberg_wasm.js");
+  if (!fs.existsSync(jsFile)) {
+    console.log(`[fix-wasi-imports] ${target}/xberg_wasm.js not found, skipping.`);
+    return;
+  }
+  const content = fs.readFileSync(jsFile, "utf-8");
+  if (content.includes("__wasi_stubs__")) {
+    console.log(`[fix-wasi-imports] ${target}/xberg_wasm.js already patched, skipping.`);
+    return;
+  }
+  if (kind === "cjs") patchCjs(jsFile);
+  else patchEsm(jsFile);
+}
+
+// nodejs uses CommonJS require(); web/bundler/deno use ESM import.
+patchTarget("nodejs", "cjs");
+patchTarget("web", "esm");
+patchTarget("bundler", "esm");
+patchTarget("deno", "esm");
+
+console.log("[fix-wasi-imports] done.");
