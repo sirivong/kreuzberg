@@ -12,10 +12,12 @@ tasks:
       - task: dev:serve
 
   dev:build:
-    desc: "Build WASM binary for web target (unless SKIP_WASM_BUILD=1)"
+    desc: "Build WASM web target and shim its env/wasi imports (unless SKIP_WASM_BUILD=1)"
     dir: crates/xberg-wasm
     cmds:
-      - '[ "${SKIP_WASM_BUILD:-0}" = "1" ] || { pnpm run build:wasm:web && mkdir -p dist/pkg && cp pkg/web/xberg_wasm_bg.wasm dist/pkg/xberg_wasm_bg.wasm; }'
+      # Bake the same env/wasi ESM shim the publish pipeline applies, so local
+      # dev loads pkg/web exactly as production consumers do.
+      - '[ "${SKIP_WASM_BUILD:-0}" = "1" ] || { pnpm run build:wasm:web && node scripts/fix-wasi-imports.mjs; }'
 
   dev:patch:
     desc: "Generate docs-site/public/demo-dev.html with CDN URLs replaced by localhost:9000"

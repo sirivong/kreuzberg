@@ -103,6 +103,25 @@
     .animation-delay-2000 {
       animation-delay: 2s;
     }
+
+    /* Version badge states — driven by data-state on #wasm-version */
+    #wasm-version[data-state="loading"] {
+      opacity: 0.7;
+    }
+    #wasm-version[data-state="loading"] span:first-child {
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    #wasm-version[data-state="error"] {
+      color: #9a94ad;
+      border-color: rgba(154, 148, 173, 0.35);
+    }
+    #wasm-version[data-state="error"] span:first-child {
+      background: #9a94ad;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.25; }
+    }
     </style>
   </head>
 
@@ -129,6 +148,20 @@
         </a>
 
         <div class="flex items-center gap-3 justify-self-end">
+          <a
+            id="wasm-version"
+            data-state="loading"
+            href="https://www.npmjs.com/package/@xberg-io/xberg-wasm"
+            rel="noopener noreferrer"
+            target="_blank"
+            aria-label="WASM package version on npm"
+            title="Running the latest published @xberg-io/xberg-wasm release"
+            class="hidden items-center gap-1.5 h-9 rounded-[8px] border border-green/40 bg-dark-purple px-3 font-mono text-xs text-green transition-colors hover:border-green sm:inline-flex lg:h-10"
+          >
+            <span class="inline-block size-1.5 rounded-full bg-green"></span>
+            <span id="wasm-version-text">loading…</span>
+          </a>
+
           <a
             href="https://discord.gg/xt9WY3GnKR"
             rel="noopener noreferrer"
@@ -340,36 +373,57 @@
       };
     })();
 
-    // ── Resolve CDN base URL ───────────────────────────────────────────────
-    // WASM_CDN_ORIGIN is the only URL that needs to change between prod and dev.
-    // patch-demo-dev.mjs rewrites it to http://localhost:9000 for local dev —
-    // that substitution covers the version fetch AND the URL passed into the
-    // Worker, so the Worker always loads from the same origin as the main thread.
-    // In production the origin stays @latest; after version is confirmed we pin
-    // to the exact version so the Worker and the version log agree.
-    const WASM_CDN_ORIGIN = "https://cdn.jsdelivr.net/npm/@xberg-io/xberg-wasm@latest";
+    // ── Resolve the latest published WASM release ──────────────────────────
+    // npm keeps prerelease (-rc) versions OFF the `latest` dist-tag, so a bare
+    // `@latest` on the CDN resolves to a stale stub, not the current release.
+    // jsdelivr's data API lists every published version newest-first and is
+    // CORS-enabled, so we take the top entry as "the latest release" and pin
+    // jsdelivr to that exact version — the Worker then loads the identical
+    // release we resolved and display in the header badge.
+    //
+    // WASM_CDN_ORIGIN is the only URL that changes between prod and dev.
+    // patch-demo-dev.mjs rewrites it to http://localhost:PORT for local dev;
+    // in that mode we skip the registry lookup and serve pkg/ from that origin.
+    const WASM_PKG = "@xberg-io/xberg-wasm";
+    const WASM_CDN_ORIGIN = "https://cdn.jsdelivr.net/npm/@xberg-io/xberg-wasm";
     let resolvedVersion = null;
     let wasmCdnBase = null;
+
+    const versionText = document.getElementById("wasm-version-text");
+    const versionBadge = document.getElementById("wasm-version");
+    const setVersion = (text, state) => {
+      if (versionText) versionText.textContent = text;
+      if (versionBadge) versionBadge.dataset.state = state;
+    };
+
     try {
       const t = log.phase("version resolve");
-      const pkg = await fetch(WASM_CDN_ORIGIN + "/package.json")
-        .then((r) => {
-          if (!r.ok) throw new Error(`CDN version fetch failed: ${r.status}`);
-          return r.json();
-        });
+      if (WASM_CDN_ORIGIN.startsWith("http://localhost")) {
+        // Local dev: assets are served from the origin root (pkg/ directly under it).
+        wasmCdnBase = WASM_CDN_ORIGIN;
+        resolvedVersion = await fetch(WASM_CDN_ORIGIN + "/package.json")
+          .then((r) => (r.ok ? r.json() : null))
+          .then((p) => p?.version ?? "dev")
+          .catch(() => "dev");
+      } else {
+        const meta = await fetch("https://data.jsdelivr.com/v1/packages/npm/" + WASM_PKG)
+          .then((r) => {
+            if (!r.ok) throw new Error(`registry fetch failed: ${r.status}`);
+            return r.json();
+          });
+        // jsdelivr returns versions newest-first (semver-sorted).
+        resolvedVersion = meta.versions?.[0]?.version;
+        if (!resolvedVersion || typeof resolvedVersion !== "string")
+          throw new Error("no published version found");
+        // NOTE: string concatenation (not a template literal) is intentional —
+        // the dev patch regex stops at '"' so the prod URL is never misreplaced.
+        wasmCdnBase = "https://cdn.jsdelivr.net/npm/" + WASM_PKG + "@" + resolvedVersion;
+      }
       t.end();
-      resolvedVersion = pkg.version;
-      if (!resolvedVersion || typeof resolvedVersion !== "string")
-        throw new Error("Invalid version in @xberg-io/xberg-wasm package.json");
-      // Dev: keep localhost base as-is. Prod: pin to resolved version so the
-      // Worker loads the exact same release that was verified above.
-      // NOTE: string concatenation (not a template literal) is intentional —
-      // the patch regex stops at '"' so the prod URL is never misreplaced.
-      wasmCdnBase = WASM_CDN_ORIGIN.startsWith("http://localhost")
-        ? WASM_CDN_ORIGIN
-        : "https://cdn.jsdelivr.net/npm/@xberg-io/xberg-wasm@" + resolvedVersion;
-      log.info("CDN version resolved", { version: resolvedVersion, base: wasmCdnBase });
+      setVersion("v" + resolvedVersion, "ready");
+      log.info("WASM release resolved", { version: resolvedVersion, base: wasmCdnBase });
     } catch (e) {
+      setVersion("version unavailable", "error");
       log.error("version resolution failed", e);
     }
 
@@ -520,17 +574,25 @@
             const { fileBytes, fileName, mimeType, cdnBase } = e.data;
             try {
               self.postMessage({ type: 'progress', msg: 'Loading WASM module…' });
-              const mod = await import(cdnBase + '/dist/index.js');
+              // The published web bundle's ESM entry is pkg/web/xberg_wasm.js;
+              // its default export initializes the module from the sibling .wasm.
+              const mod = await import(cdnBase + '/pkg/web/xberg_wasm.js');
               self.postMessage({ type: 'progress', msg: 'Initializing…' });
-              await mod.initWasm(cdnBase + '/dist/pkg/xberg_wasm_bg.wasm');
-              await mod.enableOcr();
+              await mod.default(cdnBase + '/pkg/web/xberg_wasm_bg.wasm');
+              // enableOcr is optional and not present in every release — best-effort.
+              if (typeof mod.enableOcr === 'function') {
+                try { await mod.enableOcr(); } catch (_) { /* OCR stays off */ }
+              }
               self.postMessage({ type: 'progress', msg: 'Extracting content…' });
+              // extraction_timeout_secs is a no-op in WASM (no tokio-runtime) and the
+              // config validator rejects the default non-null value, so pin it to null.
+              // The field is serde snake_case; a camelCase key would be ignored.
               const output = await mod.extract({
                 kind: 'bytes',
                 bytes: new Uint8Array(fileBytes),
                 mimeType: mimeType || undefined,
                 filename: fileName,
-              }, {});
+              }, { extraction_timeout_secs: null });
               const result = output.results?.[0] ?? {};
               // WASM bindgen instances expose data via prototype getters only;
               // structured clone (postMessage) and JSON.stringify both miss them.
