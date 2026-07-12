@@ -5,10 +5,6 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Xberg is the next iteration of [Kreuzberg](https://github.com/kreuzberg-dev/kreuzberg-v4-lts).
-The changelog starts fresh at `1.0.0-rc.1`. For the Kreuzberg v1–v4 history, see the
-[Kreuzberg v4 LTS changelog](https://github.com/kreuzberg-dev/kreuzberg-v4-lts/blob/main/CHANGELOG.md).
-
 ---
 
 ## [Unreleased]
@@ -24,7 +20,7 @@ The changelog starts fresh at `1.0.0-rc.1`. For the Kreuzberg v1–v4 history, s
 
   This closes a gap that had no workaround. Consumer scanners embed an invisible OCR text layer
   whose words are well-formed but wrong (`Tbe` for `The`, `rn` for `m`, `l2,45O.OO` for `12,450.00`).
-  Every quality check kreuzberg applied to a native text layer was lexical, so that text passed and
+  Every quality check xberg applied to a native text layer was lexical, so that text passed and
   OCR never ran; the only escape was `force_ocr`, which degrades clean PDFs. Detection instead asks
   whether the page is a picture of a document — how much of it is raster, whether its text layer is
   hidden or absent, its image codec, and the producer. A born-digital slide with a full-bleed
@@ -189,31 +185,3 @@ The changelog starts fresh at `1.0.0-rc.1`. For the Kreuzberg v1–v4 history, s
   column-type detection.
 - **Table diffs report shape changes.** A table whose row/column shape changed produced an
   information-free empty diff instead of showing the old table removed and the new one added.
-
-## [1.0.0-rc.1] - 2026-06-26
-
-Initial Xberg release candidate. Xberg continues the Kreuzberg document-intelligence
-engine under a new name with a reset v1 version line. This is a full rebrand with no
-back-compat aliases; the published `kreuzberg` packages remain frozen on the v4 LTS line.
-
-### Changed
-
-- **Rebranded Kreuzberg → Xberg.**
-  - **Rust:** crate `kreuzberg` → `xberg` (and every `kreuzberg-*` workspace crate →
-    `xberg-*`); the `kreuzberg::` namespace → `xberg::`; `KreuzbergError` → `XbergError`.
-  - **CLI:** binary `kreuzberg` → `xberg`; config discovery `kreuzberg.{toml,yaml,json}` →
-    `xberg.{toml,yaml,json}`; all `KREUZBERG_*` environment variables → `XBERG_*`; cache
-    directory `.kreuzberg/` → `.xberg/`.
-  - **FFI:** symbol prefix `kreuzberg_*` → `xberg_*`; header `kreuzberg.h` → `xberg.h`; lib
-    `kreuzberg_ffi` → `xberg_ffi`.
-  - **Package coordinates:** PyPI `xberg`, npm `@xberg-io/*`, RubyGems/Hex/pub.dev `xberg`,
-    Maven `io.xberg`, NuGet `Xberg`, Packagist `xberg-io/xberg`, Homebrew `xberg`.
-  - **Go:** module `github.com/xberg-io/xberg` with no `/vN` suffix (v1); the binding lives at
-    `packages/go/`.
-  - **Docs:** documentation now at `docs.xberg.io`.
-- **ner-onnx:** vendored the stripped span-mode GLiNER runtime as `xberg-gliner`, replaced the
-  ORP pipeline wrapper with direct `ort` session management, and moved runtime model downloads
-  to the `xberg-io/gliner-models` artifact repository. The public `ner-onnx` feature and NER
-  config shape are unchanged.
-
-[1.0.0-rc.1]: https://github.com/xberg-io/xberg/releases/tag/v1.0.0-rc.1
