@@ -58,6 +58,18 @@ tasks:
     cmds:
       - cargo run --locked -p benchmark-harness -- compare --fixtures "{{.FIXTURES_DIR}}" --guardrails
 
+  local:
+    desc: "Local head-to-head PDF benchmark: xberg vs liteparse (+docling if installed) with per-document gap report"
+    cmds:
+      - bash tools/benchmark-harness/scripts/bench_local.sh
+
+  local:smoke:
+    desc: "Quick smoke of the local head-to-head (small fixture shard) to validate the pipeline end-to-end"
+    env:
+      SHARD: "1/60"
+    cmds:
+      - bash tools/benchmark-harness/scripts/bench_local.sh
+
   pipeline:quick:
     desc: "Pipeline benchmark — native paths only (P1+P2)"
     cmds:

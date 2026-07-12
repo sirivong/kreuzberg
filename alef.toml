@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.35.0"
+alef_version = "0.36.0"
 # -D warnings (emitted into every generated Rust binding as #![allow(...)]).
 extra_clippy_allows = ["redundant_field_names"]
 languages = [
@@ -641,6 +641,11 @@ default_features = false
 
 [crates.wasm]
 package_name = "@xberg-io/xberg-wasm"
+# Publish only the `web` (ES module) target. Each wasm-pack target embeds a full
+# copy of the ~40MB wasm binary; shipping all four exceeded jsdelivr's 150MB CDN
+# limit and broke the docs live demo. The `web` build serves browsers, CDNs,
+# bundlers, Deno (npm:), and Node 22+.
+targets = ["web"]
 features = ["wasm-target", "url-ingestion"]
 exclude_types = ["OcrFallbackDecision", "OcrProcessor", "OcrCacheStats", "TessdataManager", "PageLayoutResult"]
 exclude_functions = [

@@ -32,9 +32,9 @@ WASM/Android-safe variants:
 
 The `no-ort-target` aggregate is the shared no-ORT base used by both `wasm-target` and `android-target`. `wasm-target = no-ort-target + excel-wasm + tree-sitter-wasm + ocr-wasm`. `android-target = no-ort-target + excel + tree-sitter + ocr + api + mcp`.
 
-## Experimental (NOT in `full`)
+## PDF Backend
 
-- `pdf-oxide` — pure-Rust PDF text extraction; opt-in only, excluded from both `full` and `formats`
+- `pdf` — the canonical PDF feature, backed by the pure-Rust `pdf_oxide` crate. This is the primary/default PDF extraction pipeline; there is no separate `pdf-oxide` feature. Included in `formats`, `full`, `no-ort-target`, and `wasm-target`.
 
 ## ORT Variants (Mutually Exclusive)
 
@@ -52,7 +52,7 @@ The `no-ort-target` aggregate is the shared no-ORT base used by both `wasm-targe
 | Feature          | Description                                                                                        |
 | ---------------- | -------------------------------------------------------------------------------------------------- |
 | `formats`        | All document formats + api/mcp/otel/chunking; no OCR, no ML                                        |
-| `full`           | `formats` + ocr + paddle-ocr + layout + embeddings + tree-sitter + liter-llm; excludes `pdf-oxide` |
+| `full`           | `formats` + ocr + paddle-ocr + layout + embeddings + tree-sitter + liter-llm                        |
 | `no-ort-target`  | Pure-Rust base: every capability that does not depend on ONNX Runtime                              |
 | `wasm-target`    | `no-ort-target` + excel-wasm + tree-sitter-wasm + ocr-wasm                                         |
 | `android-target` | `no-ort-target` + excel + tree-sitter + ocr + api + mcp (for x86_64-linux-android emulator)        |

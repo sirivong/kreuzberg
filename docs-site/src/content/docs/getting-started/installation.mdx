@@ -385,6 +385,16 @@ export default {
 
 **Supported runtimes:** Chrome 74+, Firefox 79+, Safari 14+, Edge 79+, Node.js 22+, Deno 1.35+, Cloudflare Workers.
 
+:::note[Wasm — package layout (`web` target only)]
+`@xberg-io/xberg-wasm` publishes a single wasm-pack **`web`** target — a standard ES module you
+`import` directly in the browser, over a CDN (jsDelivr/unpkg), in Deno via `npm:`, in Cloudflare
+Workers, and in Node.js 22+ (ESM). Dedicated `bundler`, Node-CommonJS, and Deno target builds are
+**not** shipped: each is a full copy of the ~100MB wasm binary, and shipping all four pushed the
+npm package past jsDelivr's 150MB per-package CDN limit (which broke the live demo's CDN load).
+Modern bundlers (Vite, webpack 5, Rollup, esbuild) consume the `web` target directly. Initialize
+with `await initWasm()` (or the default `init()` export) before calling `extract`.
+:::
+
 :::caution[Wasm Platform Limitations]
 The Wasm binding does not support:
 
