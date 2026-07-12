@@ -406,8 +406,15 @@ fn flush_text(text: &mut String, blocks: &mut Vec<MdBlock>, index: &mut usize, b
 }
 
 /// Check if content looks like a math/LaTeX formula.
+///
+/// Deliberately conservative: a long prose paragraph that merely *contains* an inline
+/// superscript (`x^{2}`) or begins with a formatting command (`\textbf{...}`, `\section*{...}`)
+/// is NOT a formula. Misclassifying such prose as `Formula` used to score it 0 against its
+/// plain-text ground-truth twin (Formula↔Paragraph had no compatibility), asymmetrically
+/// penalizing whichever extractor's markup diverged from the GT.
 fn looks_like_formula(content: &str) -> bool {
-    content.contains("\\frac")
+    // Strong LaTeX math commands — reliable formula signals.
+    if content.contains("\\frac")
         || content.contains("\\sum")
         || content.contains("\\int")
         || content.contains("\\begin{")
@@ -417,8 +424,15 @@ fn looks_like_formula(content: &str) -> bool {
         || content.contains("\\sqrt")
         || content.contains("\\mathbb")
         || content.contains("\\mathcal")
-        || (content.starts_with("\\") && content.len() > 2)
-        || (content.contains("^{") && content.contains("}"))
+    {
+        return true;
+    }
+    // Weak signal: a `^{…}` superscript only counts when the block is short and math-dominant,
+    // not an inline superscript embedded in a full sentence of prose.
+    if content.contains("^{") && content.contains('}') {
+        return content.split_whitespace().count() <= 6;
+    }
+    false
 }
 
 /// Compute type compatibility score between an extracted block and a GT block.
@@ -468,6 +482,14 @@ fn type_compat(ext_block: &MdBlock, gt_block: &MdBlock) -> f64 {
         || (ext == MdBlockType::Formula && gt == MdBlockType::CodeBlock)
     {
         return 0.3;
+    }
+
+    // Formula ↔ Paragraph: inline math is easy to misclassify in either direction (one extractor
+    // emits `$x^2$`, the other renders it as prose). Degrade gracefully instead of scoring 0.
+    if (ext == MdBlockType::Formula && gt == MdBlockType::Paragraph)
+        || (ext == MdBlockType::Paragraph && gt == MdBlockType::Formula)
+    {
+        return 0.25;
     }
 
     if (ext == MdBlockType::Table && gt == MdBlockType::Paragraph)
@@ -573,9 +595,13 @@ pub fn score_structural_quality_diagnostic(
     let gt_tokens = tokenize(ground_truth_md);
     let text_f1 = crate::quality::compute_f1(&ext_tokens, &gt_tokens);
 
-    let matched_gt_indices: std::collections::HashSet<usize> = match_results.iter().map(|m| m.gt_idx).collect();
+    let mut matched_gt_indices: std::collections::HashSet<usize> = std::collections::HashSet::new();
     let mut matched_ext_indices: std::collections::HashSet<usize> = std::collections::HashSet::new();
     for m in &match_results {
+        matched_gt_indices.insert(m.gt_idx);
+        if m.is_gt_concat && m.gt_idx + 1 < gt_blocks.len() {
+            matched_gt_indices.insert(m.gt_idx + 1);
+        }
         matched_ext_indices.insert(m.ext_idx);
         if m.is_concat && m.ext_idx + 1 < ext_blocks.len() {
             matched_ext_indices.insert(m.ext_idx + 1);
@@ -654,12 +680,13 @@ fn score_structural_quality_impl(extracted_md: &str, ground_truth_md: &str) -> S
     let text_f1 = crate::quality::compute_f1(&ext_tokens, &gt_tokens);
 
     let ext_used: usize = match_results.iter().map(|m| if m.is_concat { 2 } else { 1 }).sum();
+    let gt_used: usize = match_results.iter().map(|m| if m.is_gt_concat { 2 } else { 1 }).sum();
     tracing::debug!(
         sf1 = format!("{:.3}", structural_f1),
         order = format!("{:.3}", order_score),
         text_f1 = format!("{:.3}", text_f1),
         matched = match_results.len(),
-        unmatched_gt = count_gt.saturating_sub(match_results.len()),
+        unmatched_gt = count_gt.saturating_sub(gt_used),
         unmatched_ext = count_ext.saturating_sub(ext_used),
         "structural quality scored"
     );
@@ -680,7 +707,13 @@ struct BlockMatch {
     content_sim: f64,
     type_compat: f64,
     match_score: f64,
+    /// Two adjacent *extracted* blocks (`ext_idx`, `ext_idx+1`) concatenated to match one GT
+    /// block — i.e. the extractor SPLIT one GT block into two.
     is_concat: bool,
+    /// Two adjacent *GT* blocks (`gt_idx`, `gt_idx+1`) concatenated to match one extracted block
+    /// — i.e. the extractor MERGED two GT blocks into one. Symmetric to [`Self::is_concat`] so a
+    /// merge is not punished harder than a split.
+    is_gt_concat: bool,
 }
 
 /// Match GT blocks against extracted blocks using fuzzy cross-type matching.
@@ -722,7 +755,8 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
     let gt_tokens: Vec<Vec<String>> = gt_blocks.iter().map(|b| tokenize(&b.content)).collect();
     let ext_tokens: Vec<Vec<String>> = ext_blocks.iter().map(|b| tokenize(&b.content)).collect();
 
-    let mut candidates: Vec<(usize, usize, f64, f64, f64, bool)> = Vec::new();
+    // Tuple: (gt_idx, ext_idx, content_sim, type_compat, score, is_ext_concat, is_gt_concat).
+    let mut candidates: Vec<(usize, usize, f64, f64, f64, bool, bool)> = Vec::new();
 
     for (gi, gt_tok) in gt_tokens.iter().enumerate() {
         for (ei, ext_tok) in ext_tokens.iter().enumerate() {
@@ -744,20 +778,29 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
                 0.10
             };
             if score >= min_threshold {
-                candidates.push((gi, ei, content_sim, compat, score, false));
+                candidates.push((gi, ei, content_sim, compat, score, false, false));
             }
 
+            // Ext-concat: extractor SPLIT one GT block across two extracted blocks.
             if ei + 1 < ext_tokens.len() {
-                let concat_compat = type_compat(&ext_blocks[ei], &gt_blocks[gi]);
-                if concat_compat <= 0.0 {
-                    continue;
-                }
                 let mut concat_tokens = ext_tok.clone();
                 concat_tokens.extend(ext_tokens[ei + 1].iter().cloned());
                 let concat_sim = crate::quality::compute_f1(&concat_tokens, gt_tok);
-                let concat_score = concat_sim * concat_compat;
+                let concat_score = concat_sim * compat;
                 if concat_score > score && concat_score >= min_threshold {
-                    candidates.push((gi, ei, concat_sim, concat_compat, concat_score, true));
+                    candidates.push((gi, ei, concat_sim, compat, concat_score, true, false));
+                }
+            }
+
+            // Gt-concat: extractor MERGED two GT blocks into one extracted block. Symmetric to
+            // the ext-concat branch above so a merge is scored the same as the equivalent split.
+            if gi + 1 < gt_tokens.len() {
+                let mut concat_gt = gt_tok.clone();
+                concat_gt.extend(gt_tokens[gi + 1].iter().cloned());
+                let gt_concat_sim = crate::quality::compute_f1(ext_tok, &concat_gt);
+                let gt_concat_score = gt_concat_sim * compat;
+                if gt_concat_score > score && gt_concat_score >= min_threshold {
+                    candidates.push((gi, ei, gt_concat_sim, compat, gt_concat_score, false, true));
                 }
             }
         }
@@ -770,7 +813,7 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
     let mut results: Vec<BlockMatch> = Vec::new();
     let mut order_pairs: Vec<(usize, usize)> = Vec::new();
 
-    for &(gi, ei, content_sim, compat, score, is_concat) in &candidates {
+    for &(gi, ei, content_sim, compat, score, is_concat, is_gt_concat) in &candidates {
         if matched_gt[gi] || matched_ext[ei] {
             if score > 0.5 {
                 tracing::trace!(
@@ -785,11 +828,17 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
         if is_concat && ei + 1 < count_ext && matched_ext[ei + 1] {
             continue;
         }
+        if is_gt_concat && gi + 1 < count_gt && matched_gt[gi + 1] {
+            continue;
+        }
 
         matched_gt[gi] = true;
         matched_ext[ei] = true;
         if is_concat && ei + 1 < count_ext {
             matched_ext[ei + 1] = true;
+        }
+        if is_gt_concat && gi + 1 < count_gt {
+            matched_gt[gi + 1] = true;
         }
 
         tracing::trace!(
@@ -813,6 +862,7 @@ fn match_blocks_global(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<Bl
             type_compat: compat,
             match_score: score,
             is_concat,
+            is_gt_concat,
         });
         order_pairs.push((gt_blocks[gi].index, ext_blocks[ei].index));
     }
@@ -873,7 +923,7 @@ fn match_blocks_windowed(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<
 
     let ratio = count_ext as f64 / count_gt as f64;
 
-    let mut candidates: Vec<(usize, usize, f64, f64, f64, bool)> = Vec::new();
+    let mut candidates: Vec<(usize, usize, f64, f64, f64, bool, bool)> = Vec::new();
 
     for gi in 0..count_gt {
         let center = (gi as f64 * ratio) as usize;
@@ -899,20 +949,28 @@ fn match_blocks_windowed(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<
                 0.10
             };
             if score >= min_threshold {
-                candidates.push((gi, ei, content_sim, compat, score, false));
+                candidates.push((gi, ei, content_sim, compat, score, false, false));
             }
 
+            // Ext-concat: extractor SPLIT one GT block across two extracted blocks.
             if ei + 1 < count_ext && ei + 1 < end + 1 {
-                let concat_compat = type_compat(&ext_blocks[ei], &gt_blocks[gi]);
-                if concat_compat <= 0.0 {
-                    continue;
-                }
                 let mut concat_tokens = ext_tokens[ei].clone();
                 concat_tokens.extend(ext_tokens[ei + 1].iter().cloned());
                 let concat_sim = crate::quality::compute_f1(&concat_tokens, &gt_tokens[gi]);
-                let concat_score = concat_sim * concat_compat;
+                let concat_score = concat_sim * compat;
                 if concat_score > score && concat_score >= min_threshold {
-                    candidates.push((gi, ei, concat_sim, concat_compat, concat_score, true));
+                    candidates.push((gi, ei, concat_sim, compat, concat_score, true, false));
+                }
+            }
+
+            // Gt-concat: extractor MERGED two GT blocks into one — symmetric to ext-concat.
+            if gi + 1 < count_gt {
+                let mut concat_gt = gt_tokens[gi].clone();
+                concat_gt.extend(gt_tokens[gi + 1].iter().cloned());
+                let gt_concat_sim = crate::quality::compute_f1(&ext_tokens[ei], &concat_gt);
+                let gt_concat_score = gt_concat_sim * compat;
+                if gt_concat_score > score && gt_concat_score >= min_threshold {
+                    candidates.push((gi, ei, gt_concat_sim, compat, gt_concat_score, false, true));
                 }
             }
         }
@@ -925,11 +983,14 @@ fn match_blocks_windowed(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<
     let mut results: Vec<BlockMatch> = Vec::new();
     let mut order_pairs: Vec<(usize, usize)> = Vec::new();
 
-    for &(gi, ei, content_sim, compat, score, is_concat) in &candidates {
+    for &(gi, ei, content_sim, compat, score, is_concat, is_gt_concat) in &candidates {
         if matched_gt[gi] || matched_ext[ei] {
             continue;
         }
         if is_concat && ei + 1 < count_ext && matched_ext[ei + 1] {
+            continue;
+        }
+        if is_gt_concat && gi + 1 < count_gt && matched_gt[gi + 1] {
             continue;
         }
 
@@ -937,6 +998,9 @@ fn match_blocks_windowed(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<
         matched_ext[ei] = true;
         if is_concat && ei + 1 < count_ext {
             matched_ext[ei + 1] = true;
+        }
+        if is_gt_concat && gi + 1 < count_gt {
+            matched_gt[gi + 1] = true;
         }
 
         results.push(BlockMatch {
@@ -946,6 +1010,7 @@ fn match_blocks_windowed(gt_blocks: &[MdBlock], ext_blocks: &[MdBlock]) -> (Vec<
             type_compat: compat,
             match_score: score,
             is_concat,
+            is_gt_concat,
         });
         order_pairs.push((gt_blocks[gi].index, ext_blocks[ei].index));
     }
@@ -976,7 +1041,15 @@ fn compute_weighted_sf1_from_matches(gt_blocks: &[MdBlock], ext_blocks: &[MdBloc
     let total_gt_weight: f64 = gt_blocks.iter().map(|b| b.block_type.weight()).sum();
     let matched_gt_weight: f64 = matches
         .iter()
-        .map(|m| gt_blocks[m.gt_idx].block_type.weight() * m.match_score)
+        .map(|m| {
+            let mut w = gt_blocks[m.gt_idx].block_type.weight() * m.match_score;
+            // A gt-concat match consumes gt_idx AND gt_idx+1; credit both against recall,
+            // else the merged second block sits only in the denominator (under-credit).
+            if m.is_gt_concat && m.gt_idx + 1 < gt_blocks.len() {
+                w += gt_blocks[m.gt_idx + 1].block_type.weight() * m.match_score;
+            }
+            w
+        })
         .sum();
     let recall = if total_gt_weight > 0.0 {
         matched_gt_weight / total_gt_weight
@@ -987,7 +1060,14 @@ fn compute_weighted_sf1_from_matches(gt_blocks: &[MdBlock], ext_blocks: &[MdBloc
     let total_ext_weight: f64 = ext_blocks.iter().map(|b| b.block_type.weight()).sum();
     let matched_ext_weight: f64 = matches
         .iter()
-        .map(|m| ext_blocks[m.ext_idx].block_type.weight() * m.match_score)
+        .map(|m| {
+            let mut w = ext_blocks[m.ext_idx].block_type.weight() * m.match_score;
+            // An ext-concat match consumes ext_idx AND ext_idx+1; credit both against precision.
+            if m.is_concat && m.ext_idx + 1 < ext_blocks.len() {
+                w += ext_blocks[m.ext_idx + 1].block_type.weight() * m.match_score;
+            }
+            w
+        })
         .sum();
     let precision = if total_ext_weight > 0.0 {
         matched_ext_weight / total_ext_weight
@@ -1654,5 +1734,64 @@ mod tests {
             "image-to-image should match perfectly: sf1={}",
             result.structural_f1
         );
+    }
+
+    // --- Bug 1: looks_like_formula must not misclassify prose as Formula ---
+
+    #[test]
+    fn test_prose_with_inline_superscript_is_not_formula() {
+        // A full prose sentence that merely contains one inline `x^{2}` is NOT a formula.
+        assert!(!looks_like_formula("The gradient of x^{2} appears in the derivation of the loss term"));
+        // A short, math-dominant superscript block still IS a formula.
+        assert!(looks_like_formula("x^{2}"));
+        // Formatting commands beginning with a backslash are NOT formulas (dropped rule).
+        assert!(!looks_like_formula("\\textbf{Introduction}"));
+        assert!(!looks_like_formula("\\section*{Methods}"));
+        // Strong LaTeX math commands remain formulas.
+        assert!(looks_like_formula("\\frac{a}{b}"));
+    }
+
+    #[test]
+    fn test_prose_vs_inline_math_twin_scores_high() {
+        // Identical prose, one side rendering an inline superscript as markup. Must NOT collapse
+        // to ~0 (previously the markup side became Formula, compat 0.0 against the prose GT).
+        let gt = "The gradient of x squared appears in the derivation of the loss term here.\n";
+        let extracted = "The gradient of x^{2} appears in the derivation of the loss term here.\n";
+        let sf1 = score_structural_quality(extracted, gt).structural_f1;
+        // Both sides are Paragraph now (not Formula), so SF1 reflects the near-identical text
+        // (~0.89 for the one differing token "squared" vs "2"), NOT the ~0.0 of the old
+        // Formula↔Paragraph misclassification.
+        assert!(sf1 >= 0.8, "prose vs inline-math twin should score high, got sf1={sf1}");
+    }
+
+    #[test]
+    fn test_formula_paragraph_compat_is_nonzero() {
+        // Even when one side genuinely classifies as Formula, Formula↔Paragraph degrades
+        // gracefully (0.25) instead of scoring 0.
+        let formula = MdBlock { block_type: MdBlockType::Formula, content: "x^{2}".into(), index: 0 };
+        let para = MdBlock { block_type: MdBlockType::Paragraph, content: "x squared".into(), index: 0 };
+        assert_eq!(type_compat(&formula, &para), 0.25);
+        assert_eq!(type_compat(&para, &formula), 0.25);
+    }
+
+    // --- Bug 2: a merge must not be punished harder than the equivalent split ---
+
+    #[test]
+    fn test_split_and_merge_are_symmetric() {
+        // One GT paragraph the extractor SPLIT into two.
+        let one = "Alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu.\n";
+        let two = "Alpha beta gamma delta epsilon zeta.\n\nEta theta iota kappa lambda mu.\n";
+
+        // SPLIT: extracted has two blocks, GT has one.
+        let split_sf1 = score_structural_quality(two, one).structural_f1;
+        // MERGE: extracted has one block, GT has two — the mirror image.
+        let merge_sf1 = score_structural_quality(one, two).structural_f1;
+
+        assert!(
+            (split_sf1 - merge_sf1).abs() < 0.02,
+            "split and merge of the same boundary error must score equally: split={split_sf1} merge={merge_sf1}"
+        );
+        // And both should retain substantial credit (not the old ~0.44 merge penalty).
+        assert!(merge_sf1 >= 0.6, "merge should keep substantial credit, got {merge_sf1}");
     }
 }
