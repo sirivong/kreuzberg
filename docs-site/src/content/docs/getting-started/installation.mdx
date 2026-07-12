@@ -70,6 +70,10 @@ The bundled ONNX Runtime binaries require **AVX/AVX2** CPU instructions. CPUs wi
 Go, Elixir, and C/C++ bindings on Windows link against ONNX Runtime dynamically. You must have `onnxruntime.dll` on your `PATH` at runtime. Download it from the [ONNX Runtime releases](https://github.com/microsoft/onnxruntime/releases) (for example `onnxruntime-win-x64-1.24.1.zip`). Python, TypeScript, Java, C#, Ruby, PHP, and Wasm are unaffected.
 :::
 
+:::caution[Intel Macs (x86_64) — prebuilt binaries are limited]
+Apple Silicon (arm64) macOS is fully supported across every package. On **Intel Macs (x86_64)**, prebuilt binaries ship only for the **CLI** (install script, Homebrew, and the release tarball) and the **Python** wheel. The TypeScript/Node, Go, Java, Kotlin, C#, Dart, C/C++, Ruby, PHP, and Elixir packages ship macOS prebuilts for **Apple Silicon only** — on an Intel Mac they fall back to building the native library from source (a Rust toolchain is required). Intel-macOS is a legacy target: GitHub retires its last x86_64 macOS CI runner in 2027 and the bundled ONNX Runtime has no Intel-macOS build, so Intel support is best-effort and will be removed. Prefer Apple Silicon where you can.
+:::
+
 ## Choose your language
 
 <div class="grid cards install-cards" markdown>

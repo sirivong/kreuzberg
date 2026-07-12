@@ -825,7 +825,6 @@ jobs:
           - { os: ubuntu-latest, label: linux-x86_64 }
           - { os: ubuntu-24.04-arm, label: linux-aarch64 }
           - { os: macos-15, label: macos-arm64 }
-          - { os: macos-15-intel, label: macos-x86_64 }
     steps:
       - uses: actions/checkout@v6
         with:
@@ -888,7 +887,6 @@ jobs:
           - { os: ubuntu-latest, label: linux-x86_64, target: x86_64-unknown-linux-gnu }
           - { os: ubuntu-24.04-arm, label: linux-arm64, target: aarch64-unknown-linux-gnu }
           - { os: macos-15, label: macos-arm64, target: aarch64-apple-darwin }
-          - { os: macos-15-intel, label: macos-x86_64, target: x86_64-apple-darwin }
           - { os: windows-latest, label: windows-x86_64, target: x86_64-pc-windows-msvc }
     steps:
       - uses: actions/checkout@v6
@@ -1107,7 +1105,6 @@ jobs:
           - { os: ubuntu-latest, platform: linux-x86_64, target: x86_64-unknown-linux-gnu }
           - { os: ubuntu-24.04-arm, platform: linux-aarch64, target: aarch64-unknown-linux-gnu }
           - { os: macos-15, platform: macos-arm64, target: aarch64-apple-darwin }
-          - { os: macos-15-intel, platform: macos-x86_64, target: x86_64-apple-darwin }
           - { os: windows-latest, platform: windows-x86_64, target: x86_64-pc-windows-msvc }
     steps:
       - uses: actions/checkout@v6
@@ -1160,7 +1157,6 @@ jobs:
           - { os: ubuntu-latest, platform: linux-x86_64, target: x86_64-unknown-linux-gnu }
           - { os: ubuntu-24.04-arm, platform: linux-aarch64, target: aarch64-unknown-linux-gnu }
           - { os: macos-15, platform: macos-arm64, target: aarch64-apple-darwin }
-          - { os: macos-15-intel, platform: macos-x86_64, target: x86_64-apple-darwin }
           - { os: windows-latest, platform: windows-x86_64, target: x86_64-pc-windows-msvc }
     steps:
       - uses: actions/checkout@v6
@@ -1227,7 +1223,6 @@ jobs:
           - { os: ubuntu-latest, classifier: linux-x86_64, target: x86_64-unknown-linux-gnu }
           - { os: ubuntu-24.04-arm, classifier: linux-aarch64, target: aarch64-unknown-linux-gnu }
           - { os: macos-15, classifier: macos-arm64, target: aarch64-apple-darwin }
-          - { os: macos-15-intel, classifier: macos-x86_64, target: x86_64-apple-darwin }
           - { os: windows-latest, classifier: windows-x86_64, target: x86_64-pc-windows-msvc }
     steps:
       - uses: actions/checkout@v6
@@ -1350,7 +1345,6 @@ jobs:
           - { os: ubuntu-latest, rid: linux-x64, target: x86_64-unknown-linux-gnu }
           - { os: ubuntu-24.04-arm, rid: linux-arm64, target: aarch64-unknown-linux-gnu }
           - { os: macos-15, rid: osx-arm64, target: aarch64-apple-darwin }
-          - { os: macos-15-intel, rid: osx-x64, target: x86_64-apple-darwin }
           - { os: windows-latest, rid: win-x64, target: x86_64-pc-windows-msvc }
     steps:
       - uses: actions/checkout@v6
@@ -1441,7 +1435,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, macos-15, macos-15-intel, windows-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-15, windows-latest]
         nif: ["2.16"]
         include:
           - os: ubuntu-latest
@@ -1450,9 +1444,6 @@ jobs:
           - os: ubuntu-24.04-arm
             label: linux-aarch64
             target: aarch64-unknown-linux-gnu
-          - os: macos-15-intel
-            label: macos-x86_64
-            target: x86_64-apple-darwin
           - os: macos-15
             label: macos-arm64
             target: aarch64-apple-darwin
@@ -1599,12 +1590,6 @@ jobs:
               # nativeAssetBlob() (and the linux-aarch64 asset); the cache RID stays
               # macos-arm64. A macos-arm64 asset name here 404s on Apple Silicon.
               blob: macos-aarch64,
-              lib: libxberg_dart.dylib,
-            }
-          - {
-              os: macos-15-intel,
-              target: x86_64-apple-darwin,
-              blob: macos-x86_64,
               lib: libxberg_dart.dylib,
             }
           - {
@@ -2464,7 +2449,7 @@ jobs:
         with:
           resources-dir: packages/java/src/main/resources/natives
           required-classifiers: >-
-            linux-x86_64 linux-aarch64 macos-arm64 macos-x86_64 windows-x86_64
+            linux-x86_64 linux-aarch64 macos-arm64 windows-x86_64
             linux-musl-x86_64 linux-musl-aarch64
           lib-name: xberg_ffi
 
@@ -2650,7 +2635,7 @@ jobs:
           # so a single 2.16 artifact covers every supported runtime. Requesting 2.17
           # here made the checksum step hunt for assets that were never built.
           nif-versions: "2.16"
-          targets: x86_64-unknown-linux-gnu,aarch64-unknown-linux-gnu,x86_64-unknown-linux-musl,aarch64-unknown-linux-musl,aarch64-apple-darwin,x86_64-apple-darwin,x86_64-pc-windows-msvc
+          targets: x86_64-unknown-linux-gnu,aarch64-unknown-linux-gnu,x86_64-unknown-linux-musl,aarch64-unknown-linux-musl,aarch64-apple-darwin,x86_64-pc-windows-msvc
           output-path: packages/elixir/checksum-Elixir.Xberg.Native.exs
 
       - name: Build Elixir Hex tarball with dependency rewrite
@@ -2723,7 +2708,6 @@ jobs:
             ["linux-x86_64"]="linux-x64"
             ["linux-aarch64"]="linux-arm64"
             ["macos-arm64"]="osx-arm64"
-            ["macos-x86_64"]="osx-x64"
             ["windows-x86_64"]="win-x64"
           )
           out="ffi-artifacts"
