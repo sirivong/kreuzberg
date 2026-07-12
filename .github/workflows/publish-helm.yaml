@@ -1,0 +1,86 @@
+name: Publish Helm Chart
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build (e.g., v1.0.0-rc.24)"
+        required: true
+        type: string
+      dry_run:
+        description: "Prepare artifacts without publishing"
+        required: false
+        type: boolean
+        default: false
+  release:
+    types: [published]
+  repository_dispatch:
+    types: [publish-helm]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.tag) || github.ref || github.run_id }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish-helm:
+    name: Publish Helm chart to GHCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Resolve version
+        id: meta
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ inputs.tag }}"
+          elif [[ "${{ github.event_name }}" == "release" ]]; then
+            TAG="${{ github.event.release.tag_name }}"
+          elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            TAG="${{ github.event.client_payload.tag }}"
+          fi
+
+          VERSION="${TAG#v}"
+          DRY_RUN="${{ inputs.dry_run || 'false' }}"
+
+          {
+            echo "tag=${TAG}"
+            echo "version=${VERSION}"
+            echo "dry_run=${DRY_RUN}"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Helm Publish Metadata"
+            echo "- **Tag**: \`${TAG}\`"
+            echo "- **Version**: \`${VERSION}\`"
+            echo "- **Dry Run**: \`${DRY_RUN}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v5
+
+      - name: Install kubeconform
+        run: |
+          curl -fsSL https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz \
+            | sudo tar -xz -C /usr/local/bin kubeconform
+
+      - name: Lint chart
+        run: |
+          helm lint --strict charts/xberg/
+          helm template charts/xberg/ | kubeconform -strict -summary -
+
+      - name: Publish chart
+        uses: xberg-io/actions/publish-helm-chart@v1
+        with:
+          chart-path: charts/xberg
+          version: ${{ steps.meta.outputs.version }}
+          registry: oci://ghcr.io/xberg-io/charts
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          dry-run: ${{ steps.meta.outputs.dry_run }}

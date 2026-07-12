@@ -136,6 +136,7 @@ export default defineConfig({
                 label: "Deployment",
                 items: [
                   { label: "Docker", slug: "guides/docker" },
+                  { label: "Kubernetes", slug: "guides/kubernetes" },
                   { label: "API Server", slug: "guides/api-server" },
                   { label: "MCP Integration", slug: "guides/mcp-integration" },
                   { label: "AI Coding Assistants", slug: "guides/ai-coding-assistants" },
