@@ -1,10 +1,15 @@
 name: Publish Helm Chart
 
+# Automatic release publishing is driven by publish-docker.yaml, which calls
+# this workflow (workflow_call) only after the container image manifests are
+# pushed — the chart references ghcr.io/xberg-io/xberg:<version>, so publishing
+# the chart before the image exists would be a race. This workflow keeps its own
+# dispatch triggers for manual / hotfix chart publishes.
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      tag:
-        description: "Release tag to build (e.g., v1.0.0-rc.24)"
+      version:
+        description: "Chart version to publish (no 'v' prefix), e.g. 1.0.0-rc.25"
         required: true
         type: string
       dry_run:
@@ -12,13 +17,24 @@ on:
         required: false
         type: boolean
         default: false
-  release:
-    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to build (e.g., v1.0.0-rc.25)"
+        required: true
+        type: string
+      dry_run:
+        description: "Prepare artifacts without publishing"
+        required: false
+        type: boolean
+        default: false
   repository_dispatch:
     types: [publish-helm]
 
+# Distinct prefix (not github.workflow) so a workflow_call from publish-docker
+# does not share a concurrency group with the caller and deadlock.
 concurrency:
-  group: ${{ github.workflow }}-${{ (github.event_name == 'workflow_dispatch' && github.event.inputs.tag) || github.ref || github.run_id }}
+  group: publish-helm-${{ inputs.version || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag) || github.ref || github.run_id }}
   cancel-in-progress: false
 
 permissions:
@@ -40,15 +56,19 @@ jobs:
       - name: Resolve version
         id: meta
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          if [[ -n "${{ inputs.version }}" ]]; then
+            # Called via workflow_call (from publish-docker) with an explicit
+            # version; github.event_name would reflect the caller's event.
+            VERSION="${{ inputs.version }}"
+            TAG="v${VERSION}"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             TAG="${{ inputs.tag }}"
-          elif [[ "${{ github.event_name }}" == "release" ]]; then
-            TAG="${{ github.event.release.tag_name }}"
+            VERSION="${TAG#v}"
           elif [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
             TAG="${{ github.event.client_payload.tag }}"
+            VERSION="${TAG#v}"
           fi
 
-          VERSION="${TAG#v}"
           DRY_RUN="${{ inputs.dry_run || 'false' }}"
 
           {
