@@ -25,12 +25,12 @@ WASM/Android-safe variants:
 
 - `ocr` (native) → `ocr-wasm` (uses `tesseract-wasm` + safe image deps) — Android keeps native `ocr`
 - `excel` (native) → `excel-wasm` (drops `tokio-runtime`) — Android keeps native `excel`
-- `tree-sitter` (native dlopen) → `tree-sitter-wasm` (statically-linked grammar pack) — Android keeps native `tree-sitter`
+- `tree-sitter` (native dlopen) → `tree-sitter-wasm` (statically-linked grammar pack). NOT in `wasm-target`: the 306-language grammar pack pushes the browser `.wasm` past jsDelivr's 50 MB per-file cap, breaking the CDN-hosted demo. WASM has no code intelligence; Android keeps native `tree-sitter`.
 - `liter-llm` — works on WASM via the upstream `wasm-http` feature; included in `no-ort-target`
 - `stopwords` — pure-Rust, included in `no-ort-target`
 - `keywords` — pure-Rust YAKE/RAKE, included in `no-ort-target`
 
-The `no-ort-target` aggregate is the shared no-ORT base used by both `wasm-target` and `android-target`. `wasm-target = no-ort-target + excel-wasm + tree-sitter-wasm + ocr-wasm`. `android-target = no-ort-target + excel + tree-sitter + ocr + api + mcp`.
+The `no-ort-target` aggregate is the shared no-ORT base used by both `wasm-target` and `android-target`. `wasm-target = no-ort-target + excel-wasm + ocr-wasm` (NO tree-sitter — see above). `android-target = no-ort-target + excel + tree-sitter + ocr + api + mcp`.
 
 ## PDF Backend
 
@@ -54,7 +54,7 @@ The `no-ort-target` aggregate is the shared no-ORT base used by both `wasm-targe
 | `formats`        | All document formats + api/mcp/otel/chunking; no OCR, no ML                                        |
 | `full`           | `formats` + ocr + paddle-ocr + layout + embeddings + tree-sitter + liter-llm                        |
 | `no-ort-target`  | Pure-Rust base: every capability that does not depend on ONNX Runtime                              |
-| `wasm-target`    | `no-ort-target` + excel-wasm + tree-sitter-wasm + ocr-wasm                                         |
+| `wasm-target`    | `no-ort-target` + excel-wasm + ocr-wasm (no tree-sitter — grammar pack exceeds CDN 50 MB cap)      |
 | `android-target` | `no-ort-target` + excel + tree-sitter + ocr + api + mcp (for x86_64-linux-android emulator)        |
 
 ## Build Profiles

@@ -12,7 +12,10 @@ WASM target in `crates/xberg-wasm/`. Uses wasm-bindgen with sync-only internal A
 
 ```toml
 [features]
-wasm-target = ["pdf", "html", "xml", "email", "language-detection", "chunking", "quality", "office"]
+# Aggregate: pure-Rust no-ORT base + excel + OCR. Deliberately NO tree-sitter —
+# the 306-language grammar pack pushes the browser .wasm past jsDelivr's 50 MB
+# per-file cap, so code intelligence is unavailable in WASM.
+wasm-target = ["no-ort-target", "excel-wasm", "ocr-wasm"]
 wasm-threads = ["dep:wasm-bindgen-rayon"]  # Optional
 ```
 
