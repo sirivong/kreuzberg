@@ -12,7 +12,7 @@ use super::classify::{
     classify_paragraphs, demote_heading_runs, demote_unnumbered_subsections, mark_arxiv_noise,
     mark_cross_page_repeating_short_text, mark_cross_page_repeating_text, refine_heading_hierarchy,
 };
-use super::constants::{FULL_LINE_FRACTION, MIN_HEADING_FONT_GAP, MIN_HEADING_FONT_RATIO};
+use super::constants::{FULL_LINE_FRACTION, MIN_BLOCKS_FOR_FONT_HEADING, MIN_HEADING_FONT_GAP, MIN_HEADING_FONT_RATIO};
 use super::lines::is_cjk_char;
 use super::paragraphs::{merge_continuation_paragraphs, split_embedded_list_items};
 use super::text_repair::{
@@ -92,10 +92,23 @@ fn build_heading_map(
         }
     }
 
+    let paragraph_count = all_blocks.len();
     let heading_map = if all_blocks.is_empty() {
         Vec::new()
+    } else if paragraph_count < MIN_BLOCKS_FOR_FONT_HEADING {
+        // Sparsity gate: too few text blocks to establish a reliable body-font
+        // baseline. Return a body-only map (every cluster centroid mapped to
+        // `None`) and skip both k-means heading promotion and the fallback
+        // title promotion, so a lone larger line on a cover/title/one-line
+        // document is not over-promoted to a heading.
+        tracing::debug!(
+            paragraph_count,
+            min_blocks = MIN_BLOCKS_FOR_FONT_HEADING,
+            "heading map: document too sparse for font-size heading inference; suppressing promotion"
+        );
+        let clusters = cluster_font_sizes(&all_blocks, 1)?;
+        clusters.iter().map(|c| (c.centroid, None)).collect()
     } else {
-        let paragraph_count = all_blocks.len();
         let effective_k = if paragraph_count < 20 {
             k_clusters.min(2usize.max(paragraph_count / 4))
         } else {
@@ -182,6 +195,95 @@ fn build_heading_map_from_assigned_roles(all_page_segments: &[Vec<SegmentData>])
     heading_map.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
     heading_map
+}
+
+/// Font-size tolerance (points) for merging consecutive raw segments into one
+/// logical block in [`count_logical_blocks`]. Matches the font-change
+/// threshold `blocks_to_paragraphs` uses to decide paragraph breaks, so a
+/// single logical line that a font extractor split into several same-size
+/// runs (ligature repair, kerning artifacts, mid-word splits) is not
+/// double-counted as multiple blocks.
+const LOGICAL_BLOCK_FONT_TOLERANCE: f32 = 1.5;
+
+/// Count logical text blocks by merging consecutive same-role, same-size
+/// segments, rather than counting raw segments.
+///
+/// Raw segment extraction can split one visual line into several runs (a
+/// mid-word split from a font-encoding quirk, a bold/italic switch inside a
+/// single sentence) that all carry the same `assigned_role`. Counting those
+/// raw segments as separate "blocks" over-counts a document's real size and
+/// can push a genuinely tiny document (see `hello_structure.pdf`,
+/// `issue-987-test.pdf`) above the sparsity floor it should fall under.
+/// Consecutive segments on the same page with the same `assigned_role` and a
+/// font size within [`LOGICAL_BLOCK_FONT_TOLERANCE`] points collapse into a
+/// single block, matching the granularity `total_paragraphs` eventually
+/// reports after paragraph assembly.
+fn count_logical_blocks(all_page_segments: &[Vec<SegmentData>]) -> usize {
+    let mut total = 0usize;
+    for page_segs in all_page_segments {
+        let mut prev: Option<&SegmentData> = None;
+        for seg in page_segs {
+            if seg.text.trim().is_empty() {
+                continue;
+            }
+            let continues_prev = prev.is_some_and(|p| {
+                p.assigned_role == seg.assigned_role
+                    && (p.font_size - seg.font_size).abs() <= LOGICAL_BLOCK_FONT_TOLERANCE
+            });
+            if !continues_prev {
+                total += 1;
+            }
+            prev = Some(seg);
+        }
+    }
+    total
+}
+
+/// Suppress structure-tree heading roles on documents too sparse to trust them.
+///
+/// A tagged PDF's structure tree is normally a reliable ground truth for
+/// heading levels, but on a document with only a handful of text blocks (a
+/// one-line note, a cover slide, a two-paragraph test fixture) the same
+/// per-block noise that makes font-size clustering unreliable on small
+/// samples (see [`MIN_BLOCKS_FOR_FONT_HEADING`] on the heuristic path) also
+/// undermines the structure tree: a single mis-tagged or inconsistently
+/// authored run is enough to make an entire tiny document look like it is
+/// "mostly headings" even when nothing in it is a genuine section heading.
+/// Below the same block floor, heading roles are suppressed regardless of
+/// whether a body tier is present, matching the heuristic path's rule that
+/// a reliable body-font baseline (or, here, a reliable heading/body
+/// contrast) needs more than a couple of paragraphs to establish.
+///
+/// When the condition holds, every segment's `assigned_role` is cleared so
+/// paragraph classification (which reads `assigned_role` directly,
+/// bypassing the heading map) also treats the document as plain text, and
+/// `heading_map` is rewritten to a single body-only entry.
+///
+/// Returns `true` when suppression fired.
+fn suppress_all_heading_roles_when_sparse_and_untrusted(
+    heading_map: &mut Vec<(f32, Option<u8>)>,
+    all_page_segments: &mut [Vec<SegmentData>],
+) -> bool {
+    let total_blocks = count_logical_blocks(all_page_segments);
+    let has_any_heading = heading_map.iter().any(|(_, level)| level.is_some());
+
+    if total_blocks == 0 || total_blocks >= MIN_BLOCKS_FOR_FONT_HEADING || !has_any_heading {
+        return false;
+    }
+
+    tracing::debug!(
+        total_blocks,
+        min_blocks = MIN_BLOCKS_FOR_FONT_HEADING,
+        "structure tree: document too sparse to trust tagged heading roles; suppressing all heading roles"
+    );
+
+    for page_segs in all_page_segments.iter_mut() {
+        for seg in page_segs.iter_mut() {
+            seg.assigned_role = None;
+        }
+    }
+    heading_map.clear();
+    true
 }
 
 /// Promote an untagged document-title font tier above structure-tree headings.
@@ -652,8 +754,27 @@ fn finalize_paragraph(
         heading_level = None;
     }
 
+    let body_font_size = heading_map
+        .iter()
+        .find(|(_, level)| level.is_none())
+        .map(|(centroid, _)| *centroid)
+        .unwrap_or(0.0);
+
+    // A bold, short, single-line paragraph is only a heading candidate when
+    // its font is also meaningfully larger than the document's body font
+    // (the same ratio/gap the font-size clustering path already requires via
+    // `assign_heading_levels_smart`). Without this check, any bold one-word
+    // line — including body-sized emphasis, or a stray oversized glyph from
+    // a font-metric artifact — gets promoted regardless of scale, which is
+    // exactly the pattern that over-promoted "Big"/"Text" in a 3-paragraph
+    // document with no real headings.
+    let clears_bold_font_gate = body_font_size > 0.0
+        && first.font_size >= body_font_size * super::constants::MIN_HEADING_FONT_RATIO
+        && first.font_size >= body_font_size + super::constants::MIN_HEADING_FONT_GAP;
+
     if heading_level.is_none()
         && is_bold
+        && clears_bold_font_gate
         && (1..=8).contains(&word_count)
         && lines.len() == 1
         && !trimmed.ends_with('.')
@@ -674,11 +795,6 @@ fn finalize_paragraph(
     }
 
     if heading_level.is_none() {
-        let body_font_size = heading_map
-            .iter()
-            .find(|(_, level)| level.is_none())
-            .map(|(centroid, _)| *centroid)
-            .unwrap_or(0.0);
         let min_heading_threshold = body_font_size * super::constants::MIN_HEADING_FONT_RATIO;
         if body_font_size > 0.0
             && first.font_size >= min_heading_threshold
@@ -973,7 +1089,9 @@ pub(crate) fn extract_document_structure_from_segments(
 
     let (heading_map, doc_body_font_size) = if used_structure_tree {
         let mut heading_map = build_heading_map_from_assigned_roles(&all_page_segments);
-        if promote_untagged_document_title(&mut heading_map, &all_page_segments) {
+        if !suppress_all_heading_roles_when_sparse_and_untrusted(&mut heading_map, &mut all_page_segments)
+            && promote_untagged_document_title(&mut heading_map, &all_page_segments)
+        {
             demote_assigned_roles(&mut all_page_segments);
         }
         let doc_body_font_size: Option<f32> = heading_map
@@ -2129,6 +2247,126 @@ mod tests {
         assert!(!promote_untagged_document_title(&mut map, &pages));
     }
 
+    /// A mid-word split (e.g. "Text" extracted as "Te" + "xt", same role and
+    /// font size, immediately adjacent) must count as one logical block, not
+    /// two — otherwise a font-encoding artifact inflates the apparent
+    /// document size past the sparsity floor.
+    #[test]
+    fn count_logical_blocks_merges_same_role_same_size_runs() {
+        let pages = vec![vec![
+            role_seg("Big", 24.0, false, Some(1)),
+            role_seg("Small Text", 12.0, true, Some(2)),
+            role_seg("Te", 24.0, false, Some(1)),
+            role_seg("xt", 24.0, false, Some(1)),
+        ]];
+        assert_eq!(
+            count_logical_blocks(&pages),
+            3,
+            "the split \"Te\"+\"xt\" run must collapse into a single block"
+        );
+    }
+
+    /// Segments with different assigned roles never merge, even at the same
+    /// font size.
+    #[test]
+    fn count_logical_blocks_does_not_merge_different_roles() {
+        let pages = vec![vec![
+            role_seg("Heading", 18.0, true, Some(1)),
+            role_seg("more heading text", 18.0, true, Some(2)),
+        ]];
+        assert_eq!(count_logical_blocks(&pages), 2);
+    }
+
+    /// Sparse document where the structure tree tags every block as a heading
+    /// with no body tier at all (a document with just a couple of heading-tagged
+    /// lines and nothing else) must have every role suppressed rather than trusted.
+    #[test]
+    fn suppress_all_heading_roles_fires_when_sparse_and_all_tagged() {
+        let mut pages = vec![vec![
+            role_seg("Big", 24.0, false, Some(1)),
+            role_seg("Small Text", 12.0, true, Some(2)),
+            role_seg("Te xt", 24.0, false, Some(1)),
+        ]];
+        let mut map = build_heading_map_from_assigned_roles(&pages);
+        assert!(suppress_all_heading_roles_when_sparse_and_untrusted(
+            &mut map, &mut pages
+        ));
+
+        assert!(
+            map.iter().all(|(_, level)| level.is_none()),
+            "heading map must be fully suppressed; got: {map:?}"
+        );
+        for page in &pages {
+            for seg in page {
+                assert_eq!(
+                    seg.assigned_role, None,
+                    "assigned_role must be cleared on every segment"
+                );
+            }
+        }
+    }
+
+    /// A sparse document with one tagged heading and one untagged body
+    /// paragraph (the `issue-987-test.pdf` shape: "Big"/"Te xt" tagged,
+    /// "Small Text" untagged — 3 total blocks) must ALSO be suppressed: a mix
+    /// of heading and body tiers on that few blocks is not enough evidence
+    /// that the tagging is trustworthy, matching GT for that fixture (plain
+    /// "Big Text"/"Small Text", no headings at all).
+    #[test]
+    fn suppress_all_heading_roles_fires_when_sparse_with_body_tier() {
+        let mut pages = vec![vec![
+            role_seg("Title", 24.0, true, Some(1)),
+            role_seg("body text", 12.0, false, None),
+        ]];
+        let mut map = build_heading_map_from_assigned_roles(&pages);
+        assert!(suppress_all_heading_roles_when_sparse_and_untrusted(
+            &mut map, &mut pages
+        ));
+        assert_eq!(pages[0][0].assigned_role, None, "tagged role must be cleared");
+    }
+
+    /// A sparse document with no heading roles at all must not be touched —
+    /// there is nothing to suppress.
+    #[test]
+    fn suppress_all_heading_roles_does_not_fire_with_no_headings() {
+        let mut pages = vec![vec![
+            role_seg("body text one", 12.0, false, None),
+            role_seg("body text two", 12.0, false, None),
+        ]];
+        let mut map = build_heading_map_from_assigned_roles(&pages);
+        assert!(!suppress_all_heading_roles_when_sparse_and_untrusted(
+            &mut map, &mut pages
+        ));
+    }
+
+    /// At or above the sparsity floor, an all-heading-tagged document is left
+    /// alone even with no body tier — larger documents are trusted.
+    #[test]
+    fn suppress_all_heading_roles_does_not_fire_at_or_above_floor() {
+        // Alternate heading/body role so each segment is a distinct logical
+        // block under `count_logical_blocks` rather than collapsing into one.
+        let mut pages = vec![
+            (0..MIN_BLOCKS_FOR_FONT_HEADING)
+                .map(|i| {
+                    if i % 2 == 0 {
+                        role_seg(&format!("Heading {i}"), 18.0, true, Some(1))
+                    } else {
+                        role_seg(&format!("Body paragraph {i}."), 12.0, false, None)
+                    }
+                })
+                .collect(),
+        ];
+        let mut map = build_heading_map_from_assigned_roles(&pages);
+        assert!(!suppress_all_heading_roles_when_sparse_and_untrusted(
+            &mut map, &mut pages
+        ));
+        assert_eq!(
+            pages[0][0].assigned_role,
+            Some(1),
+            "role must be untouched at/above the floor"
+        );
+    }
+
     /// Role demotion mirrors the map shift on segments (bridge.rs reads roles directly).
     #[test]
     fn demote_assigned_roles_shifts_and_caps() {
@@ -2782,6 +3020,70 @@ mod tests {
 
         let title_entry = heading_map.iter().find(|(fs, _)| (*fs - 14.0).abs() < 0.5);
         let _ = title_entry;
+    }
+
+    /// Sparsity gate: a three-block document with one clearly larger first line
+    /// (the `hello_structure.pdf` shape) must NOT promote that line to a heading.
+    /// A larger opening line in a tiny document is display prose, not a title.
+    #[test]
+    fn test_build_heading_map_sparse_doc_no_heading_promotion() {
+        let all_page_segments = vec![vec![
+            seg_with_font("Hello World", 24.0),
+            seg_with_font("Goodbye Cruel World...", 12.0),
+            seg_with_font("I'll be back shortly!", 12.0),
+        ]];
+        let struct_tree_results = vec![None];
+        let heuristic_pages = vec![0usize];
+
+        let (heading_map, _) = build_heading_map(&all_page_segments, &struct_tree_results, &heuristic_pages, 4)
+            .expect("build_heading_map must succeed");
+
+        assert!(
+            heading_map.iter().all(|(_, level)| level.is_none()),
+            "3-block doc must not promote the larger first line to a heading; got: {heading_map:?}"
+        );
+    }
+
+    /// Sparsity gate: a two-block document (the `issue-987-test.pdf` shape) with
+    /// a larger first line must NOT promote either line to a heading.
+    #[test]
+    fn test_build_heading_map_two_block_doc_no_heading_promotion() {
+        let all_page_segments = vec![vec![seg_with_font("Big Text", 24.0), seg_with_font("Small Text", 12.0)]];
+        let struct_tree_results = vec![None];
+        let heuristic_pages = vec![0usize];
+
+        let (heading_map, _) = build_heading_map(&all_page_segments, &struct_tree_results, &heuristic_pages, 4)
+            .expect("build_heading_map must succeed");
+
+        assert!(
+            heading_map.iter().all(|(_, level)| level.is_none()),
+            "2-block doc must not promote either line to a heading; got: {heading_map:?}"
+        );
+    }
+
+    /// The sparsity gate must fire strictly below `MIN_BLOCKS_FOR_FONT_HEADING`:
+    /// a document at exactly the floor (five blocks) still promotes its title,
+    /// so genuine short documents keep their heading.
+    #[test]
+    fn test_build_heading_map_at_block_floor_still_promotes() {
+        let mut segs = vec![seg_with_font("Section Title", 18.0)];
+        segs.extend(
+            (0..(MIN_BLOCKS_FOR_FONT_HEADING - 1)).map(|i| seg_with_font(&format!("Body paragraph {i}."), 11.0)),
+        );
+
+        let all_page_segments = vec![segs];
+        let struct_tree_results = vec![None];
+        let heuristic_pages = vec![0usize];
+
+        let (heading_map, _) = build_heading_map(&all_page_segments, &struct_tree_results, &heuristic_pages, 4)
+            .expect("build_heading_map must succeed");
+
+        let title_entry = heading_map.iter().find(|(fs, _)| (*fs - 18.0).abs() < 0.5);
+        assert_eq!(
+            title_entry.and_then(|(_, level)| *level),
+            Some(1),
+            "at the block floor the title must still be promoted; got: {heading_map:?}"
+        );
     }
 
     /// Segment with explicit font_size and baseline_y for heuristic-path tests.

@@ -47,6 +47,19 @@ pub(super) const MIN_HEADING_FONT_RATIO: f32 = 1.15;
 pub(super) const MIN_HEADING_FONT_GAP: f32 = 1.5;
 /// Maximum word count for a bold paragraph to be promoted to a section heading.
 pub(super) const MAX_BOLD_HEADING_WORD_COUNT: usize = 12;
+/// Minimum number of non-empty text blocks a document must contain before
+/// font-size clustering is allowed to promote any run to a heading.
+///
+/// Font-size heading inference is only reliable once there is enough text to
+/// establish a stable body-font baseline. In a document with only a handful of
+/// blocks (a title slide, a cover page, a one-line note) a single larger line is
+/// far more likely to be display/opening prose than a section heading, so
+/// promoting it costs the structural-F1 metric heavily (headings are weighted
+/// 2.0). Below this floor, `build_heading_map` returns a body-only map and the
+/// fallback title promotion is skipped. The floor is set so a genuine short
+/// document (title plus four body paragraphs, five blocks) still gets its
+/// heading, while two- or three-block fixtures do not.
+pub(super) const MIN_BLOCKS_FOR_FONT_HEADING: usize = 5;
 /// Fraction of the maximum right edge that a line must reach to be considered "full"
 /// (used for dehyphenation to avoid false joins on short/indented lines).
 pub(super) const FULL_LINE_FRACTION: f32 = 0.85;

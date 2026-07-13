@@ -1,6 +1,9 @@
 //! Heading classification for paragraphs using font-size clustering.
 
-use super::constants::{MAX_BOLD_HEADING_WORD_COUNT, MAX_HEADING_DISTANCE_MULTIPLIER, MAX_HEADING_WORD_COUNT};
+use super::constants::{
+    MAX_BOLD_HEADING_WORD_COUNT, MAX_HEADING_DISTANCE_MULTIPLIER, MAX_HEADING_WORD_COUNT, MIN_BLOCKS_FOR_FONT_HEADING,
+    MIN_HEADING_FONT_GAP, MIN_HEADING_FONT_RATIO,
+};
 use super::regions::{looks_like_bare_url, looks_like_figure_label};
 use super::types::{LayoutHintClass, PdfParagraph};
 
@@ -568,12 +571,21 @@ pub(super) fn refine_heading_hierarchy(all_pages: &mut [Vec<PdfParagraph>]) {
             .flat_map(|page| page.iter())
             .any(|p| p.heading_level == Some(1));
         if still_no_h1 && !all_pages.is_empty() && !all_pages[0].is_empty() {
+            let total_paragraphs: usize = all_pages.iter().map(|page| page.len()).sum();
             let page0 = &all_pages[0];
             let max_font_on_page = page0.iter().map(|p| p.dominant_font_size).fold(0.0f32, f32::max);
             let first = &page0[0];
             let first_text = paragraph_plain_text(first);
             let first_wc = first_text.split_whitespace().count();
-            if first.dominant_font_size >= max_font_on_page
+            let rest_font_size = other_paragraphs_font_size(all_pages, 0, 0);
+            let clears_font_gate = rest_font_size.is_none_or(|body_font| {
+                body_font <= 0.0
+                    || (first.dominant_font_size >= body_font * MIN_HEADING_FONT_RATIO
+                        && first.dominant_font_size >= body_font + MIN_HEADING_FONT_GAP)
+            });
+            if total_paragraphs >= MIN_BLOCKS_FOR_FONT_HEADING
+                && clears_font_gate
+                && first.dominant_font_size >= max_font_on_page
                 && first_wc <= 10
                 && first_wc > 0
                 && !first.is_page_furniture
@@ -938,6 +950,41 @@ pub(super) fn demote_heading_runs(all_pages: &mut [Vec<PdfParagraph>]) {
 
             run_start = run_end;
         }
+    }
+}
+
+/// Char-weighted dominant font size of every paragraph in the document except
+/// the one at `(exclude_page, exclude_index)`.
+///
+/// Used to gate the "no heading anywhere" title-promotion fallback: the
+/// excluded paragraph is the force-promotion candidate, so this answers "how
+/// much larger is the candidate than the rest of the document's text", the
+/// same ratio/gap test `assign_heading_levels_smart` applies to font-size
+/// clusters. Returns `None` when there is no other text to compare against.
+fn other_paragraphs_font_size(
+    all_pages: &[Vec<PdfParagraph>],
+    exclude_page: usize,
+    exclude_index: usize,
+) -> Option<f32> {
+    let mut weighted_sum = 0.0f64;
+    let mut total_chars = 0usize;
+    for (page_idx, page) in all_pages.iter().enumerate() {
+        for (para_idx, para) in page.iter().enumerate() {
+            if page_idx == exclude_page && para_idx == exclude_index {
+                continue;
+            }
+            let char_count = paragraph_plain_text(para).chars().count();
+            if char_count == 0 {
+                continue;
+            }
+            weighted_sum += f64::from(para.dominant_font_size) * char_count as f64;
+            total_chars += char_count;
+        }
+    }
+    if total_chars == 0 {
+        None
+    } else {
+        Some((weighted_sum / total_chars as f64) as f32)
     }
 }
 
@@ -2263,14 +2310,44 @@ mod tests {
         assert!(!starts_with_lowercase_or_continuation("3 Methods"));
     }
 
+    /// A 2-paragraph document is too sparse for the "no heading anywhere"
+    /// fallback to trust a font-size difference: a larger opening line in a
+    /// tiny document is as likely to be display prose (see `hello_structure.pdf`,
+    /// `issue-987-test.pdf`) as an actual title. This replaces the previous
+    /// `test_refine_promotes_first_largest_font_paragraph_to_h1`, which asserted
+    /// promotion for this same 2-paragraph shape; that assertion encoded the
+    /// over-promotion bug this sparsity gate fixes.
     #[test]
-    fn test_refine_promotes_first_largest_font_paragraph_to_h1() {
+    fn test_refine_does_not_promote_sparse_two_paragraph_doc() {
         let mut pages = vec![vec![
             make_text_paragraph(18.0, "Annual Report", false),
             make_text_paragraph(12.0, "Some body text here for the document", false),
         ]];
         refine_heading_hierarchy(&mut pages);
-        assert_eq!(pages[0][0].heading_level, Some(1));
+        assert_eq!(
+            pages[0][0].heading_level, None,
+            "a 2-paragraph document must not force-promote its larger first line to h1"
+        );
+    }
+
+    /// At and above the sparsity floor, a first paragraph that is both the
+    /// largest font on the page and meaningfully larger than the rest of the
+    /// document's text is still promoted to h1.
+    #[test]
+    fn test_refine_promotes_first_largest_font_paragraph_to_h1_at_floor() {
+        let mut pages = vec![vec![
+            make_text_paragraph(18.0, "Annual Report", false),
+            make_text_paragraph(12.0, "Some body text here for the document", false),
+            make_text_paragraph(12.0, "More body text in a second paragraph", false),
+            make_text_paragraph(12.0, "Yet another paragraph of body text", false),
+            make_text_paragraph(12.0, "A final paragraph rounding out the document", false),
+        ]];
+        refine_heading_hierarchy(&mut pages);
+        assert_eq!(
+            pages[0][0].heading_level,
+            Some(1),
+            "at the sparsity floor a clearly larger title line must still be promoted"
+        );
     }
 
     #[test]
