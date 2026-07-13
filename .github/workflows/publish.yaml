@@ -1777,8 +1777,13 @@ jobs:
 
   update-swift-package-manifest:
     name: Update Swift Package.swift manifest with version and checksum
-    needs: [prepare, swift-artifactbundle]
-    if: ${{ needs.prepare.outputs.release_swift == 'true' }}
+    # Depends on the UPLOAD (not just the build) so the checksum is computed from
+    # the exact bytes on the release — the same asset SwiftPM downloads. This
+    # eliminates the class of failure where a rebuilt/re-uploaded bundle (checksum
+    # non-determinism) or a flaky `download-artifact` digest check left Package.swift
+    # pinning a checksum that no longer matched the released bundle.
+    needs: [prepare, upload-swift-bundle]
+    if: ${{ needs.prepare.outputs.release_swift == 'true' && needs.upload-swift-bundle.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/create-github-app-token@v2
@@ -1795,21 +1800,34 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           persist-credentials: true
 
-      - uses: actions/download-artifact@v8
-        with:
-          name: swift-checksum
-          path: swift-checksums
+      - name: Compute checksum from the released artifact bundle
+        id: checksum
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          # Compute the checksum from the EXACT bytes on the release (the asset
+          # SwiftPM downloads), not from a separate run-artifact. SwiftPM's
+          # binaryTarget checksum is the plain SHA-256 of the zip, which equals
+          # `swift package compute-checksum`. Using the released asset guarantees
+          # Package.swift matches what consumers fetch, regardless of rebuild
+          # non-determinism, and avoids the flaky download-artifact digest check.
+          # The App token can read the still-draft release.
+          gh release download "$TAG" --repo "${{ github.repository }}" \
+            --pattern 'Xberg-rs.artifactbundle.zip' --dir bundle-dl --clobber
+          CHECKSUM=$(sha256sum bundle-dl/Xberg-rs.artifactbundle.zip | cut -d' ' -f1)
+          echo "checksum=$CHECKSUM" >> "$GITHUB_OUTPUT"
 
       - name: Update Package.swift with version and checksum
         run: |
           VERSION="${{ needs.prepare.outputs.version }}"
-          CHECKSUM=$(cat swift-checksums/*.checksum | tr -d '[:space:]')
+          CHECKSUM="${{ steps.checksum.outputs.checksum }}"
 
-          # Replace placeholders in Package.swift. The version placeholder is normally already
-          # substituted by `alef sync-versions` at bump time; the checksum is only known here,
-          # after the artifactbundle is built.
+          # Substitute version + checksum. Match the current value (placeholder OR a
+          # real prior checksum), so a re-run re-pins the freshly-computed checksum
+          # instead of no-op'ing on an already-substituted manifest.
           sed -i "s/__ALEF_SWIFT_VERSION__/${VERSION}/g" Package.swift
-          sed -i "s/__ALEF_SWIFT_CHECKSUM__/${CHECKSUM}/g" Package.swift
+          sed -i -E "s|(checksum:[[:space:]]*\")[^\"]*(\")|\1${CHECKSUM}\2|" Package.swift
 
           echo "Updated Package.swift:"
           head -40 Package.swift
@@ -2597,15 +2615,20 @@ jobs:
       - upload-elixir-release
       - upload-php-pie-release
       - upload-swift-bundle
+    # Decoupled gating: un-draft the release unless a required upload genuinely
+    # FAILED. `!= 'failure'` (not `== 'success'`) tolerates idempotently-SKIPPED
+    # uploads on same-tag retries — a skipped upload means the asset is already on
+    # the release, so finalize must still run. `== 'success'` here previously
+    # stuck every retry in draft, cascading into skipped hex/zig/homebrew.
     if: >-
       ${{ always()
       && needs.prepare.outputs.is_tag == 'true'
       && needs.prepare.outputs.dry_run != 'true'
-      && needs.verify-assets.result == 'success'
-      && needs.upload-cli-release.result == 'success'
-      && needs.upload-go-release.result == 'success'
-      && needs.upload-c-ffi-release.result == 'success'
-      && needs.upload-elixir-release.result == 'success' }}
+      && needs.verify-assets.result != 'failure'
+      && needs.upload-cli-release.result != 'failure'
+      && needs.upload-go-release.result != 'failure'
+      && needs.upload-c-ffi-release.result != 'failure'
+      && needs.upload-elixir-release.result != 'failure' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/create-github-app-token@v2
@@ -2624,7 +2647,15 @@ jobs:
   publish-hex:
     name: Publish Elixir Hex package
     needs: [prepare, finalize-github-release-after-uploads, check-hex]
-    if: ${{ needs.prepare.outputs.release_elixir == 'true' && needs.prepare.outputs.is_tag == 'true' && (needs.check-hex.outputs.elixir_exists != 'true' || needs.prepare.outputs.force_republish == 'true') }}
+    # Runs whenever the release is finalized, independent of any sibling channel's
+    # result. Fetches its NIFs from the finalized release (not run-artifacts), so it
+    # only needs finalize to have succeeded.
+    if: >-
+      ${{ always()
+      && needs.finalize-github-release-after-uploads.result == 'success'
+      && needs.prepare.outputs.release_elixir == 'true'
+      && needs.prepare.outputs.is_tag == 'true'
+      && (needs.check-hex.outputs.elixir_exists != 'true' || needs.prepare.outputs.force_republish == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -2699,7 +2730,16 @@ jobs:
   publish-zig:
     name: Publish Zig package metadata
     needs: [prepare, finalize-github-release-after-uploads, check-zig, c-ffi-libraries]
-    if: ${{ needs.prepare.outputs.release_zig == 'true' && needs.prepare.outputs.is_tag == 'true' && (needs.check-zig.outputs.exists != 'true' || needs.prepare.outputs.force_republish == 'true') }}
+    # Consumes c-ffi RUN-artifacts, so c-ffi-libraries must have SUCCEEDED this run
+    # (a skip means there are no artifacts to download). Otherwise runs independent
+    # of any sibling channel's result, once the release is finalized.
+    if: >-
+      ${{ always()
+      && needs.finalize-github-release-after-uploads.result == 'success'
+      && needs.c-ffi-libraries.result == 'success'
+      && needs.prepare.outputs.release_zig == 'true'
+      && needs.prepare.outputs.is_tag == 'true'
+      && (needs.check-zig.outputs.exists != 'true' || needs.prepare.outputs.force_republish == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -2796,7 +2836,15 @@ jobs:
   publish-homebrew-formula:
     name: Update Homebrew formula
     needs: [prepare, upload-cli-release, check-homebrew]
-    if: ${{ needs.prepare.outputs.release_homebrew == 'true' && needs.prepare.outputs.is_tag == 'true' && (needs.check-homebrew.outputs.exists != 'true' || needs.prepare.outputs.force_republish == 'true') }}
+    # Pins release-asset URLs that persist on the release, so a SKIPPED upload-cli
+    # on a same-tag retry (asset already uploaded) must not skip the formula bump;
+    # only a genuine upload failure should. Independent of all other channels.
+    if: >-
+      ${{ always()
+      && needs.upload-cli-release.result != 'failure'
+      && needs.prepare.outputs.release_homebrew == 'true'
+      && needs.prepare.outputs.is_tag == 'true'
+      && (needs.check-homebrew.outputs.exists != 'true' || needs.prepare.outputs.force_republish == 'true') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/create-github-app-token@v2
@@ -2864,7 +2912,15 @@ jobs:
     # draft-release assets are not publicly downloadable. In dry-run finalize is
     # skipped, so this job is skipped too (no asset is uploaded to point at).
     needs: [prepare, publish-homebrew-formula, finalize-github-release-after-uploads]
-    if: ${{ needs.prepare.outputs.release_homebrew == 'true' && needs.prepare.outputs.is_tag == 'true' }}
+    # Runs once the formula is bumped and the release is finalized (out of draft so
+    # `brew install` can fetch the pinned release asset), independent of any sibling
+    # channel's result. Builds from source — consumes no cross-job run-artifacts.
+    if: >-
+      ${{ always()
+      && needs.publish-homebrew-formula.result == 'success'
+      && needs.finalize-github-release-after-uploads.result == 'success'
+      && needs.prepare.outputs.release_homebrew == 'true'
+      && needs.prepare.outputs.is_tag == 'true' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -2917,7 +2973,14 @@ jobs:
   publish-homebrew-bottles:
     name: Merge Homebrew bottle DSL
     needs: [prepare, publish-homebrew-formula, homebrew-bottles]
-    if: ${{ needs.prepare.outputs.release_homebrew == 'true' && needs.prepare.outputs.is_tag == 'true' }}
+    # Consumes the bottle-json RUN-artifacts, so homebrew-bottles must have SUCCEEDED
+    # this run. Otherwise independent of any sibling channel's result.
+    if: >-
+      ${{ always()
+      && needs.publish-homebrew-formula.result == 'success'
+      && needs.homebrew-bottles.result == 'success'
+      && needs.prepare.outputs.release_homebrew == 'true'
+      && needs.prepare.outputs.is_tag == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/create-github-app-token@v2
