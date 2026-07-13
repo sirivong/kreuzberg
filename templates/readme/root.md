@@ -23,12 +23,7 @@ Documents · Images · Spreadsheets · Email · Archives · Code · Audio · Vid
 
 ---
 
-<!-- markdownlint-disable MD013 -->
-<p align="center"><img src="docs/assets/demos/extract.gif" alt="Extracting clean Markdown from a PDF in the CLI" width="820"></p>
 <p align="center"><em>Feed any document—get structured text. Extract, batch, stream, or crawl.</em></p>
-<!-- markdownlint-enable MD013 -->
-
-<div align="center"><sub><a href="#demos">See more ↓</a></sub></div>
 
 ---
 
@@ -50,29 +45,6 @@ Point Xberg at anything — a PDF, a spreadsheet, a scanned image, an audio file
 | **Batch & parallel** | Process 100s of documents in parallel. Per-file timeouts. Configurable batch concurrency (`max_concurrent_extractions`). |
 | **Caching** | Content-hash cache keys — skip re-extraction when the file and config are unchanged. |
 | **Deployment** | Library, CLI (12 commands), REST API (`xberg serve`), MCP server (9 tools, 3 prompts, 4 resources), Docker. |
-
----
-
-## Demos
-
-<!-- markdownlint-disable MD013 -->
-
-<p align="center"><img src="docs/assets/demos/cli.gif" alt="Xberg CLI: extract, batch, detect, formats, cache, serve, mcp" width="760"></p>
-<p align="center"><em>The CLI: 12 commands for extraction, caching, serving, and MCP.</em></p>
-
-<p align="center"><img src="docs/assets/demos/ocr.gif" alt="OCR from a scanned image with confidence scores and bounding boxes" width="820"></p>
-<p align="center"><em>OCR with confidence scores and bounding boxes. Switch backends without code changes.</em></p>
-
-<p align="center"><img src="docs/assets/demos/crawl.gif" alt="Crawling a website and extracting all linked documents" width="820"></p>
-<p align="center"><em>Web crawl: fetch a page, follow links, extract all documents recursively.</em></p>
-
-<p align="center"><img src="docs/assets/demos/mcp.gif" alt="MCP server integration with Claude Desktop showing extraction tools and prompts" width="820"></p>
-<p align="center"><em>MCP server: AI agents extract documents, detect formats, warm models, manage cache.</em></p>
-
-<p align="center"><img src="docs/assets/demos/serve.gif" alt="REST API: POST a document, get JSON extraction results with streaming support" width="820"></p>
-<p align="center"><em>REST API: stream large files, get JSON or Markdown, one endpoint for all formats.</em></p>
-
-<!-- markdownlint-enable MD013 -->
 
 ---
 
@@ -490,14 +462,17 @@ Fallback chains. Extensible via plugin system.
 ### Embeddings
 
 **Local (ONNX Runtime):**
+
 - Preset models: fast, balanced (default), quality, multilingual
 - Dimensions: 384, 768, 1024
 
 **Provider-hosted:**
+
 - OpenAI, Anthropic, Google, Hugging Face, Mistral, Cohere, and 143 providers total
 - Via [liter-llm](https://github.com/xberg-io/liter-llm) integration
 
 **Reranking:**
+
 - Local ONNX rerankers (cross-encoder models)
 - Provider-hosted: Cohere Rerank, others
 
@@ -540,7 +515,7 @@ Schema validation. Temperature, top-p, frequency penalty tuning.
 | `formats` | — | List all 97 supported formats and MIME types |
 | `version` | — | Show Xberg version |
 | `cache` | `stats`, `clear`, `manifest`, `warm` | Manage extraction cache and models |
-| `serve` | — | Start REST API server (default: http://127.0.0.1:8000) |
+| `serve` | — | Start REST API server (default: <http://127.0.0.1:8000>) |
 | `mcp` | — | Start MCP server (stdio or HTTP transport) |
 | `api` | `schema` | Output OpenAPI 3.1 specification |
 | `embed` | — | Generate embeddings for text (local or provider-hosted) |
@@ -557,10 +532,10 @@ Run `xberg --help` or `xberg <command> --help` for detailed options.
 
 Full guides, API references for every binding, format reference, and configuration docs live at **[xberg.io](https://docs.xberg.io/)**.
 
-- [Getting Started](https://docs.xberg.io/getting-started/)
+- [Getting Started](https://docs.xberg.io/getting-started/installation/)
 - [Quick Start](https://docs.xberg.io/getting-started/quickstart/)
-- [Guides](https://docs.xberg.io/guides/)
-- [API Reference](https://docs.xberg.io/reference/api/)
+- [Guides](https://docs.xberg.io/guides/extraction/)
+- [API Reference](https://docs.xberg.io/reference/api-python/)
 - [Format Reference](https://docs.xberg.io/reference/formats/)
 - [Live Demo](https://docs.xberg.io/demo.html) (browser, WASM)
 
