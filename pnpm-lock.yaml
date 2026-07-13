@@ -35,25 +35,6 @@ importers:
       '@napi-rs/cli':
         specifier: ^3.6.2
         version: 3.7.1(@emnapi/core@1.11.2)(@emnapi/runtime@1.11.2)(@types/node@22.19.21)
-    optionalDependencies:
-      '@xberg-io/xberg-darwin-arm64':
-        specifier: 1.0.0-rc.26
-        version: 1.0.0-rc.26
-      '@xberg-io/xberg-linux-arm64-gnu':
-        specifier: 1.0.0-rc.26
-        version: 1.0.0-rc.26
-      '@xberg-io/xberg-linux-arm64-musl':
-        specifier: 1.0.0-rc.26
-        version: 1.0.0-rc.26
-      '@xberg-io/xberg-linux-x64-gnu':
-        specifier: 1.0.0-rc.26
-        version: 1.0.0-rc.26
-      '@xberg-io/xberg-linux-x64-musl':
-        specifier: 1.0.0-rc.26
-        version: 1.0.0-rc.26
-      '@xberg-io/xberg-win32-x64-msvc':
-        specifier: 1.0.0-rc.26
-        version: 1.0.0-rc.26
 
   crates/xberg-wasm: {}
 
@@ -1135,46 +1116,6 @@ packages:
 
   '@vitest/utils@4.1.8':
     resolution: {integrity: sha512-uOJamYALNhfJ6iolExyQM40yIQwDqYnkKtQ5VCiSe17E33H0aQ/u+1GlRuz4LZBk6Mm3sg90G9hEbmEt37C1Zg==}
-
-  '@xberg-io/xberg-darwin-arm64@1.0.0-rc.26':
-    resolution: {integrity: sha512-/h81Mf7/5YzqqNJEWYnKbz7rHNb3+gyF4jW0/wVLBzDRyUB3JZMVaBlO8ikKs6qNsDfLW4FuLs+8FmghpJ6qng==}
-    engines: {node: '>= 22'}
-    cpu: [arm64]
-    os: [darwin]
-
-  '@xberg-io/xberg-linux-arm64-gnu@1.0.0-rc.26':
-    resolution: {integrity: sha512-XdIv8vtNQ8DWsocO4zFOwaAk8WQooLnrSC4fjb54+B/VnDbArNHr1GLHu8Wg6haiPW9cDtZvvazG1yfgxlvCeQ==}
-    engines: {node: '>= 22'}
-    cpu: [arm64]
-    os: [linux]
-    libc: [glibc]
-
-  '@xberg-io/xberg-linux-arm64-musl@1.0.0-rc.26':
-    resolution: {integrity: sha512-siTlJK4S5chTNJYZLQqkBwDl7kjdxA1i/93pIujcv9okZzpPtgp1XyqpcoZxL7ps6iu1FvoqGGLrey5x5QgyoA==}
-    engines: {node: '>= 22'}
-    cpu: [arm64]
-    os: [linux]
-    libc: [musl]
-
-  '@xberg-io/xberg-linux-x64-gnu@1.0.0-rc.26':
-    resolution: {integrity: sha512-ra38izZo8P3VtjE34Pie1Z+fBCMyBlaZcO9v6NJOAFHDSVkEaWTFAgVt6MPeABlMQWh1eZYMwLgt2+meeN16MA==}
-    engines: {node: '>= 22'}
-    cpu: [x64]
-    os: [linux]
-    libc: [glibc]
-
-  '@xberg-io/xberg-linux-x64-musl@1.0.0-rc.26':
-    resolution: {integrity: sha512-D2r2s+1Jhj+Th3qbqJglzgi1RcMXPy9eviHeQ3n+s4VQxzNfPMUldDT4CHQYq+CiswlhVJ4yKpaDu+Gr2hY8LQ==}
-    engines: {node: '>= 22'}
-    cpu: [x64]
-    os: [linux]
-    libc: [musl]
-
-  '@xberg-io/xberg-win32-x64-msvc@1.0.0-rc.26':
-    resolution: {integrity: sha512-Eld+D9cWcFStBt7lxPdLYu1cfqvdxpq1be64aLrzgTO2htal6DRsaC36fXy/5u9U+DIBvadXcKP9kebpxcehgw==}
-    engines: {node: '>= 22'}
-    cpu: [x64]
-    os: [win32]
 
   argparse@2.0.1:
     resolution: {integrity: sha512-8+9WqebbFzpX9OR+Wa6O29asIogeRMzcGtAINdpMHHyAg10f05aSFVBbcEqGf/PXw1EjAZ+q2/bEBg3DvurK3Q==}
@@ -2470,24 +2411,6 @@ snapshots:
       '@vitest/pretty-format': 4.1.8
       convert-source-map: 2.0.0
       tinyrainbow: 3.1.0
-
-  '@xberg-io/xberg-darwin-arm64@1.0.0-rc.26':
-    optional: true
-
-  '@xberg-io/xberg-linux-arm64-gnu@1.0.0-rc.26':
-    optional: true
-
-  '@xberg-io/xberg-linux-arm64-musl@1.0.0-rc.26':
-    optional: true
-
-  '@xberg-io/xberg-linux-x64-gnu@1.0.0-rc.26':
-    optional: true
-
-  '@xberg-io/xberg-linux-x64-musl@1.0.0-rc.26':
-    optional: true
-
-  '@xberg-io/xberg-win32-x64-msvc@1.0.0-rc.26':
-    optional: true
 
   argparse@2.0.1: {}
 
