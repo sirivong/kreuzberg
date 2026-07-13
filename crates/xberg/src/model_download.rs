@@ -90,9 +90,84 @@ const HF_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
 ))]
 const HF_MAX_RETRY_ATTEMPTS: usize = 2;
 
+/// A DNS resolver that orders IPv4 (`A`-record) addresses ahead of IPv6 (`AAAA`) ones.
+///
+/// This is the IPv4 fallback for #1249: on hosts that advertise an IPv6 default route but blackhole
+/// IPv6, the default resolution order can hand the connector an `AAAA` address first, which then
+/// stalls in `SYN_SENT`. Returning IPv4 first lets the connector reach a dual-stack host over IPv4,
+/// while still returning `AAAA` addresses afterwards so genuinely IPv6-only hosts (which resolve to
+/// `AAAA` only) keep working — unlike binding an IPv4 `local_address`, which would break them.
+/// Resolution runs on a blocking thread because `getaddrinfo` is synchronous; DNS itself is not the
+/// blackholed path (that's the TCP connect), so this stays fast.
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    any(
+        feature = "candle-ocr",
+        feature = "paddle-ocr",
+        feature = "auto-rotate",
+        feature = "layout-detection",
+        feature = "transcription",
+        feature = "onnx-runtime",
+        feature = "ner-onnx",
+        feature = "static-embeddings"
+    )
+))]
+#[derive(Debug, Default)]
+struct Ipv4FirstResolver;
+
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    any(
+        feature = "candle-ocr",
+        feature = "paddle-ocr",
+        feature = "auto-rotate",
+        feature = "layout-detection",
+        feature = "transcription",
+        feature = "onnx-runtime",
+        feature = "ner-onnx",
+        feature = "static-embeddings"
+    )
+))]
+impl reqwest::dns::Resolve for Ipv4FirstResolver {
+    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
+        let host = name.as_str().to_owned();
+        Box::pin(async move {
+            // Port 0 is a placeholder; reqwest overrides it with the request's real port.
+            let mut addrs = tokio::task::spawn_blocking(move || {
+                std::net::ToSocketAddrs::to_socket_addrs(&(host.as_str(), 0_u16))
+                    .map(|iter| iter.collect::<Vec<std::net::SocketAddr>>())
+            })
+            .await??;
+            order_ipv4_first(&mut addrs);
+            Ok(Box::new(addrs.into_iter()) as reqwest::dns::Addrs)
+        })
+    }
+}
+
+/// Reorder resolved addresses so IPv4 (`A`) entries precede IPv6 (`AAAA`) ones, preserving the
+/// relative order within each family. Stable so the resolver stays deterministic for a given
+/// `getaddrinfo` result. See [`Ipv4FirstResolver`] for why (the #1249 IPv4 fallback).
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    any(
+        feature = "candle-ocr",
+        feature = "paddle-ocr",
+        feature = "auto-rotate",
+        feature = "layout-detection",
+        feature = "transcription",
+        feature = "onnx-runtime",
+        feature = "ner-onnx",
+        feature = "static-embeddings"
+    )
+))]
+fn order_ipv4_first(addrs: &mut [std::net::SocketAddr]) {
+    addrs.sort_by_key(std::net::SocketAddr::is_ipv6);
+}
+
 /// Build an [`hf_hub::HFClientBuilder`] pre-configured for resilience on hostile networks: a
-/// `reqwest::Client` with a bounded [`HF_CONNECT_TIMEOUT`] injected as the transfer client, plus
-/// [`HF_MAX_RETRY_ATTEMPTS`] retries. Callers chain `.cache_dir(...)` / `.build_sync()` as needed.
+/// `reqwest::Client` with a bounded [`HF_CONNECT_TIMEOUT`], an IPv4-first DNS resolver
+/// ([`Ipv4FirstResolver`]), and [`HF_MAX_RETRY_ATTEMPTS`] retries, injected as the transfer client.
+/// Callers chain `.cache_dir(...)` / `.build_sync()` as needed.
 ///
 /// The injected client only overrides hf-hub's main `GET` client; its internal `no_redirect_client`
 /// (used for the metadata `HEAD`) is not overridable, so the lowered retry count is what bounds the
@@ -114,7 +189,11 @@ const HF_MAX_RETRY_ATTEMPTS: usize = 2;
 ))]
 pub(crate) fn hf_client_builder() -> hf_hub::HFClientBuilder {
     let builder = hf_hub::HFClientBuilder::new().retry_max_attempts(HF_MAX_RETRY_ATTEMPTS);
-    match reqwest::Client::builder().connect_timeout(HF_CONNECT_TIMEOUT).build() {
+    match reqwest::Client::builder()
+        .connect_timeout(HF_CONNECT_TIMEOUT)
+        .dns_resolver(Ipv4FirstResolver)
+        .build()
+    {
         Ok(client) => builder.client(client),
         Err(error) => {
             tracing::warn!(
@@ -480,6 +559,26 @@ mod hf_client_builder_tests {
             "builder with injected connect-timeout client must construct offline: {:?}",
             client.err()
         );
+    }
+
+    #[test]
+    fn order_ipv4_first_puts_ipv4_before_ipv6_and_is_stable() {
+        use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
+        let v6a = SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::LOCALHOST, 0, 0, 0));
+        let v4a = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(1, 1, 1, 1), 0));
+        let v6b = SocketAddr::V6(SocketAddrV6::new(Ipv6Addr::new(0x2606, 0x4700, 0, 0, 0, 0, 0, 1), 0, 0, 0));
+        let v4b = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(2, 2, 2, 2), 0));
+
+        // Interleaved AAAA-first input: default getaddrinfo order can hand IPv6 out first.
+        let mut addrs = vec![v6a, v4a, v6b, v4b];
+        order_ipv4_first(&mut addrs);
+
+        assert_eq!(
+            addrs,
+            vec![v4a, v4b, v6a, v6b],
+            "IPv4 addresses must precede IPv6, preserving intra-family order"
+        );
+        assert!(!addrs[0].is_ipv6(), "the first address offered to the connector must be IPv4");
     }
 }
 
