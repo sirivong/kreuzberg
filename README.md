@@ -638,10 +638,10 @@ Run `xberg --help` or `xberg <command> --help` for detailed options.
 
 Full guides, API references for every binding, format reference, and configuration docs live at **[xberg.io](https://docs.xberg.io/)**.
 
-- [Getting Started](https://docs.xberg.io/getting-started/)
+- [Getting Started](https://docs.xberg.io/getting-started/installation/)
 - [Quick Start](https://docs.xberg.io/getting-started/quickstart/)
-- [Guides](https://docs.xberg.io/guides/)
-- [API Reference](https://docs.xberg.io/reference/api/)
+- [Guides](https://docs.xberg.io/guides/extraction/)
+- [API Reference](https://docs.xberg.io/reference/api-python/)
 - [Format Reference](https://docs.xberg.io/reference/formats/)
 - [Live Demo](https://docs.xberg.io/demo.html) (browser, WASM)
 

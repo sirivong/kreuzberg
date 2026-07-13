@@ -34,7 +34,7 @@ if [[ "$dry_run" == "true" ]]; then
   echo "[dry-run] would download $github_archive once"
   echo "[dry-run] would upload it as release asset $asset_name on $tag"
   echo "[dry-run] would set url to: $tarball_url and pin its sha256"
-  echo "[dry-run] would leave bottle DSL untouched (handled by homebrew-merge-bottles)"
+  echo "[dry-run] would drop the stale bottle DSL block (homebrew-merge-bottles re-adds a fresh one)"
   exit 0
 fi
 
@@ -58,12 +58,17 @@ import sys
 formula_path, new_url, new_sha = sys.argv[1], sys.argv[2], sys.argv[3]
 text = open(formula_path).read()
 
-# Split off the bottle block so the regex only touches the formula header.
-bottle_start = text.find("bottle do")
-if bottle_start == -1:
-    head, tail = text, ""
-else:
-    head, tail = text[:bottle_start], text[bottle_start:]
+# Drop any existing `bottle do ... end` block. It describes bottles built for
+# the PREVIOUS version; carrying it forward while we bump url/version to a new
+# release makes Homebrew fetch `xberg-<newversion>.<tag>.bottle.tar.gz` from a
+# stale `root_url`, which 404s (issue #1247). homebrew-merge-bottles re-inserts
+# a fresh, correct block (root_url = current tag) once this release's bottles are
+# actually built; if that job is skipped, the formula simply has no bottle block
+# and Homebrew builds from source instead of hitting a dead download.
+head = re.sub(
+    r"^[ \t]*bottle do\b.*?^[ \t]*end(?:\n|\Z)", "", text, flags=re.MULTILINE | re.DOTALL
+)
+head = re.sub(r"\n{3,}", "\n\n", head)
 
 head = re.sub(r'^(\s*url\s+)"[^"]*"', rf'\1"{new_url}"', head, count=1, flags=re.MULTILINE)
 head = re.sub(r'^(\s*sha256\s+)"[^"]*"', rf'\1"{new_sha}"', head, count=1, flags=re.MULTILINE)
@@ -80,7 +85,7 @@ for dep in required_deps:
         )
 
 with open(formula_path, "w") as f:
-    f.write(head + tail)
+    f.write(head)
 PY
 
 echo "Updated $formula"
