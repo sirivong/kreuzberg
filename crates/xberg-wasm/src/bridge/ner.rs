@@ -11,7 +11,9 @@
 use js_sys::{Function, Object, Promise, Reflect};
 use wasm_bindgen::prelude::*;
 
+#[cfg(target_arch = "wasm32")]
 use async_trait::async_trait;
+#[cfg(target_arch = "wasm32")]
 use xberg::text::ner::NerBackend;
 use xberg::types::entity::{Entity, EntityCategory};
 
@@ -87,7 +89,9 @@ async fn call_injected_ner(
 /// Adapter that wraps an injected JS NER object as a [`NerBackend`], so core
 /// consumers taking `&dyn NerBackend` can run against a JS backend. The trait
 /// is `?Send` on wasm32 (see `xberg::text::ner::backend`), which is what
-/// permits holding `JsValue`s across the await.
+/// permits holding `JsValue`s across the await. The impl exists only on
+/// wasm32: on host targets the trait demands `Send` futures, `JsValue` is not
+/// `Send` there, and a JS bridge has nothing to bridge off-wasm anyway.
 pub struct JsNerBridge {
     obj: Object,
     timeout_ms: u32,
@@ -100,8 +104,8 @@ impl JsNerBridge {
     }
 }
 
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
 impl NerBackend for JsNerBridge {
     async fn detect(&self, text: &str, categories: &[EntityCategory]) -> xberg::Result<Vec<Entity>> {
         call_injected_ner(self.obj.clone(), text, categories, self.timeout_ms)
