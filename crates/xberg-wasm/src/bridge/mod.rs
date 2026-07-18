@@ -3,6 +3,7 @@
 //! Hand-written module (declared via `custom_rust_modules` in `alef.toml`),
 //! not managed by alef.
 
+pub mod ner;
 pub mod ocr;
 
 use std::sync::OnceLock;

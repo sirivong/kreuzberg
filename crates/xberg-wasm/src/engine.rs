@@ -4,6 +4,7 @@
 use js_sys::Object;
 use wasm_bindgen::prelude::*;
 
+use crate::bridge::ner::resolve_ner_with_timeout;
 use crate::bridge::ocr::resolve_ocr_with_timeout;
 
 /// Extract an optional JS object field, returning `None` if the field is
@@ -37,6 +38,7 @@ fn get_opt_number(obj: &Object, field: &str) -> Result<Option<f64>, JsValue> {
 /// plain object with an optional `ocr` key.
 #[wasm_bindgen]
 pub struct XbergEngine {
+    ner: Option<js_sys::Object>,
     ocr: Option<js_sys::Object>,
     bridge_timeout_ms: u32,
 }
@@ -50,6 +52,7 @@ impl XbergEngine {
     ///   (defaults to 30,000ms if not provided)
     ///
     /// `injection` may contain:
+    /// - `ner`; object with `ner(text, categories): Promise<Array<{ category, text, start, end, confidence? }>>`
     /// - `ocr`; object with `ocr(imageBytes, opts): Promise<{ text: string, lines?: Array<{ text: string, confidence: number, bbox?: { x: number, y: number, w: number, h: number } }> }>`
     ///
     /// Unknown injection keys are ignored, so hosts can pass richer injection
@@ -75,9 +78,10 @@ impl XbergEngine {
                 .map_err(|_| JsValue::from_str("injection must be an object"))?
         };
 
+        let ner = get_opt_field(&obj, "ner")?;
         let ocr = get_opt_field(&obj, "ocr")?;
 
-        Ok(XbergEngine { ocr, bridge_timeout_ms })
+        Ok(XbergEngine { ner, ocr, bridge_timeout_ms })
     }
 
     /// Extract content from a single bytes or URI input.
@@ -100,6 +104,33 @@ impl XbergEngine {
             .map_err(|e| JsValue::from_str(&e.to_string()))?;
         let wasm_result = crate::WasmExtractionResult::from(result);
         Ok(wasm_result.into())
+    }
+
+    /// Perform Named Entity Recognition on `text` through the injected NER
+    /// backend. `opts` may contain `categories`, an array of category names;
+    /// unknown names are treated as custom zero-shot labels.
+    #[allow(clippy::missing_errors_doc)]
+    pub async fn ner(&self, text: String, opts: JsValue) -> Result<JsValue, JsValue> {
+        let categories: Vec<xberg::types::entity::EntityCategory> = if opts.is_undefined() || opts.is_null() {
+            Vec::new()
+        } else {
+            js_sys::Reflect::get(&opts, &JsValue::from_str("categories"))
+                .ok()
+                .and_then(|v| v.dyn_into::<js_sys::Array>().ok())
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_string())
+                        .filter_map(|s| serde_json::from_str::<xberg::types::entity::EntityCategory>(&format!("\"{s}\"")).ok())
+                        .collect()
+                })
+                .unwrap_or_default()
+        };
+
+        let entities = resolve_ner_with_timeout(self.ner.clone(), &text, &categories, self.bridge_timeout_ms)
+            .await
+            .map_err(|e| JsValue::from_str(&format!("{e:?}")))?;
+
+        serde_wasm_bindgen::to_value(&entities).map_err(|e| JsValue::from_str(&e.to_string()))
     }
 
     /// Perform OCR on image bytes, returning extracted text with per-line
