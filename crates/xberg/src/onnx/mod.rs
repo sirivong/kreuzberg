@@ -163,10 +163,13 @@ fn fetch_companion(
     };
     let mut last_err = String::new();
     for candidate in candidates {
-        let expected = manifest
-            .iter()
-            .find(|(path, _)| path == &candidate)
-            .map(|(_, sha256)| sha256.as_str());
+        let expected = match manifest_checksum(manifest, &candidate) {
+            Ok(expected) => expected,
+            Err(error) => {
+                last_err = error;
+                continue;
+            }
+        };
         match crate::model_download::hf_resolve_file(repo_name, &candidate, revision, cache_directory, expected) {
             Ok(path) => return Ok((path, candidate)),
             Err(e) => last_err = e,
@@ -175,19 +178,56 @@ fn fetch_companion(
     Err(last_err)
 }
 
+/// Fetch optional tokenizer metadata without weakening a preset manifest.
+/// Missing, unpinned metadata is allowed; once a preset pins either candidate,
+/// every resolution or integrity error is fatal.
+fn fetch_optional_companion(
+    repo_name: &str,
+    model_dir: Option<&str>,
+    file_name: &str,
+    revision: Option<&str>,
+    cache_directory: Option<&Path>,
+    manifest: &[(String, String)],
+) -> Result<(PathBuf, String), String> {
+    let nested_path = model_dir
+        .filter(|dir| !dir.is_empty())
+        .map(|dir| format!("{dir}/{file_name}"));
+    let is_pinned = manifest
+        .iter()
+        .any(|(path, _)| path == file_name || nested_path.as_ref().is_some_and(|nested| path == nested));
+
+    match fetch_companion(repo_name, model_dir, file_name, revision, cache_directory, manifest) {
+        Ok(resolved) => Ok(resolved),
+        Err(error) if is_pinned => Err(error),
+        Err(_) => Ok((PathBuf::new(), String::new())),
+    }
+}
+
+/// Return a pinned checksum for a preset artifact. Custom repositories have no
+/// manifest and remain caller-managed; a non-empty preset manifest must list
+/// every artifact Xberg resolves.
+fn manifest_checksum<'a>(manifest: &'a [(String, String)], repo_path: &str) -> Result<Option<&'a str>, String> {
+    match manifest.iter().find(|(path, _)| path == repo_path) {
+        Some((_, sha256)) => Ok(Some(sha256.as_str())),
+        None if manifest.is_empty() => Ok(None),
+        None => Err(format!("SHA-256 manifest does not list {repo_path}")),
+    }
+}
+
 /// Verify a downloaded file against the module's sha256 manifest.
 ///
-/// When `manifest` lists `repo_path`, the file at `local` must hash to the pinned
-/// value or an error is returned (fail-closed against tamper/rollback). Paths not
-/// in the manifest are left unverified — this covers `Custom` repos (no manifest)
-/// and any companion a preset deliberately does not pin. An empty `repo_path`
-/// (an optional companion that was not downloaded) is a no-op.
+/// When a preset manifest is present, `repo_path` must be listed and the file at
+/// `local` must hash to the pinned value. Custom repos use an empty manifest and
+/// remain caller-managed. An empty `repo_path` (an optional companion that was
+/// not downloaded) is a no-op.
 fn verify_downloaded(manifest: &[(String, String)], repo_path: &str, local: &Path, err: ErrCtor) -> crate::Result<()> {
     if repo_path.is_empty() {
         return Ok(());
     }
     if let Some((_, sha256)) = manifest.iter().find(|(path, _)| path == repo_path) {
         crate::model_download::verify_sha256(local, sha256, repo_path).map_err(err)?;
+    } else if !manifest.is_empty() {
+        return Err(err(format!("SHA-256 manifest does not list {repo_path}")));
     }
     Ok(())
 }
@@ -207,19 +247,13 @@ fn download_model_files_inner(
         None => Vec::new(),
     };
 
-    let model_sha = manifest
-        .iter()
-        .find(|(path, _)| path == model_file)
-        .map(|(_, sha256)| sha256.as_str());
+    let model_sha = manifest_checksum(&manifest, model_file).map_err(err)?;
     let model = crate::model_download::hf_resolve_file(repo_name, model_file, revision, cache_directory, model_sha)
         .map_err(|e| err(format!("Failed to resolve {model_file} from {repo_name}: {e}")))?;
     verify_downloaded(&manifest, model_file, &model, err)?;
 
     for sibling in additional_files {
-        let sibling_sha = manifest
-            .iter()
-            .find(|(path, _)| path == sibling)
-            .map(|(_, sha256)| sha256.as_str());
+        let sibling_sha = manifest_checksum(&manifest, sibling).map_err(err)?;
         let sib_path =
             crate::model_download::hf_resolve_file(repo_name, sibling, revision, cache_directory, sibling_sha)
                 .map_err(|e| {
@@ -257,7 +291,7 @@ fn download_model_files_inner(
     .map_err(|e| err(format!("Failed to download config.json: {e}")))?;
     verify_downloaded(&manifest, &config_rel, &config, err)?;
 
-    let (special_tokens, special_tokens_rel) = fetch_companion(
+    let (special_tokens, special_tokens_rel) = fetch_optional_companion(
         repo_name,
         model_dir,
         "special_tokens_map.json",
@@ -265,10 +299,10 @@ fn download_model_files_inner(
         cache_directory,
         &manifest,
     )
-    .unwrap_or_default();
+    .map_err(|e| err(format!("Failed to download special_tokens_map.json: {e}")))?;
     verify_downloaded(&manifest, &special_tokens_rel, &special_tokens, err)?;
 
-    let (tokenizer_config, tokenizer_config_rel) = fetch_companion(
+    let (tokenizer_config, tokenizer_config_rel) = fetch_optional_companion(
         repo_name,
         model_dir,
         "tokenizer_config.json",
@@ -276,7 +310,7 @@ fn download_model_files_inner(
         cache_directory,
         &manifest,
     )
-    .unwrap_or_default();
+    .map_err(|e| err(format!("Failed to download tokenizer_config.json: {e}")))?;
     verify_downloaded(&manifest, &tokenizer_config_rel, &tokenizer_config, err)?;
 
     Ok(DownloadedModel {
@@ -457,12 +491,21 @@ mod tests {
     }
 
     #[test]
-    fn verify_downloaded_skips_unlisted_and_empty_paths() {
+    fn verify_downloaded_rejects_unlisted_preset_paths() {
         let tmp = tempfile::tempdir().unwrap();
         let file = tmp.path().join("model.onnx");
         std::fs::write(&file, b"anything").unwrap();
         let manifest = vec![("other/model.onnx".to_string(), "0".repeat(64))];
-        verify_downloaded(&manifest, "name/model.onnx", &file, embed_err).expect("unlisted path is skipped");
+        let result = verify_downloaded(&manifest, "name/model.onnx", &file, embed_err);
+        assert!(result.is_err(), "unlisted preset artifacts must fail closed");
         verify_downloaded(&manifest, "", &file, embed_err).expect("empty path is a no-op");
+    }
+
+    #[test]
+    fn verify_downloaded_allows_unlisted_custom_paths() {
+        let tmp = tempfile::tempdir().unwrap();
+        let file = tmp.path().join("model.onnx");
+        std::fs::write(&file, b"caller-managed").unwrap();
+        verify_downloaded(&[], "model.onnx", &file, embed_err).expect("custom repos have no built-in manifest");
     }
 }

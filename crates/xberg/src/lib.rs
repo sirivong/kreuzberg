@@ -140,6 +140,7 @@ pub mod ocr;
 ))]
 pub mod ort_discovery;
 
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod model_download;
 
 #[cfg(any(feature = "paddle-ocr", feature = "paddle-ocr-types"))]

@@ -105,6 +105,10 @@ mod download {
                 .iter()
                 .find(|(path, _)| path == &candidate)
                 .map(|(_, sha256)| sha256.as_str());
+            if !manifest.is_empty() && expected.is_none() {
+                last_err = format!("SHA-256 manifest does not list {candidate}");
+                continue;
+            }
             match crate::model_download::hf_resolve_file(
                 repo_name,
                 &candidate,

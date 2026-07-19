@@ -189,10 +189,7 @@ pub struct EmbeddingPreset {
 ))]
 pub(crate) const EMBEDDING_SHA256_MANIFEST: &str = include_str!("presets.sha256sum");
 
-#[cfg(any(
-    feature = "embeddings",
-    all(feature = "static-embeddings", not(target_arch = "wasm32"))
-))]
+#[cfg(any(feature = "embeddings", feature = "static-embeddings"))]
 pub(crate) const EMBEDDING_MODEL_REVISION: &str = "4b127809f88a5aa1569d1238032b5ff40e5879bc";
 
 pub static EMBEDDING_PRESETS: LazyLock<Vec<EmbeddingPreset>> = LazyLock::new(|| {
@@ -834,6 +831,18 @@ fn static_engine_cache_dir(cache_dir: Option<std::path::PathBuf>) -> Option<std:
     cache_dir
 }
 
+#[cfg(all(feature = "static-embeddings", not(target_arch = "wasm32")))]
+fn static_engine_cache_key(cache_dir: Option<&std::path::Path>) -> String {
+    crate::model_download::hf_cache_key(cache_dir)
+}
+
+#[cfg(all(feature = "static-embeddings", target_arch = "wasm32"))]
+fn static_engine_cache_key(cache_dir: Option<&std::path::Path>) -> String {
+    cache_dir
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|| "wasm-no-hf-cache".to_string())
+}
+
 #[cfg(feature = "static-embeddings")]
 type CachedStaticEngine = std::sync::Arc<static_engine::StaticEmbeddingEngine>;
 
@@ -849,7 +858,7 @@ fn get_or_init_static_engine(
     model_file: &str,
     cache_directory: Option<&std::path::Path>,
 ) -> crate::Result<CachedStaticEngine> {
-    let cache_key = crate::model_download::hf_cache_key(cache_directory);
+    let cache_key = static_engine_cache_key(cache_directory);
     let engine_key = format!("{repo_name}_{model_file}_{EMBEDDING_MODEL_REVISION}_{cache_key}");
 
     {
