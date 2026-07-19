@@ -26,7 +26,7 @@ describe("XbergEngine.ocr with injected backend", () => {
 		const injection = {
 			ocr: async (_bytes: Uint8Array, _opts: unknown) => ({
 				text: "hello from ocr",
-				lines: [{ text: "hello from ocr", confidence: 0.98, bbox: { x: 1, y: 2, w: 3, h: 4 } }],
+				lines: [{ text: "hello from ocr", confidence: 0.98, bbox: { x: 1, y: 2, width: 3, height: 4 } }],
 			}),
 		};
 		const engine = new XbergEngine({}, injection);
@@ -37,7 +37,7 @@ describe("XbergEngine.ocr with injected backend", () => {
 		expect(result.lines).toHaveLength(1);
 		expect(result.lines[0].text).toBe("hello from ocr");
 		expect(result.lines[0].confidence).toBeCloseTo(0.98);
-		expect(result.lines[0].bbox).toEqual({ x: 1, y: 2, w: 3, h: 4 });
+		expect(result.lines[0].bbox).toEqual({ x: 1, y: 2, width: 3, height: 4 });
 	});
 
 	it("degrades to empty lines when the backend omits geometry", async () => {

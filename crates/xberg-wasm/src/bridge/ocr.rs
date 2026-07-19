@@ -3,10 +3,10 @@
 //! The WASM engine calls an externally-injected JavaScript object that
 //! implements an `ocr(imageBytes, options)` async method. The host returns
 //! a promise resolving to `{ text: string, lines: Array<{ text: string,
-//! confidence: number, bbox?: { x, y, w, h } }> }`; real per-line geometry,
-//! not just a flat string. `lines` is optional on the wire; a missing or
-//! malformed `lines` array degrades to an empty vec rather than an error,
-//! since `text` alone is still useful.
+//! confidence: number, bbox?: { x, y, width, height } }> }`; real per-line
+//! geometry, not just a flat string. `lines` is optional on the wire; a
+//! missing or malformed `lines` array degrades to an empty vec rather than
+//! an error, since `text` alone is still useful.
 //!
 //! There is no in-binary fallback: when no backend is injected, OCR is
 //! unavailable and calls return an error saying so.
@@ -22,8 +22,8 @@ use wasm_bindgen::prelude::*;
 pub struct OcrBbox {
     pub x: f64,
     pub y: f64,
-    pub w: f64,
-    pub h: f64,
+    pub width: f64,
+    pub height: f64,
 }
 
 /// A single OCR-detected line of text.
@@ -46,18 +46,9 @@ pub struct OcrResult {
 }
 
 /// Resolve OCR through the injected backend and return extracted text with
-/// per-line geometry.
+/// per-line geometry, with a configurable bridge timeout.
 ///
 /// Returns an error when `injected` is `None` or `image_bytes` is empty.
-pub async fn resolve_ocr(
-    injected: Option<js_sys::Object>,
-    image_bytes: &[u8],
-    language: &str,
-) -> Result<OcrResult, JsValue> {
-    resolve_ocr_with_timeout(injected, image_bytes, language, crate::bridge::BRIDGE_TIMEOUT_MS).await
-}
-
-/// Like [`resolve_ocr`] but with a configurable bridge timeout.
 pub async fn resolve_ocr_with_timeout(
     injected: Option<js_sys::Object>,
     image_bytes: &[u8],
@@ -94,7 +85,7 @@ async fn call_injected_ocr(
 
     let args = js_sys::Array::of2(&js_bytes, &opts);
     let result = func.apply(&obj, &args)?;
-    let promise = Promise::from(result);
+    let promise = Promise::resolve(&result);
     let js_val = crate::bridge::timed_js_future_with_timeout(promise, timeout_ms).await?;
 
     serde_wasm_bindgen::from_value(js_val).map_err(|e| js_from_any(format!("failed to deserialize ocr result: {e}")))

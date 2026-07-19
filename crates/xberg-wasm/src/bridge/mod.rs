@@ -23,6 +23,19 @@ pub(crate) fn js_from_any(v: impl std::fmt::Display) -> JsValue {
     JsValue::from_str(&v.to_string())
 }
 
+/// Build (and cache) the `Promise.race` timeout helper via `Function::new_with_args`.
+///
+/// # CSP constraint
+///
+/// `Function::new_with_args` compiles a function body via the JS `Function`
+/// constructor, which is equivalent to `eval` and is blocked by a
+/// `Content-Security-Policy` without `'unsafe-eval'` (or a `script-src`
+/// exempting `Function`/`eval`). Hosts embedding this crate under a strict
+/// CSP must relax it to allow `'unsafe-eval'`, or the first bridge call
+/// throws a CSP violation instead of racing the timeout. There is currently
+/// no CSP-safe fallback; the timeout wrapper is skipped only when arming the
+/// race itself fails (e.g. engine-level OOM), not when a CSP blocks the
+/// `Function` constructor at page-load or first-call time.
 fn get_timeout_racer() -> &'static js_sys::Function {
     static RACER: OnceLock<js_sys::Function> = OnceLock::new();
     RACER.get_or_init(|| {

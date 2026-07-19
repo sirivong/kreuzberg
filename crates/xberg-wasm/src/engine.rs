@@ -53,7 +53,7 @@ impl XbergEngine {
     ///
     /// `injection` may contain:
     /// - `ner`; object with `ner(text, categories): Promise<Array<{ category, text, start, end, confidence? }>>`
-    /// - `ocr`; object with `ocr(imageBytes, opts): Promise<{ text: string, lines?: Array<{ text: string, confidence: number, bbox?: { x: number, y: number, w: number, h: number } }> }>`
+    /// - `ocr`; object with `ocr(imageBytes, opts): Promise<{ text: string, lines?: Array<{ text: string, confidence: number, bbox?: { x: number, y: number, width: number, height: number } }> }>`
     ///
     /// Unknown injection keys are ignored, so hosts can pass richer injection
     /// objects shared with other engines.
@@ -65,9 +65,17 @@ impl XbergEngine {
             let config_obj: Object = config
                 .dyn_into()
                 .map_err(|_| JsValue::from_str("config must be an object"))?;
-            get_opt_number(&config_obj, "bridgeTimeoutMs")?
-                .map(|v| v as u32)
-                .unwrap_or(crate::bridge::BRIDGE_TIMEOUT_MS)
+            match get_opt_number(&config_obj, "bridgeTimeoutMs")? {
+                Some(v) => {
+                    if !v.is_finite() || v < 0.0 {
+                        return Err(JsValue::from_str(
+                            "bridgeTimeoutMs must be a non-negative, finite number",
+                        ));
+                    }
+                    v as u32
+                }
+                None => crate::bridge::BRIDGE_TIMEOUT_MS,
+            }
         };
 
         let obj: Object = if injection.is_undefined() || injection.is_null() {
@@ -81,7 +89,11 @@ impl XbergEngine {
         let ner = get_opt_field(&obj, "ner")?;
         let ocr = get_opt_field(&obj, "ocr")?;
 
-        Ok(XbergEngine { ner, ocr, bridge_timeout_ms })
+        Ok(XbergEngine {
+            ner,
+            ocr,
+            bridge_timeout_ms,
+        })
     }
 
     /// Extract content from a single bytes or URI input.

@@ -11,26 +11,11 @@
 use js_sys::{Function, Object, Promise, Reflect};
 use wasm_bindgen::prelude::*;
 
-#[cfg(target_arch = "wasm32")]
-use async_trait::async_trait;
-#[cfg(target_arch = "wasm32")]
-use xberg::text::ner::NerBackend;
 use xberg::types::entity::{Entity, EntityCategory};
 
 use crate::bridge::js_from_any;
 
-/// Resolve NER through the injected backend.
-///
-/// Returns an error when `injected` is `None`.
-pub async fn resolve_ner(
-    injected: Option<js_sys::Object>,
-    text: &str,
-    categories: &[EntityCategory],
-) -> Result<Vec<Entity>, JsValue> {
-    resolve_ner_with_timeout(injected, text, categories, crate::bridge::BRIDGE_TIMEOUT_MS).await
-}
-
-/// Like [`resolve_ner`] but with a configurable bridge timeout.
+/// Resolve NER through the injected backend, with a configurable bridge timeout.
 pub async fn resolve_ner_with_timeout(
     injected: Option<js_sys::Object>,
     text: &str,
@@ -80,39 +65,8 @@ async fn call_injected_ner(
     let args = js_sys::Array::of2(&js_text, &js_cats);
 
     let result = func.apply(&obj, &args)?;
-    let promise = Promise::from(result);
+    let promise = Promise::resolve(&result);
     let js_val = crate::bridge::timed_js_future_with_timeout(promise, timeout_ms).await?;
 
     serde_wasm_bindgen::from_value(js_val).map_err(|e| js_from_any(format!("failed to deserialize NER result: {e}")))
-}
-
-/// Adapter that wraps an injected JS NER object as a [`NerBackend`], so core
-/// consumers taking `&dyn NerBackend` can run against a JS backend. The trait
-/// is `?Send` on wasm32 (see `xberg::text::ner::backend`), which is what
-/// permits holding `JsValue`s across the await. The impl exists only on
-/// wasm32: on host targets the trait demands `Send` futures, `JsValue` is not
-/// `Send` there, and a JS bridge has nothing to bridge off-wasm anyway.
-pub struct JsNerBridge {
-    obj: Object,
-    timeout_ms: u32,
-}
-
-impl JsNerBridge {
-    /// Wrap an injected JS object that exposes `ner(text, categories)`.
-    pub fn new(obj: Object, timeout_ms: u32) -> Self {
-        Self { obj, timeout_ms }
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-#[async_trait(?Send)]
-impl NerBackend for JsNerBridge {
-    async fn detect(&self, text: &str, categories: &[EntityCategory]) -> xberg::Result<Vec<Entity>> {
-        call_injected_ner(self.obj.clone(), text, categories, self.timeout_ms)
-            .await
-            .map_err(|e| xberg::XbergError::Plugin {
-                message: format!("JS NER bridge: {e:?}"),
-                plugin_name: "js-ner-bridge".to_string(),
-            })
-    }
 }
