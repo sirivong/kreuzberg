@@ -65,8 +65,9 @@ def numbers(text: str) -> list[str]:
     return [n.replace(",", "") for n in _NUM.findall(text)]
 
 
-def oracle_pages(pdf_path: Path) -> list[list[str]]:
-    r"""Independent extraction, per page (pdftotext emits \f between pages). Empty list => no layer."""
+def oracle_pages(pdf_path: Path) -> tuple[list[list[str]], str]:
+    r"""Independent extraction: (per-page token lists, raw text). pdftotext emits \f between pages.
+    ([], "") => no extractable text layer."""
     try:
         out = subprocess.run(
             ["pdftotext", "-layout", "-enc", "UTF-8", str(pdf_path), "-"],
@@ -74,8 +75,18 @@ def oracle_pages(pdf_path: Path) -> list[list[str]]:
             timeout=180,
         ).stdout.decode("utf-8", "replace")
     except (subprocess.SubprocessError, FileNotFoundError):
-        return []
-    return [tokens(pg) for pg in out.split("\f")]
+        return [], ""
+    return [tokens(pg) for pg in out.split("\f")], out
+
+
+_CITATION = re.compile(r"\[(\d{1,3})\]")
+
+
+def max_citation(text: str) -> int:
+    """Highest in-text bracket citation [N] — a cheap arXiv version-drift signal (GT derived from a
+    later source version cites references the rendered PDF's bibliography does not contain)."""
+    nums = [int(m.group(1)) for m in _CITATION.finditer(text)]
+    return max(nums) if nums else 0
 
 
 def table_header_tokens(md: str) -> list[list[str]]:
@@ -126,13 +137,19 @@ def _segment_recall(oracle_flat: list[str], gt_set: set[str], lo: float, hi: flo
 
 def evaluate(pdf_path: Path, gt_md: str, source: str = "") -> Eval:
     ev = Eval()
-    pages = oracle_pages(pdf_path)
+    g_tok = tokens(gt_md)
+    ev.gt_tokens = len(g_tok)
+    # Empty / near-empty GT (e.g. a failed html_to_gfm produced "") is always bad, oracle-independent.
+    if len(g_tok) < 3:
+        ev.verdict, ev.reasons = "REJECT", [f"empty/near-empty GT ({len(g_tok)} tokens)"]
+        return ev
+
+    pages, oracle_raw = oracle_pages(pdf_path)
     ev.pages = len(pages)
     ev.empty_pages = sum(1 for p in pages if len(p) < EMPTY_PAGE_TOKENS)
     oracle_flat = [t for p in pages for t in p]
-    g_tok = tokens(gt_md)
     o_set, g_set = set(oracle_flat), set(g_tok)
-    ev.oracle_tokens, ev.gt_tokens = len(oracle_flat), len(g_tok)
+    ev.oracle_tokens = len(oracle_flat)
 
     # No / near-empty oracle => cannot validate here.
     if len(oracle_flat) < MIN_ORACLE_TOKENS:
@@ -166,13 +183,16 @@ def evaluate(pdf_path: Path, gt_md: str, source: str = "") -> Eval:
             f"truncated: covers {ev.coverage:.2f}, head-recall {ev.head_recall:.2f} vs "
             f"tail-recall {ev.tail_recall:.2f} (clean prefix ends early)"
         )
-    # Truncation, shape B: GT is a tiny fraction of a multi-page native doc. Catches truncation the
-    # prefix-drop misses when repeated boilerplate keeps tail-recall high (federal-register: cov 0.10).
-    elif "native-clean" in ev.cohorts and ev.pages > 1 and ev.coverage < TRUNC_EXTREME_COVERAGE:
+    # Truncation, shape B: GT is a tiny fraction of a native doc (single- or multi-page). Catches the
+    # prefix-drop miss when repeated boilerplate keeps tail-recall high (federal-register: cov 0.10) and
+    # the single-page case the prefix rule cannot see (a 1-page PDF whose GT covers a sliver of it).
+    elif "native-clean" in ev.cohorts and ev.coverage < TRUNC_EXTREME_COVERAGE:
         reasons.append(f"truncated: GT is {ev.coverage:.2f} of a {ev.pages}-page native doc (extreme length gap)")
 
-    # Table fabrication: header/label tokens absent from oracle (only trust when oracle is valid).
-    if not scan_suspect:
+    # Table fabrication: header/label tokens absent from oracle. Skip whenever a meaningful fraction of
+    # pages have no text layer — the table's labels may legitimately live on an image page (else a real
+    # table on a partly-scanned doc false-REJECTs). Such docs fall through to the scan/precision REVIEW.
+    if frac_empty < SCAN_PAGE_FRACTION:
         for hdr in table_header_tokens(gt_md):
             sup = len([t for t in hdr if t in o_set]) / max(1, len(hdr))
             ev.worst_table_label_support = min(ev.worst_table_label_support, sup)
@@ -191,10 +211,21 @@ def evaluate(pdf_path: Path, gt_md: str, source: str = "") -> Eval:
         ev.verdict, ev.reasons = "REJECT", reasons
         return ev
 
-    # Hallucination / scan => REVIEW (needs 2nd OCR or human), else ACCEPT.
+    # arXiv version drift: ReaDoc arXiv GT is derived from the LaTeX SOURCE, which may be a different
+    # version than the rendered PDF. The token gate can't see it (body matches), but the GT then cites
+    # references absent from the PDF bibliography. High-signal, cheap; routes to human REVIEW.
+    gt_cite, oracle_cite = max_citation(gt_md), max_citation(oracle_raw)
+    version_drift = "readoc" in source and gt_cite > oracle_cite + 15 and gt_cite > 1.3 * max(1, oracle_cite)
+
+    # Hallucination / scan / drift => REVIEW (needs 2nd OCR or human), else ACCEPT.
     if scan_suspect:
         ev.verdict = "REVIEW"
         ev.reasons = [f"{ev.empty_pages}/{ev.pages} pages have no text layer + low coverage — needs 2nd OCR oracle"]
+    elif version_drift:
+        ev.verdict = "REVIEW"
+        ev.reasons = [
+            f"possible arXiv version drift: GT cites [{gt_cite}] but PDF bibliography tops out near [{oracle_cite}]"
+        ]
     elif ev.precision < HALLUC_PRECISION and 0.6 <= ev.coverage <= 1.6:
         ev.verdict = "REVIEW"
         ev.reasons = [f"precision {ev.precision:.2f} on native-text doc — possible hallucination"]

@@ -48,23 +48,37 @@ COMMON_TRANSFORMS = [
 ]
 
 
+# Fenced and inline code spans must be left verbatim — the math/bold rewrites would corrupt code
+# (e.g. `****` in a C banner, `\(x\)` in a regex). Transforms run only OUTSIDE these spans.
+_CODE_SPAN = re.compile(r"```.*?```|~~~.*?~~~|`[^`\n]+`", re.DOTALL)
+
+
 def normalize_with_report(md: str, source: str = "") -> tuple[str, dict[str, int]]:
     """Normalize GT markdown to canonical GFM, returning (normalized, {transform: count}).
 
     The report records exactly which transforms fired and how many times — the precise, per-document
-    record of how the data was modified from source.
+    record of how the data was modified from source. Fenced/inline code spans are preserved verbatim.
     """
     report: dict[str, int] = {}
     passes = []
     if source.startswith("readoc") or source == "":
         passes += READOC_TRANSFORMS
     passes += COMMON_TRANSFORMS
-    for name, _desc, pattern, repl in passes:
-        md, n = pattern.subn(repl, md)
-        if n:
-            report[name] = n
-    md = md.strip() + "\n"
-    return md, report
+
+    def apply(text: str) -> str:
+        for name, _desc, pattern, repl in passes:
+            text, n = pattern.subn(repl, text)
+            if n:
+                report[name] = report.get(name, 0) + n
+        return text
+
+    out, last = [], 0
+    for m in _CODE_SPAN.finditer(md):
+        out.append(apply(md[last : m.start()]))
+        out.append(m.group(0))  # code span: verbatim
+        last = m.end()
+    out.append(apply(md[last:]))
+    return "".join(out).strip() + "\n", report
 
 
 def normalize(md: str, source: str = "") -> str:
@@ -106,8 +120,19 @@ def html_to_gfm(html: str) -> str:
     html-to-markdown engine — lossless, colspan/rowspan/`<strong>`/`<br>`-aware — instead of a
     hand-rolled regex. Then apply the common canonicalization passes.
     """
-    out = subprocess.run([_html_to_markdown_cli(), "-"], input=html.encode("utf-8"), capture_output=True, timeout=60)
+    try:
+        out = subprocess.run(
+            [_html_to_markdown_cli(), "-"],
+            input=html.encode("utf-8"),
+            capture_output=True,
+            timeout=120,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(f"html_to_gfm conversion failed: {exc}") from exc
     md = out.stdout.decode("utf-8", "replace")
+    if not md.strip():
+        raise RuntimeError("html_to_gfm produced empty output")
     for _name, _desc, pattern, repl in COMMON_TRANSFORMS:
         md, _ = pattern.subn(repl, md)
     return md.strip() + "\n"
