@@ -697,12 +697,54 @@ mod tests {
     #[test]
     fn has_consistent_column_alignment_rejects_ragged_prose_block() {
         let words = vec![
-            HocrWord { text: "Journal".into(), left: 100, top: 50, width: 60, height: 20, confidence: 95.0 },
-            HocrWord { text: "ISSN".into(), left: 250, top: 50, width: 40, height: 20, confidence: 95.0 },
-            HocrWord { text: "Academy".into(), left: 100, top: 100, width: 70, height: 20, confidence: 95.0 },
-            HocrWord { text: "URL".into(), left: 360, top: 100, width: 40, height: 20, confidence: 95.0 },
-            HocrWord { text: "of".into(), left: 100, top: 150, width: 20, height: 20, confidence: 95.0 },
-            HocrWord { text: "Rajasthan".into(), left: 470, top: 150, width: 80, height: 20, confidence: 95.0 },
+            HocrWord {
+                text: "Journal".into(),
+                left: 100,
+                top: 50,
+                width: 60,
+                height: 20,
+                confidence: 95.0,
+            },
+            HocrWord {
+                text: "ISSN".into(),
+                left: 250,
+                top: 50,
+                width: 40,
+                height: 20,
+                confidence: 95.0,
+            },
+            HocrWord {
+                text: "Academy".into(),
+                left: 100,
+                top: 100,
+                width: 70,
+                height: 20,
+                confidence: 95.0,
+            },
+            HocrWord {
+                text: "URL".into(),
+                left: 360,
+                top: 100,
+                width: 40,
+                height: 20,
+                confidence: 95.0,
+            },
+            HocrWord {
+                text: "of".into(),
+                left: 100,
+                top: 150,
+                width: 20,
+                height: 20,
+                confidence: 95.0,
+            },
+            HocrWord {
+                text: "Rajasthan".into(),
+                left: 470,
+                top: 150,
+                width: 80,
+                height: 20,
+                confidence: 95.0,
+            },
         ];
 
         assert!(
@@ -717,8 +759,22 @@ mod tests {
     #[test]
     fn has_consistent_column_alignment_accepts_single_column_region() {
         let words = vec![
-            HocrWord { text: "one".into(), left: 100, top: 50, width: 40, height: 20, confidence: 95.0 },
-            HocrWord { text: "two".into(), left: 100, top: 100, width: 40, height: 20, confidence: 95.0 },
+            HocrWord {
+                text: "one".into(),
+                left: 100,
+                top: 50,
+                width: 40,
+                height: 20,
+                confidence: 95.0,
+            },
+            HocrWord {
+                text: "two".into(),
+                left: 100,
+                top: 100,
+                width: 40,
+                height: 20,
+                confidence: 95.0,
+            },
         ];
 
         assert!(

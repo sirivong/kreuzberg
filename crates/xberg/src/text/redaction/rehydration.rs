@@ -98,17 +98,15 @@ pub fn decrypt_map(blob: &[u8], passphrase: &str) -> Result<RehydrationMap> {
         .map_err(|e| XbergError::validation(format!("invalid AES-256 key: {e}")))?;
     let nonce = Nonce::<Aes256Gcm>::try_from(nonce_bytes)
         .map_err(|e| XbergError::validation(format!("invalid AES-256-GCM nonce: {e}")))?;
-    let tag = Tag::<Aes256Gcm>::try_from(tag)
-        .map_err(|e| XbergError::validation(format!("invalid AES-256-GCM tag: {e}")))?;
+    let tag =
+        Tag::<Aes256Gcm>::try_from(tag).map_err(|e| XbergError::validation(format!("invalid AES-256-GCM tag: {e}")))?;
 
     // Zeroizing: after decryption the buffer holds the plaintext PII map;
     // wipe it when it drops rather than leaving it in freed memory.
     let mut buffer = Zeroizing::new(ciphertext.to_vec());
     cipher
         .decrypt_inout_detached(&nonce, b"", buffer.as_mut_slice().into(), &tag)
-        .map_err(|_| {
-            XbergError::validation("failed to decrypt rehydration map: wrong passphrase or corrupted data")
-        })?;
+        .map_err(|_| XbergError::validation("failed to decrypt rehydration map: wrong passphrase or corrupted data"))?;
 
     serde_json::from_slice(&buffer)
         .map_err(|e| XbergError::validation(format!("failed to deserialize rehydration map: {e}")))
