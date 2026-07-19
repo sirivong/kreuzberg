@@ -18,14 +18,18 @@ dev = [
     "types-psutil>=7.2.2.20260508",
     "validate-pyproject>=0.24.1",
 ]
-bench-docling = ["docling>=2.64.1"]
-bench-markitdown = ["markitdown[all]>=0.1.4"]
-bench-mineru = ["mineru[pipeline]>=2.6.7", "onnxruntime", "six"]
-bench-pymupdf4llm = ["pillow>=10.0.0", "pymupdf-layout>=0.0.1", "pymupdf4llm>=0.0.17"]
-bench-unstructured = ["unstructured[docx,pdf,pptx,xlsx,md,odt,rtf,epub,org,rst]==0.18.32"]
+bench-docling = ["docling==2.113.0"]
+bench-markitdown = ["markitdown[all]==0.1.6"]
+bench-mineru = ["mineru[pipeline]==3.4.4", "onnxruntime", "six"]
+bench-pymupdf4llm = ["pillow>=10.0.0", "pymupdf-layout==1.28.0", "pymupdf4llm==1.28.0"]
+bench-unstructured = ["unstructured[docx,pdf,pptx,xlsx,md,odt,rtf,epub,org,rst]==0.24.1"]
 
 [tool.uv]
 environments = ["python_version >= '3.11'"]
+# markitdown[all] (bench-markitdown) requires azure-ai-contentunderstanding>=1.2.0b1,
+# which currently only publishes pre-releases; allow prereleases when no stable
+# version satisfies a specifier (scoped, not a blanket opt-in).
+prerelease = "if-necessary"
 workspace.members = ["packages/python"]
 conflicts = [
     [
