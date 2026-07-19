@@ -166,6 +166,8 @@ impl Fixture {
                     | "nougat"
                     | "readoc"
                     | "parsebench"
+                    | "fintabnet"
+                    | "federal_register"
             ) {
                 return Err(Error::InvalidFixture {
                     path: fixture_path.to_path_buf(),

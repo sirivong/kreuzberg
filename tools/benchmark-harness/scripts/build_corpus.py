@@ -88,6 +88,42 @@ SOURCES = {
         "granularity": "page",
         "note": "only table.jsonl ships expected_markdown (HTML tables); human-verified",
     },
+    "fintabnet": {
+        "repo": "bsmock/FinTabNet.c",
+        "revision": None,  # resolved from HF at acquire (real dataset repo); staged copy re-gated here
+        "license": "CDLA-Permissive-2.0",
+        # CDLA-Permissive-2.0 is a permissive, redistribution-friendly data license → vendored.
+        "redistribute": "vendor",
+        "url": "https://huggingface.co/datasets/bsmock/FinTabNet.c",
+        "citation": (
+            'Smock et al., "Aligning benchmark datasets for table structure recognition", ICDAR 2023 (arXiv:2303.00716)'
+        ),
+        "granularity": "page",
+        "note": "financial-statement table crops; GT = canonicalized cell structure rendered to GFM",
+    },
+    "federal_register": {
+        "repo": "federalregister.gov",
+        # Not an HF dataset → pin the staging snapshot instead of resolving a HF sha at acquire.
+        "revision": "2026-07-20",
+        "license": "US-PD (17 U.S.C. §105)",
+        # U.S. Government work, public domain → freely redistributable → vendored.
+        "redistribute": "vendor",
+        "url": "https://www.federalregister.gov",
+        "citation": (
+            "U.S. Federal Register (OFR/GPO), federalregister.gov — U.S. Government work, "
+            "public domain (17 U.S.C. §105)"
+        ),
+        "granularity": "document",
+        "note": "OFR/GPO full-text XML → GFM (headings, label blocks, GPOTABLE pipe tables)",
+    },
+}
+
+# Vendored datasets pre-staged on disk as (pdf, gt.md) pairs under <base>/{pdf,gt}/<id>.{pdf,md}
+# (already triaged upstream; this builder re-gates them with its own oracle). Normalized GT is written
+# to <base>/normalized/<id>.md, mirroring the readoc/parsebench normalize→gate→assemble flow.
+STAGED_SOURCES = {
+    "fintabnet": STAGING / "fintabnet" / "staged",
+    "federal_register": STAGING / "federal_register" / "staged",
 }
 
 # Redistribution policy. xberg (this repo) is MIT-licensed, public, non-commercial open-source.
@@ -218,6 +254,43 @@ def stage_normalize(records: dict, dry: bool) -> None:
             (normd / f"{pid}.md").write_text(out)
     print(f"[normalize] parsebench: {count} HTML tables → GFM")
 
+    # Pre-staged vendored datasets (fintabnet, federal_register): GT is already GFM on disk; canonicalize
+    # it (COMMON_TRANSFORMS only for these non-readoc sources) and record the exact per-doc transforms.
+    for name, base in STAGED_SOURCES.items():
+        _normalize_staged(records, name, base, dry)
+
+
+def _normalize_staged(records: dict, name: str, base: Path, dry: bool) -> None:
+    """Normalize a pre-staged (pdf, gt.md)-pair dataset into <base>/normalized/<id>.md + DocRecords."""
+    cfg = SOURCES[name]
+    normd = base / "normalized"
+    count = 0
+    for gt_md in sorted((base / "gt").glob("*.md")):
+        sid = gt_md.stem
+        if not (base / "pdf" / f"{sid}.pdf").exists():
+            continue  # orphan GT with no source PDF — skip (gate would only mark it NO_PDF)
+        raw = gt_md.read_text("utf-8", "replace")
+        out, report = normalize_with_report(raw, source=name)
+        rec = records.get(sid) or asdict(
+            DocRecord(
+                id=sid,
+                source_dataset=name,
+                upstream_id=sid[3:] if name == "fintabnet" else sid,  # strip the `ft_` id prefix
+                source_url=cfg["url"],
+                license=cfg["license"],
+                source_revision=cfg.get("revision") or "",
+            )
+        )
+        rec["src_gt_sha256"] = sha256_bytes(raw.encode())
+        rec["out_gt_md_sha256"] = sha256_bytes(out.encode())
+        rec["transforms"] = report
+        records[sid] = rec
+        count += 1
+        if not dry:
+            normd.mkdir(parents=True, exist_ok=True)
+            (normd / f"{sid}.md").write_text(out)
+    print(f"[normalize] {name}: {count} GT files normalized")
+
 
 def _parsebench_records() -> list[tuple[str, Path, str]]:
     """(id, pdf_path, html) per ParseBench table record. id is namespaced `pb_<pdf-stem>`."""
@@ -317,6 +390,30 @@ def stage_gate(records: dict, dry: bool) -> None:
             save_ledger(records)
     print(f"[gate] parsebench: {pb}")
 
+    # Pre-staged vendored datasets — same calibrated oracle, source-agnostic (fintabnet crops are
+    # table-dominant → tagged `tables`; federal_register is whole-doc prose+tables).
+    for name, base in STAGED_SOURCES.items():
+        norm = base / "normalized"
+        extra = ["tables"] if name == "fintabnet" else []
+        tally: dict[str, int] = {}
+        for rid, rec in records.items():
+            if rec["source_dataset"] != name:
+                continue
+            if done(rec):
+                tally[rec["gate_verdict"]] = tally.get(rec["gate_verdict"], 0) + 1
+                continue
+            pdf, gt = _source_pdf(rec), norm / f"{rid}.md"
+            if pdf is None or not gt.exists():
+                rec["gate_verdict"], rec["exclusion_reason"] = "NO_PDF", "missing source PDF or normalized GT"
+                tally["NO_PDF"] = tally.get("NO_PDF", 0) + 1
+                continue
+            ev = evaluate(pdf, gt.read_text("utf-8", "replace"), source=name)
+            _apply_gate(rec, ev, extra)
+            tally[ev.verdict] = tally.get(ev.verdict, 0) + 1
+            if not dry and sum(tally.values()) % 100 == 0:
+                save_ledger(records)
+        print(f"[gate] {name}: {tally}")
+
 
 CORE_SIZE = 160  # active fast-iteration tier (runtime-governed; calibrate to codex's wall-clock)
 CORE_PER_STRATUM = 24  # ensure each diagnostic stratum is represented in core
@@ -337,8 +434,11 @@ def _hash01(s: str) -> float:
 
 
 def _normalized_gt(rec: dict) -> Path:
-    if rec["source_dataset"] == "parsebench":
+    ds = rec["source_dataset"]
+    if ds == "parsebench":
         return PARSEBENCH / "normalized" / f"{rec['id']}.md"
+    if ds in STAGED_SOURCES:
+        return STAGED_SOURCES[ds] / "normalized" / f"{rec['id']}.md"
     return STAGING / "readoc" / "normalized" / f"{rec['id']}.md"
 
 
@@ -417,8 +517,12 @@ def stage_curate(records: dict, dry: bool) -> None:
 
 
 def _source_pdf(rec: dict) -> Path | None:
-    if rec["source_dataset"] == "parsebench":
+    ds = rec["source_dataset"]
+    if ds == "parsebench":
         return {pid: pdf for pid, pdf, _ in _parsebench_records()}.get(rec["id"])
+    if ds in STAGED_SOURCES:
+        p = STAGED_SOURCES[ds] / "pdf" / f"{rec['id']}.pdf"
+        return p if p.exists() else None
     return _readoc_pdf(rec["id"])
 
 
@@ -446,9 +550,10 @@ def _size_category(nbytes: int) -> str:
 
 
 def doc_redistribute(rec: dict) -> str:
-    """vendor (committed) vs reference (gitignored, fetched on demand), per document. ReaDoc is split:
+    """Vendor (committed) vs reference (gitignored, fetched on demand), per document. ReaDoc is split:
     GitHub docs (pure-int ids = author-owned README content) vendor; arXiv docs reference — the wrapper
-    MIT tag cannot license the bundled arXiv PDFs, and their source-derived GT is version-drift-prone."""
+    MIT tag cannot license the bundled arXiv PDFs, and their source-derived GT is version-drift-prone.
+    """
     ds = rec["source_dataset"]
     if ds == "readoc":
         return "vendor" if rec["id"].isdigit() else "reference"
@@ -464,7 +569,8 @@ def _dest(redistribute: str) -> tuple[Path, Path, str]:
 
 def _write_doc(r: dict) -> tuple[int, str] | None:
     """Copy the source PDF + write GFM/.txt GT to the doc's redistribution destination (committed for
-    vendor, gitignored cache for reference). Records redistribute + pdf/txt hashes. Returns (bytes, prefix)."""
+    vendor, gitignored cache for reference). Records redistribute + pdf/txt hashes. Returns (bytes, prefix).
+    """
     import shutil
 
     src_pdf, gt = _source_pdf(r), _normalized_gt(r)
@@ -509,14 +615,15 @@ def _fixture(r: dict, nbytes: int, prefix: str) -> dict:
 
 
 def _prune_managed() -> None:
-    """assemble owns the corpus files: clear prior readoc/parsebench outputs — committed AND cached —
-    so tier/redistribute changes never leave stale files. Non-managed (e.g. manual) is kept."""
+    """Assemble owns the corpus files: clear prior readoc/parsebench outputs — committed AND cached —
+    so tier/redistribute changes never leave stale files. Non-managed (e.g. manual) is kept.
+    """
     for fx in FIXTURE_DIR.glob("*.json"):
         try:
             src = json.loads(fx.read_text()).get("ground_truth", {}).get("source")
         except (json.JSONDecodeError, OSError):
             continue
-        if src in ("readoc", "parsebench"):
+        if src in ("readoc", "parsebench", *STAGED_SOURCES):
             stem = fx.stem
             fx.unlink(missing_ok=True)
             (PDF_DIR / f"{stem}.pdf").unlink(missing_ok=True)
@@ -537,7 +644,8 @@ def stage_assemble(records: dict, dry: bool) -> None:
     """Materialize the active tiers (smoke ⊂ core) + write fixtures. VENDOR docs → committed
     test_documents; REFERENCE docs → the gitignored .corpus-cache (never redistributed). Fixtures are
     always committed (pointers); reference-doc fixtures point into the cache and require --stage
-    materialize before a run."""
+    materialize before a run.
+    """
     active = [r for r in records.values() if r["gate_verdict"] == "ACCEPT" and r.get("size_tier") in ("smoke", "core")]
     if not dry:
         for d in (PDF_DIR, GT_DIR, FIXTURE_DIR, CACHE_PDF, CACHE_GT):
@@ -563,7 +671,8 @@ def stage_materialize(records: dict, dry: bool) -> None:
     """On-demand fetch: populate the gitignored .corpus-cache with source PDF + GT for every committed
     REFERENCE fixture. This is what the harness runs before a benchmark so reference docs exist locally
     without ever being redistributed. Idempotent (skips docs already cached). Requires acquire+normalize
-    to have run (ledger + staged sources present)."""
+    to have run (ledger + staged sources present).
+    """
     ref_fixtures = []
     for fx in FIXTURE_DIR.glob("*.json"):
         try:
@@ -721,8 +830,10 @@ def _modification_summary(records: dict) -> str:
 def generate_readme(records: dict) -> None:
     src_rows = ["| dataset | license | GT provenance | role |", "|---|---|---|---|"]
     for cfg in SOURCES.values():
+        # revision is None for sources resolved from HF at acquire time (e.g. fintabnet); show HEAD.
+        rev = (cfg.get("revision") or "HEAD")[:8]
         src_rows.append(
-            f"| [{cfg['repo']}]({cfg['url']}) @`{cfg['revision'][:8]}` | "
+            f"| [{cfg['repo']}]({cfg['url']}) @`{rev}` | "
             f"{cfg['license']} | {cfg['note']} | {cfg['granularity']} |"
         )
     body = f"""# xberg PDF→Markdown benchmark corpus

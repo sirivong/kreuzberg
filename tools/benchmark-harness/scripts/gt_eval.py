@@ -67,7 +67,8 @@ def numbers(text: str) -> list[str]:
 
 def oracle_pages(pdf_path: Path) -> tuple[list[list[str]], str]:
     r"""Independent extraction: (per-page token lists, raw text). pdftotext emits \f between pages.
-    ([], "") => no extractable text layer."""
+    ([], "") => no extractable text layer.
+    """
     try:
         out = subprocess.run(
             ["pdftotext", "-layout", "-enc", "UTF-8", str(pdf_path), "-"],
@@ -84,7 +85,8 @@ _CITATION = re.compile(r"\[(\d{1,3})\]")
 
 def max_citation(text: str) -> int:
     """Highest in-text bracket citation [N] — a cheap arXiv version-drift signal (GT derived from a
-    later source version cites references the rendered PDF's bibliography does not contain)."""
+    later source version cites references the rendered PDF's bibliography does not contain).
+    """
     nums = [int(m.group(1)) for m in _CITATION.finditer(text)]
     return max(nums) if nums else 0
 
