@@ -28,10 +28,10 @@ pub(crate) fn hf_download(
     let api = builder
         .build_sync()
         .map_err(|error| format!("HF API init failed: {error}"))?;
-    if let Some(path) = cached_file(&api, repo_id, filename, revision)? {
-        if verify_sha256(&path, expected_sha256)? {
-            return Ok(path);
-        }
+    if let Some(path) = cached_file(&api, repo_id, filename, revision)?
+        && verify_sha256(&path, expected_sha256)?
+    {
+        return Ok(path);
     }
     if hf_offline_mode() {
         return Err(format!(
@@ -91,7 +91,17 @@ fn verify_sha256(path: &Path, expected: &str) -> Result<bool, String> {
         }
         hasher.update(&buffer[..read]);
     }
-    Ok(format!("{:x}", hasher.finalize()) == expected)
+    Ok(hex_digest(hasher.finalize().as_ref()) == expected)
+}
+
+fn hex_digest(bytes: &[u8]) -> String {
+    use std::fmt::Write;
+
+    let mut output = String::with_capacity(bytes.len() * 2);
+    for byte in bytes {
+        write!(&mut output, "{byte:02x}").expect("writing to a String cannot fail");
+    }
+    output
 }
 
 fn artifact_lock_file(cache_dir: Option<&Path>, key: &str) -> Result<std::fs::File, String> {
@@ -101,9 +111,11 @@ fn artifact_lock_file(cache_dir: Option<&Path>, key: &str) -> Result<std::fs::Fi
     let lock_dir = cache_dir.join(".locks").join("xberg-candle-ocr");
     std::fs::create_dir_all(&lock_dir)
         .map_err(|error| format!("Failed to create Hugging Face lock directory: {error}"))?;
-    let digest = format!("{:x}", Sha256::digest(key.as_bytes()));
+    let digest_bytes = Sha256::digest(key.as_bytes());
+    let digest = hex_digest(digest_bytes.as_ref());
     std::fs::OpenOptions::new()
         .create(true)
+        .truncate(false)
         .read(true)
         .write(true)
         .open(lock_dir.join(format!("{digest}.lock")))
