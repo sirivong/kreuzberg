@@ -1,0 +1,647 @@
+#!/usr/bin/env python3
+"""Single reproducible builder for the xberg PDF→Markdown ground-truth corpus.
+
+One command reproduces the entire corpus from pinned upstream sources, records every modification
+applied to every document, gates each doc against an independent oracle, and emits the fixtures, GT,
+manifest, and README under `test_documents/`. Re-running with the same pins is deterministic.
+
+    python build_corpus.py --stage all                 # acquire → normalize → gate → assemble → manifest
+    python build_corpus.py --stage normalize           # run one stage
+    python build_corpus.py --stage all --dry-run       # plan only, no writes to test_documents
+
+Design principles:
+- **Pinned + recorded provenance.** Each source has a repo id + revision; the resolved commit sha,
+  license, and URL are recorded per doc in the manifest.
+- **Every modification logged.** Normalization transforms are declared once in `normalize_gt.py`
+  (`READOC_TRANSFORMS`/`COMMON_TRANSFORMS`); this script applies them via `normalize_with_report` and
+  records the exact per-doc transform counts in the build ledger. The README "How the data was
+  modified" section is generated FROM that ledger — documentation cannot drift from code.
+- **Gated.** No doc enters the corpus without an oracle verdict (via the calibrated gate in
+  `gt_eval.py`); rejects are recorded with a reason, never silently dropped.
+- **Idempotent + resumable.** Stages skip completed work; the build ledger at
+  `<staging>/build_ledger.json` is the single source of truth across runs.
+
+Stages: acquire | normalize | gate | assemble | manifest  (all = in order).
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import subprocess
+import sys
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from normalize_gt import COMMON_TRANSFORMS, READOC_TRANSFORMS, html_to_gfm, normalize_with_report
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+STAGING = Path("/tmp/corpus_src")  # noqa: S108  dataset staging area (large, non-sensitive)
+TEST_DOCS = REPO_ROOT / "test_documents"
+GT_DIR = TEST_DOCS / "ground_truth" / "pdf"
+PDF_DIR = TEST_DOCS / "pdf"
+FIXTURE_DIR = REPO_ROOT / "tools/benchmark-harness/fixtures/pdf"
+MANIFEST = TEST_DOCS / "ground_truth" / "corpus_manifest.json"
+README = TEST_DOCS / "README.md"
+LEDGER = STAGING / "build_ledger.json"
+PARSEBENCH = Path("/tmp/parsebench")  # noqa: S108  ParseBench staging (table.jsonl + docs/table/*.pdf)
+PB_MIN_TABLE_COVERAGE = 0.60  # a table page whose GT (table only) covers < this of the page is not
+#                               table-dominant — its non-table prose would distort whole-doc scoring.
+
+# Pinned upstream sources. revision=None ⇒ resolve latest at acquire time and record the sha.
+SOURCES = {
+    "readoc": {
+        "repo": "lazyc/READoc",
+        "revision": None,
+        "license": "MIT",
+        "url": "https://huggingface.co/datasets/lazyc/READoc",
+        "granularity": "document",
+        "gt_dirs": ["arxiv_ground_truth", "github_ground_truth"],
+        "pdf_zips": ["arxiv.zip", "github.zip"],
+        "note": "arXiv GT = author LaTeX→pandoc (no tables); GitHub GT = author README rendered to PDF",
+    },
+    "parsebench": {
+        "repo": "llamaindex/ParseBench",
+        "revision": None,
+        "license": "Apache-2.0",
+        "url": "https://huggingface.co/datasets/llamaindex/ParseBench",
+        "granularity": "page",
+        "note": "only table.jsonl ships expected_markdown (HTML tables); human-verified",
+    },
+}
+
+
+def sha256_bytes(b: bytes) -> str:
+    return hashlib.sha256(b).hexdigest()
+
+
+def sha256_file(p: Path) -> str:
+    return sha256_bytes(p.read_bytes())
+
+
+@dataclass
+class DocRecord:
+    """Per-document build record — the authoritative log of how one doc was produced + modified."""
+
+    id: str
+    source_dataset: str
+    upstream_id: str
+    source_url: str
+    license: str
+    source_revision: str = ""
+    src_gt_sha256: str = ""  # sha of the raw upstream GT, before any modification
+    out_gt_md_sha256: str = ""  # sha of the normalized GT actually committed
+    transforms: dict = field(default_factory=dict)  # {transform_name: count} — the modifications
+    gate_verdict: str = "PENDING"
+    exclusion_reason: str = ""
+    cohorts: list = field(default_factory=list)
+    role: str = ""
+    size_tier: str = ""
+
+
+def load_ledger() -> dict[str, dict]:
+    if LEDGER.exists():
+        return {r["id"]: r for r in json.loads(LEDGER.read_text())}
+    return {}
+
+
+def save_ledger(records: dict[str, dict]) -> None:
+    STAGING.mkdir(parents=True, exist_ok=True)
+    LEDGER.write_text(json.dumps(sorted(records.values(), key=lambda r: r["id"]), indent=2) + "\n")
+
+
+def resolve_revision(repo: str) -> str:
+    """Record the exact upstream commit so a rebuild is reproducible."""
+    out = subprocess.run(
+        ["curl", "-sL", f"https://huggingface.co/api/datasets/{repo}"],
+        capture_output=True,
+        timeout=30,
+    ).stdout
+    return json.loads(out).get("sha", "") if out else ""
+
+
+# --- stages ----------------------------------------------------------------------------------------
+
+
+def stage_acquire(records: dict, dry: bool) -> None:
+    """Download pinned sources into staging (idempotent). GT dirs first, PDFs second."""
+    for name, cfg in SOURCES.items():
+        cfg["revision"] = cfg["revision"] or resolve_revision(cfg["repo"])
+        print(f"[acquire] {name} {cfg['repo']}@{cfg['revision'][:8]} ({cfg['license']})")
+        dest = STAGING / name
+        if dry:
+            continue
+        dest.mkdir(parents=True, exist_ok=True)
+        if name == "readoc" and not (dest / "arxiv_ground_truth").exists():
+            _hf(cfg["repo"], dest, cfg["revision"], include="*_ground_truth/*")
+        # ParseBench GT + table PDFs handled by its assemble handler (already staged at /tmp/parsebench).
+
+
+def stage_normalize(records: dict, dry: bool) -> None:
+    """Normalize each source GT to canonical GFM, recording exact per-doc transform counts."""
+    # ReaDoc
+    cfg = SOURCES["readoc"]
+    for gt_dir in cfg["gt_dirs"]:
+        for md in sorted((STAGING / "readoc" / gt_dir).glob("*.md")):
+            raw = md.read_text("utf-8", "replace")
+            out, report = normalize_with_report(raw, source="readoc")
+            rec = records.get(md.stem) or asdict(
+                DocRecord(
+                    id=md.stem,
+                    source_dataset="readoc",
+                    upstream_id=md.stem,
+                    source_url=cfg["url"],
+                    license=cfg["license"],
+                    source_revision=cfg["revision"],
+                )
+            )
+            rec["src_gt_sha256"] = sha256_bytes(raw.encode())
+            rec["out_gt_md_sha256"] = sha256_bytes(out.encode())
+            rec["transforms"] = report
+            records[md.stem] = rec
+            if not dry:
+                normd = STAGING / "readoc" / "normalized"
+                normd.mkdir(exist_ok=True)
+                (normd / f"{md.stem}.md").write_text(out)
+    n = sum(1 for r in records.values() if r["source_dataset"] == "readoc")
+    print(f"[normalize] readoc: {n} GT files normalized")
+
+    # ParseBench — each record's expected_markdown is an HTML table; convert to GFM with our engine.
+    pb = SOURCES["parsebench"]
+    count = 0
+    for pid, _pdf, html in _parsebench_records():
+        out = html_to_gfm(html)
+        rec = records.get(pid) or asdict(
+            DocRecord(
+                id=pid,
+                source_dataset="parsebench",
+                upstream_id=pid[3:],
+                source_url=pb["url"],
+                license=pb["license"],
+                source_revision=pb["revision"],
+            )
+        )
+        rec["src_gt_sha256"] = sha256_bytes(html.encode())
+        rec["out_gt_md_sha256"] = sha256_bytes(out.encode())
+        rec["transforms"] = {"html_to_gfm": 1}
+        records[pid] = rec
+        count += 1
+        if not dry:
+            normd = PARSEBENCH / "normalized"
+            normd.mkdir(exist_ok=True)
+            (normd / f"{pid}.md").write_text(out)
+    print(f"[normalize] parsebench: {count} HTML tables → GFM")
+
+
+def _parsebench_records() -> list[tuple[str, Path, str]]:
+    """(id, pdf_path, html) per ParseBench table record. id is namespaced `pb_<pdf-stem>`."""
+    out = []
+    tj = PARSEBENCH / "table.jsonl"
+    if not tj.exists():
+        return out
+    for line in tj.open():
+        r = json.loads(line)
+        html = r.get("expected_markdown")
+        if not html:
+            continue
+        stem = re.sub(r"[^A-Za-z0-9._-]+", "_", Path(r["pdf"]).stem)  # filename-safe id (names have spaces)
+        out.append((f"pb_{stem}", PARSEBENCH / r["pdf"], html))
+    return out
+
+
+def _readoc_pdf(stem: str) -> Path | None:
+    for sub in ("arxiv", "github"):
+        p = STAGING / "readoc" / "unpacked" / sub / "pdf" / f"{stem}.pdf"
+        if p.exists():
+            return p
+    return None
+
+
+def _apply_gate(rec: dict, ev, extra_cohorts: list[str]) -> None:
+    """Record an oracle verdict + scores + cohorts onto a doc record."""
+    rec["gate_verdict"] = ev.verdict
+    rec["cohorts"] = list(dict.fromkeys([*rec.get("cohorts", []), *ev.cohorts, *extra_cohorts]))
+    rec["exclusion_reason"] = "; ".join(ev.reasons) if ev.verdict in ("REJECT", "NO_ORACLE", "NO_PDF") else ""
+    rec["oracle_scores"] = {
+        "coverage": round(ev.coverage, 3),
+        "precision": round(ev.precision, 3),
+        "head_recall": round(ev.head_recall, 3),
+        "tail_recall": round(ev.tail_recall, 3),
+        "table_label_support": round(ev.worst_table_label_support, 3),
+        "pages": ev.pages,
+        "empty_pages": ev.empty_pages,
+    }
+
+
+def stage_gate(records: dict, dry: bool) -> None:
+    """Gate every normalized GT against its PDF via the calibrated oracle (gt_eval). Resumable:
+    already-gated records are skipped. Records verdict, cohorts, oracle scores, and — for REJECT/
+    NO_ORACLE — an exclusion reason. No doc enters the corpus without a verdict.
+    """
+    from gt_eval import evaluate  # noqa: PLC0415
+
+    def done(rec):
+        return rec.get("gate_verdict") not in (None, "", "PENDING")
+
+    # ReaDoc (whole-doc).
+    norm = STAGING / "readoc" / "normalized"
+    rd: dict[str, int] = {}
+    for rid, rec in records.items():
+        if rec["source_dataset"] != "readoc":
+            continue
+        if done(rec):
+            rd[rec["gate_verdict"]] = rd.get(rec["gate_verdict"], 0) + 1
+            continue
+        pdf, gt = _readoc_pdf(rid), norm / f"{rid}.md"
+        if pdf is None or not gt.exists():
+            rec["gate_verdict"], rec["exclusion_reason"] = "NO_PDF", "missing source PDF or normalized GT"
+            continue
+        ev = evaluate(pdf, gt.read_text("utf-8", "replace"), source="readoc")
+        _apply_gate(rec, ev, [])
+        rd[ev.verdict] = rd.get(ev.verdict, 0) + 1
+        if not dry and sum(rd.values()) % 200 == 0:
+            save_ledger(records)
+    print(f"[gate] readoc: {rd}")
+
+    # ParseBench (single-page tables). Also apply the table-dominance filter.
+    pb_norm = PARSEBENCH / "normalized"
+    pdf_map = {pid: pdf for pid, pdf, _ in _parsebench_records()}
+    pb: dict[str, int] = {}
+    for rid, rec in records.items():
+        if rec["source_dataset"] != "parsebench" or done(rec):
+            continue
+        pdf, gt = pdf_map.get(rid), pb_norm / f"{rid}.md"
+        if pdf is None or not pdf.exists() or not gt.exists():
+            rec["gate_verdict"], rec["exclusion_reason"] = "NO_PDF", "missing table PDF or normalized GT"
+            continue
+        ev = evaluate(pdf, gt.read_text("utf-8", "replace"), source="parsebench")
+        _apply_gate(rec, ev, ["tables"])
+        # ParseBench GT is human-verified, so a "fabricated table" flag (header tokens absent from the
+        # text layer) means the table is an IMAGE the oracle can't read, not fabrication → REVIEW+OCR.
+        if ev.verdict == "REJECT" and "fabricated table" in rec["exclusion_reason"]:
+            rec["gate_verdict"] = "REVIEW"
+            rec["exclusion_reason"] = "table absent from text layer (image table?) — needs 2nd OCR oracle"
+            rec["cohorts"] = list(dict.fromkeys([*rec["cohorts"], "figures"]))
+        # A table-only GT on a prose-heavy page distorts whole-doc scoring → hold for review.
+        elif ev.verdict == "ACCEPT" and ev.coverage < PB_MIN_TABLE_COVERAGE:
+            rec["gate_verdict"] = "REVIEW"
+            rec["exclusion_reason"] = f"table-only GT but page is {ev.coverage:.2f} table (non-table prose)"
+        pb[rec["gate_verdict"]] = pb.get(rec["gate_verdict"], 0) + 1
+        if not dry and sum(pb.values()) % 100 == 0:
+            save_ledger(records)
+    print(f"[gate] parsebench: {pb}")
+
+
+CORE_SIZE = 160  # active fast-iteration tier (runtime-governed; calibrate to codex's wall-clock)
+CORE_PER_STRATUM = 24  # ensure each diagnostic stratum is represented in core
+SMOKE_PER_STRATUM = 2  # smoke covers every stratum minimally (~24 docs)
+TUNE_FRACTION = 0.70  # deterministic 70/30 tune/eval split (overfitting guard)
+
+_H = re.compile  # local alias
+_MATH = _H(r"\$[^$\n]+\$|\$\$")
+_HEADING = _H(r"^(#{1,6})\s", re.MULTILINE)
+_NESTED_LIST = _H(r"^(?:\s{2,}|\t)(?:[-*+]|\d+\.)\s", re.MULTILINE)
+_IMAGE = _H(r"!\[[^\]]*\]\(")
+_CAPTION = _H(r"^\s*(?:Figure|Fig\.|Table)\s*\d", re.MULTILINE)
+
+
+def _hash01(s: str) -> float:
+    """Deterministic, seedless [0,1) hash for reproducible tier/role assignment."""
+    return int(hashlib.sha256(s.encode()).hexdigest(), 16) / (16**64)
+
+
+def _normalized_gt(rec: dict) -> Path:
+    if rec["source_dataset"] == "parsebench":
+        return PARSEBENCH / "normalized" / f"{rec['id']}.md"
+    return STAGING / "readoc" / "normalized" / f"{rec['id']}.md"
+
+
+def diagnostic_strata(md: str, pages: int | None, pb_html: str | None) -> list[str]:
+    """Orthogonal diagnostic-stratum tags derived from the GT (and, for tables, the source HTML)."""
+    tags = []
+    if _MATH.search(md):
+        tags.append("formula")
+    if "```" in md:
+        tags.append("code")
+    levels = [len(m.group(1)) for m in _HEADING.finditer(md)]
+    if levels and max(levels) >= 3:
+        tags.append("nested-heading")
+    if _NESTED_LIST.search(md):
+        tags.append("nested-list")
+    if _IMAGE.search(md):
+        tags.append("figures")
+    if _CAPTION.search(md):
+        tags.append("caption/footnote")
+    if pages and pages > 1:
+        tags.append("multipage-reading-order")
+    if pb_html is not None:
+        cols = max((row.count("<td") + row.count("<th") for row in pb_html.split("</tr>")), default=0)
+        if cols >= 6:
+            tags.append("wide-table")
+        if "colspan" in pb_html or "rowspan" in pb_html:
+            tags.append("complex-span-table")
+    return tags
+
+
+def stage_curate(records: dict, dry: bool) -> None:
+    """Tag diagnostic strata, then assign deterministic size tiers (smoke ⊂ core ⊂ extended) and a
+    70/30 tune/eval role to every accepted doc. Reproducible: all assignment is by hash(id).
+    """
+    from collections import defaultdict
+
+    pb_html = {pid: html for pid, _pdf, html in _parsebench_records()}
+    accept = [r for r in records.values() if r["gate_verdict"] == "ACCEPT"]
+
+    for r in accept:
+        gt = _normalized_gt(r)
+        md = gt.read_text("utf-8", "replace") if gt.exists() else ""
+        pages = (r.get("oracle_scores") or {}).get("pages")
+        strata = diagnostic_strata(md, pages, pb_html.get(r["id"]))
+        r["cohorts"] = list(dict.fromkeys([*r.get("cohorts", []), *strata]))
+        r["size_tier"] = "extended"
+        r["role"] = "tune" if _hash01(r["id"]) < TUNE_FRACTION else "eval"
+
+    by_stratum: dict[str, list] = defaultdict(list)
+    for r in accept:
+        for c in r["cohorts"]:
+            by_stratum[c].append(r)
+    core, smoke = set(), set()
+    for rs in by_stratum.values():
+        srt = sorted(rs, key=lambda r: _hash01(r["id"]))
+        core.update(r["id"] for r in srt[:CORE_PER_STRATUM])
+        smoke.update(r["id"] for r in srt[:SMOKE_PER_STRATUM])
+    for r in sorted(accept, key=lambda r: _hash01(r["id"])):  # top core up to target with lowest-hash
+        if len(core) >= CORE_SIZE:
+            break
+        core.add(r["id"])
+    for r in accept:
+        if r["id"] in core:
+            r["size_tier"] = "core"
+        if r["id"] in smoke:
+            r["size_tier"] = "smoke"
+
+    from collections import Counter
+
+    tiers = Counter(r["size_tier"] for r in accept)
+    roles = Counter(r["role"] for r in accept)
+    strata_counts = Counter(c for r in accept for c in r["cohorts"])
+    print(f"[curate] tiers={dict(tiers)} roles={dict(roles)}")
+    print(f"[curate] strata={dict(sorted(strata_counts.items(), key=lambda x: -x[1]))}")
+
+
+def _source_pdf(rec: dict) -> Path | None:
+    if rec["source_dataset"] == "parsebench":
+        return {pid: pdf for pid, pdf, _ in _parsebench_records()}.get(rec["id"])
+    return _readoc_pdf(rec["id"])
+
+
+_STRIP = [
+    (re.compile(r"```.*?```", re.DOTALL), " "),
+    (re.compile(r"`[^`]*`"), " "),
+    (re.compile(r"!?\[([^\]]*)\]\([^)]*\)"), r"\1"),
+    (re.compile(r"\$\$?[^$]*\$\$?"), " "),
+    (re.compile(r"^[#>\s]*\|?|[|>#]"), " "),
+    (re.compile(r"[*_~`]+"), ""),
+    (re.compile(r"[ \t]+"), " "),
+]
+
+
+def strip_to_text(md: str) -> str:
+    """Derive plaintext GT (for text-F1) from GFM markdown by removing structural syntax."""
+    t = md
+    for pat, repl in _STRIP:
+        t = pat.sub(repl, t)
+    return "\n".join(line.strip() for line in t.splitlines() if line.strip()) + "\n"
+
+
+def _size_category(nbytes: int) -> str:
+    return "small" if nbytes < 500_000 else "medium" if nbytes < 5_000_000 else "large"
+
+
+def stage_assemble(records: dict, dry: bool) -> None:
+    """Materialize the active tiers (smoke ⊂ core) into test_documents: PDF + GFM GT (.md) + plaintext
+    GT (.txt) + fixture JSON. Extended-only docs stay manifest-only (reproducible via `build_corpus`).
+    Records pdf/gt hashes onto each materialized doc.
+    """
+    import shutil
+
+    active = [r for r in records.values() if r["gate_verdict"] == "ACCEPT" and r.get("size_tier") in ("smoke", "core")]
+    if not dry:
+        for d in (PDF_DIR, GT_DIR, FIXTURE_DIR):
+            d.mkdir(parents=True, exist_ok=True)
+        # assemble fully owns the corpus-managed files: clear prior readoc/parsebench outputs so tier
+        # membership changes never leave stale fixtures/GT/PDFs behind. Non-managed (e.g. manual) kept.
+        for fx in FIXTURE_DIR.glob("*.json"):
+            try:
+                src = json.loads(fx.read_text()).get("ground_truth", {}).get("source")
+            except (json.JSONDecodeError, OSError):
+                continue
+            if src in ("readoc", "parsebench"):
+                stem = fx.stem
+                fx.unlink(missing_ok=True)
+                (PDF_DIR / f"{stem}.pdf").unlink(missing_ok=True)
+                (GT_DIR / f"{stem}.md").unlink(missing_ok=True)
+                (GT_DIR / f"{stem}.txt").unlink(missing_ok=True)
+    written = 0
+    for r in active:
+        src_pdf, gt = _source_pdf(r), _normalized_gt(r)
+        if src_pdf is None or not src_pdf.exists() or not gt.exists():
+            r["exclusion_reason"] = "missing source PDF or normalized GT at assemble"
+            continue
+        md = gt.read_text("utf-8", "replace")
+        txt = strip_to_text(md)
+        written += 1
+        if dry:
+            continue
+        shutil.copyfile(src_pdf, PDF_DIR / f"{r['id']}.pdf")
+        (GT_DIR / f"{r['id']}.md").write_text(md)
+        (GT_DIR / f"{r['id']}.txt").write_text(txt)
+        nbytes = (PDF_DIR / f"{r['id']}.pdf").stat().st_size
+        r["pdf_sha256"] = sha256_file(PDF_DIR / f"{r['id']}.pdf")
+        r["gt_txt_sha256"] = sha256_bytes(txt.encode())
+        fixture = {
+            "document": f"../../../../test_documents/pdf/{r['id']}.pdf",
+            "file_type": "pdf",
+            "file_size": nbytes,
+            "expected_frameworks": ["xberg", "liteparse", "docling"],
+            "metadata": {
+                "description": f"{r['source_dataset']} {r['upstream_id']}",
+                "source": r["source_dataset"],
+                "size_category": _size_category(nbytes),
+                "cohorts": r["cohorts"],
+                "size_tier": r["size_tier"],
+                "role": r["role"],
+            },
+            "ground_truth": {
+                "text_file": f"../../../../test_documents/ground_truth/pdf/{r['id']}.txt",
+                "markdown_file": f"../../../../test_documents/ground_truth/pdf/{r['id']}.md",
+                "source": r["source_dataset"],
+            },
+        }
+        (FIXTURE_DIR / f"{r['id']}.json").write_text(json.dumps(fixture, indent=2) + "\n")
+    print(f"[assemble] materialized {written} core+smoke docs into test_documents (dry={dry})")
+
+
+def stage_manifest(records: dict, dry: bool) -> None:
+    """Write the immutable corpus manifest (every gated doc, with a frozen top-level hash) and the
+    generated README.
+    """
+    docs = sorted(records.values(), key=lambda r: r["id"])
+    payload = json.dumps(docs, sort_keys=True).encode()
+    manifest = {
+        "schema": 1,
+        "sources": {k: {kk: v[kk] for kk in ("repo", "revision", "license", "url")} for k, v in SOURCES.items()},
+        "manifest_sha256": sha256_bytes(payload),
+        "counts": _verdict_counts(records),
+        "documents": docs,
+    }
+    if dry:
+        print(f"[manifest] dry-run: {manifest['counts']} hash={manifest['manifest_sha256'][:12]}")
+        return
+    MANIFEST.parent.mkdir(parents=True, exist_ok=True)
+    MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")
+    generate_readme(records)
+    print(f"[manifest] wrote {MANIFEST} (hash {manifest['manifest_sha256'][:12]}) + README")
+
+
+def _verdict_counts(records: dict) -> dict:
+    from collections import Counter
+
+    return dict(Counter(r["gate_verdict"] for r in records.values()))
+
+
+# --- README generation (documentation generated FROM the ledger) -----------------------------------
+
+
+def _transform_catalog() -> str:
+    rows = ["| transform | applies to | what it changes |", "|---|---|---|"]
+    for name, desc, *_ in READOC_TRANSFORMS:
+        rows.append(f"| `{name}` | ReaDoc arXiv | {desc} |")
+    for name, desc, *_ in COMMON_TRANSFORMS:
+        rows.append(f"| `{name}` | all sources | {desc} |")
+    return "\n".join(rows)
+
+
+def _modification_summary(records: dict) -> str:
+    agg: dict[str, int] = {}
+    docs_touched = 0
+    for r in records.values():
+        if r.get("transforms"):
+            docs_touched += 1
+            for k, v in r["transforms"].items():
+                agg[k] = agg.get(k, 0) + v
+    lines = [f"- **{docs_touched}** documents had at least one normalization applied."]
+    for k, v in sorted(agg.items(), key=lambda x: -x[1]):
+        lines.append(f"- `{k}`: {v} substitutions across the corpus.")
+    return "\n".join(lines)
+
+
+def generate_readme(records: dict) -> None:
+    src_rows = ["| dataset | license | GT provenance | role |", "|---|---|---|---|"]
+    for cfg in SOURCES.values():
+        src_rows.append(
+            f"| [{cfg['repo']}]({cfg['url']}) @`{cfg['revision'][:8]}` | "
+            f"{cfg['license']} | {cfg['note']} | {cfg['granularity']} |"
+        )
+    body = f"""# xberg PDF→Markdown benchmark corpus
+
+Ground truth for the xberg PDF→Markdown benchmark. **Every document here is reproduced from a pinned
+upstream source and gated against an independent text oracle** — see `ground_truth/corpus_manifest.json`
+for per-document provenance and verdicts. Do not hand-edit GT; change the builder and re-run.
+
+## Reproduce
+
+```
+python tools/benchmark-harness/scripts/build_corpus.py --stage all
+```
+
+This is the ONLY sanctioned way to modify the corpus. It acquires the pinned sources, normalizes GT to
+canonical GFM, gates each doc, and writes `pdf/`, `ground_truth/pdf/<stem>.{{md,txt}}`, the fixtures, and
+this file. Re-running with the same pins is deterministic.
+
+## Sources
+
+{chr(10).join(src_rows)}
+
+Excluded on purpose: **OmniDocBench** (research-only / non-commercial — incompatible with this MIT repo)
+and **Nougat** (weights CC-BY-NC; corpus not distributed).
+
+## How the data was modified
+
+Upstream GT is not committed verbatim — it is normalized to canonical GFM so it can be scored
+consistently. The transforms are declared once in `scripts/normalize_gt.py` and applied by
+`build_corpus.py`; this section and the per-doc `transforms` field in the manifest are generated from
+the build ledger, so they always match what actually ran.
+
+{_transform_catalog()}
+
+Applied this build:
+
+{_modification_summary(records)}
+
+## Layout
+
+- `pdf/<stem>.pdf` — source document.
+- `ground_truth/pdf/<stem>.md` — normalized canonical-GFM GT (scored by the harness).
+- `ground_truth/pdf/<stem>.txt` — plaintext GT (text-F1).
+- `ground_truth/corpus_manifest.json` — immutable manifest: per-doc hashes, source+license+revision,
+  transforms, oracle verdict+scores, cohorts, size tier, tune/eval role; one frozen top-level hash.
+
+## Manifest, cohorts, tiers, roles
+
+See the plan and `corpus_manifest.json`. Cohorts tag execution mode (native-clean / native-corrupt-font
+/ selective-OCR / forced-OCR) and diagnostic strata (tables, multicolumn, formulas, …). Size tiers
+`smoke ⊂ core ⊂ extended` and a `tune`/`eval` role per doc support fast iteration without overfitting.
+"""
+    README.parent.mkdir(parents=True, exist_ok=True)
+    README.write_text(body)
+
+
+def _hf(repo: str, dest: Path, revision: str, include: str) -> None:
+    cmd = [
+        "hf",
+        "download",
+        repo,
+        "--repo-type",
+        "dataset",
+        "--local-dir",
+        str(dest),
+        "--revision",
+        revision,
+        "--include",
+        include,
+    ]
+    subprocess.run(cmd, check=True)
+
+
+STAGES = {
+    "acquire": stage_acquire,
+    "normalize": stage_normalize,
+    "gate": stage_gate,
+    "curate": stage_curate,
+    "assemble": stage_assemble,
+    "manifest": stage_manifest,
+}
+ORDER = ["acquire", "normalize", "gate", "curate", "assemble", "manifest"]
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Reproducible xberg GT corpus builder")
+    ap.add_argument("--stage", choices=[*ORDER, "all"], default="all")
+    ap.add_argument("--dry-run", action="store_true")
+    args = ap.parse_args()
+
+    records = load_ledger()
+    stages = ORDER if args.stage == "all" else [args.stage]
+    for s in stages:
+        STAGES[s](records, args.dry_run)
+        if not args.dry_run:
+            save_ledger(records)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

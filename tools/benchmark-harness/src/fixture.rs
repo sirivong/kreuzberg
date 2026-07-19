@@ -155,6 +155,8 @@ impl Fixture {
                     | "omnidocbench"
                     | "mistral-pixtral"
                     | "nougat"
+                    | "readoc"
+                    | "parsebench"
             ) {
                 return Err(Error::InvalidFixture {
                     path: fixture_path.to_path_buf(),

@@ -1,0 +1,27 @@
+{
+  "document": "../../../../test_documents/pdf/pb_1657221585_page14.pdf",
+  "file_type": "pdf",
+  "file_size": 343559,
+  "expected_frameworks": [
+    "xberg",
+    "liteparse",
+    "docling"
+  ],
+  "metadata": {
+    "description": "parsebench 1657221585_page14",
+    "source": "parsebench",
+    "size_category": "small",
+    "cohorts": [
+      "native-clean",
+      "tables",
+      "multipage-reading-order"
+    ],
+    "size_tier": "core",
+    "role": "tune"
+  },
+  "ground_truth": {
+    "text_file": "../../../../test_documents/ground_truth/pdf/pb_1657221585_page14.txt",
+    "markdown_file": "../../../../test_documents/ground_truth/pdf/pb_1657221585_page14.md",
+    "source": "parsebench"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "document": "../../../../test_documents/pdf/1701.01567.pdf",
+  "file_type": "pdf",
+  "file_size": 323997,
+  "expected_frameworks": [
+    "xberg",
+    "liteparse",
+    "docling"
+  ],
+  "metadata": {
+    "description": "readoc 1701.01567",
+    "source": "readoc",
+    "size_category": "small",
+    "cohorts": [
+      "native-clean",
+      "formula",
+      "code",
+      "nested-heading",
+      "caption/footnote",
+      "multipage-reading-order"
+    ],
+    "size_tier": "core",
+    "role": "tune"
+  },
+  "ground_truth": {
+    "text_file": "../../../../test_documents/ground_truth/pdf/1701.01567.txt",
+    "markdown_file": "../../../../test_documents/ground_truth/pdf/1701.01567.md",
+    "source": "readoc"
+  }
+}
