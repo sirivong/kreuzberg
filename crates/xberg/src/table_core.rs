@@ -259,6 +259,68 @@ pub(crate) fn reconstruct_table(
     remove_empty_rows_and_columns(result)
 }
 
+/// Whether the recurring-column-alignment veto is active. Enabled by default;
+/// set `XBERG_TABLE_NO_ALIGN_GATE=1` to disable it for A/B measurement.
+pub(crate) fn align_gate_enabled() -> bool {
+    use std::sync::OnceLock;
+    static ENABLED: OnceLock<bool> = OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var("XBERG_TABLE_NO_ALIGN_GATE").map_or(true, |v| v != "1"))
+}
+
+/// Whether a word region has *recurring* column structure, as opposed to prose
+/// whose words were force-fit into artifact columns by [`reconstruct_table`].
+///
+/// A genuine table has ≥2 columns whose left edge recurs at a consistent
+/// x-position across most rows. Prose that happens to align (a multi-line
+/// masthead, a wrapped reference list, an address block) typically has only its
+/// left margin aligned — the interior "columns" are wherever the largest
+/// inter-word gap fell on each line, so they do not recur row-to-row.
+///
+/// Returns `true` when at least two detected columns are each populated, at an
+/// aligned x, by at least `ceil(0.6 * rows)` (min 2) distinct rows. Callers use
+/// this as an additional veto before emitting a heuristic/layout table.
+pub(crate) fn has_consistent_column_alignment(
+    words: &[HocrWord],
+    column_threshold: u32,
+    row_threshold_ratio: f64,
+) -> bool {
+    let col_positions = detect_columns(words, column_threshold);
+    let row_positions = detect_rows(words, row_threshold_ratio);
+    let num_rows = row_positions.len();
+    // Single-column regions are handled elsewhere; multi-column is the only
+    // shape that can be a fabricated grid, so only gate that.
+    if col_positions.len() < 2 || num_rows < 2 {
+        return true;
+    }
+
+    // Alignment tolerance: a word "belongs" to a column if its left edge is
+    // within the same threshold used to cluster columns in the first place.
+    let tol = column_threshold.max(1);
+    // Support required scales with row count so short (2-row) tables must have
+    // BOTH rows aligned, while taller tables tolerate a minority of ragged rows.
+    let required = ((num_rows as f64 * 0.6).ceil() as usize).max(2);
+
+    let mut aligned_cols = 0usize;
+    for &cx in &col_positions {
+        let mut hit_rows = vec![false; num_rows];
+        for word in words {
+            if word.left.abs_diff(cx) <= tol
+                && let Some(r) = find_row_index(&row_positions, word)
+                && r < num_rows
+            {
+                hit_rows[r] = true;
+            }
+        }
+        if hit_rows.iter().filter(|&&h| h).count() >= required {
+            aligned_cols += 1;
+            if aligned_cols >= 2 {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Convert a table grid to markdown format.
 ///
 /// The first row is treated as the header row, with a separator line added after it.
@@ -597,5 +659,71 @@ mod tests {
         assert_eq!(table[1][1], "Truc 1", "Row 2, col 2 should contain merged text");
         assert_eq!(table[2][0], "Chose 2", "Row 3, col 1 should contain merged text");
         assert_eq!(table[2][1], "Truc 2", "Row 3, col 2 should contain merged text");
+    }
+
+    /// A genuine two-column data table — both columns' left edges recur at the
+    /// same x across every row — passes the recurring-alignment veto.
+    #[test]
+    fn has_consistent_column_alignment_accepts_recurring_two_column_table() {
+        let mut words = Vec::new();
+        for (row, top) in [50u32, 100, 150].into_iter().enumerate() {
+            words.push(HocrWord {
+                text: format!("label{row}"),
+                left: 100,
+                top,
+                width: 40,
+                height: 20,
+                confidence: 95.0,
+            });
+            words.push(HocrWord {
+                text: format!("val{row}"),
+                left: 300,
+                top,
+                width: 40,
+                height: 20,
+                confidence: 95.0,
+            });
+        }
+
+        assert!(
+            has_consistent_column_alignment(&words, 20, 0.5),
+            "two columns aligned across all three rows must be accepted"
+        );
+    }
+
+    /// A masthead-style prose block: only the left margin recurs (x=100 on every
+    /// line), while the second token lands at a different x on each line. There
+    /// is no recurring interior column, so the veto rejects it as prose.
+    #[test]
+    fn has_consistent_column_alignment_rejects_ragged_prose_block() {
+        let words = vec![
+            HocrWord { text: "Journal".into(), left: 100, top: 50, width: 60, height: 20, confidence: 95.0 },
+            HocrWord { text: "ISSN".into(), left: 250, top: 50, width: 40, height: 20, confidence: 95.0 },
+            HocrWord { text: "Academy".into(), left: 100, top: 100, width: 70, height: 20, confidence: 95.0 },
+            HocrWord { text: "URL".into(), left: 360, top: 100, width: 40, height: 20, confidence: 95.0 },
+            HocrWord { text: "of".into(), left: 100, top: 150, width: 20, height: 20, confidence: 95.0 },
+            HocrWord { text: "Rajasthan".into(), left: 470, top: 150, width: 80, height: 20, confidence: 95.0 },
+        ];
+
+        assert!(
+            !has_consistent_column_alignment(&words, 20, 0.5),
+            "prose whose only recurring column is the left margin must be rejected"
+        );
+    }
+
+    /// The veto is permissive on shapes it does not own: fewer than two detected
+    /// columns (single-column regions) are always accepted here — they are
+    /// gated by `allow_single_column` at the call site instead.
+    #[test]
+    fn has_consistent_column_alignment_accepts_single_column_region() {
+        let words = vec![
+            HocrWord { text: "one".into(), left: 100, top: 50, width: 40, height: 20, confidence: 95.0 },
+            HocrWord { text: "two".into(), left: 100, top: 100, width: 40, height: 20, confidence: 95.0 },
+        ];
+
+        assert!(
+            has_consistent_column_alignment(&words, 20, 0.5),
+            "single-column regions are not this veto's concern and must pass through"
+        );
     }
 }

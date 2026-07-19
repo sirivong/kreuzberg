@@ -405,6 +405,23 @@ fn reconstruct_region_table(
         return None;
     }
 
+    // Recurring-column-alignment veto: reject prose (mastheads, wrapped
+    // reference lists, address blocks) that only *looks* tabular because words
+    // were force-fit into artifact columns. Genuine tables have ≥2 columns whose
+    // left edge recurs across rows. Single-column opt-in tables bypass this.
+    if crate::table_core::align_gate_enabled()
+        && !allow_single_column
+        && !crate::table_core::has_consistent_column_alignment(region, col_gap, 0.5)
+    {
+        tracing::trace!(
+            page = page_number,
+            rows = cleaned.len(),
+            cols = cleaned.first().map_or(0, |r| r.len()),
+            "heuristic table region lacks recurring column alignment — skipping likely prose"
+        );
+        return None;
+    }
+
     let img_left = region.iter().map(|w| w.left as f64).fold(f64::INFINITY, f64::min);
     let img_top = region.iter().map(|w| w.top as f64).fold(f64::INFINITY, f64::min);
     let img_right = region.iter().map(|w| (w.left + w.width) as f64).fold(0.0_f64, f64::max);

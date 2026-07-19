@@ -670,7 +670,7 @@ server = [
 cli = ["services", "chunking", "url-ingestion"]
 
 [dependencies]
-aes-gcm = { version = "0.10", optional = true }
+aes-gcm = { version = "0.11", optional = true }
 ahash = { workspace = true }
 async-trait = { workspace = true }
 auto_enums = { version = "0.8", optional = true }
@@ -721,10 +721,10 @@ image = { workspace = true, default-features = false, features = [
 ], optional = true }
 include_dir = { version = "0.7", optional = true }
 indexmap = "2.14.0"
-infer = "0.19.0"
+infer = "0.22.0"
 itertools = { workspace = true, optional = true }
 jotdown = "0.10"
-jsonschema = { version = "0.47", optional = true, default-features = false }
+jsonschema = { version = "0.48", optional = true, default-features = false }
 libc = { workspace = true }
 # lofty: pure-Rust audio tag reader (ID3v1/v2, MP4 atoms, Vorbis comments, FLAC, etc.)
 # MIT license. Used for metadata extraction independent of the inference backend.
@@ -757,7 +757,7 @@ pulldown-cmark = { version = "0.13" }
 quick-xml = { version = "0.41.0", features = ["serialize"], optional = true }
 rake = { version = "0.3.6", optional = true }
 rayon = { workspace = true }
-regex = "1.13.0"
+regex = "1.13.1"
 resvg = { workspace = true, optional = true }
 rmcp = { version = "2.2.0", features = [
     "server",
@@ -771,7 +771,7 @@ rmp-serde = "1.3"
 
 roxmltree = { version = "0.21.1", optional = true }
 rqrr = { version = "0.10", optional = true }
-scrypt = { version = "0.11", optional = true, default-features = false, features = ["std"] }
+scrypt = { version = "0.12", optional = true, default-features = false, features = ["kdf"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_toon_format = { workspace = true }
@@ -963,7 +963,7 @@ filetime = "0.2"
 image = { workspace = true, default-features = false, features = ["png"] }
 # default-features=false drops jsonschema's `resolve-http` (reqwest→native-tls→openssl-sys);
 # tests validate local schemas only. Keeps the test build openssl-free.
-jsonschema = { version = "0.47", default-features = false }
+jsonschema = { version = "0.48", default-features = false }
 qrcode = { version = "0.14", default-features = false, features = ["image"] }
 # Test-only: builds an in-memory model2vec fixture (safetensors bytes) for the
 # static_engine unit tests, without a network fetch.

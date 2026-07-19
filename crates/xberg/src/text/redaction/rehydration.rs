@@ -6,9 +6,8 @@
 
 use std::collections::HashMap;
 
-use aes_gcm::aead::rand_core::RngCore;
-use aes_gcm::aead::{AeadInPlace, KeyInit, OsRng};
-use aes_gcm::{Aes256Gcm, Key, Nonce};
+use aes_gcm::Aes256Gcm;
+use aes_gcm::aead::{AeadInOut, Generate, KeyInit, Nonce, Tag};
 use scrypt::Params as ScryptParams;
 use zeroize::Zeroizing;
 
@@ -33,7 +32,10 @@ const SCRYPT_R: u32 = 8;
 const SCRYPT_P: u32 = 1;
 
 fn derive_key(passphrase: &str, salt: &[u8]) -> Result<Zeroizing<[u8; KEY_LEN]>> {
-    let params = ScryptParams::new(SCRYPT_LOG_N, SCRYPT_R, SCRYPT_P, KEY_LEN)
+    // scrypt 0.12's `scrypt()` derives exactly `output.len()` bytes and ignores any
+    // length baked into `Params`, so the output length is fixed by the KEY_LEN-sized
+    // `key` buffer below; `Params::new` no longer takes a length argument.
+    let params = ScryptParams::new(SCRYPT_LOG_N, SCRYPT_R, SCRYPT_P)
         .map_err(|e| XbergError::validation(format!("invalid scrypt parameters: {e}")))?;
     let mut key = Zeroizing::new([0u8; KEY_LEN]);
     scrypt::scrypt(passphrase.as_bytes(), salt, &params, &mut *key)
@@ -47,18 +49,20 @@ pub fn encrypt_map(map: &RehydrationMap, passphrase: &str) -> Result<Vec<u8>> {
     let plaintext = serde_json::to_vec(map)
         .map_err(|e| XbergError::validation(format!("failed to serialize rehydration map: {e}")))?;
 
-    let mut salt = [0u8; SALT_LEN];
-    OsRng.fill_bytes(&mut salt);
-    let mut nonce_bytes = [0u8; NONCE_LEN];
-    OsRng.fill_bytes(&mut nonce_bytes);
+    let salt: [u8; SALT_LEN] = <[u8; SALT_LEN]>::try_generate()
+        .map_err(|e| XbergError::validation(format!("failed to generate random salt: {e}")))?;
+    let nonce_bytes: [u8; NONCE_LEN] = <[u8; NONCE_LEN]>::try_generate()
+        .map_err(|e| XbergError::validation(format!("failed to generate random nonce: {e}")))?;
 
     let key_bytes = derive_key(passphrase, &salt)?;
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&*key_bytes));
-    let nonce = Nonce::from_slice(&nonce_bytes);
+    let cipher = Aes256Gcm::new_from_slice(&*key_bytes)
+        .map_err(|e| XbergError::validation(format!("invalid AES-256 key: {e}")))?;
+    let nonce = Nonce::<Aes256Gcm>::try_from(&nonce_bytes[..])
+        .map_err(|e| XbergError::validation(format!("invalid AES-256-GCM nonce: {e}")))?;
 
     let mut buffer = plaintext;
     let tag = cipher
-        .encrypt_in_place_detached(nonce, b"", &mut buffer)
+        .encrypt_inout_detached(&nonce, b"", buffer.as_mut_slice().into())
         .map_err(|e| XbergError::validation(format!("AES-256-GCM encryption failed: {e}")))?;
 
     let mut out = Vec::with_capacity(MAGIC.len() + SALT_LEN + NONCE_LEN + TAG_LEN + buffer.len());
@@ -90,14 +94,18 @@ pub fn decrypt_map(blob: &[u8], passphrase: &str) -> Result<RehydrationMap> {
     let ciphertext = &blob[offset..];
 
     let key_bytes = derive_key(passphrase, salt)?;
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&*key_bytes));
-    let nonce = Nonce::from_slice(nonce_bytes);
+    let cipher = Aes256Gcm::new_from_slice(&*key_bytes)
+        .map_err(|e| XbergError::validation(format!("invalid AES-256 key: {e}")))?;
+    let nonce = Nonce::<Aes256Gcm>::try_from(nonce_bytes)
+        .map_err(|e| XbergError::validation(format!("invalid AES-256-GCM nonce: {e}")))?;
+    let tag = Tag::<Aes256Gcm>::try_from(tag)
+        .map_err(|e| XbergError::validation(format!("invalid AES-256-GCM tag: {e}")))?;
 
     // Zeroizing: after decryption the buffer holds the plaintext PII map;
     // wipe it when it drops rather than leaving it in freed memory.
     let mut buffer = Zeroizing::new(ciphertext.to_vec());
     cipher
-        .decrypt_in_place_detached(nonce, b"", &mut buffer, tag.into())
+        .decrypt_inout_detached(&nonce, b"", buffer.as_mut_slice().into(), &tag)
         .map_err(|_| {
             XbergError::validation("failed to decrypt rehydration map: wrong passphrase or corrupted data")
         })?;
