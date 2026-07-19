@@ -145,10 +145,12 @@ pub struct ExtractionConfig {
     /// When set, each file in a batch will be canceled after this duration
     /// unless overridden by [`FileExtractionConfig::timeout_secs`].
     ///
-    /// Defaults to `Some(60)` to prevent pathological files (e.g. deeply
-    /// nested archives, documents with millions of cells) from running
-    /// indefinitely and exhausting caller resources. Set to `None` to
-    /// disable the timeout for trusted input or long-running workloads.
+    /// Defaults to `Some(600)` (10 minutes) to prevent pathological files
+    /// (e.g. deeply nested archives, documents with millions of cells) from
+    /// running indefinitely and exhausting caller resources, while still
+    /// giving slow paths (VLM-based OCR, large scanned documents) enough
+    /// headroom to finish. Set to `None` to disable the timeout for trusted
+    /// input or long-running workloads.
     #[serde(default = "default_extraction_timeout")]
     pub extraction_timeout_secs: Option<u64>,
 
@@ -743,14 +745,16 @@ fn default_max_embedded_file_bytes() -> Option<u64> {
     Some(50 * 1024 * 1024)
 }
 
-/// Default extraction timeout: 60 seconds.
+/// Default extraction timeout: 600 seconds (10 minutes).
 ///
 /// Pathological files (deeply nested archives, sheets with millions of cells,
 /// adversarial PDFs) can otherwise run indefinitely and exhaust caller
-/// resources. 60 s is generous for legitimate documents while bounding the
-/// worst-case cost of a single untrusted input.
+/// resources. 600 s bounds the worst-case cost of a single untrusted input
+/// while giving legitimate but slow paths — VLM-based OCR, large scanned
+/// documents — enough headroom to finish instead of being cut off at the
+/// previous 60 s default.
 fn default_extraction_timeout() -> Option<u64> {
-    Some(60)
+    Some(600)
 }
 
 #[cfg(test)]
@@ -883,12 +887,12 @@ mod tests {
     }
 
     #[test]
-    fn test_default_extraction_timeout_is_sixty_seconds() {
+    fn test_default_extraction_timeout_is_six_hundred_seconds() {
         let config = ExtractionConfig::default();
         assert_eq!(
             config.extraction_timeout_secs,
-            Some(60),
-            "default timeout must be Some(60) to prevent unbounded extraction"
+            Some(600),
+            "default timeout must be Some(600) to bound unbounded extraction while leaving headroom for slow (VLM) paths"
         );
     }
 
@@ -913,13 +917,13 @@ mod tests {
     }
 
     #[test]
-    fn test_extraction_timeout_serde_absent_field_defaults_to_sixty() {
+    fn test_extraction_timeout_serde_absent_field_defaults_to_six_hundred() {
         let json = r#"{}"#;
         let config: ExtractionConfig = serde_json::from_str(json).unwrap();
         assert_eq!(
             config.extraction_timeout_secs,
-            Some(60),
-            "absent field must use default_extraction_timeout() -> Some(60)"
+            Some(600),
+            "absent field must use default_extraction_timeout() -> Some(600)"
         );
     }
 

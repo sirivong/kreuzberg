@@ -183,6 +183,16 @@ curl -s -X PUT \
 
 If the endpoint returns extracted text, the integration is working. Upload a document through Open WebUI to confirm end-to-end.
 
+## Large or slow documents
+
+Both endpoints enforce `extraction_timeout_secs` (default 600 seconds / 10 minutes) and return `HTTP 500` if a document doesn't finish extracting in time. Documents that lean on slow paths — VLM-based OCR, large scanned PDFs — can exceed the default on constrained hardware. Raise the limit in `xberg.toml` next to the compose file (auto-discovered on `serve` startup):
+
+```toml title="xberg.toml"
+extraction_timeout_secs = 1800
+```
+
+TOML has no `null` literal, so a TOML config can only raise the limit, not disable it; use a YAML or JSON config with `extraction_timeout_secs: null` (YAML) or `"extraction_timeout_secs": null` (JSON) to turn enforcement off entirely. For the Docker Compose setup above, mount the file alongside the `xberg-cache` volume and pass `--config /app/xberg.toml` in `command` (or rely on auto-discovery if the file lives in the container's working directory).
+
 ## Next steps
 
 - [Docker deployment guide](/guides/docker/) — image variants, volumes, security hardening
