@@ -13,7 +13,7 @@
 
 use async_trait::async_trait;
 use std::borrow::Cow;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
 use ahash::AHashMap;
@@ -64,7 +64,7 @@ impl Default for LayoutMode {
 }
 
 /// Pool type alias for the GLM-OCR engine pool keyed by `(DevicePreference, DType)`.
-type EnginePool = RwLock<AHashMap<(DevicePreference, DType), Arc<GlmOcrEngine>>>;
+type EnginePool = RwLock<AHashMap<(DevicePreference, DType, PathBuf, String), Arc<GlmOcrEngine>>>;
 
 /// Process-wide engine pool keyed by `(DevicePreference, DType)`.
 ///
@@ -137,25 +137,36 @@ where
 ///
 /// Uses the generic [`pool_get_or_init`] helper to ensure two callers with the same
 /// `(preference, dtype)` receive the same Arc instance.
-fn get_or_init_engine(preference: DevicePreference, dtype: DType) -> crate::Result<Arc<GlmOcrEngine>> {
-    let key = (preference, dtype);
+fn get_or_init_engine(
+    preference: DevicePreference,
+    dtype: DType,
+    cache_dir: PathBuf,
+    revision: String,
+) -> crate::Result<Arc<GlmOcrEngine>> {
+    let key = (preference, dtype, cache_dir.clone(), revision.clone());
 
-    pool_get_or_init::<(DevicePreference, DType), GlmOcrEngine, crate::XbergError>(&ENGINE_POOL, key, || {
-        let device = preference.select().map_err(|e| crate::XbergError::Ocr {
-            message: format!("Failed to select compute device: {e}"),
-            source: Some(Box::new(e)),
-        })?;
+    pool_get_or_init::<(DevicePreference, DType, PathBuf, String), GlmOcrEngine, crate::XbergError>(
+        &ENGINE_POOL,
+        key,
+        || {
+            let device = preference.select().map_err(|e| crate::XbergError::Ocr {
+                message: format!("Failed to select compute device: {e}"),
+                source: Some(Box::new(e)),
+            })?;
 
-        tracing::info!(
-            preference = ?preference,
-            ?dtype,
-            "Initialising GLM-OCR engine (cold start)"
-        );
-        GlmOcrEngine::new(GlmOcrTask::default(), device, dtype).map_err(|e| crate::XbergError::Ocr {
-            message: format!("GLM-OCR engine initialisation failed: {e}"),
-            source: Some(Box::new(e)),
-        })
-    })
+            tracing::info!(
+                preference = ?preference,
+                ?dtype,
+                "Initialising GLM-OCR engine (cold start)"
+            );
+            GlmOcrEngine::new_with_hf(GlmOcrTask::default(), device, dtype, Some(&cache_dir), Some(&revision)).map_err(
+                |e| crate::XbergError::Ocr {
+                    message: format!("GLM-OCR engine initialisation failed: {e}"),
+                    source: Some(Box::new(e)),
+                },
+            )
+        },
+    )
 }
 
 /// Return a cached layout model for the given path and device, initialising one on first use.
@@ -212,6 +223,8 @@ struct GlmOcrOptions {
     device: DevicePreference,
     layout_mode: LayoutMode,
     enable_chart_understanding: bool,
+    cache_dir: Option<PathBuf>,
+    hf_revision: Option<String>,
 }
 
 /// Map a layout detection class to the GLM-OCR task best suited for that region.
@@ -343,6 +356,8 @@ impl GlmOcrBackend {
         let mut task = self.default_task;
         let mut layout_mode = self.layout_mode;
         let mut enable_chart_understanding = false;
+        let mut cache_dir = None;
+        let mut hf_revision = None;
 
         if let Some(opts) = &config.backend_options {
             if let Some(t) = opts.get("task").and_then(|v| v.as_str()) {
@@ -366,6 +381,15 @@ impl GlmOcrBackend {
             if let Some(e) = opts.get("enable_chart_understanding").and_then(|v| v.as_bool()) {
                 enable_chart_understanding = e;
             }
+            cache_dir = opts
+                .get("cache_dir")
+                .and_then(|value| value.as_str())
+                .map(PathBuf::from);
+            hf_revision = opts
+                .get("hf_revision")
+                .or_else(|| opts.get("revision"))
+                .and_then(|value| value.as_str())
+                .map(str::to_string);
         }
 
         let device = super::resolve_device_preference(config);
@@ -374,6 +398,8 @@ impl GlmOcrBackend {
             device,
             layout_mode,
             enable_chart_understanding,
+            cache_dir,
+            hf_revision,
         }
     }
 }
@@ -414,13 +440,15 @@ impl OcrBackend for GlmOcrBackend {
 
         let image_bytes = image_bytes.to_vec();
         let dtype = self.dtype;
+        let cache_dir = opts.cache_dir.unwrap_or_else(hf_hub::resolve_cache_dir);
+        let revision = opts.hf_revision.unwrap_or_else(|| GlmOcrEngine::revision().to_string());
 
         let (content, formulas) = match opts.layout_mode {
             LayoutMode::WholePage => {
                 let task = opts.task;
                 let device = opts.device;
                 let content = tokio::task::spawn_blocking(move || {
-                    let engine = get_or_init_engine(device, dtype)?;
+                    let engine = get_or_init_engine(device, dtype, cache_dir, revision)?;
                     let output =
                         engine
                             .process_image_with_task(&image_bytes, task)
@@ -441,7 +469,15 @@ impl OcrBackend for GlmOcrBackend {
             #[cfg(feature = "layout-detection")]
             LayoutMode::Paired => {
                 let enable_chart_understanding = opts.enable_chart_understanding;
-                process_paired(image_bytes, opts.device, dtype, enable_chart_understanding).await?
+                process_paired(
+                    image_bytes,
+                    opts.device,
+                    dtype,
+                    enable_chart_understanding,
+                    cache_dir,
+                    revision,
+                )
+                .await?
             }
         };
 
@@ -494,6 +530,8 @@ async fn process_paired(
     device: DevicePreference,
     dtype: DType,
     enable_chart_understanding: bool,
+    cache_dir: PathBuf,
+    revision: String,
 ) -> crate::Result<(String, Vec<crate::types::Formula>)> {
     use crate::layout::LayoutModelManager;
     use crate::layout::models::LayoutModel;
@@ -527,7 +565,7 @@ async fn process_paired(
         let mut sorted = detections;
         sorted.sort_by(|a, b| a.bbox.y1.total_cmp(&b.bbox.y1).then(a.bbox.x1.total_cmp(&b.bbox.x1)));
 
-        let engine = get_or_init_engine(device, dtype)?;
+        let engine = get_or_init_engine(device, dtype, cache_dir, revision)?;
 
         if sorted.is_empty() {
             tracing::debug!("GLM-OCR paired: no layout regions detected, falling back to whole-page inference");

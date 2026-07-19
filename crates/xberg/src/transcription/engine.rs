@@ -673,12 +673,7 @@ mod tests {
         use crate::core::config::transcription::WhisperModel;
         use crate::transcription::model::ensure_whisper_model;
 
-        let cache_dir = dirs::cache_dir()
-            .unwrap_or_else(std::env::temp_dir)
-            .join("xberg")
-            .join("whisper");
-
-        let paths = match ensure_whisper_model(WhisperModel::Tiny, Some(&cache_dir), false, false) {
+        let paths = match ensure_whisper_model(WhisperModel::Tiny, None, false, false) {
             Ok(p) => p,
             Err(_) => return,
         };

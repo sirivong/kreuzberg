@@ -941,7 +941,7 @@ impl PaddleOCRVLModel {
                 }
             }
 
-            if image_positions.len() != num_vision_tokens as usize {
+            if image_positions.len() != num_vision_tokens {
                 return Err(CandleOcrError::InferenceFailed(format!(
                     "Image mask has {} positions but num_vision_tokens is {}",
                     image_positions.len(),
@@ -949,7 +949,7 @@ impl PaddleOCRVLModel {
                 )));
             }
 
-            let index = Tensor::from_vec(image_positions, (num_vision_tokens as usize,), inputs_embeds.device())
+            let index = Tensor::from_vec(image_positions, (num_vision_tokens,), inputs_embeds.device())
                 .map_err(|e| CandleOcrError::InferenceFailed(format!("Create index: {}", e)))?;
 
             let keep = image_mask

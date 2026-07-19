@@ -266,11 +266,11 @@ impl XbergMcp {
         Ok(tool_result)
     }
 
-    /// Clear the cache.
+    /// Clear the Xberg-managed cache.
     ///
-    /// This tool removes all cached files and returns the number of files removed and space freed.
+    /// Shared Hugging Face Hub model cache files are intentionally excluded.
     #[tool(
-        description = "Clear all cached files. Returns the number of files removed and space freed in MB.",
+        description = "Clear Xberg-managed cache files. Shared Hugging Face Hub model cache files are not removed.",
         annotations(title = "Clear Cache", read_only_hint = false, destructive_hint = true)
     )]
     fn cache_clear(
@@ -286,10 +286,11 @@ impl XbergMcp {
             cache::clear_cache_directory(cache_dir.to_str().unwrap_or(".")).map_err(map_xberg_error_to_mcp)?;
 
         let response = format!(
-            "Cache cleared successfully\n\
+            "Xberg-managed cache cleared successfully\n\
              Directory: {}\n\
              Removed files: {}\n\
-             Freed space: {:.2} MB",
+             Freed space: {:.2} MB\n\
+             Shared Hugging Face cache cleared: no",
             cache_dir.to_string_lossy(),
             removed_files,
             freed_mb
@@ -382,10 +383,10 @@ impl XbergMcp {
 
     /// Download and cache model files.
     ///
-    /// Eagerly downloads model files (OCR, layout detection, embeddings, NER)
-    /// so they are available for offline use.
+    /// Eagerly downloads model files so they are available for offline use.
+    /// Hugging Face artifacts remain in the standard shared HF cache.
     #[tool(
-        description = "Download and cache model files for offline use. Optionally download embedding and GLiNER NER models.",
+        description = "Download model files for offline use. Hugging Face artifacts, including GLiNER NER models, remain in the standard shared HF cache.",
         annotations(
             title = "Cache Warm",
             read_only_hint = false,
@@ -508,15 +509,17 @@ impl XbergMcp {
                     vec![crate::text::ner::default_model_name().to_string()]
                 };
 
-                let ner_dir = cache_base.join("ner");
                 for model in &models_to_warm {
-                    let path = crate::text::ner::download_model(model, Some(ner_dir.clone())).map_err(|e| {
+                    let path = crate::text::ner::download_model(model, None).map_err(|e| {
                         rmcp::ErrorData::internal_error(
                             format!("Failed to download NER model '{}': {}", model, e),
                             None,
                         )
                     })?;
-                    downloaded.push(format!("ner gliner ({model}) -> {}", path.display()));
+                    downloaded.push(format!(
+                        "ner gliner ({model}) -> {} (Hugging Face cache)",
+                        path.display()
+                    ));
                 }
             }
         }
@@ -533,6 +536,12 @@ impl XbergMcp {
 
         let response = serde_json::json!({
             "cache_dir": cache_base.to_string_lossy(),
+            "xberg_cache_dir": cache_base.to_string_lossy(),
+            "hugging_face_cache": if params.ner || params.all_ner_models || params.ner_model.is_some() {
+                Some("HF_HUB_CACHE/HF_HOME/platform default")
+            } else {
+                None
+            },
             "downloaded": downloaded,
             "already_cached": already_cached,
         });

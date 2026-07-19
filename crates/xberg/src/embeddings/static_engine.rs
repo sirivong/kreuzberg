@@ -87,10 +87,11 @@ mod download {
     /// Returns the local cache path plus the repo-relative path that resolved, so
     /// the caller can verify it against the pinned sha256 manifest.
     fn fetch(
-        api: &hf_hub::HFClientSync,
         repo_name: &str,
         model_dir: &str,
         file_name: &str,
+        cache_directory: Option<&Path>,
+        manifest: &[(String, String)],
     ) -> crate::Result<(PathBuf, String)> {
         let candidates: Vec<String> = if model_dir.is_empty() {
             vec![file_name.to_string()]
@@ -100,17 +101,17 @@ mod download {
 
         let mut last_err = String::new();
         for candidate in candidates {
-            let api = api.clone();
-            let repo = repo_name.to_string();
-            let path = candidate.clone();
-            match crate::model_download::with_download_deadline(&format!("{repo}/{candidate}"), move || {
-                let (owner, name) = hf_hub::split_id(&repo);
-                api.model(owner, name)
-                    .download_file()
-                    .filename(path)
-                    .send()
-                    .map_err(|e| e.to_string())
-            }) {
+            let expected = manifest
+                .iter()
+                .find(|(path, _)| path == &candidate)
+                .map(|(_, sha256)| sha256.as_str());
+            match crate::model_download::hf_resolve_file(
+                repo_name,
+                &candidate,
+                Some(super::super::EMBEDDING_MODEL_REVISION),
+                cache_directory,
+                expected,
+            ) {
                 Ok(resolved) => return Ok((resolved, candidate)),
                 Err(e) => last_err = e,
             }
@@ -128,13 +129,8 @@ mod download {
     pub(crate) fn download_and_build(
         repo_name: &str,
         model_file: &str,
-        cache_directory: &Path,
+        cache_directory: Option<&Path>,
     ) -> crate::Result<StaticEmbeddingEngine> {
-        let api = crate::model_download::hf_client_builder()
-            .cache_dir(cache_directory.to_path_buf())
-            .build_sync()
-            .map_err(|e| crate::XbergError::embedding(format!("Failed to create HF API client: {e}")))?;
-
         let model_dir = Path::new(model_file)
             .parent()
             .and_then(|p| p.to_str())
@@ -153,11 +149,12 @@ mod download {
             Ok(())
         };
 
-        let (model_path, model_rel) = fetch(&api, repo_name, model_dir, model_file_name)?;
+        let (model_path, model_rel) = fetch(repo_name, model_dir, model_file_name, cache_directory, &manifest)?;
         verify(&model_rel, &model_path)?;
-        let (tokenizer_path, tokenizer_rel) = fetch(&api, repo_name, model_dir, "tokenizer.json")?;
+        let (tokenizer_path, tokenizer_rel) =
+            fetch(repo_name, model_dir, "tokenizer.json", cache_directory, &manifest)?;
         verify(&tokenizer_rel, &tokenizer_path)?;
-        let (config_path, config_rel) = fetch(&api, repo_name, model_dir, "config.json")?;
+        let (config_path, config_rel) = fetch(repo_name, model_dir, "config.json", cache_directory, &manifest)?;
         verify(&config_rel, &config_path)?;
 
         let model_bytes = std::fs::read(&model_path)
@@ -183,7 +180,7 @@ pub(crate) use download::download_and_build;
 pub(crate) fn download_and_build(
     repo_name: &str,
     _model_file: &str,
-    _cache_directory: &std::path::Path,
+    _cache_directory: Option<&std::path::Path>,
 ) -> crate::Result<StaticEmbeddingEngine> {
     Err(crate::XbergError::embedding(format!(
         "Static embedding model download ({repo_name}) is not available on this target (WASM); \

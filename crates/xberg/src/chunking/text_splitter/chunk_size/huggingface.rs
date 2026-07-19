@@ -45,17 +45,23 @@ impl ChunkSizer for Tokenizer {
 mod tests {
     use super::*;
 
+    fn tokenizer(repo: &str, revision: &str) -> Tokenizer {
+        let path = crate::model_download::hf_resolve_file(repo, "tokenizer.json", Some(revision), None, None)
+            .unwrap_or_else(|error| panic!("Could not resolve tokenizer '{repo}@{revision}': {error}"));
+        Tokenizer::from_file(&path)
+            .unwrap_or_else(|error| panic!("Could not load tokenizer '{}': {error}", path.display()))
+    }
+
     #[test]
     fn returns_size() {
-        let tokenizer = Tokenizer::from_pretrained("bert-base-cased", None).unwrap();
+        let tokenizer = tokenizer("bert-base-cased", "cd5ef92a9fb2f889e972770a36d4ed042daf221e");
         let size = tokenizer.size(" An apple a");
         assert_eq!(size, 3);
     }
 
     #[test]
     fn returns_size_handles_prefix() {
-        let tokenizer = Tokenizer::from_pretrained("thenlper/gte-small", None)
-            .expect("Could not load tokenizer 'thenlper/gte-small'");
+        let tokenizer = tokenizer("thenlper/gte-small", "17e1f347d17fe144873b1201da91788898c639cd");
 
         let size = tokenizer.size("An apple a");
         assert_eq!(size, 3);
@@ -63,15 +69,17 @@ mod tests {
 
     #[test]
     fn handles_padding() {
-        let tokenizer = Tokenizer::from_pretrained("thenlper/gte-small", None).unwrap();
+        let tokenizer = tokenizer("thenlper/gte-small", "17e1f347d17fe144873b1201da91788898c639cd");
         let size = tokenizer.size("An apple a");
         assert_eq!(size, 3);
     }
 
     #[test]
     fn handle_truncation() {
-        let tokenizer = Tokenizer::from_pretrained("sentence-transformers/all-MiniLM-L6-v2", None)
-            .expect("Could not load tokenizer 'sentence-transformers/all-MiniLM-L6-v2'");
+        let tokenizer = tokenizer(
+            "sentence-transformers/all-MiniLM-L6-v2",
+            "1110a243fdf4706b3f48f1d95db1a4f5529b4d41",
+        );
 
         assert_eq!(
             tokenizer.size("An apple a day keeps the doctor away.".repeat(100).as_str()),

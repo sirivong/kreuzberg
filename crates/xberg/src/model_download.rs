@@ -1,6 +1,4 @@
-//! Shared utilities for downloading and verifying ONNX models from HuggingFace Hub.
-//!
-//! Used by both layout detection and PaddleOCR model managers.
+//! Shared utilities for resolving and verifying model artifacts from Hugging Face Hub.
 
 use std::time::Duration;
 
@@ -10,6 +8,8 @@ use std::time::Duration;
     feature = "auto-rotate",
     feature = "ner-onnx",
     feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
     feature = "onnx-runtime",
     all(feature = "static-embeddings", not(target_arch = "wasm32"))
 ))]
@@ -20,6 +20,8 @@ use sha2::{Digest, Sha256};
     feature = "auto-rotate",
     feature = "ner-onnx",
     feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
     feature = "onnx-runtime",
     all(feature = "static-embeddings", not(target_arch = "wasm32"))
 ))]
@@ -30,6 +32,8 @@ use std::io::{BufReader, Read};
     feature = "auto-rotate",
     feature = "ner-onnx",
     feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
     feature = "onnx-runtime",
     all(feature = "static-embeddings", not(target_arch = "wasm32"))
 ))]
@@ -39,7 +43,11 @@ use std::path::Path;
     feature = "layout-detection",
     feature = "auto-rotate",
     feature = "ner-onnx",
-    feature = "candle-paddleocr-vl"
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
 ))]
 use std::path::PathBuf;
 
@@ -52,7 +60,20 @@ use std::path::PathBuf;
 #[allow(dead_code)]
 const DEFAULT_MODEL_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(300);
 
-#[cfg(all(feature = "layout-detection", any(windows, test)))]
+#[cfg(all(
+    any(windows, test),
+    any(
+        feature = "paddle-ocr",
+        feature = "layout-detection",
+        feature = "auto-rotate",
+        feature = "ner-onnx",
+        feature = "candle-paddleocr-vl",
+        feature = "transcription",
+        feature = "chunking-tokenizers",
+        feature = "onnx-runtime",
+        all(feature = "static-embeddings", not(target_arch = "wasm32"))
+    )
+))]
 static QUARANTINE_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 /// Per-connect ceiling for HuggingFace requests. On a host that advertises an IPv6 default route but
@@ -67,6 +88,7 @@ static QUARANTINE_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::Ato
         feature = "auto-rotate",
         feature = "layout-detection",
         feature = "transcription",
+        feature = "chunking-tokenizers",
         feature = "onnx-runtime",
         feature = "ner-onnx",
         feature = "static-embeddings"
@@ -86,6 +108,7 @@ const HF_CONNECT_TIMEOUT: Duration = Duration::from_secs(10);
         feature = "auto-rotate",
         feature = "layout-detection",
         feature = "transcription",
+        feature = "chunking-tokenizers",
         feature = "onnx-runtime",
         feature = "ner-onnx",
         feature = "static-embeddings"
@@ -110,6 +133,7 @@ const HF_MAX_RETRY_ATTEMPTS: usize = 2;
         feature = "auto-rotate",
         feature = "layout-detection",
         feature = "transcription",
+        feature = "chunking-tokenizers",
         feature = "onnx-runtime",
         feature = "ner-onnx",
         feature = "static-embeddings"
@@ -126,6 +150,7 @@ struct Ipv4FirstResolver;
         feature = "auto-rotate",
         feature = "layout-detection",
         feature = "transcription",
+        feature = "chunking-tokenizers",
         feature = "onnx-runtime",
         feature = "ner-onnx",
         feature = "static-embeddings"
@@ -158,6 +183,7 @@ impl reqwest::dns::Resolve for Ipv4FirstResolver {
         feature = "auto-rotate",
         feature = "layout-detection",
         feature = "transcription",
+        feature = "chunking-tokenizers",
         feature = "onnx-runtime",
         feature = "ner-onnx",
         feature = "static-embeddings"
@@ -185,6 +211,7 @@ fn order_ipv4_first(addrs: &mut [std::net::SocketAddr]) {
         feature = "auto-rotate",
         feature = "layout-detection",
         feature = "transcription",
+        feature = "chunking-tokenizers",
         feature = "onnx-runtime",
         feature = "ner-onnx",
         feature = "static-embeddings"
@@ -230,9 +257,13 @@ pub(crate) fn model_download_timeout() -> Duration {
     feature = "layout-detection",
     feature = "auto-rotate",
     feature = "ner-onnx",
-    feature = "candle-paddleocr-vl"
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
 ))]
-fn hf_offline_mode() -> bool {
+pub(crate) fn hf_offline_mode() -> bool {
     ["HF_HUB_OFFLINE", "HUGGINGFACE_HUB_OFFLINE"]
         .iter()
         .filter_map(std::env::var_os)
@@ -244,7 +275,11 @@ fn hf_offline_mode() -> bool {
     feature = "layout-detection",
     feature = "auto-rotate",
     feature = "ner-onnx",
-    feature = "candle-paddleocr-vl"
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
 ))]
 fn env_flag_enabled(value: &std::ffi::OsStr) -> bool {
     value
@@ -257,7 +292,11 @@ fn env_flag_enabled(value: &std::ffi::OsStr) -> bool {
     feature = "layout-detection",
     feature = "auto-rotate",
     feature = "ner-onnx",
-    feature = "candle-paddleocr-vl"
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
 ))]
 fn offline_cache_miss(repo_id: &str, remote_filename: &str, revision: Option<&str>) -> String {
     format!(
@@ -320,7 +359,11 @@ where
     feature = "layout-detection",
     feature = "auto-rotate",
     feature = "ner-onnx",
-    feature = "candle-paddleocr-vl"
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
 ))]
 fn download_lock(key: &str) -> std::sync::Arc<std::sync::Mutex<()>> {
     use std::collections::HashMap;
@@ -335,14 +378,34 @@ fn download_lock(key: &str) -> std::sync::Arc<std::sync::Mutex<()>> {
 }
 
 /// Held advisory lock for model-cache mutations shared by all Xberg processes.
-#[cfg(feature = "layout-detection")]
+#[cfg(any(
+    feature = "paddle-ocr",
+    feature = "layout-detection",
+    feature = "auto-rotate",
+    feature = "ner-onnx",
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
+))]
 #[derive(Debug)]
 pub(crate) struct ArtifactFileLock {
     file: std::fs::File,
     path: PathBuf,
 }
 
-#[cfg(feature = "layout-detection")]
+#[cfg(any(
+    feature = "paddle-ocr",
+    feature = "layout-detection",
+    feature = "auto-rotate",
+    feature = "ner-onnx",
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
+))]
 impl Drop for ArtifactFileLock {
     fn drop(&mut self) {
         if let Err(error) = fs2::FileExt::unlock(&self.file) {
@@ -351,12 +414,32 @@ impl Drop for ArtifactFileLock {
     }
 }
 
-#[cfg(feature = "layout-detection")]
+#[cfg(any(
+    feature = "paddle-ocr",
+    feature = "layout-detection",
+    feature = "auto-rotate",
+    feature = "ner-onnx",
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
+))]
 pub(crate) fn acquire_artifact_file_lock(path: &Path) -> Result<ArtifactFileLock, String> {
     acquire_artifact_file_lock_with_timeout(path, model_download_timeout())
 }
 
-#[cfg(feature = "layout-detection")]
+#[cfg(any(
+    feature = "paddle-ocr",
+    feature = "layout-detection",
+    feature = "auto-rotate",
+    feature = "ner-onnx",
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
+))]
 pub(crate) fn acquire_artifact_file_lock_with_timeout(
     path: &Path,
     timeout: Duration,
@@ -407,19 +490,229 @@ pub(crate) fn acquire_artifact_file_lock_with_timeout(
     }
 }
 
-#[cfg(feature = "layout-detection")]
-fn standard_hf_artifact_lock_path(repo_id: &str, expected_sha256: &str) -> Result<PathBuf, String> {
+#[cfg(any(
+    feature = "paddle-ocr",
+    feature = "layout-detection",
+    feature = "auto-rotate",
+    feature = "ner-onnx",
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
+))]
+fn hf_artifact_lock_path(repo_id: &str, cache_dir: Option<&Path>, expected_sha256: &str) -> Result<PathBuf, String> {
     if !is_sha256_hex(expected_sha256) {
         return Err("Cannot construct Hugging Face artifact lock for an invalid SHA-256".to_string());
     }
-    Ok(hf_hub::resolve_cache_dir()
+    Ok(cache_dir
+        .map(Path::to_path_buf)
+        .unwrap_or_else(hf_hub::resolve_cache_dir)
         .join(format!("models--{}", repo_id.replace('/', "--")))
         .join(format!(".xberg-{}.lock", expected_sha256.to_ascii_lowercase())))
 }
 
-#[cfg(feature = "layout-detection")]
+#[cfg(any(
+    feature = "paddle-ocr",
+    feature = "layout-detection",
+    feature = "auto-rotate",
+    feature = "ner-onnx",
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
+))]
 fn is_sha256_hex(value: &str) -> bool {
     value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+/// Build an hf-hub client using its standard cache resolution unless the caller
+/// explicitly supplied an alternative Hugging Face cache root.
+#[cfg(any(
+    feature = "paddle-ocr",
+    feature = "layout-detection",
+    feature = "auto-rotate",
+    feature = "ner-onnx",
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
+))]
+fn hf_client(cache_dir: Option<&Path>) -> Result<hf_hub::HFClientSync, String> {
+    let builder = hf_client_builder();
+    let builder = match cache_dir {
+        Some(path) => builder.cache_dir(path.to_path_buf()),
+        None => builder,
+    };
+    builder
+        .build_sync()
+        .map_err(|error| format!("Failed to initialize Hugging Face Hub client: {error}"))
+}
+
+/// Resolve the effective Hugging Face cache root for in-process model cache keys.
+///
+/// This does not create an Xberg cache or stage files. It mirrors the root used
+/// by [`hf_client`] so changing standard HF environment configuration cannot
+/// accidentally reuse an engine loaded from a different snapshot cache.
+#[cfg(any(
+    test,
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
+))]
+pub(crate) fn hf_cache_key(cache_dir: Option<&Path>) -> String {
+    cache_dir
+        .map(Path::to_path_buf)
+        .unwrap_or_else(hf_hub::resolve_cache_dir)
+        .display()
+        .to_string()
+}
+
+/// Resolve an artifact strictly from an existing Hugging Face cache entry.
+#[cfg(feature = "transcription")]
+pub(crate) fn hf_cached_file(
+    repo_id: &str,
+    remote_filename: &str,
+    revision: Option<&str>,
+    cache_dir: Option<&Path>,
+) -> Result<Option<PathBuf>, String> {
+    let api = hf_client(cache_dir)?;
+    hf_cached_revision_with_client(&api, repo_id, remote_filename, revision)
+}
+
+/// Resolve one model artifact through the Hugging Face cache.
+///
+/// With `cache_dir == None`, hf-hub owns cache discovery and follows the standard
+/// `HF_HUB_CACHE` / `HUGGINGFACE_HUB_CACHE` / `HF_HOME` / XDG precedence. A
+/// supplied directory is an explicit alternate *Hugging Face cache root* and
+/// retains hf-hub's normal content-addressed layout; Xberg never stages a copy.
+/// Cache lookup is always local-first. Both Hugging Face offline variables are
+/// honored before any network request. When `expected_sha256` is supplied, a bad
+/// cached entry is force-refreshed and the replacement is verified before use.
+#[cfg(any(
+    feature = "paddle-ocr",
+    feature = "layout-detection",
+    feature = "auto-rotate",
+    feature = "ner-onnx",
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
+))]
+pub(crate) fn hf_resolve_file(
+    repo_id: &str,
+    remote_filename: &str,
+    revision: Option<&str>,
+    cache_dir: Option<&Path>,
+    expected_sha256: Option<&str>,
+) -> Result<PathBuf, String> {
+    if let Some(expected) = expected_sha256
+        && !is_sha256_hex(expected)
+    {
+        return Err(format!("Invalid SHA-256 for {repo_id}/{remote_filename}"));
+    }
+
+    let api = hf_client(cache_dir)?;
+    let cached = hf_cached_revision_with_client(&api, repo_id, remote_filename, revision)?;
+    let cached_is_valid = match (&cached, expected_sha256) {
+        (Some(path), Some(expected)) => verify_sha256(path, expected, remote_filename).is_ok(),
+        (Some(_), None) => true,
+        (None, _) => false,
+    };
+    if cached_is_valid {
+        return cached.ok_or_else(|| "validated Hugging Face cache entry disappeared".to_string());
+    }
+    if hf_offline_mode() {
+        if cached.is_some() {
+            return Err(format!(
+                "Hugging Face offline mode is enabled and cached artifact '{remote_filename}' from {repo_id}@{} failed checksum verification; network repair is disabled",
+                revision.unwrap_or("main")
+            ));
+        }
+        return Err(offline_cache_miss(repo_id, remote_filename, revision));
+    }
+
+    let label = format!("{repo_id}/{remote_filename}@{}", revision.unwrap_or("main"));
+    let file_lock = download_lock(&label);
+    let repo = repo_id.to_string();
+    let filename = remote_filename.to_string();
+    let revision = revision.map(str::to_string);
+    let expected = expected_sha256.map(str::to_string);
+    let artifact_file_lock = expected_sha256
+        .map(|sha256| hf_artifact_lock_path(repo_id, cache_dir, sha256))
+        .transpose()?;
+    let force_download = cached.is_some();
+    with_download_deadline(&label, move || {
+        let _guard = file_lock.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _file_guard = artifact_file_lock
+            .as_deref()
+            .map(acquire_artifact_file_lock)
+            .transpose()?;
+        let current = hf_cached_revision_with_client(&api, &repo, &filename, revision.as_deref())?;
+        if let Some(path) = current.as_deref() {
+            match expected.as_deref() {
+                Some(sha) if verify_sha256(path, sha, &filename).is_ok() => return Ok(path.to_path_buf()),
+                None => return Ok(path.to_path_buf()),
+                Some(_) => {}
+            }
+        }
+
+        let (owner, name) = hf_hub::split_id(&repo);
+        let repository = api.model(owner, name);
+        let force = force_download || current.is_some();
+        #[cfg(windows)]
+        let quarantined = match (current.as_deref(), expected.as_deref()) {
+            (Some(path), Some(sha)) if force => quarantine_hf_cache_entry(path, None, sha, &filename)?,
+            _ => Vec::new(),
+        };
+
+        let result = match (revision.as_deref(), force) {
+            (Some(revision), true) => repository
+                .download_file()
+                .filename(filename.clone())
+                .revision(revision.to_string())
+                .force_download(true)
+                .send(),
+            (Some(revision), false) => repository
+                .download_file()
+                .filename(filename.clone())
+                .revision(revision.to_string())
+                .send(),
+            (None, true) => repository
+                .download_file()
+                .filename(filename.clone())
+                .force_download(true)
+                .send(),
+            (None, false) => repository.download_file().filename(filename.clone()).send(),
+        };
+        let refreshed = result
+            .map_err(|error| format!("Failed to download '{filename}' from {repo}: {error}"))
+            .and_then(|path| {
+                if let Some(sha) = expected.as_deref() {
+                    verify_cached_artifact(&path, None, sha, &filename)?;
+                }
+                Ok(path)
+            });
+
+        #[cfg(windows)]
+        match refreshed {
+            Ok(path) => {
+                remove_quarantined_entries(&quarantined);
+                Ok(path)
+            }
+            Err(error) => {
+                restore_quarantined_entries(&quarantined, None, expected.as_deref().unwrap_or_default(), &filename)
+                    .map_err(|restore| {
+                        format!("{error}; additionally failed to restore corrupt cache entry: {restore}")
+                    })?;
+                Err(error)
+            }
+        }
+        #[cfg(not(windows))]
+        refreshed
+    })
 }
 
 /// Download a file from a HuggingFace Hub repository.
@@ -446,6 +739,18 @@ pub(crate) fn hf_download_revision(repo_id: &str, remote_filename: &str, revisio
     hf_download_at_revision(repo_id, remote_filename, Some(revision))
 }
 
+#[cfg(any(
+    feature = "paddle-ocr",
+    feature = "layout-detection",
+    feature = "auto-rotate",
+    feature = "ner-onnx",
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
+))]
+#[allow(dead_code)]
 fn hf_download_at_revision(repo_id: &str, remote_filename: &str, revision: Option<&str>) -> Result<PathBuf, String> {
     tracing::info!(
         repo = repo_id,
@@ -508,7 +813,7 @@ pub(crate) fn hf_force_download_revision(
     }
     let artifact_key = format!("{repo_id}/{remote_filename}@{revision}");
     let file_lock = download_lock(&artifact_key);
-    let artifact_file_lock = standard_hf_artifact_lock_path(repo_id, expected_sha256)?;
+    let artifact_file_lock = hf_artifact_lock_path(repo_id, None, expected_sha256)?;
     let filename = remote_filename.to_string();
     let repo_id = repo_id.to_string();
     let revision = revision.to_string();
@@ -530,7 +835,7 @@ pub(crate) fn hf_force_download_revision(
 
         #[cfg(windows)]
         let quarantined = match cached.as_deref() {
-            Some(path) => quarantine_hf_cache_entry(path, expected_size, &expected_sha256, &model_label)?,
+            Some(path) => quarantine_hf_cache_entry(path, Some(expected_size), &expected_sha256, &model_label)?,
             None => Vec::new(),
         };
 
@@ -544,7 +849,7 @@ pub(crate) fn hf_force_download_revision(
             .send()
             .map_err(|error| format!("Failed to refresh '{filename}' from {repo_id}@{revision}: {error}"))
             .and_then(|path| {
-                verify_cached_artifact(&path, expected_size, &expected_sha256, &model_label)
+                verify_cached_artifact(&path, Some(expected_size), &expected_sha256, &model_label)
                     .map(|()| path)
                     .map_err(|error| format!("Refreshed artifact failed verification: {error}"))
             });
@@ -557,14 +862,15 @@ pub(crate) fn hf_force_download_revision(
             }
             Err(error) => {
                 if let Ok(Some(peer_path)) = hf_cached_revision_with_client(&api, &repo_id, &filename, Some(&revision))
-                    && verify_cached_artifact(&peer_path, expected_size, &expected_sha256, &model_label).is_ok()
+                    && verify_cached_artifact(&peer_path, Some(expected_size), &expected_sha256, &model_label).is_ok()
                 {
                     remove_quarantined_entries(&quarantined);
                     return Ok(peer_path);
                 }
-                restore_quarantined_entries(&quarantined, expected_size, &expected_sha256, &model_label).map_err(
-                    |restore| format!("{error}; additionally failed to restore corrupt cache entry: {restore}"),
-                )?;
+                restore_quarantined_entries(&quarantined, Some(expected_size), &expected_sha256, &model_label)
+                    .map_err(|restore| {
+                        format!("{error}; additionally failed to restore corrupt cache entry: {restore}")
+                    })?;
                 Err(error)
             }
         }
@@ -573,12 +879,29 @@ pub(crate) fn hf_force_download_revision(
     })
 }
 
-#[cfg(feature = "layout-detection")]
-fn verify_cached_artifact(path: &Path, expected_size: u64, expected_sha256: &str, label: &str) -> Result<(), String> {
+#[cfg(any(
+    feature = "paddle-ocr",
+    feature = "layout-detection",
+    feature = "auto-rotate",
+    feature = "ner-onnx",
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
+))]
+fn verify_cached_artifact(
+    path: &Path,
+    expected_size: Option<u64>,
+    expected_sha256: &str,
+    label: &str,
+) -> Result<(), String> {
     let actual_size = std::fs::metadata(path)
         .map_err(|error| format!("Failed to inspect cached {label}: {error}"))?
         .len();
-    if actual_size != expected_size {
+    if let Some(expected_size) = expected_size
+        && actual_size != expected_size
+    {
         return Err(format!(
             "Size mismatch for {label}: expected {expected_size} bytes, got {actual_size}"
         ));
@@ -593,11 +916,24 @@ fn verified_cached_path(
     expected_sha256: &str,
     label: &str,
 ) -> Option<PathBuf> {
-    path.filter(|path| verify_cached_artifact(path, expected_size, expected_sha256, label).is_ok())
+    path.filter(|path| verify_cached_artifact(path, Some(expected_size), expected_sha256, label).is_ok())
         .map(Path::to_path_buf)
 }
 
-#[cfg(all(feature = "layout-detection", any(windows, test)))]
+#[cfg(all(
+    any(windows, test),
+    any(
+        feature = "paddle-ocr",
+        feature = "layout-detection",
+        feature = "auto-rotate",
+        feature = "ner-onnx",
+        feature = "candle-paddleocr-vl",
+        feature = "transcription",
+        feature = "chunking-tokenizers",
+        feature = "onnx-runtime",
+        all(feature = "static-embeddings", not(target_arch = "wasm32"))
+    )
+))]
 #[derive(Debug)]
 struct QuarantinedEntry {
     original: PathBuf,
@@ -610,10 +946,23 @@ struct QuarantinedEntry {
 /// cannot rename a replacement over an existing file, so both names must be absent.
 /// The caller holds the process-local artifact lock. Cross-process repair remains
 /// coordinated only by hf-hub's own blob lock.
-#[cfg(all(feature = "layout-detection", any(windows, test)))]
+#[cfg(all(
+    any(windows, test),
+    any(
+        feature = "paddle-ocr",
+        feature = "layout-detection",
+        feature = "auto-rotate",
+        feature = "ner-onnx",
+        feature = "candle-paddleocr-vl",
+        feature = "transcription",
+        feature = "chunking-tokenizers",
+        feature = "onnx-runtime",
+        all(feature = "static-embeddings", not(target_arch = "wasm32"))
+    )
+))]
 fn quarantine_hf_cache_entry(
     path: &Path,
-    expected_size: u64,
+    expected_size: Option<u64>,
     expected_sha256: &str,
     label: &str,
 ) -> Result<Vec<QuarantinedEntry>, String> {
@@ -663,7 +1012,20 @@ fn quarantine_hf_cache_entry(
     Ok(moved)
 }
 
-#[cfg(all(feature = "layout-detection", any(windows, test)))]
+#[cfg(all(
+    any(windows, test),
+    any(
+        feature = "paddle-ocr",
+        feature = "layout-detection",
+        feature = "auto-rotate",
+        feature = "ner-onnx",
+        feature = "candle-paddleocr-vl",
+        feature = "transcription",
+        feature = "chunking-tokenizers",
+        feature = "onnx-runtime",
+        all(feature = "static-embeddings", not(target_arch = "wasm32"))
+    )
+))]
 fn deterministic_hf_blob_path(snapshot: &Path, expected_sha256: &str) -> Option<PathBuf> {
     if !is_sha256_hex(expected_sha256) {
         return None;
@@ -677,7 +1039,20 @@ fn deterministic_hf_blob_path(snapshot: &Path, expected_sha256: &str) -> Option<
     blob.starts_with(repo_root.join("blobs")).then_some(blob)
 }
 
-#[cfg(all(feature = "layout-detection", any(windows, test)))]
+#[cfg(all(
+    any(windows, test),
+    any(
+        feature = "paddle-ocr",
+        feature = "layout-detection",
+        feature = "auto-rotate",
+        feature = "ner-onnx",
+        feature = "candle-paddleocr-vl",
+        feature = "transcription",
+        feature = "chunking-tokenizers",
+        feature = "onnx-runtime",
+        all(feature = "static-embeddings", not(target_arch = "wasm32"))
+    )
+))]
 fn hf_blob_belongs_to_snapshot(snapshot: &Path, blob: &Path) -> bool {
     snapshot
         .ancestors()
@@ -689,10 +1064,23 @@ fn hf_blob_belongs_to_snapshot(snapshot: &Path, blob: &Path) -> bool {
         })
 }
 
-#[cfg(all(feature = "layout-detection", any(windows, test)))]
+#[cfg(all(
+    any(windows, test),
+    any(
+        feature = "paddle-ocr",
+        feature = "layout-detection",
+        feature = "auto-rotate",
+        feature = "ner-onnx",
+        feature = "candle-paddleocr-vl",
+        feature = "transcription",
+        feature = "chunking-tokenizers",
+        feature = "onnx-runtime",
+        all(feature = "static-embeddings", not(target_arch = "wasm32"))
+    )
+))]
 fn restore_quarantined_entries(
     entries: &[QuarantinedEntry],
-    expected_size: u64,
+    expected_size: Option<u64>,
     expected_sha256: &str,
     label: &str,
 ) -> Result<(), String> {
@@ -752,7 +1140,20 @@ fn restore_quarantined_entries(
     }
 }
 
-#[cfg(all(feature = "layout-detection", any(windows, test)))]
+#[cfg(all(
+    any(windows, test),
+    any(
+        feature = "paddle-ocr",
+        feature = "layout-detection",
+        feature = "auto-rotate",
+        feature = "ner-onnx",
+        feature = "candle-paddleocr-vl",
+        feature = "transcription",
+        feature = "chunking-tokenizers",
+        feature = "onnx-runtime",
+        all(feature = "static-embeddings", not(target_arch = "wasm32"))
+    )
+))]
 fn remove_quarantined_entries(entries: &[QuarantinedEntry]) {
     let failures: Vec<String> = entries
         .iter()
@@ -783,6 +1184,17 @@ pub(crate) fn hf_cached_revision(
     hf_cached_revision_with_client(&api, repo_id, remote_filename, Some(revision))
 }
 
+#[cfg(any(
+    feature = "paddle-ocr",
+    feature = "layout-detection",
+    feature = "auto-rotate",
+    feature = "ner-onnx",
+    feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
+    feature = "onnx-runtime",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
+))]
 fn hf_cached_revision_with_client(
     api: &hf_hub::HFClientSync,
     repo_id: &str,
@@ -858,6 +1270,8 @@ pub(crate) fn parse_sha256_manifest(content: &str) -> Result<Vec<(String, String
     feature = "auto-rotate",
     feature = "ner-onnx",
     feature = "candle-paddleocr-vl",
+    feature = "transcription",
+    feature = "chunking-tokenizers",
     feature = "onnx-runtime",
     all(feature = "static-embeddings", not(target_arch = "wasm32"))
 ))]
@@ -893,13 +1307,44 @@ pub(crate) fn verify_sha256(path: &Path, expected: &str, label: &str) -> Result<
     Ok(())
 }
 
-#[cfg(all(test, feature = "layout-detection"))]
+#[cfg(all(
+    test,
+    any(
+        feature = "paddle-ocr",
+        feature = "layout-detection",
+        feature = "auto-rotate",
+        feature = "ner-onnx",
+        feature = "candle-paddleocr-vl",
+        feature = "transcription",
+        feature = "chunking-tokenizers",
+        feature = "onnx-runtime",
+        all(feature = "static-embeddings", not(target_arch = "wasm32"))
+    )
+))]
 mod hf_cache_tests {
     use super::*;
 
     fn sha256(payload: &[u8]) -> String {
         use sha2::{Digest, Sha256};
         hex::encode(Sha256::digest(payload))
+    }
+
+    fn run_env_child(test_name: &str, cache: &Path, offline_variable: Option<&str>) {
+        let mut command = std::process::Command::new(std::env::current_exe().unwrap());
+        command
+            .arg("--exact")
+            .arg(test_name)
+            .arg("--ignored")
+            .arg("--nocapture")
+            .env("XBERG_HF_CACHE_TEST_ROOT", cache)
+            .env("HF_HUB_CACHE", cache)
+            .env_remove("HF_HUB_OFFLINE")
+            .env_remove("HUGGINGFACE_HUB_OFFLINE");
+        if let Some(variable) = offline_variable {
+            command.env(variable, "1");
+        }
+        let status = command.status().expect("launch isolated Hugging Face environment test");
+        assert!(status.success(), "isolated test {test_name} failed with {status}");
     }
 
     #[test]
@@ -928,6 +1373,129 @@ mod hf_cache_tests {
     }
 
     #[test]
+    fn shared_resolver_returns_verified_snapshot_path_from_custom_hf_root() {
+        let cache = tempfile::TempDir::new().unwrap();
+        let revision = "0123456789abcdef0123456789abcdef01234567";
+        let payload = b"verified cached model";
+        let cached_file = cache
+            .path()
+            .join("models--xberg-io--layout-models")
+            .join("snapshots")
+            .join(revision)
+            .join("rtdetr/model.onnx");
+        std::fs::create_dir_all(cached_file.parent().unwrap()).unwrap();
+        std::fs::write(&cached_file, payload).unwrap();
+
+        let resolved = hf_resolve_file(
+            "xberg-io/layout-models",
+            "rtdetr/model.onnx",
+            Some(revision),
+            Some(cache.path()),
+            Some(&sha256(payload)),
+        )
+        .unwrap();
+
+        assert_eq!(resolved, cached_file);
+    }
+
+    #[test]
+    fn shared_resolver_uses_standard_hf_hub_cache_environment() {
+        let cache = tempfile::TempDir::new().unwrap();
+        let revision = "0123456789abcdef0123456789abcdef01234567";
+        let payload = b"standard environment cache";
+        let cached_file = cache
+            .path()
+            .join("models--owner--repo")
+            .join("snapshots")
+            .join(revision)
+            .join("model.onnx");
+        std::fs::create_dir_all(cached_file.parent().unwrap()).unwrap();
+        std::fs::write(&cached_file, payload).unwrap();
+
+        run_env_child(
+            "model_download::hf_cache_tests::standard_hf_hub_cache_environment_child",
+            cache.path(),
+            None,
+        );
+    }
+
+    #[test]
+    #[ignore = "run in an isolated subprocess by shared_resolver_uses_standard_hf_hub_cache_environment"]
+    fn standard_hf_hub_cache_environment_child() {
+        let cache = PathBuf::from(std::env::var_os("XBERG_HF_CACHE_TEST_ROOT").expect("test cache root"));
+        let revision = "0123456789abcdef0123456789abcdef01234567";
+        let payload = b"standard environment cache";
+        let cached_file = cache
+            .join("models--owner--repo")
+            .join("snapshots")
+            .join(revision)
+            .join("model.onnx");
+
+        let resolved =
+            hf_resolve_file("owner/repo", "model.onnx", Some(revision), None, Some(&sha256(payload))).unwrap();
+
+        assert_eq!(resolved, cached_file);
+        assert_eq!(hf_cache_key(None), cache.display().to_string());
+    }
+
+    #[test]
+    fn offline_cache_miss_and_corruption_never_refresh_from_network() {
+        let cache = tempfile::TempDir::new().unwrap();
+        let revision = "0123456789abcdef0123456789abcdef01234567";
+        let cached_file = cache
+            .path()
+            .join("models--owner--repo")
+            .join("snapshots")
+            .join(revision)
+            .join("corrupt.onnx");
+        std::fs::create_dir_all(cached_file.parent().unwrap()).unwrap();
+        std::fs::write(&cached_file, b"corrupt").unwrap();
+
+        for variable in ["HF_HUB_OFFLINE", "HUGGINGFACE_HUB_OFFLINE"] {
+            run_env_child(
+                "model_download::hf_cache_tests::offline_cache_miss_and_corruption_child",
+                cache.path(),
+                Some(variable),
+            );
+        }
+    }
+
+    #[test]
+    #[ignore = "run in isolated subprocesses by offline_cache_miss_and_corruption_never_refresh_from_network"]
+    fn offline_cache_miss_and_corruption_child() {
+        let cache = PathBuf::from(std::env::var_os("XBERG_HF_CACHE_TEST_ROOT").expect("test cache root"));
+        let revision = "0123456789abcdef0123456789abcdef01234567";
+        let cached_file = cache
+            .join("models--owner--repo")
+            .join("snapshots")
+            .join(revision)
+            .join("corrupt.onnx");
+
+        let missing = hf_resolve_file("owner/repo", "missing.onnx", Some(revision), Some(&cache), None).unwrap_err();
+        let corrupt = hf_resolve_file(
+            "owner/repo",
+            "corrupt.onnx",
+            Some(revision),
+            Some(&cache),
+            Some(&sha256(b"expected")),
+        )
+        .unwrap_err();
+
+        assert!(missing.contains("offline mode"), "{missing}");
+        assert!(corrupt.contains("offline mode"), "{corrupt}");
+        assert!(corrupt.contains("failed checksum verification"), "{corrupt}");
+        assert_eq!(std::fs::read(cached_file).unwrap(), b"corrupt");
+    }
+
+    #[test]
+    fn shared_resolver_rejects_invalid_checksum_before_cache_or_network_access() {
+        let error =
+            hf_resolve_file("owner/repo", "model.onnx", Some("revision"), None, Some("not-a-sha256")).unwrap_err();
+
+        assert!(error.contains("Invalid SHA-256"));
+    }
+
+    #[test]
     fn offline_flag_parser_accepts_only_explicit_truthy_values() {
         for value in ["1", "true", "TRUE", " yes ", "On"] {
             assert!(env_flag_enabled(std::ffi::OsStr::new(value)), "{value}");
@@ -945,6 +1513,7 @@ mod hf_cache_tests {
         assert!(error.contains("model.onnx"));
     }
 
+    #[cfg(feature = "layout-detection")]
     #[test]
     fn verified_cached_path_accepts_a_concurrently_repaired_artifact() {
         let dir = tempfile::TempDir::new().unwrap();
@@ -965,11 +1534,12 @@ mod hf_cache_tests {
         let expected_sha = sha256(payload);
         std::fs::write(&path, payload).unwrap();
 
-        let quarantined = quarantine_hf_cache_entry(&path, payload.len() as u64, &expected_sha, "test-model").unwrap();
+        let quarantined =
+            quarantine_hf_cache_entry(&path, Some(payload.len() as u64), &expected_sha, "test-model").unwrap();
         assert!(!path.exists());
         assert_eq!(quarantined.len(), 1);
 
-        restore_quarantined_entries(&quarantined, payload.len() as u64, &expected_sha, "test-model").unwrap();
+        restore_quarantined_entries(&quarantined, Some(payload.len() as u64), &expected_sha, "test-model").unwrap();
         assert_eq!(std::fs::read(path).unwrap(), payload);
     }
 
@@ -985,13 +1555,24 @@ mod hf_cache_tests {
         std::fs::write(&blob, b"corrupt blob").unwrap();
         std::os::unix::fs::symlink(format!("../../blobs/{expected_sha}"), &snapshot).unwrap();
 
-        let quarantined =
-            quarantine_hf_cache_entry(&snapshot, b"corrupt blob".len() as u64, &expected_sha, "test-model").unwrap();
+        let quarantined = quarantine_hf_cache_entry(
+            &snapshot,
+            Some(b"corrupt blob".len() as u64),
+            &expected_sha,
+            "test-model",
+        )
+        .unwrap();
         assert_eq!(quarantined.len(), 2);
         assert!(!snapshot.exists());
         assert!(!blob.exists());
 
-        restore_quarantined_entries(&quarantined, b"corrupt blob".len() as u64, &expected_sha, "test-model").unwrap();
+        restore_quarantined_entries(
+            &quarantined,
+            Some(b"corrupt blob".len() as u64),
+            &expected_sha,
+            "test-model",
+        )
+        .unwrap();
         assert_eq!(std::fs::read(&snapshot).unwrap(), b"corrupt blob");
         assert_eq!(std::fs::read(blob).unwrap(), b"corrupt blob");
     }
@@ -1009,12 +1590,12 @@ mod hf_cache_tests {
         std::fs::write(&snapshot, payload).unwrap();
 
         let quarantined =
-            quarantine_hf_cache_entry(&snapshot, payload.len() as u64, &expected_sha, "test-model").unwrap();
+            quarantine_hf_cache_entry(&snapshot, Some(payload.len() as u64), &expected_sha, "test-model").unwrap();
 
         assert_eq!(quarantined.len(), 2);
         assert!(!snapshot.exists());
         assert!(!blob.exists());
-        restore_quarantined_entries(&quarantined, payload.len() as u64, &expected_sha, "test-model").unwrap();
+        restore_quarantined_entries(&quarantined, Some(payload.len() as u64), &expected_sha, "test-model").unwrap();
         assert_eq!(std::fs::read(snapshot).unwrap(), payload);
         assert_eq!(std::fs::read(blob).unwrap(), payload);
     }
@@ -1032,11 +1613,11 @@ mod hf_cache_tests {
         std::fs::write(&snapshot, b"bad-data").unwrap();
 
         let quarantined =
-            quarantine_hf_cache_entry(&snapshot, valid.len() as u64, &expected_sha, "test-model").unwrap();
+            quarantine_hf_cache_entry(&snapshot, Some(valid.len() as u64), &expected_sha, "test-model").unwrap();
         std::fs::write(&blob, valid).unwrap();
         std::fs::write(&snapshot, valid).unwrap();
 
-        restore_quarantined_entries(&quarantined, valid.len() as u64, &expected_sha, "test-model").unwrap();
+        restore_quarantined_entries(&quarantined, Some(valid.len() as u64), &expected_sha, "test-model").unwrap();
 
         assert_eq!(std::fs::read(&snapshot).unwrap(), valid);
         assert_eq!(std::fs::read(&blob).unwrap(), valid);
@@ -1052,11 +1633,12 @@ mod hf_cache_tests {
         let valid = b"new-data";
         let path = dir.path().join("model.onnx");
         std::fs::write(&path, b"old-data").unwrap();
-        let quarantined = quarantine_hf_cache_entry(&path, valid.len() as u64, &sha256(valid), "test-model").unwrap();
+        let quarantined =
+            quarantine_hf_cache_entry(&path, Some(valid.len() as u64), &sha256(valid), "test-model").unwrap();
         std::fs::write(&path, b"peer-bad").unwrap();
 
-        let error =
-            restore_quarantined_entries(&quarantined, valid.len() as u64, &sha256(valid), "test-model").unwrap_err();
+        let error = restore_quarantined_entries(&quarantined, Some(valid.len() as u64), &sha256(valid), "test-model")
+            .unwrap_err();
 
         assert!(error.contains("refusing to replace cache entries"), "{error}");
         assert_eq!(std::fs::read(&path).unwrap(), b"peer-bad");
@@ -1070,7 +1652,7 @@ mod hf_cache_tests {
         std::fs::write(&path, b"corrupt model").unwrap();
         let quarantined = quarantine_hf_cache_entry(
             &path,
-            b"corrupt model".len() as u64,
+            Some(b"corrupt model".len() as u64),
             &sha256(b"corrupt model"),
             "test-model",
         )

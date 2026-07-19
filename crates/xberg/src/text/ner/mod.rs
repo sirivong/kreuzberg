@@ -33,10 +33,12 @@ use crate::types::entity::Entity;
 
 use std::path::PathBuf;
 
-/// Eagerly download a NER model into the xberg cache.
+/// Eagerly download a NER model into the Hugging Face Hub cache.
 ///
 /// `name` is a supported xberg GLiNER alias or catalog id. The CLI flag
-/// `xberg cache warm --ner` delegates here.
+/// `xberg cache warm --ner` delegates here. `cache_dir`, when provided, is a
+/// custom Hugging Face Hub cache root; otherwise the standard `HF_HUB_CACHE`,
+/// `HF_HOME`, and platform defaults apply.
 #[cfg(feature = "ner-onnx")]
 pub fn download_model(name: &str, cache_dir: Option<PathBuf>) -> crate::Result<PathBuf> {
     gline::download_model(name, cache_dir)

@@ -5,7 +5,7 @@
 
 use async_trait::async_trait;
 use std::borrow::Cow;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
 
 use ahash::AHashMap;
@@ -30,7 +30,7 @@ fn variant_discriminant(v: TrocrVariant) -> u8 {
 }
 
 /// Type alias for the engine pool mapping.
-type EnginePoolMap = AHashMap<(u8, DevicePreference), Arc<TrocrEngine>>;
+type EnginePoolMap = AHashMap<(u8, DevicePreference, PathBuf, String), Arc<TrocrEngine>>;
 
 /// Process-wide engine pool keyed by `(variant_discriminant, device_preference)`.
 ///
@@ -43,8 +43,18 @@ static ENGINE_POOL: LazyLock<RwLock<EnginePoolMap>> = LazyLock::new(|| RwLock::n
 ///
 /// Uses a read → miss → write → double-check pattern so that two racing callers
 /// do not both pay the initialisation cost.
-fn get_or_init_engine(variant: TrocrVariant, preference: DevicePreference) -> crate::Result<Arc<TrocrEngine>> {
-    let key = (variant_discriminant(variant), preference);
+fn get_or_init_engine(
+    variant: TrocrVariant,
+    preference: DevicePreference,
+    cache_dir: PathBuf,
+    revision: String,
+) -> crate::Result<Arc<TrocrEngine>> {
+    let key = (
+        variant_discriminant(variant),
+        preference,
+        cache_dir.clone(),
+        revision.clone(),
+    );
 
     {
         let pool = ENGINE_POOL.read();
@@ -59,9 +69,11 @@ fn get_or_init_engine(variant: TrocrVariant, preference: DevicePreference) -> cr
     })?;
 
     tracing::info!(variant = ?variant, preference = ?preference, "Initialising TrOCR engine (cold start)");
-    let new_engine = TrocrEngine::new(variant, device).map_err(|e| crate::XbergError::Ocr {
-        message: format!("TrOCR engine initialisation failed: {e}"),
-        source: Some(Box::new(e)),
+    let new_engine = TrocrEngine::new_with_hf(variant, device, Some(&cache_dir), Some(&revision)).map_err(|e| {
+        crate::XbergError::Ocr {
+            message: format!("TrOCR engine initialisation failed: {e}"),
+            source: Some(Box::new(e)),
+        }
     })?;
     let new_engine = Arc::new(new_engine);
 
@@ -104,6 +116,13 @@ pub struct TrocrBackend {
     variant: TrocrVariant,
 }
 
+struct TrocrOptions {
+    variant: Option<TrocrVariant>,
+    device: DevicePreference,
+    cache_dir: Option<PathBuf>,
+    hf_revision: Option<String>,
+}
+
 impl TrocrBackend {
     /// Create a new TrOCR backend with the specified variant.
     pub fn new(variant: TrocrVariant) -> Self {
@@ -123,22 +142,37 @@ impl TrocrBackend {
     ///
     /// Device selection is delegated to [`crate::candle_ocr::resolve_device_preference`]
     /// so the central `AccelerationConfig` is honoured.
-    fn parse_options(config: &OcrConfig) -> (Option<TrocrVariant>, DevicePreference) {
+    fn parse_options(config: &OcrConfig) -> TrocrOptions {
         let mut variant: Option<TrocrVariant> = None;
+        let mut cache_dir = None;
+        let mut hf_revision = None;
 
-        if let Some(opts) = &config.backend_options
-            && let Some(v) = opts.get("variant").and_then(|v| v.as_str())
-        {
-            variant = Some(match v {
-                "large-printed" => TrocrVariant::LargePrinted,
-                "base-handwritten" => TrocrVariant::BaseHandwritten,
-                "large-handwritten" => TrocrVariant::LargeHandwritten,
-                _ => TrocrVariant::BasePrinted,
-            });
+        if let Some(opts) = &config.backend_options {
+            if let Some(v) = opts.get("variant").and_then(|v| v.as_str()) {
+                variant = Some(match v {
+                    "large-printed" => TrocrVariant::LargePrinted,
+                    "base-handwritten" => TrocrVariant::BaseHandwritten,
+                    "large-handwritten" => TrocrVariant::LargeHandwritten,
+                    _ => TrocrVariant::BasePrinted,
+                });
+            }
+            cache_dir = opts
+                .get("cache_dir")
+                .and_then(|value| value.as_str())
+                .map(PathBuf::from);
+            hf_revision = opts
+                .get("hf_revision")
+                .or_else(|| opts.get("revision"))
+                .and_then(|value| value.as_str())
+                .map(str::to_string);
         }
 
-        let device = super::resolve_device_preference(config);
-        (variant, device)
+        TrocrOptions {
+            variant,
+            device: super::resolve_device_preference(config),
+            cache_dir,
+            hf_revision,
+        }
     }
 }
 
@@ -170,8 +204,10 @@ impl OcrBackend for TrocrBackend {
     /// in `self.variant`. Inference runs inside `tokio::task::spawn_blocking` so the
     /// async runtime is never blocked.
     async fn process_image(&self, image_bytes: &[u8], config: &OcrConfig) -> Result<ExtractedDocument> {
-        let (parsed_variant, device) = Self::parse_options(config);
-        let variant = parsed_variant.unwrap_or(self.variant);
+        let options = Self::parse_options(config);
+        let variant = options.variant.unwrap_or(self.variant);
+        let cache_dir = options.cache_dir.unwrap_or_else(hf_hub::resolve_cache_dir);
+        let revision = options.hf_revision.unwrap_or_else(|| variant.revision().to_string());
 
         if image_bytes.is_empty() {
             return Err(crate::XbergError::Validation {
@@ -183,7 +219,7 @@ impl OcrBackend for TrocrBackend {
         let image_bytes = image_bytes.to_vec();
 
         let content = tokio::task::spawn_blocking(move || {
-            let engine = get_or_init_engine(variant, device)?;
+            let engine = get_or_init_engine(variant, options.device, cache_dir, revision)?;
 
             let output = engine.process_image(&image_bytes).map_err(|e| crate::XbergError::Ocr {
                 message: format!("TrOCR inference failed: {}", e),
@@ -254,9 +290,9 @@ mod tests {
     #[test]
     fn test_parse_options_defaults() {
         let config = OcrConfig::default();
-        let (variant, device) = TrocrBackend::parse_options(&config);
-        assert_eq!(variant, None);
-        assert_eq!(device, DevicePreference::Auto);
+        let options = TrocrBackend::parse_options(&config);
+        assert_eq!(options.variant, None);
+        assert_eq!(options.device, DevicePreference::Auto);
     }
 
     #[test]
@@ -265,8 +301,8 @@ mod tests {
         config.backend_options = Some(serde_json::json!({
             "variant": "large-printed"
         }));
-        let (variant, _device) = TrocrBackend::parse_options(&config);
-        assert_eq!(variant, Some(TrocrVariant::LargePrinted));
+        let options = TrocrBackend::parse_options(&config);
+        assert_eq!(options.variant, Some(TrocrVariant::LargePrinted));
     }
 
     #[test]
@@ -275,8 +311,8 @@ mod tests {
         config.backend_options = Some(serde_json::json!({
             "device": "cpu"
         }));
-        let (_variant, device) = TrocrBackend::parse_options(&config);
-        assert_eq!(device, DevicePreference::Cpu);
+        let options = TrocrBackend::parse_options(&config);
+        assert_eq!(options.device, DevicePreference::Cpu);
     }
 
     #[test]

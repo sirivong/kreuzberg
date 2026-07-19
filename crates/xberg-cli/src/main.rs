@@ -400,7 +400,7 @@ enum CacheCommands {
         format: WireFormat,
     },
 
-    /// Clear the cache
+    /// Clear the Xberg-managed cache (does not clear shared Hugging Face files)
     Clear {
         /// Cache directory (default: .xberg in current directory)
         #[arg(short, long)]
@@ -426,7 +426,8 @@ enum CacheCommands {
     ///
     /// Downloads model artifacts for offline/container use. Unlike normal
     /// operation which downloads lazily on first use, this ensures selected
-    /// models are present in the cache directory.
+    /// models are available for offline use. Hugging Face models remain in the
+    /// standard HF cache; Xberg does not copy them into its own cache.
     ///
     /// Use --all-embeddings to also download all 4 embedding model presets,
     /// or `--embedding-model <preset>` to download a specific one.
@@ -438,7 +439,10 @@ enum CacheCommands {
     /// for a specific GLiNER alias/catalog id, or --all-ner-models for every
     /// known GLiNER NER model.
     Warm {
-        /// Cache directory (default: .xberg in current directory, or XBERG_CACHE_DIR)
+        /// Xberg cache directory; for HF models, an explicit HF cache root
+        ///
+        /// Without this option, HF models follow HF_HUB_CACHE, HF_HOME, and
+        /// platform defaults instead of the Xberg cache directory.
         #[arg(short, long)]
         cache_dir: Option<PathBuf>,
 

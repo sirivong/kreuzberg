@@ -257,12 +257,14 @@ pub struct CacheStatsResponse {
     pub newest_file_age_days: f64,
 }
 
-/// Cache clear response.
+/// Xberg-managed cache clear response.
+///
+/// Shared Hugging Face Hub cache files are not included in this operation.
 #[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct CacheClearResponse {
-    /// Cache directory path
+    /// Xberg-managed cache directory path
     #[cfg_attr(feature = "api", schema(example = "/tmp/xberg-cache"))]
     pub directory: String,
     /// Number of files removed
@@ -352,7 +354,10 @@ pub struct WarmRequest {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct WarmResponse {
-    /// Cache directory used
+    /// Xberg-managed cache directory used.
+    ///
+    /// Hugging Face artifacts remain in the standard HF cache, and their
+    /// resolved paths are included in `downloaded`.
     pub cache_dir: String,
     /// Models that were downloaded
     pub downloaded: Vec<String>,

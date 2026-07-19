@@ -81,131 +81,6 @@ fn ort_missing_or(err: ErrCtor, msg: String) -> crate::XbergError {
     }
 }
 
-/// How long a partial download must be idle before it is considered stale.
-const STALE_DOWNLOAD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(30 * 60);
-
-/// Remove stale `.lock` and `.part` files left behind by interrupted downloads.
-fn cleanup_stale_locks(cache_dir: &Path, repo_name: &str) {
-    let folder = format!("models--{}", repo_name.replace('/', "--"));
-    let blobs_dir = cache_dir.join(folder).join("blobs");
-
-    let entries = match std::fs::read_dir(&blobs_dir) {
-        Ok(e) => e,
-        Err(_) => return,
-    };
-
-    let now = std::time::SystemTime::now();
-
-    for entry in entries.flatten() {
-        let lock_path = entry.path();
-        if lock_path.extension().is_some_and(|ext| ext == "lock") {
-            let part_path = lock_path.with_extension("part");
-            let probe_path = if part_path.exists() { &part_path } else { &lock_path };
-
-            let age = probe_path
-                .metadata()
-                .and_then(|m| m.modified())
-                .and_then(|modified| now.duration_since(modified).map_err(std::io::Error::other))
-                .unwrap_or(std::time::Duration::ZERO);
-
-            if age >= STALE_DOWNLOAD_TIMEOUT {
-                if std::fs::remove_file(&lock_path).is_ok() {
-                    tracing::info!(
-                        path = ?lock_path,
-                        idle_minutes = age.as_secs() / 60,
-                        "Removed stale download lock file",
-                    );
-                }
-                if part_path.exists() && std::fs::remove_file(&part_path).is_ok() {
-                    tracing::info!(path = ?part_path, "Removed stale partial download");
-                }
-            }
-        }
-    }
-}
-
-/// Build a human-readable hint to attach to a LockAcquisition error.
-fn lock_acquisition_hint(cache_dir: &Path, repo_name: &str) -> String {
-    let folder = format!("models--{}", repo_name.replace('/', "--"));
-    format!(
-        "\n\nAnother process may be downloading this model. \
-        If no download is in progress, remove the stale files and retry:\n  \
-        rm -f {cache}/{folder}/blobs/*.lock\n  \
-        rm -f {cache}/{folder}/blobs/*.part",
-        cache = cache_dir.display(),
-        folder = folder,
-    )
-}
-
-/// A held cross-process advisory lock that serializes model downloads.
-struct ProcessDownloadLock {
-    file: std::fs::File,
-}
-
-impl ProcessDownloadLock {
-    fn acquire(cache_dir: &Path, repo_name: &str) -> Option<Self> {
-        let folder = format!("models--{}", repo_name.replace('/', "--"));
-        let model_dir = cache_dir.join(folder);
-        if let Err(error) = std::fs::create_dir_all(&model_dir) {
-            tracing::debug!(?error, "Could not create model dir for download lock");
-            return None;
-        }
-        let lock_path = model_dir.join(".xberg-download.lock");
-        let file = match std::fs::OpenOptions::new()
-            .create(true)
-            .truncate(false)
-            .read(true)
-            .write(true)
-            .open(&lock_path)
-        {
-            Ok(file) => file,
-            Err(error) => {
-                tracing::debug!(?error, path = ?lock_path, "Could not open download lock file");
-                return None;
-            }
-        };
-
-        if !blocking_lock_exclusive(&file) {
-            tracing::debug!(path = ?lock_path, "Could not acquire cross-process download lock");
-            return None;
-        }
-
-        tracing::debug!(path = ?lock_path, "Acquired cross-process download lock");
-        Some(Self { file })
-    }
-}
-
-impl Drop for ProcessDownloadLock {
-    fn drop(&mut self) {
-        unlock_file(&self.file);
-    }
-}
-
-#[cfg(target_family = "unix")]
-fn blocking_lock_exclusive(file: &std::fs::File) -> bool {
-    use std::os::fd::AsRawFd;
-    #[allow(unsafe_code)]
-    let result = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) };
-    result == 0
-}
-
-#[cfg(target_family = "unix")]
-fn unlock_file(file: &std::fs::File) {
-    use std::os::fd::AsRawFd;
-    #[allow(unsafe_code)]
-    unsafe {
-        libc::flock(file.as_raw_fd(), libc::LOCK_UN);
-    }
-}
-
-#[cfg(not(target_family = "unix"))]
-fn blocking_lock_exclusive(_file: &std::fs::File) -> bool {
-    false
-}
-
-#[cfg(not(target_family = "unix"))]
-fn unlock_file(_file: &std::fs::File) {}
-
 /// Local paths of a downloaded model's files.
 ///
 /// `special_tokens` and `tokenizer_config` may be empty paths when the repo does
@@ -239,12 +114,21 @@ pub(crate) fn download_model_files(
     repo_name: &str,
     model_file: &str,
     additional_files: &[String],
-    cache_directory: &Path,
+    revision: Option<&str>,
+    cache_directory: Option<&Path>,
     manifest: Option<&str>,
     err: ErrCtor,
 ) -> crate::Result<DownloadedModel> {
     match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-        download_model_files_inner(repo_name, model_file, additional_files, cache_directory, manifest, err)
+        download_model_files_inner(
+            repo_name,
+            model_file,
+            additional_files,
+            revision,
+            cache_directory,
+            manifest,
+            err,
+        )
     })) {
         Ok(result) => result,
         Err(payload) => {
@@ -266,10 +150,12 @@ pub(crate) fn download_model_files(
 /// Returns the local cache path plus the repo-relative path that actually
 /// resolved, so the caller can look that path up in the sha256 manifest.
 fn fetch_companion(
-    api: &hf_hub::HFClientSync,
     repo_name: &str,
     model_dir: Option<&str>,
     file_name: &str,
+    revision: Option<&str>,
+    cache_directory: Option<&Path>,
+    manifest: &[(String, String)],
 ) -> Result<(PathBuf, String), String> {
     let candidates: Vec<String> = match model_dir {
         Some(dir) if !dir.is_empty() => vec![format!("{dir}/{file_name}"), file_name.to_string()],
@@ -277,17 +163,11 @@ fn fetch_companion(
     };
     let mut last_err = String::new();
     for candidate in candidates {
-        let api = api.clone();
-        let repo = repo_name.to_string();
-        let path = candidate.clone();
-        match crate::model_download::with_download_deadline(&format!("{repo}/{candidate}"), move || {
-            let (owner, name) = hf_hub::split_id(&repo);
-            api.model(owner, name)
-                .download_file()
-                .filename(path)
-                .send()
-                .map_err(|e| e.to_string())
-        }) {
+        let expected = manifest
+            .iter()
+            .find(|(path, _)| path == &candidate)
+            .map(|(_, sha256)| sha256.as_str());
+        match crate::model_download::hf_resolve_file(repo_name, &candidate, revision, cache_directory, expected) {
             Ok(path) => return Ok((path, candidate)),
             Err(e) => last_err = e,
         }
@@ -316,7 +196,8 @@ fn download_model_files_inner(
     repo_name: &str,
     model_file: &str,
     additional_files: &[String],
-    cache_directory: &Path,
+    revision: Option<&str>,
+    cache_directory: Option<&Path>,
     manifest: Option<&str>,
     err: ErrCtor,
 ) -> crate::Result<DownloadedModel> {
@@ -326,57 +207,26 @@ fn download_model_files_inner(
         None => Vec::new(),
     };
 
-    let _download_lock = ProcessDownloadLock::acquire(cache_directory, repo_name);
-    cleanup_stale_locks(cache_directory, repo_name);
-
-    let api = crate::model_download::hf_client_builder()
-        .cache_dir(cache_directory.to_path_buf())
-        .build_sync()
-        .map_err(|e| err(format!("Failed to create HF API client: {e}")))?;
-
-    let model = {
-        let api = api.clone();
-        let file = model_file.to_string();
-        let cache_dir = cache_directory.to_path_buf();
-        let repo = repo_name.to_string();
-        crate::model_download::with_download_deadline(&format!("{repo}/{model_file}"), move || {
-            let (owner, name) = hf_hub::split_id(&repo);
-            api.model(owner, name)
-                .download_file()
-                .filename(file)
-                .send()
-                .map_err(|e| {
-                    let hint = if matches!(e, hf_hub::HFError::CacheLockTimeout { .. }) {
-                        lock_acquisition_hint(&cache_dir, &repo)
-                    } else {
-                        String::new()
-                    };
-                    format!("{e}{hint}")
-                })
-        })
-    }
-    .map_err(|e| err(format!("Failed to download {model_file} from {repo_name}: {e}")))?;
+    let model_sha = manifest
+        .iter()
+        .find(|(path, _)| path == model_file)
+        .map(|(_, sha256)| sha256.as_str());
+    let model = crate::model_download::hf_resolve_file(repo_name, model_file, revision, cache_directory, model_sha)
+        .map_err(|e| err(format!("Failed to resolve {model_file} from {repo_name}: {e}")))?;
     verify_downloaded(&manifest, model_file, &model, err)?;
 
     for sibling in additional_files {
-        let sib_path = {
-            let api = api.clone();
-            let repo = repo_name.to_string();
-            let sib = sibling.clone();
-            crate::model_download::with_download_deadline(&format!("{repo}/{sibling}"), move || {
-                let (owner, name) = hf_hub::split_id(&repo);
-                api.model(owner, name)
-                    .download_file()
-                    .filename(sib)
-                    .send()
-                    .map_err(|e| e.to_string())
-            })
-            .map_err(|e| {
-                err(format!(
-                    "Failed to download sibling file {sibling} from {repo_name}: {e}"
-                ))
-            })?
-        };
+        let sibling_sha = manifest
+            .iter()
+            .find(|(path, _)| path == sibling)
+            .map(|(_, sha256)| sha256.as_str());
+        let sib_path =
+            crate::model_download::hf_resolve_file(repo_name, sibling, revision, cache_directory, sibling_sha)
+                .map_err(|e| {
+                    err(format!(
+                        "Failed to resolve sibling file {sibling} from {repo_name}: {e}"
+                    ))
+                })?;
         verify_downloaded(&manifest, sibling, &sib_path, err)?;
     }
 
@@ -385,20 +235,48 @@ fn download_model_files_inner(
         .and_then(|p| p.to_str())
         .filter(|s| !s.is_empty());
 
-    let (tokenizer, tokenizer_rel) = fetch_companion(&api, repo_name, model_dir, "tokenizer.json")
-        .map_err(|e| err(format!("Failed to download tokenizer.json: {e}")))?;
+    let (tokenizer, tokenizer_rel) = fetch_companion(
+        repo_name,
+        model_dir,
+        "tokenizer.json",
+        revision,
+        cache_directory,
+        &manifest,
+    )
+    .map_err(|e| err(format!("Failed to download tokenizer.json: {e}")))?;
     verify_downloaded(&manifest, &tokenizer_rel, &tokenizer, err)?;
 
-    let (config, config_rel) = fetch_companion(&api, repo_name, model_dir, "config.json")
-        .map_err(|e| err(format!("Failed to download config.json: {e}")))?;
+    let (config, config_rel) = fetch_companion(
+        repo_name,
+        model_dir,
+        "config.json",
+        revision,
+        cache_directory,
+        &manifest,
+    )
+    .map_err(|e| err(format!("Failed to download config.json: {e}")))?;
     verify_downloaded(&manifest, &config_rel, &config, err)?;
 
-    let (special_tokens, special_tokens_rel) =
-        fetch_companion(&api, repo_name, model_dir, "special_tokens_map.json").unwrap_or_default();
+    let (special_tokens, special_tokens_rel) = fetch_companion(
+        repo_name,
+        model_dir,
+        "special_tokens_map.json",
+        revision,
+        cache_directory,
+        &manifest,
+    )
+    .unwrap_or_default();
     verify_downloaded(&manifest, &special_tokens_rel, &special_tokens, err)?;
 
-    let (tokenizer_config, tokenizer_config_rel) =
-        fetch_companion(&api, repo_name, model_dir, "tokenizer_config.json").unwrap_or_default();
+    let (tokenizer_config, tokenizer_config_rel) = fetch_companion(
+        repo_name,
+        model_dir,
+        "tokenizer_config.json",
+        revision,
+        cache_directory,
+        &manifest,
+    )
+    .unwrap_or_default();
     verify_downloaded(&manifest, &tokenizer_config_rel, &tokenizer_config, err)?;
 
     Ok(DownloadedModel {
@@ -527,30 +405,12 @@ pub(crate) fn build_session(
     .map_err(|e| ort_missing_or(err, format!("Failed to create ONNX session: {e}")))
 }
 
-/// Resolve the cache directory for a module's models, honoring an explicit
-/// override and otherwise falling back to `~/.cache/xberg/<module>/`.
-///
-/// Only `sparse_embeddings` and `late_interaction` route through this shared
-/// helper; `embeddings`/`reranking` keep their own local wrappers, so gate it to
-/// its callers to avoid a dead-code warning in reranker/embeddings-only builds.
-#[cfg(any(feature = "sparse-embeddings", feature = "late-interaction"))]
-pub(crate) fn resolve_cache_dir(module: &str, cache_dir: Option<PathBuf>) -> PathBuf {
-    cache_dir.unwrap_or_else(|| crate::cache_dir::resolve_cache_dir(module))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn embed_err(msg: String) -> crate::XbergError {
         crate::XbergError::embedding(msg)
-    }
-
-    fn write_file_aged(path: &Path, age_secs: u64) {
-        std::fs::write(path, b"x").unwrap();
-        let mtime = std::time::SystemTime::now() - std::time::Duration::from_secs(age_secs);
-        let ft = filetime::FileTime::from_system_time(mtime);
-        filetime::set_file_mtime(path, ft).unwrap();
     }
 
     #[test]
@@ -573,64 +433,6 @@ mod tests {
         assert!(matches!(e, crate::XbergError::MissingDependency(_)));
         let e = ort_missing_or(embed_err, "generic failure".to_string());
         assert!(matches!(e, crate::XbergError::Embedding { .. }));
-    }
-
-    #[test]
-    fn lock_acquisition_hint_contains_recovery_commands() {
-        let hint = lock_acquisition_hint(Path::new("/tmp/cache"), "org/model");
-        assert!(hint.contains("models--org--model"));
-        assert!(hint.contains("*.lock"));
-        assert!(hint.contains("*.part"));
-    }
-
-    #[test]
-    fn cleanup_stale_locks_nonexistent_dir_is_noop() {
-        cleanup_stale_locks(Path::new("/nonexistent/xberg/cache"), "org/model");
-    }
-
-    #[test]
-    fn cleanup_stale_locks_removes_old_lock_and_part() {
-        let tmp = tempfile::tempdir().unwrap();
-        let blobs = tmp.path().join("models--org--model").join("blobs");
-        std::fs::create_dir_all(&blobs).unwrap();
-        let lock = blobs.join("abc.lock");
-        let part = blobs.join("abc.part");
-        write_file_aged(&lock, 60 * 60);
-        write_file_aged(&part, 60 * 60);
-        cleanup_stale_locks(tmp.path(), "org/model");
-        assert!(!lock.exists(), "stale lock should be removed");
-        assert!(!part.exists(), "stale part should be removed");
-    }
-
-    #[test]
-    fn cleanup_stale_locks_leaves_recent_files_alone() {
-        let tmp = tempfile::tempdir().unwrap();
-        let blobs = tmp.path().join("models--org--model").join("blobs");
-        std::fs::create_dir_all(&blobs).unwrap();
-        let lock = blobs.join("abc.lock");
-        write_file_aged(&lock, 5);
-        cleanup_stale_locks(tmp.path(), "org/model");
-        assert!(lock.exists(), "recent lock should be left alone");
-    }
-
-    #[test]
-    fn process_download_lock_acquire_creates_and_releases() {
-        let tmp = tempfile::tempdir().unwrap();
-        {
-            let guard = ProcessDownloadLock::acquire(tmp.path(), "org/model");
-            assert!(guard.is_some(), "should acquire lock on unix");
-            let lock_file = tmp.path().join("models--org--model").join(".xberg-download.lock");
-            assert!(lock_file.exists());
-        }
-        let guard = ProcessDownloadLock::acquire(tmp.path(), "org/model");
-        assert!(guard.is_some(), "should re-acquire after previous guard dropped");
-    }
-
-    #[cfg(any(feature = "sparse-embeddings", feature = "late-interaction"))]
-    #[test]
-    fn resolve_cache_dir_honors_override() {
-        let custom = PathBuf::from("/tmp/custom-xberg-cache");
-        assert_eq!(resolve_cache_dir("embeddings", Some(custom.clone())), custom);
     }
 
     #[test]

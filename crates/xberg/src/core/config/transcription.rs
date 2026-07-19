@@ -77,11 +77,11 @@ pub struct TranscriptionConfig {
     #[serde(default = "default_timeout_ms")]
     pub timeout_ms: Option<u64>,
 
-    /// Override the directory used for Whisper model cache.
+    /// Optional alternate Hugging Face cache root for Whisper models.
     ///
-    /// When `None`, uses the centralized resolver:
-    /// `XBERG_CACHE_DIR/whisper` or the platform default
-    /// (`~/.cache/xberg/whisper` on Linux, etc.).
+    /// When unset, hf-hub follows `HF_HUB_CACHE`, `HUGGINGFACE_HUB_CACHE`,
+    /// `HF_HOME`, XDG, and platform defaults. Files remain in the standard
+    /// content-addressed snapshot layout and are not copied into an Xberg cache.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_cache_dir: Option<PathBuf>,
 

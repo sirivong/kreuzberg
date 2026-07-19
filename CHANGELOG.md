@@ -61,6 +61,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Hugging Face models now share the standard Hub cache instead of creating Xberg-specific
+  copies.** Dense, sparse, late-interaction, static, and reranking models, Whisper exports, and
+  pretrained chunking tokenizers resolve revision-pinned snapshot paths through hf-hub. Explicit
+  cache directories are alternate Hugging Face roots, both offline environment variables are
+  honored, and checksum-backed artifacts are repaired under bounded cross-process locks.
 - **PDF benchmark runs now fail closed and compare equivalent execution modes.** Xberg JSON batches
   use bounded concurrent extraction, both Xberg and LiteParse receive the same worker limit, OCR and
   heuristic cohorts are validated separately, missing ground truth or partial failures abort the

@@ -1,38 +1,20 @@
 /// Model downloading and caching for PaddleOCR.
 ///
-/// This module handles PaddleOCR model path resolution, downloading, and caching operations.
-/// Models are organized into shared models (detection, classification) and per-family
-/// recognition models (one per script family).
+/// This module resolves PaddleOCR model artifacts directly from the standard Hugging Face
+/// cache. Models are organized into shared models (detection, classification) and
+/// recognition models selected by script family.
 ///
 /// # Model Download Flow
 ///
-/// 1. Check if models exist in cache directory
-/// 2. If not, download ONNX models from HuggingFace Hub via hf-hub
-/// 3. Verify SHA256 checksums
-/// 4. Copy models to local cache directory
-///
-/// # Cache Structure
-///
-/// ```text
-/// cache_dir/
-/// ├── det/
-/// │   └── model.onnx
-/// ├── cls/
-/// │   └── model.onnx
-/// └── rec/
-///     ├── english/
-///     │   ├── model.onnx
-///     │   └── dict.txt
-///     ├── chinese/
-///     │   ├── model.onnx
-///     │   └── dict.txt
-///     └── ...
-/// ```
+/// 1. Resolve the immutable repository revision from the local Hub cache.
+/// 2. Download on a cache miss unless Hugging Face offline mode is enabled.
+/// 3. Verify SHA-256 on every warm or cold resolution and repair corrupt entries.
+/// 4. Return the snapshot artifact path directly, without an Xberg-owned copy.
 use std::path::PathBuf;
 
-#[cfg(feature = "paddle-ocr")]
+#[cfg(test)]
 use std::fs;
-#[cfg(feature = "paddle-ocr")]
+#[cfg(test)]
 use std::path::Path;
 
 #[cfg(feature = "paddle-ocr")]
@@ -43,14 +25,14 @@ use crate::model_download;
 /// HuggingFace repository containing PaddleOCR ONNX models.
 #[cfg(feature = "paddle-ocr")]
 const HF_REPO_ID: &str = "xberg-io/paddleocr-onnx-models";
+/// Immutable Hub revision containing the checksummed PaddleOCR model set.
+const HF_REPO_REVISION: &str = "bfaf0b492cfc1dee0c73245fc5860bfdcf2c3443";
 
 /// Shared model definition (detection and classification).
 #[cfg(feature = "paddle-ocr")]
 #[derive(Debug, Clone)]
 struct SharedModelDefinition {
-    model_type: &'static str,
     remote_filename: &'static str,
-    local_filename: &'static str,
     sha256_checksum: &'static str,
 }
 
@@ -62,22 +44,6 @@ struct RecModelDefinition {
     model_sha256: &'static str,
     dict_sha256: &'static str,
 }
-
-#[cfg(feature = "paddle-ocr")]
-const SHARED_MODELS: &[SharedModelDefinition] = &[
-    SharedModelDefinition {
-        model_type: "det",
-        remote_filename: "PP-OCRv5_server_det_infer.onnx",
-        local_filename: "model.onnx",
-        sha256_checksum: "127edf0182bb3d218ad59476377b02ca90296cfb4cc85df55042d671a3e53aeb",
-    },
-    SharedModelDefinition {
-        model_type: "cls",
-        remote_filename: "ch_ppocr_mobile_v2.0_cls_infer.onnx",
-        local_filename: "model.onnx",
-        sha256_checksum: "e47acedf663230f8863ff1ab0e64dd2d82b838fceb5957146dab185a89d6215c",
-    },
-];
 
 /// Per-script-family recognition models (PP-OCRv5).
 ///
@@ -201,18 +167,14 @@ const V2_REC_MODELS: &[V2RecModelDefinition] = &[
 /// V2 text line orientation model (PP-LCNet, replaces old PPOCRv2 angle classifier).
 #[cfg(feature = "paddle-ocr")]
 const V2_CLS_MODEL: SharedModelDefinition = SharedModelDefinition {
-    model_type: "cls",
     remote_filename: "v2/classifiers/PP-LCNet_x1_0_textline_ori.onnx",
-    local_filename: "model.onnx",
     sha256_checksum: "1090f9f483a115f904beefe04acc9d28edf0c0b7b08cf0dd8d0ea59a9e0f2735",
 };
 
 /// V2 document orientation model (PP-LCNet, for page-level auto_rotate).
 #[cfg(feature = "paddle-ocr")]
 const V2_DOC_ORI_MODEL: SharedModelDefinition = SharedModelDefinition {
-    model_type: "doc_ori",
     remote_filename: "v2/classifiers/PP-LCNet_x1_0_doc_ori.onnx",
-    local_filename: "model.onnx",
     sha256_checksum: "6b742aebce6f0f7f71f747931ac7becfc7c96c51641e14943b291eeb334e7947",
 };
 
@@ -303,7 +265,7 @@ fn effective_v6_tier(tier: &str) -> &str {
 /// Resolved recognition model with engine pool key for sharing.
 #[derive(Debug, Clone)]
 pub struct ResolvedRecModel {
-    /// Directory containing model.onnx.
+    /// Exact path to the recognition ONNX model in the Hugging Face snapshot.
     pub model_dir: PathBuf,
     /// Path to the character dictionary file.
     pub dict_file: PathBuf,
@@ -317,9 +279,9 @@ pub struct ResolvedRecModel {
 #[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct SharedModelPaths {
-    /// Path to the detection model directory.
+    /// Exact path to the detection ONNX model in the Hugging Face snapshot.
     pub det_model: PathBuf,
-    /// Path to the classification model directory.
+    /// Exact path to the classification ONNX model in the Hugging Face snapshot.
     pub cls_model: PathBuf,
 }
 
@@ -327,7 +289,7 @@ pub struct SharedModelPaths {
 #[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct RecModelPaths {
-    /// Path to the recognition model directory.
+    /// Exact path to the recognition ONNX model in the Hugging Face snapshot.
     pub rec_model: PathBuf,
     /// Path to the character dictionary file.
     pub dict_file: PathBuf,
@@ -336,21 +298,22 @@ pub struct RecModelPaths {
 /// Combined paths to all models needed for OCR (backward compatibility).
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ModelPaths {
-    /// Path to the detection model directory.
+    /// Exact path to the detection ONNX model in the Hugging Face snapshot.
     pub det_model: PathBuf,
-    /// Path to the classification model directory.
+    /// Exact path to the classification ONNX model in the Hugging Face snapshot.
     pub cls_model: PathBuf,
-    /// Path to the recognition model directory.
+    /// Exact path to the recognition ONNX model in the Hugging Face snapshot.
     pub rec_model: PathBuf,
     /// Path to the character dictionary file.
     pub dict_file: PathBuf,
 }
 #[cfg_attr(alef, alef(skip))]
-/// A single model file entry in the cache manifest.
+/// A single downloadable model entry.
 #[allow(dead_code)]
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ModelManifestEntry {
-    /// Relative path within the cache directory (e.g., "paddle-ocr/det/model.onnx").
+    /// Stable logical path used by manifest consumers; the runtime artifact remains
+    /// in Hugging Face's snapshot layout rather than at this path.
     pub relative_path: String,
     /// SHA256 checksum of the model file.
     pub sha256: String,
@@ -381,7 +344,70 @@ pub struct ModelCacheStats {
 #[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Clone)]
 pub struct ModelManager {
+    /// Explicit Hugging Face cache root. The default is resolved from the standard
+    /// `HF_HUB_CACHE` / `HUGGINGFACE_HUB_CACHE` / `HF_HOME` conventions.
     cache_dir: PathBuf,
+}
+
+#[cfg(feature = "paddle-ocr")]
+impl Default for ModelManager {
+    fn default() -> Self {
+        Self::new(hf_hub::resolve_cache_dir())
+    }
+}
+
+#[cfg(feature = "paddle-ocr")]
+fn artifact_size(remote_filename: &str) -> u64 {
+    match remote_filename {
+        "v2/det/server.onnx" => 88_047_983,
+        "v2/det/mobile.onnx" => 4_766_440,
+        "v2/classifiers/PP-LCNet_x1_0_textline_ori.onnx" => 6_775_212,
+        "v2/classifiers/PP-LCNet_x1_0_doc_ori.onnx" => 6_785_465,
+        "v2/rec/unified_server/model.onnx" => 84_480_012,
+        "v2/rec/unified_server/dict.txt" => 74_015,
+        "v2/rec/unified_mobile/model.onnx" => 16_529_870,
+        "v2/rec/unified_mobile/dict.txt" => 74_015,
+        "v2/rec/en_mobile/model.onnx" => 7_843_511,
+        "v2/rec/en_mobile/dict.txt" => 1_419,
+        "rec/latin/model.onnx" => 7_862_832,
+        "rec/latin/dict.txt" => 1_638,
+        "rec/korean/model.onnx" => 13_401_252,
+        "rec/korean/dict.txt" => 47_455,
+        "rec/eslav/model.onnx" => 7_870_092,
+        "rec/eslav/dict.txt" => 1_667,
+        "rec/thai/model.onnx" => 7_873_480,
+        "rec/thai/dict.txt" => 1_771,
+        "rec/greek/model.onnx" => 7_791_200,
+        "rec/greek/dict.txt" => 1_107,
+        "rec/arabic/model.onnx" => 8_022_231,
+        "rec/arabic/dict.txt" => 2_369,
+        "rec/devanagari/model.onnx" => 7_935_595,
+        "rec/devanagari/dict.txt" => 1_943,
+        "rec/tamil/model.onnx" => 7_908_975,
+        "rec/tamil/dict.txt" => 1_723,
+        "rec/telugu/model.onnx" => 7_922_043,
+        "rec/telugu/dict.txt" => 1_831,
+        "v6/det/medium/model.onnx" => 62_064_319,
+        "v6/det/small/model.onnx" => 9_893_093,
+        "v6/det/tiny/model.onnx" => 1_793_140,
+        "v6/rec/medium/model.onnx" => 76_613_673,
+        "v6/rec/medium/dict.txt" => 74_947,
+        "v6/rec/small/model.onnx" => 21_218_540,
+        "v6/rec/small/dict.txt" => 74_947,
+        "v6/rec/tiny/model.onnx" => 4_484_068,
+        "v6/rec/tiny/dict.txt" => 27_156,
+        _ => unreachable!("missing pinned PaddleOCR artifact size for {remote_filename}"),
+    }
+}
+
+#[cfg(feature = "paddle-ocr")]
+fn manifest_entry(remote_filename: String, sha256: &str) -> ModelManifestEntry {
+    ModelManifestEntry {
+        size_bytes: artifact_size(&remote_filename),
+        source_url: format!("https://huggingface.co/{HF_REPO_ID}/resolve/{HF_REPO_REVISION}/{remote_filename}"),
+        relative_path: remote_filename,
+        sha256: sha256.to_string(),
+    }
 }
 
 #[cfg(feature = "paddle-ocr")]
@@ -410,37 +436,11 @@ impl ModelManager {
             plugin_name: "paddle-ocr".to_string(),
         })?;
 
-        let rec_dir = self.rec_family_path(family);
-        let model_file = rec_dir.join("model.onnx");
-        let dict_file = rec_dir.join("dict.txt");
-
-        if !model_file.exists() || !dict_file.exists() {
-            tracing::info!(family, "Downloading recognition model...");
-            fs::create_dir_all(&rec_dir)?;
-            self.download_rec_model(definition, &rec_dir)?;
-        } else {
-            tracing::debug!(family, "Recognition model found in cache");
-        }
+        let (model_file, dict_file) = self.download_rec_model(definition)?;
 
         Ok(RecModelPaths {
-            rec_model: rec_dir,
+            rec_model: model_file,
             dict_file,
-        })
-    }
-
-    /// Backward-compatible method that ensures all models for English exist.
-    #[cfg(test)]
-    pub(crate) fn ensure_models_exist(&self) -> Result<ModelPaths, XbergError> {
-        let shared = self.ensure_shared_models("server")?;
-        let rec = self.resolve_rec_model("english", "server")?;
-
-        tracing::info!("All PaddleOCR models ready (english)");
-
-        Ok(ModelPaths {
-            det_model: shared.det_model,
-            cls_model: shared.cls_model,
-            rec_model: rec.model_dir,
-            dict_file: rec.dict_file,
         })
     }
 
@@ -449,58 +449,40 @@ impl ModelManager {
         REC_MODELS.iter().find(|d| d.script_family == family)
     }
 
-    /// Returns the path for a model type directory (det, cls).
-    #[cfg(test)]
-    pub(crate) fn model_path(&self, model_type: &str) -> PathBuf {
-        self.cache_dir.join(model_type)
-    }
-
-    /// Returns the path for a recognition family directory.
-    fn rec_family_path(&self, family: &str) -> PathBuf {
-        self.cache_dir.join("rec").join(family)
-    }
-
-    /// Returns the full path to the ONNX model file for a given type.
-    #[cfg(test)]
-    fn model_file_path(&self, model_type: &str) -> PathBuf {
-        self.model_path(model_type).join("model.onnx")
-    }
-
     /// Download a recognition model + dict for a script family.
-    fn download_rec_model(&self, definition: &RecModelDefinition, rec_dir: &Path) -> Result<(), XbergError> {
+    fn download_rec_model(&self, definition: &RecModelDefinition) -> Result<(PathBuf, PathBuf), XbergError> {
         let family = definition.script_family;
 
         let remote_model = format!("rec/{family}/model.onnx");
-        let cached_model_path = self.hf_download(&remote_model)?;
-        Self::verify_checksum(&cached_model_path, definition.model_sha256, &format!("rec/{family}"))?;
-        let local_model = rec_dir.join("model.onnx");
-        fs::copy(&cached_model_path, &local_model).map_err(|e| XbergError::Plugin {
-            message: format!("Failed to copy rec model to {}: {}", local_model.display(), e),
-            plugin_name: "paddle-ocr".to_string(),
-        })?;
+        let model = self.hf_download(&remote_model, definition.model_sha256)?;
 
         let remote_dict = format!("rec/{family}/dict.txt");
-        let cached_dict_path = self.hf_download(&remote_dict)?;
-        Self::verify_checksum(&cached_dict_path, definition.dict_sha256, &format!("rec/{family}/dict"))?;
-        let local_dict = rec_dir.join("dict.txt");
-        fs::copy(&cached_dict_path, &local_dict).map_err(|e| XbergError::Plugin {
-            message: format!("Failed to copy dict to {}: {}", local_dict.display(), e),
-            plugin_name: "paddle-ocr".to_string(),
-        })?;
+        let dict = self.hf_download(&remote_dict, definition.dict_sha256)?;
 
-        tracing::info!(family, "Recognition model and dict saved");
-        Ok(())
+        tracing::info!(
+            family,
+            "Recognition model and dictionary resolved from Hugging Face cache"
+        );
+        Ok((model, dict))
     }
 
-    /// Download a file from the HuggingFace Hub.
-    fn hf_download(&self, remote_filename: &str) -> Result<PathBuf, XbergError> {
-        model_download::hf_download(HF_REPO_ID, remote_filename).map_err(|e| XbergError::Plugin {
+    /// Resolve and validate a file in the standard Hugging Face cache.
+    fn hf_download(&self, remote_filename: &str, sha256: &str) -> Result<PathBuf, XbergError> {
+        model_download::hf_resolve_file(
+            HF_REPO_ID,
+            remote_filename,
+            Some(HF_REPO_REVISION),
+            Some(&self.cache_dir),
+            Some(sha256),
+        )
+        .map_err(|e| XbergError::Plugin {
             message: e,
             plugin_name: "paddle-ocr".to_string(),
         })
     }
 
     /// Verify SHA256 checksum of a downloaded file.
+    #[cfg(test)]
     fn verify_checksum(path: &Path, expected: &str, label: &str) -> Result<(), XbergError> {
         model_download::verify_sha256(path, expected, label).map_err(|e| XbergError::Validation {
             message: e,
@@ -508,133 +490,41 @@ impl ModelManager {
         })
     }
 
-    /// Checks if shared models (det + cls) are cached locally.
-    #[cfg(test)]
-    pub(crate) fn are_shared_models_cached(&self) -> bool {
-        SHARED_MODELS.iter().all(|model| {
-            let f = self.model_file_path(model.model_type);
-            f.exists() && f.is_file()
-        })
-    }
-
-    /// Checks if a recognition model for the given family is cached.
-    #[cfg(test)]
-    pub(crate) fn is_rec_model_cached(&self, family: &str) -> bool {
-        let rec_dir = self.rec_family_path(family);
-        rec_dir.join("model.onnx").exists() && rec_dir.join("dict.txt").exists()
-    }
-
-    /// Checks if all required models are cached (shared + English v2 rec).
-    #[cfg(test)]
-    pub(crate) fn are_models_cached(&self) -> bool {
-        let v2_rec_dir = self.cache_dir.join("v2").join("rec").join("unified_server");
-        self.are_shared_models_cached()
-            && v2_rec_dir.join("model.onnx").exists()
-            && v2_rec_dir.join("dict.txt").exists()
-    }
-
-    /// Clears all cached models from the cache directory.
-    #[cfg(test)]
-    pub(crate) fn clear_cache(&self) -> Result<(), XbergError> {
-        if self.cache_dir.exists() {
-            fs::remove_dir_all(&self.cache_dir)?;
-            tracing::info!(?self.cache_dir, "Cache directory cleared");
-        }
-        Ok(())
-    }
-
-    /// Returns statistics about the current cache.
-    #[cfg(test)]
-    pub(crate) fn cache_stats(&self) -> Result<ModelCacheStats, XbergError> {
-        let mut total_size = 0u64;
-        let mut model_count = 0usize;
-
-        if self.cache_dir.exists() {
-            for entry in fs::read_dir(&self.cache_dir)? {
-                let entry = entry?;
-                let path = entry.path();
-                if path.is_dir()
-                    && let Ok(size) = Self::dir_size(&path)
-                {
-                    total_size += size;
-                    if let Ok(entries) = fs::read_dir(&path) {
-                        model_count += entries.count();
-                    }
-                }
-            }
-        }
-
-        Ok(ModelCacheStats {
-            total_size_bytes: total_size,
-            model_count,
-            cache_dir: self.cache_dir.clone(),
-        })
-    }
-
     /// Returns the manifest of all PaddleOCR model files with checksums and sizes.
     ///
-    /// This includes shared models (det, cls) and all 9 per-script recognition model families.
-    /// Paths are relative to the cache root (prefixed with "paddle-ocr/").
+    /// Entries are the exact pinned Hub artifacts used by the runtime. Paths are
+    /// repository-relative paths within the immutable Hugging Face snapshot.
     pub fn manifest() -> Vec<ModelManifestEntry> {
         let mut entries = Vec::new();
 
-        for model in SHARED_MODELS {
-            entries.push(ModelManifestEntry {
-                relative_path: format!("paddle-ocr/{}/{}", model.model_type, model.local_filename),
-                sha256: model.sha256_checksum.to_string(),
-                size_bytes: 0,
-                source_url: format!(
-                    "https://huggingface.co/{}/resolve/main/{}",
-                    HF_REPO_ID, model.remote_filename
-                ),
-            });
+        for det in V2_DET_MODELS {
+            entries.push(manifest_entry(det.remote_filename.to_string(), det.sha256_checksum));
+        }
+        for model in [&V2_CLS_MODEL, &V2_DOC_ORI_MODEL] {
+            entries.push(manifest_entry(model.remote_filename.to_string(), model.sha256_checksum));
+        }
+        for rec in V2_REC_MODELS {
+            entries.push(manifest_entry(rec.remote_model.to_string(), rec.model_sha256));
+            entries.push(manifest_entry(rec.remote_dict.to_string(), rec.dict_sha256));
         }
 
         for rec in REC_MODELS {
-            entries.push(ModelManifestEntry {
-                relative_path: format!("paddle-ocr/rec/{}/model.onnx", rec.script_family),
-                sha256: rec.model_sha256.to_string(),
-                size_bytes: 0,
-                source_url: format!(
-                    "https://huggingface.co/{}/resolve/main/rec/{}/model.onnx",
-                    HF_REPO_ID, rec.script_family
-                ),
-            });
-            entries.push(ModelManifestEntry {
-                relative_path: format!("paddle-ocr/rec/{}/dict.txt", rec.script_family),
-                sha256: rec.dict_sha256.to_string(),
-                size_bytes: 0,
-                source_url: format!(
-                    "https://huggingface.co/{}/resolve/main/rec/{}/dict.txt",
-                    HF_REPO_ID, rec.script_family
-                ),
-            });
+            entries.push(manifest_entry(
+                format!("rec/{}/model.onnx", rec.script_family),
+                rec.model_sha256,
+            ));
+            entries.push(manifest_entry(
+                format!("rec/{}/dict.txt", rec.script_family),
+                rec.dict_sha256,
+            ));
         }
 
         for det in V6_DET_MODELS {
-            entries.push(ModelManifestEntry {
-                relative_path: format!("paddle-ocr/v6/det/{}/model.onnx", det.tier),
-                sha256: det.sha256_checksum.to_string(),
-                size_bytes: 0,
-                source_url: format!(
-                    "https://huggingface.co/{HF_REPO_ID}/resolve/main/{}",
-                    det.remote_filename
-                ),
-            });
+            entries.push(manifest_entry(det.remote_filename.to_string(), det.sha256_checksum));
         }
         for rec in V6_REC_MODELS {
-            entries.push(ModelManifestEntry {
-                relative_path: format!("paddle-ocr/v6/rec/{}/model.onnx", rec.tier),
-                sha256: rec.model_sha256.to_string(),
-                size_bytes: 0,
-                source_url: format!("https://huggingface.co/{HF_REPO_ID}/resolve/main/{}", rec.remote_model),
-            });
-            entries.push(ModelManifestEntry {
-                relative_path: format!("paddle-ocr/v6/rec/{}/dict.txt", rec.tier),
-                sha256: rec.dict_sha256.to_string(),
-                size_bytes: 0,
-                source_url: format!("https://huggingface.co/{HF_REPO_ID}/resolve/main/{}", rec.remote_dict),
-            });
+            entries.push(manifest_entry(rec.remote_model.to_string(), rec.model_sha256));
+            entries.push(manifest_entry(rec.remote_dict.to_string(), rec.dict_sha256));
         }
 
         entries
@@ -673,8 +563,7 @@ impl ModelManager {
 
     /// Ensures the v2 detection model for the given tier is cached locally.
     ///
-    /// Downloads from HuggingFace if not cached. Returns the path to the
-    /// directory containing the ONNX model file.
+    /// Returns the exact ONNX file in the Hugging Face snapshot.
     pub(crate) fn ensure_v2_det_model(&self, tier: &str) -> Result<PathBuf, XbergError> {
         let definition = V2_DET_MODELS
             .iter()
@@ -684,66 +573,21 @@ impl ModelManager {
                 plugin_name: "paddle-ocr".to_string(),
             })?;
 
-        let det_dir = self.cache_dir.join("v2").join("det").join(tier);
-        let model_file = det_dir.join("model.onnx");
-
-        if !model_file.exists() {
-            tracing::info!(tier, "Downloading v2 detection model...");
-            fs::create_dir_all(&det_dir)?;
-            let cached_path = self.hf_download(definition.remote_filename)?;
-            Self::verify_checksum(&cached_path, definition.sha256_checksum, &format!("v2/det/{tier}"))?;
-            fs::copy(&cached_path, &model_file).map_err(|e| XbergError::Plugin {
-                message: format!("Failed to copy v2 det model: {e}"),
-                plugin_name: "paddle-ocr".to_string(),
-            })?;
-            tracing::info!(tier, "V2 detection model saved");
-        }
-
-        Ok(det_dir)
+        self.hf_download(definition.remote_filename, definition.sha256_checksum)
     }
 
     /// Ensures the v2 classification model is cached locally.
     ///
     /// The cls model is the same for both tiers.
     pub(crate) fn ensure_v2_cls_model(&self) -> Result<PathBuf, XbergError> {
-        let cls_dir = self.cache_dir.join("v2").join("cls");
-        let model_file = cls_dir.join("model.onnx");
-
-        if !model_file.exists() {
-            tracing::info!("Downloading v2 classification model...");
-            fs::create_dir_all(&cls_dir)?;
-            let cached_path = self.hf_download(V2_CLS_MODEL.remote_filename)?;
-            Self::verify_checksum(&cached_path, V2_CLS_MODEL.sha256_checksum, "v2/cls")?;
-            fs::copy(&cached_path, &model_file).map_err(|e| XbergError::Plugin {
-                message: format!("Failed to copy v2 cls model: {e}"),
-                plugin_name: "paddle-ocr".to_string(),
-            })?;
-            tracing::info!("V2 classification model saved");
-        }
-
-        Ok(cls_dir)
+        self.hf_download(V2_CLS_MODEL.remote_filename, V2_CLS_MODEL.sha256_checksum)
     }
 
     /// Ensures the v2 document orientation model is cached locally.
     ///
     /// Used for page-level auto_rotate when PaddleOCR backend is active.
     pub(crate) fn ensure_doc_ori_model(&self) -> Result<PathBuf, XbergError> {
-        let ori_dir = self.cache_dir.join("v2").join("doc_ori");
-        let model_file = ori_dir.join("model.onnx");
-
-        if !model_file.exists() {
-            tracing::info!("Downloading v2 document orientation model...");
-            fs::create_dir_all(&ori_dir)?;
-            let cached_path = self.hf_download(V2_DOC_ORI_MODEL.remote_filename)?;
-            Self::verify_checksum(&cached_path, V2_DOC_ORI_MODEL.sha256_checksum, "v2/doc_ori")?;
-            fs::copy(&cached_path, &model_file).map_err(|e| XbergError::Plugin {
-                message: format!("Failed to copy v2 doc_ori model: {e}"),
-                plugin_name: "paddle-ocr".to_string(),
-            })?;
-            tracing::info!("V2 document orientation model saved");
-        }
-
-        Ok(ori_dir)
+        self.hf_download(V2_DOC_ORI_MODEL.remote_filename, V2_DOC_ORI_MODEL.sha256_checksum)
     }
 
     /// Ensures shared models (det + cls) are cached for the given tier.
@@ -792,37 +636,11 @@ impl ModelManager {
                 plugin_name: "paddle-ocr".to_string(),
             })?;
 
-        let rec_dir = self.cache_dir.join("v2").join("rec").join(model_key);
-        let model_file = rec_dir.join("model.onnx");
-        let dict_file = rec_dir.join("dict.txt");
-
-        if !model_file.exists() || !dict_file.exists() {
-            tracing::info!(model_key, "Downloading v2 recognition model...");
-            fs::create_dir_all(&rec_dir)?;
-
-            let cached_model = self.hf_download(definition.remote_model)?;
-            Self::verify_checksum(&cached_model, definition.model_sha256, &format!("v2/rec/{model_key}"))?;
-            fs::copy(&cached_model, &model_file).map_err(|e| XbergError::Plugin {
-                message: format!("Failed to copy v2 rec model: {e}"),
-                plugin_name: "paddle-ocr".to_string(),
-            })?;
-
-            let cached_dict = self.hf_download(definition.remote_dict)?;
-            Self::verify_checksum(
-                &cached_dict,
-                definition.dict_sha256,
-                &format!("v2/rec/{model_key}/dict"),
-            )?;
-            fs::copy(&cached_dict, &dict_file).map_err(|e| XbergError::Plugin {
-                message: format!("Failed to copy v2 rec dict: {e}"),
-                plugin_name: "paddle-ocr".to_string(),
-            })?;
-
-            tracing::info!(model_key, "V2 recognition model and dict saved");
-        }
+        let model_file = self.hf_download(definition.remote_model, definition.model_sha256)?;
+        let dict_file = self.hf_download(definition.remote_dict, definition.dict_sha256)?;
 
         Ok(ResolvedRecModel {
-            model_dir: rec_dir,
+            model_dir: model_file,
             dict_file,
             model_key: format!("v2:{model_key}"),
         })
@@ -841,22 +659,7 @@ impl ModelManager {
                 plugin_name: "paddle-ocr".to_string(),
             })?;
 
-        let det_dir = self.cache_dir.join("v6").join("det").join(tier);
-        let model_file = det_dir.join("model.onnx");
-
-        if !model_file.exists() {
-            tracing::info!(tier, "Downloading PP-OCRv6 detection model...");
-            fs::create_dir_all(&det_dir)?;
-            let cached_path = self.hf_download(definition.remote_filename)?;
-            Self::verify_checksum(&cached_path, definition.sha256_checksum, &format!("v6/det/{tier}"))?;
-            fs::copy(&cached_path, &model_file).map_err(|e| XbergError::Plugin {
-                message: format!("Failed to copy v6 det model: {e}"),
-                plugin_name: "paddle-ocr".to_string(),
-            })?;
-            tracing::info!(tier, "PP-OCRv6 detection model saved");
-        }
-
-        Ok(det_dir)
+        self.hf_download(definition.remote_filename, definition.sha256_checksum)
     }
 
     /// Ensures the PP-OCRv6 unified recognition model for the given tier is cached locally.
@@ -870,33 +673,11 @@ impl ModelManager {
                 plugin_name: "paddle-ocr".to_string(),
             })?;
 
-        let rec_dir = self.cache_dir.join("v6").join("rec").join(tier);
-        let model_file = rec_dir.join("model.onnx");
-        let dict_file = rec_dir.join("dict.txt");
-
-        if !model_file.exists() || !dict_file.exists() {
-            tracing::info!(tier, "Downloading PP-OCRv6 recognition model...");
-            fs::create_dir_all(&rec_dir)?;
-
-            let cached_model = self.hf_download(definition.remote_model)?;
-            Self::verify_checksum(&cached_model, definition.model_sha256, &format!("v6/rec/{tier}"))?;
-            fs::copy(&cached_model, &model_file).map_err(|e| XbergError::Plugin {
-                message: format!("Failed to copy v6 rec model: {e}"),
-                plugin_name: "paddle-ocr".to_string(),
-            })?;
-
-            let cached_dict = self.hf_download(definition.remote_dict)?;
-            Self::verify_checksum(&cached_dict, definition.dict_sha256, &format!("v6/rec/{tier}/dict"))?;
-            fs::copy(&cached_dict, &dict_file).map_err(|e| XbergError::Plugin {
-                message: format!("Failed to copy v6 rec dict: {e}"),
-                plugin_name: "paddle-ocr".to_string(),
-            })?;
-
-            tracing::info!(tier, "PP-OCRv6 recognition model and dict saved");
-        }
+        let model_file = self.hf_download(definition.remote_model, definition.model_sha256)?;
+        let dict_file = self.hf_download(definition.remote_dict, definition.dict_sha256)?;
 
         Ok(ResolvedRecModel {
-            model_dir: rec_dir,
+            model_dir: model_file,
             dict_file,
             model_key: format!("v6:{tier}"),
         })
@@ -938,22 +719,6 @@ impl ModelManager {
             self.resolve_rec_model(family, tier)
         }
     }
-
-    /// Recursively calculates the size of a directory in bytes.
-    #[cfg(test)]
-    fn dir_size(path: &Path) -> std::io::Result<u64> {
-        let mut size = 0u64;
-        for entry in fs::read_dir(path)? {
-            let entry = entry?;
-            let metadata = entry.metadata()?;
-            if metadata.is_dir() {
-                size += Self::dir_size(&entry.path())?;
-            } else {
-                size += metadata.len();
-            }
-        }
-        Ok(size)
-    }
 }
 
 #[cfg(all(test, feature = "paddle-ocr"))]
@@ -966,30 +731,6 @@ mod tests {
         let temp_dir = TempDir::new().unwrap();
         let manager = ModelManager::new(temp_dir.path().to_path_buf());
         assert_eq!(manager.cache_dir(), &temp_dir.path().to_path_buf());
-    }
-
-    #[test]
-    fn test_model_path_resolution() {
-        let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        let det_path = manager.model_path("det");
-        assert!(det_path.to_string_lossy().contains("det"));
-
-        let cls_path = manager.model_path("cls");
-        assert!(cls_path.to_string_lossy().contains("cls"));
-    }
-
-    #[test]
-    fn test_rec_family_path() {
-        let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        let english_path = manager.rec_family_path("english");
-        assert!(english_path.ends_with("rec/english"));
-
-        let chinese_path = manager.rec_family_path("chinese");
-        assert!(chinese_path.ends_with("rec/chinese"));
     }
 
     #[test]
@@ -1021,108 +762,16 @@ mod tests {
     }
 
     #[test]
-    fn test_are_shared_models_cached_empty() {
-        let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-        assert!(!manager.are_shared_models_cached());
-    }
-
-    #[test]
-    fn test_are_shared_models_cached_present() {
-        let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        for model_type in &["det", "cls"] {
-            let dir = manager.model_path(model_type);
-            fs::create_dir_all(&dir).unwrap();
-            fs::write(dir.join("model.onnx"), "fake").unwrap();
-        }
-
-        assert!(manager.are_shared_models_cached());
-    }
-
-    #[test]
-    fn test_is_rec_model_cached() {
-        let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        assert!(!manager.is_rec_model_cached("english"));
-
-        let rec_dir = manager.rec_family_path("english");
-        fs::create_dir_all(&rec_dir).unwrap();
-        fs::write(rec_dir.join("model.onnx"), "fake").unwrap();
-        assert!(!manager.is_rec_model_cached("english"));
-
-        fs::write(rec_dir.join("dict.txt"), "#\na\n ").unwrap();
-        assert!(manager.is_rec_model_cached("english"));
-    }
-
-    #[test]
-    fn test_are_models_cached_requires_both() {
-        let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        for model_type in &["det", "cls"] {
-            let dir = manager.model_path(model_type);
-            fs::create_dir_all(&dir).unwrap();
-            fs::write(dir.join("model.onnx"), "fake").unwrap();
-        }
-        assert!(!manager.are_models_cached());
-
-        let rec_dir = manager.cache_dir().join("v2").join("rec").join("unified_server");
-        fs::create_dir_all(&rec_dir).unwrap();
-        fs::write(rec_dir.join("model.onnx"), "fake").unwrap();
-        fs::write(rec_dir.join("dict.txt"), "#\na\n ").unwrap();
-        assert!(manager.are_models_cached());
-    }
-
-    #[test]
-    fn test_clear_cache() {
-        let temp_dir = TempDir::new().unwrap();
-        let cache_dir = temp_dir.path().join("paddle_cache");
-        let manager = ModelManager::new(cache_dir.clone());
-
-        fs::create_dir_all(manager.model_path("det")).unwrap();
-        fs::write(manager.model_path("det").join("model.onnx"), "test").unwrap();
-
-        assert!(cache_dir.exists());
-        manager.clear_cache().unwrap();
-        assert!(!cache_dir.exists());
-    }
-
-    #[test]
-    fn test_cache_stats_empty() {
-        let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        let stats = manager.cache_stats().unwrap();
-        assert_eq!(stats.total_size_bytes, 0);
-        assert_eq!(stats.model_count, 0);
-    }
-
-    #[test]
-    fn test_cache_stats_with_files() {
-        let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        let det_path = manager.model_path("det");
-        fs::create_dir_all(&det_path).unwrap();
-        fs::write(det_path.join("model.onnx"), "x".repeat(1000)).unwrap();
-
-        let cls_path = manager.model_path("cls");
-        fs::create_dir_all(&cls_path).unwrap();
-        fs::write(cls_path.join("model.onnx"), "y".repeat(2000)).unwrap();
-
-        let stats = manager.cache_stats().unwrap();
-        assert!(stats.total_size_bytes >= 3000);
-    }
-
-    #[test]
-    fn test_shared_model_definitions() {
-        assert_eq!(SHARED_MODELS.len(), 2);
-        let types: Vec<_> = SHARED_MODELS.iter().map(|m| m.model_type).collect();
-        assert!(types.contains(&"det"));
-        assert!(types.contains(&"cls"));
+    fn test_runtime_shared_model_definitions() {
+        assert_eq!(V2_DET_MODELS.len(), 2);
+        assert_eq!(
+            V2_CLS_MODEL.remote_filename,
+            "v2/classifiers/PP-LCNet_x1_0_textline_ori.onnx"
+        );
+        assert_eq!(
+            V2_DOC_ORI_MODEL.remote_filename,
+            "v2/classifiers/PP-LCNet_x1_0_doc_ori.onnx"
+        );
     }
 
     #[test]
@@ -1145,20 +794,12 @@ mod tests {
     #[test]
     fn test_model_paths_cloneable() {
         let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        let det_dir = temp_dir.path().join("v2").join("det").join("server");
-        fs::create_dir_all(&det_dir).unwrap();
-        fs::write(det_dir.join("model.onnx"), "fake").unwrap();
-        let cls_dir = temp_dir.path().join("v2").join("cls");
-        fs::create_dir_all(&cls_dir).unwrap();
-        fs::write(cls_dir.join("model.onnx"), "fake").unwrap();
-        let rec_dir = temp_dir.path().join("v2").join("rec").join("unified_server");
-        fs::create_dir_all(&rec_dir).unwrap();
-        fs::write(rec_dir.join("model.onnx"), "fake").unwrap();
-        fs::write(rec_dir.join("dict.txt"), "#\na\n ").unwrap();
-
-        let paths1 = manager.ensure_models_exist().unwrap();
+        let paths1 = ModelPaths {
+            det_model: temp_dir.path().join("server.onnx"),
+            cls_model: temp_dir.path().join("cls.onnx"),
+            rec_model: temp_dir.path().join("rec.onnx"),
+            dict_file: temp_dir.path().join("dict.txt"),
+        };
         let paths2 = paths1.clone();
         assert_eq!(paths1.det_model, paths2.det_model);
         assert_eq!(paths1.cls_model, paths2.cls_model);
@@ -1167,35 +808,25 @@ mod tests {
     }
 
     #[test]
-    fn test_ensure_shared_models_with_cache() {
+    fn test_shared_model_paths_hold_exact_artifacts() {
         let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        let det_dir = temp_dir.path().join("v2").join("det").join("server");
-        fs::create_dir_all(&det_dir).unwrap();
-        fs::write(det_dir.join("model.onnx"), "fake").unwrap();
-        let cls_dir = temp_dir.path().join("v2").join("cls");
-        fs::create_dir_all(&cls_dir).unwrap();
-        fs::write(cls_dir.join("model.onnx"), "fake").unwrap();
-
-        let paths = manager.ensure_shared_models("server").unwrap();
-        assert!(paths.det_model.ends_with("server"));
-        assert!(paths.cls_model.ends_with("cls"));
+        let paths = SharedModelPaths {
+            det_model: temp_dir.path().join("server.onnx"),
+            cls_model: temp_dir.path().join("cls.onnx"),
+        };
+        assert!(paths.det_model.ends_with("server.onnx"));
+        assert!(paths.cls_model.ends_with("cls.onnx"));
     }
 
     #[test]
-    fn test_ensure_rec_model_with_cache() {
+    fn test_rec_model_paths_hold_exact_artifacts() {
         let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        let rec_dir = manager.rec_family_path("latin");
-        fs::create_dir_all(&rec_dir).unwrap();
-        fs::write(rec_dir.join("model.onnx"), "fake").unwrap();
-        fs::write(rec_dir.join("dict.txt"), "#\na\n ").unwrap();
-
-        let paths = manager.ensure_rec_model("latin").unwrap();
-        assert!(paths.rec_model.ends_with("rec/latin"));
-        assert!(paths.dict_file.ends_with("rec/latin/dict.txt"));
+        let paths = RecModelPaths {
+            rec_model: temp_dir.path().join("rec.onnx"),
+            dict_file: temp_dir.path().join("dict.txt"),
+        };
+        assert!(paths.rec_model.ends_with("rec.onnx"));
+        assert!(paths.dict_file.ends_with("dict.txt"));
     }
 
     #[test]
@@ -1240,21 +871,21 @@ mod tests {
     fn test_manifest_returns_all_models() {
         let entries = ModelManager::manifest();
 
-        assert_eq!(entries.len(), 2 + 9 * 2 + 3 + 3 * 2);
+        assert_eq!(entries.len(), 2 + 2 + 3 * 2 + 9 * 2 + 3 + 3 * 2);
 
         let paths: Vec<&str> = entries.iter().map(|e| e.relative_path.as_str()).collect();
         for tier in &["medium", "small", "tiny"] {
-            assert!(paths.contains(&format!("paddle-ocr/v6/det/{tier}/model.onnx").as_str()));
-            assert!(paths.contains(&format!("paddle-ocr/v6/rec/{tier}/model.onnx").as_str()));
-            assert!(paths.contains(&format!("paddle-ocr/v6/rec/{tier}/dict.txt").as_str()));
+            assert!(paths.contains(&format!("v6/det/{tier}/model.onnx").as_str()));
+            assert!(paths.contains(&format!("v6/rec/{tier}/model.onnx").as_str()));
+            assert!(paths.contains(&format!("v6/rec/{tier}/dict.txt").as_str()));
         }
 
-        let paths: Vec<&str> = entries.iter().map(|e| e.relative_path.as_str()).collect();
-        assert!(paths.contains(&"paddle-ocr/det/model.onnx"));
-        assert!(paths.contains(&"paddle-ocr/cls/model.onnx"));
-
-        assert!(!paths.contains(&"paddle-ocr/rec/english/model.onnx"));
-        assert!(!paths.contains(&"paddle-ocr/rec/chinese/model.onnx"));
+        assert!(paths.contains(&"v2/det/server.onnx"));
+        assert!(paths.contains(&"v2/det/mobile.onnx"));
+        assert!(paths.contains(&"v2/classifiers/PP-LCNet_x1_0_textline_ori.onnx"));
+        assert!(paths.contains(&"v2/classifiers/PP-LCNet_x1_0_doc_ori.onnx"));
+        assert!(paths.contains(&"v2/rec/unified_server/model.onnx"));
+        assert!(paths.contains(&"v2/rec/unified_server/dict.txt"));
 
         for family in &[
             "latin",
@@ -1267,8 +898,8 @@ mod tests {
             "tamil",
             "telugu",
         ] {
-            let model_path = format!("paddle-ocr/rec/{family}/model.onnx");
-            let dict_path = format!("paddle-ocr/rec/{family}/dict.txt");
+            let model_path = format!("rec/{family}/model.onnx");
+            let dict_path = format!("rec/{family}/dict.txt");
             assert!(paths.contains(&model_path.as_str()), "Missing model for {family}");
             assert!(paths.contains(&dict_path.as_str()), "Missing dict for {family}");
         }
@@ -1290,9 +921,16 @@ mod tests {
                 entry.relative_path
             );
             assert!(
-                entry.relative_path.starts_with("paddle-ocr/"),
-                "Paths should be prefixed with paddle-ocr/"
+                entry.source_url.contains(HF_REPO_REVISION),
+                "Source URL should pin the immutable Hub revision for {}",
+                entry.relative_path
             );
+            assert!(
+                entry.size_bytes > 0,
+                "Artifact size should be authoritative for {}",
+                entry.relative_path
+            );
+            assert!(entry.source_url.ends_with(&entry.relative_path));
         }
     }
 
@@ -1309,89 +947,6 @@ mod tests {
         assert!(json.contains("test/model.onnx"));
         assert!(json.contains("abc123"));
         assert!(json.contains("1024"));
-    }
-
-    #[test]
-    fn test_ensure_all_models_with_cache() {
-        let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        let v2_dir = temp_dir.path().join("v2");
-
-        for tier in &["server", "mobile"] {
-            let dir = v2_dir.join("det").join(tier);
-            fs::create_dir_all(&dir).unwrap();
-            fs::write(dir.join("model.onnx"), "fake").unwrap();
-        }
-
-        let cls_dir = v2_dir.join("cls");
-        fs::create_dir_all(&cls_dir).unwrap();
-        fs::write(cls_dir.join("model.onnx"), "fake").unwrap();
-
-        let doc_ori_dir = v2_dir.join("doc_ori");
-        fs::create_dir_all(&doc_ori_dir).unwrap();
-        fs::write(doc_ori_dir.join("model.onnx"), "fake").unwrap();
-
-        for model_key in &["unified_server", "unified_mobile", "en_mobile"] {
-            let dir = v2_dir.join("rec").join(model_key);
-            fs::create_dir_all(&dir).unwrap();
-            fs::write(dir.join("model.onnx"), "fake").unwrap();
-            fs::write(dir.join("dict.txt"), "#\na\n ").unwrap();
-        }
-
-        for family in &[
-            "latin",
-            "korean",
-            "eslav",
-            "thai",
-            "greek",
-            "arabic",
-            "devanagari",
-            "tamil",
-            "telugu",
-        ] {
-            let rec_dir = manager.rec_family_path(family);
-            fs::create_dir_all(&rec_dir).unwrap();
-            fs::write(rec_dir.join("model.onnx"), "fake").unwrap();
-            fs::write(rec_dir.join("dict.txt"), "#\na\n ").unwrap();
-        }
-
-        assert!(manager.ensure_all_models().is_ok());
-    }
-
-    #[test]
-    fn test_ensure_v2_det_model_tier_selection() {
-        let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        let v2_dir = temp_dir.path().join("v2");
-
-        for tier in &["server", "mobile"] {
-            let dir = v2_dir.join("det").join(tier);
-            fs::create_dir_all(&dir).unwrap();
-            fs::write(dir.join("model.onnx"), "fake").unwrap();
-        }
-
-        let server_det = manager.ensure_v2_det_model("server").unwrap();
-        assert!(
-            server_det.ends_with("server"),
-            "Server det path should end with 'server', got {:?}",
-            server_det
-        );
-        assert!(server_det.join("model.onnx").exists());
-
-        let mobile_det = manager.ensure_v2_det_model("mobile").unwrap();
-        assert!(
-            mobile_det.ends_with("mobile"),
-            "Mobile det path should end with 'mobile', got {:?}",
-            mobile_det
-        );
-        assert!(mobile_det.join("model.onnx").exists());
-
-        assert_ne!(
-            server_det, mobile_det,
-            "Server and mobile det model paths should differ"
-        );
     }
 
     #[test]
@@ -1428,69 +983,5 @@ mod tests {
         for uncovered in &["arabic", "eslav", "thai", "greek", "devanagari", "tamil", "telugu"] {
             assert!(!V6_UNIFIED_FAMILIES.contains(uncovered));
         }
-    }
-
-    #[test]
-    fn test_ensure_v6_det_model_tier_selection() {
-        let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        for tier in &["medium", "small", "tiny"] {
-            let dir = temp_dir.path().join("v6").join("det").join(tier);
-            fs::create_dir_all(&dir).unwrap();
-            fs::write(dir.join("model.onnx"), "fake").unwrap();
-        }
-
-        let medium = manager.ensure_v6_det_model("medium").unwrap();
-        assert!(medium.ends_with("v6/det/medium"));
-        let legacy = manager.ensure_v6_det_model("mobile").unwrap();
-        assert!(legacy.ends_with("v6/det/medium"));
-        let tiny = manager.ensure_v6_det_model("tiny").unwrap();
-        assert!(tiny.ends_with("v6/det/tiny"));
-    }
-
-    #[test]
-    fn test_resolve_rec_model_versioned_routing() {
-        let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        let v6_rec = temp_dir.path().join("v6").join("rec").join("medium");
-        fs::create_dir_all(&v6_rec).unwrap();
-        fs::write(v6_rec.join("model.onnx"), "fake").unwrap();
-        fs::write(v6_rec.join("dict.txt"), "#\na\n ").unwrap();
-
-        let arabic_rec = manager.rec_family_path("arabic");
-        fs::create_dir_all(&arabic_rec).unwrap();
-        fs::write(arabic_rec.join("model.onnx"), "fake").unwrap();
-        fs::write(arabic_rec.join("dict.txt"), "#\na\n ").unwrap();
-
-        let english = manager
-            .resolve_rec_model_versioned("pp-ocrv6", "english", "medium")
-            .unwrap();
-        assert_eq!(english.model_key, "v6:medium");
-        assert!(english.model_dir.ends_with("v6/rec/medium"));
-
-        let arabic = manager
-            .resolve_rec_model_versioned("pp-ocrv6", "arabic", "medium")
-            .unwrap();
-        assert_eq!(arabic.model_key, "v1:arabic");
-        assert!(arabic.model_dir.ends_with("rec/arabic"));
-    }
-
-    #[test]
-    fn test_ensure_shared_models_versioned_v6() {
-        let temp_dir = TempDir::new().unwrap();
-        let manager = ModelManager::new(temp_dir.path().to_path_buf());
-
-        let det_dir = temp_dir.path().join("v6").join("det").join("small");
-        fs::create_dir_all(&det_dir).unwrap();
-        fs::write(det_dir.join("model.onnx"), "fake").unwrap();
-        let cls_dir = temp_dir.path().join("v2").join("cls");
-        fs::create_dir_all(&cls_dir).unwrap();
-        fs::write(cls_dir.join("model.onnx"), "fake").unwrap();
-
-        let shared = manager.ensure_shared_models_versioned("pp-ocrv6", "small").unwrap();
-        assert!(shared.det_model.ends_with("v6/det/small"));
-        assert!(shared.cls_model.ends_with("v2/cls"));
     }
 }

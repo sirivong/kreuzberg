@@ -101,7 +101,7 @@ pub fn stats_command(cache_dir: Option<PathBuf>, format: WireFormat) -> Result<(
     Ok(())
 }
 
-/// Execute cache clear command
+/// Clear the Xberg-managed cache. Shared Hugging Face cache files are excluded.
 pub fn clear_command(cache_dir: Option<PathBuf>, format: WireFormat) -> Result<()> {
     let default_cache_dir = std::env::current_dir()
         .context("Failed to get current directory")?
@@ -119,7 +119,8 @@ pub fn clear_command(cache_dir: Option<PathBuf>, format: WireFormat) -> Result<(
 
     match format {
         WireFormat::Text => {
-            println!("{}", style::success("Cache cleared successfully"));
+            println!("{}", style::success("Xberg-managed cache cleared successfully"));
+            println!("Shared Hugging Face Hub cache files were not removed.");
             println!("{} {}", style::label("Directory:"), style::success(&cache_dir_str));
             println!("{} {}", style::label("Removed files:"), removed_files);
             println!("{} {:.2} MB", style::label("Freed space:"), freed_mb);
@@ -129,6 +130,7 @@ pub fn clear_command(cache_dir: Option<PathBuf>, format: WireFormat) -> Result<(
                 "directory": cache_dir_str,
                 "removed_files": removed_files,
                 "freed_mb": freed_mb,
+                "hugging_face_cache_cleared": false,
             });
             println!(
                 "{}",
@@ -140,6 +142,7 @@ pub fn clear_command(cache_dir: Option<PathBuf>, format: WireFormat) -> Result<(
                 "directory": cache_dir_str,
                 "removed_files": removed_files,
                 "freed_mb": freed_mb,
+                "hugging_face_cache_cleared": false,
             });
             println!(
                 "{}",
@@ -291,6 +294,28 @@ pub fn warm_command(
     #[cfg(feature = "ner-onnx")] ner_model: Option<String>,
     #[cfg(feature = "ner-onnx")] all_ner_models: bool,
 ) -> Result<()> {
+    #[cfg(any(feature = "ner-onnx", feature = "paddle-ocr"))]
+    let hf_cache_dir = cache_dir.clone();
+    #[cfg(feature = "paddle-ocr")]
+    let hf_cache_label = Some(
+        hf_cache_dir
+            .as_ref()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|| "HF_HUB_CACHE/HF_HOME/platform default".to_string()),
+    );
+    #[cfg(all(not(feature = "paddle-ocr"), feature = "ner-onnx"))]
+    let hf_cache_label = if ner || ner_model.is_some() || all_ner_models {
+        Some(
+            hf_cache_dir
+                .as_ref()
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| "HF_HUB_CACHE/HF_HOME/platform default".to_string()),
+        )
+    } else {
+        None
+    };
+    #[cfg(not(any(feature = "ner-onnx", feature = "paddle-ocr")))]
+    let hf_cache_label: Option<String> = None;
     let cache_base = resolve_cache_base(cache_dir);
 
     let mut downloaded: Vec<String> = Vec::new();
@@ -298,8 +323,10 @@ pub fn warm_command(
 
     #[cfg(feature = "paddle-ocr")]
     {
-        let paddle_dir = cache_base.join("paddle-ocr");
-        let manager = xberg::paddle_ocr::ModelManager::new(paddle_dir);
+        let manager = hf_cache_dir
+            .clone()
+            .map(xberg::paddle_ocr::ModelManager::new)
+            .unwrap_or_default();
 
         manager
             .ensure_all_models()
@@ -437,9 +464,8 @@ pub fn warm_command(
         let ner_models: Vec<String> = ner_model.into_iter().collect();
         if ner || !ner_models.is_empty() || all_ner_models {
             let to_download = crate::commands::ner::select_models(ner, ner_models, all_ner_models)?;
-            let ner_cache_dir = cache_base.join("ner");
             downloaded.extend(
-                crate::commands::ner::download_models(&to_download, Some(ner_cache_dir))
+                crate::commands::ner::download_models(&to_download, hf_cache_dir)
                     .context("Failed to download GLiNER NER models")?
                     .into_iter()
                     .map(|entry| format!("ner gliner ({entry})")),
@@ -462,13 +488,18 @@ pub fn warm_command(
                 }
             }
             println!(
-                "All models ready in {}",
+                "Xberg-managed cache: {}",
                 style::success(&cache_base.display().to_string())
             );
+            if let Some(ref hf_cache) = hf_cache_label {
+                println!("Hugging Face cache: {}", style::success(hf_cache));
+            }
         }
         WireFormat::Json => {
             let output = json!({
                 "cache_dir": cache_base.to_string_lossy(),
+                "xberg_cache_dir": cache_base.to_string_lossy(),
+                "hugging_face_cache_dir": hf_cache_label,
                 "downloaded": downloaded,
                 "already_cached": already_cached,
             });
@@ -480,6 +511,8 @@ pub fn warm_command(
         WireFormat::Toon => {
             let output = json!({
                 "cache_dir": cache_base.to_string_lossy(),
+                "xberg_cache_dir": cache_base.to_string_lossy(),
+                "hugging_face_cache_dir": hf_cache_label,
                 "downloaded": downloaded,
                 "already_cached": already_cached,
             });

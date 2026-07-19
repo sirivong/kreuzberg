@@ -37,6 +37,11 @@ pub mod preprocess;
 pub mod tokenizer;
 pub mod vision;
 
+const GLM_OCR_REVISION: &str = "ca5d8b3e287e52589e37c28385d9655ee4372f9d";
+const GLM_OCR_CONFIG_SHA256: &str = "4e1daf0d8a3f63e58960ac14bcb58b7be96758cad231fb7a1e5fec60f42dcd8c";
+const GLM_OCR_TOKENIZER_SHA256: &str = "aa0fd058c73a5718bb191f6672dc16d122ee0147b20c123d1726514298f9968a";
+const GLM_OCR_MODEL_SHA256: &str = "a16eb0de98d199293371c560f95f83130d2a2c9612449df16839f08ff9498815";
+
 use serde::{Deserialize, Serialize};
 
 /// Diagnostic helper: when `XBERG_GLM_DEBUG` is set, log per-stage tensor stats
@@ -201,116 +206,74 @@ mod engine {
     }
 
     impl GlmOcrEngine {
+        /// Immutable Hugging Face revision covered by the built-in checksums.
+        pub fn revision() -> &'static str {
+            super::GLM_OCR_REVISION
+        }
+
         /// Load weights from HuggingFace Hub and assemble the engine.
         ///
         /// Downloads `config.json`, `preprocessor_config.json`, `tokenizer.json`,
         /// and safetensors from the GLM-OCR HuggingFace repo. Constructs the
         /// vision encoder, connector, and decoder modules.
         pub fn new(task: GlmOcrTask, device: Device, dtype: DType) -> Result<Self> {
+            Self::new_with_hf(task, device, dtype, None, None)
+        }
+
+        /// Load the pinned GLM-OCR model with optional Hugging Face cache settings.
+        pub fn new_with_hf(
+            task: GlmOcrTask,
+            device: Device,
+            dtype: DType,
+            cache_dir: Option<&std::path::Path>,
+            revision: Option<&str>,
+        ) -> Result<Self> {
             if matches!(dtype, candle_core::DType::BF16) && device.is_metal() {
                 return Err(CandleOcrError::InferenceFailed(
                     "BF16 on Metal is unsupported in candle 0.10 (kernel gap). Use DType::F32 instead.".into(),
                 ));
             }
-
-            let api = hf_hub::HFClientSync::new()
-                .map_err(|e| CandleOcrError::ModelLoadFailed(format!("HF API init: {}", e)))?;
-
-            // The default revision ("main") matches the previous `Repo::with_revision(.., "main")`.
-            let (owner, name) = hf_hub::split_id("zai-org/GLM-OCR");
-            let repo = api.model(owner, name);
-
-            let config_file = {
-                let repo = repo.clone();
-                crate::download_guard::with_download_deadline("zai-org/GLM-OCR/config.json", move || {
-                    repo.download_file()
-                        .filename("config.json")
-                        .send()
-                        .map_err(|e| e.to_string())
-                })
+            let revision = revision.unwrap_or(super::GLM_OCR_REVISION);
+            if revision != super::GLM_OCR_REVISION {
+                return Err(CandleOcrError::UnsupportedConfig(format!(
+                    "GLM-OCR is checksum-pinned to revision {}; requested {revision}",
+                    super::GLM_OCR_REVISION
+                )));
             }
+
+            let config_file = crate::download_guard::hf_download(
+                "zai-org/GLM-OCR",
+                "config.json",
+                revision,
+                cache_dir,
+                super::GLM_OCR_CONFIG_SHA256,
+            )
             .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Failed to get config: {}", e)))?;
             let config_str = std::fs::read_to_string(&config_file)
                 .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Failed to read config: {}", e)))?;
             let config: GlmOcrConfig = serde_json::from_str(&config_str)
                 .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Config parse error: {}", e)))?;
 
-            let tokenizer_file = {
-                let repo = repo.clone();
-                crate::download_guard::with_download_deadline("zai-org/GLM-OCR/tokenizer.json", move || {
-                    repo.download_file()
-                        .filename("tokenizer.json")
-                        .send()
-                        .map_err(|e| e.to_string())
-                })
-            }
+            let tokenizer_file = crate::download_guard::hf_download(
+                "zai-org/GLM-OCR",
+                "tokenizer.json",
+                revision,
+                cache_dir,
+                super::GLM_OCR_TOKENIZER_SHA256,
+            )
             .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Failed to get tokenizer: {}", e)))?;
             let tokenizer = Tokenizer::from_file(&tokenizer_file)
                 .map_err(|e| CandleOcrError::Tokenizer(format!("Tokenizer load error: {}", e)))?;
 
-            let single_weight = {
-                let repo = repo.clone();
-                crate::download_guard::with_download_deadline("zai-org/GLM-OCR/model.safetensors", move || {
-                    repo.download_file()
-                        .filename("model.safetensors")
-                        .send()
-                        .map_err(|e| e.to_string())
-                })
-            };
-            let model_files = match single_weight {
-                Ok(f) => vec![f],
-                Err(_) => {
-                    let index_file = {
-                        let repo = repo.clone();
-                        crate::download_guard::with_download_deadline(
-                            "zai-org/GLM-OCR/model.safetensors.index.json",
-                            move || {
-                                repo.download_file()
-                                    .filename("model.safetensors.index.json")
-                                    .send()
-                                    .map_err(|e| e.to_string())
-                            },
-                        )
-                    }
-                    .map_err(|e| {
-                        CandleOcrError::ModelLoadFailed(format!("Failed to get model.safetensors or index: {}", e))
-                    })?;
-
-                    let index_str = std::fs::read_to_string(&index_file).map_err(|e| {
-                        CandleOcrError::ModelLoadFailed(format!("Failed to read safetensors index: {}", e))
-                    })?;
-
-                    let index: serde_json::Value = serde_json::from_str(&index_str).map_err(|e| {
-                        CandleOcrError::ModelLoadFailed(format!("Failed to parse safetensors index: {}", e))
-                    })?;
-
-                    let mut files = std::collections::HashSet::new();
-                    if let Some(weights) = index.get("weight_map").and_then(|m| m.as_object()) {
-                        for (_key, val) in weights {
-                            if let Some(filename) = val.as_str() {
-                                files.insert(filename.to_string());
-                            }
-                        }
-                    }
-
-                    let mut result = Vec::new();
-                    for filename in files {
-                        let shard_file = {
-                            let repo = repo.clone();
-                            let shard = filename.clone();
-                            crate::download_guard::with_download_deadline(
-                                &format!("zai-org/GLM-OCR/{filename}"),
-                                move || repo.download_file().filename(shard).send().map_err(|e| e.to_string()),
-                            )
-                        }
-                        .map_err(|e| {
-                            CandleOcrError::ModelLoadFailed(format!("Failed to get shard {}: {}", filename, e))
-                        })?;
-                        result.push(shard_file);
-                    }
-                    result
-                }
-            };
+            let model_file = crate::download_guard::hf_download(
+                "zai-org/GLM-OCR",
+                "model.safetensors",
+                revision,
+                cache_dir,
+                super::GLM_OCR_MODEL_SHA256,
+            )
+            .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Failed to get model weights: {e}")))?;
+            let model_files = [model_file];
 
             tracing::debug!("Loading GLM-OCR weights from {:?}", model_files);
 

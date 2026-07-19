@@ -17,7 +17,8 @@
 //! - Classification model (`*_cls_*.onnx`)
 //! - Recognition model (`*_rec_*.onnx`)
 //!
-//! Models are auto-downloaded on first use to `~/.cache/xberg/paddle-ocr/`.
+//! Models are auto-downloaded on first use through the standard Hugging Face
+//! cache (`HF_HUB_CACHE`, `HUGGINGFACE_HUB_CACHE`, or `$HF_HOME/hub`).
 //!
 //! # Example
 //!

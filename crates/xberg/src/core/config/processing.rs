@@ -345,10 +345,11 @@ pub struct EmbeddingConfig {
     #[serde(default)]
     pub show_download_progress: bool,
 
-    /// Custom cache directory for model files
+    /// Optional alternate Hugging Face cache root for model files.
     ///
-    /// Defaults to `~/.cache/xberg/embeddings/` if not specified.
-    /// Allows full customization of model download location.
+    /// When unset, hf-hub follows `HF_HUB_CACHE`, `HUGGINGFACE_HUB_CACHE`,
+    /// `HF_HOME`, XDG, and platform defaults. Prefer those environment variables
+    /// when configuring the cache process-wide.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cache_dir: Option<PathBuf>,
 

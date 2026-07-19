@@ -76,6 +76,9 @@ pub struct SparseEmbeddingPreset {
 #[cfg(any(feature = "sparse-embeddings", test))]
 pub(crate) const SPARSE_EMBEDDING_SHA256_MANIFEST: &str = include_str!("presets.sha256sum");
 
+#[cfg(feature = "sparse-embeddings")]
+const SPARSE_EMBEDDING_REVISION: &str = "5b5bccdae54b24d5a117a9e621775ebf97596d20";
+
 pub static SPARSE_EMBEDDING_PRESETS: LazyLock<Vec<SparseEmbeddingPreset>> = LazyLock::new(|| {
     vec![
         SparseEmbeddingPreset {
@@ -183,8 +186,9 @@ fn get_or_init_engine(
     cache_dir: Option<std::path::PathBuf>,
     accel: Option<crate::core::config::acceleration::AccelerationConfig>,
 ) -> crate::Result<Arc<SparseEmbeddingEngine>> {
-    let cache_directory = crate::onnx::resolve_cache_dir("sparse-embeddings", cache_dir);
-    let engine_key = format!("{repo_name}_{model_file}_{}", cache_directory.display());
+    let revision = (repo_name == "xberg-io/sparse-embeddings").then_some(SPARSE_EMBEDDING_REVISION);
+    let cache_key = crate::model_download::hf_cache_key(cache_dir.as_deref());
+    let engine_key = format!("{repo_name}_{model_file}_{}_{}", revision.unwrap_or("main"), cache_key);
 
     match ENGINE_CACHE.read() {
         Ok(cache) => {
@@ -213,7 +217,8 @@ fn get_or_init_engine(
         repo_name,
         model_file,
         additional_files,
-        &cache_directory,
+        revision,
+        cache_dir.as_deref(),
         Some(SPARSE_EMBEDDING_SHA256_MANIFEST),
         sparse_err,
     )?;

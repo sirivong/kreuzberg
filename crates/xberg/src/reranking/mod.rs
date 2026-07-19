@@ -126,6 +126,9 @@ pub struct RerankerPreset {
 /// download time by [`crate::onnx::download_model_files`].
 pub(crate) const RERANKER_SHA256_MANIFEST: &str = include_str!("presets.sha256sum");
 
+#[cfg(feature = "reranker")]
+const RERANKER_MODEL_REVISION: &str = "3d655b40f2e1e087460434a143b11afac4947318";
+
 pub static RERANKER_PRESETS: LazyLock<Vec<RerankerPreset>> = LazyLock::new(|| {
     vec![
         RerankerPreset {
@@ -234,12 +237,6 @@ pub(crate) fn list_presets() -> Vec<String> {
     out
 }
 
-/// Resolve the cache directory for reranker models.
-#[cfg(feature = "reranker")]
-fn resolve_cache_dir(cache_dir: Option<std::path::PathBuf>) -> std::path::PathBuf {
-    cache_dir.unwrap_or_else(|| crate::cache_dir::resolve_cache_dir("rerankers"))
-}
-
 /// Module-tagged error constructor threaded into the shared onnx helpers.
 #[cfg(feature = "reranker")]
 fn rerank_err(msg: String) -> crate::XbergError {
@@ -324,10 +321,11 @@ fn get_or_init_engine(
     accel: Option<crate::core::config::acceleration::AccelerationConfig>,
     head: crate::core::config::reranker::RerankerHead,
 ) -> crate::Result<Arc<RerankerEngine>> {
-    let cache_directory = resolve_cache_dir(cache_dir);
+    let revision = (repo_name == "xberg-io/reranker-models").then_some(RERANKER_MODEL_REVISION);
+    let cache_key = crate::model_download::hf_cache_key(cache_dir.as_deref());
     let engine_key = format!(
-        "{repo_name}_{model_file}_{cache_directory}_{head:?}",
-        cache_directory = cache_directory.display()
+        "{repo_name}_{model_file}_{}_{cache_key}_{head:?}",
+        revision.unwrap_or("main")
     );
 
     {
@@ -362,7 +360,8 @@ fn get_or_init_engine(
             repo_name,
             model_file,
             additional_files,
-            &cache_directory,
+            revision,
+            cache_dir.as_deref(),
             Some(RERANKER_SHA256_MANIFEST),
             rerank_err,
         )?;

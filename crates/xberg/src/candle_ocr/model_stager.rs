@@ -2,7 +2,7 @@
 //!
 //! PaddleOCR-VL 1.6 stays up on the Hub (`PaddlePaddle/PaddleOCR-VL-1.6`), but this
 //! module re-hosts it under `xberg-io/paddleocr-vl-1.6` and fetches it through the
-//! normal `hf-hub` path so the backend's default `model_id` auto-downloads without
+//! normal `hf-hub` path at an immutable revision so the backend's default `model_id` auto-downloads without
 //! requiring callers to pre-stage a local `model_path`, verifying every file against a
 //! checked-in sha256 manifest before use.
 //!
@@ -14,12 +14,16 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::model_download::{hf_download, parse_sha256_manifest, verify_sha256};
+use crate::model_download::parse_sha256_manifest;
+#[cfg(test)]
+use crate::model_download::verify_sha256;
 
 /// A checksum-pinned VLM-OCR model hosted on the Hugging Face Hub.
 struct HfModel {
     /// Hugging Face repo id, e.g. `xberg-io/paddleocr-vl-1.6`.
     repo: &'static str,
+    /// Immutable Hub commit containing the manifest-pinned files.
+    revision: &'static str,
     /// `sha256sum`-format manifest: `<sha256>  <filename>` per line, `#` comments.
     /// One entry per file the engine reads, checked in as the single source of truth.
     manifest: &'static str,
@@ -39,6 +43,7 @@ pub(crate) const PADDLEOCR_VL_16_SHA256_MANIFEST: &str = include_str!("paddleocr
 #[cfg(feature = "candle-paddleocr-vl")]
 const PADDLEOCR_VL_16: HfModel = HfModel {
     repo: "xberg-io/paddleocr-vl-1.6",
+    revision: "2ce18e126792e5e5e806553ff4fa84f3684c2c34",
     manifest: PADDLEOCR_VL_16_SHA256_MANIFEST,
 };
 
@@ -56,7 +61,8 @@ fn manifest_files(content: &str) -> Result<Vec<(String, String)>, String> {
 /// Ensure PaddleOCR-VL 1.6 weights are present locally and return the model directory.
 ///
 /// `repo_id` is normally the backend's default `xberg-io/paddleocr-vl-1.6` — in that
-/// case every manifest file is fetched through `hf-hub` (warm cache hits skip the
+/// case every manifest file is fetched from an immutable revision through `hf-hub`
+/// (warm cache hits skip the
 /// network) and verified against the checked-in sha256 manifest before use, so a
 /// tampered or corrupted download fails staging instead of silently feeding wrong
 /// weights into inference.
@@ -66,9 +72,13 @@ fn manifest_files(content: &str) -> Result<Vec<(String, String)>, String> {
 /// `hf-hub` without checksum verification — the same trust level as pointing
 /// `model_path` at arbitrary local weights.
 #[cfg(feature = "candle-paddleocr-vl")]
-pub(crate) fn ensure_paddleocr_vl_16(repo_id: &str) -> Result<PathBuf, String> {
+pub(crate) fn ensure_paddleocr_vl_16(
+    repo_id: &str,
+    revision: Option<&str>,
+    cache_dir: Option<&Path>,
+) -> Result<PathBuf, String> {
     if repo_id == PADDLEOCR_VL_16.repo {
-        return ensure_model(&PADDLEOCR_VL_16);
+        return ensure_model(&PADDLEOCR_VL_16, revision, cache_dir);
     }
 
     tracing::warn!(
@@ -77,17 +87,27 @@ pub(crate) fn ensure_paddleocr_vl_16(repo_id: &str) -> Result<PathBuf, String> {
         "PaddleOCR-VL model_id does not match the checksum-pinned mirror; downloading without \
          checksum verification"
     );
-    ensure_model_unverified(repo_id, PADDLEOCR_VL_16_FILES)
+    let revision = revision.ok_or_else(|| {
+        format!(
+            "custom PaddleOCR-VL model '{repo_id}' requires an explicit immutable `hf_revision`; refusing to resolve a mutable default branch"
+        )
+    })?;
+    ensure_model_unverified(repo_id, revision, cache_dir, PADDLEOCR_VL_16_FILES)
 }
 
 /// Fetch every file in `files` from `repo_id` via `hf-hub` without checksum
 /// verification, returning the shared snapshot directory. Used only for a
 /// non-default `model_id` override where no checked-in manifest exists.
 #[cfg(feature = "candle-paddleocr-vl")]
-fn ensure_model_unverified(repo_id: &str, files: &[&str]) -> Result<PathBuf, String> {
+fn ensure_model_unverified(
+    repo_id: &str,
+    revision: &str,
+    cache_dir: Option<&Path>,
+    files: &[&str],
+) -> Result<PathBuf, String> {
     let mut dir: Option<PathBuf> = None;
     for name in files {
-        let path = hf_download(repo_id, name)?;
+        let path = crate::model_download::hf_resolve_file(repo_id, name, Some(revision), cache_dir, None)?;
         if dir.is_none() {
             dir = path.parent().map(Path::to_path_buf);
         }
@@ -105,13 +125,13 @@ const PADDLEOCR_VL_16_FILES: &[&str] = &[
     "model.safetensors",
 ];
 
-fn ensure_model(model: &HfModel) -> Result<PathBuf, String> {
+fn ensure_model(model: &HfModel, revision: Option<&str>, cache_dir: Option<&Path>) -> Result<PathBuf, String> {
     let files = manifest_files(model.manifest)?;
+    let revision = revision.unwrap_or(model.revision);
 
     let mut dir: Option<PathBuf> = None;
     for (name, sha256) in &files {
-        let path = hf_download(model.repo, name)?;
-        verify_sha256(&path, sha256, name)?;
+        let path = crate::model_download::hf_resolve_file(model.repo, name, Some(revision), cache_dir, Some(sha256))?;
         if dir.is_none() {
             dir = path.parent().map(Path::to_path_buf);
         }
@@ -143,6 +163,8 @@ mod tests {
     #[test]
     fn paddleocr_vl_16_is_hosted_on_the_xberg_hf_repo() {
         assert_eq!(PADDLEOCR_VL_16.repo, "xberg-io/paddleocr-vl-1.6");
+        assert_eq!(PADDLEOCR_VL_16.revision.len(), 40);
+        assert!(PADDLEOCR_VL_16.revision.bytes().all(|byte| byte.is_ascii_hexdigit()));
     }
 
     #[test]
@@ -182,16 +204,17 @@ mod tests {
         );
         let model = HfModel {
             repo: PADDLEOCR_VL_16.repo,
+            revision: PADDLEOCR_VL_16.revision,
             manifest,
         };
 
-        let out = ensure_model(&model).expect("staging must succeed");
+        let out = ensure_model(&model, None, None).expect("staging must succeed");
         for (name, sha256) in &small {
             let path = out.join(name);
             assert!(path.exists(), "{name} should be staged in the snapshot dir");
             verify_sha256(&path, sha256, name).expect("staged file must match manifest checksum");
         }
 
-        ensure_model(&model).expect("warm cache must succeed");
+        ensure_model(&model, None, None).expect("warm cache must succeed");
     }
 }

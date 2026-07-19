@@ -34,7 +34,10 @@ pub struct PaddleOcrConfig {
     /// Language code (e.g., "en", "ch", "jpn", "kor", "deu", "fra")
     pub language: String,
 
-    /// Optional custom cache directory for model files
+    /// Optional Hugging Face Hub cache root for model files.
+    ///
+    /// When unset, the standard `HF_HUB_CACHE`, legacy
+    /// `HUGGINGFACE_HUB_CACHE`, and `HF_HOME` conventions are used.
     pub cache_dir: Option<PathBuf>,
 
     /// Enable angle classification for rotated text (default: false).
@@ -127,10 +130,9 @@ impl PaddleOcrConfig {
         }
     }
 
-    /// Resolves the cache directory, checking in order:
-    /// 1. Configured `cache_dir` if set
-    /// 2. `XBERG_CACHE_DIR` environment variable + `/paddle-ocr`
-    /// 3. Default: `.xberg/paddle-ocr/` (consistent with other cache types)
+    /// Resolves the Hugging Face Hub cache directory, using an explicit
+    /// `cache_dir` when supplied and the standard Hugging Face environment
+    /// conventions otherwise.
     ///
     /// # Returns
     ///
@@ -151,12 +153,12 @@ impl PaddleOcrConfig {
             return path.clone();
         }
 
-        crate::cache_dir::resolve_cache_dir("paddle-ocr")
+        hf_hub::resolve_cache_dir()
     }
 }
 
 impl PaddleOcrConfig {
-    /// Sets a custom cache directory for model files.
+    /// Sets a custom Hugging Face Hub cache root for model files.
     ///
     /// # Arguments
     ///
@@ -495,19 +497,9 @@ mod tests {
     }
 
     #[test]
-    #[allow(unsafe_code)]
     fn test_resolve_cache_dir_default() {
-        let saved = std::env::var("XBERG_CACHE_DIR").ok();
-        unsafe { std::env::remove_var("XBERG_CACHE_DIR") };
-
         let config = PaddleOcrConfig::new("en");
-        let cache_dir = config.resolve_cache_dir();
-        assert!(cache_dir.to_string_lossy().contains("xberg"));
-        assert!(cache_dir.to_string_lossy().contains("paddle-ocr"));
-
-        if let Some(val) = saved {
-            unsafe { std::env::set_var("XBERG_CACHE_DIR", val) };
-        }
+        assert_eq!(config.resolve_cache_dir(), hf_hub::resolve_cache_dir());
     }
 
     #[test]

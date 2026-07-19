@@ -118,6 +118,9 @@ pub struct LateInteractionPreset {
 #[cfg(any(feature = "late-interaction", test))]
 pub(crate) const LATE_INTERACTION_SHA256_MANIFEST: &str = include_str!("presets.sha256sum");
 
+#[cfg(feature = "late-interaction")]
+const LATE_INTERACTION_REVISION: &str = "bcaafd6b4e8f0e1da252661f80ca894c714d1f62";
+
 pub static LATE_INTERACTION_PRESETS: LazyLock<Vec<LateInteractionPreset>> = LazyLock::new(|| {
     vec![
         LateInteractionPreset {
@@ -310,10 +313,12 @@ fn get_or_init_engine(
     cache_dir: Option<std::path::PathBuf>,
     accel: Option<crate::core::config::acceleration::AccelerationConfig>,
 ) -> crate::Result<Arc<LateInteractionEngine>> {
-    let cache_directory = crate::onnx::resolve_cache_dir("late-interaction", cache_dir);
+    let revision = (repo_name == "xberg-io/late-interaction-models").then_some(LATE_INTERACTION_REVISION);
+    let cache_key = crate::model_download::hf_cache_key(cache_dir.as_deref());
     let engine_key = format!(
-        "{repo_name}_{model_file}_{}_{}",
-        cache_directory.display(),
+        "{repo_name}_{model_file}_{}_{}_{}",
+        revision.unwrap_or("main"),
+        cache_key,
         query_max_length
     );
 
@@ -344,7 +349,8 @@ fn get_or_init_engine(
         repo_name,
         model_file,
         additional_files,
-        &cache_directory,
+        revision,
+        cache_dir.as_deref(),
         Some(LATE_INTERACTION_SHA256_MANIFEST),
         late_err,
     )?;

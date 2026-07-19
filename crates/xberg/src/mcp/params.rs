@@ -70,13 +70,13 @@ pub struct CacheWarmParams {
     /// Specific embedding preset name to download (e.g. "balanced", "speed", "quality")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding_model: Option<String>,
-    /// Download the default GLiNER NER model
+    /// Download the default GLiNER NER model into the standard Hugging Face cache
     #[serde(default)]
     pub ner: bool,
-    /// Download every known GLiNER NER model
+    /// Download every known GLiNER NER model into the standard Hugging Face cache
     #[serde(default)]
     pub all_ner_models: bool,
-    /// Specific GLiNER NER model alias or catalog id to download
+    /// Specific GLiNER NER model alias or catalog id to download into the standard Hugging Face cache
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ner_model: Option<String>,
 }

@@ -5,7 +5,172 @@
 //! module; the helper is small and dependency-free, so duplicating it here is cheaper than
 //! inverting the dependency. Keep the two copies in sync (same env var, same tracing target).
 
+use std::path::{Path, PathBuf};
 use std::time::Duration;
+
+use sha2::{Digest, Sha256};
+
+/// Resolve a pinned model artifact through hf-hub's standard shared cache.
+///
+/// Cache lookup is always attempted before network access, and the Python-compatible
+/// offline flags prevent a cache miss from making a request.
+pub(crate) fn hf_download(
+    repo_id: &str,
+    filename: &str,
+    revision: &str,
+    cache_dir: Option<&Path>,
+    expected_sha256: &str,
+) -> Result<PathBuf, String> {
+    let mut builder = hf_hub::HFClientBuilder::new();
+    if let Some(cache_dir) = cache_dir {
+        builder = builder.cache_dir(cache_dir);
+    }
+    let api = builder
+        .build_sync()
+        .map_err(|error| format!("HF API init failed: {error}"))?;
+    if let Some(path) = cached_file(&api, repo_id, filename, revision)? {
+        if verify_sha256(&path, expected_sha256)? {
+            return Ok(path);
+        }
+    }
+    if hf_offline_mode() {
+        return Err(format!(
+            "Hugging Face offline mode is enabled and '{filename}' from {repo_id}@{revision} is not available in the local cache"
+        ));
+    }
+
+    let key = format!("{repo_id}/{filename}@{revision}");
+    let lock = download_lock(&key);
+    let repo_id = repo_id.to_string();
+    let filename = filename.to_string();
+    let revision = revision.to_string();
+    let expected_sha256 = expected_sha256.to_string();
+    let lock_file = artifact_lock_file(cache_dir, &key)?;
+    with_download_deadline(&key, move || {
+        let _guard = lock.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        fs2::FileExt::lock_exclusive(&lock_file)
+            .map_err(|error| format!("Failed to lock Hugging Face cache artifact: {error}"))?;
+        if let Some(path) = cached_file(&api, &repo_id, &filename, &revision)? {
+            if verify_sha256(&path, &expected_sha256)? {
+                return Ok(path);
+            }
+            remove_corrupt_cache_entry(&path)?;
+        }
+        let (owner, name) = hf_hub::split_id(&repo_id);
+        let path = api
+            .model(owner, name)
+            .download_file()
+            .filename(filename.clone())
+            .revision(revision.clone())
+            .force_download(true)
+            .send()
+            .map_err(|error| format!("Failed to download '{filename}' from {repo_id}@{revision}: {error}"))?;
+        if !verify_sha256(&path, &expected_sha256)? {
+            remove_corrupt_cache_entry(&path)?;
+            return Err(format!(
+                "SHA-256 mismatch for '{filename}' from {repo_id}@{revision} after refresh"
+            ));
+        }
+        Ok(path)
+    })
+}
+
+fn verify_sha256(path: &Path, expected: &str) -> Result<bool, String> {
+    use std::io::Read;
+
+    let mut file = std::fs::File::open(path)
+        .map_err(|error| format!("Failed to open cached model '{}': {error}", path.display()))?;
+    let mut hasher = Sha256::new();
+    let mut buffer = [0u8; 1024 * 1024];
+    loop {
+        let read = file
+            .read(&mut buffer)
+            .map_err(|error| format!("Failed to hash cached model '{}': {error}", path.display()))?;
+        if read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..read]);
+    }
+    Ok(format!("{:x}", hasher.finalize()) == expected)
+}
+
+fn artifact_lock_file(cache_dir: Option<&Path>, key: &str) -> Result<std::fs::File, String> {
+    let cache_dir = cache_dir
+        .map(Path::to_path_buf)
+        .unwrap_or_else(hf_hub::resolve_cache_dir);
+    let lock_dir = cache_dir.join(".locks").join("xberg-candle-ocr");
+    std::fs::create_dir_all(&lock_dir)
+        .map_err(|error| format!("Failed to create Hugging Face lock directory: {error}"))?;
+    let digest = format!("{:x}", Sha256::digest(key.as_bytes()));
+    std::fs::OpenOptions::new()
+        .create(true)
+        .read(true)
+        .write(true)
+        .open(lock_dir.join(format!("{digest}.lock")))
+        .map_err(|error| format!("Failed to open Hugging Face artifact lock: {error}"))
+}
+
+fn remove_corrupt_cache_entry(path: &Path) -> Result<(), String> {
+    let target = std::fs::canonicalize(path).ok();
+    if path.exists() || path.symlink_metadata().is_ok() {
+        std::fs::remove_file(path)
+            .map_err(|error| format!("Failed to remove corrupt cache entry '{}': {error}", path.display()))?;
+    }
+    if let Some(target) = target
+        && target != path
+        && target.exists()
+    {
+        std::fs::remove_file(&target)
+            .map_err(|error| format!("Failed to remove corrupt cache blob '{}': {error}", target.display()))?;
+    }
+    Ok(())
+}
+
+fn cached_file(
+    api: &hf_hub::HFClientSync,
+    repo_id: &str,
+    filename: &str,
+    revision: &str,
+) -> Result<Option<std::path::PathBuf>, String> {
+    let (owner, name) = hf_hub::split_id(repo_id);
+    match api
+        .model(owner, name)
+        .download_file()
+        .filename(filename)
+        .revision(revision)
+        .local_files_only(true)
+        .send()
+    {
+        Ok(path) => Ok(Some(path)),
+        Err(hf_hub::HFError::LocalEntryNotFound { .. } | hf_hub::HFError::EntryNotFound { .. }) => Ok(None),
+        Err(error) => Err(format!(
+            "Failed to inspect Hugging Face cache for {repo_id}/{filename}: {error}"
+        )),
+    }
+}
+
+fn hf_offline_mode() -> bool {
+    ["HF_HUB_OFFLINE", "HUGGINGFACE_HUB_OFFLINE"]
+        .iter()
+        .filter_map(std::env::var_os)
+        .any(|value| {
+            value
+                .to_str()
+                .is_some_and(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "on" | "yes" | "true"))
+        })
+}
+
+fn download_lock(key: &str) -> std::sync::Arc<std::sync::Mutex<()>> {
+    use std::collections::HashMap;
+    use std::sync::{Arc, Mutex, OnceLock};
+
+    static LOCKS: OnceLock<Mutex<HashMap<String, Arc<Mutex<()>>>>> = OnceLock::new();
+    let mut locks = LOCKS
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    Arc::clone(locks.entry(key.to_string()).or_default())
+}
 
 /// Default wall-clock ceiling for a single model-file download. hf-hub builds its ureq agent with
 /// no read/connect timeout, so a stalled or firewalled connection to HuggingFace makes the blocking

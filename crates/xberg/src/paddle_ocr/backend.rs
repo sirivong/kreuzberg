@@ -234,6 +234,9 @@ impl PaddleOcrBackend {
 
     /// Find the ONNX model file within a model directory.
     fn find_onnx_model(model_dir: &std::path::Path) -> Result<std::path::PathBuf> {
+        if model_dir.is_file() && model_dir.extension().is_some_and(|extension| extension == "onnx") {
+            return Ok(model_dir.to_path_buf());
+        }
         if !model_dir.exists() {
             return Err(crate::XbergError::Ocr {
                 message: format!("Model directory does not exist: {:?}", model_dir),
@@ -274,7 +277,7 @@ impl PaddleOcrBackend {
     /// `Ok(None)` if no rotation needed (0° or low confidence).
     fn detect_and_rotate(&self, image_bytes: &[u8]) -> Result<Option<Vec<u8>>> {
         let detector = self.doc_ori_detector.get_or_try_init(|| {
-            let cache_dir = crate::doc_orientation::resolve_cache_dir();
+            let cache_dir = self.config.resolve_cache_dir();
             Ok::<_, crate::XbergError>(crate::doc_orientation::DocOrientationDetector::with_acceleration(
                 cache_dir,
                 self.acceleration.clone(),

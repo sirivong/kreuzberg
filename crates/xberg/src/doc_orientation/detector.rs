@@ -7,7 +7,6 @@
 //! More reliable than Tesseract's `DetectOrientationScript` which crashes
 //! on raw images without DPI metadata.
 
-use std::fs;
 use std::path::PathBuf;
 
 use image::RgbImage;
@@ -22,6 +21,7 @@ use super::types::OrientationResult;
 
 /// HuggingFace repository containing the model.
 const HF_REPO_ID: &str = "xberg-io/paddleocr-onnx-models";
+const HF_REPO_REVISION: &str = "bfaf0b492cfc1dee0c73245fc5860bfdcf2c3443";
 const REMOTE_FILENAME: &str = "v2/classifiers/PP-LCNet_x1_0_doc_ori.onnx";
 const SHA256: &str = "6b742aebce6f0f7f71f747931ac7becfc7c96c51641e14943b291eeb334e7947";
 
@@ -117,36 +117,19 @@ impl DocOrientationDetector {
         })
     }
 
-    /// Ensure the model is downloaded and return the ONNX file path.
+    /// Resolve the verified ONNX model directly from the Hugging Face cache.
     fn ensure_model(&self) -> Result<PathBuf> {
-        let model_dir = self.cache_dir.join("doc-orientation");
-        let model_file = model_dir.join("model.onnx");
-
-        if model_file.exists() {
-            return Ok(model_file);
-        }
-
-        tracing::info!("Downloading document orientation model...");
-        fs::create_dir_all(&model_dir)?;
-
-        let cached_path =
-            crate::model_download::hf_download(HF_REPO_ID, REMOTE_FILENAME).map_err(|e| XbergError::Plugin {
-                message: e,
-                plugin_name: "auto-rotate".to_string(),
-            })?;
-
-        crate::model_download::verify_sha256(&cached_path, SHA256, "doc_ori").map_err(|e| XbergError::Validation {
+        crate::model_download::hf_resolve_file(
+            HF_REPO_ID,
+            REMOTE_FILENAME,
+            Some(HF_REPO_REVISION),
+            Some(&self.cache_dir),
+            Some(SHA256),
+        )
+        .map_err(|e| XbergError::Plugin {
             message: e,
-            source: None,
-        })?;
-
-        fs::copy(&cached_path, &model_file).map_err(|e| XbergError::Plugin {
-            message: format!("Failed to copy doc_ori model: {e}"),
             plugin_name: "auto-rotate".to_string(),
-        })?;
-
-        tracing::info!("Document orientation model saved");
-        Ok(model_file)
+        })
     }
 
     /// Get or initialize the ONNX session (lazy, thread-safe via OnceCell).
@@ -193,9 +176,9 @@ impl DocOrientationDetector {
     }
 }
 
-/// Resolve the cache directory for the auto-rotate model.
+/// Resolve the standard Hugging Face cache directory for the auto-rotate model.
 pub(crate) fn resolve_cache_dir() -> PathBuf {
-    crate::cache_dir::resolve_cache_dir("auto-rotate")
+    hf_hub::resolve_cache_dir()
 }
 
 /// Detect orientation and return a corrected image if rotation is needed.

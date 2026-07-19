@@ -833,8 +833,7 @@ def generate_readme(records: dict) -> None:
         # revision is None for sources resolved from HF at acquire time (e.g. fintabnet); show HEAD.
         rev = (cfg.get("revision") or "HEAD")[:8]
         src_rows.append(
-            f"| [{cfg['repo']}]({cfg['url']}) @`{rev}` | "
-            f"{cfg['license']} | {cfg['note']} | {cfg['granularity']} |"
+            f"| [{cfg['repo']}]({cfg['url']}) @`{rev}` | {cfg['license']} | {cfg['note']} | {cfg['granularity']} |"
         )
     body = f"""# xberg PDF→Markdown benchmark corpus
 

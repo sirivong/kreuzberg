@@ -37,9 +37,10 @@ pub struct SparseEmbeddingConfig {
     #[serde(default)]
     pub show_download_progress: bool,
 
-    /// Custom cache directory for model files.
+    /// Optional alternate Hugging Face cache root for model files.
     ///
-    /// Defaults to `~/.cache/xberg/sparse-embeddings/` if not specified.
+    /// When unset, hf-hub follows the standard Hugging Face environment and
+    /// platform cache conventions.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cache_dir: Option<PathBuf>,
 

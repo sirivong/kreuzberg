@@ -658,7 +658,7 @@ pub(crate) async fn cache_stats_handler() -> Result<Json<CacheStatsResponse>, Ap
     }))
 }
 
-/// Cache clear endpoint handler.
+/// Clear the Xberg-managed cache. Shared Hugging Face Hub cache files are excluded.
 ///
 /// DELETE /cache/clear
 ///
@@ -673,7 +673,7 @@ pub(crate) async fn cache_stats_handler() -> Result<Json<CacheStatsResponse>, Ap
     path = "/cache/clear",
     tag = "cache",
     responses(
-        (status = 200, description = "Cache cleared", body = CacheClearResponse),
+        (status = 200, description = "Xberg-managed cache cleared; shared Hugging Face cache excluded", body = CacheClearResponse),
         (status = 500, description = "Internal server error", body = crate::api::types::ErrorResponse),
     )
 )]
@@ -855,7 +855,8 @@ pub(crate) async fn cache_manifest_handler() -> Json<ManifestResponse> {
 ///
 /// POST /cache/warm
 ///
-/// Eagerly downloads all required models to the cache directory.
+/// Eagerly downloads required models. Hugging Face artifacts remain in the
+/// standard HF cache selected by `HF_HUB_CACHE`, `HF_HOME`, or platform defaults.
 /// Optionally downloads embedding models when the `embeddings` feature is enabled.
 ///
 /// # Errors
@@ -988,15 +989,17 @@ pub(crate) async fn cache_warm_handler(JsonApi(request): JsonApi<WarmRequest>) -
                 vec![crate::text::ner::default_model_name().to_string()]
             };
 
-            let ner_dir = cache_base.join("ner");
             for model in &models_to_warm {
-                let path = crate::text::ner::download_model(model, Some(ner_dir.clone())).map_err(|e| {
+                let path = crate::text::ner::download_model(model, None).map_err(|e| {
                     ApiError::bad_gateway(crate::error::XbergError::Other(format!(
                         "Failed to download NER model '{}': {}",
                         model, e
                     )))
                 })?;
-                downloaded.push(format!("ner gliner ({model}) -> {}", path.display()));
+                downloaded.push(format!(
+                    "ner gliner ({model}) -> {} (Hugging Face cache)",
+                    path.display()
+                ));
             }
         }
     }

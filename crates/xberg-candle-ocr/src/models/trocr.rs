@@ -57,14 +57,39 @@ impl TrocrVariant {
         }
     }
 
-    /// HuggingFace git branch for this variant.
-    /// Some variants use PR branches; others use main.
-    pub fn branch(&self) -> &'static str {
+    /// Immutable Hugging Face revision for this variant.
+    ///
+    /// Some safetensors conversions originated on PR refs; pinning the resolved
+    /// commits prevents those mutable refs from changing beneath the cache.
+    pub fn revision(&self) -> &'static str {
         match self {
-            TrocrVariant::BasePrinted => "refs/pr/7",
-            TrocrVariant::LargePrinted => "main",
-            TrocrVariant::BaseHandwritten => "refs/pr/3",
-            TrocrVariant::LargeHandwritten => "refs/pr/6",
+            TrocrVariant::BasePrinted => "24216f24cd78fe1a9c8b4e6e4565aec5c9220e63",
+            TrocrVariant::LargePrinted => "9ff792d8e7c22061f2ee67e1ed2246b1f9ef1e98",
+            TrocrVariant::BaseHandwritten => "47db63bbc18d32eca4cb813eb7728c891903e289",
+            TrocrVariant::LargeHandwritten => "f07eb3a73a9b06a73141dba2ae1f1671c5c346af",
+        }
+    }
+
+    /// Backward-compatible alias for [`Self::revision`].
+    pub fn branch(&self) -> &'static str {
+        self.revision()
+    }
+
+    fn model_sha256(&self) -> &'static str {
+        match self {
+            TrocrVariant::BasePrinted => "1cf4a6eedab26afaaf505f1c7f73d9634944924dbd1ed049d569db98039cd596",
+            TrocrVariant::LargePrinted => "8d770e31b1d58a033bd023ddd5790764c78fc2ab8074c605c49bba1c4a938616",
+            TrocrVariant::BaseHandwritten => "25a40cddc7e6120140a3d5b9e3dd3878a92ada7b4f312953ab22edc19c2a5acc",
+            TrocrVariant::LargeHandwritten => "21b96861916e0c021488df17d90f33bef7d298f0bce464f8ff0ab1bd345b4e70",
+        }
+    }
+
+    fn config_sha256(&self) -> &'static str {
+        match self {
+            TrocrVariant::BasePrinted => "5bda1deab455661feb3d91906656e5600e2ca520d5c00a2a03836614b850c93e",
+            TrocrVariant::LargePrinted => "9fd06abe8e2b3b835968210cfaccbed6b8f5698ab3fe9743fa2ac021b69f2028",
+            TrocrVariant::BaseHandwritten => "4c779f24e063c437c3dafd5b2e6c9f59f2fa2bd1dbb4ae6a30153bbbbf19e647",
+            TrocrVariant::LargeHandwritten => "4e4b5be06883d2dcceb299c717dfc96c3853b85e4f62393eac649183b923c5ec",
         }
     }
 
@@ -135,52 +160,48 @@ impl TrocrEngine {
     /// - Device initialization fails
     #[cfg(not(target_arch = "wasm32"))]
     pub fn new(variant: TrocrVariant, device: Device) -> Result<Self> {
-        let api = hf_hub::HFClientSync::new()
-            .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Failed to initialize HF Hub API: {}", e)))?;
+        Self::new_with_hf(variant, device, None, None)
+    }
 
+    /// Load a pinned TrOCR variant with optional Hugging Face cache settings.
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn new_with_hf(
+        variant: TrocrVariant,
+        device: Device,
+        cache_dir: Option<&std::path::Path>,
+        revision: Option<&str>,
+    ) -> Result<Self> {
         tracing::info!("Loading TrOCR variant: {}", variant);
 
         let repo_id = variant.repo_id().to_string();
-        let branch = variant.branch().to_string();
-        let (owner, name) = hf_hub::split_id(&repo_id);
-        let model_repo = api.model(owner, name);
-
-        let model_file = {
-            let model_repo = model_repo.clone();
-            let branch = branch.clone();
-            crate::download_guard::with_download_deadline(&format!("{}/model.safetensors", repo_id), move || {
-                model_repo
-                    .download_file()
-                    .filename("model.safetensors")
-                    .revision(branch)
-                    .send()
-                    .map_err(|e| e.to_string())
-            })
+        let pinned_revision = variant.revision();
+        let revision = revision.unwrap_or(pinned_revision);
+        if revision != pinned_revision {
+            return Err(CandleOcrError::UnsupportedConfig(format!(
+                "{variant} is checksum-pinned to revision {pinned_revision}; requested {revision}"
+            )));
         }
+        let model_file = crate::download_guard::hf_download(
+            &repo_id,
+            "model.safetensors",
+            revision,
+            cache_dir,
+            variant.model_sha256(),
+        )
         .map_err(|e| {
             CandleOcrError::ModelLoadFailed(format!(
-                "Failed to download model weights for {} (branch {}): {}",
-                variant, branch, e
+                "Failed to download model weights for {} (revision {}): {}",
+                variant, revision, e
             ))
         })?;
 
         tracing::info!("Downloaded model weights to: {}", model_file.display());
 
-        let config_file = {
-            let model_repo = model_repo.clone();
-            let branch = branch.clone();
-            crate::download_guard::with_download_deadline(&format!("{}/config.json", repo_id), move || {
-                model_repo
-                    .download_file()
-                    .filename("config.json")
-                    .revision(branch)
-                    .send()
-                    .map_err(|e| e.to_string())
-            })
-        }
-        .map_err(|e| {
-            CandleOcrError::ModelLoadFailed(format!("Failed to download config.json for {}: {}", variant, e))
-        })?;
+        let config_file =
+            crate::download_guard::hf_download(&repo_id, "config.json", revision, cache_dir, variant.config_sha256())
+                .map_err(|e| {
+                CandleOcrError::ModelLoadFailed(format!("Failed to download config.json for {}: {}", variant, e))
+            })?;
 
         let config_str = std::fs::read_to_string(&config_file)
             .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Failed to read config.json: {}", e)))?;
@@ -198,17 +219,12 @@ impl TrocrEngine {
         let model = trocr::TrOCRModel::new(&full_config.encoder, &full_config.decoder, vb)
             .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Failed to build TrOCR model: {}", e)))?;
 
-        let (tok_owner, tok_name) = hf_hub::split_id("ToluClassics/candle-trocr-tokenizer");
-        let tokenizer_repo = api.model(tok_owner, tok_name);
-        let tokenizer_file = crate::download_guard::with_download_deadline(
-            "ToluClassics/candle-trocr-tokenizer/tokenizer.json",
-            move || {
-                tokenizer_repo
-                    .download_file()
-                    .filename("tokenizer.json")
-                    .send()
-                    .map_err(|e| e.to_string())
-            },
+        let tokenizer_file = crate::download_guard::hf_download(
+            "ToluClassics/candle-trocr-tokenizer",
+            "tokenizer.json",
+            "7253d6cb8df4b0beed072ff65092a90f22f98a89",
+            cache_dir,
+            "2f1a555a1ee93656b4e6f67aa75d492a843c225e5ef754bae24c36bd85851cd7",
         )
         .map_err(|e| CandleOcrError::ModelLoadFailed(format!("Failed to download tokenizer: {}", e)))?;
 
@@ -400,11 +416,17 @@ mod tests {
     }
 
     #[test]
-    fn test_trocr_variant_branches() {
-        assert_eq!(TrocrVariant::BasePrinted.branch(), "refs/pr/7");
-        assert_eq!(TrocrVariant::LargePrinted.branch(), "main");
-        assert_eq!(TrocrVariant::BaseHandwritten.branch(), "refs/pr/3");
-        assert_eq!(TrocrVariant::LargeHandwritten.branch(), "refs/pr/6");
+    fn test_trocr_variant_revisions_are_immutable_commits() {
+        for variant in [
+            TrocrVariant::BasePrinted,
+            TrocrVariant::LargePrinted,
+            TrocrVariant::BaseHandwritten,
+            TrocrVariant::LargeHandwritten,
+        ] {
+            let revision = variant.revision();
+            assert_eq!(revision.len(), 40);
+            assert!(revision.bytes().all(|byte| byte.is_ascii_hexdigit()));
+        }
     }
 
     #[test]

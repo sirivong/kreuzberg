@@ -189,6 +189,12 @@ pub struct EmbeddingPreset {
 ))]
 pub(crate) const EMBEDDING_SHA256_MANIFEST: &str = include_str!("presets.sha256sum");
 
+#[cfg(any(
+    feature = "embeddings",
+    all(feature = "static-embeddings", not(target_arch = "wasm32"))
+))]
+pub(crate) const EMBEDDING_MODEL_REVISION: &str = "4b127809f88a5aa1569d1238032b5ff40e5879bc";
+
 pub static EMBEDDING_PRESETS: LazyLock<Vec<EmbeddingPreset>> = LazyLock::new(|| {
     vec![
         EmbeddingPreset {
@@ -329,12 +335,6 @@ pub(crate) fn list_presets() -> Vec<String> {
     EMBEDDING_PRESETS.iter().map(|p| p.name.clone()).collect()
 }
 
-/// Resolve the cache directory for embedding models.
-#[cfg(feature = "embeddings")]
-fn resolve_cache_dir(cache_dir: Option<std::path::PathBuf>) -> std::path::PathBuf {
-    cache_dir.unwrap_or_else(|| crate::cache_dir::resolve_cache_dir("embeddings"))
-}
-
 /// Module-tagged error constructor threaded into the shared onnx helpers.
 #[cfg(feature = "embeddings")]
 fn embed_err(msg: String) -> crate::XbergError {
@@ -401,10 +401,11 @@ fn get_or_init_engine(
     cache_dir: Option<std::path::PathBuf>,
     accel: Option<crate::core::config::acceleration::AccelerationConfig>,
 ) -> crate::Result<Arc<EmbeddingEngine>> {
-    let cache_directory = resolve_cache_dir(cache_dir);
+    let revision = (repo_name == "xberg-io/embedding-models").then_some(EMBEDDING_MODEL_REVISION);
+    let cache_key = crate::model_download::hf_cache_key(cache_dir.as_deref());
     let engine_key = format!(
-        "{repo_name}_{model_file}_{max_sequence_length}_{cache_directory}",
-        cache_directory = cache_directory.display()
+        "{repo_name}_{model_file}_{}_{max_sequence_length}_{cache_key}",
+        revision.unwrap_or("main")
     );
 
     {
@@ -439,7 +440,8 @@ fn get_or_init_engine(
             repo_name,
             model_file,
             additional_files,
-            &cache_directory,
+            revision,
+            cache_dir.as_deref(),
             Some(EMBEDDING_SHA256_MANIFEST),
             embed_err,
         )?;
@@ -811,7 +813,7 @@ fn embed_texts_static<T: AsRef<str>>(
         get_preset(name).ok_or_else(|| crate::XbergError::embedding(format!("Unknown embedding preset: {name}")))?;
 
     let cache_directory = static_engine_cache_dir(config.cache_dir.clone());
-    let engine = get_or_init_static_engine(&preset.model_repo, &preset.model_file, &cache_directory)?;
+    let engine = get_or_init_static_engine(&preset.model_repo, &preset.model_file, cache_directory.as_deref())?;
 
     let text_refs: Vec<&str> = texts.iter().map(|t| t.as_ref()).collect();
     let mut embeddings = engine.embed(&text_refs, config.batch_size, config.max_sequence_length);
@@ -825,11 +827,11 @@ fn embed_texts_static<T: AsRef<str>>(
     Ok(embeddings)
 }
 
-/// Resolve the cache directory for static-embedding models (own subdir so a
-/// `lightweight` download doesn't collide with `embeddings`' ONNX cache keys).
+/// Preserve an explicit alternate Hugging Face cache root. `None` delegates
+/// standard cache discovery to hf-hub.
 #[cfg(feature = "static-embeddings")]
-fn static_engine_cache_dir(cache_dir: Option<std::path::PathBuf>) -> std::path::PathBuf {
-    cache_dir.unwrap_or_else(|| crate::cache_dir::resolve_cache_dir("static-embeddings"))
+fn static_engine_cache_dir(cache_dir: Option<std::path::PathBuf>) -> Option<std::path::PathBuf> {
+    cache_dir
 }
 
 #[cfg(feature = "static-embeddings")]
@@ -845,9 +847,10 @@ static STATIC_ENGINE_CACHE: LazyLock<std::sync::RwLock<ahash::AHashMap<String, C
 fn get_or_init_static_engine(
     repo_name: &str,
     model_file: &str,
-    cache_directory: &std::path::Path,
+    cache_directory: Option<&std::path::Path>,
 ) -> crate::Result<CachedStaticEngine> {
-    let engine_key = format!("{repo_name}_{model_file}_{}", cache_directory.display());
+    let cache_key = crate::model_download::hf_cache_key(cache_directory);
+    let engine_key = format!("{repo_name}_{model_file}_{EMBEDDING_MODEL_REVISION}_{cache_key}");
 
     {
         match STATIC_ENGINE_CACHE.read() {
