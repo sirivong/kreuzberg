@@ -127,6 +127,15 @@ impl Fixture {
                 });
             }
 
+            if let Some(ref markdown_file) = gt.markdown_file
+                && markdown_file.is_absolute()
+            {
+                return Err(Error::InvalidFixture {
+                    path: fixture_path.to_path_buf(),
+                    reason: "ground_truth.markdown_file must be relative".to_string(),
+                });
+            }
+
             if !matches!(
                 gt.source.as_str(),
                 "pdf_text_layer"
@@ -164,41 +173,33 @@ impl Fixture {
                 });
             }
 
-            if let (Some(fixture_dir), Some(tf)) = (fixture_path.parent(), &gt.text_file) {
-                let ground_truth_path = fixture_dir.join(tf);
-                if !ground_truth_path.exists() {
-                    return Err(Error::InvalidFixture {
-                        path: fixture_path.to_path_buf(),
-                        reason: format!(
-                            "ground truth file not found: {} (resolved to {})",
-                            tf.display(),
-                            ground_truth_path.display()
-                        ),
-                    });
-                }
-
-                if let Some(ref md_file) = gt.markdown_file {
-                    if md_file.is_absolute() {
-                        return Err(Error::InvalidFixture {
-                            path: fixture_path.to_path_buf(),
-                            reason: "ground_truth.markdown_file must be relative".to_string(),
-                        });
-                    }
-                    let md_path = fixture_dir.join(md_file);
-                    if !md_path.exists() {
-                        return Err(Error::InvalidFixture {
-                            path: fixture_path.to_path_buf(),
-                            reason: format!(
-                                "ground truth markdown file not found: {} (resolved to {})",
-                                md_file.display(),
-                                md_path.display()
-                            ),
-                        });
-                    }
-                }
+            if let Some(fixture_dir) = fixture_path.parent() {
+                Self::validate_ground_truth_file(fixture_path, fixture_dir, gt.text_file.as_deref(), "text")?;
+                Self::validate_ground_truth_file(fixture_path, fixture_dir, gt.markdown_file.as_deref(), "markdown")?;
             }
         }
 
+        Ok(())
+    }
+
+    fn validate_ground_truth_file(
+        fixture_path: &Path,
+        fixture_dir: &Path,
+        relative_path: Option<&Path>,
+        kind: &str,
+    ) -> Result<()> {
+        let Some(relative_path) = relative_path else {
+            return Ok(());
+        };
+        let resolved_path = fixture_dir.join(relative_path);
+        std::fs::read_to_string(&resolved_path).map_err(|error| Error::InvalidFixture {
+            path: fixture_path.to_path_buf(),
+            reason: format!(
+                "unable to read ground truth {kind} file {} (resolved to {}): {error}",
+                relative_path.display(),
+                resolved_path.display()
+            ),
+        })?;
         Ok(())
     }
 
@@ -384,14 +385,22 @@ impl FixtureManager {
         }
 
         if !failed_fixtures.is_empty() {
-            eprintln!(
-                "Warning: {} of {} fixtures failed to load:",
-                failed_fixtures.len(),
-                total_fixtures
-            );
-            for (path, error) in failed_fixtures {
-                eprintln!("  - {}: {}", path.display(), error);
-            }
+            let first_path = failed_fixtures[0].0.clone();
+            let details = failed_fixtures
+                .iter()
+                .take(10)
+                .map(|(path, error)| format!("{}: {error}", path.display()))
+                .collect::<Vec<_>>()
+                .join("; ");
+            return Err(Error::InvalidFixture {
+                path: first_path,
+                reason: format!(
+                    "{} of {} requested fixtures failed validation: {}",
+                    failed_fixtures.len(),
+                    total_fixtures,
+                    details
+                ),
+            });
         }
 
         Ok(())
@@ -775,10 +784,67 @@ mod tests {
         assert!(result.is_err());
         match result {
             Err(Error::InvalidFixture { reason, .. }) => {
-                assert!(reason.contains("ground truth file not found"));
+                assert!(reason.contains("unable to read ground truth text file"));
             }
-            _ => panic!("Expected InvalidFixture error with 'ground truth file not found'"),
+            _ => panic!("Expected InvalidFixture error for unreadable ground truth"),
         }
+    }
+
+    #[test]
+    fn test_markdown_only_ground_truth_is_validated() {
+        let temp_dir = TempDir::new().unwrap();
+        let fixture_path = temp_dir.path().join("test.json");
+        let fixture = Fixture {
+            document: PathBuf::from("test.pdf"),
+            file_type: "pdf".to_string(),
+            file_size: 1024,
+            expected_frameworks: vec![],
+            metadata: HashMap::new(),
+            ground_truth: Some(GroundTruth {
+                text_file: None,
+                markdown_file: Some(PathBuf::from("missing.md")),
+                fields_json: None,
+                formulas_json: None,
+                source: "markdown_file".to_string(),
+            }),
+        };
+        std::fs::write(&fixture_path, serde_json::to_string(&fixture).unwrap()).unwrap();
+
+        let error = Fixture::from_file(&fixture_path).unwrap_err();
+        assert!(matches!(
+            error,
+            Error::InvalidFixture { reason, .. }
+                if reason.contains("unable to read ground truth markdown file")
+        ));
+    }
+
+    #[test]
+    fn test_non_utf8_ground_truth_is_rejected() {
+        let temp_dir = TempDir::new().unwrap();
+        let fixture_path = temp_dir.path().join("test.json");
+        std::fs::write(temp_dir.path().join("ground_truth.txt"), [0xff, 0xfe]).unwrap();
+        let fixture = Fixture {
+            document: PathBuf::from("test.pdf"),
+            file_type: "pdf".to_string(),
+            file_size: 1024,
+            expected_frameworks: vec![],
+            metadata: HashMap::new(),
+            ground_truth: Some(GroundTruth {
+                text_file: Some(PathBuf::from("ground_truth.txt")),
+                markdown_file: None,
+                fields_json: None,
+                formulas_json: None,
+                source: "manual".to_string(),
+            }),
+        };
+        std::fs::write(&fixture_path, serde_json::to_string(&fixture).unwrap()).unwrap();
+
+        let error = Fixture::from_file(&fixture_path).unwrap_err();
+        assert!(matches!(
+            error,
+            Error::InvalidFixture { reason, .. }
+                if reason.contains("unable to read ground truth text file")
+        ));
     }
 
     #[test]
@@ -849,8 +915,40 @@ mod tests {
 
         let mut manager = FixtureManager::new();
         let result = manager.load_fixtures_from_dir(temp_dir.path());
-        assert!(result.is_ok());
+        assert!(result.is_err());
 
         assert_eq!(manager.len(), 1);
+    }
+
+    #[test]
+    fn nested_invalid_fixture_fails_the_entire_directory_load() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        let nested_dir = temp_dir.path().join("nested");
+        std::fs::create_dir(&nested_dir).unwrap();
+        std::fs::write(
+            temp_dir.path().join("valid.json"),
+            serde_json::json!({
+                "document": "valid.pdf",
+                "file_type": "pdf",
+                "file_size": 1
+            })
+            .to_string(),
+        )
+        .unwrap();
+        std::fs::write(nested_dir.join("malformed.json"), "{not valid json").unwrap();
+
+        unsafe {
+            std::env::remove_var("PROFILING_FIXTURES");
+        }
+        let mut manager = FixtureManager::new();
+        let error = manager.load_fixtures_from_dir(temp_dir.path()).unwrap_err();
+
+        assert!(error.to_string().contains("malformed.json"));
+        assert_eq!(
+            manager.len(),
+            0,
+            "nested failure must abort before the parent corpus loads"
+        );
     }
 }

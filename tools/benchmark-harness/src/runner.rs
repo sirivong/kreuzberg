@@ -45,6 +45,85 @@ fn calculate_amplified_iterations(estimated_duration_ms: u64, target_profile_dur
     amplification.max(1)
 }
 
+fn validate_ocr_cohort(ocr_enabled: bool, ocr_required_count: usize) -> Result<()> {
+    if !ocr_enabled && ocr_required_count > 0 {
+        return Err(Error::Config(format!(
+            "OCR is disabled, but the selected fixture cohort contains {ocr_required_count} OCR-required fixture(s). \
+             Rerun with --ocr or select a fixture directory/shard containing only non-OCR fixtures; \
+             the harness will not silently omit OCR-required documents."
+        )));
+    }
+    Ok(())
+}
+
+fn validate_batch_ocr_cohort(batch_mode: bool, total_count: usize, ocr_required_count: usize) -> Result<()> {
+    if batch_mode && ocr_required_count > 0 && ocr_required_count < total_count {
+        return Err(Error::Config(format!(
+            "native batch benchmarks require a homogeneous OCR cohort, but the selected fixture cohort mixes {} \
+             force-OCR and {} non-force-OCR fixture(s). Select a fixture directory/shard containing only one OCR \
+             mode; the harness will not label sequential fallback as batch throughput.",
+            ocr_required_count,
+            total_count - ocr_required_count
+        )));
+    }
+    Ok(())
+}
+
+fn load_quality_ground_truth(
+    fixtures: &FixtureManager,
+) -> Result<(HashMap<PathBuf, String>, HashMap<PathBuf, String>)> {
+    let mut ground_truth_map = HashMap::new();
+    let mut markdown_gt_map = HashMap::new();
+
+    for (fixture_path, fixture) in fixtures.fixtures() {
+        let fixture_dir = fixture_path.parent().unwrap_or_else(|| Path::new("."));
+        let document_path = fixture.resolve_document_path(fixture_dir);
+        let text_path = fixture.resolve_ground_truth_path(fixture_dir);
+        let markdown_path = fixture.resolve_ground_truth_markdown_path(fixture_dir);
+
+        if text_path.is_none() && markdown_path.is_none() {
+            return Err(Error::Config(format!(
+                "quality measurement requires text_file or markdown_file ground truth for {}",
+                fixture.document.display()
+            )));
+        }
+
+        let markdown = markdown_path
+            .as_ref()
+            .map(|path| {
+                std::fs::read_to_string(path).map_err(|error| {
+                    Error::Benchmark(format!(
+                        "failed to read requested markdown ground truth for {}: {error}",
+                        fixture.document.display()
+                    ))
+                })
+            })
+            .transpose()?;
+        let text = if let Some(path) = text_path {
+            std::fs::read_to_string(path).map_err(|error| {
+                Error::Benchmark(format!(
+                    "failed to read requested text ground truth for {}: {error}",
+                    fixture.document.display()
+                ))
+            })?
+        } else {
+            markdown.clone().ok_or_else(|| {
+                Error::Config(format!(
+                    "quality measurement requires readable ground truth for {}",
+                    fixture.document.display()
+                ))
+            })?
+        };
+
+        ground_truth_map.insert(document_path.clone(), text);
+        if let Some(markdown) = markdown {
+            markdown_gt_map.insert(document_path, markdown);
+        }
+    }
+
+    Ok((ground_truth_map, markdown_gt_map))
+}
+
 /// Calculate statistics from iteration results
 ///
 /// # Arguments
@@ -224,6 +303,32 @@ fn resolve_installation_size(framework: &str, sizes: &HashMap<String, DiskSizeIn
 }
 
 impl BenchmarkRunner {
+    async fn setup_frameworks(frameworks: &[Arc<dyn FrameworkAdapter>]) -> Result<()> {
+        let mut initialized = Vec::with_capacity(frameworks.len());
+        for adapter in frameworks {
+            if let Err(error) = adapter.setup().await {
+                if let Err(teardown_error) = Self::teardown_frameworks(&initialized).await {
+                    eprintln!("Warning: teardown after setup failure also failed: {teardown_error}");
+                }
+                return Err(error);
+            }
+            initialized.push(Arc::clone(adapter));
+        }
+        Ok(())
+    }
+
+    async fn teardown_frameworks(frameworks: &[Arc<dyn FrameworkAdapter>]) -> Result<()> {
+        let mut first_error = None;
+        for adapter in frameworks {
+            if let Err(error) = adapter.teardown().await
+                && first_error.is_none()
+            {
+                first_error = Some(error);
+            }
+        }
+        first_error.map_or(Ok(()), Err)
+    }
+
     /// Create a new benchmark runner
     pub fn new(config: BenchmarkConfig, registry: AdapterRegistry) -> Self {
         Self::with_output_format(config, registry, OutputFormat::Markdown)
@@ -501,19 +606,19 @@ impl BenchmarkRunner {
         let subprocess_overhead = avg_extraction_duration.map(|ext| statistics.mean.saturating_sub(ext));
 
         let first_result = &all_results[0];
+        let representative_result = all_results.iter().find(|result| result.success).unwrap_or(first_result);
+        let all_success = all_results.iter().all(|result| result.success);
+        let error_message = all_results
+            .iter()
+            .find(|result| !result.success)
+            .and_then(|result| result.error_message.clone());
 
-        let any_success = all_results.iter().any(|r| r.success);
-        let error_message = if any_success {
-            None
-        } else {
-            all_results.first().and_then(|r| r.error_message.clone())
-        };
-
-        let error_kind = if any_success {
+        let error_kind = if all_success {
             ErrorKind::None
         } else {
             all_results
                 .iter()
+                .filter(|result| !result.success)
                 .map(|r| r.error_kind)
                 .max_by_key(|ek| match ek {
                     ErrorKind::Timeout => 4,
@@ -526,18 +631,14 @@ impl BenchmarkRunner {
                 .unwrap_or(ErrorKind::None)
         };
 
-        let quality = all_results
-            .iter()
-            .find(|r| r.success)
-            .and_then(|r| r.quality.clone())
-            .or_else(|| first_result.quality.clone());
+        let quality = representative_result.quality.clone();
 
         Ok(BenchmarkResult {
             framework: first_result.framework.clone(),
             output_format: first_result.output_format,
             file_path: first_result.file_path.clone(),
             file_size: first_result.file_size,
-            success: any_success,
+            success: all_success,
             error_message,
             error_kind,
             duration: statistics.mean,
@@ -550,9 +651,9 @@ impl BenchmarkRunner {
             cold_start_duration,
             file_extension: first_result.file_extension.clone(),
             framework_capabilities: first_result.framework_capabilities.clone(),
-            pdf_metadata: first_result.pdf_metadata.clone(),
-            ocr_status: first_result.ocr_status,
-            extracted_text: first_result.extracted_text.clone(),
+            pdf_metadata: representative_result.pdf_metadata.clone(),
+            ocr_status: representative_result.ocr_status,
+            extracted_text: representative_result.extracted_text.clone(),
             system_load: Some(SystemLoad::capture()),
         })
     }
@@ -576,6 +677,14 @@ impl BenchmarkRunner {
         force_ocr_flags: Vec<bool>,
         output_format: OutputFormat,
     ) -> Result<Vec<BenchmarkResult>> {
+        if force_ocr_flags.len() != file_paths.len() {
+            return Err(Error::Benchmark(format!(
+                "batch force_ocr cardinality mismatch: received {} flags for {} files",
+                force_ocr_flags.len(),
+                file_paths.len()
+            )));
+        }
+
         let total_iterations = config.warmup_iterations + config.benchmark_iterations;
         let mut all_batch_results = Vec::new();
 
@@ -584,6 +693,26 @@ impl BenchmarkRunner {
             let batch_results = adapter
                 .extract_batch(&refs, config.timeout, &force_ocr_flags, output_format)
                 .await?;
+            if batch_results.len() != file_paths.len() {
+                return Err(Error::Benchmark(format!(
+                    "framework '{}' returned {} batch results for {} files",
+                    adapter.name(),
+                    batch_results.len(),
+                    file_paths.len()
+                )));
+            }
+
+            if let Some(failed) = batch_results.iter().find(|result| !result.success) {
+                return Err(Error::Benchmark(format!(
+                    "framework '{}' returned a partial batch failure for {}: {}",
+                    adapter.name(),
+                    failed.file_path.display(),
+                    failed
+                        .error_message
+                        .as_deref()
+                        .unwrap_or("unspecified extraction failure")
+                )));
+            }
 
             let has_timeout = batch_results.iter().any(|r| r.error_kind == ErrorKind::Timeout);
 
@@ -613,19 +742,13 @@ impl BenchmarkRunner {
             return Err(Error::Benchmark("No batch results".to_string()));
         }
 
-        let num_files = all_batch_results[0].len();
+        let num_files = file_paths.len();
         let mut aggregated_results = Vec::new();
 
         for file_idx in 0..num_files {
             let mut file_iterations = Vec::new();
             for batch in &all_batch_results {
-                if file_idx < batch.len() {
-                    file_iterations.push(&batch[file_idx]);
-                }
-            }
-
-            if file_iterations.is_empty() {
-                continue;
+                file_iterations.push(&batch[file_idx]);
             }
 
             let iterations: Vec<IterationResult> = file_iterations
@@ -657,20 +780,33 @@ impl BenchmarkRunner {
                 None
             };
 
-            let subprocess_overhead = avg_extraction_duration.map(|ext| statistics.mean.saturating_sub(ext));
             let first_result = file_iterations[0];
+            let representative_result = file_iterations
+                .iter()
+                .copied()
+                .find(|result| result.success)
+                .unwrap_or(first_result);
+            let all_success = file_iterations.iter().all(|result| result.success);
+            let error_message = file_iterations
+                .iter()
+                .find(|result| !result.success)
+                .and_then(|result| result.error_message.clone());
 
-            let any_success = file_iterations.iter().any(|r| r.success);
-            let error_message = if any_success {
-                None
-            } else {
-                first_result.error_message.clone()
-            };
-
-            let error_kind = if any_success {
+            let error_kind = if all_success {
                 ErrorKind::None
             } else {
-                first_result.error_kind
+                file_iterations
+                    .iter()
+                    .filter(|result| !result.success)
+                    .map(|result| result.error_kind)
+                    .max_by_key(|error_kind| match error_kind {
+                        ErrorKind::Timeout => 4,
+                        ErrorKind::HarnessError => 3,
+                        ErrorKind::ConfigSetupError => 2,
+                        ErrorKind::FrameworkError | ErrorKind::EmptyContent => 1,
+                        ErrorKind::None => 0,
+                    })
+                    .unwrap_or(ErrorKind::None)
             };
 
             aggregated_results.push(BenchmarkResult {
@@ -678,22 +814,22 @@ impl BenchmarkRunner {
                 output_format: first_result.output_format,
                 file_path: first_result.file_path.clone(),
                 file_size: first_result.file_size,
-                success: any_success,
+                success: all_success,
                 error_message,
                 error_kind,
                 duration: statistics.mean,
                 extraction_duration: avg_extraction_duration,
-                subprocess_overhead,
+                subprocess_overhead: None,
                 metrics: aggregated_metrics,
-                quality: first_result.quality.clone(),
+                quality: representative_result.quality.clone(),
                 iterations,
                 statistics: Some(statistics),
                 cold_start_duration,
                 file_extension: first_result.file_extension.clone(),
                 framework_capabilities: first_result.framework_capabilities.clone(),
-                pdf_metadata: first_result.pdf_metadata.clone(),
-                ocr_status: first_result.ocr_status,
-                extracted_text: first_result.extracted_text.clone(),
+                pdf_metadata: representative_result.pdf_metadata.clone(),
+                ocr_status: representative_result.ocr_status,
+                extracted_text: representative_result.extracted_text.clone(),
                 system_load: Some(SystemLoad::capture()),
             });
         }
@@ -714,17 +850,42 @@ impl BenchmarkRunner {
                 .adapter_names()
                 .into_iter()
                 .filter_map(|name| self.registry.get(&name))
+                .filter(|adapter| adapter.supported_output_formats().contains(&self.output_format))
                 .collect::<Vec<_>>()
         } else {
-            framework_names
-                .iter()
-                .filter_map(|name| self.registry.get(name))
-                .collect::<Vec<_>>()
+            let mut selected = Vec::with_capacity(framework_names.len());
+            for name in framework_names {
+                let adapter = self
+                    .registry
+                    .get(name)
+                    .ok_or_else(|| Error::Config(format!("requested framework '{name}' is not registered")))?;
+                if !adapter.supported_output_formats().contains(&self.output_format) {
+                    return Err(Error::Config(format!(
+                        "framework '{name}' does not support {} output",
+                        self.output_format
+                    )));
+                }
+                selected.push(adapter);
+            }
+            selected
         };
 
         if frameworks.is_empty() {
             return Err(Error::Benchmark("No frameworks available for benchmarking".to_string()));
         }
+
+        let ocr_required_count = self
+            .fixtures
+            .fixtures()
+            .iter()
+            .filter(|(_, fixture)| fixture.requires_ocr())
+            .count();
+        validate_ocr_cohort(self.config.ocr_enabled, ocr_required_count)?;
+        validate_batch_ocr_cohort(
+            matches!(self.config.benchmark_mode, BenchmarkMode::Batch),
+            self.fixtures.fixtures().len(),
+            ocr_required_count,
+        )?;
 
         let mut missing_files = Vec::new();
         for (fixture_path, fixture) in self.fixtures.fixtures() {
@@ -753,9 +914,13 @@ impl BenchmarkRunner {
             )));
         }
 
-        for adapter in &frameworks {
-            adapter.setup().await?;
-        }
+        let quality_ground_truth = if self.config.measure_quality {
+            Some(load_quality_ground_truth(&self.fixtures)?)
+        } else {
+            None
+        };
+
+        Self::setup_frameworks(&frameworks).await?;
 
         for adapter in &frameworks {
             let warmup_fixture = self
@@ -769,7 +934,6 @@ impl BenchmarkRunner {
                 let warmup_file = fixture.resolve_document_path(fixture_dir);
 
                 println!("Warming up {} with {}...", adapter.name(), warmup_file.display());
-                let warmup_clock = std::time::Instant::now();
                 match adapter
                     .warmup(&warmup_file, self.config.timeout, self.output_format)
                     .await
@@ -778,15 +942,17 @@ impl BenchmarkRunner {
                         println!("  Cold start: {:?}", cold_start);
                         self.cold_start_durations.insert(adapter.name().to_string(), cold_start);
                     }
-                    Err(e) => {
-                        let elapsed = warmup_clock.elapsed();
-                        eprintln!(
-                            "  Warning: Warmup failed for {}: {} (elapsed: {:?})",
+                    Err(warmup_error) => {
+                        let teardown_error = Self::teardown_frameworks(&frameworks).await.err();
+                        let teardown_context = teardown_error
+                            .map(|error| format!("; teardown also failed: {error}"))
+                            .unwrap_or_default();
+                        return Err(Error::Benchmark(format!(
+                            "warmup failed for '{}': {}{}",
                             adapter.name(),
-                            e,
-                            elapsed
-                        );
-                        self.cold_start_durations.insert(adapter.name().to_string(), elapsed);
+                            warmup_error,
+                            teardown_context
+                        )));
                     }
                 }
             } else {
@@ -807,9 +973,6 @@ impl BenchmarkRunner {
             let mut adapter_files: HashMap<String, Vec<(PathBuf, bool)>> = HashMap::new();
 
             for (fixture_path, fixture) in self.fixtures.fixtures() {
-                if !self.config.ocr_enabled && fixture.requires_ocr() {
-                    continue;
-                }
                 let force_ocr = fixture.requires_ocr();
                 for adapter in &frameworks {
                     if !adapter.supports_format(&fixture.file_type) {
@@ -865,6 +1028,9 @@ impl BenchmarkRunner {
                                 results.extend(batch_results);
                             }
                             Err(e) => {
+                                if let Err(teardown_error) = Self::teardown_frameworks(&frameworks).await {
+                                    eprintln!("Warning: teardown after batch failure also failed: {teardown_error}");
+                                }
                                 return Err(e);
                             }
                         }
@@ -913,9 +1079,6 @@ impl BenchmarkRunner {
             let mut task_queue: Vec<(PathBuf, String, Arc<dyn FrameworkAdapter>, bool)> = Vec::new();
 
             for (fixture_path, fixture) in self.fixtures.fixtures() {
-                if !self.config.ocr_enabled && fixture.requires_ocr() {
-                    continue;
-                }
                 let force_ocr = fixture.requires_ocr();
                 for adapter in &frameworks {
                     if !adapter.supports_format(&fixture.file_type) {
@@ -964,26 +1127,7 @@ impl BenchmarkRunner {
             }
         }
 
-        if self.config.measure_quality {
-            let mut ground_truth_map: HashMap<PathBuf, String> = HashMap::new();
-            let mut markdown_gt_map: HashMap<PathBuf, String> = HashMap::new();
-            for (fixture_path, fixture) in self.fixtures.fixtures() {
-                let fixture_dir = fixture_path.parent().unwrap_or_else(|| std::path::Path::new("."));
-                let doc_path = fixture.resolve_document_path(fixture_dir);
-                if let Some(gt_path) = fixture.resolve_ground_truth_path(fixture_dir)
-                    && gt_path.exists()
-                    && let Ok(gt_text) = std::fs::read_to_string(&gt_path)
-                {
-                    ground_truth_map.insert(doc_path.clone(), gt_text);
-                }
-                if let Some(md_path) = fixture.resolve_ground_truth_markdown_path(fixture_dir)
-                    && md_path.exists()
-                    && let Ok(md_text) = std::fs::read_to_string(&md_path)
-                {
-                    markdown_gt_map.insert(doc_path, md_text);
-                }
-            }
-
+        if let Some((ground_truth_map, markdown_gt_map)) = quality_ground_truth {
             for result in &mut results {
                 if let Some(ref extracted) = result.extracted_text
                     && let Some(gt_text) = ground_truth_map.get(&result.file_path)
@@ -999,9 +1143,7 @@ impl BenchmarkRunner {
             }
         }
 
-        for adapter in &frameworks {
-            adapter.teardown().await?;
-        }
+        Self::teardown_frameworks(&frameworks).await?;
 
         Ok(results)
     }
@@ -1015,6 +1157,187 @@ impl BenchmarkRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{FrameworkCapabilities, OcrStatus};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    struct SequenceAdapter {
+        calls: AtomicUsize,
+    }
+
+    struct TeardownAdapter {
+        name: &'static str,
+        setup_calls: Arc<AtomicUsize>,
+        teardown_calls: Arc<AtomicUsize>,
+        fail_setup: bool,
+        fail_teardown: bool,
+    }
+
+    struct FailedWarmupAdapter {
+        teardown_calls: Arc<AtomicUsize>,
+    }
+
+    impl SequenceAdapter {
+        fn result(&self, file_path: &Path, output_format: OutputFormat) -> BenchmarkResult {
+            let success = self.calls.fetch_add(1, Ordering::SeqCst) % 2 == 1;
+            BenchmarkResult {
+                framework: "sequence".to_string(),
+                output_format,
+                file_path: file_path.to_path_buf(),
+                file_size: 10,
+                success,
+                error_message: (!success).then(|| "measured iteration failed".to_string()),
+                error_kind: if success {
+                    ErrorKind::None
+                } else {
+                    ErrorKind::FrameworkError
+                },
+                duration: Duration::from_millis(10),
+                extraction_duration: Some(Duration::from_millis(5)),
+                subprocess_overhead: Some(Duration::from_millis(5)),
+                metrics: PerformanceMetrics::default(),
+                quality: None,
+                iterations: vec![],
+                statistics: None,
+                cold_start_duration: None,
+                file_extension: "pdf".to_string(),
+                framework_capabilities: FrameworkCapabilities::default(),
+                pdf_metadata: None,
+                ocr_status: OcrStatus::Unknown,
+                extracted_text: success.then(|| "successful payload".to_string()),
+                system_load: None,
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl FrameworkAdapter for SequenceAdapter {
+        fn name(&self) -> &str {
+            "sequence"
+        }
+
+        fn supports_format(&self, _file_type: &str) -> bool {
+            true
+        }
+
+        fn supported_output_formats(&self) -> Vec<OutputFormat> {
+            vec![OutputFormat::Markdown]
+        }
+
+        async fn extract(
+            &self,
+            file_path: &Path,
+            _timeout: Duration,
+            _force_ocr: bool,
+            output_format: OutputFormat,
+        ) -> Result<BenchmarkResult> {
+            Ok(self.result(file_path, output_format))
+        }
+
+        async fn extract_batch(
+            &self,
+            file_paths: &[&Path],
+            _timeout: Duration,
+            _force_ocr: &[bool],
+            output_format: OutputFormat,
+        ) -> Result<Vec<BenchmarkResult>> {
+            Ok(file_paths.iter().map(|path| self.result(path, output_format)).collect())
+        }
+
+        fn supports_batch(&self) -> bool {
+            true
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl FrameworkAdapter for TeardownAdapter {
+        fn name(&self) -> &str {
+            self.name
+        }
+
+        fn supports_format(&self, _file_type: &str) -> bool {
+            true
+        }
+
+        async fn extract(
+            &self,
+            _file_path: &Path,
+            _timeout: Duration,
+            _force_ocr: bool,
+            _output_format: OutputFormat,
+        ) -> Result<BenchmarkResult> {
+            Err(Error::Benchmark("unused test extraction".to_string()))
+        }
+
+        async fn setup(&self) -> Result<()> {
+            self.setup_calls.fetch_add(1, Ordering::SeqCst);
+            if self.fail_setup {
+                Err(Error::Benchmark(format!("{} setup failed", self.name)))
+            } else {
+                Ok(())
+            }
+        }
+
+        async fn teardown(&self) -> Result<()> {
+            self.teardown_calls.fetch_add(1, Ordering::SeqCst);
+            if self.fail_teardown {
+                Err(Error::Benchmark(format!("{} teardown failed", self.name)))
+            } else {
+                Ok(())
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl FrameworkAdapter for FailedWarmupAdapter {
+        fn name(&self) -> &str {
+            "failed-warmup"
+        }
+
+        fn supports_format(&self, file_type: &str) -> bool {
+            file_type == "pdf"
+        }
+
+        fn supported_output_formats(&self) -> Vec<OutputFormat> {
+            vec![OutputFormat::Markdown]
+        }
+
+        async fn extract(
+            &self,
+            file_path: &Path,
+            _timeout: Duration,
+            _force_ocr: bool,
+            output_format: OutputFormat,
+        ) -> Result<BenchmarkResult> {
+            Ok(BenchmarkResult {
+                framework: self.name().to_string(),
+                output_format,
+                file_path: file_path.to_path_buf(),
+                file_size: 1,
+                success: false,
+                error_message: Some("intentional warmup failure".to_string()),
+                error_kind: ErrorKind::FrameworkError,
+                duration: Duration::from_millis(1),
+                extraction_duration: None,
+                subprocess_overhead: None,
+                metrics: PerformanceMetrics::default(),
+                quality: None,
+                iterations: vec![],
+                statistics: None,
+                cold_start_duration: None,
+                file_extension: "pdf".to_string(),
+                framework_capabilities: FrameworkCapabilities::default(),
+                pdf_metadata: None,
+                ocr_status: OcrStatus::Unknown,
+                extracted_text: None,
+                system_load: None,
+            })
+        }
+
+        async fn teardown(&self) -> Result<()> {
+            self.teardown_calls.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+    }
 
     fn disk_size(size: u64, package: u64, model: u64) -> DiskSizeInfo {
         DiskSizeInfo {
@@ -1026,6 +1349,86 @@ mod tests {
             description: "test".to_string(),
             system_deps_detail: HashMap::new(),
         }
+    }
+
+    #[test]
+    fn ocr_required_fixture_cohort_is_never_silently_skipped() {
+        assert!(validate_ocr_cohort(false, 0).is_ok());
+        assert!(validate_ocr_cohort(true, 2).is_ok());
+        let error = validate_ocr_cohort(false, 2).unwrap_err();
+        assert!(error.to_string().contains("--ocr"));
+        assert!(error.to_string().contains("will not silently omit"));
+    }
+
+    #[test]
+    fn native_batch_requires_homogeneous_ocr_cohort() {
+        assert!(validate_batch_ocr_cohort(false, 2, 1).is_ok());
+        assert!(validate_batch_ocr_cohort(true, 2, 0).is_ok());
+        assert!(validate_batch_ocr_cohort(true, 2, 2).is_ok());
+        let error = validate_batch_ocr_cohort(true, 3, 1).unwrap_err();
+        assert!(error.to_string().contains("homogeneous OCR cohort"));
+        assert!(error.to_string().contains("will not label sequential fallback"));
+    }
+
+    #[tokio::test]
+    async fn teardown_attempts_every_framework_after_an_error() {
+        let setup_calls = Arc::new(AtomicUsize::new(0));
+        let first_calls = Arc::new(AtomicUsize::new(0));
+        let second_calls = Arc::new(AtomicUsize::new(0));
+        let frameworks: Vec<Arc<dyn FrameworkAdapter>> = vec![
+            Arc::new(TeardownAdapter {
+                name: "first",
+                setup_calls: Arc::clone(&setup_calls),
+                teardown_calls: Arc::clone(&first_calls),
+                fail_setup: false,
+                fail_teardown: true,
+            }),
+            Arc::new(TeardownAdapter {
+                name: "second",
+                setup_calls,
+                teardown_calls: Arc::clone(&second_calls),
+                fail_setup: false,
+                fail_teardown: false,
+            }),
+        ];
+
+        let error = BenchmarkRunner::teardown_frameworks(&frameworks).await.unwrap_err();
+
+        assert!(error.to_string().contains("first teardown failed"));
+        assert_eq!(first_calls.load(Ordering::SeqCst), 1);
+        assert_eq!(second_calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn setup_failure_tears_down_only_previously_initialized_frameworks() {
+        let first_setup = Arc::new(AtomicUsize::new(0));
+        let first_teardown = Arc::new(AtomicUsize::new(0));
+        let second_setup = Arc::new(AtomicUsize::new(0));
+        let second_teardown = Arc::new(AtomicUsize::new(0));
+        let frameworks: Vec<Arc<dyn FrameworkAdapter>> = vec![
+            Arc::new(TeardownAdapter {
+                name: "first",
+                setup_calls: Arc::clone(&first_setup),
+                teardown_calls: Arc::clone(&first_teardown),
+                fail_setup: false,
+                fail_teardown: false,
+            }),
+            Arc::new(TeardownAdapter {
+                name: "second",
+                setup_calls: Arc::clone(&second_setup),
+                teardown_calls: Arc::clone(&second_teardown),
+                fail_setup: true,
+                fail_teardown: false,
+            }),
+        ];
+
+        let error = BenchmarkRunner::setup_frameworks(&frameworks).await.unwrap_err();
+
+        assert!(error.to_string().contains("second setup failed"));
+        assert_eq!(first_setup.load(Ordering::SeqCst), 1);
+        assert_eq!(second_setup.load(Ordering::SeqCst), 1);
+        assert_eq!(first_teardown.load(Ordering::SeqCst), 1);
+        assert_eq!(second_teardown.load(Ordering::SeqCst), 0);
     }
 
     fn xberg_size_map() -> HashMap<String, DiskSizeInfo> {
@@ -1104,6 +1507,170 @@ mod tests {
         let result = runner.run(&[]).await;
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("No frameworks available"));
+    }
+
+    #[tokio::test]
+    async fn test_run_fails_for_requested_unregistered_framework() {
+        let config = BenchmarkConfig::default();
+        let registry = AdapterRegistry::new();
+        let mut runner = BenchmarkRunner::new(config, registry);
+
+        let error = runner.run(&["missing".to_string()]).await.unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("requested framework 'missing' is not registered")
+        );
+    }
+
+    #[tokio::test]
+    async fn warmup_failure_aborts_run_without_recording_cold_start() {
+        use crate::fixture::Fixture;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let document_path = temp_dir.path().join("document.pdf");
+        let fixture_path = temp_dir.path().join("fixture.json");
+        std::fs::write(&document_path, b"pdf").unwrap();
+        let fixture = Fixture {
+            document: PathBuf::from("document.pdf"),
+            file_type: "pdf".to_string(),
+            file_size: 3,
+            expected_frameworks: vec!["failed-warmup".to_string()],
+            metadata: HashMap::new(),
+            ground_truth: None,
+        };
+        std::fs::write(&fixture_path, serde_json::to_string(&fixture).unwrap()).unwrap();
+
+        let teardown_calls = Arc::new(AtomicUsize::new(0));
+        let mut registry = AdapterRegistry::new();
+        registry
+            .register(Arc::new(FailedWarmupAdapter {
+                teardown_calls: Arc::clone(&teardown_calls),
+            }))
+            .unwrap();
+        let config = BenchmarkConfig {
+            benchmark_mode: BenchmarkMode::SingleFile,
+            ..Default::default()
+        };
+        let mut runner = BenchmarkRunner::new(config, registry);
+        runner.load_fixtures(&fixture_path).unwrap();
+
+        let error = runner.run(&["failed-warmup".to_string()]).await.unwrap_err();
+
+        assert!(error.to_string().contains("warmup failed for 'failed-warmup'"));
+        assert!(error.to_string().contains("intentional warmup failure"));
+        assert!(!runner.cold_start_durations.contains_key("failed-warmup"));
+        assert_eq!(teardown_calls.load(Ordering::SeqCst), 1);
+    }
+
+    #[tokio::test]
+    async fn repeated_single_result_fails_if_any_iteration_fails_and_uses_success_payload() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let config = BenchmarkConfig {
+            warmup_iterations: 0,
+            benchmark_iterations: 2,
+            ..Default::default()
+        };
+        let adapter: Arc<dyn FrameworkAdapter> = Arc::new(SequenceAdapter {
+            calls: AtomicUsize::new(0),
+        });
+
+        let result =
+            BenchmarkRunner::run_iterations_static(file.path(), adapter, &config, None, false, OutputFormat::Markdown)
+                .await
+                .unwrap();
+
+        assert!(!result.success);
+        assert_eq!(result.error_kind, ErrorKind::FrameworkError);
+        assert_eq!(result.extracted_text.as_deref(), Some("successful payload"));
+    }
+
+    #[tokio::test]
+    async fn repeated_batch_result_fails_if_any_iteration_fails_and_uses_success_payload() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let config = BenchmarkConfig {
+            warmup_iterations: 0,
+            benchmark_iterations: 2,
+            ..Default::default()
+        };
+        let adapter: Arc<dyn FrameworkAdapter> = Arc::new(SequenceAdapter {
+            calls: AtomicUsize::new(0),
+        });
+
+        let error = BenchmarkRunner::run_batch_iterations_static(
+            vec![file.path().to_path_buf()],
+            adapter,
+            &config,
+            None,
+            vec![false],
+            OutputFormat::Markdown,
+        )
+        .await
+        .unwrap_err();
+
+        assert!(error.to_string().contains("partial batch failure"));
+    }
+
+    #[test]
+    fn quality_ground_truth_fails_if_file_disappears_after_fixture_load() {
+        use crate::fixture::{Fixture, GroundTruth};
+
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let fixture_path = temp_dir.path().join("fixture.json");
+        let ground_truth_path = temp_dir.path().join("ground_truth.txt");
+        std::fs::write(&ground_truth_path, "expected").unwrap();
+        let fixture = Fixture {
+            document: PathBuf::from("document.pdf"),
+            file_type: "pdf".to_string(),
+            file_size: 1,
+            expected_frameworks: vec![],
+            metadata: HashMap::new(),
+            ground_truth: Some(GroundTruth {
+                text_file: Some(PathBuf::from("ground_truth.txt")),
+                markdown_file: None,
+                fields_json: None,
+                formulas_json: None,
+                source: "manual".to_string(),
+            }),
+        };
+        std::fs::write(&fixture_path, serde_json::to_string(&fixture).unwrap()).unwrap();
+        let mut fixtures = FixtureManager::new();
+        fixtures.load_fixture(&fixture_path).unwrap();
+        std::fs::remove_file(ground_truth_path).unwrap();
+
+        let error = load_quality_ground_truth(&fixtures).unwrap_err();
+        assert!(error.to_string().contains("failed to read requested text ground truth"));
+    }
+
+    #[test]
+    fn quality_ground_truth_uses_markdown_when_text_is_not_supplied() {
+        use crate::fixture::{Fixture, GroundTruth};
+
+        let temp_dir = tempfile::TempDir::new().unwrap();
+        let fixture_path = temp_dir.path().join("fixture.json");
+        std::fs::write(temp_dir.path().join("ground_truth.md"), "# Expected").unwrap();
+        let fixture = Fixture {
+            document: PathBuf::from("document.pdf"),
+            file_type: "pdf".to_string(),
+            file_size: 1,
+            expected_frameworks: vec![],
+            metadata: HashMap::new(),
+            ground_truth: Some(GroundTruth {
+                text_file: None,
+                markdown_file: Some(PathBuf::from("ground_truth.md")),
+                fields_json: None,
+                formulas_json: None,
+                source: "markdown_file".to_string(),
+            }),
+        };
+        std::fs::write(&fixture_path, serde_json::to_string(&fixture).unwrap()).unwrap();
+        let mut fixtures = FixtureManager::new();
+        fixtures.load_fixture(&fixture_path).unwrap();
+
+        let (text, markdown) = load_quality_ground_truth(&fixtures).unwrap();
+        let document_path = temp_dir.path().join("document.pdf");
+        assert_eq!(text.get(&document_path).map(String::as_str), Some("# Expected"));
+        assert_eq!(markdown.get(&document_path).map(String::as_str), Some("# Expected"));
     }
 
     #[test]

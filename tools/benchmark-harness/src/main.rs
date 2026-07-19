@@ -35,6 +35,21 @@ impl From<CliMode> for BenchmarkMode {
     }
 }
 
+fn normalize_run_frameworks(frameworks: &[String], batch_mode: bool) -> Vec<String> {
+    let mut normalized = Vec::with_capacity(frameworks.len());
+    for framework in frameworks {
+        let name = if batch_mode && framework.starts_with("xberg-") && !framework.ends_with("-batch") {
+            format!("{framework}-batch")
+        } else {
+            framework.clone()
+        };
+        if !normalized.contains(&name) {
+            normalized.push(name);
+        }
+    }
+    normalized
+}
+
 #[derive(Parser)]
 #[command(name = "benchmark-harness")]
 #[command(about = "Benchmark harness for document extraction frameworks", long_about = None)]
@@ -429,6 +444,10 @@ async fn main() -> Result<()> {
 
             config.validate()?;
 
+            let parsed_format = OutputFormat::from_str(&output_format).map_err(benchmark_harness::Error::Config)?;
+            let batch_mode = matches!(config.benchmark_mode, BenchmarkMode::Batch);
+            let frameworks = normalize_run_frameworks(&frameworks, batch_mode);
+
             let mut registry = AdapterRegistry::new();
 
             let should_init = |name: &str| -> bool { frameworks.is_empty() || frameworks.iter().any(|f| f == name) };
@@ -456,17 +475,26 @@ async fn main() -> Result<()> {
 
             let mut xberg_count = 0;
             let pipelines = [XbergPipeline::Baseline, XbergPipeline::Layout, XbergPipeline::PaddleOcr];
-            let formats = [OutputFormat::Markdown, OutputFormat::Plaintext];
-
+            let formats = [parsed_format];
             for pipeline in &pipelines {
+                if !ocr && matches!(pipeline, XbergPipeline::PaddleOcr) {
+                    continue;
+                }
                 for format in &formats {
                     let format_slug = match format {
                         OutputFormat::Markdown => "markdown",
                         OutputFormat::Plaintext => "plaintext",
                     };
-                    let framework_name = format!("xberg-{}-{}", format_slug, pipeline.as_str());
+                    let base_name = format!("xberg-{}-{}", format_slug, pipeline.as_str());
+                    let framework_name = if batch_mode {
+                        format!("{base_name}-batch")
+                    } else {
+                        base_name
+                    };
                     if should_init(&framework_name) {
-                        match create_xberg_adapter(*pipeline, *format, false) {
+                        match create_xberg_adapter(*pipeline, *format, batch_mode, ocr)
+                            .map(|adapter| adapter.with_batch_workers(config.max_concurrent))
+                        {
                             Ok(adapter) => {
                                 if let Err(err) = registry.register(Arc::new(adapter)) {
                                     eprintln!("[adapter] ✗ {} (registration failed: {})", framework_name, err);
@@ -477,27 +505,12 @@ async fn main() -> Result<()> {
                             }
                             Err(err) => eprintln!("[adapter] ✗ {} (initialization failed: {})", framework_name, err),
                         }
-
-                        let batch_name = format!("{}-batch", framework_name);
-                        if should_init(&batch_name) && !matches!(config.benchmark_mode, BenchmarkMode::Batch) {
-                            match create_xberg_adapter(*pipeline, *format, true) {
-                                Ok(adapter) => {
-                                    if let Err(err) = registry.register(Arc::new(adapter)) {
-                                        eprintln!("[adapter] ✗ {} (registration failed: {})", batch_name, err);
-                                    } else {
-                                        eprintln!("[adapter] ✓ {} (registered)", batch_name);
-                                        xberg_count += 1;
-                                    }
-                                }
-                                Err(err) => eprintln!("[adapter] ✗ {} (initialization failed: {})", batch_name, err),
-                            }
-                        }
                     }
                 }
             }
 
             let total_requested = if frameworks.is_empty() {
-                6
+                if ocr { 3 } else { 2 }
             } else {
                 frameworks.iter().filter(|f| f.contains("xberg")).count()
             };
@@ -517,10 +530,18 @@ async fn main() -> Result<()> {
                 try_register!("tika", || create_tika_adapter(ocr), external_count);
                 try_register!("pymupdf4llm", || create_pymupdf4llm_adapter(ocr), external_count);
                 try_register!("mineru", || create_mineru_adapter(ocr), external_count);
-                try_register!("liteparse", || create_liteparse_adapter(ocr), external_count);
+                try_register!(
+                    "liteparse",
+                    || create_liteparse_adapter(ocr).map(|adapter| adapter.with_batch_workers(config.max_concurrent)),
+                    external_count
+                );
             } else {
                 use benchmark_harness::adapters::create_liteparse_adapter;
-                try_register!("liteparse", || create_liteparse_adapter(ocr), external_count);
+                try_register!(
+                    "liteparse",
+                    || create_liteparse_adapter(ocr).map(|adapter| adapter.with_batch_workers(config.max_concurrent)),
+                    external_count
+                );
                 eprintln!("[adapter] Batch mode: only liteparse available (uses native lit batch-parse API)");
                 eprintln!("[adapter] Other frameworks skipped: no native batch APIs");
             }
@@ -539,14 +560,12 @@ async fn main() -> Result<()> {
                 }
             }
             if !failed_frameworks.is_empty() {
-                eprintln!(
-                    "[adapter] WARNING: {} requested framework(s) failed to initialize: {}",
+                return Err(benchmark_harness::Error::Config(format!(
+                    "{} requested framework(s) are unavailable: {}",
                     failed_frameworks.len(),
                     failed_frameworks.join(", ")
-                );
+                )));
             }
-
-            let parsed_format = OutputFormat::from_str(&output_format).map_err(benchmark_harness::Error::Config)?;
 
             let mut runner = BenchmarkRunner::with_output_format(config, registry, parsed_format);
             runner.load_fixtures(&fixtures)?;
@@ -629,10 +648,17 @@ async fn main() -> Result<()> {
                 )));
             }
 
-            if !results.is_empty() && success_count == 0 {
+            if results.is_empty() {
+                return Err(benchmark_harness::Error::Benchmark(
+                    "No benchmark results were produced".to_string(),
+                ));
+            }
+
+            if failure_count > 0 {
                 return Err(benchmark_harness::Error::Benchmark(format!(
-                    "All {} extraction(s) failed. The framework likely failed to compile, link, or start.",
-                    results.len()
+                    "{} of {} extraction(s) failed; partial benchmark runs are not valid headline results",
+                    failure_count,
+                    results.len(),
                 )));
             }
 
@@ -1127,5 +1153,48 @@ fn format_size(bytes: u64) -> String {
         format!("{:.2} KB", bytes as f64 / KB as f64)
     } else {
         format!("{} bytes", bytes)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_run_frameworks;
+
+    #[test]
+    fn batch_mode_normalizes_unsuffixed_xberg_aliases() {
+        let names = normalize_run_frameworks(
+            &[
+                "xberg-markdown-baseline".to_string(),
+                "xberg-markdown-layout".to_string(),
+                "liteparse".to_string(),
+            ],
+            true,
+        );
+        assert_eq!(
+            names,
+            [
+                "xberg-markdown-baseline-batch",
+                "xberg-markdown-layout-batch",
+                "liteparse"
+            ]
+        );
+    }
+
+    #[test]
+    fn batch_mode_preserves_and_deduplicates_canonical_names() {
+        let names = normalize_run_frameworks(
+            &[
+                "xberg-markdown-baseline-batch".to_string(),
+                "xberg-markdown-baseline".to_string(),
+            ],
+            true,
+        );
+        assert_eq!(names, ["xberg-markdown-baseline-batch"]);
+    }
+
+    #[test]
+    fn single_mode_preserves_xberg_names() {
+        let names = normalize_run_frameworks(&["xberg-markdown-baseline".to_string()], false);
+        assert_eq!(names, ["xberg-markdown-baseline"]);
     }
 }

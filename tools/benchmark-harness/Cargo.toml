@@ -37,6 +37,7 @@ chrono = { workspace = true }
 clap = { workspace = true }
 futures = { workspace = true }
 jsonschema = "0.48"
+libc = { workspace = true }
 num_cpus = { workspace = true }
 
 pprof = { version = "0.15", features = ["flamegraph", "criterion"], optional = true }

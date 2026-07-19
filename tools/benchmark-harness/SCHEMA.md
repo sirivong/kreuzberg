@@ -1,4 +1,4 @@
-# Aggregation Schema v2.4.0
+# Aggregation Schema v2.6.0
 
 This document describes the structure of `aggregated.json` produced by `benchmark-harness consolidate`.
 
@@ -6,7 +6,7 @@ This document describes the structure of `aggregated.json` produced by `benchmar
 
 ```json
 {
-  "schema_version": "2.4.0",
+  "schema_version": "2.6.0",
   "by_framework_mode": {
     "<aggregate_key>": {
       /* FrameworkModeAggregation */
@@ -148,6 +148,12 @@ One row per unique combination of (framework, output_format, execution_mode, fix
   "error_kind": null // "FrameworkError", "HarnessError", "Timeout", etc. if !success
 }
 ```
+
+`ocr` is `true` or `false` only when actual OCR usage is known. It is `null` when the framework did not report OCR usage.
+
+## Migration from v2.5.0 to v2.6.0
+
+- `PerFixtureRow.ocr` changed from a required boolean to a nullable boolean so unknown OCR usage is not mislabeled as `false`.
 
 ## ComparisonData
 

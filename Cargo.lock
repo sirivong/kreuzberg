@@ -591,6 +591,7 @@ dependencies = [
  "dotenvy",
  "futures",
  "jsonschema",
+ "libc",
  "num_cpus",
  "pprof",
  "pulldown-cmark 0.13.4",

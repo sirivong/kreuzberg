@@ -61,6 +61,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **PDF benchmark runs now fail closed and compare equivalent execution modes.** Xberg JSON batches
+  use bounded concurrent extraction, both Xberg and LiteParse receive the same worker limit, OCR and
+  heuristic cohorts are validated separately, missing ground truth or partial failures abort the
+  run, and throughput excludes warmup and adapter-only staging overhead.
 - **Layout models now use the standard Hugging Face cache directly and repair corrupt artifacts
   safely.** Downloads are revision-pinned and integrity-checked, offline mode never attempts the
   network, and bounded cross-process locks prevent duplicate or destructive repairs across Xberg

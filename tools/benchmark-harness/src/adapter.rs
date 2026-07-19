@@ -5,7 +5,7 @@
 //! This allows benchmarking any extraction framework against the same test fixtures.
 
 use crate::{
-    Result,
+    Error, Result,
     types::{BenchmarkResult, OutputFormat},
 };
 use async_trait::async_trait;
@@ -88,6 +88,13 @@ pub trait FrameworkAdapter: Send + Sync {
         force_ocr: &[bool],
         output_format: OutputFormat,
     ) -> Result<Vec<BenchmarkResult>> {
+        if force_ocr.len() != file_paths.len() {
+            return Err(crate::Error::Benchmark(format!(
+                "batch force_ocr cardinality mismatch: received {} flags for {} files",
+                force_ocr.len(),
+                file_paths.len()
+            )));
+        }
         let mut results = Vec::new();
         for (i, path) in file_paths.iter().enumerate() {
             let fo = force_ocr.get(i).copied().unwrap_or(false);
@@ -136,7 +143,17 @@ pub trait FrameworkAdapter: Send + Sync {
     /// * `Err(Error)` - Warmup failed
     async fn warmup(&self, warmup_file: &Path, timeout: Duration, output_format: OutputFormat) -> Result<Duration> {
         let start = std::time::Instant::now();
-        let _ = self.extract(warmup_file, timeout, false, output_format).await?;
+        let result = self.extract(warmup_file, timeout, false, output_format).await?;
+        if !result.success {
+            return Err(Error::Benchmark(format!(
+                "warmup extraction for '{}' failed: {}",
+                self.name(),
+                result
+                    .error_message
+                    .as_deref()
+                    .unwrap_or("framework returned success=false")
+            )));
+        }
         Ok(start.elapsed())
     }
 }

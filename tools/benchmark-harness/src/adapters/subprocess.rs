@@ -96,6 +96,84 @@ use tokio::process::Command;
 /// and will result in throughput being set to 0.0 (filtered in aggregation).
 const MIN_VALID_DURATION_SECS: f64 = 0.000_001;
 
+fn bytes_per_second(bytes: u64, duration: Duration) -> f64 {
+    if duration.as_secs_f64() >= MIN_VALID_DURATION_SECS {
+        bytes as f64 / duration.as_secs_f64()
+    } else {
+        0.0
+    }
+}
+
+#[derive(Debug)]
+struct ParsedBatchOutput {
+    items: Vec<serde_json::Value>,
+    reported_total_duration: Option<Duration>,
+    per_file_durations: Vec<Option<Duration>>,
+}
+
+fn duration_from_ms(value: &serde_json::Value, field: &str) -> Result<Duration> {
+    let milliseconds = value
+        .as_f64()
+        .filter(|milliseconds| milliseconds.is_finite() && *milliseconds >= 0.0)
+        .ok_or_else(|| Error::Benchmark(format!("batch output field '{field}' must be a non-negative number")))?;
+    Ok(Duration::from_secs_f64(milliseconds / 1000.0))
+}
+
+fn parse_batch_output(stdout: &str) -> Result<ParsedBatchOutput> {
+    let raw: serde_json::Value = serde_json::from_str(stdout)
+        .map_err(|error| Error::Benchmark(format!("Failed to parse batch output as JSON: {error}")))?;
+
+    if let Some(results) = raw.get("results") {
+        let items = results
+            .as_array()
+            .cloned()
+            .ok_or_else(|| Error::Benchmark("batch output field 'results' must be an array".to_string()))?;
+        let reported_total_duration = raw
+            .get("total_ms")
+            .ok_or_else(|| Error::Benchmark("batch envelope is missing required 'total_ms'".to_string()))
+            .and_then(|value| duration_from_ms(value, "total_ms"))?;
+        let per_file_values = raw
+            .get("per_file_ms")
+            .and_then(serde_json::Value::as_array)
+            .ok_or_else(|| Error::Benchmark("batch envelope is missing required 'per_file_ms' array".to_string()))?;
+        let per_file_durations = per_file_values
+            .iter()
+            .enumerate()
+            .map(|(index, value)| duration_from_ms(value, &format!("per_file_ms[{index}]")).map(Some))
+            .collect::<Result<Vec<_>>>()?;
+
+        return Ok(ParsedBatchOutput {
+            items,
+            reported_total_duration: Some(reported_total_duration),
+            per_file_durations,
+        });
+    }
+
+    let items = match raw {
+        serde_json::Value::Array(items) => items,
+        serde_json::Value::Object(_) => vec![raw],
+        _ => {
+            return Err(Error::Benchmark(
+                "batch output must be a JSON array, object, or Xberg batch envelope".to_string(),
+            ));
+        }
+    };
+    let per_file_durations = items
+        .iter()
+        .map(|item| {
+            item.get("_extraction_time_ms")
+                .map(|value| duration_from_ms(value, "_extraction_time_ms"))
+                .transpose()
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    Ok(ParsedBatchOutput {
+        items,
+        reported_total_duration: None,
+        per_file_durations,
+    })
+}
+
 /// Check if verbose benchmark debugging is enabled via BENCHMARK_DEBUG env var.
 fn is_debug_enabled() -> bool {
     std::env::var("BENCHMARK_DEBUG").is_ok()
@@ -120,18 +198,129 @@ pub struct SubprocessAdapter {
     format_aware: bool,
     /// When true (and format_aware=true), adapter uses native batch API via lit batch-parse
     use_native_batch: bool,
+    supported_output_formats: Vec<OutputFormat>,
+    /// Single-file command arguments for adapters whose batch command uses a
+    /// different subcommand. Used by warmup and mixed per-file OCR fallback.
+    single_file_args: Option<Vec<String>>,
+    /// OCR mode requested by an external adapter when its output does not
+    /// report whether OCR ran. Xberg adapters leave this unset and use their
+    /// emitted per-document metadata.
+    configured_ocr_status: Option<OcrStatus>,
+    /// Worker limit passed to native batch implementations.
+    batch_workers: usize,
 }
 
 impl SubprocessAdapter {
+    /// Build request arguments, upgrading an adapter configured with OCR disabled
+    /// when the fixture explicitly requires OCR.
+    fn request_args_from(&self, base_args: &[String], force_ocr: bool) -> Vec<String> {
+        let mut args = base_args.to_vec();
+        if !force_ocr {
+            return args;
+        }
+
+        if let Some(index) = args.iter().position(|arg| arg == "--no-ocr") {
+            args[index] = "--ocr".to_string();
+        } else if let Some(index) = args.iter().position(|arg| arg == "--ocr") {
+            if let Some(value) = args.get_mut(index + 1)
+                && matches!(value.as_str(), "true" | "false")
+            {
+                *value = "true".to_string();
+            }
+        } else {
+            args.push("--ocr".to_string());
+        }
+
+        if self.name.starts_with("xberg-") {
+            if let Some(index) = args.iter().position(|arg| arg == "--force-ocr") {
+                if let Some(value) = args.get_mut(index + 1) {
+                    *value = "true".to_string();
+                }
+            } else {
+                args.extend(["--force-ocr".to_string(), "true".to_string()]);
+            }
+        }
+
+        args
+    }
+
+    fn request_args(&self, force_ocr: bool) -> Vec<String> {
+        self.request_args_from(&self.args, force_ocr)
+    }
+
+    fn single_file_request_args(&self, force_ocr: bool) -> Vec<String> {
+        self.request_args_from(self.single_file_args.as_deref().unwrap_or(&self.args), force_ocr)
+    }
+
+    fn resolve_ocr_status(&self, value: Option<&serde_json::Value>, force_ocr: bool) -> OcrStatus {
+        value
+            .and_then(serde_json::Value::as_bool)
+            .map(|used| if used { OcrStatus::Used } else { OcrStatus::NotUsed })
+            .or_else(|| force_ocr.then_some(OcrStatus::Used))
+            .or(self.configured_ocr_status)
+            .unwrap_or(OcrStatus::Unknown)
+    }
+
+    fn timeout_error(operation: &str, timeout: Duration) -> Error {
+        #[cfg(windows)]
+        let cleanup = "; Windows timeout cleanup terminates the direct child only; descendant cleanup is unsupported";
+        #[cfg(not(windows))]
+        let cleanup = "";
+        Error::Timeout(format!("{operation} exceeded {timeout:?}{cleanup}"))
+    }
+
+    async fn execute_measured_command(
+        cmd: &mut Command,
+        timeout: Duration,
+        operation: &str,
+    ) -> Result<(std::process::Output, Duration)> {
+        let start = Instant::now();
+        let child = cmd
+            .spawn()
+            .map_err(|error| Error::Benchmark(format!("Failed to spawn {operation}: {error}")))?;
+        let child_pid = child.id();
+        let mut wait = Box::pin(child.wait_with_output());
+        let output = match tokio::time::timeout(timeout, &mut wait).await {
+            Ok(Ok(output)) => output,
+            Ok(Err(error)) => {
+                return Err(Error::Benchmark(format!("Failed to wait for {operation}: {error}")));
+            }
+            Err(_) => {
+                #[cfg(unix)]
+                {
+                    Self::kill_process_group(child_pid);
+                    let _ = wait.await;
+                }
+                return Err(Self::timeout_error(operation, timeout));
+            }
+        };
+        Ok((output, start.elapsed()))
+    }
+
+    fn configure_child_process(cmd: &mut Command) {
+        cmd.kill_on_drop(true);
+        #[cfg(unix)]
+        cmd.process_group(0);
+    }
+
+    #[cfg(unix)]
+    fn kill_process_group(pid: Option<u32>) {
+        if let Some(pid) = pid {
+            // SAFETY: the child was placed in a process group whose id equals its
+            // pid. A negative pid targets only that group, never the harness.
+            unsafe {
+                libc::kill(-(pid as libc::pid_t), libc::SIGKILL);
+            }
+        }
+    }
+
     /// Determine if a framework supports OCR based on its name
     ///
     /// Known frameworks with OCR support:
     /// - xberg-* (all Xberg bindings support OCR)
     /// - pymupdf (supports OCR via tesseract)
     ///
-    /// Frameworks without OCR support:
-    /// - liteparse
-    /// - Other basic PDF parsers
+    /// Frameworks without OCR support include other basic PDF parsers.
     fn framework_supports_ocr(framework_name: &str) -> bool {
         let name_lower = framework_name.to_lowercase();
 
@@ -156,6 +345,10 @@ impl SubprocessAdapter {
         }
 
         if name_lower.contains("mineru") {
+            return true;
+        }
+
+        if name_lower.contains("liteparse") {
             return true;
         }
 
@@ -189,6 +382,10 @@ impl SubprocessAdapter {
             skip_files: vec![],
             format_aware: false,
             use_native_batch: false,
+            supported_output_formats: vec![OutputFormat::Markdown],
+            single_file_args: None,
+            configured_ocr_status: None,
+            batch_workers: 1,
         }
     }
 
@@ -222,6 +419,10 @@ impl SubprocessAdapter {
             skip_files: vec![],
             format_aware: false,
             use_native_batch: false,
+            supported_output_formats: vec![OutputFormat::Markdown],
+            single_file_args: None,
+            configured_ocr_status: None,
+            batch_workers: 1,
         }
     }
 
@@ -241,6 +442,32 @@ impl SubprocessAdapter {
     /// Enable format awareness: append --format=<output_format> to subprocess args
     pub fn with_format_aware(mut self, enabled: bool) -> Self {
         self.format_aware = enabled;
+        if enabled {
+            self.supported_output_formats = vec![OutputFormat::Plaintext, OutputFormat::Markdown];
+        }
+        self
+    }
+
+    pub fn with_supported_output_formats(mut self, formats: Vec<OutputFormat>) -> Self {
+        self.supported_output_formats = formats;
+        self
+    }
+
+    pub fn with_single_file_args(mut self, args: Vec<String>) -> Self {
+        self.single_file_args = Some(args);
+        self
+    }
+
+    /// Record the OCR mode requested from an external framework. This is used
+    /// only when the framework does not emit per-document OCR metadata.
+    pub fn with_configured_ocr(mut self, enabled: bool) -> Self {
+        self.configured_ocr_status = Some(if enabled { OcrStatus::Used } else { OcrStatus::NotUsed });
+        self
+    }
+
+    /// Set the bounded worker count used by native batch implementations.
+    pub fn with_batch_workers(mut self, workers: usize) -> Self {
+        self.batch_workers = workers.max(1);
         self
     }
 
@@ -272,6 +499,7 @@ impl SubprocessAdapter {
         &self,
         file_path: &Path,
         timeout: Duration,
+        force_ocr: bool,
         output_format: OutputFormat,
     ) -> Result<(String, String, Duration)> {
         let start = Instant::now();
@@ -286,7 +514,8 @@ impl SubprocessAdapter {
         if let Some(dir) = &self.working_dir {
             cmd.current_dir(dir);
         }
-        cmd.args(&self.args);
+        let request_args = self.single_file_request_args(force_ocr);
+        cmd.args(&request_args);
 
         if self.format_aware {
             cmd.arg(format!("--format={}", output_format));
@@ -301,23 +530,31 @@ impl SubprocessAdapter {
         cmd.stdin(Stdio::null());
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
+        Self::configure_child_process(&mut cmd);
 
         let child = cmd.spawn().map_err(|e| {
             Error::Benchmark(format!(
                 "Failed to spawn subprocess '{}' with args {:?}: {}",
                 self.command.display(),
-                self.args,
+                request_args,
                 e
             ))
         })?;
+        let child_pid = child.id();
+        let mut wait = Box::pin(child.wait_with_output());
 
-        let output = match tokio::time::timeout(timeout, child.wait_with_output()).await {
+        let output = match tokio::time::timeout(timeout, &mut wait).await {
             Ok(Ok(output)) => output,
             Ok(Err(e)) => {
                 return Err(Error::Benchmark(format!("Failed to wait for subprocess: {}", e)));
             }
             Err(_) => {
-                return Err(Error::Timeout(format!("Subprocess exceeded {:?}", timeout)));
+                #[cfg(unix)]
+                {
+                    Self::kill_process_group(child_pid);
+                    let _ = wait.await;
+                }
+                return Err(Self::timeout_error("Subprocess", timeout));
             }
         };
 
@@ -346,13 +583,14 @@ impl SubprocessAdapter {
         &self,
         file_paths: &[&Path],
         timeout: Duration,
+        force_ocr: bool,
         output_format: OutputFormat,
     ) -> Result<(String, String, Duration)> {
         let start = Instant::now();
 
         if self.use_native_batch && self.format_aware {
             return self
-                .execute_liteparse_native_batch(file_paths, timeout, output_format)
+                .execute_liteparse_native_batch(file_paths, timeout, force_ocr, output_format)
                 .await;
         }
 
@@ -360,7 +598,11 @@ impl SubprocessAdapter {
         if let Some(dir) = &self.working_dir {
             cmd.current_dir(dir);
         }
-        cmd.args(&self.args);
+        cmd.args(self.request_args(force_ocr));
+
+        if self.name.starts_with("xberg-") {
+            cmd.arg("--max-concurrent").arg(self.batch_workers.to_string());
+        }
 
         if self.format_aware {
             cmd.arg(format!("--format={}", output_format));
@@ -383,18 +625,26 @@ impl SubprocessAdapter {
         cmd.stdin(Stdio::null());
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
+        Self::configure_child_process(&mut cmd);
 
         let child = cmd
             .spawn()
             .map_err(|e| Error::Benchmark(format!("Failed to spawn batch subprocess: {}", e)))?;
 
-        let output = match tokio::time::timeout(timeout, child.wait_with_output()).await {
+        let child_pid = child.id();
+        let mut wait = Box::pin(child.wait_with_output());
+        let output = match tokio::time::timeout(timeout, &mut wait).await {
             Ok(Ok(output)) => output,
             Ok(Err(e)) => {
                 return Err(Error::Benchmark(format!("Failed to wait for batch subprocess: {}", e)));
             }
             Err(_) => {
-                return Err(Error::Timeout(format!("Batch subprocess exceeded {:?}", timeout)));
+                #[cfg(unix)]
+                {
+                    Self::kill_process_group(child_pid);
+                    let _ = wait.await;
+                }
+                return Err(Self::timeout_error("Batch subprocess", timeout));
             }
         };
 
@@ -415,19 +665,58 @@ impl SubprocessAdapter {
         Ok((stdout, stderr, duration))
     }
 
+    fn stage_liteparse_input(source: &Path, destination: &Path) -> Result<()> {
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(source, destination).map_err(|error| {
+                Error::Benchmark(format!(
+                    "Failed to stage LiteParse input {} at {} using a symlink: {}",
+                    source.display(),
+                    destination.display(),
+                    error
+                ))
+            })
+        }
+
+        #[cfg(windows)]
+        {
+            if std::fs::hard_link(source, destination).is_ok() {
+                return Ok(());
+            }
+
+            std::fs::copy(source, destination).map(|_| ()).map_err(|error| {
+                Error::Benchmark(format!(
+                    "Failed to stage LiteParse input {} at {} using a hard link or copy: {}",
+                    source.display(),
+                    destination.display(),
+                    error
+                ))
+            })
+        }
+
+        #[cfg(not(any(unix, windows)))]
+        {
+            std::fs::copy(source, destination).map(|_| ()).map_err(|error| {
+                Error::Benchmark(format!(
+                    "Failed to stage LiteParse input {} at {} using a copy: {}",
+                    source.display(),
+                    destination.display(),
+                    error
+                ))
+            })
+        }
+    }
+
     /// Execute liteparse native batch using lit batch-parse
     /// Uses lit batch-parse with temp directories for optimal apples-to-apples comparison
     async fn execute_liteparse_native_batch(
         &self,
         file_paths: &[&Path],
         timeout: Duration,
+        force_ocr: bool,
         output_format: OutputFormat,
     ) -> Result<(String, String, Duration)> {
         use std::fs;
-        use std::os::unix::fs as unix_fs;
-
-        let start = Instant::now();
-
         let temp_dir =
             tempfile::tempdir().map_err(|e| Error::Benchmark(format!("Failed to create temp directory: {}", e)))?;
         let input_dir = temp_dir.path().join("input");
@@ -450,8 +739,7 @@ impl SubprocessAdapter {
 
             let staged_name = format!("{}_{}", idx, file_name.to_string_lossy());
             let dest_link = input_dir.join(staged_name);
-            unix_fs::symlink(&src_absolute, &dest_link)
-                .map_err(|e| Error::Benchmark(format!("Failed to symlink file {}: {}", idx, e)))?;
+            Self::stage_liteparse_input(&src_absolute, &dest_link)?;
         }
 
         let format_arg = match output_format {
@@ -466,28 +754,19 @@ impl SubprocessAdapter {
             .arg("--format")
             .arg(format_arg)
             .arg("--num-workers")
-            .arg("4")
+            .arg(self.batch_workers.to_string())
             .arg("--quiet");
+        if !force_ocr && self.args.iter().any(|arg| arg == "--no-ocr") {
+            cmd.arg("--no-ocr");
+        }
 
         cmd.stdin(Stdio::null());
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-
-        let child = cmd
-            .spawn()
-            .map_err(|e| Error::Benchmark(format!("Failed to spawn lit batch-parse: {}", e)))?;
-
-        let output = match tokio::time::timeout(timeout, child.wait_with_output()).await {
-            Ok(Ok(output)) => output,
-            Ok(Err(e)) => {
-                return Err(Error::Benchmark(format!("Failed to wait for lit batch-parse: {}", e)));
-            }
-            Err(_) => {
-                return Err(Error::Timeout(format!("lit batch-parse exceeded {:?}", timeout)));
-            }
-        };
-
-        let duration = start.elapsed();
+        Self::configure_child_process(&mut cmd);
+        // Staging is harness setup, not framework work. Start the measured
+        // interval only after tempdir creation and input symlinks are complete.
+        let (output, duration) = Self::execute_measured_command(&mut cmd, timeout, "lit batch-parse").await?;
 
         if !output.status.success() {
             let stderr = String::from_utf8_lossy(&output.stderr);
@@ -565,12 +844,6 @@ impl SubprocessAdapter {
         error: &Error,
         output_format: OutputFormat,
     ) -> BenchmarkResult {
-        let throughput = if duration.as_secs_f64() > 0.0 {
-            file_size as f64 / duration.as_secs_f64()
-        } else {
-            0.0
-        };
-
         let framework_capabilities = FrameworkCapabilities {
             ocr_support: Self::framework_supports_ocr(&self.name),
             batch_support: self.supports_batch,
@@ -593,7 +866,7 @@ impl SubprocessAdapter {
             metrics: PerformanceMetrics {
                 peak_memory_bytes: resource_stats.peak_memory_bytes,
                 avg_cpu_percent: resource_stats.avg_cpu_percent,
-                throughput_bytes_per_sec: throughput,
+                throughput_bytes_per_sec: 0.0,
                 p50_memory_bytes: resource_stats.p50_memory_bytes,
                 p95_memory_bytes: resource_stats.p95_memory_bytes,
                 p99_memory_bytes: resource_stats.p99_memory_bytes,
@@ -717,14 +990,14 @@ impl FrameworkAdapter for SubprocessAdapter {
     }
 
     fn supported_output_formats(&self) -> Vec<OutputFormat> {
-        vec![OutputFormat::Plaintext, OutputFormat::Markdown]
+        self.supported_output_formats.clone()
     }
 
     async fn extract(
         &self,
         file_path: &Path,
         timeout: Duration,
-        _force_ocr: bool,
+        force_ocr: bool,
         output_format: OutputFormat,
     ) -> Result<BenchmarkResult> {
         let timeout = self.effective_timeout(timeout);
@@ -735,7 +1008,10 @@ impl FrameworkAdapter for SubprocessAdapter {
         let sampling_ms = crate::monitoring::adaptive_sampling_interval_ms(file_size);
         monitor.start(Duration::from_millis(sampling_ms)).await;
 
-        let (stdout, _stderr, duration) = match self.execute_subprocess(file_path, timeout, output_format).await {
+        let (stdout, _stderr, duration) = match self
+            .execute_subprocess(file_path, timeout, force_ocr, output_format)
+            .await
+        {
             Ok(result) => result,
             Err(e) => {
                 let samples = monitor.stop().await;
@@ -795,12 +1071,7 @@ impl FrameworkAdapter for SubprocessAdapter {
 
         let subprocess_overhead = extraction_duration.map(|ext| duration.saturating_sub(ext));
 
-        let effective_duration = extraction_duration.unwrap_or(duration);
-        let throughput = if effective_duration.as_secs_f64() >= MIN_VALID_DURATION_SECS {
-            file_size as f64 / effective_duration.as_secs_f64()
-        } else {
-            0.0
-        };
+        let throughput = bytes_per_second(file_size, duration);
 
         let self_reported_memory = parsed.get("_peak_memory_bytes").and_then(|v| v.as_u64());
 
@@ -823,11 +1094,7 @@ impl FrameworkAdapter for SubprocessAdapter {
             },
         };
 
-        let ocr_status = parsed
-            .get("_ocr_used")
-            .and_then(|v| v.as_bool())
-            .map(|used| if used { OcrStatus::Used } else { OcrStatus::NotUsed })
-            .unwrap_or(OcrStatus::Unknown);
+        let ocr_status = self.resolve_ocr_status(parsed.get("_ocr_used"), force_ocr);
 
         let framework_capabilities = FrameworkCapabilities {
             ocr_support: Self::framework_supports_ocr(&self.name),
@@ -891,9 +1158,26 @@ impl FrameworkAdapter for SubprocessAdapter {
         force_ocr: &[bool],
         output_format: OutputFormat,
     ) -> Result<Vec<BenchmarkResult>> {
+        if force_ocr.len() != file_paths.len() {
+            return Err(Error::Benchmark(format!(
+                "batch force_ocr cardinality mismatch: received {} flags for {} files",
+                force_ocr.len(),
+                file_paths.len()
+            )));
+        }
         if file_paths.is_empty() {
             return Ok(Vec::new());
         }
+
+        let batch_force_ocr = force_ocr.first().copied().unwrap_or(false);
+        if force_ocr.iter().any(|flag| *flag != batch_force_ocr) {
+            return Err(Error::Config(
+                "native batch extraction requires a homogeneous OCR cohort; select fixtures/shard with either all \
+                 force-OCR or all non-force-OCR documents"
+                    .to_string(),
+            ));
+        }
+
         let timeout = self
             .effective_timeout(timeout)
             .checked_mul(file_paths.len() as u32)
@@ -913,81 +1197,21 @@ impl FrameworkAdapter for SubprocessAdapter {
             .filter_map(|p| std::fs::metadata(p).ok().map(|m| m.len()))
             .sum();
 
-        let start_time = std::time::Instant::now();
         let monitor = ResourceMonitor::new();
         let sampling_ms = crate::monitoring::adaptive_sampling_interval_ms(total_file_size);
         monitor.start(Duration::from_millis(sampling_ms)).await;
 
-        let (stdout, _stderr, duration) = match self.execute_subprocess_batch(file_paths, timeout, output_format).await
+        let (stdout, _stderr, duration) = match self
+            .execute_subprocess_batch(file_paths, timeout, batch_force_ocr, output_format)
+            .await
         {
             Ok(result) => result,
             Err(e) => {
-                let samples = monitor.stop().await;
-                let snapshots = monitor.get_snapshots().await;
-                let baseline = monitor.baseline_memory().await;
-                let resource_stats = ResourceMonitor::calculate_stats(&samples, &snapshots, baseline);
-                let actual_duration = start_time.elapsed();
-
-                let num_files = file_paths.len() as f64;
-                let avg_duration_per_file = Duration::from_secs_f64(actual_duration.as_secs_f64() / num_files.max(1.0));
-
-                let framework_capabilities = FrameworkCapabilities {
-                    ocr_support: Self::framework_supports_ocr(&self.name),
-                    batch_support: self.supports_batch,
-                    ..Default::default()
-                };
-
-                let error_kind = error_to_error_kind(&e);
-                let failure_results: Vec<BenchmarkResult> = file_paths
-                    .iter()
-                    .map(|file_path| {
-                        let file_size = std::fs::metadata(file_path).map(|m| m.len()).unwrap_or(0);
-                        let file_extension = file_path
-                            .extension()
-                            .and_then(|ext| ext.to_str())
-                            .unwrap_or("")
-                            .to_string();
-
-                        let throughput = if avg_duration_per_file.as_secs_f64() > 0.0 {
-                            file_size as f64 / avg_duration_per_file.as_secs_f64()
-                        } else {
-                            0.0
-                        };
-
-                        BenchmarkResult {
-                            framework: self.name.clone(),
-                            output_format,
-                            file_path: file_path.to_path_buf(),
-                            file_size,
-                            success: false,
-                            error_message: Some(e.to_string()),
-                            error_kind,
-                            duration: avg_duration_per_file,
-                            extraction_duration: None,
-                            subprocess_overhead: None,
-                            metrics: PerformanceMetrics {
-                                peak_memory_bytes: resource_stats.peak_memory_bytes,
-                                avg_cpu_percent: resource_stats.avg_cpu_percent,
-                                throughput_bytes_per_sec: throughput,
-                                p50_memory_bytes: resource_stats.p50_memory_bytes,
-                                p95_memory_bytes: resource_stats.p95_memory_bytes,
-                                p99_memory_bytes: resource_stats.p99_memory_bytes,
-                            },
-                            quality: None,
-                            iterations: vec![],
-                            statistics: None,
-                            cold_start_duration: None,
-                            file_extension,
-                            framework_capabilities: framework_capabilities.clone(),
-                            pdf_metadata: None,
-                            ocr_status: OcrStatus::Unknown,
-                            extracted_text: None,
-                            system_load: None,
-                        }
-                    })
-                    .collect();
-
-                return Ok(failure_results);
+                let _ = monitor.stop().await;
+                // Xberg's batch CLI uses fail_if_errors: a failed item makes
+                // the process fail, so there is no honest partial envelope to
+                // synthesize into per-file benchmark rows.
+                return Err(e);
             }
         };
 
@@ -1000,95 +1224,100 @@ impl FrameworkAdapter for SubprocessAdapter {
         let baseline = monitor.baseline_memory().await;
         let resource_stats = ResourceMonitor::calculate_stats(&samples, &snapshots, baseline);
 
-        let parsed_batch: Option<Vec<serde_json::Value>> = serde_json::from_str::<Vec<serde_json::Value>>(&stdout)
-            .ok()
-            .or_else(|| serde_json::from_str::<serde_json::Value>(&stdout).ok().map(|v| vec![v]));
+        let parsed_batch = parse_batch_output(&stdout)?;
+
+        if parsed_batch.items.len() != file_paths.len() {
+            return Err(Error::Benchmark(format!(
+                "batch output cardinality mismatch: received {} results for {} files",
+                parsed_batch.items.len(),
+                file_paths.len()
+            )));
+        }
+        if parsed_batch.per_file_durations.len() != file_paths.len() {
+            return Err(Error::Benchmark(format!(
+                "batch timing cardinality mismatch: received {} per-file durations for {} files",
+                parsed_batch.per_file_durations.len(),
+                file_paths.len()
+            )));
+        }
+
+        // Use the slower of process-wall time and an adapter-reported batch
+        // makespan. This consumes Xberg's `total_ms` without allowing a
+        // self-reported inner timer to inflate cross-framework throughput.
+        let batch_makespan = parsed_batch
+            .reported_total_duration
+            .map_or(duration, |reported| duration.max(reported));
 
         let batch_ocr_statuses: Vec<OcrStatus> = parsed_batch
-            .as_ref()
-            .map(|results| {
-                results
-                    .iter()
-                    .map(|item| {
-                        item.get("_ocr_used")
-                            .and_then(|v| v.as_bool())
-                            .map(|used| if used { OcrStatus::Used } else { OcrStatus::NotUsed })
-                            .unwrap_or(OcrStatus::Unknown)
-                    })
-                    .collect()
+            .items
+            .iter()
+            .map(|item| {
+                self.resolve_ocr_status(
+                    item.get("_ocr_used")
+                        .or_else(|| item.get("metadata").and_then(|metadata| metadata.get("ocr_used"))),
+                    batch_force_ocr,
+                )
             })
-            .unwrap_or_else(|| vec![OcrStatus::Unknown; file_paths.len()]);
-
-        let batch_extraction_times: Vec<Option<Duration>> = parsed_batch
-            .as_ref()
-            .map(|results| {
-                results
-                    .iter()
-                    .map(|item| {
-                        item.get("_extraction_time_ms")
-                            .and_then(|v| v.as_f64())
-                            .map(|ms| Duration::from_secs_f64(ms / 1000.0))
-                    })
-                    .collect()
-            })
-            .unwrap_or_else(|| vec![None; file_paths.len()]);
+            .collect();
 
         let batch_contents: Vec<Option<String>> = parsed_batch
-            .as_ref()
-            .map(|results| {
-                results
-                    .iter()
-                    .map(|item| item.get("content").and_then(|v| v.as_str()).map(|s| s.to_string()))
-                    .collect()
-            })
-            .unwrap_or_else(|| vec![None; file_paths.len()]);
+            .items
+            .iter()
+            .map(|item| item.get("content").and_then(|value| value.as_str()).map(str::to_string))
+            .collect();
 
         let batch_validations: Vec<(bool, Option<String>, ErrorKind)> = parsed_batch
-            .as_ref()
-            .map(|results| {
-                results
-                    .iter()
-                    .map(|item| {
-                        if let Some(error_val) = item.get("error") {
-                            let error_msg = error_val.as_str().unwrap_or("unknown error");
-                            if !error_msg.is_empty() {
-                                let kind = if error_msg.contains("timed out") {
-                                    ErrorKind::Timeout
-                                } else {
-                                    ErrorKind::FrameworkError
-                                };
-                                return (false, Some(error_msg.to_string()), kind);
-                            }
-                        }
-                        match item.get("content").and_then(|v| v.as_str()) {
-                            Some(s) if !s.trim().is_empty() => (true, None, ErrorKind::None),
-                            Some(_) => (
-                                false,
-                                Some("Framework returned empty content".to_string()),
-                                ErrorKind::EmptyContent,
-                            ),
-                            None => (
-                                false,
-                                Some("No content extracted (unsupported format or empty result)".to_string()),
-                                ErrorKind::EmptyContent,
-                            ),
-                        }
-                    })
-                    .collect()
-            })
-            .unwrap_or_else(|| {
-                vec![
-                    (
+            .items
+            .iter()
+            .map(|item| {
+                if let Some(error_val) = item.get("error") {
+                    let error_msg = error_val.as_str().unwrap_or("unknown error");
+                    if !error_msg.is_empty() {
+                        let kind = if error_msg.contains("timed out") {
+                            ErrorKind::Timeout
+                        } else {
+                            ErrorKind::FrameworkError
+                        };
+                        return (false, Some(error_msg.to_string()), kind);
+                    }
+                }
+                match item.get("content").and_then(|value| value.as_str()) {
+                    Some(content) if !content.trim().is_empty() => (true, None, ErrorKind::None),
+                    Some(_) => (
                         false,
-                        Some("Failed to parse batch output".to_string()),
-                        ErrorKind::HarnessError
-                    );
-                    file_paths.len()
-                ]
-            });
+                        Some("Framework returned empty content".to_string()),
+                        ErrorKind::EmptyContent,
+                    ),
+                    None => (
+                        false,
+                        Some("No content extracted (unsupported format or empty result)".to_string()),
+                        ErrorKind::EmptyContent,
+                    ),
+                }
+            })
+            .collect();
 
-        let num_files = file_paths.len() as f64;
-        let avg_duration_per_file = Duration::from_secs_f64(duration.as_secs_f64() / num_files.max(1.0));
+        if let Some((index, (_, error, _))) = batch_validations
+            .iter()
+            .enumerate()
+            .find(|(_, validation)| !validation.0)
+        {
+            return Err(Error::Benchmark(format!(
+                "framework '{}' returned a partial batch failure for {}: {}",
+                self.name,
+                file_paths[index].display(),
+                error.as_deref().unwrap_or("unspecified extraction failure")
+            )));
+        }
+
+        let successful_bytes: u64 = file_paths
+            .iter()
+            .zip(&batch_validations)
+            .filter(|(_, validation)| validation.0)
+            .filter_map(|(path, _)| std::fs::metadata(path).ok().map(|metadata| metadata.len()))
+            .sum();
+        let throughput_anchor = batch_validations.iter().position(|validation| validation.0);
+        let batch_throughput = bytes_per_second(successful_bytes, batch_makespan);
 
         let framework_capabilities = FrameworkCapabilities {
             ocr_support: Self::framework_supports_ocr(&self.name),
@@ -1106,21 +1335,7 @@ impl FrameworkAdapter for SubprocessAdapter {
 
                 let ocr_status = batch_ocr_statuses.get(idx).copied().unwrap_or(OcrStatus::Unknown);
 
-                let extraction_duration = batch_extraction_times.get(idx).copied().flatten();
-
-                let effective_duration = extraction_duration.unwrap_or(avg_duration_per_file);
-                let file_throughput = if effective_duration.as_secs_f64() >= MIN_VALID_DURATION_SECS {
-                    file_size as f64 / effective_duration.as_secs_f64()
-                } else {
-                    0.0
-                };
-                let subprocess_overhead = extraction_duration.map(|ext| avg_duration_per_file.saturating_sub(ext));
-
-                let file_fraction = if total_file_size > 0 {
-                    file_size as f64 / total_file_size as f64
-                } else {
-                    1.0 / file_paths.len() as f64
-                };
+                let extraction_duration = parsed_batch.per_file_durations[idx];
 
                 let (item_success, item_error, item_error_kind) = batch_validations.get(idx).cloned().unwrap_or((
                     false,
@@ -1136,16 +1351,23 @@ impl FrameworkAdapter for SubprocessAdapter {
                     success: item_success,
                     error_message: item_error,
                     error_kind: item_error_kind,
-                    duration: avg_duration_per_file,
+                    duration: batch_makespan,
                     extraction_duration,
-                    subprocess_overhead,
+                    subprocess_overhead: None,
                     metrics: PerformanceMetrics {
-                        peak_memory_bytes: (resource_stats.peak_memory_bytes as f64 * file_fraction) as u64,
+                        peak_memory_bytes: resource_stats.peak_memory_bytes,
                         avg_cpu_percent: resource_stats.avg_cpu_percent,
-                        throughput_bytes_per_sec: file_throughput,
-                        p50_memory_bytes: (resource_stats.p50_memory_bytes as f64 * file_fraction) as u64,
-                        p95_memory_bytes: (resource_stats.p95_memory_bytes as f64 * file_fraction) as u64,
-                        p99_memory_bytes: (resource_stats.p99_memory_bytes as f64 * file_fraction) as u64,
+                        // The per-item schema has no batch-level metrics slot.
+                        // Store aggregate throughput once so downstream filters
+                        // recover it without multiplying it by batch cardinality.
+                        throughput_bytes_per_sec: if throughput_anchor == Some(idx) {
+                            batch_throughput
+                        } else {
+                            0.0
+                        },
+                        p50_memory_bytes: resource_stats.p50_memory_bytes,
+                        p95_memory_bytes: resource_stats.p95_memory_bytes,
+                        p99_memory_bytes: resource_stats.p99_memory_bytes,
                     },
                     quality: None,
                     iterations: vec![],
@@ -1405,6 +1627,10 @@ mod tests {
             SubprocessAdapter::new("test", "echo", vec![], vec![], vec!["pdf".to_string()]).with_format_aware(true);
         assert!(adapter.format_aware);
         assert!(!adapter.use_native_batch);
+        assert_eq!(
+            adapter.supported_output_formats(),
+            vec![OutputFormat::Plaintext, OutputFormat::Markdown]
+        );
     }
 
     #[test]
@@ -1415,5 +1641,361 @@ mod tests {
         assert!(adapter.supports_batch);
         assert!(adapter.format_aware);
         assert!(adapter.use_native_batch);
+    }
+
+    #[test]
+    fn configured_external_ocr_status_is_used_when_output_has_no_metadata() {
+        let enabled = SubprocessAdapter::new("docling", "echo", vec![], vec![], vec!["pdf".to_string()])
+            .with_configured_ocr(true);
+        let disabled = SubprocessAdapter::new("docling", "echo", vec![], vec![], vec!["pdf".to_string()])
+            .with_configured_ocr(false);
+
+        assert_eq!(enabled.resolve_ocr_status(None, false), OcrStatus::Used);
+        assert_eq!(disabled.resolve_ocr_status(None, false), OcrStatus::NotUsed);
+        assert_eq!(disabled.resolve_ocr_status(None, true), OcrStatus::Used);
+    }
+
+    #[test]
+    fn batch_worker_builder_uses_requested_nonzero_limit() {
+        let requested =
+            SubprocessAdapter::new("test", "echo", vec![], vec![], vec!["pdf".to_string()]).with_batch_workers(7);
+        let zero =
+            SubprocessAdapter::new("test", "echo", vec![], vec![], vec!["pdf".to_string()]).with_batch_workers(0);
+
+        assert_eq!(requested.batch_workers, 7);
+        assert_eq!(zero.batch_workers, 1);
+    }
+
+    #[test]
+    fn forced_ocr_upgrades_external_no_ocr_flag() {
+        let adapter = SubprocessAdapter::new(
+            "docling",
+            "echo",
+            vec!["--no-ocr".to_string(), "sync".to_string()],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+
+        assert_eq!(adapter.request_args(false)[0], "--no-ocr");
+        assert_eq!(adapter.request_args(true)[0], "--ocr");
+    }
+
+    #[test]
+    fn forced_ocr_upgrades_xberg_boolean_args() {
+        let adapter = SubprocessAdapter::new(
+            "xberg-markdown-baseline",
+            "echo",
+            vec!["--ocr".to_string(), "false".to_string()],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+
+        let args = adapter.request_args(true);
+        assert_eq!(&args[..2], ["--ocr", "true"]);
+        assert!(args.windows(2).any(|pair| pair == ["--force-ocr", "true"]));
+    }
+
+    #[test]
+    fn throughput_uses_total_bytes_over_makespan() {
+        assert_eq!(bytes_per_second(4_000, Duration::from_secs(2)), 2_000.0);
+        assert_eq!(bytes_per_second(4_000, Duration::ZERO), 0.0);
+    }
+
+    #[tokio::test]
+    async fn batch_rejects_force_ocr_cardinality_mismatch() {
+        let adapter = SubprocessAdapter::with_batch_support("test", "echo", vec![], vec![], vec!["pdf".to_string()]);
+        let input = tempfile::NamedTempFile::new().unwrap();
+        let error = adapter
+            .extract_batch(&[input.path()], Duration::from_secs(1), &[], OutputFormat::Markdown)
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("force_ocr cardinality mismatch"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn single_throughput_uses_wall_duration() {
+        let adapter = SubprocessAdapter::new(
+            "test",
+            "sh",
+            vec![
+                "-c".to_string(),
+                "sleep 0.05; printf '{\"content\":\"ok\",\"_extraction_time_ms\":1}'".to_string(),
+            ],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+        let mut input = tempfile::NamedTempFile::new().unwrap();
+        std::io::Write::write_all(&mut input, &[0; 100]).unwrap();
+
+        let result = adapter
+            .extract(input.path(), Duration::from_secs(1), false, OutputFormat::Markdown)
+            .await
+            .unwrap();
+        let expected = bytes_per_second(result.file_size, result.duration);
+        assert!((result.metrics.throughput_bytes_per_sec - expected).abs() < f64::EPSILON);
+        assert_eq!(result.extraction_duration, Some(Duration::from_millis(1)));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn batch_rejects_output_cardinality_mismatch() {
+        let adapter = SubprocessAdapter::with_batch_support(
+            "test",
+            "sh",
+            vec!["-c".to_string(), "printf '[{\"content\":\"only one\"}]'".to_string()],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+        let first = tempfile::NamedTempFile::new().unwrap();
+        let second = tempfile::NamedTempFile::new().unwrap();
+        let error = adapter
+            .extract_batch(
+                &[first.path(), second.path()],
+                Duration::from_secs(1),
+                &[false, false],
+                OutputFormat::Markdown,
+            )
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("batch output cardinality mismatch"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn xberg_batch_envelope_uses_reported_timings_ocr_and_honest_throughput() {
+        let adapter = SubprocessAdapter::with_batch_support(
+            "test",
+            "sh",
+            vec![
+                "-c".to_string(),
+                "printf '{\"results\":[{\"content\":\"one\",\"metadata\":{\"ocr_used\":false}},{\"content\":\"two\",\"metadata\":{\"ocr_used\":true}}],\"total_ms\":2000,\"per_file_ms\":[100,200]}'"
+                    .to_string(),
+            ],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+        let mut first = tempfile::NamedTempFile::new().unwrap();
+        let mut second = tempfile::NamedTempFile::new().unwrap();
+        std::io::Write::write_all(&mut first, &[0; 100]).unwrap();
+        std::io::Write::write_all(&mut second, &[0; 300]).unwrap();
+        let results = adapter
+            .extract_batch(
+                &[first.path(), second.path()],
+                Duration::from_secs(1),
+                &[false, false],
+                OutputFormat::Markdown,
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().all(|result| result.duration == Duration::from_secs(2)));
+        assert_eq!(results[0].extraction_duration, Some(Duration::from_millis(100)));
+        assert_eq!(results[1].extraction_duration, Some(Duration::from_millis(200)));
+        assert!(results.iter().all(|result| result.subprocess_overhead.is_none()));
+        assert_eq!(results[0].ocr_status, OcrStatus::NotUsed);
+        assert_eq!(results[1].ocr_status, OcrStatus::Used);
+        assert_eq!(results[0].extracted_text.as_deref(), Some("one"));
+        assert_eq!(results[1].extracted_text.as_deref(), Some("two"));
+        let total_throughput = results
+            .iter()
+            .map(|result| result.metrics.throughput_bytes_per_sec)
+            .sum::<f64>();
+        assert_eq!(total_throughput, 200.0);
+        assert_eq!(results[0].metrics.throughput_bytes_per_sec, 200.0);
+        assert_eq!(results[1].metrics.throughput_bytes_per_sec, 0.0);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn batch_process_failure_is_reported_as_batch_error() {
+        let adapter = SubprocessAdapter::with_batch_support(
+            "test",
+            "sh",
+            vec!["-c".to_string(), "printf 'batch failed' >&2; exit 9".to_string()],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+        let first = tempfile::NamedTempFile::new().unwrap();
+        let second = tempfile::NamedTempFile::new().unwrap();
+
+        let error = adapter
+            .extract_batch(
+                &[first.path(), second.path()],
+                Duration::from_secs(1),
+                &[false, false],
+                OutputFormat::Markdown,
+            )
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("batch failed"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn partial_batch_item_failure_rejects_entire_batch() {
+        let adapter = SubprocessAdapter::with_batch_support(
+            "test",
+            "sh",
+            vec![
+                "-c".to_string(),
+                "printf '[{\"content\":\"ok\"},{\"error\":\"failed item\"}]'".to_string(),
+            ],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+        let first = tempfile::NamedTempFile::new().unwrap();
+        let second = tempfile::NamedTempFile::new().unwrap();
+
+        let error = adapter
+            .extract_batch(
+                &[first.path(), second.path()],
+                Duration::from_secs(1),
+                &[false, false],
+                OutputFormat::Markdown,
+            )
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("partial batch failure"));
+        assert!(error.to_string().contains("failed item"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn batch_rejects_envelope_timing_cardinality_mismatch() {
+        let adapter = SubprocessAdapter::with_batch_support(
+            "test",
+            "sh",
+            vec![
+                "-c".to_string(),
+                "printf '{\"results\":[{\"content\":\"one\"},{\"content\":\"two\"}],\"total_ms\":10,\"per_file_ms\":[1]}'"
+                    .to_string(),
+            ],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+        let first = tempfile::NamedTempFile::new().unwrap();
+        let second = tempfile::NamedTempFile::new().unwrap();
+
+        let error = adapter
+            .extract_batch(
+                &[first.path(), second.path()],
+                Duration::from_secs(1),
+                &[false, false],
+                OutputFormat::Markdown,
+            )
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("batch timing cardinality mismatch"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn mixed_ocr_batch_is_rejected_as_non_comparable() {
+        let adapter = SubprocessAdapter::with_batch_support(
+            "test",
+            "sh",
+            vec!["-c".to_string(), "exit 99".to_string()],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+        let first = tempfile::NamedTempFile::new().unwrap();
+        let second = tempfile::NamedTempFile::new().unwrap();
+
+        let error = adapter
+            .extract_batch(
+                &[first.path(), second.path()],
+                Duration::from_secs(1),
+                &[false, true],
+                OutputFormat::Markdown,
+            )
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("homogeneous OCR cohort"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn subprocess_timeout_kills_and_reaps_process_group() {
+        let adapter = SubprocessAdapter::new(
+            "timeout-test",
+            "sh",
+            vec!["-c".to_string(), "sleep 30 & wait".to_string()],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+        let input = tempfile::NamedTempFile::new().unwrap();
+        let start = Instant::now();
+
+        let error = adapter
+            .execute_subprocess(input.path(), Duration::from_millis(50), false, OutputFormat::Markdown)
+            .await
+            .unwrap_err();
+
+        assert!(matches!(error, Error::Timeout(_)));
+        assert!(start.elapsed() < Duration::from_secs(2));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn measured_command_timer_excludes_pre_spawn_staging() {
+        let wall_start = Instant::now();
+        tokio::time::sleep(Duration::from_millis(60)).await;
+        let mut cmd = Command::new("sh");
+        cmd.args(["-c", "sleep 0.02; printf ok"])
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        SubprocessAdapter::configure_child_process(&mut cmd);
+
+        let (output, measured) =
+            SubprocessAdapter::execute_measured_command(&mut cmd, Duration::from_secs(1), "timer test")
+                .await
+                .unwrap();
+
+        assert!(output.status.success());
+        assert!(wall_start.elapsed().saturating_sub(measured) >= Duration::from_millis(40));
+    }
+
+    #[test]
+    fn liteparse_staging_produces_a_readable_input() {
+        let source = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(source.path(), b"staged input").unwrap();
+        let destination_dir = tempfile::tempdir().unwrap();
+        let destination = destination_dir.path().join("input.pdf");
+
+        SubprocessAdapter::stage_liteparse_input(source.path(), &destination).unwrap();
+
+        assert_eq!(std::fs::read(destination).unwrap(), b"staged input");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn liteparse_staging_uses_symlink_on_unix() {
+        let source = tempfile::NamedTempFile::new().unwrap();
+        let destination_dir = tempfile::tempdir().unwrap();
+        let destination = destination_dir.path().join("input.pdf");
+
+        SubprocessAdapter::stage_liteparse_input(source.path(), &destination).unwrap();
+
+        assert!(std::fs::symlink_metadata(destination).unwrap().file_type().is_symlink());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn liteparse_staging_uses_windows_safe_link_or_copy() {
+        let source = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(source.path(), b"windows input").unwrap();
+        let destination_dir = tempfile::tempdir().unwrap();
+        let destination = destination_dir.path().join("input.pdf");
+
+        SubprocessAdapter::stage_liteparse_input(source.path(), &destination).unwrap();
+
+        assert_eq!(std::fs::read(destination).unwrap(), b"windows input");
     }
 }

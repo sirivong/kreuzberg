@@ -272,12 +272,16 @@ fn calculate_framework_stats(results: &[&BenchmarkResult]) -> FrameworkExtension
         None
     };
 
-    let avg_throughput_mbps = if !successful_results.is_empty() {
-        successful_results
-            .iter()
-            .map(|r| r.metrics.throughput_bytes_per_sec / 1_000_000.0)
-            .sum::<f64>()
-            / successful_results.len() as f64
+    // Batch adapters store one positive aggregate-throughput anchor and zero
+    // on sibling per-file rows. Average only reported measurements so the
+    // anchor is not divided by successful batch cardinality.
+    let reported_throughputs: Vec<f64> = successful_results
+        .iter()
+        .map(|r| r.metrics.throughput_bytes_per_sec / 1_000_000.0)
+        .filter(|throughput| throughput.is_finite() && *throughput > 0.0)
+        .collect();
+    let avg_throughput_mbps = if !reported_throughputs.is_empty() {
+        reported_throughputs.iter().sum::<f64>() / reported_throughputs.len() as f64
     } else {
         0.0
     };
@@ -609,6 +613,18 @@ mod tests {
 
         assert!(stats.avg_extraction_duration_ms.is_some());
         assert!((stats.avg_extraction_duration_ms.unwrap() - 100.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn test_framework_stats_does_not_divide_batch_throughput_anchor_by_cardinality() {
+        let anchor = create_benchmark_result("framework1", true, 100, None, 3_000_000.0, 10_000_000);
+        let sibling1 = create_benchmark_result("framework1", true, 100, None, 0.0, 10_000_000);
+        let sibling2 = create_benchmark_result("framework1", true, 100, None, 0.0, 10_000_000);
+        let results = vec![&anchor, &sibling1, &sibling2];
+
+        let stats = calculate_framework_stats(&results);
+
+        assert_eq!(stats.avg_throughput_mbps, 3.0);
     }
 
     #[test]

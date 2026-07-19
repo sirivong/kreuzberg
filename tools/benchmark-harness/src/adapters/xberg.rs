@@ -26,6 +26,7 @@ use which::which;
 /// `SubprocessAdapter::parse_output` (`adapters/subprocess.rs`), which is out of scope for this
 /// change — see the module-level TODO below.
 const STAGE_TIMING_ENV_VAR: &str = "XBERG_EMIT_STAGE_TIMING";
+const BENCHMARK_CONFIG_JSON: &str = r#"{"extraction_timeout_secs":1740,"use_cache":false}"#;
 
 /// Creates a Xberg adapter for the given pipeline and configuration.
 ///
@@ -41,7 +42,25 @@ pub fn create_xberg_adapter(
     pipeline: XbergPipeline,
     output_format: OutputFormat,
     batch: bool,
+    ocr_enabled: bool,
 ) -> Result<SubprocessAdapter> {
+    if !ocr_enabled
+        && matches!(
+            pipeline,
+            XbergPipeline::PaddleOcr
+                | XbergPipeline::CandleTrocr
+                | XbergPipeline::CandlePaddleocrVl
+                | XbergPipeline::CandleGlmOcr
+                | XbergPipeline::CandleDeepseekOcr
+                | XbergPipeline::CandlePaddleocrVl15
+        )
+    {
+        return Err(crate::Error::Config(format!(
+            "xberg pipeline '{}' requires OCR, but OCR is disabled",
+            pipeline.as_str()
+        )));
+    }
+
     let cli_path = locate_xberg_cli()?;
 
     let content_format = match output_format {
@@ -57,13 +76,13 @@ pub fn create_xberg_adapter(
         "--content-format".to_string(),
         content_format.to_string(),
         "--config-json".to_string(),
-        r#"{"extraction_timeout_secs":1740}"#.to_string(),
+        BENCHMARK_CONFIG_JSON.to_string(),
     ];
 
     match pipeline {
         XbergPipeline::Baseline => {
             args.push("--ocr".to_string());
-            args.push("true".to_string());
+            args.push(ocr_enabled.to_string());
             args.push("--ocr-backend".to_string());
             args.push("tesseract".to_string());
         }
@@ -72,7 +91,7 @@ pub fn create_xberg_adapter(
             args.push("true".to_string());
             args.push("--use-layout-for-markdown".to_string());
             args.push("--ocr".to_string());
-            args.push("true".to_string());
+            args.push(ocr_enabled.to_string());
             args.push("--ocr-backend".to_string());
             args.push("tesseract".to_string());
         }
@@ -149,11 +168,21 @@ pub fn create_xberg_adapter(
 
     let env = vec![(STAGE_TIMING_ENV_VAR.to_string(), "1".to_string())];
 
-    let adapter = if batch {
+    let single_file_args = batch.then(|| {
+        let mut single_args = args.clone();
+        single_args[0] = "extract".to_string();
+        single_args
+    });
+
+    let mut adapter = if batch {
         SubprocessAdapter::with_batch_support(&framework_name, cli_path, args, env, supported_formats)
     } else {
         SubprocessAdapter::new(&framework_name, cli_path, args, env, supported_formats)
-    };
+    }
+    .with_supported_output_formats(vec![output_format]);
+    if let Some(single_args) = single_file_args {
+        adapter = adapter.with_single_file_args(single_args);
+    }
 
     Ok(adapter)
 }
@@ -215,5 +244,20 @@ mod tests {
     #[test]
     fn test_output_format_plaintext() {
         assert_eq!(OutputFormat::Plaintext.to_string(), "plaintext");
+    }
+
+    #[test]
+    fn benchmark_config_disables_extraction_cache() {
+        let config: serde_json::Value = serde_json::from_str(BENCHMARK_CONFIG_JSON).unwrap();
+        assert_eq!(config["use_cache"], false);
+    }
+
+    #[test]
+    fn ocr_only_pipeline_is_rejected_when_ocr_is_disabled() {
+        let error = match create_xberg_adapter(XbergPipeline::PaddleOcr, OutputFormat::Markdown, false, false) {
+            Ok(_) => panic!("OCR-only adapter should not be created when OCR is disabled"),
+            Err(error) => error,
+        };
+        assert!(error.to_string().contains("requires OCR"));
     }
 }

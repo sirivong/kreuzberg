@@ -1,8 +1,8 @@
-//! Aggregation module for benchmark results (v2.4.0 output schema).
+//! Aggregation module for benchmark results (v2.6.0 output schema).
 //!
 //! Groups [`BenchmarkResult`] records by framework-and-mode, output format, file type, and
 //! OCR usage (yes/no), then computes percentile-based statistics for each
-//! group. The output schema (`schema_version: "2.4.0"`) surfaces TF1 and SF1 separately
+//! group. The output schema (`schema_version: "2.6.0"`) surfaces TF1 and SF1 separately
 //! with per-fixture rows preserved and split rankings by output format.
 //!
 //! # Percentile methodology
@@ -39,9 +39,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Schema version for the aggregated output format.
-pub const SCHEMA_VERSION: &str = "2.5.0";
+pub const SCHEMA_VERSION: &str = "2.6.0";
 
-/// Consolidated results using new aggregation format (v2.4.0)
+/// Consolidated results using aggregation format v2.6.0.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NewConsolidatedResults {
     /// Schema version for this output format
@@ -67,8 +67,8 @@ pub struct PerFixtureRow {
     pub output_format: OutputFormat,
     /// Execution mode (single, batch, etc.)
     pub execution_mode: String,
-    /// Whether OCR was used
-    pub ocr: bool,
+    /// Whether OCR was actually used, or `null` when the framework did not report it.
+    pub ocr: Option<bool>,
     /// Fixture ID (e.g., from file path)
     pub fixture_id: String,
     /// File type/extension
@@ -445,7 +445,11 @@ fn build_per_fixture_results(results: &[BenchmarkResult]) -> Vec<PerFixtureRow> 
             .unwrap_or("unknown")
             .to_string();
 
-        let ocr = matches!(result.ocr_status, crate::types::OcrStatus::Used);
+        let ocr = match result.ocr_status {
+            crate::types::OcrStatus::Used => Some(true),
+            crate::types::OcrStatus::NotUsed => Some(false),
+            crate::types::OcrStatus::Unknown => None,
+        };
         let error_kind = if !result.success {
             Some(format!("{:?}", result.error_kind))
         } else {
@@ -494,20 +498,19 @@ fn aggregate_by_ocr_status(
 ) -> (Option<PerformancePercentiles>, Option<PerformancePercentiles>) {
     use crate::types::OcrStatus;
 
-    let is_ocr_result = |r: &&BenchmarkResult| -> bool {
-        match r.ocr_status {
-            OcrStatus::Used => true,
-            OcrStatus::NotUsed => false,
-            OcrStatus::Unknown => matches!(
-                r.file_extension.to_lowercase().as_str(),
-                "jpg" | "jpeg" | "png" | "gif" | "bmp" | "tiff" | "tif" | "webp" | "jp2" | "jpx" | "jpm" | "mj2"
-            ),
-        }
-    };
+    // Unknown is deliberately excluded from both cohorts. In particular, an
+    // unreported PDF OCR status must never be presented as a no-OCR result.
+    let no_ocr: Vec<&BenchmarkResult> = results
+        .iter()
+        .filter(|result| result.ocr_status == OcrStatus::NotUsed)
+        .copied()
+        .collect();
 
-    let no_ocr: Vec<&BenchmarkResult> = results.iter().filter(|r| !is_ocr_result(r)).copied().collect();
-
-    let with_ocr: Vec<&BenchmarkResult> = results.iter().filter(|r| is_ocr_result(r)).copied().collect();
+    let with_ocr: Vec<&BenchmarkResult> = results
+        .iter()
+        .filter(|result| result.ocr_status == OcrStatus::Used)
+        .copied()
+        .collect();
 
     let no_ocr_stats = if !no_ocr.is_empty() {
         Some(calculate_percentiles(&no_ocr))
@@ -1324,7 +1327,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ocr_unknown_handling() {
+    fn test_ocr_unknown_is_not_mislabeled() {
         let results = vec![BenchmarkResult {
             framework: "test-framework".to_string(),
             file_path: PathBuf::from("/tmp/test1.pdf"),
@@ -1363,8 +1366,8 @@ mod tests {
             .get("test-framework:markdown:single")
             .unwrap();
         let file_type = framework_mode.by_file_type.get("pdf").unwrap();
-        assert!(file_type.no_ocr.is_some());
-        assert_eq!(file_type.no_ocr.as_ref().unwrap().successful_sample_count, 1);
+        assert!(file_type.no_ocr.is_none());
+        assert!(file_type.with_ocr.is_none());
     }
 
     #[test]
@@ -1583,6 +1586,17 @@ mod tests {
         let with_ocr_perf = with_ocr.unwrap();
         assert!(with_ocr_perf.extraction_duration.is_some());
         assert_eq!(with_ocr_perf.extraction_duration.as_ref().unwrap().p50, 250.0);
+    }
+
+    #[test]
+    fn unknown_pdf_ocr_status_is_excluded_from_ocr_cohorts() {
+        let unknown = create_test_result("framework1", "pdf", OcrStatus::Unknown, 100, 1_000_000.0, 10_000_000);
+        let refs = vec![&unknown];
+
+        let (no_ocr, with_ocr) = aggregate_by_ocr_status(&refs);
+
+        assert!(no_ocr.is_none());
+        assert!(with_ocr.is_none());
     }
 
     #[test]

@@ -12,9 +12,9 @@ use std::path::Path;
 /// Load benchmark results from `results.json` files in a directory.
 ///
 /// Recursively walks the given directory, loading any `results.json` files found.
-/// For directories whose name ends with `-batch`, the framework name in each result
-/// is suffixed with `-batch` so that the aggregation layer can distinguish single-
-/// vs batch-mode results.
+/// For canonical batch directories (`batch`, `batch-*`, or legacy `*-batch`), the
+/// framework name in each result is suffixed with `-batch` so that the aggregation
+/// layer can distinguish single- vs batch-mode results.
 ///
 /// # Errors
 ///
@@ -32,8 +32,7 @@ pub fn load_run_results(dir: &Path) -> Result<Vec<BenchmarkResult>> {
             let mut run_results: Vec<BenchmarkResult> = serde_json::from_str(&json_content)
                 .map_err(|e| Error::Benchmark(format!("Failed to parse {}: {}", path.display(), e)))?;
 
-            let dir_name = dir.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            let is_batch = dir_name.ends_with("-batch");
+            let is_batch = is_batch_results_dir(dir);
 
             if is_batch {
                 for result in &mut run_results {
@@ -50,18 +49,25 @@ pub fn load_run_results(dir: &Path) -> Result<Vec<BenchmarkResult>> {
 
             results.extend(run_results);
         } else if path.is_dir() {
-            match load_run_results(&path) {
-                Ok(mut run_results) => results.append(&mut run_results),
-                Err(e) => eprintln!("Warning: Failed to load results from {}: {}", path.display(), e),
-            }
+            let mut run_results = load_run_results(&path)?;
+            results.append(&mut run_results);
         }
     }
     Ok(results)
 }
 
+fn is_batch_results_dir(dir: &Path) -> bool {
+    let Some(name) = dir.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+
+    name == "batch" || name.starts_with("batch-") || name.ends_with("-batch")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::aggregate_new_format;
     use crate::types::{ErrorKind, FrameworkCapabilities, OutputFormat, PerformanceMetrics};
     use std::time::Duration;
 
@@ -142,6 +148,44 @@ mod tests {
     }
 
     #[test]
+    fn canonical_batch_heuristic_tags_liteparse_and_aggregates_as_batch() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let batch_dir = dir.path().join("batch-heuristic");
+        fs::create_dir_all(&batch_dir).expect("create subdir");
+
+        let results = vec![make_result("liteparse")];
+        fs::write(
+            batch_dir.join("results.json"),
+            serde_json::to_string(&results).expect("serialize"),
+        )
+        .expect("write");
+
+        let loaded = load_run_results(dir.path()).expect("load");
+        assert_eq!(loaded[0].framework, "liteparse-batch");
+
+        let aggregated = aggregate_new_format(&loaded);
+        assert!(aggregated.by_framework_mode.contains_key("liteparse:markdown:batch"));
+        assert!(!aggregated.by_framework_mode.contains_key("liteparse:markdown:single"));
+    }
+
+    #[test]
+    fn canonical_batch_ocr_tags_xberg_without_doubling_suffix() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let batch_dir = dir.path().join("batch-ocr");
+        fs::create_dir_all(&batch_dir).expect("create subdir");
+
+        let results = vec![make_result("xberg-rust-batch")];
+        fs::write(
+            batch_dir.join("results.json"),
+            serde_json::to_string(&results).expect("serialize"),
+        )
+        .expect("write");
+
+        let loaded = load_run_results(dir.path()).expect("load");
+        assert_eq!(loaded[0].framework, "xberg-rust-batch");
+    }
+
+    #[test]
     fn test_recursive_loading() {
         let dir = tempfile::tempdir().expect("create temp dir");
         let sub1 = dir.path().join("framework-a");
@@ -176,6 +220,36 @@ mod tests {
         assert!(result.is_err());
         let err_msg = format!("{}", result.unwrap_err());
         assert!(err_msg.contains("Failed to parse"));
+    }
+
+    #[test]
+    fn malformed_nested_results_propagate_error() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let nested = dir.path().join("nested").join("deeper");
+        fs::create_dir_all(&nested).expect("create nested dirs");
+        fs::write(nested.join("results.json"), "NOT VALID JSON").expect("write");
+
+        let error = load_run_results(dir.path()).unwrap_err();
+        assert!(error.to_string().contains("Failed to parse"));
+        assert!(error.to_string().contains("nested/deeper/results.json"));
+    }
+
+    #[test]
+    fn invalid_nested_result_propagates_validation_error() {
+        let dir = tempfile::tempdir().expect("create temp dir");
+        let nested = dir.path().join("nested");
+        fs::create_dir_all(&nested).expect("create nested dir");
+        let mut invalid = make_result("liteparse");
+        invalid.error_message = Some("inconsistent success state".to_string());
+        fs::write(
+            nested.join("results.json"),
+            serde_json::to_string(&vec![invalid]).expect("serialize"),
+        )
+        .expect("write");
+
+        let error = load_run_results(dir.path()).unwrap_err();
+        assert!(error.to_string().contains("Invalid result"));
+        assert!(error.to_string().contains("nested/results.json"));
     }
 
     #[test]

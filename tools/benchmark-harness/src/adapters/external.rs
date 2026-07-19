@@ -93,6 +93,7 @@ pub fn create_docling_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
     let supported_formats = get_supported_formats("docling");
     Ok(
         SubprocessAdapter::new("docling", command, args, vec![], supported_formats)
+            .with_configured_ocr(ocr_enabled)
             .with_format_aware(true)
             .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS)),
     )
@@ -112,6 +113,7 @@ pub fn create_unstructured_adapter(ocr_enabled: bool) -> Result<SubprocessAdapte
     let supported_formats = get_supported_formats("unstructured");
     Ok(
         SubprocessAdapter::new("unstructured", command, args, vec![], supported_formats)
+            .with_configured_ocr(ocr_enabled)
             .with_format_aware(true)
             .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS)),
     )
@@ -129,6 +131,7 @@ pub fn create_markitdown_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter>
     let supported_formats = get_supported_formats("markitdown");
     Ok(
         SubprocessAdapter::new("markitdown", command, args, vec![], supported_formats)
+            .with_configured_ocr(ocr_enabled)
             .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS)),
     )
 }
@@ -154,6 +157,7 @@ pub fn create_liteparse_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> 
     let supported_formats = get_supported_formats("liteparse");
     Ok(
         SubprocessAdapter::with_batch_support("liteparse", command, args, vec![], supported_formats)
+            .with_configured_ocr(ocr_enabled)
             .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS))
             .with_format_aware(true)
             .with_native_batch(true),
@@ -357,6 +361,8 @@ pub fn create_tika_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
 
     let supported_formats = get_supported_formats("tika");
     Ok(SubprocessAdapter::new("tika", command, args, vec![], supported_formats)
+        .with_configured_ocr(ocr_enabled)
+        .with_supported_output_formats(vec![crate::types::OutputFormat::Plaintext])
         .with_max_timeout(Duration::from_secs(180)))
 }
 
@@ -372,6 +378,7 @@ pub fn create_pymupdf4llm_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter
     let supported_formats = get_supported_formats("pymupdf4llm");
     Ok(
         SubprocessAdapter::new("pymupdf4llm", command, args, vec![], supported_formats)
+            .with_configured_ocr(ocr_enabled)
             .with_max_timeout(Duration::from_secs(SLOW_ML_TIMEOUT_SECS)),
     )
 }
@@ -390,6 +397,7 @@ pub fn create_mineru_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
     let supported_formats = get_supported_formats("mineru");
     Ok(
         SubprocessAdapter::new("mineru", command, args, vec![], supported_formats)
+            .with_configured_ocr(ocr_enabled)
             .with_format_aware(true)
             .with_max_timeout(Duration::from_secs(SLOW_ML_TIMEOUT_SECS)),
     )

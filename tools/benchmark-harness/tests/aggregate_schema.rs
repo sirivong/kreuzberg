@@ -50,7 +50,7 @@ fn make_benchmark_result(
 }
 
 #[test]
-fn test_schema_version_2_5_0() {
+fn test_schema_version_2_6_0() {
     let results = vec![make_benchmark_result(
         "xberg-markdown-baseline",
         OutputFormat::Markdown,
@@ -69,7 +69,7 @@ fn test_schema_version_2_5_0() {
     )];
 
     let aggregated = aggregate_new_format(&results);
-    assert_eq!(aggregated.schema_version, "2.5.0");
+    assert_eq!(aggregated.schema_version, "2.6.0");
 }
 
 #[test]
@@ -395,8 +395,26 @@ fn test_ocr_flag_in_per_fixture() {
 
     assert!(no_ocr_row.is_some());
     assert!(with_ocr_row.is_some());
-    assert!(!no_ocr_row.unwrap().ocr);
-    assert!(with_ocr_row.unwrap().ocr);
+    assert_eq!(no_ocr_row.unwrap().ocr, Some(false));
+    assert_eq!(with_ocr_row.unwrap().ocr, Some(true));
+}
+
+#[test]
+fn test_unknown_ocr_status_serializes_as_null() {
+    let mut result = make_benchmark_result(
+        "test-framework",
+        OutputFormat::Markdown,
+        "unknown.pdf",
+        false,
+        true,
+        None,
+    );
+    result.ocr_status = OcrStatus::Unknown;
+
+    let aggregated = aggregate_new_format(&[result]);
+    assert_eq!(aggregated.per_fixture_results[0].ocr, None);
+    let serialized = serde_json::to_value(&aggregated).unwrap();
+    assert!(serialized["per_fixture_results"][0]["ocr"].is_null());
 }
 
 #[test]
@@ -404,7 +422,7 @@ fn test_empty_results() {
     let results = vec![];
     let aggregated = aggregate_new_format(&results);
 
-    assert_eq!(aggregated.schema_version, "2.5.0");
+    assert_eq!(aggregated.schema_version, "2.6.0");
     assert!(aggregated.by_framework_mode.is_empty());
     assert!(aggregated.per_fixture_results.is_empty());
     assert_eq!(aggregated.metadata.total_results, 0);
