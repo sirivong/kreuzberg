@@ -127,7 +127,7 @@ Apple Silicon (arm64) macOS is fully supported across every package. On **Intel 
   ***
 
   ```bash
-  go get github.com/xberg-io/xberg@latest
+  go get github.com/xberg-io/xberg/packages/go@latest
   ```
 
   [API Reference](/reference/api-go/)
@@ -459,8 +459,14 @@ The Windows NIF links against ONNX Runtime dynamically. `onnxruntime.dll` must b
 ### Go
 
 ```bash
-go get github.com/xberg-io/xberg@latest
+go get github.com/xberg-io/xberg/packages/go@latest
 ```
+
+:::caution[Not a Go module]
+The repository root is not a Go module — `go get github.com/xberg-io/xberg` (without the
+`/packages/go` suffix) fails, resolving against a stale Go module-proxy cache entry. Always
+target the `/packages/go` subdirectory as shown above.
+:::
 
 :::caution[Windows]
 The Go binding links against ONNX Runtime dynamically on Windows. `onnxruntime.dll` must be on your `PATH` at runtime — see the note at the top of this page.

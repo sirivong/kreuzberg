@@ -49,6 +49,10 @@ go get {{ package_name }}@latest
 go get {{ package_name }}@v{{ version }}
 ```
 
+> ⚠️ Do not run `go get github.com/xberg-io/xberg` — the repository root is not a Go module.
+> Always target the `/packages/go` subdirectory as shown above; the bare-root path resolves
+> against a stale Go module-proxy cache entry and fails.
+
 You'll need to provide the static library at build time. See [Building with Static Libraries](#building-with-static-libraries) below.
 
 ### Building with Static Libraries

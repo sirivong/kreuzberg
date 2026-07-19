@@ -167,8 +167,11 @@ See [Rust README](https://github.com/xberg-io/xberg/tree/main/crates/xberg) for 
 <summary><strong>Go</strong></summary>
 
 ```sh
-go get github.com/xberg-io/xberg
+go get github.com/xberg-io/xberg/packages/go@latest
 ```
+
+> ⚠️ The repository root is not a Go module — `go get github.com/xberg-io/xberg` will fail.
+> Always target the `/packages/go` subdirectory as shown above.
 
 See [Go README](https://github.com/xberg-io/xberg/tree/main/packages/go) for full documentation.
 
