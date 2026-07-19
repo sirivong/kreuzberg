@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `text::ner::candle::CandleBackend` from a model directory; the redaction pipeline and the NER
   post-processor consume it through the existing `NerBackend` trait.
 
+- **Per-line OCR geometry through the wasm engine.** The wasm package gains a hand-written
+  engine layer: `XbergEngine`, constructed with a config and an injection object, exposing
+  `extract()`, `ocr()`, and `ner()` to JS hosts. An injected OCR backend returns
+  `{ text, lines: [{ text, confidence, bbox? }] }` so a UI can highlight and overlay real
+  per-line geometry instead of a flat string; a backend without geometry degrades to an empty
+  `lines` array while `text` stays usable. NER works the same way through an injected
+  `ner(text, categories)` backend. All bridge calls run under a configurable timeout.
+
 - **Scanned PDFs are now detectable, and can be OCR'd without forcing OCR on the whole file.**
   PDF metadata gains `scanned_confidence` (0.0–1.0) and `scanned_pages`, so you can tell whether a
   document is a scan before deciding how to extract it. The new `ocr_strategy` config selects which
