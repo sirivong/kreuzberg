@@ -7,12 +7,13 @@
 //! Input:  `x` shape `[batch, 3, 224, 224]` f32 (fixed size, ImageNet normalization)
 //! Output: `fetch_name_0` shape `[batch, 2]` f32 — [wired_score, wireless_score]
 
+use std::path::Path;
+
 use image::RgbImage;
 use ndarray::Array4;
-use ort::{inputs, session::Session, value::Tensor};
 
+use crate::inference::{InferenceSession, InferenceTensor, default_backend};
 use crate::layout::error::LayoutError;
-use crate::layout::session::build_session;
 
 /// PP-LCNet fixed input dimensions.
 const INPUT_SIZE: u32 = 224;
@@ -47,38 +48,29 @@ impl TableType {
 /// PP-LCNet table classifier model.
 #[cfg_attr(alef, alef(skip))]
 pub struct TableClassifier {
-    session: Session,
+    session: Box<dyn InferenceSession>,
     input_name: String,
 }
 
 impl TableClassifier {
     /// Load the table classifier ONNX model from a file path.
+    ///
+    /// The session (with its `GraphOptimizationLevel::All` config, thread budget,
+    /// execution-provider selection, and CPU-only fallback) is built by the
+    /// [`crate::inference`] seam's default backend.
     pub(crate) fn from_file(
         path: &str,
         accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
     ) -> Result<Self, LayoutError> {
-        let budget = crate::core::config::concurrency::resolve_thread_budget(None);
-        let session = match build_session(path, accel, budget) {
-            Ok(s) => s,
-            Err(first_err) => {
-                tracing::warn!("TableClassifier: platform EP failed ({first_err}), retrying CPU-only");
-                Self::build_cpu_session(path, budget)?
-            }
-        };
-        let input_name = session.inputs()[0].name().to_string();
+        let session = default_backend()
+            .load(Path::new(path), accel)
+            .map_err(|e| LayoutError::Ort(ort::Error::new(e.to_string())))?;
+        let input_name = session
+            .input_names()
+            .first()
+            .cloned()
+            .ok_or_else(|| LayoutError::InvalidOutput("table classifier model has no inputs".to_string()))?;
         Ok(Self { session, input_name })
-    }
-
-    fn build_cpu_session(path: &str, thread_budget: usize) -> Result<Session, LayoutError> {
-        use ort::session::builder::GraphOptimizationLevel;
-        let mut builder = Session::builder()?
-            .with_optimization_level(GraphOptimizationLevel::All)
-            .map_err(|e| LayoutError::Ort(ort::Error::new(e.message())))?
-            .with_intra_threads(thread_budget)
-            .map_err(|e| LayoutError::Ort(ort::Error::new(e.message())))?
-            .with_inter_threads(1)
-            .map_err(|e| LayoutError::Ort(ort::Error::new(e.message())))?;
-        Ok(builder.commit_from_file(path)?)
     }
 
     /// Classify a cropped table image as wired or wireless.
@@ -90,12 +82,15 @@ impl TableClassifier {
         );
 
         let input_tensor = preprocess_lcnet(table_img);
-        let tensor = Tensor::from_array(input_tensor)?;
 
         let inference_start = std::time::Instant::now();
-        let outputs = self.session.run(inputs![
-            self.input_name.as_str() => tensor
-        ])?;
+        let outputs = self
+            .session
+            .run(vec![(
+                self.input_name.clone(),
+                InferenceTensor::F32(input_tensor.into_dyn()),
+            )])
+            .map_err(|e| LayoutError::Ort(ort::Error::new(e.to_string())))?;
         let inference_ms = inference_start.elapsed().as_secs_f64() * 1000.0;
 
         tracing::trace!(
@@ -103,9 +98,9 @@ impl TableClassifier {
             "TableClassifier: inference complete"
         );
 
-        for (_name, value) in outputs.iter() {
-            if let Ok(view) = value.try_extract_tensor::<f32>() {
-                let data = view.1;
+        for (_name, value) in &outputs {
+            if let Some(array) = value.as_f32() {
+                let data = array.as_slice().unwrap_or(&[]);
                 if data.len() >= 2 {
                     let raw_wired = data[0];
                     let raw_wireless = data[1];

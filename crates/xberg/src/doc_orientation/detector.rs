@@ -10,12 +10,10 @@
 use std::path::PathBuf;
 
 use image::RgbImage;
-use ort::session::Session;
-use ort::session::builder::{GraphOptimizationLevel, SessionBuilder};
-use ort::value::Tensor;
 
 use crate::Result;
 use crate::error::XbergError;
+use crate::inference::{InferenceSession, InferenceTensor, default_backend};
 
 use super::types::OrientationResult;
 
@@ -37,11 +35,12 @@ pub const MIN_CONFIDENCE: f32 = 0.35;
 
 /// Detects document page orientation using the PP-LCNet model.
 ///
-/// Thread-safe: uses unsafe pointer cast for ONNX session (same pattern as embedding engine).
-/// The model is downloaded from HuggingFace on first use and cached locally.
+/// Thread-safe: the model runs behind `&self` through the [`crate::inference`]
+/// seam, which owns the session synchronization. The model is downloaded from
+/// HuggingFace on first use and cached locally.
 #[cfg_attr(alef, alef(skip))]
 pub struct DocOrientationDetector {
-    session: once_cell::sync::OnceCell<Session>,
+    session: once_cell::sync::OnceCell<Box<dyn InferenceSession>>,
     cache_dir: PathBuf,
     acceleration: Option<crate::core::config::acceleration::AccelerationConfig>,
 }
@@ -67,36 +66,29 @@ impl DocOrientationDetector {
         let session = self.get_or_init_session()?;
 
         let preprocessed = preprocess(image);
-
         let input_tensor = normalize(&preprocessed);
-        let tensor = Tensor::from_array(input_tensor).map_err(|e| XbergError::Ocr {
-            message: format!("Failed to create doc_ori input tensor: {e}"),
-            source: None,
-        })?;
 
-        #[allow(unsafe_code)]
-        let outputs = unsafe {
-            let session_ptr = session as *const Session as *mut Session;
-            (*session_ptr).run(ort::inputs!["x" => tensor])
-        }
-        .map_err(|e| XbergError::Ocr {
-            message: format!("Doc orientation inference failed: {e}"),
-            source: None,
-        })?;
+        let outputs = session
+            .run(vec![("x".to_string(), InferenceTensor::F32(input_tensor.into_dyn()))])
+            .map_err(|e| XbergError::Ocr {
+                message: format!("Doc orientation inference failed: {e}"),
+                source: None,
+            })?;
 
-        let (_, output_value) = outputs.iter().next().ok_or_else(|| XbergError::Ocr {
+        let (_, output_value) = outputs.first().ok_or_else(|| XbergError::Ocr {
             message: "No output from doc orientation model".to_string(),
             source: None,
         })?;
 
         let scores: Vec<f32> = output_value
-            .try_extract_tensor::<f32>()
-            .map_err(|e| XbergError::Ocr {
-                message: format!("Failed to extract doc_ori output: {e}"),
+            .as_f32()
+            .ok_or_else(|| XbergError::Ocr {
+                message: "doc orientation output is not an f32 tensor".to_string(),
                 source: None,
             })?
-            .1
-            .to_vec();
+            .iter()
+            .copied()
+            .collect();
 
         let max_score = scores.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let exp_scores: Vec<f32> = scores.iter().map(|&s| (s - max_score).exp()).collect();
@@ -132,47 +124,27 @@ impl DocOrientationDetector {
         })
     }
 
-    /// Get or initialize the ONNX session (lazy, thread-safe via OnceCell).
-    fn get_or_init_session(&self) -> Result<&Session> {
-        self.session.get_or_try_init(|| {
-            let model_path = self.ensure_model()?;
+    /// Get or initialize the inference session (lazy, thread-safe via OnceCell).
+    ///
+    /// The session (optimization level, thread budget, execution-provider
+    /// selection, and CPU fallback) is built by the [`crate::inference`] seam.
+    fn get_or_init_session(&self) -> Result<&dyn InferenceSession> {
+        let session = self
+            .session
+            .get_or_try_init(|| -> crate::Result<Box<dyn InferenceSession>> {
+                let model_path = self.ensure_model()?;
 
-            crate::ort_discovery::ensure_ort_available();
+                let session = default_backend()
+                    .load(&model_path, self.acceleration.as_ref())
+                    .map_err(|e| XbergError::Ocr {
+                        message: format!("Failed to load doc_ori model: {e}"),
+                        source: None,
+                    })?;
 
-            let num_threads = crate::core::config::concurrency::resolve_thread_budget(None);
-            let builder = SessionBuilder::new()
-                .map_err(|e| XbergError::Ocr {
-                    message: format!("Failed to create doc_ori session builder: {e}"),
-                    source: None,
-                })?
-                .with_optimization_level(GraphOptimizationLevel::All)
-                .map_err(|e| XbergError::Ocr {
-                    message: format!("Failed to set doc_ori optimization level: {e}"),
-                    source: None,
-                })?
-                .with_intra_threads(num_threads)
-                .map_err(|e| XbergError::Ocr {
-                    message: format!("Failed to set doc_ori thread count: {e}"),
-                    source: None,
-                })?
-                .with_inter_threads(1)
-                .map_err(|e| XbergError::Ocr {
-                    message: format!("Failed to set doc_ori inter threads: {e}"),
-                    source: None,
-                })?;
-            let mut builder = crate::ort_discovery::apply_execution_providers(builder, self.acceleration.as_ref())
-                .map_err(|e| XbergError::Ocr {
-                    message: format!("Failed to set doc_ori execution providers: {e}"),
-                    source: None,
-                })?;
-            let session = builder.commit_from_file(&model_path).map_err(|e| XbergError::Ocr {
-                message: format!("Failed to load doc_ori model: {e}"),
-                source: None,
+                tracing::info!("Doc orientation model loaded");
+                Ok(session)
             })?;
-
-            tracing::info!("Doc orientation model loaded");
-            Ok(session)
-        })
+        Ok(session.as_ref())
     }
 }
 
