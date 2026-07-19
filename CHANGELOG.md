@@ -61,6 +61,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Heron and TATR layout inputs now match their official preprocessing contracts.** Heron uses
+  exact 640×640 bilinear RGB scaling without ImageNet normalization and reports source image
+  dimensions to the model; TATR follows Hugging Face's shortest-edge and longest-edge resize
+  truncation, capped at 1000 pixels.
 - **PDF OCR now reuses layout rasters and detections without duplicating tables.** Layout rendering
   and inference run off the async executor, rendered pages transfer into OCR without another PDF
   render, failed pages degrade independently, and direct or inherited page rotation stays in the

@@ -25,7 +25,7 @@ use crate::layout::session::build_session;
 const DETR_SHORT_EDGE: u32 = 800;
 
 /// DETR standard longest-edge cap.
-const DETR_LONG_EDGE: u32 = 1333;
+const DETR_LONG_EDGE: u32 = 1000;
 
 /// ImageNet normalization mean (RGB channel order).
 const IMAGENET_MEAN_RGB: [f32; 3] = [0.485, 0.456, 0.406];
@@ -323,7 +323,7 @@ impl TatrModel {
 /// Preprocess an image using DETR-standard preprocessing.
 ///
 /// Pipeline:
-/// 1. Resize: scale shortest edge to 800px, cap longest edge at 1333px (aspect-preserving)
+/// 1. Resize: scale shortest edge to 800px, cap longest edge at 1000px (aspect-preserving)
 /// 2. Normalize: ImageNet mean/std in RGB channel order
 /// 3. Layout: NCHW `[1, 3, H, W]` f32
 ///
@@ -332,7 +332,7 @@ fn preprocess_detr(img: &RgbImage) -> (Array4<f32>, u32, u32) {
     let (orig_w, orig_h) = (img.width(), img.height());
     let (new_w, new_h) = compute_detr_resize(orig_w, orig_h);
 
-    let resized = image::imageops::resize(img, new_w, new_h, image::imageops::FilterType::CatmullRom);
+    let resized = image::imageops::resize(img, new_w, new_h, image::imageops::FilterType::Triangle);
 
     let w = new_w as usize;
     let h = new_h as usize;
@@ -366,21 +366,34 @@ fn preprocess_detr(img: &RgbImage) -> (Array4<f32>, u32, u32) {
 /// Compute DETR resize dimensions.
 ///
 /// Scales shortest edge to [`DETR_SHORT_EDGE`] (800), then caps longest edge
-/// at [`DETR_LONG_EDGE`] (1333), maintaining aspect ratio.
+/// at [`DETR_LONG_EDGE`] (1000), maintaining aspect ratio.
 fn compute_detr_resize(orig_w: u32, orig_h: u32) -> (u32, u32) {
-    let short = orig_w.min(orig_h) as f32;
-    let long = orig_w.max(orig_h) as f32;
-
-    let mut scale = DETR_SHORT_EDGE as f32 / short;
-
-    if (long * scale).round() > DETR_LONG_EDGE as f32 {
-        scale = DETR_LONG_EDGE as f32 / long;
+    let short = u64::from(orig_w.min(orig_h));
+    let long = u64::from(orig_w.max(orig_h));
+    if short == 0 {
+        return (orig_w.max(1), orig_h.max(1));
     }
 
-    let new_w = (orig_w as f32 * scale).round().max(1.0) as u32;
-    let new_h = (orig_h as f32 * scale).round().max(1.0) as u32;
+    // Match Hugging Face's `get_resize_output_image_size` exactly: compute and
+    // truncate the tentative long edge first, then use that truncated value
+    // when applying the long-edge cap. Collapsing this into one ratio causes
+    // one-pixel drift for some dimensions.
+    let requested_short = u64::from(DETR_SHORT_EDGE);
+    let requested_long = requested_short * long / short;
+    let (new_short, new_long) = if requested_long > u64::from(DETR_LONG_EDGE) {
+        (
+            u64::from(DETR_LONG_EDGE) * requested_short / requested_long,
+            u64::from(DETR_LONG_EDGE),
+        )
+    } else {
+        (requested_short, requested_long)
+    };
 
-    (new_w, new_h)
+    if orig_w <= orig_h {
+        (new_short.max(1) as u32, new_long.max(1) as u32)
+    } else {
+        (new_long.max(1) as u32, new_short.max(1) as u32)
+    }
 }
 
 /// Softmax over a slice, returning `(argmax_index, max_probability)`.
@@ -548,22 +561,19 @@ mod tests {
     #[test]
     fn test_compute_detr_resize_landscape() {
         let (w, h) = compute_detr_resize(1600, 1200);
-        assert!(h == 800 || w == 800, "shortest edge should be 800, got {w}x{h}");
-        assert!(w <= DETR_LONG_EDGE, "longest edge {w} exceeds cap {DETR_LONG_EDGE}");
-        assert!(h <= DETR_LONG_EDGE, "longest edge {h} exceeds cap {DETR_LONG_EDGE}");
+        assert_eq!((w, h), (1000, 750));
     }
 
     #[test]
     fn test_compute_detr_resize_portrait() {
         let (w, h) = compute_detr_resize(600, 1000);
-        assert!(w.min(h) <= DETR_SHORT_EDGE);
-        assert!(w.max(h) <= DETR_LONG_EDGE, "longest edge exceeds cap: {w}x{h}");
+        assert_eq!((w, h), (600, 1000));
     }
 
     #[test]
     fn test_compute_detr_resize_very_elongated() {
         let (w, h) = compute_detr_resize(100, 3000);
-        assert!(w.max(h) <= DETR_LONG_EDGE, "longest edge exceeds cap: {w}x{h}");
+        assert_eq!((w, h), (33, 1000));
     }
 
     #[test]
@@ -574,10 +584,15 @@ mod tests {
     }
 
     #[test]
+    fn test_compute_detr_resize_truncates_like_hugging_face() {
+        assert_eq!(compute_detr_resize(102, 101), (807, 800));
+        assert_eq!(compute_detr_resize(6, 17), (353, 1000));
+    }
+
+    #[test]
     fn test_compute_detr_resize_small() {
         let (w, h) = compute_detr_resize(200, 300);
-        assert_eq!(w, 800);
-        assert_eq!(h, 1200);
+        assert_eq!((w, h), (666, 1000));
     }
 
     #[test]
@@ -894,8 +909,8 @@ mod tests {
         assert_eq!(shape[1], 3, "channel dim");
         assert_eq!(shape[2], rh as usize, "height dim");
         assert_eq!(shape[3], rw as usize, "width dim");
-        assert_eq!(rh, 800);
-        assert_eq!(rw, 1067);
+        assert_eq!(rh, 750);
+        assert_eq!(rw, 1000);
     }
 
     #[test]

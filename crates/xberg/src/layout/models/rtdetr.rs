@@ -21,7 +21,7 @@ const INPUT_SIZE: u32 = 640;
 ///
 /// Input tensors:
 ///   - `images`:            f32 [batch, 3, 640, 640]  (preprocessed pixel data)
-///   - `orig_target_sizes`: i64 [batch, 2]            ([height, width] of original image)
+///   - `orig_target_sizes`: i64 [batch, 2]            ([height, width] of source image)
 ///
 /// Output tensors:
 ///   - `labels`: i64 [batch, num_queries]   (class IDs, 0-16)
@@ -47,9 +47,9 @@ impl RtDetrModel {
 
     /// Run inference and extract detections from raw outputs.
     ///
-    /// Uses aspect-preserving letterbox preprocessing (Lanczos3) to avoid
-    /// distorting the page geometry. The model sees a properly proportioned
-    /// image, which produces more accurate bounding box coordinates.
+    /// Uses the original official export contract: exact 640x640 bilinear
+    /// resize, /255 rescaling, and no ImageNet normalization. The model uses
+    /// `orig_target_sizes` to return boxes in source-image coordinates.
     fn run_inference(&mut self, img: &RgbImage, threshold: f32) -> Result<Vec<LayoutDetection>, LayoutError> {
         #[cfg(feature = "otel")]
         let inference_span = crate::telemetry::spans::model_inference_span("rtdetr-layout");
@@ -63,10 +63,10 @@ impl RtDetrModel {
 
         let preprocess_start = Instant::now();
 
-        let (input_tensor, scale, pad_x, pad_y) = preprocessing::preprocess_imagenet_letterbox(img, INPUT_SIZE);
+        let input_tensor = preprocessing::preprocess_rescale(img, INPUT_SIZE);
         let images_tensor = Tensor::from_array(input_tensor)?;
 
-        let sizes = Array::from_shape_vec((1, 2), vec![INPUT_SIZE as i64, INPUT_SIZE as i64])
+        let sizes = Array::from_shape_vec((1, 2), vec![orig_height as i64, orig_width as i64])
             .map_err(|e| LayoutError::InvalidOutput(format!("Failed to create sizes tensor: {e}")))?;
         let sizes_tensor = Tensor::from_array(sizes)?;
 
@@ -122,10 +122,6 @@ impl RtDetrModel {
             box_shape[0]
         };
 
-        let inv_scale = 1.0 / scale;
-        let pad_x_f = pad_x as f32;
-        let pad_y_f = pad_y as f32;
-
         if scores.len() < num_detections || label_data.len() < num_detections || boxes.len() < num_detections * 4 {
             return Err(LayoutError::InvalidOutput(format!(
                 "RT-DETR output shape mismatch: num_detections={num_detections} \
@@ -149,12 +145,13 @@ impl RtDetrModel {
                 None => continue,
             };
 
-            let x1 = ((boxes[i * 4] - pad_x_f) * inv_scale).clamp(0.0, orig_width as f32);
-            let y1 = ((boxes[i * 4 + 1] - pad_y_f) * inv_scale).clamp(0.0, orig_height as f32);
-            let x2 = ((boxes[i * 4 + 2] - pad_x_f) * inv_scale).clamp(0.0, orig_width as f32);
-            let y2 = ((boxes[i * 4 + 3] - pad_y_f) * inv_scale).clamp(0.0, orig_height as f32);
+            let bbox = clamp_output_box(
+                [boxes[i * 4], boxes[i * 4 + 1], boxes[i * 4 + 2], boxes[i * 4 + 3]],
+                orig_width,
+                orig_height,
+            );
 
-            detections.push(LayoutDetection::new(class, score, BBox::new(x1, y1, x2, y2)));
+            detections.push(LayoutDetection::new(class, score, bbox));
         }
 
         detections = LayoutDetection::sort_by_confidence_desc(detections);
@@ -204,20 +201,21 @@ impl RtDetrModel {
         let preprocess_start = Instant::now();
 
         let mut all_pixel_data: Vec<f32> = Vec::with_capacity(batch * 3 * hw);
-        let mut metas: Vec<(u32, u32, f32, u32, u32)> = Vec::with_capacity(batch);
+        let mut metas: Vec<(u32, u32)> = Vec::with_capacity(batch);
 
         for img in images {
-            let (tensor, scale, pad_x, pad_y) = preprocessing::preprocess_imagenet_letterbox(img, INPUT_SIZE);
+            let tensor = preprocessing::preprocess_rescale(img, INPUT_SIZE);
             all_pixel_data.extend_from_slice(tensor.as_slice().expect("tensor not contiguous"));
-            metas.push((img.width(), img.height(), scale, pad_x, pad_y));
+            metas.push((img.width(), img.height()));
         }
 
         let images_array = Array4::from_shape_vec((batch, 3, ts, ts), all_pixel_data)
             .map_err(|e| LayoutError::InvalidOutput(format!("Failed to build batch images tensor: {e}")))?;
         let images_tensor = Tensor::from_array(images_array)?;
 
-        let sizes_flat: Vec<i64> = std::iter::repeat_n([INPUT_SIZE as i64, INPUT_SIZE as i64], batch)
-            .flatten()
+        let sizes_flat: Vec<i64> = images
+            .iter()
+            .flat_map(|img| [img.height() as i64, img.width() as i64])
             .collect();
         let sizes_array = Array2::from_shape_vec((batch, 2), sizes_flat)
             .map_err(|e| LayoutError::InvalidOutput(format!("Failed to build batch sizes tensor: {e}")))?;
@@ -291,11 +289,7 @@ impl RtDetrModel {
 
         let mut results: Vec<Vec<LayoutDetection>> = Vec::with_capacity(batch);
 
-        for (b, &(orig_width, orig_height, scale, pad_x, pad_y)) in metas.iter().enumerate() {
-            let inv_scale = 1.0 / scale;
-            let pad_x_f = pad_x as f32;
-            let pad_y_f = pad_y as f32;
-
+        for (b, &(orig_width, orig_height)) in metas.iter().enumerate() {
             let mut detections = Vec::new();
             for i in 0..num_queries {
                 let flat_i = b * num_queries + i;
@@ -311,12 +305,18 @@ impl RtDetrModel {
                 };
 
                 let box_base = flat_i * 4;
-                let x1 = ((boxes[box_base] - pad_x_f) * inv_scale).clamp(0.0, orig_width as f32);
-                let y1 = ((boxes[box_base + 1] - pad_y_f) * inv_scale).clamp(0.0, orig_height as f32);
-                let x2 = ((boxes[box_base + 2] - pad_x_f) * inv_scale).clamp(0.0, orig_width as f32);
-                let y2 = ((boxes[box_base + 3] - pad_y_f) * inv_scale).clamp(0.0, orig_height as f32);
+                let bbox = clamp_output_box(
+                    [
+                        boxes[box_base],
+                        boxes[box_base + 1],
+                        boxes[box_base + 2],
+                        boxes[box_base + 3],
+                    ],
+                    orig_width,
+                    orig_height,
+                );
 
-                detections.push(LayoutDetection::new(class, score, BBox::new(x1, y1, x2, y2)));
+                detections.push(LayoutDetection::new(class, score, bbox));
             }
 
             detections = LayoutDetection::sort_by_confidence_desc(detections);
@@ -340,6 +340,15 @@ impl RtDetrModel {
 
         Ok(results)
     }
+}
+
+fn clamp_output_box(coords: [f32; 4], image_width: u32, image_height: u32) -> BBox {
+    BBox::new(
+        coords[0].clamp(0.0, image_width as f32),
+        coords[1].clamp(0.0, image_height as f32),
+        coords[2].clamp(0.0, image_width as f32),
+        coords[3].clamp(0.0, image_height as f32),
+    )
 }
 
 impl LayoutModel for RtDetrModel {
@@ -368,5 +377,24 @@ impl LayoutModel for RtDetrModel {
 
     fn name(&self) -> &str {
         "Docling RT-DETR v2"
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::clamp_output_box;
+
+    #[test]
+    fn output_boxes_are_already_in_portrait_source_coordinates() {
+        let bbox = clamp_output_box([32.0, 64.0, 288.0, 576.0], 320, 640);
+
+        assert_eq!([bbox.x1, bbox.y1, bbox.x2, bbox.y2], [32.0, 64.0, 288.0, 576.0]);
+    }
+
+    #[test]
+    fn output_boxes_are_already_in_landscape_source_coordinates() {
+        let bbox = clamp_output_box([-5.0, 32.0, 650.0, 340.0], 640, 320);
+
+        assert_eq!([bbox.x1, bbox.y1, bbox.x2, bbox.y2], [0.0, 32.0, 640.0, 320.0]);
     }
 }
