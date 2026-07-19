@@ -52,6 +52,9 @@ use std::path::PathBuf;
 #[allow(dead_code)]
 const DEFAULT_MODEL_DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(300);
 
+#[cfg(all(feature = "layout-detection", any(windows, test)))]
+static QUARANTINE_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 /// Per-connect ceiling for HuggingFace requests. On a host that advertises an IPv6 default route but
 /// blackholes IPv6 (common corporate config), a connect to an AAAA address otherwise parks in TCP
 /// `SYN_SENT` until the OS SYN timeout (~75 s) with no happy-eyeballs/IPv4 race — see #1249. Bounding
@@ -218,6 +221,51 @@ pub(crate) fn model_download_timeout() -> Duration {
         .unwrap_or(DEFAULT_MODEL_DOWNLOAD_TIMEOUT)
 }
 
+/// Whether Hugging Face network access is explicitly disabled for this process.
+///
+/// Match the boolean spellings accepted by the Python Hugging Face clients while
+/// honoring both the current and legacy environment variable names.
+#[cfg(any(
+    feature = "paddle-ocr",
+    feature = "layout-detection",
+    feature = "auto-rotate",
+    feature = "ner-onnx",
+    feature = "candle-paddleocr-vl"
+))]
+fn hf_offline_mode() -> bool {
+    ["HF_HUB_OFFLINE", "HUGGINGFACE_HUB_OFFLINE"]
+        .iter()
+        .filter_map(std::env::var_os)
+        .any(|value| env_flag_enabled(&value))
+}
+
+#[cfg(any(
+    feature = "paddle-ocr",
+    feature = "layout-detection",
+    feature = "auto-rotate",
+    feature = "ner-onnx",
+    feature = "candle-paddleocr-vl"
+))]
+fn env_flag_enabled(value: &std::ffi::OsStr) -> bool {
+    value
+        .to_str()
+        .is_some_and(|value| matches!(value.trim().to_ascii_lowercase().as_str(), "1" | "on" | "yes" | "true"))
+}
+
+#[cfg(any(
+    feature = "paddle-ocr",
+    feature = "layout-detection",
+    feature = "auto-rotate",
+    feature = "ner-onnx",
+    feature = "candle-paddleocr-vl"
+))]
+fn offline_cache_miss(repo_id: &str, remote_filename: &str, revision: Option<&str>) -> String {
+    format!(
+        "Hugging Face offline mode is enabled and '{remote_filename}' from {repo_id}@{} is not available in the local cache",
+        revision.unwrap_or("main")
+    )
+}
+
 /// Run a blocking model-download closure under a hard wall-clock deadline so a hung network cannot
 /// block the pipeline indefinitely. The closure runs on a detached worker thread; if it does not
 /// finish within `model_download_timeout()` we log a warning and return `Err`, letting the caller
@@ -286,6 +334,94 @@ fn download_lock(key: &str) -> std::sync::Arc<std::sync::Mutex<()>> {
     Arc::clone(map.entry(key.to_string()).or_default())
 }
 
+/// Held advisory lock for model-cache mutations shared by all Xberg processes.
+#[cfg(feature = "layout-detection")]
+#[derive(Debug)]
+pub(crate) struct ArtifactFileLock {
+    file: std::fs::File,
+    path: PathBuf,
+}
+
+#[cfg(feature = "layout-detection")]
+impl Drop for ArtifactFileLock {
+    fn drop(&mut self) {
+        if let Err(error) = fs2::FileExt::unlock(&self.file) {
+            tracing::warn!(path = %self.path.display(), %error, "failed to release model-cache file lock");
+        }
+    }
+}
+
+#[cfg(feature = "layout-detection")]
+pub(crate) fn acquire_artifact_file_lock(path: &Path) -> Result<ArtifactFileLock, String> {
+    acquire_artifact_file_lock_with_timeout(path, model_download_timeout())
+}
+
+#[cfg(feature = "layout-detection")]
+pub(crate) fn acquire_artifact_file_lock_with_timeout(
+    path: &Path,
+    timeout: Duration,
+) -> Result<ArtifactFileLock, String> {
+    const LOCK_RETRY_INTERVAL: Duration = Duration::from_millis(50);
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|error| {
+            format!(
+                "Failed to create model-cache lock directory {}: {error}",
+                parent.display()
+            )
+        })?;
+    }
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .read(true)
+        .write(true)
+        .open(path)
+        .map_err(|error| format!("Failed to open model-cache lock {}: {error}", path.display()))?;
+    let started = std::time::Instant::now();
+    loop {
+        match fs2::FileExt::try_lock_exclusive(&file) {
+            Ok(()) => {
+                return Ok(ArtifactFileLock {
+                    file,
+                    path: path.to_path_buf(),
+                });
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock && started.elapsed() < timeout => {
+                std::thread::sleep(LOCK_RETRY_INTERVAL.min(timeout.saturating_sub(started.elapsed())));
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::WouldBlock => {
+                return Err(format!(
+                    "Timed out after {}s waiting for model-cache lock {}",
+                    timeout.as_secs_f64(),
+                    path.display()
+                ));
+            }
+            Err(error) => {
+                return Err(format!(
+                    "Failed to acquire model-cache lock {}: {error}",
+                    path.display()
+                ));
+            }
+        }
+    }
+}
+
+#[cfg(feature = "layout-detection")]
+fn standard_hf_artifact_lock_path(repo_id: &str, expected_sha256: &str) -> Result<PathBuf, String> {
+    if !is_sha256_hex(expected_sha256) {
+        return Err("Cannot construct Hugging Face artifact lock for an invalid SHA-256".to_string());
+    }
+    Ok(hf_hub::resolve_cache_dir()
+        .join(format!("models--{}", repo_id.replace('/', "--")))
+        .join(format!(".xberg-{}.lock", expected_sha256.to_ascii_lowercase())))
+}
+
+#[cfg(feature = "layout-detection")]
+fn is_sha256_hex(value: &str) -> bool {
+    value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
 /// Download a file from a HuggingFace Hub repository.
 ///
 /// Uses `hf-hub`'s built-in caching so repeated calls for the same file are fast.
@@ -298,31 +434,378 @@ fn download_lock(key: &str) -> std::sync::Arc<std::sync::Mutex<()>> {
     feature = "ner-onnx",
     feature = "candle-paddleocr-vl"
 ))]
+#[allow(dead_code)]
 pub(crate) fn hf_download(repo_id: &str, remote_filename: &str) -> Result<PathBuf, String> {
-    tracing::info!(repo = repo_id, filename = remote_filename, "Downloading via hf-hub");
+    hf_download_at_revision(repo_id, remote_filename, None)
+}
 
-    let file_lock = download_lock(&format!("{repo_id}/{remote_filename}"));
-    let _guard = file_lock.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+/// Resolve a pinned model artifact from the standard Hugging Face cache, falling
+/// back to the network only on a cache miss.
+#[cfg(feature = "layout-detection")]
+pub(crate) fn hf_download_revision(repo_id: &str, remote_filename: &str, revision: &str) -> Result<PathBuf, String> {
+    hf_download_at_revision(repo_id, remote_filename, Some(revision))
+}
 
+fn hf_download_at_revision(repo_id: &str, remote_filename: &str, revision: Option<&str>) -> Result<PathBuf, String> {
+    tracing::info!(
+        repo = repo_id,
+        filename = remote_filename,
+        revision,
+        "Resolving via hf-hub"
+    );
+
+    let label = format!("{repo_id}/{remote_filename}@{}", revision.unwrap_or("main"));
     let api = hf_client_builder()
         .build_sync()
         .map_err(|e| format!("Failed to initialize HuggingFace Hub API: {e}"))?;
+    if let Some(path) = hf_cached_revision_with_client(&api, repo_id, remote_filename, revision)? {
+        return Ok(path);
+    }
+    if hf_offline_mode() {
+        return Err(offline_cache_miss(repo_id, remote_filename, revision));
+    }
 
-    let cached_path = {
-        let api = api.clone();
-        let filename = remote_filename.to_string();
-        let repo_id = repo_id.to_string();
-        with_download_deadline(&format!("{repo_id}/{remote_filename}"), move || {
-            let (owner, name) = hf_hub::split_id(&repo_id);
-            api.model(owner, name)
-                .download_file()
-                .filename(filename.clone())
-                .send()
-                .map_err(|e| format!("Failed to download '{filename}' from {repo_id}: {e}"))
-        })?
+    let file_lock = download_lock(&label);
+    let filename = remote_filename.to_string();
+    let repo_id = repo_id.to_string();
+    let revision = revision.map(str::to_string);
+
+    with_download_deadline(&label, move || {
+        // Keep the per-artifact lock in the worker. If the caller's deadline
+        // expires, the detached transfer continues to own the lock and a retry
+        // cannot race hf-hub's in-flight cache publication.
+        let _guard = file_lock.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(path) = hf_cached_revision_with_client(&api, &repo_id, &filename, revision.as_deref())? {
+            tracing::debug!(repo = repo_id, filename, revision, "Using standard Hugging Face cache");
+            return Ok(path);
+        }
+
+        let (owner, name) = hf_hub::split_id(&repo_id);
+        let repository = api.model(owner, name);
+        let request = repository.download_file().filename(filename.clone());
+        let result = match revision {
+            Some(revision) => request.revision(revision).send(),
+            None => request.send(),
+        };
+        result.map_err(|e| format!("Failed to download '{filename}' from {repo_id}: {e}"))
+    })
+}
+
+/// Force a network refresh of a pinned artifact in the standard Hugging Face cache.
+#[cfg(feature = "layout-detection")]
+pub(crate) fn hf_force_download_revision(
+    repo_id: &str,
+    remote_filename: &str,
+    revision: &str,
+    expected_size: u64,
+    expected_sha256: &str,
+    label: &str,
+) -> Result<PathBuf, String> {
+    if hf_offline_mode() {
+        return Err(format!(
+            "Hugging Face offline mode is enabled; cannot refresh '{remote_filename}' from {repo_id}@{revision}"
+        ));
+    }
+    let artifact_key = format!("{repo_id}/{remote_filename}@{revision}");
+    let file_lock = download_lock(&artifact_key);
+    let artifact_file_lock = standard_hf_artifact_lock_path(repo_id, expected_sha256)?;
+    let filename = remote_filename.to_string();
+    let repo_id = repo_id.to_string();
+    let revision = revision.to_string();
+    let expected_sha256 = expected_sha256.to_string();
+    let model_label = label.to_string();
+    with_download_deadline(&artifact_key, move || {
+        let _guard = file_lock.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _file_guard = acquire_artifact_file_lock(&artifact_file_lock)?;
+        let api = hf_client_builder()
+            .build_sync()
+            .map_err(|e| format!("Failed to initialize HuggingFace Hub API: {e}"))?;
+
+        // Another caller may have repaired the entry while this caller waited.
+        // Revalidate under the same artifact lock before forcing any network I/O.
+        let cached = hf_cached_revision_with_client(&api, &repo_id, &filename, Some(&revision))?;
+        if let Some(path) = verified_cached_path(cached.as_deref(), expected_size, &expected_sha256, &model_label) {
+            return Ok(path);
+        }
+
+        #[cfg(windows)]
+        let quarantined = match cached.as_deref() {
+            Some(path) => quarantine_hf_cache_entry(path, expected_size, &expected_sha256, &model_label)?,
+            None => Vec::new(),
+        };
+
+        let (owner, name) = hf_hub::split_id(&repo_id);
+        let refreshed = api
+            .model(owner, name)
+            .download_file()
+            .filename(filename.clone())
+            .revision(revision.clone())
+            .force_download(true)
+            .send()
+            .map_err(|error| format!("Failed to refresh '{filename}' from {repo_id}@{revision}: {error}"))
+            .and_then(|path| {
+                verify_cached_artifact(&path, expected_size, &expected_sha256, &model_label)
+                    .map(|()| path)
+                    .map_err(|error| format!("Refreshed artifact failed verification: {error}"))
+            });
+
+        #[cfg(windows)]
+        match refreshed {
+            Ok(path) => {
+                remove_quarantined_entries(&quarantined);
+                Ok(path)
+            }
+            Err(error) => {
+                if let Ok(Some(peer_path)) = hf_cached_revision_with_client(&api, &repo_id, &filename, Some(&revision))
+                    && verify_cached_artifact(&peer_path, expected_size, &expected_sha256, &model_label).is_ok()
+                {
+                    remove_quarantined_entries(&quarantined);
+                    return Ok(peer_path);
+                }
+                restore_quarantined_entries(&quarantined, expected_size, &expected_sha256, &model_label).map_err(
+                    |restore| format!("{error}; additionally failed to restore corrupt cache entry: {restore}"),
+                )?;
+                Err(error)
+            }
+        }
+        #[cfg(not(windows))]
+        refreshed
+    })
+}
+
+#[cfg(feature = "layout-detection")]
+fn verify_cached_artifact(path: &Path, expected_size: u64, expected_sha256: &str, label: &str) -> Result<(), String> {
+    let actual_size = std::fs::metadata(path)
+        .map_err(|error| format!("Failed to inspect cached {label}: {error}"))?
+        .len();
+    if actual_size != expected_size {
+        return Err(format!(
+            "Size mismatch for {label}: expected {expected_size} bytes, got {actual_size}"
+        ));
+    }
+    verify_sha256(path, expected_sha256, label)
+}
+
+#[cfg(feature = "layout-detection")]
+fn verified_cached_path(
+    path: Option<&Path>,
+    expected_size: u64,
+    expected_sha256: &str,
+    label: &str,
+) -> Option<PathBuf> {
+    path.filter(|path| verify_cached_artifact(path, expected_size, expected_sha256, label).is_ok())
+        .map(Path::to_path_buf)
+}
+
+#[cfg(all(feature = "layout-detection", any(windows, test)))]
+#[derive(Debug)]
+struct QuarantinedEntry {
+    original: PathBuf,
+    quarantine: PathBuf,
+}
+
+/// Move a corrupt snapshot entry and its backing blob aside before hf-hub refreshes it.
+///
+/// hf-hub's standard cache normally exposes a snapshot symlink into `blobs/`. Windows
+/// cannot rename a replacement over an existing file, so both names must be absent.
+/// The caller holds the process-local artifact lock. Cross-process repair remains
+/// coordinated only by hf-hub's own blob lock.
+#[cfg(all(feature = "layout-detection", any(windows, test)))]
+fn quarantine_hf_cache_entry(
+    path: &Path,
+    expected_size: u64,
+    expected_sha256: &str,
+    label: &str,
+) -> Result<Vec<QuarantinedEntry>, String> {
+    let canonical = std::fs::canonicalize(path).ok();
+    let mut originals = vec![path.to_path_buf()];
+    if let Some(blob) = canonical
+        && blob != path
+        && hf_blob_belongs_to_snapshot(path, &blob)
+    {
+        originals.push(blob);
+    }
+    if let Some(blob) = deterministic_hf_blob_path(path, expected_sha256)
+        && !originals.contains(&blob)
+        && blob.exists()
+    {
+        originals.push(blob);
+    }
+
+    let mut moved = Vec::with_capacity(originals.len());
+    for original in originals {
+        if !original.exists() && std::fs::symlink_metadata(&original).is_err() {
+            continue;
+        }
+        let suffix = QUARANTINE_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let file_name = original.file_name().and_then(|name| name.to_str()).unwrap_or("model");
+        let quarantine =
+            original.with_file_name(format!(".{file_name}.xberg-corrupt.{}.{}", std::process::id(), suffix));
+        if let Err(error) = std::fs::rename(&original, &quarantine) {
+            if verify_cached_artifact(&original, expected_size, expected_sha256, label).is_ok() {
+                remove_quarantined_entries(&moved);
+                return Ok(Vec::new());
+            }
+            let restore_error = restore_quarantined_entries(&moved, expected_size, expected_sha256, label).err();
+            return Err(match restore_error {
+                Some(restore) => format!(
+                    "Failed to quarantine corrupt cache entry {}: {error}; rollback also failed: {restore}",
+                    original.display()
+                ),
+                None => format!(
+                    "Failed to quarantine corrupt cache entry {}: {error}",
+                    original.display()
+                ),
+            });
+        }
+        moved.push(QuarantinedEntry { original, quarantine });
+    }
+    Ok(moved)
+}
+
+#[cfg(all(feature = "layout-detection", any(windows, test)))]
+fn deterministic_hf_blob_path(snapshot: &Path, expected_sha256: &str) -> Option<PathBuf> {
+    if !is_sha256_hex(expected_sha256) {
+        return None;
+    }
+    let repo_root = snapshot
+        .ancestors()
+        .find(|ancestor| ancestor.file_name().is_some_and(|name| name == "snapshots"))?
+        .parent()?;
+    let repo_root = std::fs::canonicalize(repo_root).ok()?;
+    let blob = repo_root.join("blobs").join(expected_sha256.to_ascii_lowercase());
+    blob.starts_with(repo_root.join("blobs")).then_some(blob)
+}
+
+#[cfg(all(feature = "layout-detection", any(windows, test)))]
+fn hf_blob_belongs_to_snapshot(snapshot: &Path, blob: &Path) -> bool {
+    snapshot
+        .ancestors()
+        .find(|ancestor| ancestor.file_name().is_some_and(|name| name == "snapshots"))
+        .and_then(Path::parent)
+        .is_some_and(|repo_root| {
+            let repo_root = std::fs::canonicalize(repo_root).unwrap_or_else(|_| repo_root.to_path_buf());
+            blob.starts_with(repo_root.join("blobs"))
+        })
+}
+
+#[cfg(all(feature = "layout-detection", any(windows, test)))]
+fn restore_quarantined_entries(
+    entries: &[QuarantinedEntry],
+    expected_size: u64,
+    expected_sha256: &str,
+    label: &str,
+) -> Result<(), String> {
+    // hf-hub does not honor Xberg's advisory lock. If it has installed either
+    // the expected snapshot or blob since quarantine began, its publication is
+    // authoritative and the old corrupt entries must not be restored over it.
+    if entries
+        .iter()
+        .any(|entry| verify_cached_artifact(&entry.original, expected_size, expected_sha256, label).is_ok())
+    {
+        remove_quarantined_entries(entries);
+        return Ok(());
+    }
+
+    let conflicting: Vec<_> = entries
+        .iter()
+        .filter(|entry| std::fs::symlink_metadata(&entry.original).is_ok())
+        .map(|entry| entry.original.display().to_string())
+        .collect();
+    if !conflicting.is_empty() {
+        return Err(format!(
+            "refusing to replace cache entries created by another Hugging Face client: {}",
+            conflicting.join(", ")
+        ));
+    }
+
+    let mut failures = Vec::new();
+    for entry in entries.iter().rev() {
+        if std::fs::symlink_metadata(&entry.original).is_ok() {
+            if verify_cached_artifact(&entry.original, expected_size, expected_sha256, label).is_ok() {
+                if let Err(error) = std::fs::remove_file(&entry.quarantine) {
+                    failures.push(format!(
+                        "remove stale quarantine {}: {error}",
+                        entry.quarantine.display()
+                    ));
+                }
+            } else {
+                failures.push(format!(
+                    "refusing to replace cache entry {} created by another Hugging Face client",
+                    entry.original.display()
+                ));
+            }
+            continue;
+        }
+        if let Err(error) = std::fs::rename(&entry.quarantine, &entry.original) {
+            failures.push(format!(
+                "restore {} to {}: {error}",
+                entry.quarantine.display(),
+                entry.original.display()
+            ));
+        }
+    }
+    if failures.is_empty() {
+        Ok(())
+    } else {
+        Err(failures.join("; "))
+    }
+}
+
+#[cfg(all(feature = "layout-detection", any(windows, test)))]
+fn remove_quarantined_entries(entries: &[QuarantinedEntry]) {
+    let failures: Vec<String> = entries
+        .iter()
+        .filter_map(|entry| {
+            std::fs::remove_file(&entry.quarantine)
+                .err()
+                .map(|error| format!("remove {}: {error}", entry.quarantine.display()))
+        })
+        .collect();
+    if !failures.is_empty() {
+        tracing::warn!(
+            failures = %failures.join("; "),
+            "refreshed Hugging Face artifact is valid, but stale quarantine entries could not be removed"
+        );
+    }
+}
+
+/// Resolve a pinned artifact strictly from the standard Hugging Face cache.
+#[cfg(feature = "layout-detection")]
+pub(crate) fn hf_cached_revision(
+    repo_id: &str,
+    remote_filename: &str,
+    revision: &str,
+) -> Result<Option<PathBuf>, String> {
+    let api = hf_client_builder()
+        .build_sync()
+        .map_err(|e| format!("Failed to initialize HuggingFace Hub API: {e}"))?;
+    hf_cached_revision_with_client(&api, repo_id, remote_filename, Some(revision))
+}
+
+fn hf_cached_revision_with_client(
+    api: &hf_hub::HFClientSync,
+    repo_id: &str,
+    remote_filename: &str,
+    revision: Option<&str>,
+) -> Result<Option<PathBuf>, String> {
+    let (owner, name) = hf_hub::split_id(repo_id);
+    let repository = api.model(owner, name);
+    let request = repository
+        .download_file()
+        .filename(remote_filename)
+        .local_files_only(true);
+    let result = match revision {
+        Some(revision) => request.revision(revision).send(),
+        None => request.send(),
     };
-
-    Ok(cached_path)
+    match result {
+        Ok(path) => Ok(Some(path)),
+        Err(hf_hub::HFError::LocalEntryNotFound { .. } | hf_hub::HFError::EntryNotFound { .. }) => Ok(None),
+        Err(error) => Err(format!(
+            "Failed to inspect Hugging Face cache for '{remote_filename}' from {repo_id}: {error}"
+        )),
+    }
 }
 
 /// Parse a `sha256sum`-format manifest into ordered `(path, sha256)` pairs.
@@ -410,13 +893,207 @@ pub(crate) fn verify_sha256(path: &Path, expected: &str, label: &str) -> Result<
     Ok(())
 }
 
-/// Resolve the xberg cache directory for a given module.
-///
-/// Delegates to [`crate::cache_dir::resolve_cache_dir`] for centralized,
-/// platform-aware cache directory resolution.
-#[cfg(feature = "layout-detection")]
-pub(crate) fn resolve_cache_dir(module: &str) -> PathBuf {
-    crate::cache_dir::resolve_cache_dir(module)
+#[cfg(all(test, feature = "layout-detection"))]
+mod hf_cache_tests {
+    use super::*;
+
+    fn sha256(payload: &[u8]) -> String {
+        use sha2::{Digest, Sha256};
+        hex::encode(Sha256::digest(payload))
+    }
+
+    #[test]
+    fn pinned_revision_resolves_from_standard_cache_without_network() {
+        let cache = tempfile::TempDir::new().unwrap();
+        let revision = "0123456789abcdef0123456789abcdef01234567";
+        let cached_file = cache
+            .path()
+            .join("models--xberg-io--layout-models")
+            .join("snapshots")
+            .join(revision)
+            .join("rtdetr/model.onnx");
+        std::fs::create_dir_all(cached_file.parent().unwrap()).unwrap();
+        std::fs::write(&cached_file, b"cached model").unwrap();
+
+        let api = hf_hub::HFClientBuilder::new()
+            .endpoint("http://127.0.0.1:1")
+            .cache_dir(cache.path())
+            .build_sync()
+            .unwrap();
+        let resolved =
+            hf_cached_revision_with_client(&api, "xberg-io/layout-models", "rtdetr/model.onnx", Some(revision))
+                .unwrap();
+
+        assert_eq!(resolved.as_deref(), Some(cached_file.as_path()));
+    }
+
+    #[test]
+    fn offline_flag_parser_accepts_only_explicit_truthy_values() {
+        for value in ["1", "true", "TRUE", " yes ", "On"] {
+            assert!(env_flag_enabled(std::ffi::OsStr::new(value)), "{value}");
+        }
+        for value in ["", "0", "false", "off", "anything"] {
+            assert!(!env_flag_enabled(std::ffi::OsStr::new(value)), "{value}");
+        }
+    }
+
+    #[test]
+    fn offline_cache_miss_identifies_pinned_artifact() {
+        let error = offline_cache_miss("owner/repo", "model.onnx", Some("abc123"));
+        assert!(error.contains("offline mode"));
+        assert!(error.contains("owner/repo@abc123"));
+        assert!(error.contains("model.onnx"));
+    }
+
+    #[test]
+    fn verified_cached_path_accepts_a_concurrently_repaired_artifact() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("model.onnx");
+        let payload = b"repaired model";
+        std::fs::write(&path, payload).unwrap();
+
+        let resolved = verified_cached_path(Some(&path), payload.len() as u64, &sha256(payload), "test-model");
+
+        assert_eq!(resolved.as_deref(), Some(path.as_path()));
+    }
+
+    #[test]
+    fn quarantine_restore_round_trip_preserves_regular_cache_entry() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("model.onnx");
+        let payload = b"corrupt model";
+        let expected_sha = sha256(payload);
+        std::fs::write(&path, payload).unwrap();
+
+        let quarantined = quarantine_hf_cache_entry(&path, payload.len() as u64, &expected_sha, "test-model").unwrap();
+        assert!(!path.exists());
+        assert_eq!(quarantined.len(), 1);
+
+        restore_quarantined_entries(&quarantined, payload.len() as u64, &expected_sha, "test-model").unwrap();
+        assert_eq!(std::fs::read(path).unwrap(), payload);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn quarantine_restore_round_trip_preserves_snapshot_symlink_and_blob() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let expected_sha = sha256(b"corrupt blob");
+        let blob = dir.path().join("blobs").join(&expected_sha);
+        let snapshot = dir.path().join("snapshots/revision/model.onnx");
+        std::fs::create_dir_all(blob.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(snapshot.parent().unwrap()).unwrap();
+        std::fs::write(&blob, b"corrupt blob").unwrap();
+        std::os::unix::fs::symlink(format!("../../blobs/{expected_sha}"), &snapshot).unwrap();
+
+        let quarantined =
+            quarantine_hf_cache_entry(&snapshot, b"corrupt blob".len() as u64, &expected_sha, "test-model").unwrap();
+        assert_eq!(quarantined.len(), 2);
+        assert!(!snapshot.exists());
+        assert!(!blob.exists());
+
+        restore_quarantined_entries(&quarantined, b"corrupt blob".len() as u64, &expected_sha, "test-model").unwrap();
+        assert_eq!(std::fs::read(&snapshot).unwrap(), b"corrupt blob");
+        assert_eq!(std::fs::read(blob).unwrap(), b"corrupt blob");
+    }
+
+    #[test]
+    fn quarantine_restore_handles_windows_copy_snapshot_and_sha_named_blob() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let payload = b"corrupt copied model";
+        let expected_sha = sha256(payload);
+        let blob = dir.path().join("blobs").join(&expected_sha);
+        let snapshot = dir.path().join("snapshots/revision/model.onnx");
+        std::fs::create_dir_all(blob.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(snapshot.parent().unwrap()).unwrap();
+        std::fs::write(&blob, payload).unwrap();
+        std::fs::write(&snapshot, payload).unwrap();
+
+        let quarantined =
+            quarantine_hf_cache_entry(&snapshot, payload.len() as u64, &expected_sha, "test-model").unwrap();
+
+        assert_eq!(quarantined.len(), 2);
+        assert!(!snapshot.exists());
+        assert!(!blob.exists());
+        restore_quarantined_entries(&quarantined, payload.len() as u64, &expected_sha, "test-model").unwrap();
+        assert_eq!(std::fs::read(snapshot).unwrap(), payload);
+        assert_eq!(std::fs::read(blob).unwrap(), payload);
+    }
+
+    #[test]
+    fn rollback_preserves_valid_peer_publication() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let valid = b"new-data";
+        let expected_sha = sha256(valid);
+        let blob = dir.path().join("blobs").join(&expected_sha);
+        let snapshot = dir.path().join("snapshots/revision/model.onnx");
+        std::fs::create_dir_all(blob.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(snapshot.parent().unwrap()).unwrap();
+        std::fs::write(&blob, b"bad-data").unwrap();
+        std::fs::write(&snapshot, b"bad-data").unwrap();
+
+        let quarantined =
+            quarantine_hf_cache_entry(&snapshot, valid.len() as u64, &expected_sha, "test-model").unwrap();
+        std::fs::write(&blob, valid).unwrap();
+        std::fs::write(&snapshot, valid).unwrap();
+
+        restore_quarantined_entries(&quarantined, valid.len() as u64, &expected_sha, "test-model").unwrap();
+
+        assert_eq!(std::fs::read(&snapshot).unwrap(), valid);
+        assert_eq!(std::fs::read(&blob).unwrap(), valid);
+        assert!(
+            quarantined.iter().all(|entry| !entry.quarantine.exists()),
+            "obsolete corrupt quarantine files must be removed"
+        );
+    }
+
+    #[test]
+    fn rollback_refuses_to_remove_unknown_invalid_peer_entry() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let valid = b"new-data";
+        let path = dir.path().join("model.onnx");
+        std::fs::write(&path, b"old-data").unwrap();
+        let quarantined = quarantine_hf_cache_entry(&path, valid.len() as u64, &sha256(valid), "test-model").unwrap();
+        std::fs::write(&path, b"peer-bad").unwrap();
+
+        let error =
+            restore_quarantined_entries(&quarantined, valid.len() as u64, &sha256(valid), "test-model").unwrap_err();
+
+        assert!(error.contains("refusing to replace cache entries"), "{error}");
+        assert_eq!(std::fs::read(&path).unwrap(), b"peer-bad");
+        assert!(quarantined[0].quarantine.exists());
+    }
+
+    #[test]
+    fn successful_quarantine_cleanup_removes_backup() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("model.onnx");
+        std::fs::write(&path, b"corrupt model").unwrap();
+        let quarantined = quarantine_hf_cache_entry(
+            &path,
+            b"corrupt model".len() as u64,
+            &sha256(b"corrupt model"),
+            "test-model",
+        )
+        .unwrap();
+        let backup = quarantined[0].quarantine.clone();
+
+        remove_quarantined_entries(&quarantined);
+
+        assert!(!backup.exists());
+    }
+
+    #[test]
+    fn artifact_file_lock_is_bounded_and_released() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let path = dir.path().join("artifact.lock");
+        let first = acquire_artifact_file_lock_with_timeout(&path, Duration::from_secs(1)).unwrap();
+
+        let error = acquire_artifact_file_lock_with_timeout(&path, Duration::from_millis(100)).unwrap_err();
+        assert!(error.contains("Timed out"), "{error}");
+
+        drop(first);
+        acquire_artifact_file_lock_with_timeout(&path, Duration::from_secs(1)).unwrap();
+    }
 }
 
 /// Central registry of every vendored, checked-in SHA-256 manifest across model

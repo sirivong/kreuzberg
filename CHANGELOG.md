@@ -61,6 +61,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Layout models now use the standard Hugging Face cache directly and repair corrupt artifacts
+  safely.** Downloads are revision-pinned and integrity-checked, offline mode never attempts the
+  network, and bounded cross-process locks prevent duplicate or destructive repairs across Xberg
+  processes while preserving concurrent Hugging Face publications.
 - **Heron and TATR layout inputs now match their official preprocessing contracts.** Heron uses
   exact 640×640 bilinear RGB scaling without ImageNet normalization and reports source image
   dimensions to the model; TATR follows Hugging Face's shortest-edge and longest-edge resize
