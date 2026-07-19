@@ -38,6 +38,20 @@ use regex::Regex;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
+// The structural-sidecar file lives at `src/structural_sidecar.rs`; it is attached
+// here (rather than in `lib.rs`) via `#[path]` so the crate root stays untouched.
+#[path = "structural_sidecar.rs"]
+pub mod structural_sidecar;
+
+/// Env flag selecting the SF1' structural metric (typed sidecar, task #49) over
+/// the legacy `markdown_quality` structural F1. Set `XBERG_BENCH_STRUCTURAL_V2=1`
+/// (or `true`) to A/B the new score; unset keeps the old path.
+fn structural_v2_enabled() -> bool {
+    std::env::var("XBERG_BENCH_STRUCTURAL_V2")
+        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
 /// Regex to strip markdown image syntax `![alt](url)` → `alt`
 static MD_IMAGE_RE: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"!\[([^\]]*)\]\([^)]*\)").expect("invalid regex"));
 
@@ -79,12 +93,18 @@ pub fn compute_quality_with_structure(
     let mut metrics = compute_quality(extracted, ground_truth);
 
     if let Some(md_gt) = ground_truth_markdown {
-        let structural = crate::markdown_quality::score_structural_quality(extracted, md_gt);
-        metrics.f1_score_layout = Some(structural.structural_f1);
-        metrics.quality_score = if has_any_numeric_tokens(extracted, ground_truth) {
-            0.5 * metrics.f1_score_text + 0.2 * metrics.f1_score_numeric + 0.3 * structural.structural_f1
+        let structural_f1 = if structural_v2_enabled() {
+            let pred = structural_sidecar::StructuralSidecar::from_markdown(extracted);
+            let gt = structural_sidecar::StructuralSidecar::from_markdown(md_gt);
+            structural_sidecar::score_structural(&pred, &gt).sf1_prime
         } else {
-            0.625 * metrics.f1_score_text + 0.375 * structural.structural_f1
+            crate::markdown_quality::score_structural_quality(extracted, md_gt).structural_f1
+        };
+        metrics.f1_score_layout = Some(structural_f1);
+        metrics.quality_score = if has_any_numeric_tokens(extracted, ground_truth) {
+            0.5 * metrics.f1_score_text + 0.2 * metrics.f1_score_numeric + 0.3 * structural_f1
+        } else {
+            0.625 * metrics.f1_score_text + 0.375 * structural_f1
         };
     }
 

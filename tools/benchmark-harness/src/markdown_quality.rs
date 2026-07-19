@@ -165,20 +165,30 @@ pub struct StructuralQuality {
     pub text_f1: f64,
 }
 
+/// Shared pulldown-cmark parse options for all markdown structural analysis.
+///
+/// Enables GFM tables, `$…$`/`$$…$$` math, and strikethrough. The structural
+/// sidecar ([`crate::quality::structural_sidecar`]) derives its typed node list
+/// with these *exact* options so its parse tree stays identical to
+/// [`parse_markdown_blocks`].
+pub(crate) fn md_parser_options() -> pulldown_cmark::Options {
+    use pulldown_cmark::Options;
+    let mut opts = Options::empty();
+    opts.insert(Options::ENABLE_TABLES);
+    opts.insert(Options::ENABLE_STRIKETHROUGH);
+    opts.insert(Options::ENABLE_MATH);
+    opts
+}
+
 /// Parse a markdown string into a sequence of typed blocks using pulldown-cmark.
 ///
 /// This uses a proper CommonMark parser, so it correctly handles all markdown
 /// variants: fenced and indented code blocks, ATX and setext headings, different
 /// list markers (-, *, +, 1.), tables with any separator style, etc.
 pub fn parse_markdown_blocks(md: &str) -> Vec<MdBlock> {
-    use pulldown_cmark::{Event, Options, Parser, Tag, TagEnd};
+    use pulldown_cmark::{Event, Parser, Tag, TagEnd};
 
-    let mut opts = Options::empty();
-    opts.insert(Options::ENABLE_TABLES);
-    opts.insert(Options::ENABLE_STRIKETHROUGH);
-    opts.insert(Options::ENABLE_MATH);
-
-    let parser = Parser::new_ext(md, opts);
+    let parser = Parser::new_ext(md, md_parser_options());
     let mut blocks: Vec<MdBlock> = Vec::new();
     let mut index = 0;
     let mut current_text = String::new();
@@ -492,11 +502,11 @@ fn type_compat(ext_block: &MdBlock, gt_block: &MdBlock) -> f64 {
         return 0.25;
     }
 
-    if (ext == MdBlockType::Table && gt == MdBlockType::Paragraph)
-        || (ext == MdBlockType::Paragraph && gt == MdBlockType::Table)
-    {
-        return 0.25;
-    }
+    // Table ↔ Paragraph is deliberately INCOMPATIBLE (0.0). A predicted table has no
+    // paragraph twin in the GT (and vice-versa): granting partial paragraph credit let a
+    // FABRICATED table — a table conjured where the GT has only prose — score 0.25 against
+    // that prose, masking over-fabrication (task #36 / #49). A table must earn credit only
+    // by matching a real GT table.
 
     if (ext == MdBlockType::Image && gt == MdBlockType::Paragraph)
         || (ext == MdBlockType::Paragraph && gt == MdBlockType::Image)
@@ -1165,18 +1175,18 @@ fn derive_per_type_scores(
 /// over block structure AND reading order (LIS); a perfectly-ordered document keeps its full score,
 /// a fully-scrambled one is penalized by at most `1 - ORDER_SCORE_FLOOR`. Kept modest so ordering
 /// refines, rather than dominates, the content-structure score.
-const ORDER_SCORE_FLOOR: f64 = 0.8;
+pub(crate) const ORDER_SCORE_FLOOR: f64 = 0.8;
 
 /// Fold the LIS reading-order score into the block-structure SF1. Skipped when fewer than three
 /// blocks matched, since order is not meaningful for one or two blocks.
-fn fold_order_into_sf1(base_sf1: f64, order_score: f64, matched_blocks: usize) -> f64 {
+pub(crate) fn fold_order_into_sf1(base_sf1: f64, order_score: f64, matched_blocks: usize) -> f64 {
     if matched_blocks < 3 {
         return base_sf1;
     }
     base_sf1 * (ORDER_SCORE_FLOOR + (1.0 - ORDER_SCORE_FLOOR) * order_score)
 }
 
-fn compute_order_score(matches: &[(usize, usize)]) -> f64 {
+pub(crate) fn compute_order_score(matches: &[(usize, usize)]) -> f64 {
     if matches.is_empty() {
         return 0.0;
     }
@@ -1471,7 +1481,9 @@ mod tests {
     }
 
     #[test]
-    fn test_type_compat_table_paragraph() {
+    fn test_type_compat_table_paragraph_is_incompatible() {
+        // Metric fix (#49): a table earns NO partial paragraph credit, so a fabricated
+        // table cannot masquerade as matched prose.
         let a = MdBlock {
             block_type: MdBlockType::Table,
             content: "X".into(),
@@ -1482,7 +1494,8 @@ mod tests {
             content: "X".into(),
             index: 0,
         };
-        assert!((type_compat(&a, &b) - 0.25).abs() < 0.01);
+        assert_eq!(type_compat(&a, &b), 0.0);
+        assert_eq!(type_compat(&b, &a), 0.0);
     }
 
     #[test]
