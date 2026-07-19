@@ -56,7 +56,6 @@ dev = [
     { name = "covdefaults", specifier = ">=2.3.0" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "maturin", specifier = ">=1.13.1" },
-    { name = "pyrefly", specifier = ">=1.1.1" },
     { name = "pytest", specifier = ">=9.0.3" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "pytest-cov", specifier = ">=7.1.0" },

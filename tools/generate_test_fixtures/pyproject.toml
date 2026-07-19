@@ -34,17 +34,11 @@ dependencies = [
     "python-pptx>=0.6.23",
     "reportlab>=4",
 ]
-optional-dependencies.dev = ["pytest>=7.4", "ruff>=0.4"]
+optional-dependencies.dev = ["pytest>=7.4"]
 scripts.generate-test-fixtures = "generate_test_fixtures.__main__:main"
 
 [tool.hatch]
 build.targets.wheel.packages = ["src/generate_test_fixtures"]
-
-[tool.ruff]
-target-version = "py311"
-line-length = 120
-lint.select = ["B", "E", "F", "I", "RUF", "UP", "W"]
-lint.ignore = ["E501"]
 
 [tool.pytest]
 ini_options.minversion = "7.0"
