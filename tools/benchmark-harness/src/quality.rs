@@ -299,8 +299,6 @@ pub fn compute_token_diff(extracted: &[String], truth: &[String]) -> TokenDiff {
 mod tests {
     use super::*;
 
-    const SCORE_PROBE_PATH_ENV: &str = "XBERG_BENCH_SCORE_PROBE_PATH";
-
     #[test]
     fn test_identical_text() {
         let text = "Hello world this is a test";
@@ -435,49 +433,18 @@ mod tests {
     }
 
     #[test]
-    fn structural_score_env_probe() {
-        let Some(path) = std::env::var_os(SCORE_PROBE_PATH_ENV) else {
-            return;
-        };
+    fn structured_quality_uses_canonical_sf1() {
+        let extracted = "# Title\n\nParagraph.\n\n- first\n- second";
+        let ground_truth = "## Title\n\nParagraph.\n\n1. first\n2. second";
+        let expected = structural_sidecar::score_markdown(extracted, ground_truth).sf1;
+
         let metrics = compute_quality_with_structure(
-            "# Title\n\nParagraph.\n\n- first\n- second",
+            extracted,
             "Title Paragraph first second",
-            Some("## Title\n\nParagraph.\n\n1. first\n2. second"),
+            Some(ground_truth),
             OutputFormat::Markdown,
         );
-        let score = format!(
-            "{:.17},{:.17},{:.17},{:.17}",
-            metrics.f1_score_text,
-            metrics.f1_score_numeric,
-            metrics.f1_score_layout.expect("Markdown GT must produce SF1"),
-            metrics.quality_score
-        );
-        std::fs::write(path, score).expect("score probe must be writable");
-    }
 
-    #[test]
-    fn structural_environment_variable_cannot_change_scores() {
-        fn run_probe(structural_env: Option<&str>) -> String {
-            let output_dir = tempfile::TempDir::new().expect("temporary output directory");
-            let output_path = output_dir.path().join("score.txt");
-            let mut command = std::process::Command::new(std::env::current_exe().expect("test executable"));
-            command
-                .arg("--exact")
-                .arg("quality::tests::structural_score_env_probe")
-                .env(SCORE_PROBE_PATH_ENV, &output_path);
-            match structural_env {
-                Some(value) => {
-                    command.env("XBERG_BENCH_STRUCTURAL_V2", value);
-                }
-                None => {
-                    command.env_remove("XBERG_BENCH_STRUCTURAL_V2");
-                }
-            }
-            let status = command.status().expect("score probe must run");
-            assert!(status.success(), "score probe failed with {status}");
-            std::fs::read_to_string(output_path).expect("score probe must emit a result")
-        }
-
-        assert_eq!(run_probe(None), run_probe(Some("1")));
+        assert_eq!(metrics.f1_score_layout, Some(expected));
     }
 }
