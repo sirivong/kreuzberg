@@ -1421,7 +1421,10 @@ jobs:
           RID: ${{ matrix.rid }}
         run: |
           mkdir -p "dist/csharp-natives/runtimes/${RID}/native"
-          cp build-output/libxberg_ffi.so "dist/csharp-natives/runtimes/${RID}/native/libxberg_ffi.so"
+          # Dockerfile.musl-ffi bundles the FFI library plus its vendored shared-lib
+          # closure (libonnxruntime + codecs) with RUNPATH=$ORIGIN, so ship all of
+          # them — not just libxberg_ffi.so — or .NET fails to load ORT at runtime (#1280).
+          cp build-output/*.so "dist/csharp-natives/runtimes/${RID}/native/"
 
       - uses: actions/upload-artifact@v7
         with:
