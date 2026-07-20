@@ -27,6 +27,9 @@ use std::collections::HashSet;
 /// burning CPU on guaranteed rejections. The cap is generous on purpose —
 /// the validation chain is fast.
 const MAX_REGIONS_PER_PAGE: usize = 20;
+const DENSE_NUMERIC_MIN_ROWS: usize = 20;
+const DENSE_NUMERIC_MIN_WORD_PERCENT: usize = 75;
+const DENSE_NUMERIC_COLUMN_GAP_CAP: u32 = 20;
 
 /// Extract tables from all pages using pdf_oxide's native table detection.
 ///
@@ -379,7 +382,7 @@ fn reconstruct_region_table(
     let region_left = region.iter().map(|w| w.left).min().unwrap_or(0);
     let region_right = region.iter().map(|w| w.left + w.width).max().unwrap_or(0);
     let region_width = region_right.saturating_sub(region_left) as f32;
-    let col_gap = crate::pdf::structure::regions::tables::compute_adaptive_column_gap(region, region_width);
+    let col_gap = heuristic_column_gap(region, region_width);
 
     let grid = reconstruct_table(region, col_gap, 0.5);
     if grid.is_empty() || grid[0].is_empty() {
@@ -431,6 +434,46 @@ fn reconstruct_region_table(
         page_number,
         bounding_box,
     })
+}
+
+fn heuristic_column_gap(region: &[crate::pdf::table_reconstruct::HocrWord], region_width: f32) -> u32 {
+    let adaptive_gap = crate::pdf::structure::regions::tables::compute_adaptive_column_gap(region, region_width);
+    if is_dense_numeric_region(region) {
+        adaptive_gap.min(DENSE_NUMERIC_COLUMN_GAP_CAP)
+    } else {
+        adaptive_gap
+    }
+}
+
+fn is_dense_numeric_region(region: &[crate::pdf::table_reconstruct::HocrWord]) -> bool {
+    if region.is_empty() {
+        return false;
+    }
+
+    let mut row_centers: Vec<u32> = region.iter().map(|word| word.top + word.height / 2).collect();
+    row_centers.sort_unstable();
+    let median_height = {
+        let mut heights: Vec<u32> = region.iter().map(|word| word.height).collect();
+        heights.sort_unstable();
+        heights[heights.len() / 2].max(1)
+    };
+    let row_tolerance = (median_height / 2).max(3);
+    row_centers.dedup_by(|left, right| left.abs_diff(*right) <= row_tolerance);
+    if row_centers.len() < DENSE_NUMERIC_MIN_ROWS {
+        return false;
+    }
+
+    let numeric_words = region.iter().filter(|word| is_numeric_word(&word.text)).count();
+    numeric_words.saturating_mul(100) >= region.len().saturating_mul(DENSE_NUMERIC_MIN_WORD_PERCENT)
+}
+
+fn is_numeric_word(text: &str) -> bool {
+    let digit_count = text.chars().filter(char::is_ascii_digit).count();
+    if digit_count == 0 {
+        return false;
+    }
+    let alphanumeric_count = text.chars().filter(|c| c.is_alphanumeric()).count();
+    digit_count.saturating_mul(2) >= alphanumeric_count
 }
 
 /// Reconstruct cell text from span positions in reading order.
@@ -900,6 +943,33 @@ mod tests {
         ];
         let regions = cluster_words_into_vertical_regions(&words);
         assert!(regions.is_empty());
+    }
+
+    #[test]
+    fn dense_numeric_region_caps_adaptive_column_gap() {
+        let mut words = Vec::new();
+        for row in 0..DENSE_NUMERIC_MIN_ROWS {
+            for col in 0..8 {
+                words.push(make_word("1.000", 20 + col * 120, 100 + row as u32 * 12, 20));
+            }
+        }
+
+        let adaptive = crate::pdf::structure::regions::tables::compute_adaptive_column_gap(&words, 900.0);
+        assert!(adaptive > DENSE_NUMERIC_COLUMN_GAP_CAP);
+        assert_eq!(heuristic_column_gap(&words, 900.0), DENSE_NUMERIC_COLUMN_GAP_CAP);
+    }
+
+    #[test]
+    fn alphabetic_region_keeps_adaptive_column_gap() {
+        let mut words = Vec::new();
+        for row in 0..DENSE_NUMERIC_MIN_ROWS {
+            for col in 0..8 {
+                words.push(make_word("value", 20 + col * 120, 100 + row as u32 * 12, 20));
+            }
+        }
+
+        let adaptive = crate::pdf::structure::regions::tables::compute_adaptive_column_gap(&words, 900.0);
+        assert_eq!(heuristic_column_gap(&words, 900.0), adaptive);
     }
 
     #[test]

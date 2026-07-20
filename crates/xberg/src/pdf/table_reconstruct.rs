@@ -7,6 +7,10 @@
 
 pub(crate) use crate::table_core::{HocrWord, reconstruct_table, table_to_markdown};
 
+const DENSE_NUMERIC_MIN_DATA_ROWS: usize = 20;
+const DENSE_NUMERIC_MIN_COLUMNS: usize = 8;
+const DENSE_NUMERIC_MIN_CELL_PERCENT: usize = 75;
+
 #[cfg(feature = "pdf")]
 use super::hierarchy::SegmentData;
 
@@ -301,6 +305,8 @@ fn post_process_table_inner(
         }
     }
 
+    let dense_numeric_grid = is_dense_numeric_grid(&processed);
+
     if processed[0].len() >= 5 {
         let mut single_word_cells = 0usize;
         let mut non_empty_cells = 0usize;
@@ -318,7 +324,7 @@ fn post_process_table_inner(
             }
         }
         let threshold = if layout_guided { 85 } else { 70 };
-        if non_empty_cells >= 6 && single_word_cells * 100 > non_empty_cells * threshold {
+        if !dense_numeric_grid && non_empty_cells >= 6 && single_word_cells * 100 > non_empty_cells * threshold {
             return None;
         }
     }
@@ -541,6 +547,7 @@ pub(crate) fn is_well_formed_table(grid: &[Vec<String>]) -> bool {
     if num_cols < 2 {
         return false;
     }
+    let dense_numeric_grid = is_dense_numeric_grid(grid);
 
     const MAX_EMPTY_CELL_FRACTION_PERCENT: usize = 40;
     let max_cols = grid.iter().map(|r| r.len()).max().unwrap_or(0);
@@ -624,7 +631,7 @@ pub(crate) fn is_well_formed_table(grid: &[Vec<String>]) -> bool {
                 .iter()
                 .all(|(mean, stddev)| *mean > 0.0 && *stddev / *mean < 0.3);
 
-            if columns_uniform && low_variance {
+            if !dense_numeric_grid && columns_uniform && low_variance {
                 return false;
             }
         }
@@ -640,7 +647,7 @@ pub(crate) fn is_well_formed_table(grid: &[Vec<String>]) -> bool {
             }
         }
         let row_count = data_rows.len();
-        if row_count >= 3 && unique_words.len() < row_count * 2 {
+        if !dense_numeric_grid && row_count >= 3 && unique_words.len() < row_count * 2 {
             return false;
         }
     }
@@ -657,6 +664,40 @@ pub(crate) fn is_well_formed_table(grid: &[Vec<String>]) -> bool {
     }
 
     true
+}
+
+fn is_dense_numeric_grid(grid: &[Vec<String>]) -> bool {
+    let Some(header) = grid.first() else {
+        return false;
+    };
+    if header.len() < DENSE_NUMERIC_MIN_COLUMNS || grid.len() <= DENSE_NUMERIC_MIN_DATA_ROWS {
+        return false;
+    }
+
+    let mut non_empty_cells = 0usize;
+    let mut numeric_cells = 0usize;
+    for cell in grid.iter().skip(1).flat_map(|row| row.iter()) {
+        let trimmed = cell.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        non_empty_cells += 1;
+        if is_numeric_value_cell(trimmed) {
+            numeric_cells += 1;
+        }
+    }
+
+    non_empty_cells > 0
+        && numeric_cells.saturating_mul(100) >= non_empty_cells.saturating_mul(DENSE_NUMERIC_MIN_CELL_PERCENT)
+}
+
+fn is_numeric_value_cell(cell: &str) -> bool {
+    let digit_count = cell.chars().filter(char::is_ascii_digit).count();
+    if digit_count == 0 {
+        return false;
+    }
+    let alphanumeric_count = cell.chars().filter(|c| c.is_alphanumeric()).count();
+    digit_count.saturating_mul(2) >= alphanumeric_count
 }
 
 /// Minimum fraction of non-empty table cells that must contain curly braces
@@ -930,6 +971,37 @@ mod tests {
         ];
         let result = post_process_table(table, false, false);
         assert!(result.is_some(), "Real table should be accepted");
+    }
+
+    #[test]
+    fn dense_numeric_matrix_survives_anti_prose_guards() {
+        let mut table = vec![
+            (0..DENSE_NUMERIC_MIN_COLUMNS)
+                .map(|col| format!("Column {col}"))
+                .collect(),
+        ];
+        for row in 0..DENSE_NUMERIC_MIN_DATA_ROWS {
+            table.push(
+                (0..DENSE_NUMERIC_MIN_COLUMNS)
+                    .map(|col| {
+                        if col == 0 {
+                            format!("{:03}", row)
+                        } else {
+                            "1.000".to_string()
+                        }
+                    })
+                    .collect(),
+            );
+        }
+
+        let processed = post_process_table(table, true, false).expect("dense numeric matrix should be retained");
+        assert!(is_well_formed_table(&processed));
+    }
+
+    #[test]
+    fn short_numeric_table_does_not_bypass_anti_prose_guards() {
+        let table = vec![vec!["1.000".to_string(); DENSE_NUMERIC_MIN_COLUMNS]; 5];
+        assert!(post_process_table(table, true, false).is_none());
     }
 
     #[test]
