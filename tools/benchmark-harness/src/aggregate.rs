@@ -1145,7 +1145,9 @@ mod tests {
             extraction_duration: None,
             subprocess_overhead: None,
             metrics: PerformanceMetrics {
+                baseline_memory_bytes: 0,
                 peak_memory_bytes: memory_bytes,
+                peak_memory_delta_bytes: memory_bytes,
                 avg_cpu_percent: 50.0,
                 throughput_bytes_per_sec: throughput_bps,
                 p50_memory_bytes: memory_bytes,
@@ -1339,7 +1341,9 @@ mod tests {
             extraction_duration: None,
             subprocess_overhead: None,
             metrics: PerformanceMetrics {
+                baseline_memory_bytes: 0,
                 peak_memory_bytes: 10_000_000,
+                peak_memory_delta_bytes: 10_000_000,
                 avg_cpu_percent: 50.0,
                 throughput_bytes_per_sec: 10_240.0,
                 p50_memory_bytes: 8_000_000,
@@ -1384,7 +1388,9 @@ mod tests {
                 extraction_duration: None,
                 subprocess_overhead: None,
                 metrics: PerformanceMetrics {
+                    baseline_memory_bytes: 0,
                     peak_memory_bytes: 10_000_000,
+                    peak_memory_delta_bytes: 10_000_000,
                     avg_cpu_percent: 50.0,
                     throughput_bytes_per_sec: 10_240.0,
                     p50_memory_bytes: 8_000_000,
@@ -1414,7 +1420,9 @@ mod tests {
                 extraction_duration: None,
                 subprocess_overhead: None,
                 metrics: PerformanceMetrics {
+                    baseline_memory_bytes: 0,
                     peak_memory_bytes: 0,
+                    peak_memory_delta_bytes: 0,
                     avg_cpu_percent: 0.0,
                     throughput_bytes_per_sec: 0.0,
                     p50_memory_bytes: 0,
@@ -1758,7 +1766,9 @@ mod tests {
             extraction_duration: None,
             subprocess_overhead: None,
             metrics: PerformanceMetrics {
+                baseline_memory_bytes: 0,
                 peak_memory_bytes: 0,
+                peak_memory_delta_bytes: 0,
                 avg_cpu_percent: 0.0,
                 throughput_bytes_per_sec: 0.0,
                 p50_memory_bytes: 0,

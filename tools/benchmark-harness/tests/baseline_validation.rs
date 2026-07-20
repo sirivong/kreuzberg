@@ -76,7 +76,10 @@ async fn test_sampling_frequency_achieves_target() {
     );
 }
 
-#[tokio::test]
+// The benchmark binary uses Tokio's multi-thread runtime. A current-thread
+// test would make synchronous OS process refreshes contend with the timer it
+// is trying to validate and measure an execution mode the harness never uses.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_variance_within_tolerance() {
     let mut durations = Vec::new();
 
@@ -84,11 +87,13 @@ async fn test_variance_within_tolerance() {
         let monitor = ResourceMonitor::new();
         monitor.start(Duration::from_millis(1)).await;
 
-        let start = std::time::Instant::now();
-
-        sleep(Duration::from_millis(50)).await;
-
-        let duration = start.elapsed();
+        let duration = tokio::task::spawn_blocking(|| {
+            let start = std::time::Instant::now();
+            std::thread::sleep(Duration::from_millis(50));
+            start.elapsed()
+        })
+        .await
+        .expect("timed workload task must complete");
         durations.push(duration);
 
         monitor.stop().await;

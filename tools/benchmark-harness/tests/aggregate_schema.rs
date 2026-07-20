@@ -29,7 +29,9 @@ fn make_benchmark_result(
         extraction_duration: Some(Duration::from_millis(80)),
         subprocess_overhead: Some(Duration::from_millis(20)),
         metrics: PerformanceMetrics {
+            baseline_memory_bytes: 0,
             peak_memory_bytes: 100_000_000,
+            peak_memory_delta_bytes: 100_000_000,
             avg_cpu_percent: 50.0,
             throughput_bytes_per_sec: 102_400.0,
             p50_memory_bytes: 90_000_000,

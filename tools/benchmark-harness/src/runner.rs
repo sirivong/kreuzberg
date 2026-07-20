@@ -222,9 +222,21 @@ fn aggregate_metrics(iterations: &[IterationResult]) -> PerformanceMetrics {
 
     let count = iterations.len() as f64;
 
+    let baseline_memory_bytes = iterations
+        .iter()
+        .map(|i| i.metrics.baseline_memory_bytes)
+        .max()
+        .unwrap_or(0);
+
     let peak_memory_bytes = iterations
         .iter()
         .map(|i| i.metrics.peak_memory_bytes)
+        .max()
+        .unwrap_or(0);
+
+    let peak_memory_delta_bytes = iterations
+        .iter()
+        .map(|i| i.metrics.peak_memory_delta_bytes)
         .max()
         .unwrap_or(0);
 
@@ -243,7 +255,9 @@ fn aggregate_metrics(iterations: &[IterationResult]) -> PerformanceMetrics {
     let p99_memory_bytes = (iterations.iter().map(|i| i.metrics.p99_memory_bytes).sum::<u64>() as f64 / count) as u64;
 
     PerformanceMetrics {
+        baseline_memory_bytes,
         peak_memory_bytes,
+        peak_memory_delta_bytes,
         avg_cpu_percent,
         throughput_bytes_per_sec,
         p50_memory_bytes,

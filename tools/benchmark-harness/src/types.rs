@@ -281,8 +281,16 @@ impl BenchmarkResult {
 /// Performance metrics collected during extraction
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformanceMetrics {
-    /// Peak memory usage in bytes
+    /// RSS captured immediately after the monitor attached to the target.
+    #[serde(default)]
+    pub baseline_memory_bytes: u64,
+
+    /// Absolute peak RSS in bytes.
     pub peak_memory_bytes: u64,
+
+    /// Peak RSS above the captured baseline.
+    #[serde(default)]
+    pub peak_memory_delta_bytes: u64,
 
     /// Average CPU usage percentage (0-100)
     pub avg_cpu_percent: f64,

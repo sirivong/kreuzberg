@@ -5,13 +5,29 @@
 //! in separate processes while monitoring resource usage.
 
 use crate::adapter::FrameworkAdapter;
-use crate::monitoring::ResourceMonitor;
+use crate::monitoring::{ResourceMonitor, ResourceStats};
 use crate::types::{BenchmarkResult, ErrorKind, FrameworkCapabilities, OcrStatus, OutputFormat, PerformanceMetrics};
 use crate::{Error, Result};
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::time::{Duration, Instant};
+#[cfg(unix)]
+use tokio::io::AsyncWriteExt;
+
+struct MeasuredCommandOutcome {
+    output: Option<std::process::Output>,
+    duration: Duration,
+    resource_stats: ResourceStats,
+    error: Option<Error>,
+}
+
+struct SubprocessExecution {
+    stdout: String,
+    duration: Duration,
+    resource_stats: ResourceStats,
+    error: Option<Error>,
+}
 
 /// Extract JSON content from raw stdout, stripping non-JSON prefix lines.
 ///
@@ -269,32 +285,145 @@ impl SubprocessAdapter {
         Error::Timeout(format!("{operation} exceeded {timeout:?}{cleanup}"))
     }
 
+    fn measured_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+        #[cfg(unix)]
+        {
+            let mut command = Command::new("sh");
+            command
+                .arg("-c")
+                .arg("IFS= read -r _ || exit 125; exec \"$@\"")
+                .arg("xberg-benchmark-start-barrier")
+                .arg(program);
+            command
+        }
+        #[cfg(not(unix))]
+        {
+            Command::new(program)
+        }
+    }
+
+    fn configure_measured_stdin(cmd: &mut Command) {
+        #[cfg(unix)]
+        cmd.stdin(Stdio::piped());
+        #[cfg(not(unix))]
+        cmd.stdin(Stdio::null());
+    }
+
     async fn execute_measured_command(
         cmd: &mut Command,
         timeout: Duration,
         operation: &str,
-    ) -> Result<(std::process::Output, Duration)> {
+        sample_interval: Duration,
+    ) -> Result<MeasuredCommandOutcome> {
+        #[cfg(not(unix))]
         let start = Instant::now();
+        #[cfg(not(unix))]
+        let deadline = start + timeout;
         let child = cmd
             .spawn()
             .map_err(|error| Error::Benchmark(format!("Failed to spawn {operation}: {error}")))?;
         let child_pid = child.id();
-        let mut wait = Box::pin(child.wait_with_output());
-        let output = match tokio::time::timeout(timeout, &mut wait).await {
-            Ok(Ok(output)) => output,
-            Ok(Err(error)) => {
-                return Err(Error::Benchmark(format!("Failed to wait for {operation}: {error}")));
+        #[cfg(unix)]
+        let (child, mut start_barrier) = {
+            let mut child = child;
+            let start_barrier = child.stdin.take();
+            (child, start_barrier)
+        };
+        let monitor = child_pid.map(ResourceMonitor::new_for_pid);
+        if let Some(monitor) = &monitor {
+            monitor.start(sample_interval).await;
+        }
+        #[cfg(unix)]
+        let start = Instant::now();
+        #[cfg(unix)]
+        let barrier_error = match start_barrier.take() {
+            Some(mut barrier) => match barrier.write_all(b"start\n").await {
+                Ok(()) => barrier.shutdown().await.err(),
+                Err(error) => Some(error),
             }
-            Err(_) => {
-                #[cfg(unix)]
-                {
-                    Self::kill_process_group(child_pid);
-                    let _ = wait.await;
+            .map(|error| Error::Benchmark(format!("Failed to release {operation} start barrier: {error}"))),
+            None => Some(Error::Benchmark(format!("Failed to open {operation} start barrier"))),
+        };
+        #[cfg(not(unix))]
+        let barrier_error: Option<Error> = None;
+        #[cfg(unix)]
+        let wait_timeout = timeout;
+        #[cfg(not(unix))]
+        let wait_timeout = deadline.saturating_duration_since(Instant::now());
+        let mut wait = Box::pin(child.wait_with_output());
+        let (output, error, duration) = if let Some(error) = barrier_error {
+            #[cfg(unix)]
+            Self::kill_process_group(child_pid);
+            let _ = wait.await;
+            (None, Some(error), start.elapsed())
+        } else {
+            match tokio::time::timeout(wait_timeout, &mut wait).await {
+                Ok(Ok(output)) => (Some(output), None, start.elapsed()),
+                Ok(Err(error)) => (
+                    None,
+                    Some(Error::Benchmark(format!("Failed to wait for {operation}: {error}"))),
+                    start.elapsed(),
+                ),
+                Err(_) => {
+                    let duration = start.elapsed();
+                    #[cfg(unix)]
+                    {
+                        Self::kill_process_group(child_pid);
+                        let _ = wait.await;
+                    }
+                    (None, Some(Self::timeout_error(operation, timeout)), duration)
                 }
-                return Err(Self::timeout_error(operation, timeout));
             }
         };
-        Ok((output, start.elapsed()))
+        let resource_stats = if let Some(monitor) = monitor {
+            let samples = monitor.stop().await;
+            let snapshots = monitor.get_snapshots().await;
+            let baseline = monitor.baseline_memory().await;
+            ResourceMonitor::calculate_stats(&samples, &snapshots, baseline)
+        } else {
+            ResourceStats::default()
+        };
+        #[cfg(not(unix))]
+        let error = if child_pid.is_some() && resource_stats.sample_count == 0 && error.is_none() {
+            Some(Error::Benchmark(format!(
+                "{operation} completed before RSS monitoring captured a sample; result is not measurable on this platform"
+            )))
+        } else {
+            error
+        };
+        Ok(MeasuredCommandOutcome {
+            output,
+            duration,
+            resource_stats,
+            error,
+        })
+    }
+
+    fn finish_measured_command(measured: MeasuredCommandOutcome, operation: &str) -> SubprocessExecution {
+        let mut error = measured.error;
+        let stdout = measured.output.map_or_else(String::new, |output| {
+            let raw_stdout = String::from_utf8_lossy(&output.stdout);
+            let stdout = extract_json_from_stdout(&raw_stdout).to_string();
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            if !output.status.success() {
+                let mut message = format!("{operation} failed with exit code {:?}", output.status.code());
+                if !stderr.is_empty() {
+                    message.push_str(&format!("\nstderr: {stderr}"));
+                }
+                if !stdout.is_empty() && stdout.len() < 500 {
+                    message.push_str(&format!("\nstdout: {stdout}"));
+                }
+                error = Some(Error::Benchmark(message));
+            }
+            stdout
+        });
+
+        SubprocessExecution {
+            stdout,
+            duration: measured.duration,
+            resource_stats: measured.resource_stats,
+            error,
+        }
     }
 
     fn configure_child_process(cmd: &mut Command) {
@@ -501,16 +630,14 @@ impl SubprocessAdapter {
         timeout: Duration,
         force_ocr: bool,
         output_format: OutputFormat,
-    ) -> Result<(String, String, Duration)> {
-        let start = Instant::now();
-
+    ) -> Result<SubprocessExecution> {
         let absolute_path = if file_path.is_absolute() {
             file_path.to_path_buf()
         } else {
             std::env::current_dir().map_err(Error::Io)?.join(file_path)
         };
 
-        let mut cmd = Command::new(&self.command);
+        let mut cmd = Self::measured_command(&self.command);
         if let Some(dir) = &self.working_dir {
             cmd.current_dir(dir);
         }
@@ -527,55 +654,16 @@ impl SubprocessAdapter {
             cmd.env(key, value);
         }
 
-        cmd.stdin(Stdio::null());
+        Self::configure_measured_stdin(&mut cmd);
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
         Self::configure_child_process(&mut cmd);
 
-        let child = cmd.spawn().map_err(|e| {
-            Error::Benchmark(format!(
-                "Failed to spawn subprocess '{}' with args {:?}: {}",
-                self.command.display(),
-                request_args,
-                e
-            ))
-        })?;
-        let child_pid = child.id();
-        let mut wait = Box::pin(child.wait_with_output());
-
-        let output = match tokio::time::timeout(timeout, &mut wait).await {
-            Ok(Ok(output)) => output,
-            Ok(Err(e)) => {
-                return Err(Error::Benchmark(format!("Failed to wait for subprocess: {}", e)));
-            }
-            Err(_) => {
-                #[cfg(unix)]
-                {
-                    Self::kill_process_group(child_pid);
-                    let _ = wait.await;
-                }
-                return Err(Self::timeout_error("Subprocess", timeout));
-            }
-        };
-
-        let duration = start.elapsed();
-
-        let raw_stdout = String::from_utf8_lossy(&output.stdout);
-        let stdout = extract_json_from_stdout(&raw_stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-        if !output.status.success() {
-            let mut error_msg = format!("Subprocess failed with exit code {:?}", output.status.code());
-            if !stderr.is_empty() {
-                error_msg.push_str(&format!("\nstderr: {}", stderr));
-            }
-            if !stdout.is_empty() && stdout.len() < 500 {
-                error_msg.push_str(&format!("\nstdout: {}", stdout));
-            }
-            return Err(Error::Benchmark(error_msg));
-        }
-
-        Ok((stdout, stderr, duration))
+        let sampling_ms =
+            crate::monitoring::adaptive_sampling_interval_ms(std::fs::metadata(file_path).map_err(Error::Io)?.len());
+        let measured =
+            Self::execute_measured_command(&mut cmd, timeout, "subprocess", Duration::from_millis(sampling_ms)).await?;
+        Ok(Self::finish_measured_command(measured, "Subprocess"))
     }
 
     /// Execute batch extraction subprocess with multiple files
@@ -585,16 +673,14 @@ impl SubprocessAdapter {
         timeout: Duration,
         force_ocr: bool,
         output_format: OutputFormat,
-    ) -> Result<(String, String, Duration)> {
-        let start = Instant::now();
-
+    ) -> Result<SubprocessExecution> {
         if self.use_native_batch && self.format_aware {
             return self
                 .execute_liteparse_native_batch(file_paths, timeout, force_ocr, output_format)
                 .await;
         }
 
-        let mut cmd = Command::new(&self.command);
+        let mut cmd = Self::measured_command(&self.command);
         if let Some(dir) = &self.working_dir {
             cmd.current_dir(dir);
         }
@@ -622,47 +708,25 @@ impl SubprocessAdapter {
             cmd.env(key, value);
         }
 
-        cmd.stdin(Stdio::null());
+        Self::configure_measured_stdin(&mut cmd);
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
         Self::configure_child_process(&mut cmd);
 
-        let child = cmd
-            .spawn()
-            .map_err(|e| Error::Benchmark(format!("Failed to spawn batch subprocess: {}", e)))?;
-
-        let child_pid = child.id();
-        let mut wait = Box::pin(child.wait_with_output());
-        let output = match tokio::time::timeout(timeout, &mut wait).await {
-            Ok(Ok(output)) => output,
-            Ok(Err(e)) => {
-                return Err(Error::Benchmark(format!("Failed to wait for batch subprocess: {}", e)));
-            }
-            Err(_) => {
-                #[cfg(unix)]
-                {
-                    Self::kill_process_group(child_pid);
-                    let _ = wait.await;
-                }
-                return Err(Self::timeout_error("Batch subprocess", timeout));
-            }
-        };
-
-        let duration = start.elapsed();
-
-        let raw_stdout = String::from_utf8_lossy(&output.stdout);
-        let stdout = extract_json_from_stdout(&raw_stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-        if !output.status.success() {
-            return Err(Error::Benchmark(format!(
-                "Batch subprocess failed with exit code {:?}\nstderr: {}",
-                output.status.code(),
-                stderr
-            )));
-        }
-
-        Ok((stdout, stderr, duration))
+        let total_file_size = file_paths
+            .iter()
+            .filter_map(|path| std::fs::metadata(path).ok())
+            .map(|metadata| metadata.len())
+            .sum();
+        let sampling_ms = crate::monitoring::adaptive_sampling_interval_ms(total_file_size);
+        let measured = Self::execute_measured_command(
+            &mut cmd,
+            timeout,
+            "batch subprocess",
+            Duration::from_millis(sampling_ms),
+        )
+        .await?;
+        Ok(Self::finish_measured_command(measured, "Batch subprocess"))
     }
 
     fn stage_liteparse_input(source: &Path, destination: &Path) -> Result<()> {
@@ -715,7 +779,7 @@ impl SubprocessAdapter {
         timeout: Duration,
         force_ocr: bool,
         output_format: OutputFormat,
-    ) -> Result<(String, String, Duration)> {
+    ) -> Result<SubprocessExecution> {
         use std::fs;
         let temp_dir =
             tempfile::tempdir().map_err(|e| Error::Benchmark(format!("Failed to create temp directory: {}", e)))?;
@@ -747,7 +811,7 @@ impl SubprocessAdapter {
             OutputFormat::Plaintext => "text",
         };
 
-        let mut cmd = Command::new("lit");
+        let mut cmd = Self::measured_command("lit");
         cmd.arg("batch-parse")
             .arg(&input_dir)
             .arg(&output_dir)
@@ -760,21 +824,24 @@ impl SubprocessAdapter {
             cmd.arg("--no-ocr");
         }
 
-        cmd.stdin(Stdio::null());
+        Self::configure_measured_stdin(&mut cmd);
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
         Self::configure_child_process(&mut cmd);
         // Staging is harness setup, not framework work. Start the measured
         // interval only after tempdir creation and input symlinks are complete.
-        let (output, duration) = Self::execute_measured_command(&mut cmd, timeout, "lit batch-parse").await?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(Error::Benchmark(format!(
-                "lit batch-parse failed with exit code {:?}\nstderr: {}",
-                output.status.code(),
-                stderr
-            )));
+        let total_file_size = file_paths
+            .iter()
+            .filter_map(|path| fs::metadata(path).ok())
+            .map(|metadata| metadata.len())
+            .sum();
+        let sampling_ms = crate::monitoring::adaptive_sampling_interval_ms(total_file_size);
+        let measured =
+            Self::execute_measured_command(&mut cmd, timeout, "lit batch-parse", Duration::from_millis(sampling_ms))
+                .await?;
+        let mut execution = Self::finish_measured_command(measured, "lit batch-parse");
+        if execution.error.is_some() {
+            return Ok(execution);
         }
 
         let preferred_exts: [&str; 2] = match output_format {
@@ -825,9 +892,8 @@ impl SubprocessAdapter {
 
         let stdout = serde_json::to_string(&results)
             .map_err(|e| Error::Benchmark(format!("Failed to serialize results: {}", e)))?;
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-
-        Ok((stdout, stderr, duration))
+        execution.stdout = stdout;
+        Ok(execution)
     }
 
     /// Execute extraction via persistent subprocess (stdin/stdout protocol)
@@ -864,7 +930,9 @@ impl SubprocessAdapter {
             extraction_duration: None,
             subprocess_overhead: None,
             metrics: PerformanceMetrics {
+                baseline_memory_bytes: resource_stats.baseline_memory_bytes,
                 peak_memory_bytes: resource_stats.peak_memory_bytes,
+                peak_memory_delta_bytes: resource_stats.peak_memory_delta_bytes,
                 avg_cpu_percent: resource_stats.avg_cpu_percent,
                 throughput_bytes_per_sec: 0.0,
                 p50_memory_bytes: resource_stats.p50_memory_bytes,
@@ -1004,40 +1072,41 @@ impl FrameworkAdapter for SubprocessAdapter {
         let file_size = std::fs::metadata(file_path).map_err(Error::Io)?.len();
 
         let start_time = std::time::Instant::now();
-        let monitor = ResourceMonitor::new();
-        let sampling_ms = crate::monitoring::adaptive_sampling_interval_ms(file_size);
-        monitor.start(Duration::from_millis(sampling_ms)).await;
 
-        let (stdout, _stderr, duration) = match self
+        let execution = match self
             .execute_subprocess(file_path, timeout, force_ocr, output_format)
             .await
         {
             Ok(result) => result,
             Err(e) => {
-                let samples = monitor.stop().await;
-                let snapshots = monitor.get_snapshots().await;
-                let baseline = monitor.baseline_memory().await;
-                let resource_stats = ResourceMonitor::calculate_stats(&samples, &snapshots, baseline);
                 let actual_duration = start_time.elapsed();
                 return Ok(self.build_failure_result(
                     file_path,
                     file_size,
                     actual_duration,
-                    &resource_stats,
+                    &ResourceStats::default(),
                     &e,
                     output_format,
                 ));
             }
         };
-
-        let post_sample = monitor.snapshot_current_memory();
-        let mut samples = monitor.stop().await;
-        if samples.is_empty() {
-            samples.push(post_sample);
+        let SubprocessExecution {
+            stdout,
+            duration,
+            resource_stats,
+            error,
+            ..
+        } = execution;
+        if let Some(error) = error {
+            return Ok(self.build_failure_result(
+                file_path,
+                file_size,
+                duration,
+                &resource_stats,
+                &error,
+                output_format,
+            ));
         }
-        let snapshots = monitor.get_snapshots().await;
-        let baseline = monitor.baseline_memory().await;
-        let resource_stats = ResourceMonitor::calculate_stats(&samples, &snapshots, baseline);
 
         let parsed = match self.parse_output(&stdout) {
             Ok(value) => value,
@@ -1077,7 +1146,9 @@ impl FrameworkAdapter for SubprocessAdapter {
 
         let metrics = match self_reported_memory {
             Some(reported_mem) if reported_mem >= resource_stats.peak_memory_bytes => PerformanceMetrics {
+                baseline_memory_bytes: resource_stats.baseline_memory_bytes,
                 peak_memory_bytes: reported_mem,
+                peak_memory_delta_bytes: reported_mem.saturating_sub(resource_stats.baseline_memory_bytes),
                 avg_cpu_percent: resource_stats.avg_cpu_percent,
                 throughput_bytes_per_sec: throughput,
                 p50_memory_bytes: reported_mem,
@@ -1085,7 +1156,9 @@ impl FrameworkAdapter for SubprocessAdapter {
                 p99_memory_bytes: reported_mem,
             },
             _ => PerformanceMetrics {
+                baseline_memory_bytes: resource_stats.baseline_memory_bytes,
                 peak_memory_bytes: resource_stats.peak_memory_bytes,
+                peak_memory_delta_bytes: resource_stats.peak_memory_delta_bytes,
                 avg_cpu_percent: resource_stats.avg_cpu_percent,
                 throughput_bytes_per_sec: throughput,
                 p50_memory_bytes: resource_stats.p50_memory_bytes,
@@ -1192,37 +1265,35 @@ impl FrameworkAdapter for SubprocessAdapter {
             return Ok(results);
         }
 
-        let total_file_size: u64 = file_paths
-            .iter()
-            .filter_map(|p| std::fs::metadata(p).ok().map(|m| m.len()))
-            .sum();
-
-        let monitor = ResourceMonitor::new();
-        let sampling_ms = crate::monitoring::adaptive_sampling_interval_ms(total_file_size);
-        monitor.start(Duration::from_millis(sampling_ms)).await;
-
-        let (stdout, _stderr, duration) = match self
+        let execution = match self
             .execute_subprocess_batch(file_paths, timeout, batch_force_ocr, output_format)
             .await
         {
             Ok(result) => result,
             Err(e) => {
-                let _ = monitor.stop().await;
                 // Xberg's batch CLI uses fail_if_errors: a failed item makes
                 // the process fail, so there is no honest partial envelope to
                 // synthesize into per-file benchmark rows.
                 return Err(e);
             }
         };
-
-        let post_sample = monitor.snapshot_current_memory();
-        let mut samples = monitor.stop().await;
-        if samples.is_empty() {
-            samples.push(post_sample);
+        let SubprocessExecution {
+            stdout,
+            duration,
+            resource_stats,
+            error,
+            ..
+        } = execution;
+        if let Some(error) = error {
+            let results = file_paths
+                .iter()
+                .map(|file_path| {
+                    let file_size = std::fs::metadata(file_path).map_or(0, |metadata| metadata.len());
+                    self.build_failure_result(file_path, file_size, duration, &resource_stats, &error, output_format)
+                })
+                .collect();
+            return Ok(results);
         }
-        let snapshots = monitor.get_snapshots().await;
-        let baseline = monitor.baseline_memory().await;
-        let resource_stats = ResourceMonitor::calculate_stats(&samples, &snapshots, baseline);
 
         let parsed_batch = parse_batch_output(&stdout)?;
 
@@ -1355,7 +1426,9 @@ impl FrameworkAdapter for SubprocessAdapter {
                     extraction_duration,
                     subprocess_overhead: None,
                     metrics: PerformanceMetrics {
+                        baseline_memory_bytes: resource_stats.baseline_memory_bytes,
                         peak_memory_bytes: resource_stats.peak_memory_bytes,
+                        peak_memory_delta_bytes: resource_stats.peak_memory_delta_bytes,
                         avg_cpu_percent: resource_stats.avg_cpu_percent,
                         // The per-item schema has no batch-level metrics slot.
                         // Store aggregate throughput once so downstream filters
@@ -1400,7 +1473,9 @@ impl FrameworkAdapter for SubprocessAdapter {
 impl Default for PerformanceMetrics {
     fn default() -> Self {
         Self {
+            baseline_memory_bytes: 0,
             peak_memory_bytes: 0,
+            peak_memory_delta_bytes: 0,
             avg_cpu_percent: 0.0,
             throughput_bytes_per_sec: 0.0,
             p50_memory_bytes: 0,
@@ -1809,7 +1884,7 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
-    async fn batch_process_failure_is_reported_as_batch_error() {
+    async fn batch_process_failure_preserves_measured_resource_stats() {
         let adapter = SubprocessAdapter::with_batch_support(
             "test",
             "sh",
@@ -1820,7 +1895,7 @@ mod tests {
         let first = tempfile::NamedTempFile::new().unwrap();
         let second = tempfile::NamedTempFile::new().unwrap();
 
-        let error = adapter
+        let results = adapter
             .extract_batch(
                 &[first.path(), second.path()],
                 Duration::from_secs(1),
@@ -1828,9 +1903,22 @@ mod tests {
                 OutputFormat::Markdown,
             )
             .await
-            .unwrap_err();
+            .unwrap();
 
-        assert!(error.to_string().contains("batch failed"));
+        assert_eq!(results.len(), 2);
+        assert!(results.iter().all(|result| !result.success));
+        assert!(results.iter().all(|result| {
+            result
+                .error_message
+                .as_deref()
+                .is_some_and(|error| error.contains("batch failed"))
+        }));
+        assert!(results.iter().all(|result| result.metrics.baseline_memory_bytes > 0));
+        assert!(
+            results
+                .iter()
+                .all(|result| { result.metrics.peak_memory_bytes >= result.metrics.baseline_memory_bytes })
+        );
     }
 
     #[cfg(unix)]
@@ -1932,12 +2020,15 @@ mod tests {
         let input = tempfile::NamedTempFile::new().unwrap();
         let start = Instant::now();
 
-        let error = adapter
+        let execution = adapter
             .execute_subprocess(input.path(), Duration::from_millis(50), false, OutputFormat::Markdown)
             .await
-            .unwrap_err();
+            .unwrap();
 
-        assert!(matches!(error, Error::Timeout(_)));
+        assert!(matches!(execution.error, Some(Error::Timeout(_))));
+        assert!(execution.resource_stats.baseline_memory_bytes > 0);
+        assert!(execution.resource_stats.peak_memory_bytes >= execution.resource_stats.baseline_memory_bytes);
+        assert!(execution.resource_stats.sample_count > 0);
         assert!(start.elapsed() < Duration::from_secs(2));
     }
 
@@ -1946,20 +2037,78 @@ mod tests {
     async fn measured_command_timer_excludes_pre_spawn_staging() {
         let wall_start = Instant::now();
         tokio::time::sleep(Duration::from_millis(60)).await;
-        let mut cmd = Command::new("sh");
+        let mut cmd = SubprocessAdapter::measured_command("sh");
         cmd.args(["-c", "sleep 0.02; printf ok"])
-            .stdin(Stdio::null())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
+        SubprocessAdapter::configure_measured_stdin(&mut cmd);
         SubprocessAdapter::configure_child_process(&mut cmd);
 
-        let (output, measured) =
-            SubprocessAdapter::execute_measured_command(&mut cmd, Duration::from_secs(1), "timer test")
-                .await
-                .unwrap();
+        let outcome = SubprocessAdapter::execute_measured_command(
+            &mut cmd,
+            Duration::from_secs(1),
+            "timer test",
+            Duration::from_millis(1),
+        )
+        .await
+        .unwrap();
 
-        assert!(output.status.success());
-        assert!(wall_start.elapsed().saturating_sub(measured) >= Duration::from_millis(40));
+        assert!(outcome.error.is_none());
+        assert!(outcome.output.unwrap().status.success());
+        assert!(outcome.resource_stats.baseline_memory_bytes > 0);
+        assert!(outcome.resource_stats.peak_memory_bytes >= outcome.resource_stats.baseline_memory_bytes);
+        assert!(outcome.resource_stats.sample_count > 0);
+        assert!(wall_start.elapsed().saturating_sub(outcome.duration) >= Duration::from_millis(40));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn measured_ultrashort_command_has_a_nonzero_rss_sample() {
+        let mut cmd = SubprocessAdapter::measured_command("sh");
+        cmd.args(["-c", "printf ok"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+        SubprocessAdapter::configure_measured_stdin(&mut cmd);
+        SubprocessAdapter::configure_child_process(&mut cmd);
+
+        let outcome = SubprocessAdapter::execute_measured_command(
+            &mut cmd,
+            Duration::from_secs(1),
+            "ultrashort command",
+            Duration::from_millis(100),
+        )
+        .await
+        .unwrap();
+
+        assert!(outcome.error.is_none());
+        assert!(outcome.output.unwrap().status.success());
+        assert!(outcome.resource_stats.baseline_memory_bytes > 0);
+        assert!(outcome.resource_stats.peak_memory_bytes >= outcome.resource_stats.baseline_memory_bytes);
+        assert!(outcome.resource_stats.sample_count > 0);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn measured_nonzero_exit_preserves_resource_stats() {
+        let mut cmd = SubprocessAdapter::measured_command("sh");
+        cmd.args(["-c", "exit 7"]).stdout(Stdio::piped()).stderr(Stdio::piped());
+        SubprocessAdapter::configure_measured_stdin(&mut cmd);
+        SubprocessAdapter::configure_child_process(&mut cmd);
+
+        let measured = SubprocessAdapter::execute_measured_command(
+            &mut cmd,
+            Duration::from_secs(1),
+            "failing command",
+            Duration::from_millis(100),
+        )
+        .await
+        .unwrap();
+        let execution = SubprocessAdapter::finish_measured_command(measured, "Failing command");
+
+        assert!(matches!(execution.error, Some(Error::Benchmark(_))));
+        assert!(execution.resource_stats.baseline_memory_bytes > 0);
+        assert!(execution.resource_stats.peak_memory_bytes >= execution.resource_stats.baseline_memory_bytes);
+        assert!(execution.resource_stats.sample_count > 0);
     }
 
     #[test]

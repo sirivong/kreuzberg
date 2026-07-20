@@ -441,7 +441,9 @@ mod tests {
             extraction_duration: None,
             subprocess_overhead: None,
             metrics: PerformanceMetrics {
+                baseline_memory_bytes: 0,
                 peak_memory_bytes: 0,
+                peak_memory_delta_bytes: 0,
                 avg_cpu_percent: 0.0,
                 throughput_bytes_per_sec: 0.0,
                 p50_memory_bytes: 0,

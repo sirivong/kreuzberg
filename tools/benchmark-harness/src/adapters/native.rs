@@ -248,7 +248,9 @@ impl FrameworkAdapter for NativeAdapter {
                 extraction_duration: Some(extraction_duration),
                 subprocess_overhead: Some(Duration::ZERO),
                 metrics: PerformanceMetrics {
+                    baseline_memory_bytes: resource_stats.baseline_memory_bytes,
                     peak_memory_bytes: resource_stats.peak_memory_bytes,
+                    peak_memory_delta_bytes: resource_stats.peak_memory_delta_bytes,
                     avg_cpu_percent: resource_stats.avg_cpu_percent,
                     throughput_bytes_per_sec: 0.0,
                     p50_memory_bytes: resource_stats.p50_memory_bytes,
@@ -276,7 +278,9 @@ impl FrameworkAdapter for NativeAdapter {
         let ocr_status = determine_ocr_status(&extraction_result, &config);
 
         let metrics = PerformanceMetrics {
+            baseline_memory_bytes: resource_stats.baseline_memory_bytes,
             peak_memory_bytes: resource_stats.peak_memory_bytes,
+            peak_memory_delta_bytes: resource_stats.peak_memory_delta_bytes,
             avg_cpu_percent: resource_stats.avg_cpu_percent,
             throughput_bytes_per_sec: throughput,
             p50_memory_bytes: resource_stats.p50_memory_bytes,
@@ -397,7 +401,9 @@ impl FrameworkAdapter for NativeAdapter {
                         extraction_duration: Some(avg_duration_per_file),
                         subprocess_overhead: Some(Duration::ZERO),
                         metrics: PerformanceMetrics {
+                            baseline_memory_bytes: resource_stats.baseline_memory_bytes,
                             peak_memory_bytes: resource_stats.peak_memory_bytes,
+                            peak_memory_delta_bytes: resource_stats.peak_memory_delta_bytes,
                             avg_cpu_percent: resource_stats.avg_cpu_percent,
                             throughput_bytes_per_sec: 0.0,
                             p50_memory_bytes: resource_stats.p50_memory_bytes,
@@ -463,12 +469,6 @@ impl FrameworkAdapter for NativeAdapter {
                     (true, None, ErrorKind::None)
                 };
 
-                let file_fraction = if total_file_size > 0 {
-                    file_size as f64 / total_file_size as f64
-                } else {
-                    1.0 / file_paths.len() as f64
-                };
-
                 BenchmarkResult {
                     framework: self.name().to_string(),
                     file_path: file_path.to_path_buf(),
@@ -480,12 +480,14 @@ impl FrameworkAdapter for NativeAdapter {
                     extraction_duration: Some(extraction_duration),
                     subprocess_overhead: Some(Duration::ZERO),
                     metrics: PerformanceMetrics {
-                        peak_memory_bytes: (resource_stats.peak_memory_bytes as f64 * file_fraction) as u64,
+                        baseline_memory_bytes: resource_stats.baseline_memory_bytes,
+                        peak_memory_bytes: resource_stats.peak_memory_bytes,
+                        peak_memory_delta_bytes: resource_stats.peak_memory_delta_bytes,
                         avg_cpu_percent: resource_stats.avg_cpu_percent,
                         throughput_bytes_per_sec: file_throughput,
-                        p50_memory_bytes: (resource_stats.p50_memory_bytes as f64 * file_fraction) as u64,
-                        p95_memory_bytes: (resource_stats.p95_memory_bytes as f64 * file_fraction) as u64,
-                        p99_memory_bytes: (resource_stats.p99_memory_bytes as f64 * file_fraction) as u64,
+                        p50_memory_bytes: resource_stats.p50_memory_bytes,
+                        p95_memory_bytes: resource_stats.p95_memory_bytes,
+                        p99_memory_bytes: resource_stats.p99_memory_bytes,
                     },
                     quality: None,
                     iterations: vec![],

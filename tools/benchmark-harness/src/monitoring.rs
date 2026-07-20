@@ -22,7 +22,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Notify, oneshot};
+use tokio::task::JoinHandle;
 
 /// Calculate adaptive sampling interval based on file size.
 ///
@@ -218,6 +219,8 @@ pub struct ResourceMonitor {
     /// Baseline RSS captured at start(), used to compute delta-based memory metrics.
     /// This removes the effect of pre-loaded models/runtimes from per-extraction measurements.
     baseline_memory_bytes: Arc<Mutex<u64>>,
+    task: Mutex<Option<JoinHandle<()>>>,
+    stop_notify: Arc<Notify>,
 }
 
 impl ResourceMonitor {
@@ -233,6 +236,8 @@ impl ResourceMonitor {
             running: Arc::new(AtomicBool::new(false)),
             pid,
             baseline_memory_bytes: Arc::new(Mutex::new(0)),
+            task: Mutex::new(None),
+            stop_notify: Arc::new(Notify::new()),
         }
     }
 
@@ -248,6 +253,8 @@ impl ResourceMonitor {
             running: Arc::new(AtomicBool::new(false)),
             pid: Pid::from_u32(pid),
             baseline_memory_bytes: Arc::new(Mutex::new(0)),
+            task: Mutex::new(None),
+            stop_notify: Arc::new(Notify::new()),
         }
     }
 
@@ -267,6 +274,27 @@ impl ResourceMonitor {
         Some(allocated as u64)
     }
 
+    fn collect_sample(pid: Pid, system: &System, elapsed: Duration) -> Option<(ResourceSample, MemorySnapshot)> {
+        system.process(pid)?;
+        let tree_memory = collect_process_tree_memory(pid, system);
+        let tree_vm = collect_process_tree_vm(pid, system);
+        let tree_cpu = collect_process_tree_cpu(pid, system);
+        let sample = ResourceSample {
+            memory_bytes: tree_memory,
+            vm_size_bytes: tree_vm,
+            page_faults: 0,
+            cpu_percent: tree_cpu / num_cpus::get() as f64,
+            timestamp_ms: elapsed.as_millis() as u64,
+        };
+
+        #[cfg(feature = "memory-profiling")]
+        let snapshot = MemorySnapshot::new(elapsed, tree_memory, tree_vm, 0, Self::capture_heap_stats());
+        #[cfg(not(feature = "memory-profiling"))]
+        let snapshot = MemorySnapshot::new(elapsed, tree_memory, tree_vm, 0);
+
+        Some((sample, snapshot))
+    }
+
     /// Start monitoring resources in the background
     ///
     /// Spawns a background task that samples memory and CPU usage at the specified interval.
@@ -283,59 +311,46 @@ impl ResourceMonitor {
         let snapshots = Arc::clone(&self.snapshots);
         let running = Arc::clone(&self.running);
         let baseline_memory = Arc::clone(&self.baseline_memory_bytes);
+        let stop_notify = Arc::clone(&self.stop_notify);
         let pid = self.pid;
+        let (ready_tx, ready_rx) = oneshot::channel();
 
-        tokio::spawn(async move {
+        let task = tokio::spawn(async move {
             let mut system = System::new();
             let start = std::time::Instant::now();
-
             let refresh_kind = ProcessRefreshKind::nothing().with_memory().with_cpu();
 
             system.refresh_processes_specifics(ProcessesToUpdate::All, false, refresh_kind);
-
             let baseline_rss = collect_process_tree_memory(pid, &system);
             *baseline_memory.lock().await = baseline_rss;
 
-            tokio::time::sleep(sample_interval).await;
+            if let Some((sample, snapshot)) = Self::collect_sample(pid, &system, start.elapsed()) {
+                samples.lock().await.push(sample);
+                snapshots.lock().await.push(snapshot);
+            }
+            let _ = ready_tx.send(());
+
+            let mut interval = tokio::time::interval(sample_interval);
+            interval.tick().await;
 
             while running.load(Ordering::SeqCst) {
-                system.refresh_processes_specifics(ProcessesToUpdate::All, false, refresh_kind);
-
-                if system.process(pid).is_some() {
-                    let elapsed = start.elapsed();
-
-                    let cpu_count = num_cpus::get() as f64;
-                    let tree_cpu = collect_process_tree_cpu(pid, &system);
-                    let normalized_cpu_percent = tree_cpu / cpu_count;
-
-                    let tree_memory = collect_process_tree_memory(pid, &system);
-                    let tree_vm = collect_process_tree_vm(pid, &system);
-
-                    let sample = ResourceSample {
-                        memory_bytes: tree_memory,
-                        vm_size_bytes: tree_vm,
-                        page_faults: 0,
-                        cpu_percent: normalized_cpu_percent,
-                        timestamp_ms: elapsed.as_millis() as u64,
-                    };
-
-                    #[cfg(feature = "memory-profiling")]
-                    let heap_allocated = Self::capture_heap_stats();
-                    #[cfg(not(feature = "memory-profiling"))]
-                    let _heap_allocated: Option<u64> = None;
-
-                    #[cfg(feature = "memory-profiling")]
-                    let snapshot = MemorySnapshot::new(elapsed, tree_memory, tree_vm, 0, heap_allocated);
-                    #[cfg(not(feature = "memory-profiling"))]
-                    let snapshot = MemorySnapshot::new(elapsed, tree_memory, tree_vm, 0);
-
-                    samples.lock().await.push(sample);
-                    snapshots.lock().await.push(snapshot);
+                tokio::select! {
+                    _ = interval.tick() => {
+                        if !running.load(Ordering::SeqCst) {
+                            break;
+                        }
+                        system.refresh_processes_specifics(ProcessesToUpdate::All, false, refresh_kind);
+                        if let Some((sample, snapshot)) = Self::collect_sample(pid, &system, start.elapsed()) {
+                            samples.lock().await.push(sample);
+                            snapshots.lock().await.push(snapshot);
+                        }
+                    }
+                    () = stop_notify.notified() => break,
                 }
-
-                tokio::time::sleep(sample_interval).await;
             }
         });
+        *self.task.lock().await = Some(task);
+        let _ = ready_rx.await;
     }
 
     /// Take a single synchronous memory and CPU measurement of the current process tree.
@@ -369,8 +384,11 @@ impl ResourceMonitor {
     /// Stop monitoring and return collected samples
     pub async fn stop(&self) -> Vec<ResourceSample> {
         self.running.store(false, Ordering::SeqCst);
+        self.stop_notify.notify_waiters();
 
-        tokio::time::sleep(Duration::from_millis(20)).await;
+        if let Some(task) = self.task.lock().await.take() {
+            let _ = task.await;
+        }
 
         let samples = self.samples.lock().await;
         samples.clone()
@@ -448,11 +466,9 @@ impl ResourceMonitor {
 
     /// Calculate resource statistics from samples and snapshots
     ///
-    /// Memory values are reported as deltas from `baseline_bytes`, which represents
-    /// the process tree RSS before extraction started. This removes the effect of
-    /// pre-loaded models and runtimes from per-extraction measurements.
-    ///
-    /// Pass `baseline_bytes = 0` to get absolute RSS (legacy behavior).
+    /// Absolute RSS is the primary peak metric. `baseline_bytes` and the
+    /// corresponding peak delta are retained separately so callers can distinguish
+    /// total process footprint from memory added during extraction.
     pub fn calculate_stats(
         samples: &[ResourceSample],
         snapshots: &[MemorySnapshot],
@@ -460,14 +476,12 @@ impl ResourceMonitor {
     ) -> ResourceStats {
         if samples.is_empty() {
             if !snapshots.is_empty() {
-                let peak_rss = snapshots
-                    .iter()
-                    .map(|s| s.rss_bytes.saturating_sub(baseline_bytes))
-                    .max()
-                    .unwrap_or(0);
+                let peak_rss = snapshots.iter().map(|s| s.rss_bytes).max().unwrap_or(0);
                 let peak_vm = snapshots.iter().map(|s| s.vm_bytes).max().unwrap_or(0);
                 return ResourceStats {
+                    baseline_memory_bytes: baseline_bytes,
                     peak_memory_bytes: peak_rss,
+                    peak_memory_delta_bytes: peak_rss.saturating_sub(baseline_bytes),
                     peak_vm_bytes: peak_vm,
                     p50_memory_bytes: peak_rss,
                     p95_memory_bytes: peak_rss,
@@ -480,9 +494,10 @@ impl ResourceMonitor {
             return ResourceStats::default();
         }
 
-        let memory_values: Vec<u64> = samples
+        let memory_values: Vec<u64> = samples.iter().map(|s| s.memory_bytes).collect();
+        let memory_delta_values: Vec<u64> = memory_values
             .iter()
-            .map(|s| s.memory_bytes.saturating_sub(baseline_bytes))
+            .map(|memory| memory.saturating_sub(baseline_bytes))
             .collect();
         let cpu_values: Vec<f64> = samples.iter().map(|s| s.cpu_percent).collect();
         let vm_values: Vec<u64> = samples.iter().map(|s| s.vm_size_bytes).collect();
@@ -531,7 +546,9 @@ impl ResourceMonitor {
         let total_page_faults = samples.last().map(|s| s.page_faults).unwrap_or(0);
 
         ResourceStats {
+            baseline_memory_bytes: baseline_bytes,
             peak_memory_bytes: peak_memory,
+            peak_memory_delta_bytes: memory_delta_values.iter().copied().max().unwrap_or(0),
             peak_vm_bytes: peak_vm,
             total_page_faults,
             memory_growth_rate_mb_s,
@@ -558,8 +575,12 @@ impl Default for ResourceMonitor {
 /// growth rates, and optional allocation hotspot analysis.
 #[derive(Debug, Clone, Default)]
 pub struct ResourceStats {
-    /// Peak memory usage in bytes
+    /// RSS captured immediately after monitoring attached to the target.
+    pub baseline_memory_bytes: u64,
+    /// Absolute peak RSS in bytes.
     pub peak_memory_bytes: u64,
+    /// Peak RSS above the captured baseline in bytes.
+    pub peak_memory_delta_bytes: u64,
     /// Peak virtual memory size in bytes
     pub peak_vm_bytes: u64,
     /// Total major page faults
@@ -663,6 +684,19 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn start_waits_for_initial_sample() {
+        let monitor = ResourceMonitor::new();
+
+        monitor.start(Duration::from_secs(1)).await;
+        let baseline = monitor.baseline_memory().await;
+        let samples = monitor.stop().await;
+
+        assert!(baseline > 0, "start must capture the baseline before returning");
+        assert_eq!(samples.len(), 1, "the initial sample must not depend on the interval");
+        assert_eq!(samples[0].memory_bytes, baseline);
+    }
+
+    #[tokio::test]
     async fn test_resource_stats_calculation() {
         let samples = vec![
             ResourceSample {
@@ -715,9 +749,11 @@ mod tests {
             ),
         ];
 
-        let stats = ResourceMonitor::calculate_stats(&samples, &snapshots, 0);
+        let stats = ResourceMonitor::calculate_stats(&samples, &snapshots, 100);
 
+        assert_eq!(stats.baseline_memory_bytes, 100);
         assert_eq!(stats.peak_memory_bytes, 200);
+        assert_eq!(stats.peak_memory_delta_bytes, 100);
         assert_eq!(stats.peak_vm_bytes, 600);
         assert_eq!(stats.total_page_faults, 25);
         assert_eq!(stats.p50_memory_bytes, 150);
