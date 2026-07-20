@@ -316,6 +316,9 @@ impl StructuralSidecar {
                 Event::End(TagEnd::TableHead) => {
                     if let Some(tb) = table.as_mut() {
                         tb.in_header = false;
+                        tb.n_cols = tb.n_cols.max(tb.col);
+                        tb.row += 1;
+                        tb.col = 0;
                     }
                 }
                 Event::Start(Tag::TableRow) => {
@@ -982,6 +985,9 @@ Figure 1: The overall system architecture and its components.
         let t = tables(&s)[0];
         assert!(!t.spans_recoverable, "GFM pipe tables cannot express spans");
         assert!(t.cells.iter().all(|c| c.rowspan == 1 && c.colspan == 1));
+        assert_eq!((t.n_rows, t.n_cols), (3, 3));
+        let positions: HashSet<(usize, usize)> = t.cells.iter().map(|c| (c.row, c.col)).collect();
+        assert_eq!(positions.len(), t.cells.len(), "table cell origins must be unique");
     }
 
     // ---- identity ----
