@@ -437,6 +437,7 @@ fn process_single_page(
             classify_paragraphs(&mut paragraphs, heading_map);
         }
         merge_continuation_paragraphs(&mut paragraphs);
+        synchronize_paragraph_text_metadata(&mut paragraphs);
         if let Some(ref hints) = page_hints {
             super::layout_classify::apply_layout_overrides(&mut paragraphs, hints, 0.5, 0.2, doc_body_font_size);
             un_mark_layout_furniture_per_config(&mut paragraphs, include_headers, include_footers);
@@ -460,7 +461,9 @@ fn process_single_page(
         );
         let page_segments = filter_segments_by_table_bboxes(page_segments, &table_bboxes);
         let mut paragraphs = blocks_to_paragraphs(page_segments, heading_map, &paragraph_gap_ys);
+        apply_text_repair_to_structure_tree_paragraphs(&mut paragraphs, true);
         merge_continuation_paragraphs(&mut paragraphs);
+        synchronize_paragraph_text_metadata(&mut paragraphs);
         tracing::debug!(
             page = i,
             paragraphs = paragraphs.len(),
@@ -2084,6 +2087,19 @@ fn apply_text_repair_to_structure_tree_paragraphs(paragraphs: &mut Vec<PdfParagr
     apply_to_all_segments(paragraphs, fused_text_repairs);
     dehyphenate_paragraphs(paragraphs, has_positions);
     split_embedded_list_items(paragraphs);
+    synchronize_paragraph_text_metadata(paragraphs);
+}
+
+/// Invalidate cached paragraph text after mutating segments and refresh derived metadata.
+///
+/// Assembly derives both the emitted text and inline annotation byte ranges from segments
+/// when `text` is empty. Keeping that cache empty prevents repaired segment text from
+/// diverging from the stale pre-repair string used by the heuristic path.
+fn synchronize_paragraph_text_metadata(paragraphs: &mut [PdfParagraph]) {
+    for paragraph in paragraphs {
+        paragraph.text.clear();
+        paragraph.word_count = PdfParagraph::compute_word_count("", &paragraph.lines);
+    }
 }
 
 #[cfg(test)]
@@ -2435,6 +2451,83 @@ mod tests {
             .map(|segment| segment.text.as_str())
             .collect::<Vec<_>>()
             .join(" ")
+    }
+
+    fn heuristic_segment(text: &str, baseline_y: f32, width: f32, is_monospace: bool) -> SegmentData {
+        let mut segment = seg(text, 10.0, width);
+        segment.y = baseline_y - segment.height;
+        segment.baseline_y = baseline_y;
+        segment.is_monospace = is_monospace;
+        segment
+    }
+
+    fn process_heuristic_segments(segments: Vec<SegmentData>) -> Vec<PdfParagraph> {
+        process_single_page(
+            PageInput {
+                page_index: 0,
+                struct_paragraphs: None,
+                heuristic_segments: segments,
+                page_hints: None,
+                table_bboxes: Vec::new(),
+                hint_validations: Vec::new(),
+                needs_classify: false,
+                paragraph_gap_ys: Vec::new(),
+                include_headers: true,
+                include_footers: true,
+            },
+            &[],
+            None,
+        )
+    }
+
+    #[test]
+    fn test_heuristic_path_runs_fused_text_repairs() {
+        let mut segment = heuristic_segment("Intro\u{00AD}duction, , body", 700.0, 320.0, false);
+        segment.is_bold = true;
+
+        let output = process_heuristic_segments(vec![segment]);
+
+        assert_eq!(output.len(), 1);
+        assert_eq!(paragraph_text(&output[0]), "Introduction, body");
+        assert!(output[0].text.is_empty(), "repaired segments must remain the text source of truth");
+        assert_eq!(output[0].word_count, 2);
+
+        let document = assemble_internal_document(vec![output], &[], None, &[]);
+        let element = &document.elements[0];
+        assert_eq!(element.text, "Introduction, body");
+        assert_eq!(element.annotations.len(), 1);
+        assert_eq!(element.annotations[0].start, 0);
+        assert_eq!(element.annotations[0].end as usize, element.text.len());
+    }
+
+    #[test]
+    fn test_heuristic_path_dehyphenates_wrapped_word() {
+        let output = process_heuristic_segments(vec![
+            heuristic_segment("Reliable soft-", 700.0, 490.0, false),
+            heuristic_segment("ware handles load", 680.0, 200.0, false),
+        ]);
+
+        assert_eq!(output.len(), 1);
+        assert_eq!(paragraph_text(&output[0]), "Reliable software handles load");
+        assert_eq!(output[0].word_count, 4);
+    }
+
+    #[test]
+    fn test_heuristic_path_preserves_compound_and_code_hyphens() {
+        let compound = process_heuristic_segments(vec![heuristic_segment(
+            "A state-of-the-art design",
+            700.0,
+            300.0,
+            false,
+        )]);
+        assert_eq!(paragraph_text(&compound[0]), "A state-of-the-art design");
+
+        let code = process_heuristic_segments(vec![
+            heuristic_segment("let value = soft-", 700.0, 490.0, true),
+            heuristic_segment("ware;", 680.0, 100.0, true),
+        ]);
+        assert!(code[0].is_code_block);
+        assert_eq!(paragraph_text(&code[0]), "let value = soft- ware;");
     }
 
     #[test]

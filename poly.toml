@@ -35,6 +35,7 @@ exclude = [
     "**/*.diff",
     "**/*.patch",
     "**/frb_generated.rs",
+    "charts/**/templates/**",
 ]
 
 [lint.markdown.rumdl]

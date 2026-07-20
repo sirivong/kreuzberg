@@ -148,7 +148,7 @@ fn assemble_page_elements(builder: &mut InternalDocumentBuilder, paragraphs: &[P
     }
 }
 
-/// Push paragraph elements interleaved with tables sorted by vertical position.
+/// Push paragraph elements in their established reading order, with tables interleaved.
 fn assemble_page_elements_with_tables(
     builder: &mut InternalDocumentBuilder,
     paragraphs: &[PdfParagraph],
@@ -172,80 +172,89 @@ fn assemble_page_elements_with_tables(
 
     positioned.sort_by(|a, b| b.0.total_cmp(&a.0));
 
-    enum PageElement<'a> {
-        Paragraph(usize, &'a PdfParagraph),
-        Table(&'a crate::types::Table),
-    }
+    let ordered_paragraphs: Vec<(usize, &PdfParagraph)> = paragraphs
+        .iter()
+        .enumerate()
+        .filter(|(_, para)| para.caption_for.is_none())
+        .collect();
+    let mut tables_at_slot: Vec<Vec<&crate::types::Table>> = (0..=ordered_paragraphs.len())
+        .map(|_| Vec::new())
+        .collect();
 
-    let mut elements: Vec<(usize, f32, PageElement)> = Vec::new();
-    let mut insertion_index = 0usize;
-
-    for (idx, para) in paragraphs.iter().enumerate() {
-        if para.caption_for.is_some() {
-            continue;
-        }
-        let y_pos = para.lines.first().map(|l| l.baseline_y).unwrap_or(0.0);
-        elements.push((insertion_index, y_pos, PageElement::Paragraph(idx, para)));
-        insertion_index += 1;
-    }
-
-    for (y_pos, table) in &positioned {
-        elements.push((insertion_index, *y_pos, PageElement::Table(table)));
-        insertion_index += 1;
-    }
-
-    elements.sort_by(|a, b| b.1.total_cmp(&a.1));
-
-    if !is_sort_visually_consistent_with_y_index(&elements) {
-        tracing::debug!("Sort order is visually inconsistent; falling back to natural input order");
-        elements.sort_by_key(|e| e.0);
+    for (table_y, table) in positioned {
+        let slot = table_insertion_slot(&ordered_paragraphs, table_y);
+        tables_at_slot[slot].push(table);
     }
 
     let mut in_list = false;
 
-    for (_, _, elem) in &elements {
-        match elem {
-            PageElement::Paragraph(para_idx, para) => {
-                if para.is_list_item && !in_list {
-                    builder.push_list(list_item_is_ordered(para));
-                    in_list = true;
-                } else if !para.is_list_item && in_list {
-                    builder.end_list();
-                    in_list = false;
-                }
-
-                let elem_idx = push_paragraph_element(builder, para, page);
-                emit_caption_elements(builder, paragraphs, *para_idx, page, elem_idx);
+    for (slot, slot_tables) in tables_at_slot.into_iter().enumerate() {
+        for table in slot_tables {
+            if in_list {
+                builder.end_list();
+                in_list = false;
             }
-            PageElement::Table(table) => {
-                if in_list {
-                    builder.end_list();
-                    in_list = false;
-                }
-                let bbox = table.bounding_box.map(|bb| BoundingBox {
-                    x0: bb.x0,
-                    y0: bb.y0,
-                    x1: bb.x1,
-                    y1: bb.y1,
-                });
-                builder.push_table((*table).clone(), page, bbox);
-            }
+            push_table_element(builder, table, page);
         }
+
+        let Some(&(para_idx, para)) = ordered_paragraphs.get(slot) else {
+            continue;
+        };
+
+        if para.is_list_item && !in_list {
+            builder.push_list(list_item_is_ordered(para));
+            in_list = true;
+        } else if !para.is_list_item && in_list {
+            builder.end_list();
+            in_list = false;
+        }
+
+        let elem_idx = push_paragraph_element(builder, para, page);
+        emit_caption_elements(builder, paragraphs, para_idx, page, elem_idx);
     }
 
     if in_list {
         builder.end_list();
     }
 
-    for table in &unpositioned {
-        let bbox = table.bounding_box.map(|bb| BoundingBox {
-            x0: bb.x0,
-            y0: bb.y0,
-            x1: bb.x1,
-            y1: bb.y1,
-        });
-        builder.push_table((*table).clone(), page, bbox);
+    for table in unpositioned {
+        push_table_element(builder, table, page);
     }
+}
+
+/// Pick the earliest reading-order boundary immediately before text below the table.
+///
+/// Paragraphs may already be in column-aware order, so their vertical anchors are
+/// not necessarily monotonic. Selecting a boundary without sorting keeps the
+/// paragraph subsequence intact while still placing tables sensibly in a column.
+fn table_insertion_slot(paragraphs: &[(usize, &PdfParagraph)], table_y: f32) -> usize {
+    paragraphs
+        .iter()
+        .position(|(_, paragraph)| {
+            paragraph_vertical_anchor(paragraph).is_some_and(|paragraph_y| paragraph_y < table_y)
+        })
+        .unwrap_or(paragraphs.len())
+}
+
+fn paragraph_vertical_anchor(paragraph: &PdfParagraph) -> Option<f32> {
+    paragraph
+        .block_bbox
+        .map(|(_, _, _, top)| top)
+        .or_else(|| paragraph.lines.first().map(|line| line.baseline_y))
+}
+
+fn push_table_element(
+    builder: &mut InternalDocumentBuilder,
+    table: &crate::types::Table,
+    page: Option<u32>,
+) -> u32 {
+    let bbox = table.bounding_box.map(|bb| BoundingBox {
+        x0: bb.x0,
+        y0: bb.y0,
+        x1: bb.x1,
+        y1: bb.y1,
+    });
+    builder.push_table(table.clone(), page, bbox)
 }
 
 /// Convert a single PdfParagraph to the appropriate InternalElement and push it.
@@ -642,71 +651,6 @@ fn guess_furniture_layer(para: &PdfParagraph) -> ContentLayer {
     }
 }
 
-/// Check if the sorted element order is visually consistent.
-///
-/// Validates that consecutive elements don't have significant vertical overlap
-/// in a way that would indicate reordering (category F: layout reordering).
-/// If sorted order places an element's Y-position far below (or above in PDF coords)
-/// a previous element's position in a way that seems out-of-order, returns false.
-///
-/// This is a heuristic: if Y-positions are within ~50 points of each other,
-/// consider them "visually consistent" (could be columns or wrapped text).
-/// If they diverge significantly, it indicates potential scrambling.
-#[cfg(test)]
-fn is_sort_visually_consistent<T>(elements: &[(f32, T)]) -> bool {
-    if elements.len() <= 1 {
-        return true;
-    }
-
-    const REORDER_THRESHOLD: f32 = 50.0;
-
-    for i in 1..elements.len() {
-        let prev_y = elements[i - 1].0;
-        let curr_y = elements[i].0;
-
-        if curr_y > prev_y + REORDER_THRESHOLD {
-            tracing::debug!(
-                prev_y,
-                curr_y,
-                violation_size = curr_y - prev_y,
-                "Sort order violation detected at index {i}: element jumps backward by {:.1} points",
-                curr_y - prev_y
-            );
-            return false;
-        }
-    }
-
-    true
-}
-
-/// Check if sorted elements with insertion-index tagging are visually consistent.
-/// This variant operates on tuples where the Y-position is at index 1.
-fn is_sort_visually_consistent_with_y_index<T>(elements: &[(usize, f32, T)]) -> bool {
-    if elements.len() <= 1 {
-        return true;
-    }
-
-    const REORDER_THRESHOLD: f32 = 50.0;
-
-    for i in 1..elements.len() {
-        let prev_y = elements[i - 1].1;
-        let curr_y = elements[i].1;
-
-        if curr_y > prev_y + REORDER_THRESHOLD {
-            tracing::debug!(
-                prev_y,
-                curr_y,
-                violation_size = curr_y - prev_y,
-                "Sort order violation detected at index {i}: element jumps backward by {:.1} points",
-                curr_y - prev_y
-            );
-            return false;
-        }
-    }
-
-    true
-}
-
 #[cfg(test)]
 mod tests {
     use crate::pdf::hierarchy::SegmentData;
@@ -761,6 +705,32 @@ mod tests {
             block_bbox: None,
             word_count,
         }
+    }
+
+    fn make_table_at(markdown: &str, top_y: f64) -> crate::types::Table {
+        crate::types::Table {
+            cells: vec![],
+            markdown: markdown.to_string(),
+            page_number: 1,
+            bounding_box: Some(crate::types::BoundingBox {
+                x0: 40.0,
+                y0: top_y - 80.0,
+                x1: 560.0,
+                y1: top_y,
+            }),
+        }
+    }
+
+    fn page_element_labels(document: &InternalDocument) -> Vec<&str> {
+        document
+            .elements
+            .iter()
+            .filter_map(|element| match &element.kind {
+                ElementKind::Paragraph => Some(element.text.as_str()),
+                ElementKind::Table { .. } => Some("<table>"),
+                _ => None,
+            })
+            .collect()
     }
 
     #[test]
@@ -830,6 +800,37 @@ mod tests {
         assert!(doc.elements.iter().any(|e| e.text == "Page 1"));
         assert!(doc.elements.iter().any(|e| e.text == "Page 2"));
         assert!(doc.tables.iter().any(|t| t.markdown.contains("| Table |")));
+    }
+
+    #[test]
+    fn test_single_column_table_is_interleaved_by_vertical_position() {
+        let pages = vec![vec![
+            make_paragraph_at("Before", None, 900.0),
+            make_paragraph_at("After", None, 700.0),
+        ]];
+        let tables = vec![make_table_at("| Between |", 800.0)];
+
+        let document = assemble_internal_document(pages, &tables, None, &[]);
+
+        assert_eq!(page_element_labels(&document), ["Before", "<table>", "After"]);
+    }
+
+    #[test]
+    fn test_two_column_paragraph_order_survives_table_interleaving() {
+        let pages = vec![vec![
+            make_paragraph_at("Left top", None, 900.0),
+            make_paragraph_at("Left bottom", None, 700.0),
+            make_paragraph_at("Right top", None, 880.0),
+            make_paragraph_at("Right bottom", None, 680.0),
+        ]];
+        let tables = vec![make_table_at("| Interleaved |", 800.0)];
+
+        let document = assemble_internal_document(pages, &tables, None, &[]);
+
+        assert_eq!(
+            page_element_labels(&document),
+            ["Left top", "<table>", "Left bottom", "Right top", "Right bottom"]
+        );
     }
 
     #[test]
@@ -1221,72 +1222,4 @@ mod tests {
         assert!(texts.contains(&"HR 36/30"), "HR 36/30 missing; headings: {texts:?}");
     }
 
-    #[test]
-    fn test_sort_consistency_detects_reordering() {
-        enum TestElement {
-            A,
-            B,
-            C,
-        }
-
-        let consistent: Vec<(f32, TestElement)> = vec![
-            (900.0, TestElement::A),
-            (850.0, TestElement::B),
-            (800.0, TestElement::C),
-        ];
-        assert!(
-            is_sort_visually_consistent(&consistent),
-            "Descending Y-order should be visually consistent"
-        );
-
-        let inconsistent: Vec<(f32, TestElement)> = vec![
-            (900.0, TestElement::A),
-            (750.0, TestElement::B),
-            (810.0, TestElement::C),
-        ];
-        assert!(
-            !is_sort_visually_consistent(&inconsistent),
-            "Y-order with backward jump should be detected as inconsistent"
-        );
-
-        let columns: Vec<(f32, TestElement)> = vec![
-            (900.0, TestElement::A),
-            (880.0, TestElement::B),
-            (870.0, TestElement::C),
-        ];
-        assert!(
-            is_sort_visually_consistent(&columns),
-            "Small gaps within threshold (columns) should be consistent"
-        );
-    }
-
-    #[test]
-    fn test_indexed_sort_fallback_restores_input_order() {
-        enum TestElement {
-            A,
-            B,
-            C,
-        }
-
-        let mut elements: Vec<(usize, f32, TestElement)> = vec![
-            (0, 900.0, TestElement::A),
-            (1, 750.0, TestElement::B),
-            (2, 810.0, TestElement::C),
-        ];
-
-        assert!(
-            !is_sort_visually_consistent_with_y_index(&elements),
-            "Scrambled Y positions (900, 750, 810) should be detected as inconsistent (750→810 jumps forward)"
-        );
-
-        elements.sort_by_key(|e| e.0);
-
-        assert_eq!(elements[0].0, 0, "First element should be at insertion index 0");
-        assert_eq!(elements[1].0, 1, "Second element should be at insertion index 1");
-        assert_eq!(elements[2].0, 2, "Third element should be at insertion index 2");
-
-        assert_eq!(elements[0].1, 900.0, "First element in input order should have Y=900");
-        assert_eq!(elements[1].1, 750.0, "Second element in input order should have Y=750");
-        assert_eq!(elements[2].1, 810.0, "Third element in input order should have Y=810");
-    }
 }
