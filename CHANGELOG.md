@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc.30] - 2026-07-20
+
 ### Added
 
 - **In-crate Rust tests for the wasm engine.** The `XbergEngine` bridge surface (constructor
