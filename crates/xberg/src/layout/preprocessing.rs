@@ -9,17 +9,15 @@ use ndarray::Array4;
 pub(crate) fn preprocess_rescale(img: &RgbImage, target_size: u32) -> Array4<f32> {
     let resized = image::imageops::resize(img, target_size, target_size, image::imageops::FilterType::Triangle);
     let pixels = resized.as_raw();
-    let hw = (target_size * target_size) as usize;
+    let ts = target_size as usize;
 
-    let mut data = vec![0.0f32; 3 * hw];
-    for i in 0..hw {
-        data[i] = pixels[i * 3] as f32 * (1.0 / 255.0);
-        data[hw + i] = pixels[i * 3 + 1] as f32 * (1.0 / 255.0);
-        data[2 * hw + i] = pixels[i * 3 + 2] as f32 * (1.0 / 255.0);
-    }
-
-    Array4::from_shape_vec((1, 3, target_size as usize, target_size as usize), data)
-        .expect("shape mismatch in preprocess_rescale")
+    // Interleaved RGB -> planar NCHW. `resized` is exactly `ts x ts` RGB, so
+    // `(y * ts + x) * 3 + c` is always in-bounds; this construction cannot panic
+    // (unlike the fallible `from_shape_vec`), which matters on the pure-Rust
+    // `layout-tract` surface where RT-DETR calls this in no-panic library code.
+    Array4::from_shape_fn((1, 3, ts, ts), |(_, c, y, x)| {
+        pixels[(y * ts + x) * 3 + c] as f32 * (1.0 / 255.0)
+    })
 }
 
 /// Letterbox preprocessing for YOLOX-style models.

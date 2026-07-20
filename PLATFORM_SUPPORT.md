@@ -49,20 +49,21 @@ Legend: ✅ prebuilt shipped · ❌ not shipped · — not applicable
    (`include-macos-x86_64: false`) and iOS-simulator-x86_64 are excluded; there is no Linux or Windows
    SwiftPM artifact.
 6. **Kotlin/Android** ships the two Android ABIs — `arm64-v8a` (devices) and `x86_64` (emulator).
-   The x86_64-emulator native uses the ORT-free `android-target` feature set (no PaddleOCR/layout/
-   embeddings); document-orientation detection now runs on the x86_64 emulator too, through the
-   pure-Rust `tract` engine (see note 8) instead of ORT. arm64 devices get the full ORT-enabled build.
+   The x86_64-emulator native uses the ORT-free `android-target` feature set (no PaddleOCR or
+   embeddings); RT-DETR layout detection, the wired/wireless table classifier, and
+   document-orientation detection now run on the x86_64 emulator too, through the pure-Rust `tract`
+   engine (see note 8) instead of ORT. arm64 devices get the full ORT-enabled build.
 7. **WASM** is a single `wasm32` artifact, portable across any WASM runtime (browser + Node). It uses
    the `wasm-target` feature set (`ocr-wasm`, `excel-wasm`, `tree-sitter-wasm`; no native ORT). Auto-rotate
    is not yet wired for WASM (see note 8).
 8. **Pure-Rust `tract` engine.** Where a target cannot link native ONNX Runtime, xberg's inference seam
    can compile select ONNX models against the pure-Rust `tract` engine (`tract-onnx`, no native library,
    CPU-only) instead. Document-orientation detection (`auto-rotate-tract`) is the first capability shipped
-   this way and is now part of `android-target`, so the x86_64 Android emulator detects page orientation
-   for the first time. The RT-DETR layout detector also runs on `tract`, matching ONNX Runtime within
-   5e-3 on its outputs, but layout detection is not yet enabled for `wasm-target` or `android-target`.
-   PaddleOCR, TATR, and SLANeXT remain ONNX Runtime-only. WASM support for `auto-rotate-tract` is planned
-   next.
+   this way, so the x86_64 Android emulator detects page orientation for the first time. The RT-DETR
+   layout detector (plus the wired/wireless table classifier, with the `pdf` feature) also runs on
+   `tract`, matching ONNX Runtime within 5e-3 on its outputs, and is now enabled for `android-target`
+   via the `layout-tract` feature; `wasm-target` layout is not yet wired. PaddleOCR, TATR, SLANeXT, and
+   PP-DocLayout-V3 remain ONNX Runtime-only. WASM support for `tract` inference is planned next.
 
 ## Cross-cutting gaps
 

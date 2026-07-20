@@ -120,6 +120,15 @@ jobs:
         run: cargo clippy --locked -p xberg --no-default-features --features "ocr,auto-rotate-tract" --all-targets -- -D warnings
         shell: bash
 
+      # Lint the pure-Rust `tract` layout build in isolation. This is the narrowest
+      # no-ORT layout combo (RT-DETR only, no auto-rotate/pdf), so it is the one that
+      # actually exercises the `#[allow(dead_code)]` markers on hf_client /
+      # hf_resolve_file / InferenceTensor::as_f32 — the `auto-rotate-tract` leg above
+      # keeps them live. Without this, bare `layout-tract` has zero -D-warnings coverage.
+      - name: Clippy no-ORT tract layout
+        run: cargo clippy --locked -p xberg --no-default-features --features "layout-tract" --all-targets -- -D warnings
+        shell: bash
+
       - name: Run tests
         run: task rust:test:ci
         shell: bash
