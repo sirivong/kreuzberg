@@ -412,9 +412,16 @@ mod tests {
     /// classifiers.
     ///
     /// PP-DocLayout-V3 is also seam-migrated (ORT path is byte-identical), but it
-    /// stays ORT-only under tract until its three input facts are pinned — a
-    /// mechanical follow-up, not an op gap; see the `tools/tract-op-sweep` matrix
-    /// (`pp_doclayout_v3` = needs-work) — so it is not compared here.
+    /// stays ORT-only under tract permanently: pinning all three input facts
+    /// (`im_shape`/`image`/`scale_factor`) clears the earlier symbolic-shape wall
+    /// noted in Phase 0, but tract 0.23.4's `LayerNormalization` op translator then
+    /// fails on the DETR decoder's norm layer with a genuine shape-inference bug
+    /// (`Output mismatch after rewiring expansion for output #0: expected
+    /// 1,300,1,..,F32 got 1,300,256,F32`, node `LayerNormalization.3`) — reproduced
+    /// even at the bare `into_typed()` translation stage, before any
+    /// declutter/optimize pass runs. Not a mechanical fix; see the
+    /// `tools/tract-op-sweep` matrix (`pp_doclayout_v3` = ORT-only) — so it is not
+    /// compared here.
     #[test]
     fn tract_matches_ort_on_rtdetr_layout() {
         let suffix = "rtdetr/model.onnx";

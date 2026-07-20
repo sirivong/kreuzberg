@@ -33,13 +33,13 @@ writes the full error chain per model (the table truncates it).
 | `det_v6_medium` | DBNet (CNN) | **ready, pin input** | runnable once input is pinned |
 | `rec_v6_medium` | CRNN (CNN + LSTM) | **ready, pin input** | runnable once input is `1,3,48,320` — LSTM path works |
 | `tatr` | DETR (Table Transformer) | **ORT-only** | quantized export: pinning the input resolves the conv in-channel, but the `Conv_quant_output_scale_mul` scale const bakes in a symbolic `batch_size` the analyser cannot unify with `1` (Phase-2 finding) |
-| `pp_doclayout_v3` | Paddle DETR + NMS | **needs-work** | 3 inputs (`image`/`im_shape`/`scale_factor`) all need explicit facts |
+| `pp_doclayout_v3` | Paddle DETR + NMS | **ORT-only** | 3 inputs (`image`/`im_shape`/`scale_factor`) need explicit facts (mechanical) — but with all three pinned, tract 0.23.4's `LayerNormalization` translator then fails on the DETR decoder's norm layer: `Output mismatch after rewiring expansion for output #0: expected 1,300,1,..,F32 got 1,300,256,F32` (node `LayerNormalization.3`), reproduced at the bare `into_typed()` stage before any declutter/optimize pass — a genuine op-translation bug, not a shape-pinning gap (Phase 5 finding) |
 | `db_det_v5_server` | DBNet (CNN) | **needs-work** | stride-2 dim arithmetic tract won't unify (`1+n/2` vs `(n+1)/2`); `det_v6` is a working alternative |
 | `slanet_plus` | SLANet+ seq2seq | **needs-work** | data-dependent `Resize` (output size from a runtime tensor) |
 | `slanet_wired` | SLANeXt seq2seq | **stays ORT** | `Loop` op unimplemented in tract |
 | `slanet_wireless` | SLANeXt seq2seq | **stays ORT** | `Loop` op unimplemented in tract |
 
-**4 ready as-is · 3 ready once input pinned · 6 needs-work (3 of them ORT-only: `tatr`, `slanet_wired`, `slanet_wireless`).**
+**4 ready as-is · 3 ready once input pinned · 6 needs-work (4 of them ORT-only: `tatr`, `pp_doclayout_v3`, `slanet_wired`, `slanet_wireless`).**
 
 ## What this means for the rollout
 
@@ -54,7 +54,13 @@ writes the full error chain per model (the table truncates it).
   multiplier carries a symbolic `batch_size` that tract 0.23.4's HIR analyser refuses to unify with a
   concrete `1` (symbol-scope assertions do not reach that analyser). It joins SLANeXt on ORT; revisit
   only if a non-quantized TATR export or an upstream tract fix lands.
-- **`pp_doclayout_v3` needs its three input facts pinned** (Phase 4) — a mechanical fix, not an op gap.
+- **`pp_doclayout_v3` is ORT-only** (Phase 5 probe) — pinning its three input facts
+  (`im_shape`/`image`/`scale_factor`) clears the symbolic-shape wall noted after Phase 4, but tract
+  0.23.4's `LayerNormalization` op translator then fails on the DETR decoder's norm layer with a
+  genuine shape-inference bug, reproduced even at the bare `into_typed()` translation stage before any
+  declutter/optimize pass runs. Facts pinning was necessary but not sufficient; this is an op gap, not
+  the mechanical fix it looked like from the Phase 0/4 symbolic-pass failure alone. Revisit only if an
+  upstream tract fix lands.
 - **SLANeXt (`Loop`) stays on ORT** as the issue anticipated; `slanet_plus` (data-dependent `Resize`)
   and `db_det_v5_server` (dim-parity) are also blocked — `det_v6` covers detection instead.
 
