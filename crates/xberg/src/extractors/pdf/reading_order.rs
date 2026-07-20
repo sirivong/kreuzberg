@@ -323,6 +323,10 @@ fn order_blocks_by_graph(blocks: &[OrderBlock]) -> Vec<usize> {
 
 const MIN_SEGMENT_REGION_COVERAGE: f32 = 0.2;
 const MIN_CHILD_REGION_CONTAINMENT: f32 = 0.8;
+/// Semantic children covering nearly all of a segment outrank their enclosing
+/// wrapper. This preserves Title/ListItem/Text classification while a partial
+/// child (for example, a narrow caption overlapping a form) cannot steal text.
+const MIN_SEMANTIC_CHILD_SEGMENT_COVERAGE: f32 = 0.8;
 
 /// One root in the page's region-preserving reading-order plan.
 ///
@@ -479,6 +483,7 @@ fn choose_segment_owner(
     hints: &[LayoutHint],
     eligible: &[bool],
     blocks: &[Option<OrderBlock>],
+    roots: &[Option<usize>],
 ) -> Option<usize> {
     let segment_block = segment_block(segment)?;
     let segment_area = block_area(&segment_block);
@@ -505,7 +510,29 @@ fn choose_segment_owner(
             .then_with(|| left.3.total_cmp(&right.3))
             .then_with(|| left.0.cmp(&right.0))
     });
-    candidates.first().map(|candidate| candidate.0)
+    let winner = candidates.first()?;
+    if !is_wrapper_hint(&hints[winner.0]) {
+        return Some(winner.0);
+    }
+
+    Some(
+        candidates
+            .iter()
+            .find(|candidate| {
+                !is_wrapper_hint(&hints[candidate.0])
+                    && roots[candidate.0] == Some(winner.0)
+                    && candidate.1 >= MIN_SEMANTIC_CHILD_SEGMENT_COVERAGE
+            })
+            .map_or(winner.0, |candidate| candidate.0),
+    )
+}
+
+fn pathless_group(segment_count: usize) -> Vec<LayoutSegmentGroup> {
+    vec![LayoutSegmentGroup {
+        segment_indices: (0..segment_count).collect(),
+        hint_indices: Vec::new(),
+        region_path: None,
+    }]
 }
 
 #[cfg(feature = "layout-detection")]
@@ -640,27 +667,22 @@ pub(crate) fn plan_segment_groups_by_layout(
         return Vec::new();
     }
     if hints.is_empty() {
-        return vec![LayoutSegmentGroup {
-            segment_indices: (0..segments.len()).collect(),
-            hint_indices: Vec::new(),
-            region_path: None,
-        }];
+        return pathless_group(segments.len());
     }
 
     let blocks = hints.iter().map(hint_block).collect::<Vec<_>>();
     let eligible = eligible_hints(hints, wrapper_ownership);
     if !eligible.iter().any(|value| *value) {
-        return vec![LayoutSegmentGroup {
-            segment_indices: (0..segments.len()).collect(),
-            hint_indices: Vec::new(),
-            region_path: None,
-        }];
+        return pathless_group(segments.len());
     }
     let roots = root_hint_indices(hints, &eligible, &blocks);
     let owners = segments
         .iter()
-        .map(|segment| choose_segment_owner(segment, hints, &eligible, &blocks))
+        .map(|segment| choose_segment_owner(segment, hints, &eligible, &blocks, &roots))
         .collect::<Vec<_>>();
+    if owners.iter().all(Option::is_none) {
+        return pathless_group(segments.len());
+    }
 
     let mut region_segments = std::collections::BTreeMap::<usize, Vec<usize>>::new();
     for (segment_index, owner) in owners.iter().enumerate() {
@@ -949,6 +971,41 @@ mod tests {
         let path = groups[0].region_path.unwrap();
         assert_eq!(path.root.id, 0);
         assert!(path.child.is_none());
+    }
+
+    #[test]
+    fn near_full_semantic_child_outranks_wrapper() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        for class_name in [LayoutHintClass::Title, LayoutHintClass::ListItem, LayoutHintClass::Text] {
+            let segments = vec![planned_segment("semantic", 0.0, 0.0, 100.0, 100.0)];
+            let hints = vec![
+                planned_hint(LayoutHintClass::Form, 0.0, 0.0, 100.0, 100.0),
+                planned_hint(class_name, 5.0, 0.0, 95.0, 100.0),
+            ];
+
+            let groups = plan_segment_groups_by_layout(&segments, &hints, &[], true);
+            assert_eq!(groups.len(), 1, "{class_name:?}");
+            assert_eq!(groups[0].segment_indices, [0], "{class_name:?}");
+            assert_eq!(groups[0].hint_indices, [1], "{class_name:?}");
+            let path = groups[0].region_path.unwrap();
+            assert_eq!(path.root.id, 0, "{class_name:?}");
+            assert_eq!(path.child.unwrap().id, 1, "{class_name:?}");
+        }
+    }
+
+    #[test]
+    fn valid_non_overlapping_hint_returns_pathless_fallback() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![planned_segment("outside", 200.0, 200.0, 20.0, 10.0)];
+        let hints = vec![planned_hint(LayoutHintClass::Text, 0.0, 0.0, 100.0, 100.0)];
+
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], true);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].segment_indices, [0]);
+        assert!(groups[0].hint_indices.is_empty());
+        assert!(groups[0].region_path.is_none());
     }
 
     #[test]

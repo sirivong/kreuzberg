@@ -254,21 +254,28 @@ fn close_layout_path(builder: &mut InternalDocumentBuilder, open_regions: &mut V
 }
 
 /// List structure already groups adjacent list items. Per-item `ListItem`
-/// detections must not break that list into one-item containers. Preserve only
-/// an enclosing semantic wrapper, when present, and let the list carry the item
-/// structure below it.
+/// detections must not break that list into one-item containers. Remove only
+/// that per-item region while preserving Text and wrapper ancestry, since those
+/// regions distinguish independent lists in separate columns or containers.
 fn effective_layout_path(paragraph: &PdfParagraph) -> Option<LayoutRegionPath> {
     let path = paragraph.layout_region_path?;
     if !paragraph.is_list_item {
         return Some(path);
     }
-    path.root
-        .class_name
-        .is_some_and(LayoutHintClass::is_wrapper)
-        .then_some(LayoutRegionPath {
+
+    if path.root.class_name == Some(LayoutHintClass::ListItem) {
+        return path.child.map(|root| LayoutRegionPath { root, child: None });
+    }
+    if path
+        .child
+        .is_some_and(|child| child.class_name == Some(LayoutHintClass::ListItem))
+    {
+        return Some(LayoutRegionPath {
             root: path.root,
             child: None,
-        })
+        });
+    }
+    Some(path)
 }
 
 fn transition_layout_path(
@@ -1080,6 +1087,46 @@ mod tests {
                 .elements
                 .iter()
                 .all(|element| !matches!(element.kind, ElementKind::GroupStart | ElementKind::GroupEnd))
+        );
+    }
+
+    #[test]
+    fn distinct_text_regions_keep_layout_lists_separate() {
+        let paragraphs = [("- left", 20), ("- right", 21)]
+            .into_iter()
+            .map(|(text, id)| {
+                let mut paragraph = make_paragraph(text, None);
+                paragraph.is_list_item = true;
+                paragraph.layout_region_path = Some(LayoutRegionPath {
+                    root: LayoutRegionTag {
+                        id: 3,
+                        class_name: Some(LayoutHintClass::Form),
+                    },
+                    child: Some(LayoutRegionTag {
+                        id,
+                        class_name: Some(LayoutHintClass::Text),
+                    }),
+                });
+                paragraph
+            })
+            .collect::<Vec<_>>();
+
+        let document = assemble_internal_document(vec![paragraphs], &[], None, &[]);
+        assert_eq!(
+            document
+                .elements
+                .iter()
+                .filter(|element| matches!(element.kind, ElementKind::ListStart { .. }))
+                .count(),
+            2
+        );
+        assert_eq!(
+            document
+                .elements
+                .iter()
+                .filter(|element| element.kind == ElementKind::ListEnd)
+                .count(),
+            2
         );
     }
 

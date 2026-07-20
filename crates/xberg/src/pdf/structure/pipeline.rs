@@ -475,10 +475,13 @@ fn process_single_page(
                     page_segments,
                     hints,
                     &wrapper_ownership,
-                    heading_map,
-                    doc_body_font_size,
-                    include_headers,
-                    include_footers,
+                    LayoutParagraphContext {
+                        heading_map,
+                        paragraph_gap_ys: &paragraph_gap_ys,
+                        doc_body_font_size,
+                        include_headers,
+                        include_footers,
+                    },
                 )
             } else {
                 segments_to_paragraphs(page_segments, heading_map, &paragraph_gap_ys)
@@ -562,14 +565,20 @@ fn wrapper_ownership_by_hint(
 }
 
 #[cfg(feature = "layout-detection")]
+struct LayoutParagraphContext<'a> {
+    heading_map: &'a [(f32, Option<u8>)],
+    paragraph_gap_ys: &'a [f32],
+    doc_body_font_size: Option<f32>,
+    include_headers: bool,
+    include_footers: bool,
+}
+
+#[cfg(feature = "layout-detection")]
 fn process_layout_segment_groups(
     segments: Vec<SegmentData>,
     hints: &[LayoutHint],
     wrapper_ownership: &[bool],
-    heading_map: &[(f32, Option<u8>)],
-    doc_body_font_size: Option<f32>,
-    include_headers: bool,
-    include_footers: bool,
+    context: LayoutParagraphContext<'_>,
 ) -> Vec<PdfParagraph> {
     let no_reorder = super::layout_debug::layout_debug_flags().no_reorder;
     let groups = crate::extractors::pdf::reading_order::plan_segment_groups_by_layout(
@@ -578,6 +587,9 @@ fn process_layout_segment_groups(
         wrapper_ownership,
         no_reorder,
     );
+    if matches!(groups.as_slice(), [group] if group.hint_indices.is_empty() && group.region_path.is_none()) {
+        return segments_to_paragraphs(segments, context.heading_map, context.paragraph_gap_ys);
+    }
     let mut slots = segments.into_iter().map(Some).collect::<Vec<_>>();
     let mut paragraphs = Vec::new();
 
@@ -592,7 +604,7 @@ fn process_layout_segment_groups(
             continue;
         }
         let gap_ys = compute_paragraph_gap_ys(&group_segments);
-        let mut group_paragraphs = segments_to_paragraphs(group_segments, heading_map, &gap_ys);
+        let mut group_paragraphs = segments_to_paragraphs(group_segments, context.heading_map, &gap_ys);
         let group_hints = group
             .hint_indices
             .into_iter()
@@ -603,9 +615,9 @@ fn process_layout_segment_groups(
             &group_hints,
             0.5,
             0.2,
-            doc_body_font_size,
+            context.doc_body_font_size,
         );
-        un_mark_layout_furniture_per_config(&mut group_paragraphs, include_headers, include_footers);
+        un_mark_layout_furniture_per_config(&mut group_paragraphs, context.include_headers, context.include_footers);
         for paragraph in &mut group_paragraphs {
             paragraph.layout_region_path = region_path;
         }
@@ -619,7 +631,7 @@ fn process_layout_segment_groups(
             "layout region plan omitted segments; appending an unsorted fallback group"
         );
         let gap_ys = compute_paragraph_gap_ys(&leftovers);
-        paragraphs.extend(segments_to_paragraphs(leftovers, heading_map, &gap_ys));
+        paragraphs.extend(segments_to_paragraphs(leftovers, context.heading_map, &gap_ys));
     }
     paragraphs
 }
@@ -2836,9 +2848,18 @@ mod tests {
             right: f32::INFINITY,
             top: 100.0,
         }]));
+        let non_overlapping = process(Some(vec![LayoutHint {
+            class_name: crate::pdf::structure::types::LayoutHintClass::Text,
+            confidence: 0.9,
+            left: 400.0,
+            bottom: 0.0,
+            right: 500.0,
+            top: 100.0,
+        }]));
 
         assert_eq!(format!("{empty:?}"), format!("{legacy:?}"));
         assert_eq!(format!("{invalid:?}"), format!("{legacy:?}"));
+        assert_eq!(format!("{non_overlapping:?}"), format!("{legacy:?}"));
     }
 
     #[test]
