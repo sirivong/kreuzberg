@@ -493,4 +493,131 @@ mod tests {
         }
         assert!(compared_f32 >= 2, "expected boxes + scores f32 outputs to be compared");
     }
+
+    /// Number of warm-up `run()` calls before recording latency samples.
+    const LATENCY_WARMUP: usize = 2;
+
+    /// Number of recorded `run()` samples per engine; the reported latency is the
+    /// minimum (best-of-N), which isolates steady-state execution cost from
+    /// scheduler/allocator noise.
+    const LATENCY_RUNS: usize = 8;
+
+    /// Deterministic pseudo-image input shared by both engines, identical to the
+    /// one used by [`tract_matches_ort_on_cnn_classifiers`].
+    fn pseudo_input(shape: &[usize]) -> ndarray::ArrayD<f32> {
+        let count: usize = shape.iter().product();
+        let data: Vec<f32> = (0..count).map(|i| ((i % 255) as f32) / 255.0 - 0.5).collect();
+        ndarray::ArrayD::from_shape_vec(shape.to_vec(), data).unwrap()
+    }
+
+    /// Load a model once (timed) and run it `LATENCY_WARMUP + LATENCY_RUNS`
+    /// times, returning `(load_ms, run_ms_samples)`. `make_inputs` builds fresh
+    /// named inputs from the session's declared input order on every call, since
+    /// RT-DETR needs two distinct inputs in position order.
+    fn time_engine(
+        backend: &dyn InferenceBackend,
+        path: &std::path::Path,
+        make_inputs: impl Fn(&[String]) -> Vec<(String, InferenceTensor)>,
+    ) -> (f64, Vec<f64>) {
+        let load_start = std::time::Instant::now();
+        let session = backend.load(path, None).unwrap();
+        let load_ms = load_start.elapsed().as_secs_f64() * 1000.0;
+
+        let names = session.input_names().to_vec();
+        for _ in 0..LATENCY_WARMUP {
+            session.run(make_inputs(&names)).unwrap();
+        }
+        let mut samples = Vec::with_capacity(LATENCY_RUNS);
+        for _ in 0..LATENCY_RUNS {
+            let inputs = make_inputs(&names);
+            let start = std::time::Instant::now();
+            session.run(inputs).unwrap();
+            samples.push(start.elapsed().as_secs_f64() * 1000.0);
+        }
+        (load_ms, samples)
+    }
+
+    /// tract-vs-ORT latency report for the three models on the seam (issue
+    /// #1275, S5-BENCH). Not a correctness assertion — prints a markdown table
+    /// consumed by `tools/benchmark-harness/README.md`. `#[ignore]`d so ordinary
+    /// `cargo test` runs skip it; invoke explicitly with `--ignored --nocapture`.
+    /// Self-skips per model when the weight is not in the local HF cache,
+    /// matching the parity tests above — never fabricates a number for a model
+    /// it could not load.
+    #[test]
+    #[ignore = "prints a timing report; run explicitly with --ignored --nocapture"]
+    fn tract_vs_ort_latency_report() {
+        struct Case {
+            label: &'static str,
+            repo: &'static str,
+            suffix: &'static str,
+            make_inputs: fn(&[String]) -> Vec<(String, InferenceTensor)>,
+        }
+
+        fn cnn_inputs(names: &[String]) -> Vec<(String, InferenceTensor)> {
+            vec![(names[0].clone(), InferenceTensor::F32(pseudo_input(&[1, 3, 224, 224])))]
+        }
+
+        fn rtdetr_inputs(names: &[String]) -> Vec<(String, InferenceTensor)> {
+            let image = InferenceTensor::F32(pseudo_input(&[1, 3, 640, 640]));
+            let sizes = InferenceTensor::I64(ndarray::ArrayD::from_shape_vec(vec![1, 2], vec![640i64, 640]).unwrap());
+            vec![(names[0].clone(), image), (names[1].clone(), sizes)]
+        }
+
+        let cases = [
+            Case {
+                label: "RT-DETR layout detector",
+                repo: LAYOUT_REPO,
+                suffix: "rtdetr/model.onnx",
+                make_inputs: rtdetr_inputs,
+            },
+            Case {
+                label: "PP-LCNet table classifier",
+                repo: PARITY_REPO,
+                suffix: "v2/classifiers/PP-LCNet_x1_0_table_cls.onnx",
+                make_inputs: cnn_inputs,
+            },
+            Case {
+                label: "PP-LCNet doc-orientation",
+                repo: PARITY_REPO,
+                suffix: "v2/classifiers/PP-LCNet_x1_0_doc_ori.onnx",
+                make_inputs: cnn_inputs,
+            },
+        ];
+
+        println!(
+            "\n| model | tract load (ms) | ORT load (ms) | tract run (ms, best-of-{LATENCY_RUNS}) \
+             | ORT run (ms, best-of-{LATENCY_RUNS}) | tract/ORT run ratio |"
+        );
+        println!("|---|---|---|---|---|---|");
+
+        let mut ran = 0;
+        for case in &cases {
+            let Some(path) = resolve_model(case.repo, case.suffix) else {
+                eprintln!("skip: {} ({}) not in HF cache", case.label, case.suffix);
+                continue;
+            };
+            ran += 1;
+
+            let (ort_load_ms, ort_runs) = time_engine(&OrtBackend::new(), &path, case.make_inputs);
+            let (tract_load_ms, tract_runs) = time_engine(&TractBackend::new(), &path, case.make_inputs);
+
+            let ort_best = ort_runs.iter().copied().fold(f64::INFINITY, f64::min);
+            let tract_best = tract_runs.iter().copied().fold(f64::INFINITY, f64::min);
+            let ratio = tract_best / ort_best;
+
+            println!(
+                "| {} | {tract_load_ms:.2} | {ort_load_ms:.2} | {tract_best:.3} | {ort_best:.3} | {ratio:.2}x |",
+                case.label
+            );
+        }
+
+        if ran == 0 {
+            assert!(
+                !parity_required(),
+                "XBERG_REQUIRE_TRACT_PARITY is set but no latency models were compared"
+            );
+            eprintln!("tract_vs_ort_latency_report: no models cached, nothing measured");
+        }
+    }
 }
