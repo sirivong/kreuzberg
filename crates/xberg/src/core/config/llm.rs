@@ -35,7 +35,9 @@ pub struct LlmConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub base_url: Option<String>,
 
-    /// Request timeout in seconds (default: 60).
+    /// Request timeout in seconds. When `None`, liter-llm's built-in 60s default
+    /// applies, except the VLM OCR path which uses a 300s default (a single page
+    /// image transcription routinely exceeds 60s). Set explicitly to override.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub timeout_secs: Option<u64>,
 

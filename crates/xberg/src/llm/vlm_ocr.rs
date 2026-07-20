@@ -16,6 +16,26 @@ use liter_llm::{ChatCompletionRequest, ImageUrl, LlmClient, Message, UserContent
 use crate::core::config::LlmConfig;
 use crate::plugins::{OcrBackend, OcrBackendType, Plugin};
 
+/// Default request timeout for VLM OCR when `vlm_config.timeout_secs` is unset.
+///
+/// Transcribing a single full page image routinely exceeds liter-llm's built-in
+/// 60-second client default, so an unset timeout would otherwise fail long
+/// extractions. Applied only to the VLM OCR path; callers that set
+/// `timeout_secs` explicitly always win.
+const DEFAULT_VLM_TIMEOUT_SECS: u64 = 300;
+
+/// Return the config to use for the VLM client, applying [`DEFAULT_VLM_TIMEOUT_SECS`]
+/// when the caller left `timeout_secs` unset. An explicit value is preserved.
+fn effective_vlm_config(config: &LlmConfig) -> Cow<'_, LlmConfig> {
+    if config.timeout_secs.is_none() {
+        let mut owned = config.clone();
+        owned.timeout_secs = Some(DEFAULT_VLM_TIMEOUT_SECS);
+        Cow::Owned(owned)
+    } else {
+        Cow::Borrowed(config)
+    }
+}
+
 /// VLM-based OCR backend using liter-llm vision models.
 ///
 /// This backend sends images to a vision language model (e.g., GPT-4o, Claude)
@@ -109,7 +129,11 @@ pub(crate) async fn vlm_ocr(
     config: &LlmConfig,
     vlm_prompt: Option<&str>,
 ) -> crate::Result<(String, Option<crate::types::LlmUsage>)> {
-    let client = super::client::create_client(config)?;
+    // liter-llm applies its own 60s default when no timeout is set, which is too
+    // short for full-page VLM transcription. Supply a VLM-appropriate default when
+    // the caller left `timeout_secs` unset; an explicit value always takes priority.
+    let effective_config = effective_vlm_config(config);
+    let client = super::client::create_client(&effective_config)?;
 
     let b64 = base64::engine::general_purpose::STANDARD.encode(image_bytes);
     let data_url = format!("data:{image_mime_type};base64,{b64}");
@@ -181,6 +205,31 @@ mod tests {
     fn test_vlm_ocr_prompt_en_no_language_hint() {
         let prompt = render_ocr_prompt("en");
         assert!(!prompt.contains("language:"));
+    }
+
+    /// Regression test for issue #1273: an unset VLM `timeout_secs` must not inherit
+    /// liter-llm's 60s default, which is too short for full-page transcription.
+    #[test]
+    fn test_effective_vlm_config_applies_default_timeout_when_unset() {
+        let config = crate::core::config::LlmConfig {
+            model: "openai/gpt-4o".to_string(),
+            ..Default::default()
+        };
+        assert!(config.timeout_secs.is_none());
+        let effective = super::effective_vlm_config(&config);
+        assert_eq!(effective.timeout_secs, Some(super::DEFAULT_VLM_TIMEOUT_SECS));
+        assert_ne!(effective.timeout_secs, Some(60));
+    }
+
+    #[test]
+    fn test_effective_vlm_config_preserves_explicit_timeout() {
+        let config = crate::core::config::LlmConfig {
+            model: "openai/gpt-4o".to_string(),
+            timeout_secs: Some(1200),
+            ..Default::default()
+        };
+        let effective = super::effective_vlm_config(&config);
+        assert_eq!(effective.timeout_secs, Some(1200));
     }
 
     /// Regression test for issue #760: OcrConfig.vlm_prompt must be honoured.
