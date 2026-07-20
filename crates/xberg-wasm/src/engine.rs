@@ -475,4 +475,24 @@ mod tests {
             .expect("ocr must succeed");
         assert_eq!(get(&result, "text").as_string().unwrap(), "seen:eng");
     }
+
+    // Layout/orientation run entirely in Rust (tract) on caller-supplied ONNX
+    // bytes. Exercising them against real RT-DETR/PP-LCNet weights needs
+    // hundreds of MB of models fetched at runtime, which the JS-side vitest e2e
+    // covers; here we assert the wired byte path rejects invalid model bytes
+    // gracefully (a JS error, never a wasm panic/trap).
+
+    #[wasm_bindgen_test]
+    fn detect_layout_rejects_invalid_model_bytes() {
+        let result = detect_layout(vec![0u8; 8], b"not an onnx model".to_vec());
+        assert!(result.is_err());
+    }
+
+    #[wasm_bindgen_test]
+    fn detect_orientation_errors_on_invalid_input() {
+        // Orientation loads its model lazily, so this fails at image decode;
+        // either way the wired path must surface an error, not trap.
+        let result = detect_orientation(vec![0u8; 8], b"not an onnx model".to_vec());
+        assert!(result.is_err());
+    }
 }
