@@ -531,14 +531,22 @@ impl ModelManager {
         entries
     }
 
-    /// Ensures all v2 models are downloaded and cached.
+    /// Ensures every PaddleOCR model the runtime can request is downloaded and cached.
     ///
     /// Downloads:
-    /// - Both detection tiers (server + mobile)
+    /// - Both v2 detection tiers (server + mobile)
     /// - Classification model (PP-LCNet textline_ori)
     /// - Document orientation model (PP-LCNet doc_ori)
     /// - All v2 unified rec models (server, mobile, en_mobile)
     /// - All per-script rec models for uncovered scripts
+    /// - All PP-OCRv6 detection tiers (medium, small, tiny)
+    /// - All PP-OCRv6 unified recognition tiers (model + dict)
+    ///
+    /// PP-OCRv6 is the default `model_version`, so warming must include the v6
+    /// set — otherwise an airgapped server running the default config fails to
+    /// resolve `v6/det/...` and `v6/rec/...` at request time even after a
+    /// successful `cache warm` (issue #1279). The six groups below mirror the
+    /// six groups enumerated by [`Self::manifest`].
     pub fn ensure_all_models(&self) -> Result<(), XbergError> {
         self.ensure_v2_det_model("server")?;
         self.ensure_v2_det_model("mobile")?;
@@ -554,10 +562,20 @@ impl ModelManager {
             self.ensure_rec_model(rec.script_family)?;
         }
 
+        for det in V6_DET_MODELS {
+            self.ensure_v6_det_model(det.tier)?;
+        }
+
+        for rec in V6_REC_MODELS {
+            self.ensure_v6_rec_model(rec.tier)?;
+        }
+
         tracing::info!(
-            "All PaddleOCR v2 models ready ({} v2 rec + {} per-script families)",
+            "All PaddleOCR models ready ({} v2 rec + {} per-script families + {} v6 det + {} v6 rec)",
             V2_REC_MODELS.len(),
-            REC_MODELS.len()
+            REC_MODELS.len(),
+            V6_DET_MODELS.len(),
+            V6_REC_MODELS.len()
         );
         Ok(())
     }

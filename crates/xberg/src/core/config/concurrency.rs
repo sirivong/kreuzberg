@@ -83,7 +83,12 @@ pub(crate) fn resolve_thread_budget(config: Option<&ConcurrencyConfig>) -> usize
 /// ```
 #[cfg(all(
     not(target_arch = "wasm32"),
-    any(test, feature = "late-interaction", feature = "reranker", feature = "sparse-embeddings")
+    any(
+        test,
+        feature = "late-interaction",
+        feature = "reranker",
+        feature = "sparse-embeddings"
+    )
 ))]
 pub(crate) fn resolve_batch_concurrency(config: Option<&ConcurrencyConfig>, layout_active: bool) -> usize {
     let budget = resolve_thread_budget(config);

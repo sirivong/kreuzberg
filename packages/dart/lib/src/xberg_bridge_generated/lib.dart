@@ -8865,7 +8865,9 @@ class LlmConfig {
   /// Custom base URL override for the provider endpoint.
   final String? baseUrl;
 
-  /// Request timeout in seconds (default: 60).
+  /// Request timeout in seconds. When `None`, liter-llm's built-in 60s default
+  /// applies, except the VLM OCR path which uses a 300s default (a single page
+  /// image transcription routinely exceeds 60s). Set explicitly to override.
   final PlatformInt64? timeoutSecs;
 
   /// Maximum retry attempts (default: 3).

@@ -844,12 +844,12 @@ xberg-paddle-ocr = { path = "../xberg-paddle-ocr", version = "1.0.0-rc.30", opti
 # wasm32 builds never request them. Mirrors the `[dependencies] tokio = { workspace = true,
 # optional = true }` entry above.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-tokio = { workspace = true, optional = true, features = ["process", "fs", "rt-multi-thread"] }
 # fs2 (cross-process model-cache file locking, see model_download.rs) has no wasm32 `sys`
 # backend at all — it is target-gated the same way hf-hub/reqwest/tree-sitter-language-pack
 # are below. `chunking-tokenizers`/`onnx-runtime`/etc. reference it unconditionally via
 # `dep:fs2`, which is a no-op on targets where the dependency isn't declared.
 fs2 = { workspace = true, optional = true }
+tokio = { workspace = true, optional = true, features = ["process", "fs", "rt-multi-thread"] }
 
 # hf-hub 1.0 (every native target, including Android and Windows): the single declaration for
 # all model downloads — ORT-backed features (embeddings, layout-detection, paddle-ocr, ...) plus
