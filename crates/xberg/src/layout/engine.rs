@@ -9,6 +9,7 @@ use std::time::Instant;
 use image::RgbImage;
 
 use crate::layout::error::LayoutError;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::layout::model_manager::LayoutModelManager;
 use crate::layout::models::LayoutModel;
 #[cfg(feature = "layout-detection")]
@@ -120,6 +121,13 @@ impl LayoutEngine {
     /// feature; under `layout-tract` alone they return a
     /// [`LayoutError::ModelDownload`] explaining why, rather than failing to compile
     /// or panicking.
+    ///
+    /// Not available on `wasm32`: model resolution goes through
+    /// [`LayoutModelManager`], which downloads weights from Hugging Face Hub over
+    /// `hf-hub`/`reqwest` — both unavailable on that target. WASM callers construct
+    /// a [`LayoutEngine`] from injected model bytes via [`Self::from_rtdetr_bytes`]
+    /// instead.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn from_config(config: LayoutEngineConfig) -> Result<Self, LayoutError> {
         #[cfg(feature = "layout-detection")]
         crate::ort_discovery::ensure_ort_available();
@@ -208,6 +216,30 @@ impl LayoutEngine {
         };
 
         Ok(Self { model, config })
+    }
+
+    /// Create a layout engine directly from RT-DETR model bytes already resolved by the caller.
+    ///
+    /// Bypasses [`LayoutModelManager`] entirely — there is no filesystem path or HTTP
+    /// download involved. This is the WASM entry point: the JS host fetches the ONNX
+    /// weights (never embedded in the `.wasm` binary) and hands over the bytes, which
+    /// flow straight through to the [`crate::inference`] seam's `load_from_memory`.
+    /// Only the RT-DETR detection backend is supported this way; `PpDocLayoutV3` and
+    /// the YOLO variants require the ORT-backed `layout-detection` feature, which is
+    /// not available on `wasm32`.
+    pub fn from_rtdetr_bytes(
+        rtdetr_bytes: &[u8],
+        accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
+    ) -> Result<Self, LayoutError> {
+        let model: Box<dyn LayoutModel> = Box::new(RtDetrModel::from_bytes(rtdetr_bytes, accel)?);
+        Ok(Self {
+            model,
+            config: LayoutEngineConfig {
+                backend: ModelBackend::RtDetr,
+                acceleration: accel.cloned(),
+                ..LayoutEngineConfig::default()
+            },
+        })
     }
 
     /// Run layout detection on an image.

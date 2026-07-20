@@ -31,7 +31,9 @@ pub mod engine;
 pub mod error;
 #[cfg(layout_detection)]
 pub(crate) mod inference_timings;
-#[cfg(layout_detection)]
+#[cfg(all(layout_detection, not(target_arch = "wasm32")))]
+/// Model downloading and caching (Hugging Face Hub). Not available on `wasm32` — the JS
+/// host supplies model bytes directly, see `crate::layout::engine::LayoutEngine::from_rtdetr_bytes`.
 mod model_manager;
 #[cfg(layout_detection)]
 /// Model implementations for layout detection (RT-DETR, and ORT-only: YOLO, TATR, SLANeXT,
@@ -57,7 +59,7 @@ pub use types::{BBox, DetectionResult, LayoutClass, LayoutDetection};
 pub use engine::{CustomModelVariant, DetectTimings, LayoutEngine, LayoutEngineConfig, ModelBackend};
 #[cfg(layout_detection)]
 pub use error::LayoutError;
-#[cfg(layout_detection)]
+#[cfg(all(layout_detection, not(target_arch = "wasm32")))]
 pub use model_manager::LayoutModelManager;
 #[cfg(layout_detection)]
 pub use models::LayoutModel;

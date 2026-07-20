@@ -75,6 +75,26 @@ impl TableClassifier {
         Ok(Self { session, input_name })
     }
 
+    /// Load the table classifier ONNX model from an in-memory byte buffer.
+    ///
+    /// Used where there is no filesystem path to read from, e.g. WASM builds where
+    /// the JS host fetches and hands over the model weights directly. Uses the same
+    /// engine-neutral [`crate::inference`] seam as [`Self::from_file`].
+    pub fn from_bytes(
+        model_bytes: &[u8],
+        accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
+    ) -> Result<Self, LayoutError> {
+        let session = default_backend()
+            .load_from_memory(model_bytes, accel)
+            .map_err(|e| LayoutError::Inference(e.to_string()))?;
+        let input_name = session
+            .input_names()
+            .first()
+            .cloned()
+            .ok_or_else(|| LayoutError::InvalidOutput("table classifier model has no inputs".to_string()))?;
+        Ok(Self { session, input_name })
+    }
+
     /// Classify a cropped table image as wired or wireless.
     pub fn classify(&mut self, table_img: &RgbImage) -> Result<TableType, LayoutError> {
         tracing::trace!(

@@ -9,6 +9,7 @@
 //! More reliable than Tesseract's `DetectOrientationScript` which crashes
 //! on raw images without DPI metadata.
 
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
 
 use image::RgbImage;
@@ -35,27 +36,65 @@ const ORIENTATION_LABELS: [u32; 4] = [0, 90, 180, 270];
 /// Uniform baseline is 25%. A threshold of 0.35 provides good discrimination.
 pub const MIN_CONFIDENCE: f32 = 0.35;
 
+/// Where a [`DocOrientationDetector`] resolves its ONNX model weights from.
+///
+/// `CacheDir` downloads (and verifies) the model from Hugging Face Hub via
+/// `hf-hub`/`reqwest`, which are native-only — see the target-gated dependency
+/// declarations in `Cargo.toml`. `Bytes` is the WASM path: the JS host fetches the
+/// weights (never embedded in the `.wasm` binary, since RT-DETR-family assets can
+/// run into the hundreds of MB) and hands the already-resolved bytes over.
+enum ModelSource {
+    #[cfg(not(target_arch = "wasm32"))]
+    CacheDir(PathBuf),
+    // Constructed only by `from_bytes`, the WASM entry point wired through the
+    // xberg-wasm bridge (follow-up); unused on native, which uses `CacheDir`.
+    #[allow(dead_code)]
+    Bytes(Vec<u8>),
+}
+
 /// Detects document page orientation using the PP-LCNet model.
 ///
 /// Thread-safe: the model runs behind `&self` through the [`crate::inference`]
-/// seam, which owns the session synchronization. The model is downloaded from
-/// HuggingFace on first use and cached locally.
+/// seam, which owns the session synchronization. On native targets the model is
+/// downloaded from HuggingFace on first use and cached locally; on `wasm32` it is
+/// constructed from bytes supplied by the caller (see [`Self::from_bytes`]).
 #[cfg_attr(alef, alef(skip))]
 pub struct DocOrientationDetector {
     session: once_cell::sync::OnceCell<Box<dyn InferenceSession>>,
-    cache_dir: PathBuf,
+    source: ModelSource,
     acceleration: Option<crate::core::config::acceleration::AccelerationConfig>,
 }
 
 impl DocOrientationDetector {
     /// Creates a new detector with the given cache directory and acceleration config.
+    ///
+    /// Not available on `wasm32` — see [`Self::from_bytes`] for the WASM constructor.
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn with_acceleration(
         cache_dir: PathBuf,
         accel: Option<crate::core::config::acceleration::AccelerationConfig>,
     ) -> Self {
         Self {
             session: once_cell::sync::OnceCell::new(),
-            cache_dir,
+            source: ModelSource::CacheDir(cache_dir),
+            acceleration: accel,
+        }
+    }
+
+    /// Creates a new detector from already-resolved ONNX model bytes.
+    ///
+    /// The WASM entry point: the JS host fetches the weights and hands over the
+    /// bytes, which flow straight through to the [`crate::inference`] seam's
+    /// `load_from_memory` — no filesystem path or HTTP download involved.
+    // Wired through the xberg-wasm bridge (follow-up); unused on native.
+    #[allow(dead_code)]
+    pub(crate) fn from_bytes(
+        model_bytes: Vec<u8>,
+        accel: Option<crate::core::config::acceleration::AccelerationConfig>,
+    ) -> Self {
+        Self {
+            session: once_cell::sync::OnceCell::new(),
+            source: ModelSource::Bytes(model_bytes),
             acceleration: accel,
         }
     }
@@ -119,12 +158,15 @@ impl DocOrientationDetector {
     }
 
     /// Resolve the verified ONNX model directly from the Hugging Face cache.
-    fn ensure_model(&self) -> Result<PathBuf> {
+    ///
+    /// Not available on `wasm32` — see [`ModelSource::Bytes`].
+    #[cfg(not(target_arch = "wasm32"))]
+    fn ensure_model(cache_dir: &std::path::Path) -> Result<PathBuf> {
         crate::model_download::hf_resolve_file(
             HF_REPO_ID,
             REMOTE_FILENAME,
             Some(HF_REPO_REVISION),
-            Some(&self.cache_dir),
+            Some(cache_dir),
             Some(SHA256),
         )
         .map_err(|e| XbergError::Plugin {
@@ -141,14 +183,24 @@ impl DocOrientationDetector {
         let session = self
             .session
             .get_or_try_init(|| -> crate::Result<Box<dyn InferenceSession>> {
-                let model_path = self.ensure_model()?;
-
-                let session = default_backend()
-                    .load(&model_path, self.acceleration.as_ref())
-                    .map_err(|e| XbergError::Ocr {
-                        message: format!("Failed to load doc_ori model: {e}"),
-                        source: None,
-                    })?;
+                let session = match &self.source {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    ModelSource::CacheDir(cache_dir) => {
+                        let model_path = Self::ensure_model(cache_dir)?;
+                        default_backend()
+                            .load(&model_path, self.acceleration.as_ref())
+                            .map_err(|e| XbergError::Ocr {
+                                message: format!("Failed to load doc_ori model: {e}"),
+                                source: None,
+                            })?
+                    }
+                    ModelSource::Bytes(model_bytes) => default_backend()
+                        .load_from_memory(model_bytes, self.acceleration.as_ref())
+                        .map_err(|e| XbergError::Ocr {
+                            message: format!("Failed to load doc_ori model: {e}"),
+                            source: None,
+                        })?,
+                };
 
                 tracing::info!("Doc orientation model loaded");
                 Ok(session)
@@ -158,6 +210,9 @@ impl DocOrientationDetector {
 }
 
 /// Resolve the standard Hugging Face cache directory for the auto-rotate model.
+///
+/// Not available on `wasm32` — there is no Hugging Face cache on that target.
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn resolve_cache_dir() -> PathBuf {
     hf_hub::resolve_cache_dir()
 }

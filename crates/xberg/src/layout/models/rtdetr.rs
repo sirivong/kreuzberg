@@ -50,6 +50,22 @@ impl RtDetrModel {
         Ok(Self { session, input_names })
     }
 
+    /// Load a Docling RT-DETR ONNX model from an in-memory byte buffer.
+    ///
+    /// Used where there is no filesystem path to read from, e.g. WASM builds where
+    /// the JS host fetches and hands over the model weights directly. Uses the same
+    /// engine-neutral [`crate::inference`] seam as [`Self::from_file`].
+    pub(crate) fn from_bytes(
+        model_bytes: &[u8],
+        accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
+    ) -> Result<Self, LayoutError> {
+        let session = default_backend()
+            .load_from_memory(model_bytes, accel)
+            .map_err(|e| LayoutError::Inference(e.to_string()))?;
+        let input_names: Vec<String> = session.input_names().to_vec();
+        Ok(Self { session, input_names })
+    }
+
     /// Run inference and extract detections from raw outputs.
     ///
     /// Uses the original official export contract: exact 640x640 bilinear
