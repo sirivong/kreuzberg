@@ -13,9 +13,15 @@ publish = false
 name = "tract-op-sweep"
 path = "src/main.rs"
 
+[[bin]]
+name = "paddle-parity-probe"
+path = "src/bin/paddle_parity_probe.rs"
+
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
+ndarray = "0.17"
+ort = { workspace = true, features = ["ndarray", "download-binaries", "tls-rustls"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tract-onnx = { workspace = true }

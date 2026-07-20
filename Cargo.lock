@@ -10161,6 +10161,8 @@ version = "1.0.0-rc.30"
 dependencies = [
  "anyhow",
  "clap",
+ "ndarray 0.17.2",
+ "ort",
  "serde",
  "serde_json",
  "tract-onnx",

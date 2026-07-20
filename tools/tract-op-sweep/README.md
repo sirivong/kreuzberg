@@ -66,3 +66,36 @@ writes the full error chain per model (the table truncates it).
 
 Re-run this sweep whenever the model artifacts or the tract version change; it is the gate for the
 DETR/table phases.
+
+## Phase 5 finding: `xberg-paddle-ocr` (DBNet/CRNN/AngleNet)
+
+`paddle-parity-probe` (same crate — `cargo run -p tract-op-sweep --bin paddle-parity-probe`) checks
+numeric parity between tract and ONNX Runtime on the **exact production artifacts**
+`xberg-paddle-ocr` loads by default (PP-OCRv6 `medium` tier detection/recognition + the PP-LCNet
+`textline_ori` classifier — not the legacy `ch_ppocr_mobile_v2.0_cls_infer.onnx` the Phase-0
+`angle_cls` row above tested; that model is unused by the crate today), and whether one tract plan
+pinned at load time can serve more than one input shape.
+
+| Model | Shape | tract vs ORT max \|Δ\| | tract load+pin+optimize | tract run |
+|---|---|---|---|---|
+| `textline_ori` (AngleNet cls) | `[1,3,80,160]` (fixed — `ANGLE_DST_WIDTH`/`HEIGHT`) | 9.5e-7 | 21ms | 9ms |
+| `det_v6_medium` (DbNet) | `[1,3,640,640]` | 7.5e-7 | 150ms | 926ms |
+| `det_v6_medium` (DbNet) | `[1,3,320,480]` (re-pinned) | 2.1e-7 | 146ms | — |
+| `rec_v6_medium` (CrnnNet) | `[1,3,48,320]` | 2.9e-4 | 85ms | 36ms |
+| `rec_v6_medium` (CrnnNet) | `[1,3,48,192]` (re-pinned) | 2.6e-4 | 90ms | — |
+
+Numeric parity is excellent for all three (well under any reasonable OCR-quality tolerance). But a
+tract plan pinned+optimized at one shape **cannot run a different shape** — it errors
+(`Clashing resolution for expression. 640=640 != 320.`) rather than silently degrading. `DbNet`
+resizes to `ScaleParam`-computed dimensions (multiples of 32, different per document) and `CrnnNet`
+batches by content-dependent max width, so both see a new concrete shape on most calls in real
+usage — unlike `AngleNet` (always `160×80`) or the CNN classifiers/RT-DETR already on the seam
+(fixed resolution).
+
+Making tract viable for DbNet/CrnnNet therefore needs a **shape-keyed plan cache** inside the
+session (reload+re-optimize only on a shape miss — ~85-150ms here, amortized across repeat page
+sizes) rather than xberg's existing `TractBackend`/`TractSession` pattern (one plan built once at
+`load()`, assumed to serve every future call). That is a real, materially different session
+implementation, plus CRNN-specific tuning (e.g. width-bucketing to raise the cache hit rate,
+itself needing its own parity check since it changes the padding CRNN's LSTM sees) — scoped as a
+follow-up phase rather than folded into this probe.
