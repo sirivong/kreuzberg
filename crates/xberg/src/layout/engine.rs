@@ -11,8 +11,10 @@ use image::RgbImage;
 use crate::layout::error::LayoutError;
 use crate::layout::model_manager::LayoutModelManager;
 use crate::layout::models::LayoutModel;
+#[cfg(feature = "layout-detection")]
 use crate::layout::models::pp_doclayout_v3::PpDocLayoutV3Model;
 use crate::layout::models::rtdetr::RtDetrModel;
+#[cfg(feature = "layout-detection")]
 use crate::layout::models::yolo::{YoloModel, YoloVariant};
 use crate::layout::postprocessing::heuristics;
 use crate::layout::types::DetectionResult;
@@ -111,7 +113,15 @@ pub struct LayoutEngine {
 
 impl LayoutEngine {
     /// Create a layout engine from a full config.
+    ///
+    /// `ModelBackend::RtDetr` and `CustomModelVariant::RtDetr` work on either engine
+    /// (ORT-backed `layout-detection` or pure-Rust `layout-tract`). `PpDocLayoutV3` and
+    /// every YOLO-based `CustomModelVariant` require the ORT-backed `layout-detection`
+    /// feature; under `layout-tract` alone they return a
+    /// [`LayoutError::ModelDownload`] explaining why, rather than failing to compile
+    /// or panicking.
     pub fn from_config(config: LayoutEngineConfig) -> Result<Self, LayoutError> {
+        #[cfg(feature = "layout-detection")]
         crate::ort_discovery::ensure_ort_available();
 
         let model: Box<dyn LayoutModel> = match &config.backend {
@@ -128,18 +138,30 @@ impl LayoutEngine {
                 let path_str = model_path.to_string_lossy();
                 Box::new(RtDetrModel::from_file(&path_str, config.acceleration.as_ref())?)
             }
+            #[cfg(feature = "layout-detection")]
             ModelBackend::PpDocLayoutV3 => {
                 let manager = LayoutModelManager::new(config.cache_dir.clone());
                 let model_path = manager.ensure_pp_doclayout_v3_model()?;
                 let path_str = model_path.to_string_lossy();
                 Box::new(PpDocLayoutV3Model::from_file(&path_str, config.acceleration.as_ref())?)
             }
+            #[cfg(not(feature = "layout-detection"))]
+            ModelBackend::PpDocLayoutV3 => {
+                return Err(LayoutError::ModelDownload(
+                    "PP-DocLayout-V3 requires the ORT-backed `layout-detection` feature \
+                     (unsupported under the pure-Rust `layout-tract` engine — see \
+                     tools/tract-op-sweep/README.md)"
+                        .into(),
+                ));
+            }
             ModelBackend::Custom { path, variant } => {
                 let path_str = path.to_string_lossy();
                 let accel = config.acceleration.as_ref();
                 match variant {
                     CustomModelVariant::RtDetr => Box::new(RtDetrModel::from_file(&path_str, accel)?),
+                    #[cfg(feature = "layout-detection")]
                     CustomModelVariant::PpDocLayoutV3 => Box::new(PpDocLayoutV3Model::from_file(&path_str, accel)?),
+                    #[cfg(feature = "layout-detection")]
                     CustomModelVariant::YoloDocLayNet => Box::new(YoloModel::from_file(
                         &path_str,
                         YoloVariant::DocLayNet,
@@ -148,6 +170,7 @@ impl LayoutEngine {
                         "Custom-YOLO-DocLayNet",
                         accel,
                     )?),
+                    #[cfg(feature = "layout-detection")]
                     CustomModelVariant::YoloDocStructBench => Box::new(YoloModel::from_file(
                         &path_str,
                         YoloVariant::DocStructBench,
@@ -156,6 +179,7 @@ impl LayoutEngine {
                         "Custom-DocLayout-YOLO",
                         accel,
                     )?),
+                    #[cfg(feature = "layout-detection")]
                     CustomModelVariant::Yolox {
                         input_width,
                         input_height,
@@ -167,6 +191,18 @@ impl LayoutEngine {
                         "Custom-YOLOX",
                         accel,
                     )?),
+                    #[cfg(not(feature = "layout-detection"))]
+                    CustomModelVariant::PpDocLayoutV3
+                    | CustomModelVariant::YoloDocLayNet
+                    | CustomModelVariant::YoloDocStructBench
+                    | CustomModelVariant::Yolox { .. } => {
+                        return Err(LayoutError::ModelDownload(
+                            "this custom model variant requires the ORT-backed \
+                             `layout-detection` feature (unsupported under the pure-Rust \
+                             `layout-tract` engine)"
+                                .into(),
+                        ));
+                    }
                 }
             }
         };

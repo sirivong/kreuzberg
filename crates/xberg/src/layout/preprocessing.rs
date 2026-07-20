@@ -29,6 +29,10 @@ pub(crate) fn preprocess_rescale(img: &RgbImage, target_size: u32) -> Array4<f32
 /// No normalization — values are 0-255 as YOLOX expects.
 ///
 /// Returns the NCHW tensor and the scale ratio (for rescaling detections back).
+///
+/// ORT-only: used solely by [`crate::layout::models::yolo`], which is gated out of the
+/// pure-Rust `layout-tract` variant.
+#[cfg(feature = "layout-detection")]
 pub(crate) fn preprocess_letterbox(img: &RgbImage, target_width: u32, target_height: u32) -> (Array4<f32>, f32) {
     let (orig_w, orig_h) = (img.width() as f32, img.height() as f32);
     let scale = (target_height as f32 / orig_h).min(target_width as f32 / orig_w);

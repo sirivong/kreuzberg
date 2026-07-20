@@ -37,7 +37,8 @@ pub enum TableType {
 }
 
 impl TableType {
-    pub(crate) fn name(&self) -> &'static str {
+    /// Human-readable label (`"wired"` or `"wireless"`).
+    pub fn name(&self) -> &'static str {
         match self {
             Self::Wired => "wired",
             Self::Wireless => "wireless",
@@ -57,8 +58,9 @@ impl TableClassifier {
     ///
     /// The session (with its `GraphOptimizationLevel::All` config, thread budget,
     /// execution-provider selection, and CPU-only fallback) is built by the
-    /// [`crate::inference`] seam's default backend.
-    pub(crate) fn from_file(
+    /// [`crate::inference`] seam's default backend, so this works on either engine:
+    /// the ORT-backed `layout-detection` feature or the pure-Rust `layout-tract` variant.
+    pub fn from_file(
         path: &str,
         accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
     ) -> Result<Self, LayoutError> {
@@ -74,7 +76,7 @@ impl TableClassifier {
     }
 
     /// Classify a cropped table image as wired or wireless.
-    pub(crate) fn classify(&mut self, table_img: &RgbImage) -> Result<TableType, LayoutError> {
+    pub fn classify(&mut self, table_img: &RgbImage) -> Result<TableType, LayoutError> {
         tracing::trace!(
             input_width = table_img.width(),
             input_height = table_img.height(),

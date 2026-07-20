@@ -34,6 +34,9 @@ pub enum InferenceTensor {
 
 impl InferenceTensor {
     /// Borrow the `f32` payload, or `None` when the tensor holds another dtype.
+    // Unused on RT-DETR-only builds (it pattern-matches the tensor enum directly);
+    // used by the CNN classifiers (table/doc-orientation) and the parity tests.
+    #[allow(dead_code)]
     pub fn as_f32(&self) -> Option<&ArrayD<f32>> {
         match self {
             Self::F32(array) => Some(array),

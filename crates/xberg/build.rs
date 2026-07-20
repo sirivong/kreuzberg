@@ -33,4 +33,19 @@ fn main() {
             "cargo::warning=features 'ort-bundled' and 'ort-dynamic' are both enabled; bundled ORT remains the default unless dynamic ORT is explicitly selected at runtime"
         );
     }
+
+    // `layout_detection` marks builds where the layout-detection capability is
+    // present regardless of engine: the ORT-backed `layout-detection` feature (RT-DETR,
+    // YOLO, TATR, SLANeXT, PP-DocLayout-V3) or the pure-Rust `layout-tract` feature
+    // (RT-DETR + table classifier only; no-ORT targets). Consumer sites gate on this
+    // cfg so they need not enumerate every engine variant; `default_backend` (via
+    // `inference_ort`) still picks the concrete engine, and ORT-only model files
+    // (session.rs, tatr.rs, slanet.rs, yolo.rs, pp_doclayout_v3.rs) stay gated on the
+    // literal `layout-detection` feature so they never compile under tract.
+    println!("cargo::rustc-check-cfg=cfg(layout_detection)");
+    if std::env::var_os("CARGO_FEATURE_LAYOUT_DETECTION").is_some()
+        || std::env::var_os("CARGO_FEATURE_LAYOUT_TRACT").is_some()
+    {
+        println!("cargo::rustc-cfg=layout_detection");
+    }
 }

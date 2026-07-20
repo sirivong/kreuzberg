@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Pure-Rust layout detection on no-ORT targets (`layout-tract`).** RT-DETR layout detection and
+  the PP-LCNet wired/wireless table classifier can now run through the `tract` engine instead of
+  ONNX Runtime, mirroring the `auto-rotate-tract` pattern. A new `layout-tract` feature is the
+  no-ORT sibling of `layout-detection`, and `android-target` now enables it (the x86_64 emulator
+  previously had no layout detection at all). A new `layout_detection` build cfg (true for either
+  engine variant) lets engine-neutral capability sites avoid enumerating both features; ORT-only
+  plumbing (the shared ORT session builder, YOLO, TATR, SLANeXT, PP-DocLayout-V3, and the
+  `LayoutError::Ort` variant) stays gated on the literal `layout-detection` feature, since table
+  STRUCTURE recognition (TATR/SLANeXT) and PP-DocLayout-V3 (a tract 0.23.4 `LayerNormalization`
+  op-translation bug — see `tools/tract-op-sweep/README.md`) are not available under tract;
+  `LayoutEngine::from_config` returns a `LayoutError` for those instead of failing to compile or
+  panicking. The ORT-backed `layout-detection` remains the native default. With the `pdf` feature
+  (which `android-target` enables), `TableClassifier` (wired/wireless) is part of the public
+  `crate::layout` API on either engine. Wiring `layout-tract` into the PDF table-structure pipeline
+  and widening `wasm-target` are deferred follow-ups. Part of #1275.
+
 ### Changed
 
 - **Layout-model inference errors are engine-neutral.** Layout models on the `crate::inference`

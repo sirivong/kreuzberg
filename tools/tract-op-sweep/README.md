@@ -99,3 +99,20 @@ sizes) rather than xberg's existing `TractBackend`/`TractSession` pattern (one p
 implementation, plus CRNN-specific tuning (e.g. width-bucketing to raise the cache hit rate,
 itself needing its own parity check since it changes the padding CRNN's LSTM sees) — scoped as a
 follow-up phase rather than folded into this probe.
+
+## Phase 5 rollout: `layout-tract` (no-ORT layout detection)
+
+`crate::layout` now ships a `layout-tract` feature, the no-ORT sibling of `layout-detection`,
+following this table: `rtdetr` and `table_cls` run through the `crate::inference` seam on either
+engine, so `LayoutEngine` (RT-DETR detection) works under `layout-tract` and `TableClassifier`
+(wired/wireless) works under `layout-tract` + `pdf` (as `android-target` enables). `tatr`,
+`slanet_wired`/`slanet_wireless`/`slanet_plus`, and `pp_doclayout_v3` stay
+gated behind the literal `layout-detection` (ORT) feature and are never compiled under
+`layout-tract` — `LayoutEngine::from_config` returns a `LayoutError` for `ModelBackend::PpDocLayoutV3`
+and the YOLO `CustomModelVariant`s instead of failing to compile or panicking. `android-target` (the
+x86_64 emulator, which cannot link ONNX Runtime) now enables `layout-tract`, gaining layout
+detection + table classification it previously had none of. `layout-detection` remains the native
+default and is unaffected — the two variants are additive and never both compiled together in a
+single feature selection. Table STRUCTURE recognition (TATR/SLANeXT) is unaffected by this phase
+and stays ORT-only; wiring `layout-tract` into the PDF table-structure pipeline
+(`crate::pdf::structure`) and widening `wasm-target` are deferred follow-ups.
