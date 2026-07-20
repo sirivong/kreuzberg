@@ -106,6 +106,26 @@ impl InternalDocumentBuilder {
         self.doc.push_element(elem)
     }
 
+    /// Push a heading whose semantic level is relative to the currently open
+    /// structural containers.
+    ///
+    /// Layout-region groups use builder depth for their own nesting. Adding the
+    /// heading level to that depth preserves H1/H2/H3 relationships inside the
+    /// region instead of flattening them at the container depth.
+    pub(crate) fn push_heading_in_current_container(
+        &mut self,
+        level: u8,
+        text: &str,
+        page: Option<u32>,
+        bbox: Option<BoundingBox>,
+    ) -> u32 {
+        let anchor = slugify(text);
+        let kind = ElementKind::Heading { level };
+        let depth = self.depth.saturating_add(level.saturating_sub(1) as u16);
+        let elem = self.make_element(kind, text, depth, page, bbox, Some(&anchor));
+        self.doc.push_element(elem)
+    }
+
     /// Push a paragraph element.
     pub fn push_paragraph(
         &mut self,

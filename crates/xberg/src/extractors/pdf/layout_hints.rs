@@ -38,6 +38,9 @@ fn map_class(class: LayoutClass) -> LayoutHintClass {
         LayoutClass::PageFooter => LayoutHintClass::PageFooter,
         LayoutClass::Table => LayoutHintClass::Table,
         LayoutClass::Picture | LayoutClass::Chart => LayoutHintClass::Picture,
+        LayoutClass::DocumentIndex => LayoutHintClass::DocumentIndex,
+        LayoutClass::Form => LayoutHintClass::Form,
+        LayoutClass::KeyValueRegion => LayoutHintClass::KeyValueRegion,
         LayoutClass::Text => LayoutHintClass::Text,
         _ => LayoutHintClass::Other,
     }
@@ -195,6 +198,15 @@ mod tests {
         assert_eq!(hints.len(), 2);
         assert_eq!(hints[0].class_name, LayoutHintClass::Title);
         assert_eq!(hints[1].class_name, LayoutHintClass::SectionHeader);
+    }
+
+    #[test]
+    fn class_mapping_preserves_docling_wrapper_classes() {
+        assert_eq!(map_class(LayoutClass::DocumentIndex), LayoutHintClass::DocumentIndex);
+        assert_eq!(map_class(LayoutClass::Form), LayoutHintClass::Form);
+        assert_eq!(map_class(LayoutClass::KeyValueRegion), LayoutHintClass::KeyValueRegion);
+        assert_eq!(map_class(LayoutClass::Table), LayoutHintClass::Table);
+        assert_eq!(map_class(LayoutClass::Picture), LayoutHintClass::Picture);
     }
 
     /// Degenerate input: image_width_px=0 must not panic via division-by-zero

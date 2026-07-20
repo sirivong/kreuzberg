@@ -34,7 +34,8 @@ pub(super) fn merge_continuation_paragraphs(paragraphs: &mut Vec<PdfParagraph>) 
         // the `bold_change` paragraph break in the heuristic line grouper.
         let bold_compatible = current.is_bold == next.is_bold;
         let continuation_signal = !ends_with_sentence_terminator(&current) || starts_with_lowercase_continuation(&next);
-        let should_merge = both_body && fonts_compatible && bold_compatible && continuation_signal;
+        let same_region = current.layout_region_path == next.layout_region_path;
+        let should_merge = both_body && fonts_compatible && bold_compatible && continuation_signal && same_region;
 
         if should_merge {
             current.text.clear();
@@ -166,6 +167,7 @@ fn text_to_paragraph(text: &str, font_size: f32, is_bold: bool, is_list_item: bo
         is_formula: false,
         is_page_furniture: false,
         layout_class: None,
+        layout_region_path: None,
         caption_for: None,
         block_bbox: None,
         word_count,
@@ -212,6 +214,7 @@ mod tests {
             is_formula: false,
             is_page_furniture: false,
             layout_class: None,
+            layout_region_path: None,
             caption_for: None,
             block_bbox: None,
             word_count,

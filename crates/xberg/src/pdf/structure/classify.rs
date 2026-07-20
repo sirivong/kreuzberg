@@ -931,7 +931,10 @@ pub(super) fn demote_heading_runs(all_pages: &mut [Vec<PdfParagraph>]) {
             };
 
             let mut run_end = run_start + 1;
-            while run_end < page.len() && page[run_end].heading_level == Some(level) {
+            while run_end < page.len()
+                && page[run_end].heading_level == Some(level)
+                && page[run_end].layout_region_path == page[run_start].layout_region_path
+            {
                 run_end += 1;
             }
 
@@ -1067,6 +1070,7 @@ fn merge_consecutive_h1s(page: &mut Vec<PdfParagraph>) {
         let mut run_end = i + 1;
         while run_end < page.len()
             && page[run_end].heading_level == Some(1)
+            && page[run_end].layout_region_path == page[i].layout_region_path
             && (page[run_end].dominant_font_size - base_fs).abs() < 0.5
             && looks_like_title_continuation(&page[run_end - 1], &page[run_end])
         {
@@ -1525,10 +1529,34 @@ mod tests {
             is_formula: false,
             is_page_furniture: false,
             layout_class: None,
+            layout_region_path: None,
             caption_for: None,
             block_bbox: None,
             word_count,
         }
+    }
+
+    #[test]
+    fn heading_runs_stop_at_layout_region_boundaries() {
+        use crate::pdf::structure::types::{LayoutHintClass, LayoutRegionPath, LayoutRegionTag};
+
+        let mut page = (0..4)
+            .map(|index| {
+                let mut paragraph = make_paragraph(18.0, 1);
+                paragraph.heading_level = Some(2);
+                paragraph.layout_region_path = Some(LayoutRegionPath {
+                    root: LayoutRegionTag {
+                        id: usize::from(index >= 2),
+                        class_name: Some(LayoutHintClass::Text),
+                    },
+                    child: None,
+                });
+                paragraph
+            })
+            .collect::<Vec<_>>();
+
+        demote_heading_runs(std::slice::from_mut(&mut page));
+        assert!(page.iter().all(|paragraph| paragraph.heading_level == Some(2)));
     }
 
     #[test]
@@ -1652,6 +1680,7 @@ mod tests {
             is_formula: false,
             is_page_furniture: false,
             layout_class: None,
+            layout_region_path: None,
             caption_for: None,
             block_bbox: None,
             word_count,
@@ -1989,6 +2018,7 @@ mod tests {
             is_formula: false,
             is_page_furniture: false,
             layout_class: None,
+            layout_region_path: None,
             caption_for: None,
             block_bbox: None,
             word_count,

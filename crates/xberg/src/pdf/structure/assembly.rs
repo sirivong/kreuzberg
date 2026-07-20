@@ -5,7 +5,7 @@
 
 use super::lines::needs_space_between;
 use super::text_repair::finalize_hyphens;
-use super::types::{LayoutHintClass, PdfParagraph};
+use super::types::{LayoutHintClass, LayoutRegionPath, LayoutRegionTag, PdfParagraph};
 use crate::types::document_structure::{AnnotationKind, ContentLayer, TextAnnotation};
 use crate::types::extraction::BoundingBox;
 use crate::types::internal::{ElementKind, InternalDocument, RelationshipKind, RelationshipTarget};
@@ -92,7 +92,7 @@ pub(crate) fn assemble_internal_document(
     }
 
     for (&page_idx, page_tables) in &tables_by_page {
-        let page_num = Some(page_idx + 1);
+        let page_num = Some(page_idx);
         for &table in page_tables {
             if !table.markdown.trim().is_empty() {
                 let bbox = table.bounding_box.map(|bb| BoundingBox {
@@ -124,11 +124,20 @@ pub(crate) fn assemble_internal_document(
 /// Push paragraph elements for a page without tables.
 fn assemble_page_elements(builder: &mut InternalDocumentBuilder, paragraphs: &[PdfParagraph], page: Option<u32>) {
     let mut in_list = false;
+    let mut open_regions = Vec::new();
 
     for (para_idx, para) in paragraphs.iter().enumerate() {
         if para.caption_for.is_some() {
             continue;
         }
+
+        transition_layout_path(
+            builder,
+            &mut open_regions,
+            effective_layout_path(para),
+            &mut in_list,
+            page,
+        );
 
         if para.is_list_item && !in_list {
             builder.push_list(list_item_is_ordered(para));
@@ -143,9 +152,8 @@ fn assemble_page_elements(builder: &mut InternalDocumentBuilder, paragraphs: &[P
         emit_caption_elements(builder, paragraphs, para_idx, page, elem_idx);
     }
 
-    if in_list {
-        builder.end_list();
-    }
+    close_list(builder, &mut in_list);
+    close_layout_path(builder, &mut open_regions);
 }
 
 /// Push paragraph elements in their established reading order, with tables interleaved.
@@ -164,10 +172,13 @@ fn assemble_page_elements_with_tables(
             continue;
         }
         if let Some(ref bbox) = table.bounding_box {
-            positioned.push((bbox.y1 as f32, *table));
-        } else {
-            unpositioned.push(*table);
+            let top = bbox.y1 as f32;
+            if top.is_finite() {
+                positioned.push((top, *table));
+                continue;
+            }
         }
+        unpositioned.push(*table);
     }
 
     positioned.sort_by(|a, b| b.0.total_cmp(&a.0));
@@ -181,24 +192,32 @@ fn assemble_page_elements_with_tables(
         (0..=ordered_paragraphs.len()).map(|_| Vec::new()).collect();
 
     for (table_y, table) in positioned {
-        let slot = table_insertion_slot(&ordered_paragraphs, table, table_y);
+        let geometric_slot = table_insertion_slot(&ordered_paragraphs, table, table_y);
+        let slot = top_level_table_slot(&ordered_paragraphs, geometric_slot, table_y);
         tables_at_slot[slot].push(table);
     }
 
     let mut in_list = false;
+    let mut open_regions = Vec::new();
 
     for (slot, slot_tables) in tables_at_slot.into_iter().enumerate() {
         for table in slot_tables {
-            if in_list {
-                builder.end_list();
-                in_list = false;
-            }
+            close_list(builder, &mut in_list);
+            close_layout_path(builder, &mut open_regions);
             push_table_element(builder, table, page);
         }
 
         let Some(&(para_idx, para)) = ordered_paragraphs.get(slot) else {
             continue;
         };
+
+        transition_layout_path(
+            builder,
+            &mut open_regions,
+            effective_layout_path(para),
+            &mut in_list,
+            page,
+        );
 
         if para.is_list_item && !in_list {
             builder.push_list(list_item_is_ordered(para));
@@ -212,13 +231,117 @@ fn assemble_page_elements_with_tables(
         emit_caption_elements(builder, paragraphs, para_idx, page, elem_idx);
     }
 
-    if in_list {
-        builder.end_list();
-    }
+    close_list(builder, &mut in_list);
+    close_layout_path(builder, &mut open_regions);
 
     for table in unpositioned {
         push_table_element(builder, table, page);
     }
+}
+
+fn close_list(builder: &mut InternalDocumentBuilder, in_list: &mut bool) {
+    if *in_list {
+        builder.end_list();
+        *in_list = false;
+    }
+}
+
+fn close_layout_path(builder: &mut InternalDocumentBuilder, open_regions: &mut Vec<LayoutRegionTag>) {
+    for _ in 0..open_regions.len() {
+        builder.push_group_end();
+    }
+    open_regions.clear();
+}
+
+/// List structure already groups adjacent list items. Per-item `ListItem`
+/// detections must not break that list into one-item containers. Preserve only
+/// an enclosing semantic wrapper, when present, and let the list carry the item
+/// structure below it.
+fn effective_layout_path(paragraph: &PdfParagraph) -> Option<LayoutRegionPath> {
+    let path = paragraph.layout_region_path?;
+    if !paragraph.is_list_item {
+        return Some(path);
+    }
+    path.root
+        .class_name
+        .is_some_and(LayoutHintClass::is_wrapper)
+        .then_some(LayoutRegionPath {
+            root: path.root,
+            child: None,
+        })
+}
+
+fn transition_layout_path(
+    builder: &mut InternalDocumentBuilder,
+    open_regions: &mut Vec<LayoutRegionTag>,
+    next_path: Option<LayoutRegionPath>,
+    in_list: &mut bool,
+    page: Option<u32>,
+) {
+    let next_regions = next_path
+        .into_iter()
+        .flat_map(LayoutRegionPath::tags)
+        .collect::<Vec<_>>();
+    let common_prefix = open_regions
+        .iter()
+        .zip(&next_regions)
+        .take_while(|(open, next)| open == next)
+        .count();
+    if common_prefix == open_regions.len() && common_prefix == next_regions.len() {
+        return;
+    }
+
+    close_list(builder, in_list);
+    for _ in common_prefix..open_regions.len() {
+        builder.push_group_end();
+    }
+    open_regions.truncate(common_prefix);
+
+    for region in &next_regions[common_prefix..] {
+        let class_label = region.class_name.map_or("uncovered", LayoutHintClass::label);
+        let label = format!("pdf-layout:p{}:r{}:{class_label}", page.unwrap_or_default(), region.id);
+        builder.push_group_start(Some(&label), page);
+        open_regions.push(*region);
+    }
+}
+
+/// Keep tables as top-level roots in the final page plan.
+///
+/// A geometric insertion point can fall between paragraphs that share one
+/// layout root. Emitting there would duplicate that root around the table. Move
+/// the table to the cheaper edge of the root run so every detected region and
+/// table is emitted exactly once at the top level.
+fn top_level_table_slot(paragraphs: &[(usize, &PdfParagraph)], slot: usize, table_y: f32) -> usize {
+    if slot == 0 || slot >= paragraphs.len() {
+        return slot;
+    }
+    let root_before = effective_layout_path(paragraphs[slot - 1].1).map(|path| path.root);
+    let root_after = effective_layout_path(paragraphs[slot].1).map(|path| path.root);
+    let Some(root) = root_before.filter(|before| Some(*before) == root_after) else {
+        return slot;
+    };
+
+    let mut run_start = slot;
+    while run_start > 0 && effective_layout_path(paragraphs[run_start - 1].1).map(|path| path.root) == Some(root) {
+        run_start -= 1;
+    }
+    let mut run_end = slot;
+    while run_end < paragraphs.len() && effective_layout_path(paragraphs[run_end].1).map(|path| path.root) == Some(root)
+    {
+        run_end += 1;
+    }
+
+    let before_cost = table_slot_displacement(&paragraphs[run_start..slot], table_y);
+    let after_cost = table_slot_displacement(&paragraphs[slot..run_end], table_y);
+    if before_cost <= after_cost { run_start } else { run_end }
+}
+
+fn table_slot_displacement(paragraphs: &[(usize, &PdfParagraph)], table_y: f32) -> f32 {
+    paragraphs
+        .iter()
+        .filter_map(|(_, paragraph)| paragraph_vertical_anchor(paragraph))
+        .map(|paragraph_y| (paragraph_y - table_y).abs())
+        .sum()
 }
 
 /// Pick a reading-order boundary immediately before text below the table.
@@ -312,6 +435,7 @@ fn paragraph_vertical_anchor(paragraph: &PdfParagraph) -> Option<f32> {
         .block_bbox
         .map(|(_, _, _, top)| top)
         .or_else(|| paragraph.lines.first().map(|line| line.baseline_y))
+        .filter(|anchor| anchor.is_finite())
 }
 
 fn push_table_element(builder: &mut InternalDocumentBuilder, table: &crate::types::Table, page: Option<u32>) -> u32 {
@@ -358,7 +482,11 @@ fn push_paragraph_element(builder: &mut InternalDocumentBuilder, para: &PdfParag
 
     if let Some(level) = para.heading_level {
         let text = get_text(para);
-        return builder.push_heading(level, &text, page, bbox);
+        return if para.layout_region_path.is_some() {
+            builder.push_heading_in_current_container(level, &text, page, bbox)
+        } else {
+            builder.push_heading(level, &text, page, bbox)
+        };
     }
 
     if para.is_code_block {
@@ -797,6 +925,7 @@ mod tests {
             is_formula: false,
             is_page_furniture: false,
             layout_class: None,
+            layout_region_path: None,
             caption_for: None,
             block_bbox: None,
             word_count,
@@ -837,6 +966,167 @@ mod tests {
                 _ => None,
             })
             .collect()
+    }
+
+    fn nested_layout_path() -> LayoutRegionPath {
+        LayoutRegionPath {
+            root: LayoutRegionTag {
+                id: 3,
+                class_name: Some(LayoutHintClass::Form),
+            },
+            child: Some(LayoutRegionTag {
+                id: 7,
+                class_name: Some(LayoutHintClass::Text),
+            }),
+        }
+    }
+
+    #[test]
+    fn layout_paths_emit_balanced_nested_groups() {
+        let mut first = make_paragraph("first", None);
+        first.layout_region_path = Some(nested_layout_path());
+        let mut second = make_paragraph("second", None);
+        second.layout_region_path = Some(nested_layout_path());
+
+        let document = assemble_internal_document(vec![vec![first, second]], &[], None, &[]);
+        let starts = document
+            .elements
+            .iter()
+            .filter(|element| element.kind == ElementKind::GroupStart)
+            .collect::<Vec<_>>();
+        let ends = document
+            .elements
+            .iter()
+            .filter(|element| element.kind == ElementKind::GroupEnd)
+            .collect::<Vec<_>>();
+        assert_eq!(starts.len(), 2);
+        assert_eq!(ends.len(), 2);
+        assert_eq!(starts[0].depth, 0);
+        assert_eq!(starts[1].depth, 1);
+        assert_eq!(page_element_labels(&document), ["first", "second"]);
+    }
+
+    #[test]
+    fn heading_levels_remain_relative_inside_nested_layout_groups() {
+        let paragraphs = [
+            make_paragraph("h1", Some(1)),
+            make_paragraph("h2", Some(2)),
+            make_paragraph("h3", Some(3)),
+        ]
+        .into_iter()
+        .map(|mut paragraph| {
+            paragraph.layout_region_path = Some(nested_layout_path());
+            paragraph
+        })
+        .collect::<Vec<_>>();
+
+        let document = assemble_internal_document(vec![paragraphs], &[], None, &[]);
+        let heading_depths = document
+            .elements
+            .iter()
+            .filter_map(|element| matches!(element.kind, ElementKind::Heading { .. }).then_some(element.depth))
+            .collect::<Vec<_>>();
+        assert_eq!(heading_depths, [2, 3, 4]);
+    }
+
+    #[test]
+    fn adjacent_layout_list_items_share_one_list() {
+        let mut first = make_paragraph("- first", None);
+        first.is_list_item = true;
+        first.layout_region_path = Some(LayoutRegionPath {
+            root: LayoutRegionTag {
+                id: 10,
+                class_name: Some(LayoutHintClass::ListItem),
+            },
+            child: None,
+        });
+        let mut second = make_paragraph("- second", None);
+        second.is_list_item = true;
+        second.layout_region_path = Some(LayoutRegionPath {
+            root: LayoutRegionTag {
+                id: 11,
+                class_name: Some(LayoutHintClass::ListItem),
+            },
+            child: None,
+        });
+
+        let document = assemble_internal_document(vec![vec![first, second]], &[], None, &[]);
+        assert_eq!(
+            document
+                .elements
+                .iter()
+                .filter(|element| matches!(element.kind, ElementKind::ListStart { .. }))
+                .count(),
+            1
+        );
+        assert_eq!(
+            document
+                .elements
+                .iter()
+                .filter(|element| element.kind == ElementKind::ListEnd)
+                .count(),
+            1
+        );
+        assert_eq!(
+            document
+                .elements
+                .iter()
+                .filter(|element| matches!(element.kind, ElementKind::ListItem { .. }))
+                .count(),
+            2
+        );
+        assert!(
+            document
+                .elements
+                .iter()
+                .all(|element| !matches!(element.kind, ElementKind::GroupStart | ElementKind::GroupEnd))
+        );
+    }
+
+    #[test]
+    fn table_is_an_exact_once_root_beside_a_repeated_region_path() {
+        let mut above = make_paragraph_at("above", None, 700.0);
+        above.layout_region_path = Some(nested_layout_path());
+        let mut below = make_paragraph_at("below", None, 400.0);
+        below.layout_region_path = Some(nested_layout_path());
+        let table = make_table_at("| a |\n|---|", 600.0);
+
+        let document = assemble_internal_document(vec![vec![above, below]], &[table], None, &[]);
+        assert_eq!(page_element_labels(&document), ["<table>", "above", "below"]);
+        let table_element = document
+            .elements
+            .iter()
+            .find(|element| matches!(element.kind, ElementKind::Table { .. }))
+            .unwrap();
+        assert_eq!(table_element.depth, 0);
+        assert_eq!(
+            document
+                .elements
+                .iter()
+                .filter(|element| element.kind == ElementKind::GroupStart)
+                .count(),
+            2
+        );
+        assert_eq!(
+            document
+                .elements
+                .iter()
+                .filter(|element| element.kind == ElementKind::GroupEnd)
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn no_layout_path_emits_no_group_markers() {
+        let document = assemble_internal_document(vec![vec![make_paragraph("legacy", None)]], &[], None, &[]);
+        assert!(
+            document
+                .elements
+                .iter()
+                .all(|element| !matches!(element.kind, ElementKind::GroupStart | ElementKind::GroupEnd))
+        );
+        assert_eq!(page_element_labels(&document), ["legacy"]);
     }
 
     #[test]
@@ -1172,6 +1462,7 @@ mod tests {
             is_formula: false,
             is_page_furniture: false,
             layout_class: None,
+            layout_region_path: None,
             caption_for: None,
             block_bbox: None,
             word_count,
@@ -1234,6 +1525,7 @@ mod tests {
             is_formula: false,
             is_page_furniture: false,
             layout_class: None,
+            layout_region_path: None,
             caption_for: None,
             block_bbox: None,
             word_count,
@@ -1288,6 +1580,7 @@ mod tests {
             is_formula: false,
             is_page_furniture: false,
             layout_class: None,
+            layout_region_path: None,
             caption_for: None,
             block_bbox: None,
             word_count,
@@ -1362,6 +1655,7 @@ mod tests {
             is_formula: false,
             is_page_furniture: false,
             layout_class: None,
+            layout_region_path: None,
             caption_for: None,
             block_bbox: None,
             word_count,

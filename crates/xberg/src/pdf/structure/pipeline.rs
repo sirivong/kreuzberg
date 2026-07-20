@@ -390,7 +390,7 @@ struct PageInput {
     table_bboxes: Vec<crate::types::BoundingBox>,
     /// Per-hint validation results from CC analysis (parallel to page_hints).
     /// Empty when layout-detection is not active.
-    #[allow(dead_code)]
+    #[cfg(feature = "layout-detection")]
     hint_validations: Vec<super::regions::layout_validation::RegionValidation>,
     /// Whether this page's structure-tree paragraphs need font-size classification.
     needs_classify: bool,
@@ -420,13 +420,13 @@ fn process_single_page(
         heuristic_segments,
         page_hints,
         table_bboxes,
-        hint_validations: _,
+        #[cfg(feature = "layout-detection")]
+        hint_validations,
         needs_classify,
         paragraph_gap_ys,
         include_headers,
         include_footers,
     } = input;
-
     if let Some(mut paragraphs) = struct_paragraphs {
         apply_text_repair_to_structure_tree_paragraphs(&mut paragraphs, true);
         if needs_classify {
@@ -439,7 +439,14 @@ fn process_single_page(
         merge_continuation_paragraphs(&mut paragraphs);
         synchronize_paragraph_text_metadata(&mut paragraphs);
         if let Some(ref hints) = page_hints {
-            super::layout_classify::apply_layout_overrides(&mut paragraphs, hints, 0.5, 0.2, doc_body_font_size);
+            let classification_hints = regular_layout_hints(hints);
+            super::layout_classify::apply_layout_overrides(
+                &mut paragraphs,
+                &classification_hints,
+                0.5,
+                0.2,
+                doc_body_font_size,
+            );
             un_mark_layout_furniture_per_config(&mut paragraphs, include_headers, include_footers);
             tracing::debug!(
                 page = i,
@@ -460,18 +467,45 @@ fn process_single_page(
             "process_single_page: heuristic path"
         );
         let page_segments = filter_segments_by_table_bboxes(page_segments, &table_bboxes);
-        let mut paragraphs = blocks_to_paragraphs(page_segments, heading_map, &paragraph_gap_ys);
-        apply_text_repair_to_structure_tree_paragraphs(&mut paragraphs, true);
-        merge_continuation_paragraphs(&mut paragraphs);
-        synchronize_paragraph_text_metadata(&mut paragraphs);
+        #[cfg(feature = "layout-detection")]
+        let mut paragraphs = if let Some(ref hints) = page_hints {
+            let wrapper_ownership = wrapper_ownership_by_hint(hints, &hint_validations);
+            if crate::extractors::pdf::reading_order::has_eligible_layout_hints(hints, &wrapper_ownership) {
+                process_layout_segment_groups(
+                    page_segments,
+                    hints,
+                    &wrapper_ownership,
+                    heading_map,
+                    doc_body_font_size,
+                    include_headers,
+                    include_footers,
+                )
+            } else {
+                segments_to_paragraphs(page_segments, heading_map, &paragraph_gap_ys)
+            }
+        } else {
+            segments_to_paragraphs(page_segments, heading_map, &paragraph_gap_ys)
+        };
+        #[cfg(not(feature = "layout-detection"))]
+        let mut paragraphs = segments_to_paragraphs(page_segments, heading_map, &paragraph_gap_ys);
         tracing::debug!(
             page = i,
             paragraphs = paragraphs.len(),
             "heuristic paragraphs classified"
         );
+        #[cfg(not(feature = "layout-detection"))]
         if let Some(ref hints) = page_hints {
-            super::layout_classify::apply_layout_overrides(&mut paragraphs, hints, 0.5, 0.2, doc_body_font_size);
+            let classification_hints = regular_layout_hints(hints);
+            super::layout_classify::apply_layout_overrides(
+                &mut paragraphs,
+                &classification_hints,
+                0.5,
+                0.2,
+                doc_body_font_size,
+            );
             un_mark_layout_furniture_per_config(&mut paragraphs, include_headers, include_footers);
+        }
+        if page_hints.is_some() {
             tracing::debug!(
                 page = i,
                 headings = paragraphs.iter().filter(|p| p.heading_level.is_some()).count(),
@@ -483,6 +517,111 @@ fn process_single_page(
         retain_page_furniture_safely(&mut paragraphs);
         paragraphs
     }
+}
+
+fn is_wrapper_layout_hint(hint: &LayoutHint) -> bool {
+    hint.class_name.is_wrapper()
+}
+
+fn regular_layout_hints(hints: &[LayoutHint]) -> Vec<LayoutHint> {
+    hints
+        .iter()
+        .filter(|hint| !is_wrapper_layout_hint(hint))
+        .cloned()
+        .collect()
+}
+
+fn segments_to_paragraphs(
+    segments: Vec<SegmentData>,
+    heading_map: &[(f32, Option<u8>)],
+    paragraph_gap_ys: &[f32],
+) -> Vec<PdfParagraph> {
+    let mut paragraphs = blocks_to_paragraphs(segments, heading_map, paragraph_gap_ys);
+    apply_text_repair_to_structure_tree_paragraphs(&mut paragraphs, true);
+    merge_continuation_paragraphs(&mut paragraphs);
+    synchronize_paragraph_text_metadata(&mut paragraphs);
+    paragraphs
+}
+
+#[cfg(feature = "layout-detection")]
+fn wrapper_ownership_by_hint(
+    hints: &[LayoutHint],
+    validations: &[super::regions::layout_validation::RegionValidation],
+) -> Vec<bool> {
+    hints
+        .iter()
+        .enumerate()
+        .map(|(index, hint)| {
+            !is_wrapper_layout_hint(hint)
+                || !matches!(
+                    validations.get(index),
+                    Some(super::regions::layout_validation::RegionValidation::Empty)
+                )
+        })
+        .collect()
+}
+
+#[cfg(feature = "layout-detection")]
+fn process_layout_segment_groups(
+    segments: Vec<SegmentData>,
+    hints: &[LayoutHint],
+    wrapper_ownership: &[bool],
+    heading_map: &[(f32, Option<u8>)],
+    doc_body_font_size: Option<f32>,
+    include_headers: bool,
+    include_footers: bool,
+) -> Vec<PdfParagraph> {
+    let no_reorder = super::layout_debug::layout_debug_flags().no_reorder;
+    let groups = crate::extractors::pdf::reading_order::plan_segment_groups_by_layout(
+        &segments,
+        hints,
+        wrapper_ownership,
+        no_reorder,
+    );
+    let mut slots = segments.into_iter().map(Some).collect::<Vec<_>>();
+    let mut paragraphs = Vec::new();
+
+    for group in groups {
+        let region_path = group.region_path;
+        let group_segments = group
+            .segment_indices
+            .into_iter()
+            .filter_map(|index| slots.get_mut(index).and_then(Option::take))
+            .collect::<Vec<_>>();
+        if group_segments.is_empty() {
+            continue;
+        }
+        let gap_ys = compute_paragraph_gap_ys(&group_segments);
+        let mut group_paragraphs = segments_to_paragraphs(group_segments, heading_map, &gap_ys);
+        let group_hints = group
+            .hint_indices
+            .into_iter()
+            .filter_map(|index| hints.get(index).cloned())
+            .collect::<Vec<_>>();
+        super::layout_classify::apply_layout_overrides(
+            &mut group_paragraphs,
+            &group_hints,
+            0.5,
+            0.2,
+            doc_body_font_size,
+        );
+        un_mark_layout_furniture_per_config(&mut group_paragraphs, include_headers, include_footers);
+        for paragraph in &mut group_paragraphs {
+            paragraph.layout_region_path = region_path;
+        }
+        paragraphs.extend(group_paragraphs);
+    }
+
+    let leftovers = slots.into_iter().flatten().collect::<Vec<_>>();
+    if !leftovers.is_empty() {
+        tracing::warn!(
+            segments = leftovers.len(),
+            "layout region plan omitted segments; appending an unsorted fallback group"
+        );
+        let gap_ys = compute_paragraph_gap_ys(&leftovers);
+        paragraphs.extend(segments_to_paragraphs(leftovers, heading_map, &gap_ys));
+    }
+    paragraphs
 }
 
 /// Multiple of the median line height a whitespace band must exceed to count
@@ -742,6 +881,7 @@ fn finalize_paragraph(
             is_formula: false,
             is_page_furniture: false,
             layout_class: None,
+            layout_region_path: None,
             caption_for: None,
             block_bbox: None,
             word_count,
@@ -852,6 +992,7 @@ fn finalize_paragraph(
         is_formula: false,
         is_page_furniture,
         layout_class: None,
+        layout_region_path: None,
         caption_for: None,
         block_bbox: Some({
             let left = lines.iter().map(|l| l.x).fold(f32::MAX, f32::min);
@@ -1513,10 +1654,6 @@ pub(crate) fn extract_document_structure_from_segments(
         }
         map
     };
-    #[cfg(not(feature = "layout-detection"))]
-    let validations_by_page: ahash::AHashMap<usize, Vec<super::regions::layout_validation::RegionValidation>> =
-        ahash::AHashMap::new();
-
     let effective_layout_hints = layout_hints;
     let page_inputs: Vec<PageInput> = (0..page_count)
         .map(|i| {
@@ -1528,6 +1665,7 @@ pub(crate) fn extract_document_structure_from_segments(
                 heuristic_segments,
                 page_hints: effective_layout_hints.and_then(|h| h.get(i)).cloned(),
                 table_bboxes: extracted_table_bboxes_by_page.get(&i).cloned().unwrap_or_default(),
+                #[cfg(feature = "layout-detection")]
                 hint_validations: validations_by_page.get(&i).cloned().unwrap_or_default(),
                 needs_classify: false,
                 paragraph_gap_ys,
@@ -2089,7 +2227,7 @@ fn deduplicate_paragraphs(all_pages: &mut [Vec<PdfParagraph>]) {
         while i + 1 < page.len() {
             let a_text = paragraph_text_normalized(&page[i]);
             let b_text = paragraph_text_normalized(&page[i + 1]);
-            if a_text.len() >= 5 && a_text == b_text {
+            if page[i].layout_region_path == page[i + 1].layout_region_path && a_text.len() >= 5 && a_text == b_text {
                 page.remove(i + 1);
             } else {
                 i += 1;
@@ -2106,7 +2244,7 @@ fn deduplicate_paragraphs(all_pages: &mut [Vec<PdfParagraph>]) {
             if text.len() < 15 {
                 continue;
             }
-            if !seen.insert(text) {
+            if !seen.insert((para.layout_region_path, text)) {
                 to_remove.push(idx);
             }
         }
@@ -2321,6 +2459,28 @@ mod tests {
 
         assert_eq!(emitted_tables.len(), 1);
         assert_eq!(emitted_tables[0].markdown, "| valid |");
+    }
+
+    #[cfg(feature = "layout-detection")]
+    #[test]
+    fn missing_wrapper_validation_is_treated_as_skipped() {
+        use super::super::regions::layout_validation::RegionValidation;
+
+        let hint = |class_name| LayoutHint {
+            class_name,
+            confidence: 0.9,
+            left: 0.0,
+            bottom: 0.0,
+            right: 100.0,
+            top: 100.0,
+        };
+        let hints = vec![
+            hint(LayoutHintClass::Picture),
+            hint(LayoutHintClass::Form),
+            hint(LayoutHintClass::Text),
+        ];
+        let ownership = wrapper_ownership_by_hint(&hints, &[RegionValidation::Empty]);
+        assert_eq!(ownership, [false, true, true]);
     }
 
     #[test]
@@ -2594,6 +2754,7 @@ mod tests {
             is_formula: false,
             is_page_furniture: false,
             layout_class: None,
+            layout_region_path: None,
             caption_for: None,
             block_bbox: None,
             word_count,
@@ -2626,6 +2787,7 @@ mod tests {
                 heuristic_segments: segments,
                 page_hints: None,
                 table_bboxes: Vec::new(),
+                #[cfg(feature = "layout-detection")]
                 hint_validations: Vec::new(),
                 needs_classify: false,
                 paragraph_gap_ys: Vec::new(),
@@ -2635,6 +2797,48 @@ mod tests {
             &[],
             None,
         )
+    }
+
+    #[cfg(feature = "layout-detection")]
+    #[test]
+    fn empty_or_ineligible_layout_hints_use_legacy_page_processing() {
+        let segments = vec![
+            heuristic_segment("First paragraph.", 700.0, 220.0, false),
+            heuristic_segment("Second paragraph.", 600.0, 220.0, false),
+        ];
+        let paragraph_gap_ys = compute_paragraph_gap_ys(&segments);
+        let process = |page_hints| {
+            process_single_page(
+                PageInput {
+                    page_index: 0,
+                    struct_paragraphs: None,
+                    heuristic_segments: segments.clone(),
+                    page_hints,
+                    table_bboxes: Vec::new(),
+                    hint_validations: Vec::new(),
+                    needs_classify: false,
+                    paragraph_gap_ys: paragraph_gap_ys.clone(),
+                    include_headers: true,
+                    include_footers: true,
+                },
+                &[],
+                None,
+            )
+        };
+
+        let legacy = process(None);
+        let empty = process(Some(Vec::new()));
+        let invalid = process(Some(vec![LayoutHint {
+            class_name: crate::pdf::structure::types::LayoutHintClass::Text,
+            confidence: 0.9,
+            left: 0.0,
+            bottom: 0.0,
+            right: f32::INFINITY,
+            top: 100.0,
+        }]));
+
+        assert_eq!(format!("{empty:?}"), format!("{legacy:?}"));
+        assert_eq!(format!("{invalid:?}"), format!("{legacy:?}"));
     }
 
     #[test]
@@ -2706,6 +2910,7 @@ mod tests {
                 heuristic_segments: Vec::new(),
                 page_hints: None,
                 table_bboxes: Vec::new(),
+                #[cfg(feature = "layout-detection")]
                 hint_validations: Vec::new(),
                 needs_classify: false,
                 paragraph_gap_ys: Vec::new(),
@@ -2888,6 +3093,7 @@ mod tests {
             is_formula: false,
             is_page_furniture: false,
             layout_class: None,
+            layout_region_path: None,
             caption_for: None,
             block_bbox: None,
             word_count,
@@ -2939,6 +3145,7 @@ mod tests {
             is_formula: false,
             is_page_furniture: true,
             layout_class: Some(class),
+            layout_region_path: None,
             caption_for: None,
             block_bbox: None,
             word_count,
@@ -3372,6 +3579,7 @@ mod tests {
                 ],
                 page_hints: None,
                 table_bboxes: vec![],
+                #[cfg(feature = "layout-detection")]
                 hint_validations: vec![],
                 needs_classify: false,
                 paragraph_gap_ys: vec![],
@@ -3421,6 +3629,7 @@ mod tests {
                 ],
                 page_hints: None,
                 table_bboxes: vec![],
+                #[cfg(feature = "layout-detection")]
                 hint_validations: vec![],
                 needs_classify: false,
                 paragraph_gap_ys: vec![],

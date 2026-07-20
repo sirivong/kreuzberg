@@ -8,7 +8,7 @@
 //! extraction reads in column order rather than visual reading order.
 
 #[cfg(feature = "layout-detection")]
-use crate::pdf::structure::types::LayoutHint;
+use crate::pdf::structure::types::{LayoutHint, LayoutRegionPath, LayoutRegionTag};
 
 /// Region x-centers closer than this (in PDF points) are merged into one column.
 const COLUMN_MERGE_THRESHOLD_PTS: f32 = 20.0;
@@ -321,106 +321,439 @@ fn order_blocks_by_graph(blocks: &[OrderBlock]) -> Vec<usize> {
     order
 }
 
-/// Reorder page segments into natural reading order using layout regions.
+const MIN_SEGMENT_REGION_COVERAGE: f32 = 0.2;
+const MIN_CHILD_REGION_CONTAINMENT: f32 = 0.8;
+
+/// One root in the page's region-preserving reading-order plan.
 ///
-/// Groups segments into their smallest containing layout region, orders those
-/// regions with Docling's rule-based predecessor-graph reading-order algorithm
-/// ([`order_blocks_by_graph`]), then emits each region's segments top-to-bottom.
-/// Segments outside every region keep their original relative position at the end.
-///
-/// This handles multi-column layouts correctly: the predecessor graph plus its
-/// interruption veto keep column flow intact and let a full-width heading break
-/// the chain between columns — where a naive column sort cannot.
+/// `segment_indices` are indices into the post-table-filter segment slice.
+/// `hint_indices` contains only regular classification hints; Table/Picture
+/// wrappers establish boundaries but never destructively classify residual text.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct LayoutSegmentGroup {
+    pub(crate) segment_indices: Vec<usize>,
+    pub(crate) hint_indices: Vec<usize>,
+    pub(crate) region_path: Option<LayoutRegionPath>,
+}
+
+#[derive(Debug)]
+struct PlannedGroup {
+    output: LayoutSegmentGroup,
+    root_id: usize,
+    order_block: Option<OrderBlock>,
+    first_segment_index: usize,
+}
+
+fn is_wrapper_hint(hint: &LayoutHint) -> bool {
+    hint.class_name.is_wrapper()
+}
+
+fn hint_block(hint: &LayoutHint) -> Option<OrderBlock> {
+    let coordinates = [hint.left, hint.bottom, hint.right, hint.top];
+    if coordinates.iter().any(|coordinate| !coordinate.is_finite())
+        || hint.right <= hint.left
+        || hint.top <= hint.bottom
+    {
+        return None;
+    }
+    let block = OrderBlock {
+        left: hint.left,
+        bottom: hint.bottom,
+        right: hint.right,
+        top: hint.top,
+    };
+    (block_area(&block).is_finite() && block_area(&block) > 0.0).then_some(block)
+}
+
+fn block_area(block: &OrderBlock) -> f32 {
+    (block.right - block.left) * (block.top - block.bottom)
+}
+
+fn block_intersection_area(left: &OrderBlock, right: &OrderBlock) -> f32 {
+    let width = (left.right.min(right.right) - left.left.max(right.left)).max(0.0);
+    let height = (left.top.min(right.top) - left.bottom.max(right.bottom)).max(0.0);
+    let area = width * height;
+    if area.is_finite() { area } else { 0.0 }
+}
+
+fn confidence_rank(hint: &LayoutHint) -> f32 {
+    if hint.confidence.is_finite() {
+        hint.confidence
+    } else {
+        f32::NEG_INFINITY
+    }
+}
+
+fn segment_block(segment: &crate::pdf::hierarchy::SegmentData) -> Option<OrderBlock> {
+    let coordinates = [segment.x, segment.y, segment.width, segment.height];
+    if coordinates.iter().any(|coordinate| !coordinate.is_finite()) || segment.width <= 0.0 || segment.height <= 0.0 {
+        return None;
+    }
+    let block = OrderBlock {
+        left: segment.x,
+        bottom: segment.y,
+        right: segment.x + segment.width,
+        top: segment.y + segment.height,
+    };
+    let edges = [block.left, block.bottom, block.right, block.top];
+    (edges.iter().all(|edge| edge.is_finite()) && block_area(&block).is_finite() && block_area(&block) > 0.0)
+        .then_some(block)
+}
+
+fn segments_union_block(indices: &[usize], segments: &[crate::pdf::hierarchy::SegmentData]) -> Option<OrderBlock> {
+    let blocks = indices
+        .iter()
+        .filter_map(|index| segment_block(&segments[*index]))
+        .collect::<Vec<_>>();
+    (!blocks.is_empty()).then(|| OrderBlock {
+        left: blocks.iter().map(|block| block.left).fold(f32::INFINITY, f32::min),
+        bottom: blocks.iter().map(|block| block.bottom).fold(f32::INFINITY, f32::min),
+        right: blocks.iter().map(|block| block.right).fold(f32::NEG_INFINITY, f32::max),
+        top: blocks.iter().map(|block| block.top).fold(f32::NEG_INFINITY, f32::max),
+    })
+}
+
+fn eligible_hints(hints: &[LayoutHint], wrapper_ownership: &[bool]) -> Vec<bool> {
+    hints
+        .iter()
+        .enumerate()
+        .map(|(index, hint)| {
+            hint_block(hint).is_some()
+                && (!is_wrapper_hint(hint) || wrapper_ownership.get(index).copied().unwrap_or(true))
+        })
+        .collect()
+}
+
+fn choose_wrapper_root(
+    child_index: usize,
+    hints: &[LayoutHint],
+    eligible: &[bool],
+    blocks: &[Option<OrderBlock>],
+) -> Option<usize> {
+    let child = blocks[child_index].as_ref()?;
+    let child_area = block_area(child);
+    let mut candidates = hints
+        .iter()
+        .enumerate()
+        .filter(|(index, hint)| eligible[*index] && is_wrapper_hint(hint))
+        .filter_map(|(index, hint)| {
+            let wrapper = blocks[index].as_ref()?;
+            let containment = block_intersection_area(child, wrapper) / child_area;
+            (containment.is_finite() && containment > MIN_CHILD_REGION_CONTAINMENT).then_some((
+                index,
+                containment,
+                confidence_rank(hint),
+                block_area(wrapper),
+            ))
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by(|left, right| {
+        right
+            .1
+            .total_cmp(&left.1)
+            .then_with(|| right.2.total_cmp(&left.2))
+            .then_with(|| left.3.total_cmp(&right.3))
+            .then_with(|| left.0.cmp(&right.0))
+    });
+    candidates.first().map(|candidate| candidate.0)
+}
+
+fn root_hint_indices(hints: &[LayoutHint], eligible: &[bool], blocks: &[Option<OrderBlock>]) -> Vec<Option<usize>> {
+    hints
+        .iter()
+        .enumerate()
+        .map(|(index, hint)| {
+            if !eligible[index] {
+                None
+            } else if is_wrapper_hint(hint) {
+                Some(index)
+            } else {
+                Some(choose_wrapper_root(index, hints, eligible, blocks).unwrap_or(index))
+            }
+        })
+        .collect()
+}
+
+fn choose_segment_owner(
+    segment: &crate::pdf::hierarchy::SegmentData,
+    hints: &[LayoutHint],
+    eligible: &[bool],
+    blocks: &[Option<OrderBlock>],
+) -> Option<usize> {
+    let segment_block = segment_block(segment)?;
+    let segment_area = block_area(&segment_block);
+    let mut candidates = hints
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| eligible[*index])
+        .filter_map(|(index, hint)| {
+            let region = blocks[index].as_ref()?;
+            let coverage = block_intersection_area(&segment_block, region) / segment_area;
+            (coverage.is_finite() && coverage > MIN_SEGMENT_REGION_COVERAGE).then_some((
+                index,
+                coverage,
+                confidence_rank(hint),
+                block_area(region),
+            ))
+        })
+        .collect::<Vec<_>>();
+    candidates.sort_by(|left, right| {
+        right
+            .1
+            .total_cmp(&left.1)
+            .then_with(|| right.2.total_cmp(&left.2))
+            .then_with(|| left.3.total_cmp(&right.3))
+            .then_with(|| left.0.cmp(&right.0))
+    });
+    candidates.first().map(|candidate| candidate.0)
+}
+
 #[cfg(feature = "layout-detection")]
+pub(crate) fn has_eligible_layout_hints(hints: &[LayoutHint], wrapper_ownership: &[bool]) -> bool {
+    eligible_hints(hints, wrapper_ownership)
+        .into_iter()
+        .any(|eligible| eligible)
+}
+
+fn uncovered_group(
+    indices: Vec<usize>,
+    segments: &[crate::pdf::hierarchy::SegmentData],
+    synthetic_id: usize,
+) -> PlannedGroup {
+    let first_segment_index = indices[0];
+    let order_block = segments_union_block(&indices, segments);
+    PlannedGroup {
+        output: LayoutSegmentGroup {
+            segment_indices: indices,
+            hint_indices: Vec::new(),
+            region_path: Some(LayoutRegionPath {
+                root: LayoutRegionTag {
+                    id: synthetic_id,
+                    class_name: None,
+                },
+                child: None,
+            }),
+        },
+        root_id: synthetic_id,
+        order_block,
+        first_segment_index,
+    }
+}
+
+fn ordered_indices(blocks: &[Option<OrderBlock>], first_indices: &[usize], no_reorder: bool) -> Vec<usize> {
+    if no_reorder {
+        let mut order = (0..blocks.len()).collect::<Vec<_>>();
+        order.sort_by_key(|index| first_indices[*index]);
+        return order;
+    }
+
+    let valid = blocks
+        .iter()
+        .enumerate()
+        .filter_map(|(index, block)| block.as_ref().map(|_| index))
+        .collect::<Vec<_>>();
+    let valid_blocks = valid
+        .iter()
+        .map(|index| blocks[*index].expect("validated block"))
+        .collect::<Vec<_>>();
+    let valid_order = if is_multi_column(&valid_blocks) {
+        order_blocks_by_graph(&valid_blocks)
+    } else {
+        let mut order = (0..valid_blocks.len()).collect::<Vec<_>>();
+        order.sort_by(|left, right| {
+            valid_blocks[*right]
+                .top
+                .total_cmp(&valid_blocks[*left].top)
+                .then_with(|| valid_blocks[*left].left.total_cmp(&valid_blocks[*right].left))
+        });
+        order
+    };
+    let mut result = valid_order.into_iter().map(|index| valid[index]).collect::<Vec<_>>();
+    let mut invalid = (0..blocks.len())
+        .filter(|index| blocks[*index].is_none())
+        .collect::<Vec<_>>();
+    invalid.sort_by_key(|index| first_indices[*index]);
+    result.extend(invalid);
+    result
+}
+
+fn order_planned_groups(
+    groups: Vec<PlannedGroup>,
+    root_blocks: &[Option<OrderBlock>],
+    no_reorder: bool,
+) -> Vec<LayoutSegmentGroup> {
+    let mut by_root = std::collections::BTreeMap::<usize, Vec<PlannedGroup>>::new();
+    for group in groups {
+        by_root.entry(group.root_id).or_default().push(group);
+    }
+
+    let root_ids = by_root.keys().copied().collect::<Vec<_>>();
+    let root_order_blocks = root_ids
+        .iter()
+        .map(|root_id| root_blocks.get(*root_id).copied().flatten())
+        .collect::<Vec<_>>();
+    let root_first_indices = root_ids
+        .iter()
+        .map(|root_id| {
+            by_root[root_id]
+                .iter()
+                .map(|group| group.first_segment_index)
+                .min()
+                .expect("non-empty root")
+        })
+        .collect::<Vec<_>>();
+
+    let mut ordered = Vec::new();
+    for root_position in ordered_indices(&root_order_blocks, &root_first_indices, no_reorder) {
+        let root_id = root_ids[root_position];
+        let mut children = by_root.remove(&root_id).expect("known root");
+        let child_blocks = children.iter().map(|group| group.order_block).collect::<Vec<_>>();
+        let child_first = children
+            .iter()
+            .map(|group| group.first_segment_index)
+            .collect::<Vec<_>>();
+        let child_order = ordered_indices(&child_blocks, &child_first, no_reorder);
+        let mut slots = children.drain(..).map(Some).collect::<Vec<_>>();
+        ordered.extend(
+            child_order
+                .into_iter()
+                .filter_map(|index| slots[index].take())
+                .map(|group| group.output),
+        );
+    }
+    ordered
+}
+
+/// Build a deterministic reading-order plan without flattening layout regions.
+///
+/// Every post-table-filter segment appears exactly once. Table/Picture regions
+/// stay as top-level wrappers, regular regions contained by a wrapper are folded
+/// into that root, and segments outside regions remain in contiguous source runs.
+#[cfg(feature = "layout-detection")]
+pub(crate) fn plan_segment_groups_by_layout(
+    segments: &[crate::pdf::hierarchy::SegmentData],
+    hints: &[LayoutHint],
+    wrapper_ownership: &[bool],
+    no_reorder: bool,
+) -> Vec<LayoutSegmentGroup> {
+    if segments.is_empty() {
+        return Vec::new();
+    }
+    if hints.is_empty() {
+        return vec![LayoutSegmentGroup {
+            segment_indices: (0..segments.len()).collect(),
+            hint_indices: Vec::new(),
+            region_path: None,
+        }];
+    }
+
+    let blocks = hints.iter().map(hint_block).collect::<Vec<_>>();
+    let eligible = eligible_hints(hints, wrapper_ownership);
+    if !eligible.iter().any(|value| *value) {
+        return vec![LayoutSegmentGroup {
+            segment_indices: (0..segments.len()).collect(),
+            hint_indices: Vec::new(),
+            region_path: None,
+        }];
+    }
+    let roots = root_hint_indices(hints, &eligible, &blocks);
+    let owners = segments
+        .iter()
+        .map(|segment| choose_segment_owner(segment, hints, &eligible, &blocks))
+        .collect::<Vec<_>>();
+
+    let mut region_segments = std::collections::BTreeMap::<usize, Vec<usize>>::new();
+    for (segment_index, owner) in owners.iter().enumerate() {
+        if let Some(owner) = owner
+            && roots[*owner].is_some()
+        {
+            region_segments.entry(*owner).or_default().push(segment_index);
+        }
+    }
+
+    let mut groups = region_segments
+        .into_iter()
+        .map(|(owner, mut segment_indices)| {
+            if !no_reorder {
+                segment_indices.sort_by(|left, right| {
+                    let left_segment = &segments[*left];
+                    let right_segment = &segments[*right];
+                    let left_top = left_segment.y + left_segment.height;
+                    let right_top = right_segment.y + right_segment.height;
+                    right_top
+                        .total_cmp(&left_top)
+                        .then_with(|| left_segment.x.total_cmp(&right_segment.x))
+                        .then_with(|| left.cmp(right))
+                });
+            }
+            let first_segment_index = *segment_indices.iter().min().expect("non-empty region group");
+            let order_block = if is_wrapper_hint(&hints[owner]) {
+                segments_union_block(&segment_indices, segments)
+            } else {
+                blocks[owner]
+            };
+            PlannedGroup {
+                first_segment_index,
+                output: LayoutSegmentGroup {
+                    segment_indices,
+                    hint_indices: (!is_wrapper_hint(&hints[owner])).then_some(owner).into_iter().collect(),
+                    region_path: roots[owner].map(|root| LayoutRegionPath {
+                        root: LayoutRegionTag {
+                            id: root,
+                            class_name: Some(hints[root].class_name),
+                        },
+                        child: (root != owner).then_some(LayoutRegionTag {
+                            id: owner,
+                            class_name: Some(hints[owner].class_name),
+                        }),
+                    }),
+                },
+                root_id: roots[owner].expect("eligible owner has a root"),
+                order_block,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let mut uncovered = Vec::new();
+    let mut next_synthetic_id = hints.len();
+    for (segment_index, owner) in owners.iter().enumerate() {
+        if owner.is_none() {
+            uncovered.push(segment_index);
+        } else if !uncovered.is_empty() {
+            groups.push(uncovered_group(
+                std::mem::take(&mut uncovered),
+                segments,
+                next_synthetic_id,
+            ));
+            next_synthetic_id += 1;
+        }
+    }
+    if !uncovered.is_empty() {
+        groups.push(uncovered_group(uncovered, segments, next_synthetic_id));
+    }
+
+    let mut root_blocks = blocks;
+    root_blocks.resize(next_synthetic_id + 1, None);
+    for group in &groups {
+        if group.root_id >= hints.len() {
+            root_blocks[group.root_id] = group.order_block;
+        }
+    }
+    order_planned_groups(groups, &root_blocks, no_reorder)
+}
+
+/// Compatibility helper used by the legacy reading-order unit tests.
+#[cfg(all(feature = "layout-detection", test))]
 pub(crate) fn reorder_segments_by_layout(
     segments: Vec<crate::pdf::hierarchy::SegmentData>,
     hints: &[LayoutHint],
 ) -> Vec<crate::pdf::hierarchy::SegmentData> {
-    if segments.is_empty() || hints.is_empty() {
-        return segments;
-    }
-
-    if crate::pdf::structure::layout_debug::layout_debug_flags().no_reorder {
-        return segments;
-    }
-
-    // Bucket each segment into the smallest layout region containing its center.
-    let mut region_segments: Vec<Vec<usize>> = vec![Vec::new(); hints.len()];
-    for (seg_idx, seg) in segments.iter().enumerate() {
-        let center_x = seg.x + seg.width / 2.0;
-        let center_y = seg.y + seg.height / 2.0;
-        let mut best_region = None;
-        let mut best_area = f32::INFINITY;
-        for (region_idx, hint) in hints.iter().enumerate() {
-            if center_x >= hint.left && center_x <= hint.right && center_y >= hint.bottom && center_y <= hint.top {
-                let area = (hint.right - hint.left) * (hint.top - hint.bottom);
-                if area < best_area {
-                    best_region = Some(region_idx);
-                    best_area = area;
-                }
-            }
-        }
-        if let Some(region_idx) = best_region {
-            region_segments[region_idx].push(seg_idx);
-        }
-    }
-
-    // Only regions that actually received segments participate in ordering.
-    let active: Vec<usize> = (0..hints.len()).filter(|&r| !region_segments[r].is_empty()).collect();
-    if active.is_empty() {
-        return segments;
-    }
-
-    let blocks: Vec<OrderBlock> = active
-        .iter()
-        .map(|&r| OrderBlock {
-            left: hints[r].left,
-            bottom: hints[r].bottom,
-            right: hints[r].right,
-            top: hints[r].top,
-        })
-        .collect();
-
-    // The predecessor graph pays off only on genuinely multi-column pages. On
-    // single-column pages it can fragment an already-correct order when regions
-    // are imperfect, so fall back to a plain top-to-bottom block order there
-    // (neutral vs raw stream order, but still applies the intra-region sort).
-    let block_order = if is_multi_column(&blocks) {
-        order_blocks_by_graph(&blocks)
-    } else {
-        let mut order: Vec<usize> = (0..blocks.len()).collect();
-        order.sort_by(|&a, &b| blocks[b].top.total_cmp(&blocks[a].top));
-        order
-    };
-
-    let mut included = vec![false; segments.len()];
-    let mut reorder_map: Vec<usize> = Vec::with_capacity(segments.len());
-    for &block_idx in &block_order {
-        let region_idx = active[block_idx];
-        let mut region: Vec<usize> = region_segments[region_idx].clone();
-        // Intra-region: top-to-bottom, then left-to-right.
-        region.sort_by(|&a, &b| {
-            let top_a = segments[a].y + segments[a].height;
-            let top_b = segments[b].y + segments[b].height;
-            top_b
-                .total_cmp(&top_a)
-                .then_with(|| segments[a].x.total_cmp(&segments[b].x))
-        });
-        for seg_idx in region {
-            if !included[seg_idx] {
-                included[seg_idx] = true;
-                reorder_map.push(seg_idx);
-            }
-        }
-    }
-    // Segments outside every region keep their original relative order at the tail.
-    for (seg_idx, &done) in included.iter().enumerate() {
-        if !done {
-            reorder_map.push(seg_idx);
-        }
-    }
-
-    reorder_map.into_iter().map(|idx| segments[idx].clone()).collect()
+    let no_reorder = crate::pdf::structure::layout_debug::layout_debug_flags().no_reorder;
+    plan_segment_groups_by_layout(&segments, hints, &[], no_reorder)
+        .into_iter()
+        .flat_map(|group| group.segment_indices)
+        .map(|index| segments[index].clone())
+        .collect()
 }
 
 /// Reorder spans using purely geometric column detection (no layout hints needed).
@@ -541,6 +874,139 @@ pub(crate) fn reorder_spans_by_layout(spans: &[TextSpan], hints: &[LayoutHint]) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn planned_segment(text: &str, x: f32, y: f32, width: f32, height: f32) -> crate::pdf::hierarchy::SegmentData {
+        crate::pdf::hierarchy::SegmentData {
+            text: text.to_string(),
+            x,
+            y,
+            width,
+            height,
+            font_size: 10.0,
+            is_bold: false,
+            is_italic: false,
+            is_monospace: false,
+            baseline_y: y,
+            assigned_role: None,
+        }
+    }
+
+    fn planned_hint(
+        class_name: crate::pdf::structure::types::LayoutHintClass,
+        left: f32,
+        bottom: f32,
+        right: f32,
+        top: f32,
+    ) -> LayoutHint {
+        LayoutHint {
+            class_name,
+            confidence: 0.9,
+            left,
+            bottom,
+            right,
+            top,
+        }
+    }
+
+    #[test]
+    fn plan_preserves_wrapper_and_child_paths() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![
+            planned_segment("child", 20.0, 70.0, 20.0, 10.0),
+            planned_segment("residual", 70.0, 20.0, 20.0, 10.0),
+        ];
+        let hints = vec![
+            planned_hint(LayoutHintClass::Form, 0.0, 0.0, 100.0, 100.0),
+            planned_hint(LayoutHintClass::Text, 10.0, 60.0, 50.0, 90.0),
+        ];
+
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], false);
+        assert_eq!(groups.len(), 2);
+        let child = groups.iter().find(|group| group.hint_indices == [1]).unwrap();
+        assert_eq!(child.segment_indices, [0]);
+        assert_eq!(child.region_path.unwrap().root.id, 0);
+        assert_eq!(child.region_path.unwrap().child.unwrap().id, 1);
+        let residual = groups.iter().find(|group| group.segment_indices == [1]).unwrap();
+        assert_eq!(residual.region_path.unwrap().root.id, 0);
+        assert!(residual.region_path.unwrap().child.is_none());
+    }
+
+    #[test]
+    fn segment_owner_keeps_stronger_wrapper_coverage() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![planned_segment("mostly wrapper", 0.0, 0.0, 100.0, 100.0)];
+        let hints = vec![
+            planned_hint(LayoutHintClass::Form, 0.0, 0.0, 100.0, 100.0),
+            planned_hint(LayoutHintClass::Caption, 0.0, 0.0, 21.0, 100.0),
+        ];
+
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], true);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].segment_indices, [0]);
+        assert!(groups[0].hint_indices.is_empty());
+        let path = groups[0].region_path.unwrap();
+        assert_eq!(path.root.id, 0);
+        assert!(path.child.is_none());
+    }
+
+    #[test]
+    fn plan_keeps_uncovered_runs_distinct_and_complete() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![
+            planned_segment("outside-before", 200.0, 80.0, 10.0, 10.0),
+            planned_segment("inside", 10.0, 50.0, 10.0, 10.0),
+            planned_segment("outside-after", 200.0, 20.0, 10.0, 10.0),
+        ];
+        let hints = vec![planned_hint(LayoutHintClass::Text, 0.0, 40.0, 100.0, 70.0)];
+
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], true);
+        let flattened = groups
+            .iter()
+            .flat_map(|group| group.segment_indices.iter().copied())
+            .collect::<Vec<_>>();
+        assert_eq!(flattened, [0, 1, 2]);
+        assert_eq!(groups.len(), 3);
+        assert_ne!(
+            groups[0].region_path.unwrap().root.id,
+            groups[2].region_path.unwrap().root.id
+        );
+    }
+
+    #[test]
+    fn plan_rejects_non_finite_derived_geometry() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![planned_segment("overflow", f32::MAX, 10.0, f32::MAX, 10.0)];
+        let hints = vec![planned_hint(LayoutHintClass::Text, 0.0, 0.0, 100.0, 100.0)];
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], true);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].segment_indices, [0]);
+        assert!(groups[0].hint_indices.is_empty());
+
+        let invalid_hint = vec![planned_hint(LayoutHintClass::Text, 0.0, 0.0, f32::INFINITY, 100.0)];
+        let groups = plan_segment_groups_by_layout(&segments, &invalid_hint, &[], true);
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].segment_indices, [0]);
+        assert!(groups[0].region_path.is_none());
+    }
+
+    #[test]
+    fn empty_wrapper_validation_promotes_child_to_root() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![planned_segment("child", 20.0, 70.0, 20.0, 10.0)];
+        let hints = vec![
+            planned_hint(LayoutHintClass::Picture, 0.0, 0.0, 100.0, 100.0),
+            planned_hint(LayoutHintClass::Caption, 10.0, 60.0, 50.0, 90.0),
+        ];
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[false], true);
+        let path = groups[0].region_path.unwrap();
+        assert_eq!(path.root.id, 1);
+        assert!(path.child.is_none());
+    }
 
     #[test]
     fn test_detect_columns_two_column_layout() {

@@ -197,39 +197,11 @@ pub(crate) fn extract_all_from_oxide_document(
             .map(|cf| (cf.strip_repeating_text, cf.include_headers, cf.include_footers))
             .unwrap_or((true, false, false));
 
-        #[cfg_attr(not(feature = "layout-detection"), allow(unused_mut))]
-        let (mut all_page_segments, used_structure_tree) = crate::pdf::oxide::hierarchy::extract_all_segments(&mut doc)
+        let (all_page_segments, used_structure_tree) = crate::pdf::oxide::hierarchy::extract_all_segments(&mut doc)
             .map_err(|e| crate::error::XbergError::Parsing {
                 message: format!("pdf_oxide hierarchy extraction failed: {e}"),
                 source: None,
             })?;
-
-        // Reading-order reorder runs whenever layout hints exist: the ML layout
-        // path implies the caller wants layout-driven structure, and the
-        // predecessor-graph reorder is what turns column-order stream text into
-        // visual reading order. The explicit `reading_order` opt-in still forces
-        // it on for the non-layout span path. `XBERG_LAYOUT_NO_REORDER=1` disables
-        // it for A/B measurement.
-        #[cfg(feature = "layout-detection")]
-        if (config.pdf_options.as_ref().is_some_and(|opts| opts.reading_order) || layout_hints.is_some())
-            && let Some(hints) = layout_hints
-        {
-            for (page_idx, page_hints) in hints.iter().enumerate() {
-                if page_idx < all_page_segments.len() && !page_hints.is_empty() {
-                    all_page_segments[page_idx] = crate::extractors::pdf::reading_order::reorder_segments_by_layout(
-                        all_page_segments[page_idx].clone(),
-                        page_hints,
-                    );
-                    tracing::debug!(
-                        page = page_idx,
-                        segments = all_page_segments[page_idx].len(),
-                        "reading-order: segments reordered by layout"
-                    );
-                }
-            }
-        }
-        #[cfg(not(feature = "layout-detection"))]
-        let _ = &layout_hints;
 
         let total_segs: usize = all_page_segments.iter().map(|s| s.len()).sum();
         tracing::debug!(

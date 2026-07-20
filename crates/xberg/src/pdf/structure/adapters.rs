@@ -90,6 +90,7 @@ pub(crate) fn ocr_doc_to_paragraphs(
                 is_formula: false,
                 is_page_furniture: false,
                 layout_class: None,
+                layout_region_path: None,
                 caption_for: None,
                 block_bbox,
                 word_count,
