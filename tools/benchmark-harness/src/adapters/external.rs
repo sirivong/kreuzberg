@@ -209,34 +209,109 @@ fn get_script_path(script_name: &str) -> Result<PathBuf> {
     )))
 }
 
-/// Helper function to find Python interpreter with a specific open source extraction framework installed
-///
-/// Returns (command, args) where command is the executable and args are the base arguments
-fn find_python_with_framework(framework: &str) -> Result<(PathBuf, Vec<String>)> {
-    if which::which("uv").is_ok() {
-        return Ok((PathBuf::from("uv"), vec!["run".to_string()]));
+/// Environment override for the Python interpreter used by external benchmarks.
+const BENCH_PYTHON_ENV: &str = "XBERG_BENCH_PYTHON";
+
+fn python_imports_framework(python: &PathBuf, framework: &str) -> bool {
+    std::process::Command::new(python)
+        .arg("-c")
+        .arg(format!("import {framework}"))
+        .output()
+        .is_ok_and(|output| output.status.success())
+}
+
+fn direct_python_candidates() -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+    if let Some(virtual_env) = env::var_os("VIRTUAL_ENV") {
+        let virtual_env = PathBuf::from(virtual_env);
+        candidates.push(virtual_env.join("bin/python"));
+        candidates.push(virtual_env.join("Scripts/python.exe"));
+    }
+    candidates.push(PathBuf::from(".venv/bin/python"));
+    candidates.push(PathBuf::from(".venv/Scripts/python.exe"));
+    for executable in ["python3", "python"] {
+        if let Ok(path) = which::which(executable) {
+            candidates.push(path);
+        }
+    }
+    candidates
+}
+
+fn resolve_uv_python(framework: &str) -> Result<Option<PathBuf>> {
+    let Ok(uv) = which::which("uv") else {
+        return Ok(None);
+    };
+    let dependency_group = format!("bench-{framework}");
+    let probe_script = format!("import {framework}, sys; print(sys.executable)");
+    let probe = std::process::Command::new(uv)
+        .args([
+            "run",
+            "--locked",
+            "--no-sync",
+            "--group",
+            &dependency_group,
+            "python",
+            "-c",
+            &probe_script,
+        ])
+        .output()
+        .map_err(|error| crate::error::Error::Config(format!("failed to run uv probe for {framework}: {error}")))?;
+    if !probe.status.success() {
+        return Err(crate::error::Error::Config(format!(
+            "uv environment cannot import {framework}: {}",
+            String::from_utf8_lossy(&probe.stderr).trim()
+        )));
     }
 
-    let python_candidates = vec!["python3", "python"];
+    let python = String::from_utf8(probe.stdout).map_err(|error| {
+        crate::error::Error::Config(format!(
+            "uv returned a non-UTF-8 interpreter path for {framework}: {error}"
+        ))
+    })?;
+    let Some(interpreter) = python.lines().last().map(str::trim).filter(|line| !line.is_empty()) else {
+        return Err(crate::error::Error::Config(format!(
+            "uv returned no interpreter path for {framework}"
+        )));
+    };
+    let path = PathBuf::from(interpreter);
+    if !path.is_file() || !python_imports_framework(&path, framework) {
+        return Err(crate::error::Error::Config(format!(
+            "uv resolved {} but it cannot import {framework}",
+            path.display()
+        )));
+    }
+    Ok(Some(path))
+}
 
-    for candidate in python_candidates {
-        if let Ok(python_path) = which::which(candidate) {
-            let check = std::process::Command::new(&python_path)
-                .arg("-c")
-                .arg(format!("import {}", framework))
-                .output();
+/// Helper function to find Python interpreter with a specific open source extraction framework installed.
+///
+/// Returns a direct interpreter path so per-document timings never include `uv`
+/// dependency resolution, project synchronization, or editable-wheel builds.
+fn find_python_with_framework(framework: &str) -> Result<(PathBuf, Vec<String>)> {
+    if let Some(path) = env::var_os(BENCH_PYTHON_ENV) {
+        let python = PathBuf::from(path);
+        if python_imports_framework(&python, framework) {
+            return Ok((python, Vec::new()));
+        }
+        return Err(crate::error::Error::Config(format!(
+            "{BENCH_PYTHON_ENV}={} cannot import {framework}",
+            python.display()
+        )));
+    }
 
-            if let Ok(output) = check
-                && output.status.success()
-            {
-                return Ok((python_path, vec![]));
-            }
+    for python in direct_python_candidates() {
+        if python_imports_framework(&python, framework) {
+            return Ok((python, Vec::new()));
         }
     }
 
+    if let Some(python) = resolve_uv_python(framework)? {
+        return Ok((python, Vec::new()));
+    }
+
     Err(crate::error::Error::Config(format!(
-        "No Python interpreter found with {} installed. Install with: pip install {}",
-        framework, framework
+        "No Python interpreter can import {framework}. Run `uv sync --locked --group \
+         bench-{framework}` or set {BENCH_PYTHON_ENV} to a prepared interpreter"
     )))
 }
 
@@ -422,5 +497,19 @@ mod tests {
         let _ = create_pymupdf4llm_adapter(true);
         let _ = create_mineru_adapter(true);
         let _ = create_liteparse_adapter(true);
+    }
+
+    #[test]
+    fn python_resolver_returns_direct_importing_interpreter() {
+        let (python, args) = find_python_with_framework("sys").expect("Python must import sys");
+        assert_ne!(python.file_name().and_then(|name| name.to_str()), Some("uv"));
+        assert!(args.is_empty());
+        assert!(python_imports_framework(&python, "sys"));
+    }
+
+    #[test]
+    fn python_resolver_rejects_missing_framework() {
+        let result = find_python_with_framework("xberg_benchmark_missing_framework");
+        assert!(result.is_err());
     }
 }

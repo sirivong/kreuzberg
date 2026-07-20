@@ -33,6 +33,10 @@ cd "$REPO_ROOT"
 HEURISTIC_FIXTURES="${HEURISTIC_FIXTURES:-}"
 OCR_FIXTURES="${OCR_FIXTURES:-}"
 OUT="${OUT:-tools/benchmark-harness/results/local}"
+FRAMEWORKS_EXPLICIT=0
+if [ "${FRAMEWORKS+x}" = x ]; then
+  FRAMEWORKS_EXPLICIT=1
+fi
 FRAMEWORKS="${FRAMEWORKS:-xberg-markdown-baseline,xberg-markdown-layout,liteparse}"
 ITERATIONS="${ITERATIONS:-1}"
 TIMEOUT="${TIMEOUT:-300}"
@@ -65,22 +69,67 @@ if [ "${SKIP_BUILD:-0}" != "1" ]; then
 fi
 HARNESS=./target/release/benchmark-harness
 
-# 3. Add Docling only if it is importable the same way the harness invokes it.
-#    The harness's find_python_with_framework() prefers `uv run` whenever `uv`
-#    is on PATH (see adapters/external.rs), so the gate must probe through the
-#    same resolver — a bare `python3 -c "import docling"` check would miss an
-#    interpreter that's only importable via `uv run` (e.g. installed with
-#    `uv sync --group bench-docling` into the repo's .venv).
-if command -v uv >/dev/null 2>&1; then
-  DOCLING_CHECK=(uv run python3 -c "import docling")
+# 3. Resolve Docling once, outside measured extraction, to the exact direct
+#    interpreter that the Rust adapter will use.
+resolve_docling_python() {
+  local candidate resolved
+  if [ -n "${XBERG_BENCH_PYTHON:-}" ]; then
+    candidate="$XBERG_BENCH_PYTHON"
+    resolved="$(command -v "$candidate" 2>/dev/null || true)"
+    if [ -z "$resolved" ] || ! "$resolved" -c "import docling" >/dev/null 2>&1; then
+      echo "[bench:local] XBERG_BENCH_PYTHON=$candidate cannot import docling." >&2
+      return 1
+    fi
+    "$resolved" -c "import sys; print(sys.executable)"
+    return
+  fi
+
+  for candidate in \
+    "${VIRTUAL_ENV:+$VIRTUAL_ENV/bin/python}" \
+    "${VIRTUAL_ENV:+$VIRTUAL_ENV/Scripts/python.exe}" \
+    .venv/bin/python \
+    .venv/Scripts/python.exe \
+    python3 \
+    python; do
+    [ -n "$candidate" ] || continue
+    resolved="$(command -v "$candidate" 2>/dev/null || true)"
+    if [ -n "$resolved" ] && "$resolved" -c "import docling" >/dev/null 2>&1; then
+      "$resolved" -c "import sys; print(sys.executable)"
+      return
+    fi
+  done
+
+  if command -v uv >/dev/null 2>&1; then
+    uv run --locked --no-sync --group bench-docling python -c \
+      "import docling, sys; print(sys.executable)"
+    return
+  fi
+  return 1
+}
+
+WANT_DOCLING=0
+if [ "$FRAMEWORKS_EXPLICIT" = 0 ]; then
+  WANT_DOCLING=1
 else
-  DOCLING_CHECK=(python3 -c "import docling")
+  case ",$FRAMEWORKS," in
+    *,docling,*) WANT_DOCLING=1 ;;
+  esac
 fi
-if "${DOCLING_CHECK[@]}" >/dev/null 2>&1; then
-  echo "[bench:local] docling detected — including it."
-  FRAMEWORKS="$FRAMEWORKS,docling"
+
+if [ "$WANT_DOCLING" = 0 ]; then
+  :
+elif BENCH_PYTHON="$(resolve_docling_python)"; then
+  export XBERG_BENCH_PYTHON="$BENCH_PYTHON"
+  if [ "$FRAMEWORKS_EXPLICIT" = 0 ]; then
+    echo "[bench:local] docling detected — including it."
+    FRAMEWORKS="$FRAMEWORKS,docling"
+  fi
 else
-  echo "[bench:local] docling not installed — skipping (install with: uv sync --group bench-docling)."
+  if [ "$FRAMEWORKS_EXPLICIT" = 1 ]; then
+    echo "[bench:local] docling was requested but no prepared interpreter can import it." >&2
+    exit 1
+  fi
+  echo "[bench:local] docling not installed — skipping (install with: uv sync --locked --group bench-docling)."
 fi
 
 SHARD_ARGS=()

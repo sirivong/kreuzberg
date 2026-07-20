@@ -317,6 +317,7 @@ impl FixtureManager {
                 all_fixtures.push(path);
             }
         }
+        all_fixtures.sort();
 
         let total_fixtures = all_fixtures.len();
         let mut failed_fixtures: Vec<(PathBuf, String)> = Vec::new();
@@ -592,6 +593,40 @@ mod tests {
         manager.load_fixtures_from_dir(temp_dir.path()).unwrap();
 
         assert_eq!(manager.len(), 3);
+    }
+
+    #[test]
+    fn test_fixture_discovery_is_sorted() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        unsafe {
+            std::env::remove_var("PROFILING_FIXTURES");
+        }
+
+        for fixture_name in ["zeta", "alpha", "middle"] {
+            let fixture = Fixture {
+                document: PathBuf::from(format!("{fixture_name}.pdf")),
+                file_type: "pdf".to_string(),
+                file_size: 1024,
+                expected_frameworks: vec![],
+                metadata: HashMap::new(),
+                ground_truth: None,
+            };
+            std::fs::write(
+                temp_dir.path().join(format!("{fixture_name}.json")),
+                serde_json::to_string(&fixture).unwrap(),
+            )
+            .unwrap();
+        }
+
+        let mut manager = FixtureManager::new();
+        manager.load_fixtures_from_dir(temp_dir.path()).unwrap();
+        let loaded_names: Vec<_> = manager
+            .fixtures()
+            .iter()
+            .map(|(path, _)| path.file_stem().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(loaded_names, ["alpha", "middle", "zeta"]);
     }
 
     #[test]
