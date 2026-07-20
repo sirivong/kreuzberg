@@ -398,8 +398,9 @@ with `await initWasm()` (or the default `init()` export) before calling `extract
 :::caution[Wasm Platform Limitations]
 The Wasm binding does not support:
 
-- **Layout detection** (RT-DETR model inference requires ONNX Runtime unavailable in WebAssembly)
-- **PaddleOCR, embeddings, reranking, auto-rotate, and transcription inference** (all require ONNX Runtime)
+- **Layout detection** (RT-DETR model inference requires ONNX Runtime, unavailable in WebAssembly; RT-DETR also runs on the pure-Rust `tract` engine, but layout detection is not yet enabled for the `wasm-target` feature set)
+- **PaddleOCR, embeddings, reranking, and transcription inference** (all require ONNX Runtime)
+- **Auto-rotate document-orientation detection** (runs through ONNX Runtime natively; a pure-Rust `tract` path exists via `auto-rotate-tract` and is already used on the Android x86_64 emulator, but WASM wiring is not complete yet)
 - **LLM/VLM features** (liter-llm is not part of the `wasm-target` feature set)
 - **Hardware acceleration config** (single-threaded WASM, no GPU access)
 - **Native server features** (`api`, `mcp`, CLI binary)
@@ -527,7 +528,7 @@ Pure-Dart and Flutter consumers share the same package. Dart SDK 3.0 or higher i
 
 Kotlin/JVM consumers use the Java artifact (`io.xberg:xberg`) directly; Kotlin interoperates with the generated Java records and static facade.
 
-Kotlin Android uses the Android AAR (`io.xberg:xberg-android`). It embeds JNI libraries for `arm64-v8a` and `x86_64`, targets Android API 21+, and uses the `android-target` feature set, which excludes ORT-dependent inference features.
+Kotlin Android uses the Android AAR (`io.xberg:xberg-android`). It embeds JNI libraries for `arm64-v8a` and `x86_64`, targets Android API 21+, and uses the `android-target` feature set, which excludes most ORT-dependent inference features (PaddleOCR, layout detection, embeddings, reranking, transcription). Document-orientation detection runs through the pure-Rust `tract` engine (`auto-rotate-tract`) instead, so it is available on `x86_64` as well as `arm64-v8a`.
 
 ### Swift
 

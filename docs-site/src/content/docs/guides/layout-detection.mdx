@@ -38,6 +38,10 @@ _171-document PDF corpus, CPU only. GPU acceleration significantly reduces the t
 Xberg uses only the RT-DETR v2 model for layout detection. The `preset` field is not available in `LayoutDetectionConfig`. Configure table structure recognition separately via `table_model` — see "Table Structure Models" below.
 :::
 
+:::note[Pure-Rust inference engine]
+RT-DETR also runs through xberg's pure-Rust `tract` engine (no native ONNX Runtime library, CPU-only), matching ONNX Runtime within 5e-3 on its outputs. This is a step toward layout detection on targets that cannot link native ONNX Runtime (WASM, the Android x86_64 emulator); it is not yet enabled for those targets. PP-DocLayout-V3, TATR, and SLANeXT table structure models remain ONNX Runtime-only.
+:::
+
 ## Configuration
 
 <Tabs syncKey="lang">
