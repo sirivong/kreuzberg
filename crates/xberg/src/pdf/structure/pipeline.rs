@@ -1856,6 +1856,37 @@ fn dehyphenate_paragraphs(paragraphs: &mut [PdfParagraph], has_positions: bool) 
     }
 }
 
+/// High-confidence lexical compounds whose source hyphen must survive a line break.
+///
+/// A trailing ASCII hyphen is otherwise indistinguishable from a discretionary PDF
+/// line-wrap hyphen. Exact pair matching is intentionally narrower than prefix or
+/// suffix rules: it protects common compounds without suppressing repairs such as
+/// `soft-` + `ware`.
+const PRESERVED_LEXICAL_COMPOUNDS: &[(&str, &str)] = &[
+    ("cost", "effective"),
+    ("evidence", "based"),
+    ("high", "level"),
+    ("long", "term"),
+    ("low", "level"),
+    ("real", "time"),
+    ("short", "term"),
+    ("state", "of-the-art"),
+    ("user", "defined"),
+    ("well", "known"),
+];
+
+fn should_preserve_lexical_hyphen(trailing_word: &str, leading_word: &str) -> bool {
+    let trim_non_lexical = |ch: char| !ch.is_alphanumeric() && ch != '-';
+    let left = trailing_word.trim_matches(trim_non_lexical);
+    let right = leading_word.trim_matches(trim_non_lexical);
+
+    PRESERVED_LEXICAL_COMPOUNDS
+        .iter()
+        .any(|&(expected_left, expected_right)| {
+            left.eq_ignore_ascii_case(expected_left) && right.eq_ignore_ascii_case(expected_right)
+        })
+}
+
 /// Core dehyphenation with position-based full-line detection.
 ///
 /// For each line boundary, checks whether the line extends close to the right
@@ -1911,7 +1942,12 @@ fn dehyphenate_paragraph_lines(para: &mut PdfParagraph) {
             continue;
         }
 
-        let joined_word = format!("{trailing_word}{leading_word}");
+        let preserved_hyphen = if should_preserve_lexical_hyphen(trailing_word, leading_word) {
+            "-"
+        } else {
+            ""
+        };
+        let joined_word = format!("{trailing_word}{preserved_hyphen}{leading_word}");
 
         if let Some(seg) = para.lines[i].segments.last_mut() {
             let text_without_word: String = seg
@@ -1963,7 +1999,12 @@ fn dehyphenate_hyphen_only(para: &mut PdfParagraph) {
             continue;
         }
 
-        let joined_word = format!("{trailing_word}{leading_word}");
+        let preserved_hyphen = if should_preserve_lexical_hyphen(trailing_word, leading_word) {
+            "-"
+        } else {
+            ""
+        };
+        let joined_word = format!("{trailing_word}{preserved_hyphen}{leading_word}");
 
         if let Some(seg) = para.lines[i].segments.last_mut() {
             let text_without_word: String = seg
@@ -2489,7 +2530,10 @@ mod tests {
 
         assert_eq!(output.len(), 1);
         assert_eq!(paragraph_text(&output[0]), "Introduction, body");
-        assert!(output[0].text.is_empty(), "repaired segments must remain the text source of truth");
+        assert!(
+            output[0].text.is_empty(),
+            "repaired segments must remain the text source of truth"
+        );
         assert_eq!(output[0].word_count, 2);
 
         let document = assemble_internal_document(vec![output], &[], None, &[]);
@@ -2514,13 +2558,14 @@ mod tests {
 
     #[test]
     fn test_heuristic_path_preserves_compound_and_code_hyphens() {
-        let compound = process_heuristic_segments(vec![heuristic_segment(
-            "A state-of-the-art design",
-            700.0,
-            300.0,
-            false,
-        )]);
-        assert_eq!(paragraph_text(&compound[0]), "A state-of-the-art design");
+        let compound = process_heuristic_segments(vec![
+            heuristic_segment("A cost-", 700.0, 490.0, false),
+            heuristic_segment("effective design", 680.0, 200.0, false),
+        ]);
+        assert_eq!(paragraph_text(&compound[0]), "A cost-effective design");
+
+        let document = assemble_internal_document(vec![compound], &[], None, &[]);
+        assert_eq!(document.elements[0].text, "A cost-effective design");
 
         let code = process_heuristic_segments(vec![
             heuristic_segment("let value = soft-", 700.0, 490.0, true),
