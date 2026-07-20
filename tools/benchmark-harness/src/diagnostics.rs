@@ -5,6 +5,7 @@
 //! matches, and noise issues. Results are written to `/tmp/xberg_diagnose/`.
 
 use crate::noise_detection::DiagnosticReport;
+use crate::quality::structural_sidecar::{self, StructuralNode, StructuralSidecar};
 use serde::Serialize;
 
 /// Full diagnostic report for a single document with poor scores.
@@ -68,6 +69,14 @@ fn truncate(s: &str, max_len: usize) -> String {
     }
 }
 
+fn node_preview(index: usize, node: &StructuralNode) -> BlockPreview {
+    BlockPreview {
+        block_type: node.kind_name().to_string(),
+        content_preview: truncate(&node.repr_text(), 120),
+        index,
+    }
+}
+
 /// Generate diagnostics for a document with poor scores.
 ///
 /// Analyzes the structural matching, token diffs, and noise to produce a
@@ -81,40 +90,45 @@ pub fn diagnose_document(
     gt_markdown: Option<&str>,
 ) -> DocumentDiagnostic {
     let (unmatched_gt_blocks, unmatched_extracted_blocks, cross_type_matches, sf1) = if let Some(md_gt) = gt_markdown {
-        let (sq, diag) = crate::markdown_quality::score_structural_quality_diagnostic(extracted_content, md_gt);
+        let extracted = StructuralSidecar::from_markdown(extracted_content);
+        let ground_truth = StructuralSidecar::from_markdown(md_gt);
+        let matches = structural_sidecar::diagnostic_matches(&extracted, &ground_truth);
+        let mut matched_extracted = vec![false; extracted.nodes.len()];
+        let mut matched_gt = vec![false; ground_truth.nodes.len()];
+        let mut cross_types = Vec::new();
 
-        let unmatched_gt: Vec<BlockPreview> = diag
-            .unmatched_gt
+        for (extracted_index, gt_index, similarity) in matches {
+            matched_extracted[extracted_index] = true;
+            matched_gt[gt_index] = true;
+            let extracted_node = &extracted.nodes[extracted_index];
+            let gt_node = &ground_truth.nodes[gt_index];
+            if extracted_node.kind_name() != gt_node.kind_name() {
+                cross_types.push(CrossTypeMatch {
+                    gt_type: gt_node.kind_name().to_string(),
+                    extracted_type: extracted_node.kind_name().to_string(),
+                    content_similarity: similarity,
+                    type_compatibility: 0.0,
+                });
+            }
+        }
+
+        let unmatched_gt = ground_truth
+            .nodes
             .iter()
-            .map(|(idx, block)| BlockPreview {
-                block_type: block.block_type.to_string(),
-                content_preview: truncate(&block.content, 120),
-                index: *idx,
-            })
+            .enumerate()
+            .filter(|(index, _)| !matched_gt[*index])
+            .map(|(index, node)| node_preview(index, node))
             .collect();
-
-        let unmatched_ext: Vec<BlockPreview> = diag
-            .unmatched_extracted
+        let unmatched_extracted = extracted
+            .nodes
             .iter()
-            .map(|(idx, block)| BlockPreview {
-                block_type: block.block_type.to_string(),
-                content_preview: truncate(&block.content, 120),
-                index: *idx,
-            })
+            .enumerate()
+            .filter(|(index, _)| !matched_extracted[*index])
+            .map(|(index, node)| node_preview(index, node))
             .collect();
+        let score = structural_sidecar::score_structural(&extracted, &ground_truth);
 
-        let cross_types: Vec<CrossTypeMatch> = diag
-            .cross_type_matches
-            .iter()
-            .map(|(gt_block, ext_block, sim, compat)| CrossTypeMatch {
-                gt_type: gt_block.block_type.to_string(),
-                extracted_type: ext_block.block_type.to_string(),
-                content_similarity: *sim,
-                type_compatibility: *compat,
-            })
-            .collect();
-
-        (unmatched_gt, unmatched_ext, cross_types, sq.structural_f1)
+        (unmatched_gt, unmatched_extracted, cross_types, score.sf1)
     } else {
         (Vec::new(), Vec::new(), Vec::new(), 0.0)
     };

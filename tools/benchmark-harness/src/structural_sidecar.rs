@@ -1,4 +1,4 @@
-//! Typed structural sidecar and the SF1' structural metric (task #49).
+//! Typed structural sidecar and the canonical SF1 structural metric.
 //!
 //! A [`StructuralSidecar`] is a deterministic, typed description of a document's
 //! *structure* — headings with hierarchy, nested list items, tables with a full
@@ -19,10 +19,10 @@
 //!
 //! # The metric: [`score_structural`]
 //!
-//! Six dimensions are scored, then rolled up with the block weights from
-//! [`crate::markdown_quality`] (heading 2.0 / table 1.5 / list 1.0 / paragraph
-//! 0.5, plus binding-edges 0.5), normalized over the dimensions actually present
-//! in either document, and finally folded with the LIS reading-order score via
+//! Six dimensions are scored, then rolled up with structural weights (heading
+//! 2.0 / table 1.5 / list 1.0 / paragraph 0.5, plus binding-edges 0.5),
+//! normalized over the dimensions actually present in either document, and
+//! finally folded with the LIS reading-order score via
 //! [`crate::markdown_quality::fold_order_into_sf1`]:
 //!
 //! - **D0** paragraph content-F1
@@ -33,7 +33,7 @@
 //! - **D5** reading order via longest-increasing-subsequence
 //!
 //! A fabricated table — a predicted table where the GT has none — scores 0 on
-//! D3, which then pulls the whole SF1' down (it can no longer hide as matched
+//! D3, which then pulls the whole SF1 down (it can no longer hide as matched
 //! prose after the D3 § metric fix in [`crate::markdown_quality`]).
 
 use std::collections::{HashMap, HashSet};
@@ -44,7 +44,7 @@ use crate::markdown_quality::{compute_order_score, fold_order_into_sf1};
 use crate::quality::{compute_f1, tokenize};
 
 // ---------------------------------------------------------------------------
-// Rollup weights — mirror `MdBlockType::weight` in markdown_quality.rs.
+// Canonical SF1 rollup weights.
 // ---------------------------------------------------------------------------
 
 const WEIGHT_HEADING: f64 = 2.0;
@@ -139,7 +139,7 @@ pub enum StructuralNode {
 
 impl StructuralNode {
     /// A representative text for content-similarity matching.
-    fn repr_text(&self) -> String {
+    pub(crate) fn repr_text(&self) -> String {
         match self {
             StructuralNode::Heading { text, .. }
             | StructuralNode::ListItem { text, .. }
@@ -150,6 +150,20 @@ impl StructuralNode {
             | StructuralNode::Paragraph { text } => text.clone(),
             StructuralNode::Image { alt } => alt.clone(),
             StructuralNode::Table(t) => t.cells.iter().map(|c| c.text.as_str()).collect::<Vec<_>>().join(" "),
+        }
+    }
+
+    pub(crate) fn kind_name(&self) -> &'static str {
+        match self {
+            StructuralNode::Heading { .. } => "heading",
+            StructuralNode::ListItem { .. } => "list_item",
+            StructuralNode::Table(_) => "table",
+            StructuralNode::Figure { .. } => "figure",
+            StructuralNode::Caption { .. } => "caption",
+            StructuralNode::Footnote { .. } => "footnote",
+            StructuralNode::Formula { .. } => "formula",
+            StructuralNode::Image { .. } => "image",
+            StructuralNode::Paragraph { .. } => "paragraph",
         }
     }
 }
@@ -163,7 +177,7 @@ pub struct StructuralSidecar {
     pub reading_order: Vec<usize>,
 }
 
-/// The six-dimension structural score and the rolled-up SF1'.
+/// The six-dimension structural score and the rolled-up SF1.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct StructuralScore {
     /// D0 — paragraph/content F1.
@@ -178,8 +192,22 @@ pub struct StructuralScore {
     pub d4_edges: f64,
     /// D5 — reading order (LIS).
     pub d5_order: f64,
-    /// Weighted, order-folded rollup — the alternative structural score.
-    pub sf1_prime: f64,
+    /// Weighted, order-folded SF1 rollup.
+    pub sf1: f64,
+}
+
+impl StructuralScore {
+    /// Named dimension scores used by benchmark comparison reports.
+    pub fn dimensions(&self) -> [(&'static str, f64); 6] {
+        [
+            ("paragraph", self.d0_paragraph),
+            ("heading", self.d1_heading),
+            ("list", self.d2_list),
+            ("table", self.d3_table),
+            ("edges", self.d4_edges),
+            ("order", self.d5_order),
+        ]
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -602,7 +630,7 @@ fn jaccard(a: &HashSet<String>, b: &HashSet<String>) -> f64 {
 }
 
 /// Score the six structural dimensions of `pred` against `gt` and roll them up
-/// into `sf1_prime`.
+/// into SF1.
 pub fn score_structural(pred: &StructuralSidecar, gt: &StructuralSidecar) -> StructuralScore {
     let d0 = score_paragraphs(pred, gt);
     let d1 = score_headings(pred, gt);
@@ -628,7 +656,7 @@ pub fn score_structural(pred: &StructuralSidecar, gt: &StructuralSidecar) -> Str
         }
     }
     let base = if weight_sum > 0.0 { score_sum / weight_sum } else { 1.0 };
-    let sf1_prime = fold_order_into_sf1(base, d5, matched);
+    let sf1 = fold_order_into_sf1(base, d5, matched);
 
     StructuralScore {
         d0_paragraph: d0.value,
@@ -637,8 +665,26 @@ pub fn score_structural(pred: &StructuralSidecar, gt: &StructuralSidecar) -> Str
         d3_table: d3.value,
         d4_edges: d4.value,
         d5_order: d5,
-        sf1_prime,
+        sf1,
     }
+}
+
+/// Parse two Markdown documents and compute canonical SF1.
+pub fn score_markdown(predicted: &str, ground_truth: &str) -> StructuralScore {
+    score_structural(
+        &StructuralSidecar::from_markdown(predicted),
+        &StructuralSidecar::from_markdown(ground_truth),
+    )
+}
+
+/// Content-based node matches used only to explain a canonical SF1 score.
+pub(crate) fn diagnostic_matches(
+    pred: &StructuralSidecar,
+    gt: &StructuralSidecar,
+) -> Vec<(usize, usize, f64)> {
+    let pred_text: Vec<String> = pred.nodes.iter().map(StructuralNode::repr_text).collect();
+    let gt_text: Vec<String> = gt.nodes.iter().map(StructuralNode::repr_text).collect();
+    greedy_match(&pred_text, &gt_text)
 }
 
 /// A dimension score plus a `present` flag isn't needed post-rollup, so the
@@ -953,7 +999,7 @@ Figure 1: The overall system architecture and its components.
     }
 
     fn sf1(pred: &StructuralSidecar, gt: &StructuralSidecar) -> f64 {
-        score_structural(pred, gt).sf1_prime
+        score_structural(pred, gt).sf1
     }
 
     // ---- sanity: the parser found what we need ----
@@ -1188,7 +1234,7 @@ Figure 1: The overall system architecture and its components.
 
     #[test]
     fn test_fabricate_table_drops() {
-        // A predicted table with no GT twin scores 0 on D3, pulling SF1' down.
+        // A predicted table with no GT twin scores 0 on D3, pulling SF1 down.
         let gt = baseline();
         let fabricated = fabricate_table(baseline());
         let base = sf1(&gt, &gt);
@@ -1264,8 +1310,8 @@ Figure 1: The overall system architecture and its components.
         let score = score_structural(&pred, &gt);
         assert_eq!(score.d3_table, 0.0, "fabricated table must score D3=0");
         assert!(
-            score.sf1_prime < score_structural(&gt, &gt).sf1_prime,
-            "fabrication must lower SF1'"
+            score.sf1 < score_structural(&gt, &gt).sf1,
+            "fabrication must lower SF1"
         );
     }
 

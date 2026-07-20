@@ -37,8 +37,9 @@ CLI (clap)
 | `adapter.rs`                        | `FrameworkAdapter` trait definition                                                                                        |
 | `adapters/`                         | Adapter implementations: subprocess (persistent/batch), native (in-process), xberg factory functions for all languages |
 | `runner.rs`                         | Benchmark orchestration, iteration control, resource monitoring                                                            |
-| `quality.rs`                        | TF1: token-level bag-of-words F1 scoring                                                                                   |
-| `markdown_quality.rs`               | SF1: structural block-level F1 scoring                                                                                     |
+| `quality.rs`                        | Combined TF1/SF1 quality scoring                                                                                           |
+| `markdown_quality.rs`               | Markdown block parsing and reading-order helpers                                                                           |
+| `structural_sidecar.rs`             | Canonical SF1 typed structural scoring                                                                                      |
 | `comparison.rs`                     | Multi-pipeline extraction with quality guardrails                                                                          |
 | `pipeline_benchmark.rs`             | 6-path extraction matrix benchmark                                                                                         |
 | `corpus.rs`, `fixture.rs`           | Fixture loading, filtering, validation                                                                                     |
@@ -64,13 +65,17 @@ Token-level bag-of-words F1 between extracted text and ground truth.
 
 ### SF1 (Structural F1)
 
-Block-level matching between extracted markdown and ground truth markdown.
+Typed structural comparison between extracted markdown and ground truth markdown.
 
-- **Block types:** Heading1-6, Paragraph, CodeBlock, Formula, Table, ListItem, Image
-- **Type weights:** Headings = 2.0, Code/Formula/Table = 1.5, ListItem = 1.0, Paragraph/Image = 0.5
-- **Matching:** Greedy 1:1 with fuzzy cross-type compatibility (e.g., bold paragraph matched to heading gets 0.4 compatibility score)
-- **Adjacent concatenation:** Consecutive blocks of the same type are merged before matching
-- **Order score:** Longest Increasing Subsequence (LIS) on matched block indices
+- **Paragraphs:** content F1 across paragraphs, formulas, images, and figures
+- **Headings:** content, heading-level, and ancestor-path agreement
+- **Lists:** content, nesting-depth, and ordered/unordered agreement
+- **Tables:** GriTS-like cell-grid topology and span agreement
+- **Binding edges:** caption and footnote attachment accuracy
+- **Reading order:** Longest Increasing Subsequence (LIS) on matched node positions
+
+The five content dimensions are weighted over dimensions present in either
+document, then reading order is folded into the single canonical SF1 score.
 
 ### Combined Score
 

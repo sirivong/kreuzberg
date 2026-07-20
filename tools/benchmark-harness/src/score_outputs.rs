@@ -11,14 +11,12 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-pub const SCORE_OUTPUTS_SCHEMA_VERSION: u32 = 1;
-pub const SF1_VERSION: u32 = 2;
+pub const SCORE_OUTPUTS_SCHEMA_VERSION: u32 = 2;
 pub const TF1_VERSION: u32 = 1;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ScoreOutputsReport {
     pub schema_version: u32,
-    pub sf1_version: u32,
     pub tf1_version: u32,
     pub document_count: usize,
     pub mean_sf1: f64,
@@ -238,7 +236,7 @@ pub fn score_outputs(fixtures: &Path, outputs: &Path) -> Result<ScoreOutputsRepo
 
             ScoredOutput {
                 fixture_id,
-                sf1: structural.sf1_prime,
+                sf1: structural.sf1,
                 tf1,
                 structural,
             }
@@ -253,7 +251,6 @@ pub fn score_outputs(fixtures: &Path, outputs: &Path) -> Result<ScoreOutputsRepo
 
     Ok(ScoreOutputsReport {
         schema_version: SCORE_OUTPUTS_SCHEMA_VERSION,
-        sf1_version: SF1_VERSION,
         tf1_version: TF1_VERSION,
         document_count,
         mean_sf1,
@@ -547,7 +544,7 @@ mod tests {
     }
 
     #[test]
-    fn scores_exact_directory_with_canonical_versions() {
+    fn scores_exact_directory_with_canonical_schema() {
         let fixtures = TempDir::new().unwrap();
         let outputs = TempDir::new().unwrap();
         write_fixture(fixtures.path(), "alpha", "# Alpha\n\nBody");
@@ -558,7 +555,6 @@ mod tests {
         let report = score_outputs(fixtures.path(), outputs.path()).unwrap();
 
         assert_eq!(report.schema_version, SCORE_OUTPUTS_SCHEMA_VERSION);
-        assert_eq!(report.sf1_version, SF1_VERSION);
         assert_eq!(report.tf1_version, TF1_VERSION);
         assert_eq!(report.document_count, 2);
         assert_eq!(report.mean_sf1, 1.0);

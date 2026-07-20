@@ -15,7 +15,7 @@
 use crate::Result;
 use crate::comparison::{Pipeline, PipelineResult};
 use crate::corpus::{self, CorpusDocument, CorpusFilter};
-use crate::markdown_quality::{MdBlockType, parse_markdown_blocks, score_structural_quality_normalized};
+use crate::quality::structural_sidecar::{self, StructuralNode, StructuralSidecar};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -137,10 +137,11 @@ async fn extract_and_score(
 
     let (sf1, order_score, per_type_sf1) = match gt_markdown {
         Some(md) => {
-            let gt_blocks = parse_markdown_blocks(md);
-            let has_structure = gt_blocks
+            let gt_sidecar = StructuralSidecar::from_markdown(md);
+            let has_structure = gt_sidecar
+                .nodes
                 .iter()
-                .any(|b| !matches!(b.block_type, MdBlockType::Paragraph));
+                .any(|node| !matches!(node, StructuralNode::Paragraph { .. }));
 
             if !has_structure {
                 (f64::NAN, f64::NAN, HashMap::new())
@@ -154,9 +155,16 @@ async fn extract_and_score(
                 } else {
                     &content
                 };
-                let sq = score_structural_quality_normalized(capped, md);
-                let per_type: HashMap<String, f64> = sq.per_type.iter().map(|(k, v)| (k.to_string(), v.f1)).collect();
-                (sq.structural_f1, sq.order_score, per_type)
+                let score = structural_sidecar::score_structural(
+                    &StructuralSidecar::from_markdown(capped),
+                    &gt_sidecar,
+                );
+                let dimensions = score
+                    .dimensions()
+                    .into_iter()
+                    .map(|(name, value)| (name.to_string(), value))
+                    .collect();
+                (score.sf1, score.d5_order, dimensions)
             }
         }
         None => (f64::NAN, f64::NAN, HashMap::new()),

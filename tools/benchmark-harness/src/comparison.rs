@@ -2,7 +2,7 @@
 //! compare quality (SF1, TF1) against ground truth with optional guardrails.
 //!
 //! Replaces the logic previously in `crates/xberg/tests/framework_comparison.rs`.
-//! Uses canonical scoring from [`crate::markdown_quality`] and [`crate::quality`].
+//! Uses canonical scoring from [`crate::quality`].
 //!
 //! # Pipeline semantics
 //!
@@ -29,8 +29,7 @@
 
 use crate::Result;
 use crate::corpus::{self, CorpusDocument, CorpusFilter};
-use crate::markdown_quality::score_structural_quality;
-use crate::quality::{compute_f1, compute_token_diff, tokenize};
+use crate::quality::{compute_f1, compute_token_diff, structural_sidecar, tokenize};
 use futures::FutureExt;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -574,9 +573,13 @@ pub fn score_document(
     };
     let (sf1, order_score, per_type_sf1) = match gt_markdown {
         Some(md) => {
-            let sq = score_structural_quality(content, md);
-            let per_type: HashMap<String, f64> = sq.per_type.iter().map(|(k, v)| (k.to_string(), v.f1)).collect();
-            (sq.structural_f1, sq.order_score, per_type)
+            let score = structural_sidecar::score_markdown(content, md);
+            let dimensions = score
+                .dimensions()
+                .into_iter()
+                .map(|(name, value)| (name.to_string(), value))
+                .collect();
+            (score.sf1, score.d5_order, dimensions)
         }
         None => (0.0, 0.0, HashMap::new()),
     };

@@ -86,7 +86,7 @@ resvg = { version = "0.47", default-features = false }
 rusqlite = { version = "0.40", features = ["bundled"] }
 
 serde = { version = "1.0.229", features = ["derive"] }
-serde_json = { version = "1.0.150" }
+serde_json = { version = "1.0.151" }
 serde_toon_format = "0.1"
 similar = "3"
 sqlite-vec = "0.1"
