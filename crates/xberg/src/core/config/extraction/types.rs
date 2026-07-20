@@ -7,7 +7,7 @@
 //! - Batch extraction items
 
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(test, feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use std::path::PathBuf;
 
 use crate::types::ExtractedDocument;
@@ -350,7 +350,7 @@ fn default_xberg_crawl_config() -> crawlberg::CrawlConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(test, feature = "tokio-runtime", not(target_arch = "wasm32")))]
 pub(crate) struct BatchBytesItem {
     /// The content bytes to extract from
     pub content: Vec<u8>,
@@ -364,7 +364,7 @@ pub(crate) struct BatchBytesItem {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(test, feature = "tokio-runtime", not(target_arch = "wasm32")))]
 pub(crate) struct BatchFileItem {
     /// Path to the file to extract from
     pub path: PathBuf,

@@ -52,7 +52,7 @@ chrono = "0.4"
 clap = { version = "4.6", features = ["derive", "color", "suggestions"] }
 comrak = { version = "0.54", default-features = false }
 console_error_panic_hook = "0.1"
-crawlberg = { version = "1.0.7", default-features = false }
+crawlberg = { version = "1.0.8", default-features = false }
 criterion = { version = "0.8", features = ["html_reports"] }
 dbase = "0.8"
 fs2 = "0.4.3"
@@ -92,13 +92,16 @@ similar = "3"
 sqlite-vec = "0.1"
 tempfile = "3.27.0"
 thiserror = "2.0.19"
+# `process`, `fs`, and `rt-multi-thread` are deliberately excluded from this baseline: tokio's
+# own wasm32 gate (tokio-1.x src/lib.rs) hard-`compile_error!`s unless only
+# sync/macros/io-util/rt/time are active (`process` additionally pulls mio's
+# `net`/`os-poll`/`os-ext`, which fails to build on wasm32 regardless). These OS-dependent
+# features are re-added only on consuming crates' `[target.'cfg(not(target_arch =
+# "wasm32"))'.dependencies]` blocks (see crates/xberg/Cargo.toml and crates/xberg-cli/Cargo.toml).
 tokio = { version = "1.53.0", features = [
     "rt",
-    "rt-multi-thread",
     "macros",
     "sync",
-    "process",
-    "fs",
     "time",
     "io-util",
 ] }

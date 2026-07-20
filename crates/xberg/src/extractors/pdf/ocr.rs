@@ -468,7 +468,9 @@ pub(crate) async fn extract_mixed_ocr_native(
 
     use image::ImageEncoder;
     use image::codecs::png::PngEncoder;
-    #[cfg(feature = "tokio-runtime")]
+    // rayon's work-stealing pool needs OS threads; wasm32 has none, so the parallel encode
+    // paths below fall back to sequential `.iter()` there. Gate the import to match.
+    #[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
     use rayon::prelude::*;
     use std::io::Cursor;
     use std::sync::Arc;
@@ -500,7 +502,7 @@ pub(crate) async fn extract_mixed_ocr_native(
         let batch_slice = &page_images[batch_start..batch_end];
 
         type EncodedPage = (usize, Arc<Vec<u8>>, u32, u32);
-        #[cfg(feature = "tokio-runtime")]
+        #[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
         let encoded: crate::Result<Vec<EncodedPage>> = batch_slice
             .par_iter()
             .map(|(page_idx, image)| {
@@ -516,7 +518,7 @@ pub(crate) async fn extract_mixed_ocr_native(
                 Ok((*page_idx, Arc::new(buf.into_inner()), w, h))
             })
             .collect();
-        #[cfg(not(feature = "tokio-runtime"))]
+        #[cfg(any(not(feature = "tokio-runtime"), target_arch = "wasm32"))]
         let encoded: crate::Result<Vec<EncodedPage>> = batch_slice
             .iter()
             .map(|(page_idx, image)| {
@@ -534,7 +536,12 @@ pub(crate) async fn extract_mixed_ocr_native(
             .collect();
         let encoded = encoded?;
 
-        #[cfg(feature = "tokio-runtime")]
+        // `tokio::task::JoinSet::spawn` requires `Send` futures, but extractor/backend futures
+        // are `!Send` on wasm32 (async_trait(?Send), see plugins/extractor/trait.rs) — and
+        // wasm32 has no OS threads to run them on regardless. Fall back to the sequential path
+        // there even though `tokio-runtime` is active (it's pulled in by
+        // `chunking-tokenizers`/`static-embeddings`, not concurrency support).
+        #[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
         {
             let mut join_set = tokio::task::JoinSet::new();
             for (page_idx, data, _w, _h) in &encoded {
@@ -563,7 +570,7 @@ pub(crate) async fn extract_mixed_ocr_native(
                 ocr_results.insert((page_idx + 1) as u32, extraction_result.content);
             }
         }
-        #[cfg(not(feature = "tokio-runtime"))]
+        #[cfg(any(not(feature = "tokio-runtime"), target_arch = "wasm32"))]
         {
             for (page_idx, data, _w, _h) in &encoded {
                 let mut extraction_result = backend.process_image(data.as_slice(), &ocr_config_owned).await?;
@@ -784,10 +791,12 @@ pub(crate) async fn extract_with_ocr(
         }
     }
 
-    #[cfg(feature = "tokio-runtime")]
+    // rayon's work-stealing pool needs OS threads; wasm32 has none, so the parallel encode
+    // paths below fall back to sequential `.iter()` there. Gate the import to match.
+    #[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
     use rayon::prelude::*;
     use std::sync::Arc;
-    #[cfg(feature = "tokio-runtime")]
+    #[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
     use tokio::task::JoinSet;
 
     let configured_batch_size = crate::core::config::concurrency::resolve_thread_budget(config.concurrency.as_ref());
@@ -839,7 +848,7 @@ pub(crate) async fn extract_with_ocr(
         let (batch_slice, encoded_batch) = if let Some(imgs) = images {
             let slice: Cow<'_, [image::DynamicImage]> = Cow::Borrowed(&imgs[batch_start..batch_end]);
             #[allow(clippy::type_complexity)]
-            #[cfg(feature = "tokio-runtime")]
+            #[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
             let encoded: crate::Result<Vec<(usize, Arc<Vec<u8>>, u32, u32)>> = slice
                 .par_iter()
                 .enumerate()
@@ -859,7 +868,7 @@ pub(crate) async fn extract_with_ocr(
                 })
                 .collect();
             #[allow(clippy::type_complexity)]
-            #[cfg(not(feature = "tokio-runtime"))]
+            #[cfg(any(not(feature = "tokio-runtime"), target_arch = "wasm32"))]
             let encoded: crate::Result<Vec<(usize, Arc<Vec<u8>>, u32, u32)>> = slice
                 .iter()
                 .enumerate()
@@ -922,7 +931,8 @@ pub(crate) async fn extract_with_ocr(
         let batch_count = encoded_batch.len();
         let mut batch_ocr_results: Vec<Option<crate::types::ExtractedDocument>> = vec![None; batch_count];
 
-        #[cfg(feature = "tokio-runtime")]
+        // See the sibling JoinSet block above: `Send` futures aren't available on wasm32.
+        #[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
         {
             let mut join_set: JoinSet<(usize, crate::Result<crate::types::ExtractedDocument>)> = JoinSet::new();
             for (page_idx, image_data, _width, _height) in &encoded_batch {
@@ -943,7 +953,7 @@ pub(crate) async fn extract_with_ocr(
                 batch_ocr_results[page_idx - batch_start] = Some(ocr_result?);
             }
         }
-        #[cfg(not(feature = "tokio-runtime"))]
+        #[cfg(any(not(feature = "tokio-runtime"), target_arch = "wasm32"))]
         {
             for (page_idx, image_data, _width, _height) in &encoded_batch {
                 let ocr_result = backend.process_image(image_data.as_slice(), &ocr_config_owned).await?;

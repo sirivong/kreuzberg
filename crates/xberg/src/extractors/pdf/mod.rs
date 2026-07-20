@@ -288,7 +288,9 @@ impl InternalDocumentExtractor for PdfExtractor {
     async fn extract_path(&self, path: &Path, mime_type: &str, config: &ExtractionConfig) -> Result<InternalDocument> {
         #[cfg(feature = "pdf")]
         crate::pdf::oxide_text::set_current_pdf_path(Some(path.to_path_buf()));
-        let bytes = tokio::fs::read(path).await?;
+        // Async on native (non-blocking tokio::fs); sync fallback on wasm32 where tokio's `fs`
+        // feature is unavailable. See `core::io::read_file_async`.
+        let bytes = crate::core::io::read_file_async(path).await?;
         let result = self.extract_core(&bytes, mime_type, config, Some(path)).await;
         #[cfg(feature = "pdf")]
         crate::pdf::oxide_text::set_current_pdf_path(None);

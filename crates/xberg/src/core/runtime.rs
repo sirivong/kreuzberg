@@ -14,6 +14,7 @@
 
 #[cfg(all(
     feature = "tokio-runtime",
+    not(target_arch = "wasm32"),
     any(feature = "embeddings", feature = "static-embeddings", feature = "reranker")
 ))]
 use once_cell::sync::OnceCell;
@@ -23,6 +24,7 @@ use once_cell::sync::OnceCell;
 /// "drop a runtime in a blocking context" panic.
 #[cfg(all(
     feature = "tokio-runtime",
+    not(target_arch = "wasm32"),
     any(feature = "embeddings", feature = "static-embeddings", feature = "reranker")
 ))]
 static GLOBAL_RUNTIME: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
@@ -41,6 +43,7 @@ static GLOBAL_RUNTIME: OnceCell<tokio::runtime::Runtime> = OnceCell::new();
 /// exhaustion).
 #[cfg(all(
     feature = "tokio-runtime",
+    not(target_arch = "wasm32"),
     any(feature = "embeddings", feature = "static-embeddings", feature = "reranker")
 ))]
 pub(crate) fn global_runtime() -> crate::Result<&'static tokio::runtime::Runtime> {

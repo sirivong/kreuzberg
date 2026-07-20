@@ -87,6 +87,16 @@ pub(crate) fn open_file_bytes(path: &Path) -> Result<FileBytes> {
 
 /// Read a file asynchronously.
 ///
+/// On native targets with the async runtime this performs a non-blocking
+/// `tokio::fs::read`. On wasm32 (where tokio refuses to build its `fs` feature)
+/// or when the `tokio-runtime` feature is off, it falls back to the
+/// platform-aware synchronous reader ([`open_file_bytes`]) — there is no async
+/// runtime to block in those configurations, so the read stays correct.
+///
+/// This helper is always present regardless of features so that async extractor
+/// paths can call one reader on every target rather than branching at each call
+/// site.
+///
 /// # Arguments
 ///
 /// * `path` - Path to the file to read
@@ -98,9 +108,17 @@ pub(crate) fn open_file_bytes(path: &Path) -> Result<FileBytes> {
 /// # Errors
 ///
 /// Returns `XbergError::Io` for I/O errors (these always bubble up).
-#[cfg(feature = "tokio-runtime")]
 pub(crate) async fn read_file_async(path: impl AsRef<Path>) -> Result<Vec<u8>> {
-    tokio::fs::read(path.as_ref()).await.map_err(crate::XbergError::from)
+    #[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
+    {
+        tokio::fs::read(path.as_ref()).await.map_err(crate::XbergError::from)
+    }
+    // wasm32, or native without the async runtime: no runtime to block, so the sync reader
+    // is the correct choice (and `tokio::fs` is unavailable on wasm32 regardless).
+    #[cfg(not(all(feature = "tokio-runtime", not(target_arch = "wasm32"))))]
+    {
+        std::fs::read(path.as_ref()).map_err(crate::XbergError::from)
+    }
 }
 
 /// Read a file synchronously.

@@ -661,7 +661,6 @@ either = { version = "1", optional = true }
 encoding_rs = { version = "0.8.35" }
 fast_image_resize = { version = "6.0.0", optional = true }
 flate2 = { version = "1.1", optional = true }
-fs2 = { workspace = true, optional = true }
 hayro-jbig2 = { version = "0.3", default-features = false, features = ["std"], optional = true }
 hayro-jpeg2000 = { version = "0.3", default-features = false, features = ["std", "simd"], optional = true }
 hex = { workspace = true }
@@ -837,6 +836,20 @@ ureq = { version = "3.3", default-features = false, features = [
 xberg-candle-ocr = { path = "../xberg-candle-ocr", version = "1.0.0-rc.30", optional = true }
 # PaddleOCR via ONNX Runtime - not available on WASM (vendored from paddle-ocr-rs)
 xberg-paddle-ocr = { path = "../xberg-paddle-ocr", version = "1.0.0-rc.30", optional = true }
+
+# tokio OS features (every native target, including Android and Windows): `process`, `fs`, and
+# `rt-multi-thread` all fail to compile on wasm32 — tokio's own wasm32 gate only allows
+# sync/macros/io-util/rt/time, and `process` additionally pulls mio's `net`/`os-poll`/`os-ext`.
+# The workspace-level `tokio` dependency omits them from its baseline; they are added here so
+# wasm32 builds never request them. Mirrors the `[dependencies] tokio = { workspace = true,
+# optional = true }` entry above.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tokio = { workspace = true, optional = true, features = ["process", "fs", "rt-multi-thread"] }
+# fs2 (cross-process model-cache file locking, see model_download.rs) has no wasm32 `sys`
+# backend at all — it is target-gated the same way hf-hub/reqwest/tree-sitter-language-pack
+# are below. `chunking-tokenizers`/`onnx-runtime`/etc. reference it unconditionally via
+# `dep:fs2`, which is a no-op on targets where the dependency isn't declared.
+fs2 = { workspace = true, optional = true }
 
 # hf-hub 1.0 (every native target, including Android and Windows): the single declaration for
 # all model downloads — ORT-backed features (embeddings, layout-detection, paddle-ocr, ...) plus

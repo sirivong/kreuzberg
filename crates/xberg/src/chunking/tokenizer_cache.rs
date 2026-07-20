@@ -28,7 +28,9 @@ use crate::XbergError;
 /// widely-available HuggingFace proxy for GPT-4o and Claude token counts.
 pub const DEFAULT_COUNT_TOKENS_MODEL: &str = "Xenova/gpt-4o";
 
-/// Immutable revision used by the default tokenizer preset.
+/// Immutable revision used by the default tokenizer preset. Only consumed by the
+/// native `Pretrained` HF-download path (gated below); wasm32 loads from bytes.
+#[cfg(not(target_arch = "wasm32"))]
 const DEFAULT_COUNT_TOKENS_REVISION: &str = "7956d98f2a83b2751a98ea7136fdf7fe6cf54e69";
 
 /// Source from which a tokenizer is loaded.

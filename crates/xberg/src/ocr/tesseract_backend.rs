@@ -185,7 +185,7 @@ impl OcrBackend for TesseractBackend {
         let processor = Arc::clone(self.processor()?);
         let image_bytes = image_bytes.to_vec();
 
-        let ocr_result = tokio::task::spawn_blocking(move || {
+        let operation = move || {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match output_format {
                 Some(fmt) => processor.process_image_with_format(&image_bytes, &tess_config_clone, fmt),
                 None => processor.process_image(&image_bytes, &tess_config_clone),
@@ -195,13 +195,17 @@ impl OcrBackend for TesseractBackend {
                     "Tesseract/Leptonica foreign exception caught".to_string(),
                 ))
             })
-        })
-        .await
-        .map_err(|e| crate::XbergError::Plugin {
-            message: format!("Tesseract task panicked or caught foreign exception: {}", e),
-            plugin_name: "tesseract".to_string(),
-        })?
-        .map_err(|e| crate::XbergError::Ocr {
+        };
+        #[cfg(not(target_arch = "wasm32"))]
+        let ocr_result = tokio::task::spawn_blocking(operation)
+            .await
+            .map_err(|e| crate::XbergError::Plugin {
+                message: format!("Tesseract task panicked or caught foreign exception: {}", e),
+                plugin_name: "tesseract".to_string(),
+            })?;
+        #[cfg(target_arch = "wasm32")]
+        let ocr_result = operation();
+        let ocr_result = ocr_result.map_err(|e| crate::XbergError::Ocr {
             message: format!("Tesseract OCR failed: {}", e),
             source: Some(Box::new(e)),
         })?;
@@ -277,7 +281,7 @@ impl OcrBackend for TesseractBackend {
         let processor = Arc::clone(self.processor()?);
         let path_str = path.to_string_lossy().to_string();
 
-        let ocr_result = tokio::task::spawn_blocking(move || {
+        let operation = move || {
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match output_format {
                 Some(fmt) => processor.process_image_file_with_format(&path_str, &tess_config_clone, fmt),
                 None => processor.process_image_file(&path_str, &tess_config_clone),
@@ -287,13 +291,17 @@ impl OcrBackend for TesseractBackend {
                     "Tesseract/Leptonica foreign exception caught".to_string(),
                 ))
             })
-        })
-        .await
-        .map_err(|e| crate::XbergError::Plugin {
-            message: format!("Tesseract task panicked or caught foreign exception: {}", e),
-            plugin_name: "tesseract".to_string(),
-        })?
-        .map_err(|e| crate::XbergError::Ocr {
+        };
+        #[cfg(not(target_arch = "wasm32"))]
+        let ocr_result = tokio::task::spawn_blocking(operation)
+            .await
+            .map_err(|e| crate::XbergError::Plugin {
+                message: format!("Tesseract task panicked or caught foreign exception: {}", e),
+                plugin_name: "tesseract".to_string(),
+            })?;
+        #[cfg(target_arch = "wasm32")]
+        let ocr_result = operation();
+        let ocr_result = ocr_result.map_err(|e| crate::XbergError::Ocr {
             message: format!("Tesseract OCR failed: {}", e),
             source: Some(Box::new(e)),
         })?;

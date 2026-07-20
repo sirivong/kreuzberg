@@ -8,7 +8,7 @@ mod bytes;
 mod file;
 mod helpers;
 
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(test, feature = "tokio-runtime", not(target_arch = "wasm32")))]
 mod batch;
 
 #[allow(unused_imports)]
@@ -17,10 +17,10 @@ pub(crate) use bytes::extract_bytes;
 pub(crate) use file::extract_file;
 
 #[allow(unused_imports)]
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(test, feature = "tokio-runtime", not(target_arch = "wasm32")))]
 pub(crate) use batch::{batch_extract_bytes, batch_extract_files};
 
-#[cfg(all(test, feature = "tokio-runtime"))]
+#[cfg(all(test, feature = "tokio-runtime", not(target_arch = "wasm32")))]
 mod tests {
     use super::*;
     use crate::core::config::{BatchBytesItem, BatchFileItem, ExtractionConfig};

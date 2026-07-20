@@ -35,9 +35,9 @@ pub use acceleration::{AccelerationConfig, ExecutionProviderType};
 pub use concurrency::ConcurrencyConfig;
 pub use content_filter::ContentFilterConfig;
 pub use email::EmailConfig;
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(test, feature = "tokio-runtime", not(target_arch = "wasm32")))]
 pub(crate) use extraction::BatchBytesItem;
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(test, feature = "tokio-runtime", not(target_arch = "wasm32")))]
 pub(crate) use extraction::BatchFileItem;
 pub use extraction::{
     ExtractInput, ExtractInputKind, ExtractionConfig, ExtractionErrorItem, ExtractionResult, ExtractionSummary,

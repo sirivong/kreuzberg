@@ -81,7 +81,10 @@ pub(crate) fn resolve_thread_budget(config: Option<&ConcurrencyConfig>) -> usize
 /// assert!(layout <= plain);
 /// assert!(layout >= 1);
 /// ```
-#[cfg_attr(not(feature = "tokio-runtime"), allow(dead_code))]
+#[cfg(all(
+    not(target_arch = "wasm32"),
+    any(test, feature = "late-interaction", feature = "reranker", feature = "sparse-embeddings")
+))]
 pub(crate) fn resolve_batch_concurrency(config: Option<&ConcurrencyConfig>, layout_active: bool) -> usize {
     let budget = resolve_thread_budget(config);
     if !layout_active {
@@ -151,11 +154,13 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_batch_concurrency_without_layout_equals_budget() {
         assert_eq!(resolve_batch_concurrency(None, false), resolve_thread_budget(None));
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_batch_concurrency_with_layout_does_not_exceed_no_layout() {
         let plain = resolve_batch_concurrency(None, false);
         let layout = resolve_batch_concurrency(None, true);
@@ -164,6 +169,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(not(target_arch = "wasm32"))]
     fn test_batch_concurrency_with_layout_bounds_thread_product() {
         let config = ConcurrencyConfig { max_threads: Some(4) };
         let intra = resolve_thread_budget(Some(&config));

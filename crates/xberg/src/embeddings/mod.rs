@@ -536,13 +536,15 @@ fn validate_embedding_shape(
 /// Apply normalization to a batch of embeddings (parallel for large batches).
 #[cfg(any(feature = "embeddings", feature = "static-embeddings"))]
 fn normalize_embeddings(embeddings: &mut [Vec<f32>]) {
+    #[cfg(not(target_arch = "wasm32"))]
     const PARALLEL_THRESHOLD: usize = 64;
+    #[cfg(not(target_arch = "wasm32"))]
     if embeddings.len() >= PARALLEL_THRESHOLD {
         use rayon::prelude::*;
         embeddings.par_iter_mut().for_each(|v| normalize_in_place(v));
-    } else {
-        embeddings.iter_mut().for_each(|v| normalize_in_place(v));
+        return;
     }
+    embeddings.iter_mut().for_each(|v| normalize_in_place(v));
 }
 
 /// Generate embeddings for text chunks using the specified configuration.
@@ -658,7 +660,7 @@ pub fn embed_texts<T: AsRef<str>>(
             "LLM embeddings require the 'liter-llm' and 'tokio-runtime' features. Rebuild with --features liter-llm"
                 .into(),
         )),
-        #[cfg(feature = "tokio-runtime")]
+        #[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
         crate::core::config::EmbeddingModelType::Plugin { name } => {
             let registry = crate::plugins::get_embedding_backend_registry();
             let (backend, expected_dim) = {
@@ -698,7 +700,11 @@ pub fn embed_texts<T: AsRef<str>>(
 
             Ok(embeddings)
         }
-        #[cfg(not(feature = "tokio-runtime"))]
+        #[cfg(target_arch = "wasm32")]
+        crate::core::config::EmbeddingModelType::Plugin { .. } => Err(crate::XbergError::MissingDependency(
+            "Synchronous plugin embeddings are not available on wasm builds; use embed_texts_async instead".into(),
+        )),
+        #[cfg(all(not(feature = "tokio-runtime"), not(target_arch = "wasm32")))]
         crate::core::config::EmbeddingModelType::Plugin { .. } => Err(crate::XbergError::MissingDependency(
             "Plugin embedding backends require the 'tokio-runtime' feature. Rebuild with --features tokio-runtime"
                 .into(),
@@ -999,10 +1005,17 @@ pub async fn embed_texts_async<T: AsRef<str> + Send + 'static>(
         .await
         .map_err(|_| crate::XbergError::embedding("Embedding semaphore closed".to_string()))?;
 
-    let config = Arc::new(config.clone());
-    tokio::task::spawn_blocking(move || embed_texts(&texts, &config))
-        .await
-        .map_err(|e| crate::XbergError::embedding(format!("Embedding task panicked: {e}")))?
+    #[cfg(not(target_arch = "wasm32"))]
+    {
+        let config = Arc::new(config.clone());
+        tokio::task::spawn_blocking(move || embed_texts(&texts, &config))
+            .await
+            .map_err(|e| crate::XbergError::embedding(format!("Embedding task panicked: {e}")))?
+    }
+    #[cfg(target_arch = "wasm32")]
+    {
+        embed_texts(&texts, config)
+    }
 }
 
 #[cfg(test)]

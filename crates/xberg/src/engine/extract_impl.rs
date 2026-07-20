@@ -9,11 +9,11 @@
 use std::collections::{HashSet, VecDeque};
 use std::path::PathBuf;
 
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use std::future::Future;
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use std::sync::Arc;
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use std::time::Instant;
 
 #[cfg(feature = "url-ingestion")]
@@ -50,19 +50,24 @@ pub(crate) async fn extract_batch(
     inputs: Vec<ExtractInput>,
     config: &ExtractionConfig,
 ) -> Result<ExtractionResult> {
-    #[cfg(feature = "tokio-runtime")]
+    // `extract_batch_concurrent` spawns tasks on `tokio::task::JoinSet`, which requires `Send`
+    // futures; extractor futures are `!Send` on wasm32 (async_trait(?Send), see
+    // plugins/extractor/trait.rs) and wasm32 has no OS threads to run them on regardless. Use
+    // the sequential path there even though `tokio-runtime` is active (it's pulled in by
+    // `chunking-tokenizers`/`static-embeddings`, not concurrency support).
+    #[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
     {
         extract_batch_concurrent(inner, inputs, config).await
     }
 
-    #[cfg(not(feature = "tokio-runtime"))]
+    #[cfg(any(not(feature = "tokio-runtime"), target_arch = "wasm32"))]
     {
         let _ = inner;
         extract_batch_sequential(inputs, config).await
     }
 }
 
-#[cfg(not(feature = "tokio-runtime"))]
+#[cfg(any(not(feature = "tokio-runtime"), target_arch = "wasm32"))]
 async fn extract_batch_sequential(inputs: Vec<ExtractInput>, config: &ExtractionConfig) -> Result<ExtractionResult> {
     let mut seen = initial_seen_urls(&inputs);
     let seed_hosts = initial_seed_hosts(&inputs);
@@ -87,7 +92,7 @@ async fn extract_batch_sequential(inputs: Vec<ExtractInput>, config: &Extraction
     Ok(output)
 }
 
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 async fn extract_batch_concurrent(
     inner: &super::EngineInner,
     inputs: Vec<ExtractInput>,
@@ -206,7 +211,7 @@ async fn extract_batch_concurrent(
 ///
 /// Returns `None` for non-URI inputs and for URIs that are not http(s) (bytes,
 /// file paths, `file://`, and other schemes stay on the per-item path).
-#[cfg(all(feature = "tokio-runtime", feature = "url-ingestion"))]
+#[cfg(all(feature = "tokio-runtime", feature = "url-ingestion", not(target_arch = "wasm32")))]
 fn shared_group_uri(input: &ExtractInput) -> Option<String> {
     if !matches!(input.kind, ExtractInputKind::Uri) {
         return None;
@@ -221,7 +226,7 @@ fn shared_group_uri(input: &ExtractInput) -> Option<String> {
 
 /// One http(s) URL routed through the shared crawl engine, carrying everything
 /// needed to map the (completion-order) batch result back to its input slot.
-#[cfg(all(feature = "tokio-runtime", feature = "url-ingestion"))]
+#[cfg(all(feature = "tokio-runtime", feature = "url-ingestion", not(target_arch = "wasm32")))]
 struct SharedUrlItem {
     index: usize,
     source: String,
@@ -241,7 +246,7 @@ struct SharedUrlItem {
 /// `output_from_crawl`), which is what [`finalize_shared_item`] wraps. This is
 /// the precise nuance that differs from the per-item path, where the same
 /// timeout also bounds the fetch.
-#[cfg(all(feature = "tokio-runtime", feature = "url-ingestion"))]
+#[cfg(all(feature = "tokio-runtime", feature = "url-ingestion", not(target_arch = "wasm32")))]
 async fn run_shared_url_group(
     inner: &super::EngineInner,
     base_config: &ExtractionConfig,
@@ -325,7 +330,7 @@ async fn run_shared_url_group(
 /// input would vanish from BOTH `results` and `errors` while `summary.inputs`
 /// still counts it. Re-attach a captured unmatched error when one is available
 /// (FIFO), otherwise synthesize one carrying the input's URL.
-#[cfg(all(feature = "tokio-runtime", feature = "url-ingestion"))]
+#[cfg(all(feature = "tokio-runtime", feature = "url-ingestion", not(target_arch = "wasm32")))]
 fn fill_dropped_shared_slots(
     shared_items: &[SharedUrlItem],
     items: &mut [Option<BatchItemResult>],
@@ -347,7 +352,7 @@ fn fill_dropped_shared_slots(
 
 /// Apply batch-mode context, the per-item conversion timeout, and duration
 /// metadata to a shared-URL conversion future, mirroring `run_batch_item`.
-#[cfg(all(feature = "tokio-runtime", feature = "url-ingestion"))]
+#[cfg(all(feature = "tokio-runtime", feature = "url-ingestion", not(target_arch = "wasm32")))]
 async fn finalize_shared_item<Fut>(shared: &SharedUrlItem, conversion: Fut) -> BatchItemResult
 where
     Fut: Future<Output = Result<ExtractionResult>>,
@@ -387,7 +392,7 @@ where
 
 /// Rebuild a non-cloneable crawl-engine construction error so the identical
 /// failure can be isolated into every shared-URL error slot.
-#[cfg(all(feature = "tokio-runtime", feature = "url-ingestion"))]
+#[cfg(all(feature = "tokio-runtime", feature = "url-ingestion", not(target_arch = "wasm32")))]
 fn duplicate_construction_error(error: &XbergError) -> XbergError {
     match error {
         XbergError::Validation { message, .. } => XbergError::validation(message.clone()),
@@ -396,14 +401,14 @@ fn duplicate_construction_error(error: &XbergError) -> XbergError {
     }
 }
 
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 struct BatchItemResult {
     index: usize,
     source: String,
     result: Result<ExtractionResult>,
 }
 
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 async fn run_batch_item<F, Fut>(
     index: usize,
     source: String,
@@ -488,7 +493,7 @@ fn resolve_input_config(input: &ExtractInput, base_config: &ExtractionConfig) ->
 /// Resolve config for batch items, taking Arc<ExtractionConfig> to avoid unnecessary clones.
 /// When there are no per-item overrides, this returns Arc::clone (cheap reference increment)
 /// rather than cloning the inner ExtractionConfig.
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 fn resolve_input_config_arc(input: &ExtractInput, base_config: &Arc<ExtractionConfig>) -> Arc<ExtractionConfig> {
     match input.config.as_ref() {
         Some(overrides) => Arc::new(base_config.with_file_overrides(overrides)),

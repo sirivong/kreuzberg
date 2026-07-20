@@ -2,26 +2,34 @@
 //!
 //! This module provides parallel extraction capabilities for processing
 //! multiple files or byte arrays concurrently with automatic resource management.
-#![allow(dead_code)]
-
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use crate::core::config::BatchBytesItem;
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use crate::core::config::BatchFileItem;
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use crate::core::config::ExtractionConfig;
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use crate::core::config::extraction::FileExtractionConfig;
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use crate::types::ExtractedDocument;
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use crate::{Result, XbergError};
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use std::future::Future;
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use std::sync::Arc;
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use std::time::Instant;
 
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use super::bytes::extract_bytes;
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use super::file::extract_file;
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 use super::helpers::error_extraction_result;
 
 /// Shared batch result collection: spawns tasks via callback, collects ordered results.
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 async fn collect_batch<F, Fut>(count: usize, config: &ExtractionConfig, spawn_task: F) -> Result<Vec<ExtractedDocument>>
 where
     F: Fn(usize, Arc<tokio::sync::Semaphore>) -> Fut,
@@ -74,7 +82,7 @@ where
 /// When `cancel_token` is provided and the timeout fires, the token is signalled so that
 /// any blocking PDF operations in progress can observe the cancellation at the next
 /// inter-page checkpoint and stop early.
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 async fn run_timed_extraction<F, Fut>(
     index: usize,
     semaphore: Arc<tokio::sync::Semaphore>,
@@ -118,6 +126,7 @@ where
 }
 
 /// Resolve a per-file config against a base config. Returns owned config.
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 fn resolve_config(base: &ExtractionConfig, file_config: &Option<FileExtractionConfig>) -> ExtractionConfig {
     match file_config {
         Some(fc) => base.with_file_overrides(fc),
@@ -193,7 +202,7 @@ fn resolve_config(base: &ExtractionConfig, file_config: &Option<FileExtractionCo
 /// # Ok(())
 /// # }
 /// ```
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 #[cfg_attr(feature = "otel", tracing::instrument(
     skip(config, items),
     fields(
@@ -287,7 +296,7 @@ pub(crate) async fn batch_extract_files(
 /// # Ok(())
 /// # }
 /// ```
-#[cfg(feature = "tokio-runtime")]
+#[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
 #[cfg_attr(feature = "otel", tracing::instrument(
     skip(config, items),
     fields(

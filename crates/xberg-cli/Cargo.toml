@@ -96,7 +96,9 @@ clap_complete = "4.6"
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_toon_format = { workspace = true }
-tokio = { workspace = true }
+# xberg-cli is native-only (never built for wasm32); restore the OS-dependent tokio features
+# trimmed from the workspace-level baseline (see root Cargo.toml).
+tokio = { workspace = true, features = ["process", "fs", "rt-multi-thread"] }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tree-sitter-language-pack = { workspace = true, features = ["dynamic-loading", "download", "serde"], optional = true }
