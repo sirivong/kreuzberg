@@ -116,3 +116,16 @@ default and is unaffected — the two variants are additive and never both compi
 single feature selection. Table STRUCTURE recognition (TATR/SLANeXT) is unaffected by this phase
 and stays ORT-only; wiring `layout-tract` into the PDF table-structure pipeline
 (`crate::pdf::structure`) and widening `wasm-target` are deferred follow-ups.
+
+## Phase 5 finding: `tract-onnx` compiles to `wasm32-unknown-unknown`
+
+A standalone probe crate depending only on `tract-onnx` (0.23.4, `default-features = false`) and
+exercising the full `onnx().model_for_read(..).into_optimized().into_runnable()` path **codegens
+cleanly for `wasm32-unknown-unknown`** — proving tract is not the WASM blocker. The only fix needed
+is `getrandom`'s wasm backend (`--cfg getrandom_backend="wasm_js"` + a wasm32-conditional
+`getrandom {0.2,0.3,0.4}` dep), which `crate::xberg` already carries (`.cargo/config.toml` +
+`Cargo.toml` wasm32 target block). So adding `tract` to `wasm-target` is unblocked from tract's side;
+the remaining WASM work is xberg-side: a pre-existing `xberg-wasm` wasm32 build break unrelated to
+tract (`mio`/`tokio` pulled via other deps), streamed weights through `load_from_memory` (no
+hf-hub/tokio-DNS on wasm32), `ocr-wasm` wiring + `alef.toml` un-strip, and the 50 MB `.wasm` size
+check.
