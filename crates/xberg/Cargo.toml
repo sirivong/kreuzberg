@@ -531,10 +531,14 @@ android-target = [
 # binding crate. Native libheif/libheif-sys is not installed on the standard
 # GitHub `windows-latest` runner image (no libheif.pc on the pkg-config path,
 # no vcpkg integration wired into our publish workflow), so this aggregate
-# drops `heic` along with the ORT-dependent features that Windows already
-# excluded in the FFI Cargo.toml. Mirrors the explicit Windows list that the
-# xberg-ffi crate uses; binding crates reach it via per-crate
-# `[[crates.<x>.target_dep_overrides]]` blocks in `alef.toml`.
+# drops `heic`. Windows links the full ONNX Runtime ML surface: pyke ships a
+# win-x64 ORT prebuilt, so every ORT-dependent feature below resolves via
+# `ort-bundled` (downloaded at build time — no system ORT required), matching
+# the ML surface every other native (non-WASM/Android) target carries. `heic`
+# is the only capability still excluded, for the libheif runner reason above.
+# Mirrors the explicit Windows list that the xberg-ffi crate uses; binding
+# crates reach it via per-crate `[[crates.<x>.target_dep_overrides]]` blocks
+# in `alef.toml`.
 windows-target = [
     "pdf",
     "ocr",
@@ -548,11 +552,20 @@ windows-target = [
     "email",
     "archives",
     "stopwords",
-    "auto-rotate-types",
-    "layout-types",
-    "paddle-ocr-types",
-    "embedding-presets",
-    "reranker-presets",
+    # ORT-dependent ML features. Each implies its corresponding *-types /
+    # *-presets marker feature, so the standalone type-only entries that used
+    # to sit here (auto-rotate-types, layout-types, paddle-ocr-types,
+    # embedding-presets, reranker-presets, transcription-types) are now
+    # redundant and have been folded into the full features below.
+    "auto-rotate",
+    "layout-detection",
+    "paddle-ocr",
+    "embeddings",
+    "reranker",
+    "sparse-embeddings",
+    "late-interaction",
+    "transcription",
+    "ner-onnx",
     "ner",
     "ner-llm-types",
     "presets",
@@ -560,7 +573,6 @@ windows-target = [
     "diff",
     "qr-codes",
     "summarization",
-    "transcription-types",
     "tokio-runtime",
     "api",
     "mcp",
@@ -585,12 +597,8 @@ windows-target = [
     # re-export FootnoteConfig/FootnoteAnchor/FootnoteDefinition/Citation
     # unconditionally, so the defining feature must be enabled on Windows too.
     "markdown-footnotes",
-    # late-interaction-presets = [] (pure-Rust MaxSim + preset metadata, no ORT). The
-    # generated bindings reference the crate-root re-exports (`max_sim_score`, `max_sim_rank`,
-    # `MultiVectorEmbedding`, `LateInteractionMatch`, `LateInteractionPreset`) unconditionally
-    # (pyo3 free-fn wrappers emit no #[cfg] gate), so the defining feature must be enabled on
-    # Windows too — otherwise the wheel build fails with E0425 (configured-out re-export).
-    "late-interaction-presets",
+    # late-interaction-presets is implied by "late-interaction" above (the ORT
+    # ML feature added for full Windows ONNX Runtime parity).
 ]
 # macos-intel-target: native Intel macOS (x86_64-apple-darwin). FULL feature
 # parity with every other platform — including all ONNX Runtime ML (paddle-ocr,
