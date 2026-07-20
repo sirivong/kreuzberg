@@ -1739,7 +1739,6 @@ mod tests {
             plaintext_keys
         );
 
-        // Also verify the PDF-specific split ranking honors the same contract.
         let pdf_markdown_keys: std::collections::HashSet<&str> = aggregated
             .comparison
             .pdf_quality_ranking_markdown
@@ -1914,7 +1913,6 @@ mod tests {
         );
         assert!(ok.rank < crashed.rank, "framework-ok must outrank framework-crashed");
 
-        // Also verify the PDF-specific ranking (Bug B's other call site) applies the same rule.
         let pdf_ranking = &aggregated.comparison.pdf_quality_ranking_markdown;
         let pdf_crashed = pdf_ranking
             .iter()

@@ -266,8 +266,6 @@ fn test_extract_json_includes_stage_timings_when_requested() {
         "first_parse_ms must be positive, got {first_parse_ms}"
     );
 
-    // Default extraction config (no --ocr/--layout flags) has neither OCR nor layout enabled,
-    // so the coarse ORT sub-stage field must be absent.
     assert!(
         stage_timings.get("ort_session_and_inference_ms").is_none(),
         "ort_session_and_inference_ms must be absent when layout/OCR are not active"

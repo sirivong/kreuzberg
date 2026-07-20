@@ -134,9 +134,7 @@ mod tests {
         let encoded = encode_v2("Ada lives", &labels, &FakeTokenizer, &splitter).expect("encoded");
 
         assert_eq!(encoded.words.len(), 2);
-        // text words start at full_sequence index 11 and 12
         assert_eq!(encoded.text_positions, vec![11, 12]);
-        // [P] is schema word 1, [E] tokens are schema words 4 and 6
         assert_eq!(encoded.schema_positions, vec![1, 4, 6]);
         assert_eq!(encoded.input_ids.len(), 13); // 10 schema + 1 sep + 2 words ~keep
     }

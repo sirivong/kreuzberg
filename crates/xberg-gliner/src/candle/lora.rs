@@ -145,7 +145,6 @@ impl LoraAdapter {
             }
         }
 
-        // Validate every module has both A and B.
         let mut modules = HashMap::new();
         for (path, (a, b)) in by_module {
             let lora_a = a.ok_or_else(|| {
@@ -218,12 +217,10 @@ pub(crate) fn merge_into_base(
     let mut applied: std::collections::HashSet<String> = std::collections::HashSet::new();
 
     for (key, view) in st.tensors() {
-        // Decode safetensors view to a Candle tensor.
         let shape: Vec<usize> = view.shape().to_vec();
         let mut tensor = decode_view(&view, shape, device)
             .map_err(|e| crate::candle::GlinerCandleError::Backend(format!("lora_merge: decode {key}: {e}")))?;
 
-        // Match key against adapter modules: strip `.weight` suffix, look up.
         if let Some(mod_path) = key.strip_suffix(".weight")
             && let Some(lora_mod) = adapter.modules.get(mod_path)
         {
@@ -297,20 +294,19 @@ fn decode_view(
 /// base weight is `[in, out]` instead of `[out, in]` and the delta is
 /// transposed before adding.
 fn apply_lora_delta(
-    base: &Tensor,   // [out, in]  (or [in, out] if fan_in_fan_out)
-    lora_a: &Tensor, // [r, in]
-    lora_b: &Tensor, // [out, r]
+    base: &Tensor,   
+    lora_a: &Tensor, 
+    lora_b: &Tensor, 
     scale: f64,
     fan_in_fan_out: bool,
 ) -> candle_core::Result<Tensor> {
-    let delta = lora_b.matmul(lora_a)?; // [out, in]
+    let delta = lora_b.matmul(lora_a)?; 
     let delta = (delta * scale)?;
     let delta = if fan_in_fan_out {
-        delta.t()?.contiguous()? // [in, out]
+        delta.t()?.contiguous()? 
     } else {
         delta
     };
-    // Sanity: shapes must match.
     if base.shape().dims() != delta.shape().dims() {
         return Err(candle_core::Error::Msg(format!(
             "lora_merge: base shape {:?} != delta shape {:?} (fan_in_fan_out={fan_in_fan_out})",
@@ -357,9 +353,9 @@ mod tests {
     #[test]
     fn apply_lora_delta_shape() {
         let device = Device::Cpu;
-        let base = Tensor::zeros((4, 3), DType::F32, &device).unwrap(); // [out=4, in=3]
-        let lora_a = Tensor::ones((2, 3), DType::F32, &device).unwrap(); // [r=2, in=3]
-        let lora_b = Tensor::ones((4, 2), DType::F32, &device).unwrap(); // [out=4, r=2]
+        let base = Tensor::zeros((4, 3), DType::F32, &device).unwrap(); 
+        let lora_a = Tensor::ones((2, 3), DType::F32, &device).unwrap(); 
+        let lora_b = Tensor::ones((4, 2), DType::F32, &device).unwrap(); 
         let merged = apply_lora_delta(&base, &lora_a, &lora_b, 0.5, false).unwrap();
         assert_eq!(merged.shape().dims(), &[4, 3]);
         // Each entry of (lora_b @ lora_a) is r=2 ones, so delta = 2 * 0.5 = 1.0 everywhere. ~keep

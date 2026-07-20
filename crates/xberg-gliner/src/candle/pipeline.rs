@@ -28,17 +28,15 @@ pub(crate) fn run_pipeline(
 ) -> crate::candle::Result<(ScorerOutput, usize, V2Encoded)> {
     let encoded = encode_v2(text, labels, tokenizer, splitter)?;
 
-    // 1. Truncate to the encoder's position-embedding limit.
     let max_seq = encoder.config.max_position_embeddings;
     let seq_len = encoded.input_ids.len().min(max_seq);
     let input_ids = Tensor::from_slice(&encoded.input_ids[..seq_len], (1, seq_len), device)?;
     let attn_data: Vec<i64> = vec![1_i64; seq_len];
     let attention_mask = Tensor::from_slice(&attn_data[..], (1, seq_len), device)?;
 
-    // 2. Encode.
     let hidden = encoder
         .forward(&input_ids, &attention_mask, None)
-        .map_err(|e| crate::candle::GlinerCandleError::Backend(format!("[pipeline:2 encoder.forward] {e}")))?; // [1, S, H]
+        .map_err(|e| crate::candle::GlinerCandleError::Backend(format!("[pipeline:2 encoder.forward] {e}")))?; 
 
     // 3. Token gather. `text_positions` are already per-word token indices
     //    from `encode_v2`; filter to the truncated sequence. ~keep
@@ -55,9 +53,8 @@ pub(crate) fn run_pipeline(
     let word_indices = Tensor::from_slice(&filtered_positions[..], (num_words,), device)?;
     let text_emb = TokenGather
         .forward(&hidden, &word_indices)
-        .map_err(|e| crate::candle::GlinerCandleError::Backend(format!("[pipeline:3 token_gather] {e}")))?; // [1, num_words, H]
+        .map_err(|e| crate::candle::GlinerCandleError::Backend(format!("[pipeline:3 token_gather] {e}")))?; 
 
-    // 4. Span rep.
     let span_idx_arr = build_span_idx(num_words)?;
     // index_select requires U32 indices on the CPU backend. ~keep
     let span_idx_data: Vec<u32> = span_idx_arr.iter().map(|&v| v as u32).collect();
@@ -65,7 +62,7 @@ pub(crate) fn run_pipeline(
     let span_rep_out = heads
         .span_rep
         .forward(&text_emb, &span_idx)
-        .map_err(|e| crate::candle::GlinerCandleError::Backend(format!("[pipeline:4 span_rep] {e}")))?; // [1, num_words, MAX_WIDTH, H]
+        .map_err(|e| crate::candle::GlinerCandleError::Backend(format!("[pipeline:4 span_rep] {e}")))?; 
 
     // 5. Schema gather: `[P]` index first, then per-label `[E]` indices;
     //    exactly `encoded.schema_positions`' order. ~keep
@@ -80,7 +77,6 @@ pub(crate) fn run_pipeline(
         .forward(&hidden, &schema_idx_t)
         .map_err(|e| crate::candle::GlinerCandleError::Backend(format!("[pipeline:5 schema_gather] {e}")))?;
 
-    // 6. Count pred.
     let pred_count = heads
         .count_pred
         .forward(&sg_out.pc_emb)
@@ -89,19 +85,16 @@ pub(crate) fn run_pipeline(
         return Ok((empty_scorer_output(), 0, encoded));
     }
 
-    // 7. Count LSTM (GRU): struct_proj [pred_count, F, H].
     let struct_proj = heads
         .count_lstm
         .forward(&sg_out.field_embs, pred_count, device)
         .map_err(|e| crate::candle::GlinerCandleError::Backend(format!("[pipeline:7 count_lstm] {e}")))?;
 
-    // 8. Scorer: [pred_count, F, num_words, MAX_WIDTH] sigmoid scores.
     let span_rep_per_sample = span_rep_out.squeeze(0)?;
     let scores = Scorer
         .forward(&span_rep_per_sample, &struct_proj)
         .map_err(|e| crate::candle::GlinerCandleError::Backend(format!("[pipeline:8 scorer] {e}")))?;
 
-    // 9. Permute to [pred_count, num_words, MAX_WIDTH, num_labels], pad to MAX_COUNT.
     let scores = scores.permute((0, 2, 3, 1))?.contiguous()?;
     let num_labels = labels.len();
     let scores_padded: Tensor = if pred_count < MAX_COUNT {

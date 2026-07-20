@@ -46,7 +46,7 @@ TRUNC_TAIL_RECALL = 0.18  # ...and trailing-quarter recall at most this => clean
 TRUNC_EXTREME_COVERAGE = 0.25  # GT below this fraction of a multi-page native doc => truncated ~keep
 TABLE_LABEL_SUPPORT = 0.40  # a table whose header tokens fall below this => fabricated ~keep
 HALLUC_PRECISION = 0.70  # native-text precision below this => REVIEW
-DIGIT_CONTRADICTION = 0.35  # >= this fraction of GT numbers absent from oracle => REJECT
+DIGIT_CONTRADICTION = 0.35
 
 _WORD = re.compile(r"[a-z0-9]+")
 _NUM = re.compile(r"\d[\d.,/]*\d|\d")
@@ -153,7 +153,6 @@ def evaluate(pdf_path: Path, gt_md: str, source: str = "") -> Eval:
     o_set, g_set = set(oracle_flat), set(g_tok)
     ev.oracle_tokens = len(oracle_flat)
 
-    # No / near-empty oracle => cannot validate here.
     if len(oracle_flat) < MIN_ORACLE_TOKENS:
         ev.verdict = "NO_ORACLE" if not oracle_flat else "TRIVIAL"
         ev.reasons = [

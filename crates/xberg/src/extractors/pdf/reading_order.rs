@@ -293,12 +293,10 @@ fn order_blocks_by_graph(blocks: &[OrderBlock]) -> Vec<usize> {
     let n = blocks.len();
     let (up, mut dn) = build_updown_maps(blocks);
 
-    // Sort each node's successors by the reading-order comparator.
     for children in dn.iter_mut() {
         children.sort_by(|&a, &b| reading_order_cmp(&blocks[a], &blocks[b]));
     }
 
-    // Heads: blocks with no predecessor, in reading order.
     let mut heads: Vec<usize> = (0..n).filter(|&k| up[k].is_empty()).collect();
     heads.sort_by(|&a, &b| reading_order_cmp(&blocks[a], &blocks[b]));
 
@@ -1297,9 +1295,9 @@ mod tests {
         }
 
         let hints = vec![
-            hint(40.0, 460.0, 460.0, 490.0),  // full-width title band
-            hint(40.0, 100.0, 240.0, 450.0),  // left column
-            hint(260.0, 100.0, 460.0, 450.0), // right column
+            hint(40.0, 460.0, 460.0, 490.0),  
+            hint(40.0, 100.0, 240.0, 450.0),  
+            hint(260.0, 100.0, 460.0, 450.0), 
         ];
 
         let reordered = reorder_segments_by_layout(segments, &hints);

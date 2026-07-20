@@ -19,9 +19,6 @@ import re
 import sys
 from pathlib import Path
 
-# --- LaTeXML/pandoc artifacts on ReaDoc arXiv GT ---------------------------------------------------
-
-# Inline/display math delimiters: \( \) -> $ … $ ; \[ \] -> $$ … $$
 _MATH_INLINE = re.compile(r"\\\((.+?)\\\)", re.DOTALL)
 _MATH_DISPLAY = re.compile(r"\\\[(.+?)\\\]", re.DOTALL)
 
@@ -29,7 +26,6 @@ _MATH_DISPLAY = re.compile(r"\\\[(.+?)\\\]", re.DOTALL)
 # Four consecutive stars are a bold-close immediately followed by a bold-open; drop them to merge. ~keep
 _DOUBLE_BOLD = re.compile(r"\*\*\*\*")
 
-# Trailing whitespace and >2 blank lines.
 _TRAILING_WS = re.compile(r"[ \t]+$", re.MULTILINE)
 _BLANK_RUN = re.compile(r"\n{3,}")
 
@@ -75,7 +71,7 @@ def normalize_with_report(md: str, source: str = "") -> tuple[str, dict[str, int
     out, last = [], 0
     for m in _CODE_SPAN.finditer(md):
         out.append(apply(md[last : m.start()]))
-        out.append(m.group(0))  # code span: verbatim
+        out.append(m.group(0))
         last = m.end()
     out.append(apply(md[last:]))
     return "".join(out).strip() + "\n", report
@@ -86,7 +82,6 @@ def normalize(md: str, source: str = "") -> str:
     return normalize_with_report(md, source)[0]
 
 
-# --- HTML → GFM via the xberg-io html-to-markdown CLI (our lossless engine) -------------------------
 
 import shutil  # noqa: E402
 import subprocess  # noqa: E402

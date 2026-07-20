@@ -56,7 +56,7 @@ CACHE_PDF = CACHE / "pdf"
 CACHE_GT = CACHE / "ground_truth" / "pdf"
 LEDGER = STAGING / "build_ledger.json"
 PARSEBENCH = Path("/tmp/parsebench")  # noqa: S108  ParseBench staging (table.jsonl + docs/table/*.pdf)
-PB_MIN_TABLE_COVERAGE = 0.60  # a table page whose GT (table only) covers < this of the page is not
+PB_MIN_TABLE_COVERAGE = 0.60
 #                               table-dominant — its non-table prose would distort whole-doc scoring. ~keep
 
 # Pinned upstream sources. revision=None ⇒ resolve latest at acquire time and record the sha. ~keep
@@ -182,7 +182,6 @@ def resolve_revision(repo: str) -> str:
     return json.loads(out).get("sha", "") if out else ""
 
 
-# --- stages ----------------------------------------------------------------------------------------
 
 
 def stage_acquire(records: dict, dry: bool) -> None:
@@ -201,7 +200,6 @@ def stage_acquire(records: dict, dry: bool) -> None:
 
 def stage_normalize(records: dict, dry: bool) -> None:
     """Normalize each source GT to canonical GFM, recording exact per-doc transform counts."""
-    # ReaDoc
     cfg = SOURCES["readoc"]
     for gt_dir in cfg["gt_dirs"]:
         for md in sorted((STAGING / "readoc" / gt_dir).glob("*.md")):
@@ -342,7 +340,6 @@ def stage_gate(records: dict, dry: bool) -> None:
     def done(rec):
         return rec.get("gate_verdict") not in (None, "", "PENDING")
 
-    # ReaDoc (whole-doc).
     norm = STAGING / "readoc" / "normalized"
     rd: dict[str, int] = {}
     for rid, rec in records.items():
@@ -362,7 +359,6 @@ def stage_gate(records: dict, dry: bool) -> None:
             save_ledger(records)
     print(f"[gate] readoc: {rd}")
 
-    # ParseBench (single-page tables). Also apply the table-dominance filter.
     pb_norm = PARSEBENCH / "normalized"
     pdf_map = {pid: pdf for pid, pdf, _ in _parsebench_records()}
     pb: dict[str, int] = {}
@@ -420,7 +416,7 @@ CORE_PER_STRATUM = 24  # ensure each diagnostic stratum is represented in core ~
 SMOKE_PER_STRATUM = 2  # smoke covers every stratum minimally (~24 docs) ~keep
 TUNE_FRACTION = 0.70  # deterministic 70/30 tune/eval split (overfitting guard) ~keep
 
-_H = re.compile  # local alias
+_H = re.compile
 _MATH = _H(r"\$[^$\n]+\$|\$\$")
 _HEADING = _H(r"^(#{1,6})\s", re.MULTILINE)
 _NESTED_LIST = _H(r"^(?:\s{2,}|\t)(?:[-*+]|\d+\.)\s", re.MULTILINE)
@@ -486,7 +482,7 @@ def stage_curate(records: dict, dry: bool) -> None:
         r["cohorts"] = list(dict.fromkeys([*r.get("cohorts", []), *strata]))
         r["size_tier"] = "extended"
         r["role"] = "tune" if _hash01(r["id"]) < TUNE_FRACTION else "eval"
-        r["redistribute"] = doc_redistribute(r)  # recorded in the manifest for every accepted doc
+        r["redistribute"] = doc_redistribute(r)
 
     by_stratum: dict[str, list] = defaultdict(list)
     for r in accept:
@@ -497,7 +493,7 @@ def stage_curate(records: dict, dry: bool) -> None:
         srt = sorted(rs, key=lambda r: _hash01(r["id"]))
         core.update(r["id"] for r in srt[:CORE_PER_STRATUM])
         smoke.update(r["id"] for r in srt[:SMOKE_PER_STRATUM])
-    for r in sorted(accept, key=lambda r: _hash01(r["id"])):  # top core up to target with lowest-hash
+    for r in sorted(accept, key=lambda r: _hash01(r["id"])):
         if len(core) >= CORE_SIZE:
             break
         core.add(r["id"])
@@ -801,7 +797,6 @@ def _verdict_counts(records: dict) -> dict:
     return dict(Counter(r["gate_verdict"] for r in records.values()))
 
 
-# --- README generation (documentation generated FROM the ledger) -----------------------------------
 
 
 def _transform_catalog() -> str:
@@ -915,7 +910,7 @@ STAGES = {
     "manifest": stage_manifest,
     "materialize": stage_materialize,
 }
-ORDER = ["acquire", "normalize", "gate", "curate", "assemble", "manifest"]  # `all` runs these in order
+ORDER = ["acquire", "normalize", "gate", "curate", "assemble", "manifest"]
 # `materialize` is on-demand (harness pre-run step), not part of `all`. ~keep
 
 

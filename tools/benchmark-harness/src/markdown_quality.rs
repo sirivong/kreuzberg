@@ -319,7 +319,6 @@ fn flush_text(text: &mut String, blocks: &mut Vec<MdBlock>, index: &mut usize, b
 /// plain-text ground-truth twin (Formula↔Paragraph had no compatibility), asymmetrically
 /// penalizing whichever extractor's markup diverged from the GT.
 fn looks_like_formula(content: &str) -> bool {
-    // Strong LaTeX math commands — reliable formula signals.
     if content.contains("\\frac")
         || content.contains("\\sum")
         || content.contains("\\int")

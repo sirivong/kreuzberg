@@ -320,8 +320,6 @@ impl InternalDocumentExtractor for EmailExtractor {
         )
     ))]
     async fn extract_path(&self, path: &Path, mime_type: &str, config: &ExtractionConfig) -> Result<InternalDocument> {
-        // Async on native (non-blocking tokio::fs); sync fallback on wasm32 where tokio's `fs`
-        // feature is unavailable. See `core::io::read_file_async`.
         let bytes = crate::core::io::read_file_async(path).await?;
         self.extract_content(&bytes, mime_type, config).await
     }

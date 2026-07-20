@@ -51,9 +51,6 @@ CAPTION_PREFIXES = ("figure", "fig.", "table", "chart", "diagram", "scheme", "pl
 _FORMULA_CMDS = ("\\frac", "\\sum", "\\int", "\\begin{")
 
 
-# --------------------------------------------------------------------------- #
-# Markdown parsing (line-oriented, deterministic, mirrors the Rust rules)
-# --------------------------------------------------------------------------- #
 
 
 @dataclass
@@ -127,13 +124,11 @@ def parse_markdown(md: str) -> dict:
         line = lines[i]
         stripped = line.strip()
 
-        # blank line -> paragraph boundary
         if not stripped:
             flush_para()
             i += 1
             continue
 
-        # standalone image line
         img = _IMAGE_RE.fullmatch(stripped)
         if img:
             flush_para()
@@ -141,7 +136,6 @@ def parse_markdown(md: str) -> dict:
             i += 1
             continue
 
-        # heading
         h = _HEADING_RE.match(line)
         if h:
             flush_para()
@@ -157,19 +151,16 @@ def parse_markdown(md: str) -> dict:
             i += 1
             continue
 
-        # pipe table: header row followed by a separator row
         if "|" in line and i + 1 < n and _TABLE_SEP_RE.match(lines[i + 1]):
             flush_para()
             i = _parse_table(lines, i, doc)
             continue
 
-        # list block
         if _ULIST_RE.match(line) or _OLIST_RE.match(line):
             flush_para()
             i = _parse_list_block(lines, i, doc)
             continue
 
-        # otherwise: paragraph text
         para.append(stripped)
         i += 1
 
@@ -273,9 +264,6 @@ def _bind_captions_and_footnotes(nodes: list[dict]) -> None:
             nodes[i] = {"kind": "caption", "binds_to": target, "text": text}
 
 
-# --------------------------------------------------------------------------- #
-# HTML table span recovery (used when an `<id>.html` sits beside the `.md`)
-# --------------------------------------------------------------------------- #
 
 
 class _TableCollector(HTMLParser):
@@ -359,9 +347,6 @@ def _apply_html_spans(doc: dict, html: str) -> None:
         doc["nodes"][pos] = html_table
 
 
-# --------------------------------------------------------------------------- #
-# Driver
-# --------------------------------------------------------------------------- #
 
 
 def build_for_markdown_file(md_path: Path) -> Path:

@@ -43,7 +43,6 @@ import shutil
 import sys
 from pathlib import Path
 
-# --- pinned provenance -------------------------------------------------------------------------
 REPO = "llamaindex/ParseBench"
 REVISION = "2805a1d940f95a203e0ae4b88be9934f7765b3fc"
 LICENSE = "Apache-2.0"
@@ -61,7 +60,6 @@ SPLIT_META = {
     "text_formatting": {"capability": "inline-formatting", "cohort": "formatting"},
 }
 
-# --- repo-relative destinations ----------------------------------------------------------------
 REPO_ROOT = Path(__file__).resolve().parents[3]
 TEST_DOCS = REPO_ROOT / "test_documents"
 GT_OUT_DIR = TEST_DOCS / "ground_truth" / "structured" / "parsebench"
@@ -113,7 +111,6 @@ def build(source: Path, dry_run: bool) -> dict:
         GT_OUT_DIR.mkdir(parents=True, exist_ok=True)
         CACHE_PDF_DIR.mkdir(parents=True, exist_ok=True)
 
-    # per-doc accumulation keyed by pb id
     docs: dict[str, dict] = {}
     # deterministic source PDF selection: first split (in SPLITS order) that references the doc wins;
     # collisions across split subdirs must be byte-identical or we abort. ~keep
@@ -167,7 +164,6 @@ def build(source: Path, dry_run: bool) -> dict:
         for did in sorted(per_doc):
             acc = per_doc[did]
             src_pdf = source / acc["pdf_rel"]
-            # register / validate the reference PDF source for this id
             if did in pdf_source:
                 if sha256_file(pdf_source[did]) != sha256_file(src_pdf):
                     sys.exit(f"pb id collision with differing bytes for {did}: {pdf_source[did]} vs {src_pdf}")
@@ -199,7 +195,6 @@ def build(source: Path, dry_run: bool) -> dict:
             for tag in acc["tags"]:
                 doc["_cohorts"].add(tag)
 
-    # materialize reference PDFs into the gitignored cache + finalize per-doc entries
     pdf_present = 0
     for did in sorted(docs):
         doc = docs[did]

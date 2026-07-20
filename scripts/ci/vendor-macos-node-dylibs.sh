@@ -79,7 +79,6 @@ while [ $i -lt ${#queue[@]} ]; do
   [ $changed -eq 1 ] && resign "$target"
 done
 
-# Fail loudly if any absolute non-system dep survived anywhere in the closure.
 leaks=0
 for f in "$DIR"/*.node "$DIR"/*.dylib; do
   [ -e "$f" ] || continue

@@ -676,7 +676,6 @@ mod tests {
             1,
             "repeated originals must dedupe to one token: {map:?}"
         );
-        // Round trip: substituting every token back restores the original text.
         let mut rehydrated = doc.content.clone();
         for (token, original) in &map {
             rehydrated = rehydrated.replace(token, original);

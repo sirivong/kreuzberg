@@ -45,7 +45,6 @@ BATCH_HEURISTIC_FIXTURES="${BATCH_HEURISTIC_FIXTURES:-}"
 BATCH_OCR_FIXTURES="${BATCH_OCR_FIXTURES:-}"
 BATCH_WORKERS="${BATCH_WORKERS:-4}"
 
-# 1. Ensure LiteParse's `lit` is on PATH.
 if ! command -v lit >/dev/null 2>&1; then
   for cand in /tmp/liteparse/target/release ../liteparse/target/release; do
     if [ -x "$cand/lit" ]; then
@@ -60,7 +59,6 @@ else
   echo "[bench:local] WARN: lit not found — liteparse rows will be skipped." >&2
 fi
 
-# 2. Build the xberg CLI + harness (release), unless skipped.
 if [ "${SKIP_BUILD:-0}" != "1" ]; then
   echo "[bench:local] Building xberg CLI (release, --features all)…"
   cargo build --locked --release -p xberg-cli --features all
@@ -217,7 +215,6 @@ run_batch() {
     "${SHARD_ARGS[@]}"
 }
 
-# 4. Per-document quality/latency is reported as two explicit OCR cohorts.
 if [ -n "$HEURISTIC_FIXTURES" ]; then
   validate_ocr_cohort "$HEURISTIC_FIXTURES" false
   run_single "$HEURISTIC_FIXTURES" "$OUT/single-heuristic" "OCR disabled"
@@ -231,7 +228,6 @@ else
   echo "[bench:local] Skipping OCR-enabled single-file cohort: set OCR_FIXTURES explicitly."
 fi
 
-# 5. Native batch throughput uses the same explicit worker limit and separate cohorts.
 if [ -n "$BATCH_HEURISTIC_FIXTURES" ]; then
   validate_ocr_cohort "$BATCH_HEURISTIC_FIXTURES" false
   run_batch "$BATCH_HEURISTIC_FIXTURES" "$OUT/batch-heuristic" "OCR disabled"

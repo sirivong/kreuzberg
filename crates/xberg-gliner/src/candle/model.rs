@@ -118,9 +118,9 @@ impl Gliner2Candle {
             &scorer_out,
             pred_count,
             threshold,
-            /* flat_ner = */ true,
-            /* dup_label = */ false,
-            /* multi_label = */ false,
+             true,
+             false,
+             false,
         )?;
         Ok(output.spans.into_iter().next().unwrap_or_default())
     }

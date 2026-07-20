@@ -43,9 +43,6 @@ use serde::{Deserialize, Serialize};
 use crate::markdown_quality::{compute_order_score, fold_order_into_sf1};
 use crate::quality::{compute_f1, tokenize};
 
-// ---------------------------------------------------------------------------
-// Canonical SF1 rollup weights.
-// ---------------------------------------------------------------------------
 
 const WEIGHT_HEADING: f64 = 2.0;
 const WEIGHT_TABLE: f64 = 1.5;
@@ -62,9 +59,6 @@ const STRUCT_SPLIT: f64 = 0.5;
 /// Per-grid-dimension credit when only one of {rowspan, colspan} agrees.
 const SPAN_HALF_CREDIT: f64 = 0.5;
 
-// ---------------------------------------------------------------------------
-// Data model
-// ---------------------------------------------------------------------------
 
 /// A single cell in a table's grid.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -210,9 +204,6 @@ impl StructuralScore {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Markdown → sidecar
-// ---------------------------------------------------------------------------
 
 impl StructuralSidecar {
     /// Serialize to pretty JSON (`<id>.structural.json`).
@@ -230,12 +221,10 @@ impl StructuralSidecar {
         // Heading hierarchy stack: (level, node_index, text). ~keep
         let mut heading_stack: Vec<(u8, usize, String)> = Vec::new();
 
-        // List state.
-        let mut list_ordered: Vec<bool> = Vec::new(); // one entry per open list
-        let mut item_text: Vec<String> = Vec::new(); // one buffer per open item
+        let mut list_ordered: Vec<bool> = Vec::new(); 
+        let mut item_text: Vec<String> = Vec::new(); 
         let mut item_ordered: Vec<bool> = Vec::new();
 
-        // Table builder.
         struct TableBuild {
             cells: Vec<Cell>,
             row: usize,
@@ -246,7 +235,6 @@ impl StructuralSidecar {
         }
         let mut table: Option<TableBuild> = None;
 
-        // Free-flowing paragraph / heading / code text.
         let mut current_text = String::new();
         let mut in_heading: Option<u8> = None;
         let mut in_code_block = false;
@@ -568,9 +556,6 @@ fn is_footnote_text(text: &str) -> bool {
     t.starts_with("[^") && t.contains("]:")
 }
 
-// ---------------------------------------------------------------------------
-// Scoring
-// ---------------------------------------------------------------------------
 
 fn content_sim(a: &str, b: &str) -> f64 {
     compute_f1(&tokenize(a), &tokenize(b))
@@ -639,7 +624,6 @@ pub fn score_structural(pred: &StructuralSidecar, gt: &StructuralSidecar) -> Str
     let d4 = score_edges(pred, gt);
     let (d5, matched) = score_order(pred, gt);
 
-    // Present-dimension weighted rollup.
     let mut weight_sum = 0.0;
     let mut score_sum = 0.0;
     let dims = [
@@ -958,9 +942,6 @@ fn order_positions(reading_order: &[usize], n: usize) -> Vec<usize> {
     pos
 }
 
-// ===========================================================================
-// Tests — perturbation battery (task #49)
-// ===========================================================================
 
 #[cfg(test)]
 mod tests {
@@ -1002,7 +983,6 @@ Figure 1: The overall system architecture and its components.
         score_structural(pred, gt).sf1
     }
 
-    // ---- sanity: the parser found what we need ----
 
     #[test]
     fn test_parser_extracts_all_dimensions() {
@@ -1019,7 +999,6 @@ Figure 1: The overall system architecture and its components.
         );
         assert_eq!(tables(&s).len(), 1, "expected exactly one table");
         assert!(!edges(&s).is_empty(), "expected a caption binding edge");
-        // Nested ordered items must be deeper than the bullets.
         let max_depth = list_infos(&s).iter().map(|l| l.depth).max().unwrap();
         assert!(max_depth >= 1, "nested list depth not captured: {max_depth}");
         assert!(list_infos(&s).iter().any(|l| l.ordered), "ordered item not captured");
@@ -1036,7 +1015,6 @@ Figure 1: The overall system architecture and its components.
         assert_eq!(positions.len(), t.cells.len(), "table cell origins must be unique");
     }
 
-    // ---- identity ----
 
     #[test]
     fn test_identity_is_one() {
@@ -1056,7 +1034,6 @@ Figure 1: The overall system architecture and its components.
         assert!((sf1(&back, &s) - 1.0).abs() < 1e-9);
     }
 
-    // ---- perturbations (each must drop below identity) ----
 
     fn assert_drops(perturbed: &StructuralSidecar, label: &str) {
         let gt = baseline();
@@ -1234,7 +1211,6 @@ Figure 1: The overall system architecture and its components.
 
     #[test]
     fn test_fabricate_table_drops() {
-        // A predicted table with no GT twin scores 0 on D3, pulling SF1 down.
         let gt = baseline();
         let fabricated = fabricate_table(baseline());
         let base = sf1(&gt, &gt);
@@ -1275,12 +1251,10 @@ Figure 1: The overall system architecture and its components.
         );
     }
 
-    // ---- monotonicity chain ----
 
     #[test]
     fn test_monotonic_degradation_chain() {
         let gt = baseline();
-        // Cumulative perturbations — each strictly adds damage.
         let steps: Vec<StructuralSidecar> = {
             let s0 = baseline();
             let s1 = flatten_headings(s0.clone());
@@ -1298,7 +1272,6 @@ Figure 1: The overall system architecture and its components.
         assert!(scores.last().unwrap() < &scores[0], "chain must end below identity");
     }
 
-    // ---- dimension unit checks ----
 
     #[test]
     fn test_fabricated_table_d3_is_zero_when_gt_has_none() {

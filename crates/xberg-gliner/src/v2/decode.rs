@@ -84,9 +84,8 @@ mod tests {
         let text = "Ada lives";
         let words = vec![Token::new(0, 3, "Ada"), Token::new(4, 9, "lives")];
         let labels = vec!["person".to_string()];
-        // shape (1, 1 label, 2 words, max_width 2)
         let mut scores = Array4::<f32>::zeros((1, 1, 2, 2));
-        scores[[0, 0, 0, 0]] = 0.9; // "Ada" alone, score already a probability
+        scores[[0, 0, 0, 0]] = 0.9; 
         let output = decode_span_scores(
             scores.into_dyn().view(),
             text,

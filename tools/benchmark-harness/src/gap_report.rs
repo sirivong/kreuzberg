@@ -124,7 +124,6 @@ pub fn build_document_rows(results: &[BenchmarkResult], config: &GapConfig) -> V
         let xberg = frameworks.get(&config.baseline).map(|(s, _)| s);
         let xberg_combined = xberg.and_then(|s| s.combined.filter(|_| s.success));
 
-        // Best competitor by combined quality (successful only).
         let best = config
             .competitors
             .iter()
@@ -198,7 +197,6 @@ pub fn render_markdown(rows: &[DocumentRow], config: &GapConfig) -> String {
             .join(", "),
     ));
 
-    // Documents where a competitor beats our heuristics path, worst first.
     let mut losses: Vec<&DocumentRow> = rows
         .iter()
         .filter(|r| r.combined_deficit.map(|d| d > 0.0).unwrap_or(false))
@@ -254,7 +252,6 @@ pub fn render_markdown(rows: &[DocumentRow], config: &GapConfig) -> String {
     }
     out.push('\n');
 
-    // Diagnostic: top missing tokens for the worst 10 losses.
     out.push_str("## Token-loss diagnostics (worst 10 lost docs)\n\n");
     for row in losses.iter().take(10) {
         if let Some(us) = row.scores.iter().find(|s| s.framework == config.baseline)
@@ -269,7 +266,6 @@ pub fn render_markdown(rows: &[DocumentRow], config: &GapConfig) -> String {
     }
     out.push('\n');
 
-    // Layout path vs Docling.
     out.push_str("## Where `xberg-layout` trails Docling\n\n");
     out.push_str("| Document | xberg-layout combined | docling combined | Δcombined |\n");
     out.push_str("|---|--:|--:|--:|\n");

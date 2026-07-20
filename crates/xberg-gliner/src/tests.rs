@@ -4,9 +4,6 @@ use super::*;
 
 #[test]
 fn v2_prompt_encoding_constructs_and_errors_cleanly() {
-    // The V2 prompt-encoding surface is shared with the `candle` module;
-    // constructing it must not panic, and a missing tokenizer file must
-    // surface as an error.
     let splitter = crate::v2::splitter::V2Splitter::new().expect("valid regex");
     let tokenizer_path = std::path::Path::new("nonexistent.json");
     let result = crate::v2::tokenizer::V2Tokenizer::from_file(tokenizer_path);

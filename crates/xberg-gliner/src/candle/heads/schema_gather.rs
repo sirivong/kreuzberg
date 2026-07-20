@@ -19,17 +19,17 @@ impl SchemaGather {
     /// `crate::encode_v2`.
     pub fn forward(
         &self,
-        hidden_states: &Tensor,  // [1, S, H]
-        schema_indices: &Tensor, // [num_special]
+        hidden_states: &Tensor,  
+        schema_indices: &Tensor, 
     ) -> Result<SchemaGatherOutput> {
-        let h = hidden_states.squeeze(0)?; // [S, H]
-        let all = h.index_select(schema_indices, 0)?; // [num_special, H]
+        let h = hidden_states.squeeze(0)?; 
+        let all = h.index_select(schema_indices, 0)?; 
 
-        let pc_emb = all.narrow(0, 0, 1)?; // [1, H]
+        let pc_emb = all.narrow(0, 0, 1)?; 
         let n = all.dim(0)?;
         let hidden_dim = all.dim(1)?;
         let field_embs = if n > 1 {
-            all.narrow(0, 1, n - 1)? // [F, H]
+            all.narrow(0, 1, n - 1)? 
         } else {
             Tensor::zeros((0, hidden_dim), all.dtype(), all.device())?
         };

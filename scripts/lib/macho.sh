@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Mach-O inspection helpers.
 
 # Minimum macOS version a Mach-O binary declares (LC_BUILD_VERSION or the
 # older LC_VERSION_MIN_MACOSX).

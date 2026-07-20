@@ -69,7 +69,6 @@ pub(crate) fn decode_span_scores(
     for c_idx in 0..pred_count.min(MAX_COUNT) {
         for start in 0..num_words {
             for width_idx in 0..MAX_WIDTH {
-                // Skip slots where the span-index entry was zero-padded.
                 let end_idx = start + width_idx;
                 if end_idx >= num_words {
                     continue;
@@ -186,13 +185,9 @@ mod tests {
     fn build_span_idx_zero_pads_overflow() {
         let idx = build_span_idx(2).expect("build_span_idx must not fail");
         assert_eq!(idx.shape(), &[1, 2 * MAX_WIDTH, 2]);
-        // start=0, width=0: end=0 < 2 → valid (0,0)
         assert_eq!((idx[[0, 0, 0]], idx[[0, 0, 1]]), (0, 0));
-        // start=0, width=1: end=1 < 2 → valid (0,1)
         assert_eq!((idx[[0, 1, 0]], idx[[0, 1, 1]]), (0, 1));
-        // start=0, width=2: end=2 >= 2 → zero-padded (0,0)
         assert_eq!((idx[[0, 2, 0]], idx[[0, 2, 1]]), (0, 0));
-        // start=1, width=0: end=1 < 2 → valid (1,1); second word
         assert_eq!((idx[[0, MAX_WIDTH, 0]], idx[[0, MAX_WIDTH, 1]]), (1, 1));
     }
 
