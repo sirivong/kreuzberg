@@ -69,6 +69,22 @@ impl RtDetrModel {
         Ok(Self { session, input_names })
     }
 
+    /// The two input names (`images`, `orig_target_sizes`) the RT-DETR graph declares,
+    /// cloned for the `session.run` call.
+    ///
+    /// A model handed to [`Self::from_bytes`] by a caller (e.g. the WASM `detectLayout`
+    /// bridge) could declare fewer than two inputs; return an error rather than panicking
+    /// on an out-of-range index into `input_names`.
+    fn input_names_pair(&self) -> Result<(String, String), LayoutError> {
+        match (self.input_names.first(), self.input_names.get(1)) {
+            (Some(images), Some(sizes)) => Ok((images.clone(), sizes.clone())),
+            _ => Err(LayoutError::Inference(format!(
+                "RT-DETR model must declare 2 inputs (images, orig_target_sizes), found {}",
+                self.input_names.len()
+            ))),
+        }
+    }
+
     /// Run inference and extract detections from raw outputs.
     ///
     /// Uses the original official export contract: exact 640x640 bilinear
@@ -97,14 +113,12 @@ impl RtDetrModel {
 
         let onnx_start = Instant::now();
 
+        let (images_name, sizes_name) = self.input_names_pair()?;
         let outputs = self
             .session
             .run(vec![
-                (
-                    self.input_names[0].clone(),
-                    InferenceTensor::F32(input_tensor.into_dyn()),
-                ),
-                (self.input_names[1].clone(), InferenceTensor::I64(sizes.into_dyn())),
+                (images_name, InferenceTensor::F32(input_tensor.into_dyn())),
+                (sizes_name, InferenceTensor::I64(sizes.into_dyn())),
             ])
             .map_err(|e| LayoutError::Inference(e.to_string()))?;
 
@@ -115,14 +129,14 @@ impl RtDetrModel {
         let mut float_shapes: Vec<Vec<usize>> = Vec::new();
         let mut label_data: Vec<i64> = Vec::new();
 
-        for (_name, value) in &outputs {
+        for (_name, value) in outputs {
             match value {
                 InferenceTensor::I64(array) => {
-                    label_data = array.iter().copied().collect();
+                    label_data = array.into_raw_vec_and_offset().0;
                 }
                 InferenceTensor::F32(array) => {
                     float_shapes.push(array.shape().to_vec());
-                    float_data.push(array.iter().copied().collect());
+                    float_data.push(array.into_raw_vec_and_offset().0);
                 }
                 _ => {}
             }
@@ -220,8 +234,10 @@ impl RtDetrModel {
         #[cfg(feature = "otel")]
         let inference_start = Instant::now();
 
+        if images.is_empty() {
+            return Ok(Vec::new());
+        }
         let batch = images.len();
-        assert!(!images.is_empty(), "run_batch_inference called with empty slice");
 
         let ts = INPUT_SIZE as usize;
         let hw = ts * ts;
@@ -255,17 +271,12 @@ impl RtDetrModel {
 
         let onnx_start = Instant::now();
 
+        let (images_name, sizes_name) = self.input_names_pair()?;
         let outputs = self
             .session
             .run(vec![
-                (
-                    self.input_names[0].clone(),
-                    InferenceTensor::F32(images_array.into_dyn()),
-                ),
-                (
-                    self.input_names[1].clone(),
-                    InferenceTensor::I64(sizes_array.into_dyn()),
-                ),
+                (images_name, InferenceTensor::F32(images_array.into_dyn())),
+                (sizes_name, InferenceTensor::I64(sizes_array.into_dyn())),
             ])
             .map_err(|e| LayoutError::Inference(e.to_string()))?;
 
@@ -276,14 +287,14 @@ impl RtDetrModel {
         let mut float_shapes: Vec<Vec<usize>> = Vec::new();
         let mut label_data: Vec<i64> = Vec::new();
 
-        for (_name, value) in &outputs {
+        for (_name, value) in outputs {
             match value {
                 InferenceTensor::I64(array) => {
-                    label_data = array.iter().copied().collect();
+                    label_data = array.into_raw_vec_and_offset().0;
                 }
                 InferenceTensor::F32(array) => {
                     float_shapes.push(array.shape().to_vec());
-                    float_data.push(array.iter().copied().collect());
+                    float_data.push(array.into_raw_vec_and_offset().0);
                 }
                 _ => {}
             }
