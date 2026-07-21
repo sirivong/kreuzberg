@@ -716,11 +716,15 @@ const CODE_BRACE_CELL_FRACTION: f64 = 0.20;
 /// (especially C-family language listings with curly-brace syntax) as table
 /// regions, because monospace character spacing creates apparent column positions.
 ///
-/// Two signals are checked:
+/// Three signals are checked:
 /// 1. **Hard reject**: any non-empty cell whose entire trimmed text is `{` or
 ///    `}` (an isolated brace cannot appear in real table content).
 /// 2. **Fraction check**: if ≥ [`CODE_BRACE_CELL_FRACTION`] of non-empty cells
 ///    contain `{` or `}`, the region is likely code with inline block syntax.
+/// 3. **Declaration grid**: a lone, unterminated C-family function declaration
+///    head followed by pointer-bearing, comma-delimited parameter rows. A
+///    terminal `);` or comma termination on every parameter row is required to
+///    avoid rejecting API-reference tables with incidental code punctuation.
 ///
 /// Python, Ruby, and other brace-free languages are not caught by this check;
 /// those rarely produce false-positive tables at the heuristic tier.
@@ -745,6 +749,94 @@ pub(crate) fn looks_like_code_listing(table_cells: &[Vec<String>]) -> bool {
         .filter(|&&cell| cell.contains('{') || cell.contains('}'))
         .count();
     (brace_count as f64) / (non_empty.len() as f64) >= CODE_BRACE_CELL_FRACTION
+        || looks_like_declaration_grid(table_cells)
+}
+
+fn looks_like_declaration_grid(table_cells: &[Vec<String>]) -> bool {
+    let Some(first_row) = table_cells.first() else {
+        return false;
+    };
+    let mut first_cells = first_row.iter().map(|cell| cell.trim()).filter(|cell| !cell.is_empty());
+    let Some(head) = first_cells.next() else {
+        return false;
+    };
+    if first_cells.next().is_some() || !looks_like_declaration_head(head) {
+        return false;
+    }
+
+    let continuation_rows: Vec<&[String]> = table_cells
+        .iter()
+        .skip(1)
+        .filter(|row| row.iter().any(|cell| !cell.trim().is_empty()))
+        .map(Vec::as_slice)
+        .collect();
+    let evidence: Vec<ParameterRowEvidence> = continuation_rows
+        .iter()
+        .filter_map(|row| parameter_row_evidence(row))
+        .collect();
+    if evidence.len() < 2 || evidence.len() != continuation_rows.len() {
+        return false;
+    }
+
+    let has_pointer = evidence.iter().any(|row| row.has_pointer);
+    let has_closing_declaration = evidence.iter().any(|row| row.closes_declaration);
+    let all_truncated_parameters = evidence.iter().all(|row| row.ends_with_comma);
+    has_pointer && (has_closing_declaration || all_truncated_parameters)
+}
+
+#[derive(Clone, Copy)]
+struct ParameterRowEvidence {
+    ends_with_comma: bool,
+    closes_declaration: bool,
+    has_pointer: bool,
+}
+
+fn parameter_row_evidence(row: &[String]) -> Option<ParameterRowEvidence> {
+    let cells: Vec<&str> = row
+        .iter()
+        .map(|cell| cell.trim())
+        .filter(|cell| !cell.is_empty())
+        .collect();
+    if cells.len() < 2 {
+        return None;
+    }
+    let last = cells.last()?;
+    let (parameter_name, ends_with_comma, closes_declaration) = if let Some(name) = last.strip_suffix(',') {
+        (name, true, false)
+    } else if let Some(name) = last.strip_suffix(");") {
+        (name, false, true)
+    } else {
+        return None;
+    };
+    if !looks_like_parameter_name(parameter_name) {
+        return None;
+    }
+
+    Some(ParameterRowEvidence {
+        ends_with_comma,
+        closes_declaration,
+        has_pointer: cells.iter().any(|cell| cell.contains('*')),
+    })
+}
+
+fn looks_like_parameter_name(name: &str) -> bool {
+    let name = name.trim().trim_start_matches('*');
+    !name.is_empty()
+        && name.chars().any(|character| character.is_alphabetic())
+        && name
+            .chars()
+            .all(|character| character.is_alphanumeric() || matches!(character, '_' | '[' | ']'))
+}
+
+fn looks_like_declaration_head(head: &str) -> bool {
+    let Some(prefix) = head.strip_suffix('(') else {
+        return false;
+    };
+    let identifiers = prefix
+        .split_whitespace()
+        .filter(|token| token.chars().any(|character| character.is_alphabetic()))
+        .count();
+    identifiers >= 2
 }
 
 fn merge_header_only_column(table: &mut [Vec<String>], col: usize, header_text: String) {
@@ -1495,5 +1587,98 @@ mod tests {
             !is_well_formed_table(&grid),
             "3-column prose with short cells (nougat_008 pattern) should be rejected"
         );
+    }
+
+    #[test]
+    fn declaration_shaped_code_grids_are_rejected() {
+        let fill_string = vec![
+            vec!["void FillString(".into(), "".into()],
+            vec!["TCHAR*".into(), "buf,".into()],
+            vec!["size_t".into(), "cchBuf,".into()],
+        ];
+        let get_file_version = vec![
+            vec!["BOOL GetFileVersion(".into(), "".into(), "".into()],
+            vec!["LPCWSTR".into(), "lpsFile,".into(), "".into()],
+            vec!["__out".into(), "FILE_VERSION".into(), "*pVersion);".into()],
+        ];
+        let encode_stream = vec![
+            vec!["size_t EncodeStream(".into(), "".into(), "".into()],
+            vec!["__in".into(), "HANDLE".into(), "hStream,".into()],
+            vec!["__inout".into(), "STREAM".into(), "*pStream);".into()],
+        ];
+
+        for grid in [&fill_string, &get_file_version, &encode_stream] {
+            assert!(looks_like_code_listing(grid));
+        }
+    }
+
+    #[test]
+    fn api_reference_grid_with_code_punctuation_is_not_rejected() {
+        let grid = vec![
+            vec!["Function".into(), "Signature".into(), "Description".into()],
+            vec![
+                "allocate()".into(),
+                "void* allocate(size_t);".into(),
+                "Allocates a buffer, or returns null".into(),
+            ],
+            vec![
+                "release(ptr)".into(),
+                "void release(void*);".into(),
+                "Releases the supplied buffer".into(),
+            ],
+        ];
+
+        assert!(!looks_like_code_listing(&grid));
+    }
+
+    #[test]
+    fn merged_api_title_and_parameter_descriptions_are_not_rejected() {
+        let grid = vec![
+            vec!["Function Parameters (".into(), "".into(), "".into()],
+            vec!["Type".into(), "Name".into(), "Description".into()],
+            vec![
+                "char *".into(),
+                "buffer".into(),
+                "Destination pointer, must be writable".into(),
+            ],
+            vec!["size_t".into(), "length".into(), "Bytes, excluding terminator;".into()],
+        ];
+
+        assert!(!looks_like_code_listing(&grid));
+    }
+
+    #[test]
+    fn required_field_pointer_footnote_is_not_rejected() {
+        let grid = vec![
+            vec!["Required Fields (".into(), "".into()],
+            vec!["Name*".into(), "Primary contact,".into()],
+            vec!["Owner".into(), "Responsible team,".into()],
+            vec!["".into(), "* Required field".into()],
+        ];
+
+        assert!(!looks_like_code_listing(&grid));
+    }
+
+    #[test]
+    fn post_processed_declaration_grid_is_rejected_as_code() {
+        let grid = vec![
+            vec!["BOOL GetFileVersion(".into(), "".into(), "".into()],
+            vec!["LPCWSTR".into(), "lpsFile,".into(), "".into()],
+            vec!["__out".into(), "FILE_VERSION".into(), "*pVersion);".into()],
+        ];
+        let cleaned = post_process_table(grid, true, false).expect("declaration grid should survive table cleanup");
+
+        assert!(looks_like_code_listing(&cleaned));
+    }
+
+    #[test]
+    fn numeric_grid_is_not_rejected_as_code() {
+        let grid = vec![
+            vec!["Year".into(), "Revenue".into(), "Margin".into()],
+            vec!["2024".into(), "1,250".into(), "18.5%".into()],
+            vec!["2025".into(), "1,420".into(), "20.1%".into()],
+        ];
+
+        assert!(!looks_like_code_listing(&grid));
     }
 }
