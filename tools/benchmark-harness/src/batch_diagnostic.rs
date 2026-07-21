@@ -52,11 +52,15 @@ pub async fn run_batch_diagnostic(config: &BatchDiagnosticConfig) -> Result<Batc
     let mut batch_samples = Vec::with_capacity(config.iterations);
     for iteration in 0..config.iterations {
         let (sequential, sequential_elapsed, batch, batch_elapsed) = if iteration % 2 == 0 {
+            precondition_sequential(&inputs, &extraction_config).await?;
             let (sequential, sequential_elapsed) = timed_sequential(&inputs, &extraction_config).await?;
+            precondition_batch(&inputs, &extraction_config).await?;
             let (batch, batch_elapsed) = timed_batch(&inputs, &extraction_config).await?;
             (sequential, sequential_elapsed, batch, batch_elapsed)
         } else {
+            precondition_batch(&inputs, &extraction_config).await?;
             let (batch, batch_elapsed) = timed_batch(&inputs, &extraction_config).await?;
+            precondition_sequential(&inputs, &extraction_config).await?;
             let (sequential, sequential_elapsed) = timed_sequential(&inputs, &extraction_config).await?;
             (sequential, sequential_elapsed, batch, batch_elapsed)
         };
@@ -217,6 +221,14 @@ fn parse_extraction_config_json(raw: &str) -> Result<ExtractionConfig> {
 
 fn expanded_inputs(config: &BatchDiagnosticConfig) -> Vec<PathBuf> {
     config.inputs.iter().cycle().take(config.batch_size).cloned().collect()
+}
+
+async fn precondition_sequential(inputs: &[PathBuf], config: &ExtractionConfig) -> Result<()> {
+    extract_sequential(inputs, config).await.map(drop)
+}
+
+async fn precondition_batch(inputs: &[PathBuf], config: &ExtractionConfig) -> Result<()> {
+    extract_batch(inputs, config).await.map(drop)
 }
 
 async fn timed_sequential(inputs: &[PathBuf], config: &ExtractionConfig) -> Result<(Vec<ExtractedDocument>, Duration)> {
