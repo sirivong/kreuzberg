@@ -229,85 +229,189 @@ mod conversion_tests {
     }
 }
 
+/// HF repository holding the PP-LCNet classifiers compared here. Referenced by the
+/// orientation byte-entry test and the ORT-parity `mod tests`, so it is only live
+/// when one of those compiles.
+#[cfg(all(test, any(auto_rotate, inference_ort)))]
+const PARITY_REPO: &str = "xberg-io/paddleocr-onnx-models";
+
+/// HF repository holding the layout detectors (RT-DETR, PP-DocLayout-V3). Referenced by
+/// the RT-DETR byte-entry test and the ORT-parity `mod tests`, so it is only live when
+/// one of those compiles.
+#[cfg(all(test, any(layout_detection, inference_ort)))]
+const LAYOUT_REPO: &str = "xberg-io/layout-models";
+
+/// Whether model-backed coverage is mandatory. CI sets `XBERG_REQUIRE_TRACT_PARITY=1`
+/// so a missing model is a hard failure, not a silent skip — otherwise these tests
+/// could pass by comparing (or exercising) nothing.
+#[cfg(test)]
+fn parity_required() -> bool {
+    std::env::var_os("XBERG_REQUIRE_TRACT_PARITY").is_some()
+}
+
+/// Locate a cached ONNX model by the tail of its path in the HuggingFace hub
+/// cache, returning `None` when it is not present.
+#[cfg(test)]
+fn cached_model(suffix: &str) -> Option<std::path::PathBuf> {
+    let home = std::env::var("HOME").ok()?;
+    let root = std::path::Path::new(&home).join(".cache/huggingface/hub");
+    let mut stack = vec![root];
+    let mut best: Option<std::path::PathBuf> = None;
+    while let Some(dir) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.to_string_lossy().ends_with(suffix) {
+                best = Some(path);
+            }
+        }
+    }
+    best
+}
+
+/// Resolve a model to a local path. Uses the HF cache when present; otherwise,
+/// when coverage is required (CI), downloads it via the production path and fails
+/// loudly on error. Returns `None` only for a local run where the model is absent
+/// and coverage is not required — the self-skip case that keeps the suite runnable
+/// offline without ever passing vacuously in CI.
+#[cfg(test)]
+fn resolve_model(repo: &str, filename: &str) -> Option<std::path::PathBuf> {
+    if let Some(path) = cached_model(filename) {
+        return Some(path);
+    }
+    if parity_required() {
+        return Some(download_parity_model(repo, filename));
+    }
+    None
+}
+
+#[cfg(all(
+    test,
+    any(
+        feature = "paddle-ocr",
+        feature = "layout-detection",
+        auto_rotate,
+        feature = "ner-onnx",
+        feature = "candle-paddleocr-vl"
+    )
+))]
+fn download_parity_model(repo: &str, filename: &str) -> std::path::PathBuf {
+    crate::model_download::hf_download(repo, filename)
+        .expect("XBERG_REQUIRE_TRACT_PARITY is set but the parity model download failed")
+}
+
+#[cfg(all(
+    test,
+    not(any(
+        feature = "paddle-ocr",
+        feature = "layout-detection",
+        auto_rotate,
+        feature = "ner-onnx",
+        feature = "candle-paddleocr-vl"
+    ))
+))]
+fn download_parity_model(_repo: &str, _filename: &str) -> std::path::PathBuf {
+    panic!(
+        "XBERG_REQUIRE_TRACT_PARITY is set but no model-download feature is enabled; \
+         build the parity tests with `--features full,tract`"
+    );
+}
+
+/// End-to-end smoke tests for the byte-based model entry points the WASM bridge
+/// calls. Unlike the cross-engine parity suite below (which needs `OrtBackend`, so
+/// is `inference_ort`-only), these run on whichever backend the build links — ORT
+/// on native, pure-Rust tract on no-ORT targets — so the exact code path
+/// `xberg-wasm` depends on is exercised on the no-ORT engine too. Each self-skips
+/// when its model is absent, guarded by `parity_required` to stay non-vacuous.
+#[cfg(test)]
+mod byte_entry_tests {
+    use super::*;
+
+    /// Encode a deterministic gradient RGB image as PNG bytes — a valid input for
+    /// the byte-based entry points' `image::load_from_memory` decode step.
+    #[cfg(any(layout_detection, auto_rotate))]
+    fn png_bytes(width: u32, height: u32) -> Vec<u8> {
+        let rgb = image::RgbImage::from_fn(width, height, |x, y| {
+            image::Rgb([(x % 256) as u8, (y % 256) as u8, 128])
+        });
+        let mut buf: Vec<u8> = Vec::new();
+        image::DynamicImage::ImageRgb8(rgb)
+            .write_to(&mut std::io::Cursor::new(&mut buf), image::ImageFormat::Png)
+            .expect("PNG encode of an in-memory RGB image cannot fail");
+        buf
+    }
+
+    /// Exercises the WASM bridge's byte-based layout path end to end:
+    /// [`crate::layout::LayoutEngine::from_rtdetr_bytes`] (model bytes, no file path)
+    /// then `detect_image_bytes` (encoded image → decode → detect). These are the
+    /// exact methods `xberg-wasm`'s `detectLayout` calls and their only production
+    /// callers — the seam parity tests stop below this preprocess/postprocess layer.
+    #[cfg(layout_detection)]
+    #[test]
+    fn rtdetr_byte_entry_points_run_end_to_end() {
+        let suffix = "rtdetr/model.onnx";
+        let Some(path) = resolve_model(LAYOUT_REPO, suffix) else {
+            eprintln!("skip: {suffix} not in HF cache");
+            assert!(
+                !parity_required(),
+                "XBERG_REQUIRE_TRACT_PARITY is set but the RT-DETR byte path was not exercised"
+            );
+            return;
+        };
+        let model_bytes = std::fs::read(&path).unwrap();
+        let mut engine = crate::layout::LayoutEngine::from_rtdetr_bytes(&model_bytes, None)
+            .expect("from_rtdetr_bytes should load RT-DETR from memory");
+        let result = engine
+            .detect_image_bytes(&png_bytes(640, 640))
+            .expect("detect_image_bytes should decode the image and run detection");
+        assert!(
+            result.page_width > 0 && result.page_height > 0,
+            "page dimensions should be populated: {}x{}",
+            result.page_width,
+            result.page_height
+        );
+    }
+
+    /// Exercises the WASM bridge's byte-based orientation path end to end:
+    /// [`crate::doc_orientation::DocOrientationDetector::from_bytes`] then
+    /// `detect_image_bytes` — the exact methods `xberg-wasm`'s `detectOrientation`
+    /// calls.
+    #[cfg(auto_rotate)]
+    #[test]
+    fn doc_orientation_byte_entry_points_run_end_to_end() {
+        let suffix = "v2/classifiers/PP-LCNet_x1_0_doc_ori.onnx";
+        let Some(path) = resolve_model(PARITY_REPO, suffix) else {
+            eprintln!("skip: {suffix} not in HF cache");
+            assert!(
+                !parity_required(),
+                "XBERG_REQUIRE_TRACT_PARITY is set but the orientation byte path was not exercised"
+            );
+            return;
+        };
+        let model_bytes = std::fs::read(&path).unwrap();
+        let detector = crate::doc_orientation::DocOrientationDetector::from_bytes(model_bytes, None);
+        let result = detector
+            .detect_image_bytes(&png_bytes(224, 224))
+            .expect("detect_image_bytes should decode the image and run orientation detection");
+        assert!(
+            matches!(result.degrees, 0 | 90 | 180 | 270),
+            "orientation must be a valid rotation, got {}",
+            result.degrees
+        );
+        assert!(
+            (0.0..=1.0).contains(&result.confidence),
+            "confidence must be in [0, 1], got {}",
+            result.confidence
+        );
+    }
+}
+
 #[cfg(all(test, inference_ort))]
 mod tests {
     use super::*;
     use crate::inference::ort_backend::OrtBackend;
-
-    /// HF repository holding the PP-LCNet classifiers compared here.
-    const PARITY_REPO: &str = "xberg-io/paddleocr-onnx-models";
-
-    /// HF repository holding the layout detectors (RT-DETR, PP-DocLayout-V3).
-    const LAYOUT_REPO: &str = "xberg-io/layout-models";
-
-    /// Whether the parity comparison is mandatory. CI sets
-    /// `XBERG_REQUIRE_TRACT_PARITY=1` so a missing model is a hard failure, not a
-    /// silent skip — otherwise these tests could pass by comparing nothing.
-    fn parity_required() -> bool {
-        std::env::var_os("XBERG_REQUIRE_TRACT_PARITY").is_some()
-    }
-
-    /// Locate a cached ONNX model by the tail of its path in the HuggingFace hub
-    /// cache, returning `None` when it is not present.
-    fn cached_model(suffix: &str) -> Option<std::path::PathBuf> {
-        let home = std::env::var("HOME").ok()?;
-        let root = std::path::Path::new(&home).join(".cache/huggingface/hub");
-        let mut stack = vec![root];
-        let mut best: Option<std::path::PathBuf> = None;
-        while let Some(dir) = stack.pop() {
-            let Ok(entries) = std::fs::read_dir(&dir) else { continue };
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path.is_dir() {
-                    stack.push(path);
-                } else if path.to_string_lossy().ends_with(suffix) {
-                    best = Some(path);
-                }
-            }
-        }
-        best
-    }
-
-    /// Resolve a parity model to a local path. Uses the HF cache when present;
-    /// otherwise, when parity is required (CI), downloads it via the production
-    /// path and fails loudly on error. Returns `None` only for a local run where
-    /// the model is absent and parity is not required — the self-skip case that
-    /// keeps the suite runnable offline without ever passing vacuously in CI.
-    fn resolve_model(repo: &str, filename: &str) -> Option<std::path::PathBuf> {
-        if let Some(path) = cached_model(filename) {
-            return Some(path);
-        }
-        if parity_required() {
-            return Some(download_parity_model(repo, filename));
-        }
-        None
-    }
-
-    #[cfg(any(
-        feature = "paddle-ocr",
-        feature = "layout-detection",
-        auto_rotate,
-        feature = "ner-onnx",
-        feature = "candle-paddleocr-vl"
-    ))]
-    fn download_parity_model(repo: &str, filename: &str) -> std::path::PathBuf {
-        crate::model_download::hf_download(repo, filename)
-            .expect("XBERG_REQUIRE_TRACT_PARITY is set but the parity model download failed")
-    }
-
-    #[cfg(not(any(
-        feature = "paddle-ocr",
-        feature = "layout-detection",
-        auto_rotate,
-        feature = "ner-onnx",
-        feature = "candle-paddleocr-vl"
-    )))]
-    fn download_parity_model(_repo: &str, _filename: &str) -> std::path::PathBuf {
-        panic!(
-            "XBERG_REQUIRE_TRACT_PARITY is set but no model-download feature is enabled; \
-             build the parity tests with `--features full,tract`"
-        );
-    }
 
     /// The two PP-LCNet CNN classifiers migrated onto the seam in Phase 1. Both are
     /// fixed 224×224 NCHW; tract and ORT must agree within a tight tolerance.
@@ -514,6 +618,13 @@ mod tests {
     /// times, returning `(load_ms, run_ms_samples)`. `make_inputs` builds fresh
     /// named inputs from the session's declared input order on every call, since
     /// RT-DETR needs two distinct inputs in position order.
+    ///
+    /// Each backend runs exactly as xberg ships it: `OrtBackend` with its default
+    /// intra-op thread pool (up to `min(8, cores)`), `TractBackend` single-threaded
+    /// (the seam configures no tract thread pool). The reported tract/ORT ratio is
+    /// thus an as-shipped, wall-clock comparison — an upper bound on the per-core
+    /// kernel gap, not a thread-matched one. See the "Latency" note in the
+    /// Pure-Rust Inference concept doc.
     fn time_engine(
         backend: &dyn InferenceBackend,
         path: &std::path::Path,
