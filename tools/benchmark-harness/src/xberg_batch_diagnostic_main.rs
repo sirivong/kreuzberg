@@ -20,6 +20,10 @@ struct Args {
     #[arg(long, default_value_t = 3)]
     iterations: usize,
 
+    /// Inline JSON ExtractionConfig. Diagnostic cache and explicit thread flags take precedence.
+    #[arg(long, value_name = "JSON")]
+    config_json: Option<String>,
+
     #[arg(long)]
     max_threads: Option<usize>,
 
@@ -39,6 +43,7 @@ async fn main() -> Result<()> {
         batch_size: args.batch_size,
         warmup_iterations: args.warmup,
         iterations: args.iterations,
+        extraction_config_json: args.config_json,
         max_threads: args.max_threads,
         max_concurrent_extractions: args.max_concurrent,
     })

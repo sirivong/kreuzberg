@@ -16,6 +16,7 @@ pub struct BatchDiagnosticConfig {
     pub batch_size: usize,
     pub warmup_iterations: usize,
     pub iterations: usize,
+    pub extraction_config_json: Option<String>,
     pub max_threads: Option<usize>,
     pub max_concurrent_extractions: Option<usize>,
 }
@@ -39,14 +40,7 @@ pub struct BatchDiagnosticReport {
 pub async fn run_batch_diagnostic(config: &BatchDiagnosticConfig) -> Result<BatchDiagnosticReport> {
     validate_config(config)?;
     let inputs = expanded_inputs(config);
-    let extraction_config = ExtractionConfig {
-        use_cache: false,
-        max_concurrent_extractions: config.max_concurrent_extractions,
-        concurrency: config.max_threads.map(|max_threads| ConcurrencyConfig {
-            max_threads: Some(max_threads),
-        }),
-        ..Default::default()
-    };
+    let extraction_config = resolve_extraction_config(config)?;
 
     for _ in 0..config.warmup_iterations {
         let sequential = extract_sequential(&inputs, &extraction_config).await?;
@@ -97,6 +91,11 @@ fn validate_config(config: &BatchDiagnosticConfig) -> Result<()> {
             "batch size and iterations must be greater than zero".into(),
         ));
     }
+    if config.max_threads == Some(0) || config.max_concurrent_extractions == Some(0) {
+        return Err(Error::Config(
+            "maximum threads and concurrent extractions must be greater than zero".into(),
+        ));
+    }
     if config.batch_size < config.inputs.len() {
         return Err(Error::Config(format!(
             "batch size {} is smaller than the {} explicit inputs",
@@ -108,6 +107,57 @@ fn validate_config(config: &BatchDiagnosticConfig) -> Result<()> {
         return Err(Error::DocumentNotFound(path.clone()));
     }
     Ok(())
+}
+
+fn resolve_extraction_config(config: &BatchDiagnosticConfig) -> Result<ExtractionConfig> {
+    let mut extraction_config = match config.extraction_config_json.as_deref() {
+        Some(raw) => parse_extraction_config_json(raw)?,
+        None => ExtractionConfig::default(),
+    };
+
+    extraction_config.use_cache = false;
+    if let Some(max_concurrent_extractions) = config.max_concurrent_extractions {
+        extraction_config.max_concurrent_extractions = Some(max_concurrent_extractions);
+    }
+    if let Some(max_threads) = config.max_threads {
+        extraction_config
+            .concurrency
+            .get_or_insert_with(ConcurrencyConfig::default)
+            .max_threads = Some(max_threads);
+    }
+    if extraction_config.max_concurrent_extractions == Some(0)
+        || extraction_config
+            .concurrency
+            .as_ref()
+            .and_then(|value| value.max_threads)
+            == Some(0)
+    {
+        return Err(Error::Config(
+            "configured maximum threads and concurrent extractions must be greater than zero".into(),
+        ));
+    }
+    Ok(extraction_config)
+}
+
+fn parse_extraction_config_json(raw: &str) -> Result<ExtractionConfig> {
+    let value: serde_json::Value =
+        serde_json::from_str(raw).map_err(|error| Error::Config(format!("invalid --config-json JSON: {error}")))?;
+    if !value.is_object() {
+        return Err(Error::Config(
+            "invalid --config-json extraction configuration: expected a JSON object".into(),
+        ));
+    }
+    let mut ignored = Vec::new();
+    let extraction = serde_ignored::deserialize(value, |path| ignored.push(path.to_string()))
+        .map_err(|error| Error::Config(format!("invalid --config-json extraction configuration: {error}")))?;
+    if ignored.is_empty() {
+        Ok(extraction)
+    } else {
+        Err(Error::Config(format!(
+            "invalid --config-json extraction configuration: unknown field(s): {}",
+            ignored.join(", ")
+        )))
+    }
 }
 
 fn expanded_inputs(config: &BatchDiagnosticConfig) -> Vec<PathBuf> {
@@ -203,9 +253,6 @@ fn normalized_document(document: &ExtractedDocument) -> Result<serde_json::Value
         .and_then(serde_json::Value::as_object_mut)
         .ok_or_else(|| Error::Benchmark("serialized extraction result has no metadata object".into()))?;
 
-    // Batch extraction deliberately supplies per-item elapsed time while single
-    // extraction is timed by this diagnostic. Source indices differ because each
-    // sequential call is its own one-item operation. Every other field must match.
     metadata.remove("extraction_duration_ms");
     if let Some(additional) = metadata
         .get_mut("additional")
@@ -246,6 +293,7 @@ mod tests {
             batch_size: 5,
             warmup_iterations: 0,
             iterations: 1,
+            extraction_config_json: None,
             max_threads: None,
             max_concurrent_extractions: None,
         };
@@ -268,6 +316,7 @@ mod tests {
             batch_size: 1,
             warmup_iterations: 0,
             iterations: 1,
+            extraction_config_json: None,
             max_threads: None,
             max_concurrent_extractions: None,
         };
@@ -312,6 +361,93 @@ mod tests {
         ));
     }
 
+    fn diagnostic_config(extraction_config_json: Option<&str>) -> BatchDiagnosticConfig {
+        BatchDiagnosticConfig {
+            inputs: vec![PathBuf::from("input.pdf")],
+            batch_size: 1,
+            warmup_iterations: 0,
+            iterations: 1,
+            extraction_config_json: extraction_config_json.map(str::to_owned),
+            max_threads: None,
+            max_concurrent_extractions: None,
+        }
+    }
+
+    #[test]
+    fn config_json_enables_heuristic_markdown() {
+        let config = diagnostic_config(Some(r#"{"output_format":"markdown","disable_ocr":true}"#));
+        let extraction = resolve_extraction_config(&config).unwrap();
+
+        assert_eq!(extraction.output_format, xberg::OutputFormat::Markdown);
+        assert!(extraction.disable_ocr);
+        assert!(!extraction.use_cache);
+    }
+
+    #[test]
+    fn config_json_enables_layout_markdown() {
+        let config = diagnostic_config(Some(
+            r#"{"output_format":"markdown","disable_ocr":true,"layout":{},"use_layout_for_markdown":true}"#,
+        ));
+        let extraction = resolve_extraction_config(&config).unwrap();
+
+        assert!(extraction.layout.is_some());
+        assert!(extraction.use_layout_for_markdown);
+    }
+
+    #[test]
+    fn config_json_enables_forced_tesseract_ocr() {
+        let config = diagnostic_config(Some(
+            r#"{"output_format":"markdown","ocr":{"enabled":true,"backend":"tesseract","language":["eng"]},"force_ocr":true}"#,
+        ));
+        let extraction = resolve_extraction_config(&config).unwrap();
+
+        assert!(extraction.force_ocr);
+        assert_eq!(extraction.ocr.unwrap().backend, "tesseract");
+    }
+
+    #[test]
+    fn diagnostic_settings_override_json_cache_and_concurrency() {
+        let mut config = diagnostic_config(Some(
+            r#"{"use_cache":true,"max_concurrent_extractions":9,"concurrency":{"max_threads":7}}"#,
+        ));
+        config.max_threads = Some(2);
+        config.max_concurrent_extractions = Some(3);
+        let extraction = resolve_extraction_config(&config).unwrap();
+
+        assert!(!extraction.use_cache);
+        assert_eq!(extraction.max_concurrent_extractions, Some(3));
+        assert_eq!(extraction.concurrency.unwrap().max_threads, Some(2));
+    }
+
+    #[test]
+    fn config_json_rejects_non_objects_and_unknown_fields() {
+        for raw in [
+            "[]",
+            r#"{"unknown_diagnostic_field":true}"#,
+            r#"{"concurrency":{"max_threds":4}}"#,
+            r#"{"ocr":{"backend":"tesseract","langauge":["eng"]}}"#,
+        ] {
+            let error = resolve_extraction_config(&diagnostic_config(Some(raw))).unwrap_err();
+            assert!(matches!(
+                error,
+                Error::Config(message) if message.contains("--config-json")
+            ));
+        }
+    }
+
+    #[test]
+    fn config_json_rejects_zero_concurrency_limits() {
+        for raw in [
+            r#"{"max_concurrent_extractions":0}"#,
+            r#"{"concurrency":{"max_threads":0}}"#,
+        ] {
+            assert!(matches!(
+                resolve_extraction_config(&diagnostic_config(Some(raw))),
+                Err(Error::Config(message)) if message.contains("greater than zero")
+            ));
+        }
+    }
+
     #[tokio::test]
     async fn diagnostic_uses_equivalent_public_extraction_paths() {
         let dir = tempfile::tempdir().unwrap();
@@ -322,6 +458,7 @@ mod tests {
             batch_size: 2,
             warmup_iterations: 1,
             iterations: 1,
+            extraction_config_json: None,
             max_threads: Some(2),
             max_concurrent_extractions: Some(2),
         })

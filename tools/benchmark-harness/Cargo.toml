@@ -50,6 +50,7 @@ pulldown-cmark = "0.13"
 rayon = { workspace = true }
 regex = "1"
 serde = { workspace = true }
+serde_ignored = "0.1"
 serde_json = { workspace = true }
 shellexpand = "3"
 
