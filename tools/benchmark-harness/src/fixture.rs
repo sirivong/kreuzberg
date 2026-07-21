@@ -28,6 +28,12 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
+fn is_split_sidecar(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| name.ends_with(".split.json"))
+}
+
 /// A fixture describing a test document
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Fixture {
@@ -313,7 +319,7 @@ impl FixtureManager {
                 for (fixture_path, _) in temp_manager.fixtures {
                     all_fixtures.push(fixture_path);
                 }
-            } else if path.extension().and_then(|s| s.to_str()) == Some("json") {
+            } else if path.extension().and_then(|s| s.to_str()) == Some("json") && !is_split_sidecar(&path) {
                 all_fixtures.push(path);
             }
         }
@@ -987,5 +993,57 @@ mod tests {
             0,
             "nested failure must abort before the parent corpus loads"
         );
+    }
+
+    #[test]
+    fn directory_load_skips_split_sidecars() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(
+            temp_dir.path().join("fixture.json"),
+            serde_json::json!({
+                "document": "document.pdf",
+                "file_type": "pdf",
+                "file_size": 1
+            })
+            .to_string(),
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.path().join("document.split.json"),
+            serde_json::json!({
+                "document": "document.pdf",
+                "boundaries": [{"start_page": 1, "end_page": 2}]
+            })
+            .to_string(),
+        )
+        .unwrap();
+        unsafe {
+            std::env::remove_var("PROFILING_FIXTURES");
+        }
+        let mut manager = FixtureManager::new();
+        manager.load_fixtures_from_dir(temp_dir.path()).unwrap();
+
+        assert_eq!(manager.len(), 1);
+        assert_eq!(manager.fixtures()[0].0.file_name().unwrap(), "fixture.json");
+    }
+
+    #[test]
+    fn directory_load_rejects_partial_fixture_schema() {
+        let _lock = ENV_LOCK.lock().unwrap();
+        let temp_dir = TempDir::new().unwrap();
+        std::fs::write(
+            temp_dir.path().join("incomplete.json"),
+            serde_json::json!({"document": "document.pdf"}).to_string(),
+        )
+        .unwrap();
+
+        unsafe {
+            std::env::remove_var("PROFILING_FIXTURES");
+        }
+        let mut manager = FixtureManager::new();
+        let error = manager.load_fixtures_from_dir(temp_dir.path()).unwrap_err();
+
+        assert!(error.to_string().contains("incomplete.json"));
     }
 }
