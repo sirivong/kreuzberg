@@ -1390,6 +1390,20 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
+      # Build the libheif closure from source at the macOS floor (#1243) and make
+      # the FFI dylib link it instead of Homebrew's runner-OS bottles, so the
+      # osx-arm64 NuGet native bundles a floor-11 heif closure. ~keep
+      - name: Build libheif stack for the macOS floor
+        if: contains(matrix.target, 'apple-darwin')
+        shell: bash
+        run: |
+          export MACOSX_DEPLOYMENT_TARGET=11.0
+          bash scripts/ci/build-macos-heif-deps.sh
+          {
+            echo "MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET"
+            echo "PKG_CONFIG_PATH=/tmp/xberg-heif/lib/pkgconfig"
+          } >>"$GITHUB_ENV"
+
       - name: Setup Zig for glibc 2.28 floor
         if: contains(matrix.target, '-linux-gnu')
         uses: xberg-io/actions/setup-zig@v1
