@@ -18,6 +18,9 @@ use crate::core::config::OcrQualityThresholds;
 #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
 const MIN_AVG_NON_WHITESPACE_TO_TRUST: f64 = 150.0;
 
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+type EncodedPage = (usize, std::sync::Arc<Vec<u8>>, u32, u32);
+
 #[cfg_attr(alef, alef(skip))]
 #[derive(Debug, Default)]
 #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
@@ -387,6 +390,42 @@ fn open_pdf_for_page_ocr(content: &[u8]) -> crate::Result<(pdf_oxide::PdfDocumen
 }
 
 #[cfg(all(any(feature = "ocr", feature = "ocr-pipeline"), feature = "pdf"))]
+fn open_pdf_for_full_ocr(content: &[u8]) -> crate::Result<(pdf_oxide::PdfDocument, usize, Vec<u32>)> {
+    let doc = pdf_oxide::PdfDocument::from_bytes(content.to_vec()).map_err(|e| crate::XbergError::Parsing {
+        message: format!("Failed to open PDF for OCR streaming: {:?}", e),
+        source: None,
+    })?;
+    let page_count = doc.page_count().map_err(|e| crate::XbergError::Parsing {
+        message: format!("Failed to get document page count: {:?}", e),
+        source: None,
+    })?;
+    let page_rotations = crate::pdf::render::get_page_rotations(content, page_count);
+    Ok((doc, page_count, page_rotations))
+}
+
+#[cfg(all(any(feature = "ocr", feature = "ocr-pipeline"), feature = "pdf"))]
+fn render_full_pdf_ocr_batch(
+    doc: &pdf_oxide::PdfDocument,
+    page_rotations: &[u32],
+    page_range: std::ops::Range<usize>,
+) -> crate::Result<Vec<EncodedPage>> {
+    let mut encoded = Vec::with_capacity(page_range.len());
+    for page_idx in page_range {
+        let rendered = crate::pdf::render::render_page_with_safeguards(doc, page_idx, 150).map_err(|e| {
+            crate::XbergError::Parsing {
+                message: format!("Failed to render page {} for OCR: {:?}", page_idx, e),
+                source: None,
+            }
+        })?;
+        let rotation = page_rotations.get(page_idx).copied().unwrap_or(0);
+        let (data, width, height) =
+            crate::pdf::render::rotate_png_page_if_needed(rendered.data, rendered.width, rendered.height, rotation)?;
+        encoded.push((page_idx, std::sync::Arc::new(data), width, height));
+    }
+    Ok(encoded)
+}
+
+#[cfg(all(any(feature = "ocr", feature = "ocr-pipeline"), feature = "pdf"))]
 fn valid_page_indices(page_indices: &[usize], page_count: usize) -> Vec<usize> {
     page_indices
         .iter()
@@ -529,7 +568,6 @@ pub(crate) async fn extract_mixed_ocr_native(
             render_selected_pages_from_document(&render_doc, &page_rotations, &page_indices[batch_start..batch_end])?;
         let batch_slice = &page_images;
 
-        type EncodedPage = (usize, Arc<Vec<u8>>, u32, u32);
         #[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
         let encoded: crate::Result<Vec<EncodedPage>> = batch_slice
             .par_iter()
@@ -1098,24 +1136,18 @@ pub(crate) async fn extract_with_ocr(
     let capture_rasters = config.images.as_ref().is_some_and(|c| c.include_page_rasters);
     let mut captured_rasters: Vec<crate::types::ExtractedImage> = Vec::new();
 
-    let mut lazy_pdf_page_count = 0;
-
-    if !use_document_processing
-        && images.is_none()
-        && let Some(bytes) = content
-    {
-        #[cfg(feature = "pdf")]
-        {
-            let doc = pdf_oxide::PdfDocument::from_bytes(bytes.to_vec()).map_err(|e| crate::XbergError::Parsing {
-                message: format!("Failed to open PDF for OCR streaming: {:?}", e),
-                source: None,
-            })?;
-            lazy_pdf_page_count = doc.page_count().map_err(|e| crate::XbergError::Parsing {
-                message: format!("Failed to get document page count: {:?}", e),
-                source: None,
-            })?;
-        }
-    }
+    #[cfg(feature = "pdf")]
+    let lazy_pdf_render_state = if !use_document_processing && images.is_none() {
+        content.map(open_pdf_for_full_ocr).transpose()?
+    } else {
+        None
+    };
+    #[cfg(feature = "pdf")]
+    let lazy_pdf_page_count = lazy_pdf_render_state
+        .as_ref()
+        .map_or(0, |(_, page_count, _)| *page_count);
+    #[cfg(not(feature = "pdf"))]
+    let lazy_pdf_page_count = 0;
 
     // rayon's work-stealing pool needs OS threads; wasm32 has none, so the parallel encode
     // paths below fall back to sequential `.iter()` there. Gate the import to match. ~keep
@@ -1220,37 +1252,14 @@ pub(crate) async fn extract_with_ocr(
         } else {
             #[cfg(feature = "pdf")]
             let encoded = {
-                let pdf_bytes = content.ok_or_else(|| crate::XbergError::Parsing {
-                    message: "PDF content is required for OCR rendering but was not provided".to_string(),
-                    source: None,
-                })?;
-                let doc =
-                    pdf_oxide::PdfDocument::from_bytes(pdf_bytes.to_vec()).map_err(|e| crate::XbergError::Parsing {
-                        message: format!("Failed to open PDF for OCR batch rendering: {:?}", e),
-                        source: None,
-                    })?;
-                let page_count = doc.page_count().unwrap_or(0);
-                let page_rotations = crate::pdf::render::get_page_rotations(pdf_bytes, page_count);
-
-                let mut batch_encoded: Vec<(usize, Arc<Vec<u8>>, u32, u32)> =
-                    Vec::with_capacity(batch_end - batch_start);
-                for i in batch_start..batch_end {
-                    let rendered = crate::pdf::render::render_page_with_safeguards(&doc, i, 150).map_err(|e| {
-                        crate::XbergError::Parsing {
-                            message: format!("Failed to render page {} for OCR: {:?}", i, e),
+                let (doc, _, page_rotations) =
+                    lazy_pdf_render_state
+                        .as_ref()
+                        .ok_or_else(|| crate::XbergError::Parsing {
+                            message: "PDF content is required for OCR rendering but was not provided".to_string(),
                             source: None,
-                        }
-                    })?;
-                    let rotation = page_rotations.get(i).copied().unwrap_or(0);
-                    let (data, width, height) = crate::pdf::render::rotate_png_page_if_needed(
-                        rendered.data,
-                        rendered.width,
-                        rendered.height,
-                        rotation,
-                    )?;
-                    batch_encoded.push((i, Arc::new(data), width, height));
-                }
-                batch_encoded
+                        })?;
+                render_full_pdf_ocr_batch(doc, page_rotations, batch_start..batch_end)?
             };
             #[cfg(not(feature = "pdf"))]
             let encoded: Vec<(usize, Arc<Vec<u8>>, u32, u32)> = Vec::new();
@@ -3310,6 +3319,23 @@ Buffers:           50000 kB
             "render_selected_pages_for_ocr on wide page (the #1078 bug path) should succeed via safeguard, got: {:?}",
             result.err()
         );
+    }
+
+    #[cfg(all(feature = "pdf", any(feature = "ocr", feature = "ocr-pipeline")))]
+    #[test]
+    fn full_pdf_ocr_reuses_open_document_across_bounded_batches() {
+        let pdf = crate::pdf::render::build_minimal_pdf_with_mediabox(612.0, 792.0);
+        let (doc, page_count, page_rotations) = open_pdf_for_full_ocr(&pdf).unwrap();
+
+        assert_eq!(page_count, 1);
+        let first_batch = render_full_pdf_ocr_batch(&doc, &page_rotations, 0..1).unwrap();
+        assert_eq!(first_batch.len(), 1);
+        assert_eq!(first_batch[0].0, 0);
+        drop(first_batch);
+
+        let second_batch = render_full_pdf_ocr_batch(&doc, &page_rotations, 0..1).unwrap();
+        assert_eq!(second_batch.len(), 1);
+        assert_eq!(second_batch[0].0, 0);
     }
 
     #[cfg(all(feature = "pdf", any(feature = "ocr", feature = "ocr-pipeline")))]
