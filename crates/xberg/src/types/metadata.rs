@@ -132,6 +132,10 @@ pub enum FormatMetadata {
 pub struct CodeMetadata {
     /// Structural code chunks (function/class/module boundaries).
     pub chunks: Vec<CodeChunkInfo>,
+    /// Hierarchical key/value data tree extracted from data-format source
+    /// (JSON, YAML, TOML, XML, CSV, etc.), when data extraction was enabled.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub data: Option<CodeDataNode>,
 }
 
 /// A single structurally-meaningful code chunk produced by tree-sitter parsing.
@@ -153,6 +157,78 @@ pub struct CodeChunkInfo {
     /// Inclusive start byte offset of this chunk in the original source.
     pub byte_start: usize,
     /// Exclusive end byte offset of this chunk in the original source.
+    pub byte_end: usize,
+}
+
+/// Discriminates the shape of a [`CodeDataNode`].
+///
+/// Purpose-built mirror of `tree_sitter_language_pack::DataNodeKind` — kept as an
+/// xberg-owned type so binding generators never need to resolve the upstream crate's
+/// types across FFI/language boundaries.
+#[cfg(feature = "tree-sitter")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
+pub enum CodeDataNodeKind {
+    /// A key/value pair or mapping (JSON/TOML/properties/YAML/HCL/CUE/KDL pair, or a
+    /// wrapper "object"/"mapping" container).
+    #[default]
+    KeyValue,
+    /// An XML element with a tag name in `key` and attributes in `attributes`.
+    Element,
+    /// A positional sequence item (JSON array element, YAML block sequence item,
+    /// CSV/PSV row or cell).
+    Sequence,
+}
+
+/// An XML-style attribute attached to an [`Element`](CodeDataNodeKind::Element) node.
+///
+/// Populated only for `CodeDataNodeKind::Element`; always empty for `KeyValue` and
+/// `Sequence` nodes.
+#[cfg(feature = "tree-sitter")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
+pub struct CodeDataAttribute {
+    /// Attribute name (e.g. `"class"`, `"href"`).
+    pub name: String,
+    /// Attribute value as a raw string (quotes stripped).
+    pub value: String,
+    /// Inclusive start byte offset of the `name="value"` attribute token.
+    pub byte_start: usize,
+    /// Exclusive end byte offset of the `name="value"` attribute token.
+    pub byte_end: usize,
+}
+
+/// A node in the hierarchical data tree produced by data-format extraction.
+///
+/// Purpose-built payload owned by xberg — mirrors
+/// `tree_sitter_language_pack::DataNode` but flattens its `Span` down to plain byte
+/// offsets, so binding generators never need to resolve an external crate's types
+/// across FFI/language boundaries.
+#[cfg(feature = "tree-sitter")]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
+pub struct CodeDataNode {
+    /// Whether this node is a key/value pair, XML element, or sequence item.
+    pub kind: CodeDataNodeKind,
+    /// Key, attribute name, tag name, or positional index (`"0"`, `"1"`, …).
+    /// `None` at the document root.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
+    /// Leaf scalar value, if any. `None` for containers (objects, arrays, XML
+    /// elements with child elements).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub value: Option<String>,
+    /// Attributes on element-shape nodes (XML `STag` attributes). Empty for all
+    /// other kinds.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attributes: Vec<CodeDataAttribute>,
+    /// Children for nested containers and XML element bodies.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub children: Vec<CodeDataNode>,
+    /// Inclusive start byte offset of this node in the original source.
+    pub byte_start: usize,
+    /// Exclusive end byte offset of this node in the original source.
     pub byte_end: usize,
 }
 
@@ -1259,6 +1335,7 @@ mod code_metadata_serde_tests {
                 byte_start: 0,
                 byte_end: 12,
             }],
+            data: None,
         });
 
         let json = serde_json::to_string(&value).expect("Code metadata must serialize");
@@ -1269,7 +1346,7 @@ mod code_metadata_serde_tests {
         assert!(json.contains("\"chunks\""), "chunks field present: {json}");
 
         let back: FormatMetadata = serde_json::from_str(&json).expect("Code metadata must deserialize");
-        let FormatMetadata::Code(CodeMetadata { chunks }) = back else {
+        let FormatMetadata::Code(CodeMetadata { chunks, .. }) = back else {
             panic!("expected Code variant after round-trip");
         };
         assert_eq!(chunks.len(), 1);

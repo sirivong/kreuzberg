@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.39.0"
+alef_version = "0.40.0"
 # -D warnings (emitted into every generated Rust binding as #![allow(...)]).
 extra_clippy_allows = ["redundant_field_names"]
 languages = [
@@ -452,13 +452,22 @@ sources = [
 ]
 roots = ["crawlberg::CrawlConfig", "crawlberg::MapResult"]
 
+[[crates.source_crates]]
+name = "html-to-markdown-rs"
+sources = [
+    "../html-to-markdown/crates/html-to-markdown/src/options/conversion.rs",
+    "../html-to-markdown/crates/html-to-markdown/src/options/preprocessing.rs",
+    "../html-to-markdown/crates/html-to-markdown/src/options/validation.rs",
+]
+roots = ["html_to_markdown_rs::ConversionOptions"]
+
 [crates.extra_dependencies]
 crawlberg = { workspace = true, default-features = false }
+html-to-markdown-rs = { workspace = true, default-features = false }
 
 [crates.python]
 module_name = "_xberg"
 exclude_types = ["PooledString"]
-exclude_fields = ["FormatMetadata.Code"]
 exclude_functions = [
     "calculate_quality_score",
     "count_tokens",
@@ -585,7 +594,6 @@ exclude_types = [
     # that trigger E0716/E0596/E0507 in the #[php_impl] macro expansion.
     "PooledString",
     "ChunkSizing",
-    "EmbeddingModelType",
     "NodeContent",
     "OcrBoundingGeometry",
 ]
@@ -760,7 +768,7 @@ header_name = "xberg.h"
 lib_name = "xberg_ffi"
 visitor_callbacks = false
 plugin_error_constructor = "xberg::XbergError::Plugin { message: msg, plugin_name: String::new() }"
-exclude_types = ["LlmBackend", "EnrichOptions", "EnrichResult", "EnrichStatus", "ChunkPlan", "ChunkingDecision"]
+exclude_types = []
 exclude_functions = [
     "calculate_quality_score",
     "count_tokens",
@@ -941,7 +949,7 @@ exclude_functions = [
     "embed_multi_vector",
     "embed_multi_vector_async",
 ]
-exclude_types = ["LlmBackend", "InternalDocument", "SyncExtractor"]
+exclude_types = []
 
 [crates.java]
 package = "io.xberg"
@@ -980,7 +988,7 @@ features = [
     "liter-llm",
     "quality",
 ]
-exclude_types = ["InternalDocument", "OcrBackendType", "ProcessingStage", "SyncExtractor"]
+exclude_types = ["OcrBackendType", "ProcessingStage"]
 exclude_functions = [
     "calculate_quality_score",
     "count_tokens",
@@ -1114,12 +1122,7 @@ artifact_id = "xberg-android"
 group_id = "io.xberg"
 abis = ["arm64-v8a", "x86_64"]
 features = ["full"]
-exclude_types = ["InternalDocument"]
-exclude_fields = [
-    "ExtractedDocument.ocr_internal_document",
-    "ExtractedDocument.internal_document",
-    "OcrExtractionResult.internal_document",
-]
+exclude_types = []
 exclude_functions = [
     "embed_texts_async",
     "calculate_quality_score",
@@ -1221,24 +1224,7 @@ features = [
     "auto-rotate-types",
     "stopwords",
 ]
-exclude_types = [
-    "InternalDocument",
-    "LlmBackend",
-    # alef 0.25.19 drops the `#[cfg(any(feature = "keywords-yake", feature = "keywords-rake"))]`
-    "KeywordConfig",
-    "Keyword",
-    "YakeParams",
-    "RakeParams",
-    "KeywordAlgorithm",
-]
-exclude_fields = [
-    "ExtractedDocument.ocr_internal_document",
-    "ExtractedDocument.internal_document",
-    "OcrExtractionResult.internal_document",
-    "ExtractionConfig.keywords",
-    "FileExtractionConfig.keywords",
-    "ExtractedDocument.extracted_keywords",
-]
+exclude_types = []
 exclude_functions = [
     "calculate_quality_score",
     "count_tokens",
@@ -1352,6 +1338,14 @@ dart = "packages/dart/lib/src/"
 zig = "packages/zig/src/"
 
 [crates.exclude]
+# Pipeline-invariant html-to-markdown fields that xberg force-controls in
+# extraction/html/converter.rs; hidden from every binding so callers never set
+# a knob that silently does nothing. The rest of ConversionOptions passes through.
+fields = [
+    "ConversionOptions.output_format",
+    "ConversionOptions.include_document_structure",
+    "ConversionOptions.extract_images",
+]
 types = [
     "Pool",
 

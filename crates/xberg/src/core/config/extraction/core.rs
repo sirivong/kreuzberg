@@ -125,7 +125,6 @@ pub struct ExtractionConfig {
     /// list formatting, code block styles, and preprocessing options.
     #[cfg(feature = "html")]
     #[serde(default)]
-    #[cfg_attr(alef, alef(skip))]
     pub html_options: Option<html_to_markdown_rs::ConversionOptions>,
 
     /// Styled HTML output configuration.

@@ -27,6 +27,20 @@ pub(crate) fn create_client(config: &LlmConfig) -> crate::Result<DefaultClient> 
     if let Some(max_retries) = config.max_retries {
         builder = builder.max_retries(max_retries);
     }
+    if let Some(load_env) = config.load_env {
+        builder = builder.load_env(load_env);
+    }
+    if let Some(ref headers) = config.headers {
+        for (key, value) in headers {
+            builder = builder.header(key.as_str(), value.as_str()).map_err(|e| {
+                let msg = format!("Invalid LLM header '{key}': {e}");
+                crate::XbergError::Validation {
+                    message: msg,
+                    source: Some(Box::new(e)),
+                }
+            })?;
+        }
+    }
 
     let client_config = builder.build();
 
@@ -124,5 +138,44 @@ mod tests {
         };
 
         let _ = create_client(&config).unwrap();
+    }
+
+    #[test]
+    fn test_create_client_applies_load_env_and_valid_headers() {
+        let mut headers = std::collections::HashMap::new();
+        headers.insert("X-Gateway-Key".to_string(), "secret123".to_string());
+        let config = LlmConfig {
+            model: "openai/gpt-4o".to_string(),
+            api_key: Some("test-key".to_string()),
+            load_env: Some(true),
+            headers: Some(headers),
+            ..LlmConfig::default()
+        };
+
+        assert!(
+            create_client(&config).is_ok(),
+            "valid load_env + headers should build a client"
+        );
+    }
+
+    #[test]
+    fn test_create_client_rejects_invalid_header() {
+        let mut headers = std::collections::HashMap::new();
+        // A header name containing CRLF can never parse — must surface as a Validation error.
+        headers.insert("X-Bad\r\nInjected".to_string(), "value".to_string());
+        let config = LlmConfig {
+            model: "openai/gpt-4o".to_string(),
+            api_key: Some("test-key".to_string()),
+            headers: Some(headers),
+            ..LlmConfig::default()
+        };
+
+        match create_client(&config) {
+            Err(crate::XbergError::Validation { message, .. }) => {
+                assert!(message.contains("Invalid LLM header"), "unexpected message: {message}");
+            }
+            Err(other) => panic!("expected a Validation error, got: {other}"),
+            Ok(_) => panic!("expected create_client to reject the invalid header"),
+        }
     }
 }

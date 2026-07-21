@@ -11,14 +11,16 @@ use async_trait::async_trait;
 use tree_sitter_language_pack as tslp;
 
 use crate::Result;
-use crate::core::config::ExtractionConfig;
+use crate::core::config::{CodeContentMode, ExtractionConfig};
 use crate::core::mime::SOURCE_CODE_MIME_TYPE;
 use crate::extractors::SyncExtractor;
 use crate::internal_builder::InternalDocumentBuilder;
 use crate::plugins::InternalDocumentExtractor;
 use crate::plugins::Plugin;
 use crate::types::internal::InternalDocument;
-use crate::types::metadata::{CodeChunkInfo, CodeMetadata, FormatMetadata, Metadata};
+use crate::types::metadata::{
+    CodeChunkInfo, CodeDataAttribute, CodeDataNode, CodeDataNodeKind, CodeMetadata, FormatMetadata, Metadata,
+};
 #[cfg_attr(alef, alef(skip))]
 /// Source code extractor using tree-sitter language pack.
 ///
@@ -49,9 +51,46 @@ impl CodeExtractor {
         tslp::ProcessConfig::new(language)
     }
 
+    /// Build a document that emits the raw source verbatim, with no tree-sitter
+    /// processing. Used when tree-sitter is disabled via config.
+    fn build_raw_document(source: &str, language: &str) -> InternalDocument {
+        let mut builder = InternalDocumentBuilder::new("code");
+        builder.push_code(source, Some(language), None, None);
+
+        let mut doc = builder.build();
+        doc.metadata = Metadata {
+            format: Some(FormatMetadata::Code(CodeMetadata::default())),
+            ..Default::default()
+        };
+        doc.mime_type = SOURCE_CODE_MIME_TYPE.to_string();
+        doc
+    }
+
+    /// Heading level for a chunk's context marker: 2 for class/module-shaped
+    /// containers, 3 for everything else (functions, methods, etc.).
+    fn chunk_heading_level(chunk: &tslp::CodeChunk) -> u8 {
+        if chunk.metadata.node_types.iter().any(|t| {
+            matches!(
+                t.as_str(),
+                "class_definition" | "module_definition" | "class_declaration" | "module"
+            )
+        }) {
+            2
+        } else {
+            3
+        }
+    }
+
     /// Extract from source text with a known language.
     fn extract_with_language(source: &str, language: &str, config: &ExtractionConfig) -> Result<InternalDocument> {
+        let ts_config = config.tree_sitter.as_ref();
+
+        if !ts_config.map(|c| c.enabled).unwrap_or(true) {
+            return Ok(Self::build_raw_document(source, language));
+        }
+
         let process_config = Self::build_process_config(language, config);
+        let content_mode = ts_config.map(|c| c.process.content_mode).unwrap_or_default();
 
         let result = tslp::process(source, &process_config).map_err(|e| crate::XbergError::Parsing {
             message: format!("tree-sitter processing failed for language '{language}': {e}"),
@@ -65,21 +104,22 @@ impl CodeExtractor {
             builder.push_code(source, Some(language), None, None);
         } else {
             for chunk in &result.chunks {
-                if let Some(last_context) = chunk.metadata.context_path.last() {
-                    let level = if chunk.metadata.node_types.iter().any(|t| {
-                        matches!(
-                            t.as_str(),
-                            "class_definition" | "module_definition" | "class_declaration" | "module"
-                        )
-                    }) {
-                        2
-                    } else {
-                        3
-                    };
-                    builder.push_heading(level, last_context, None, None);
+                match content_mode {
+                    CodeContentMode::Raw => {}
+                    CodeContentMode::Structure => {
+                        if let Some(last_context) = chunk.metadata.context_path.last() {
+                            let level = Self::chunk_heading_level(chunk);
+                            builder.push_heading(level, last_context, None, None);
+                        }
+                    }
+                    _ => {
+                        if let Some(last_context) = chunk.metadata.context_path.last() {
+                            let level = Self::chunk_heading_level(chunk);
+                            builder.push_heading(level, last_context, None, None);
+                        }
+                        builder.push_code(&chunk.content, Some(language), None, None);
+                    }
                 }
-
-                builder.push_code(&chunk.content, Some(language), None, None);
 
                 code_chunks.push(CodeChunkInfo {
                     text: chunk.content.clone(),
@@ -89,11 +129,18 @@ impl CodeExtractor {
                     byte_end: chunk.end_byte,
                 });
             }
+
+            if matches!(content_mode, CodeContentMode::Raw) {
+                builder.push_code(source, Some(language), None, None);
+            }
         }
 
         let mut doc = builder.build();
         doc.metadata = Metadata {
-            format: Some(FormatMetadata::Code(CodeMetadata { chunks: code_chunks })),
+            format: Some(FormatMetadata::Code(CodeMetadata {
+                chunks: code_chunks,
+                data: result.data.as_ref().map(convert_data_node),
+            })),
             ..Default::default()
         };
         doc.mime_type = SOURCE_CODE_MIME_TYPE.to_string();
@@ -206,5 +253,171 @@ impl SyncExtractor for CodeExtractor {
             })?;
 
         Self::extract_with_language(&source, language, config)
+    }
+}
+
+/// Recursively map a `tree_sitter_language_pack::DataNode` to xberg's
+/// FFI/binding-friendly [`CodeDataNode`], flattening `Span` down to byte offsets.
+fn convert_data_node(node: &tslp::DataNode) -> CodeDataNode {
+    CodeDataNode {
+        kind: match node.kind {
+            tslp::DataNodeKind::KeyValue => CodeDataNodeKind::KeyValue,
+            tslp::DataNodeKind::Element => CodeDataNodeKind::Element,
+            tslp::DataNodeKind::Sequence => CodeDataNodeKind::Sequence,
+        },
+        key: node.key.clone(),
+        value: node.value.clone(),
+        attributes: node
+            .attributes
+            .iter()
+            .map(|attr| CodeDataAttribute {
+                name: attr.name.clone(),
+                value: attr.value.clone(),
+                byte_start: attr.span.start_byte,
+                byte_end: attr.span.end_byte,
+            })
+            .collect(),
+        children: node.children.iter().map(convert_data_node).collect(),
+        byte_start: node.span.start_byte,
+        byte_end: node.span.end_byte,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Disabled tree-sitter config must skip TSLP processing entirely and emit the
+    /// raw source as a single code element — this path must not call
+    /// `tslp::process`, which needs grammar downloads at runtime.
+    #[test]
+    fn test_disabled_tree_sitter_emits_raw_source() {
+        let config = ExtractionConfig {
+            tree_sitter: Some(crate::core::config::TreeSitterConfig {
+                enabled: false,
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+
+        let source = "fn main() {\n    println!(\"hi\");\n}\n";
+        let doc = CodeExtractor::extract_with_language(source, "rust", &config).expect("raw extraction must succeed");
+
+        assert_eq!(doc.elements.len(), 1, "exactly one raw code element expected");
+        assert_eq!(doc.mime_type, SOURCE_CODE_MIME_TYPE);
+
+        let Some(FormatMetadata::Code(CodeMetadata { chunks, data })) = doc.metadata.format.as_ref() else {
+            panic!("expected Code format metadata");
+        };
+        assert!(chunks.is_empty(), "raw path must not populate chunks");
+        assert!(data.is_none(), "raw path must not populate data");
+    }
+
+    /// `TreeSitterProcessConfig::data_extraction` must map through to TSLP's
+    /// `ProcessConfig::data_extraction` unchanged.
+    #[test]
+    fn test_process_config_maps_data_extraction() {
+        let xberg_process_config = crate::core::config::TreeSitterProcessConfig {
+            data_extraction: true,
+            ..Default::default()
+        };
+
+        let tslp_process_config: tslp::ProcessConfig = (&xberg_process_config).into();
+
+        assert!(tslp_process_config.data_extraction);
+    }
+
+    /// `convert_data_node` must map kind, key, value, attributes, children, and
+    /// byte offsets from a hand-built `tslp::DataNode` tree.
+    #[test]
+    fn test_convert_data_node_maps_tree() {
+        let child_span = tslp::Span {
+            start_byte: 2,
+            end_byte: 10,
+            start_line: 0,
+            start_column: 2,
+            end_line: 0,
+            end_column: 10,
+        };
+        let attr_span = tslp::Span {
+            start_byte: 3,
+            end_byte: 9,
+            start_line: 0,
+            start_column: 3,
+            end_line: 0,
+            end_column: 9,
+        };
+        let root_span = tslp::Span {
+            start_byte: 0,
+            end_byte: 12,
+            start_line: 0,
+            start_column: 0,
+            end_line: 0,
+            end_column: 12,
+        };
+
+        let child = tslp::DataNode {
+            kind: tslp::DataNodeKind::Element,
+            key: Some("host".to_string()),
+            value: Some("localhost".to_string()),
+            attributes: vec![tslp::DataAttribute {
+                name: "class".to_string(),
+                value: "primary".to_string(),
+                span: attr_span,
+            }],
+            children: Vec::new(),
+            span: child_span,
+        };
+
+        let root = tslp::DataNode {
+            kind: tslp::DataNodeKind::KeyValue,
+            key: None,
+            value: None,
+            attributes: Vec::new(),
+            children: vec![child],
+            span: root_span,
+        };
+
+        let converted = convert_data_node(&root);
+
+        assert_eq!(converted.kind, CodeDataNodeKind::KeyValue);
+        assert_eq!(converted.key, None);
+        assert_eq!(converted.value, None);
+        assert!(converted.attributes.is_empty());
+        assert_eq!(converted.byte_start, 0);
+        assert_eq!(converted.byte_end, 12);
+
+        assert_eq!(converted.children.len(), 1);
+        let converted_child = &converted.children[0];
+        assert_eq!(converted_child.kind, CodeDataNodeKind::Element);
+        assert_eq!(converted_child.key.as_deref(), Some("host"));
+        assert_eq!(converted_child.value.as_deref(), Some("localhost"));
+        assert_eq!(converted_child.byte_start, 2);
+        assert_eq!(converted_child.byte_end, 10);
+
+        assert_eq!(converted_child.attributes.len(), 1);
+        let converted_attr = &converted_child.attributes[0];
+        assert_eq!(converted_attr.name, "class");
+        assert_eq!(converted_attr.value, "primary");
+        assert_eq!(converted_attr.byte_start, 3);
+        assert_eq!(converted_attr.byte_end, 9);
+    }
+
+    /// `CodeDataNodeKind` must serialize under `snake_case` naming, matching the
+    /// rest of xberg's public API convention.
+    #[test]
+    fn test_code_data_node_kind_serde_snake_case() {
+        assert_eq!(
+            serde_json::to_string(&CodeDataNodeKind::KeyValue).expect("serializes"),
+            "\"key_value\""
+        );
+        assert_eq!(
+            serde_json::to_string(&CodeDataNodeKind::Element).expect("serializes"),
+            "\"element\""
+        );
+        assert_eq!(
+            serde_json::to_string(&CodeDataNodeKind::Sequence).expect("serializes"),
+            "\"sequence\""
+        );
     }
 }

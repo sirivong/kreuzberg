@@ -99,6 +99,11 @@ pub struct TreeSitterProcessConfig {
     #[serde(default)]
     pub diagnostics: bool,
 
+    /// Extract a hierarchical key/value data tree from data-format files
+    /// (JSON, YAML, TOML, XML, CSV, etc.). Default: false.
+    #[serde(default)]
+    pub data_extraction: bool,
+
     /// Maximum chunk size in bytes. `None` disables chunking.
     #[serde(default)]
     pub chunk_max_size: Option<usize>,
@@ -130,6 +135,7 @@ impl Default for TreeSitterProcessConfig {
             docstrings: false,
             symbols: false,
             diagnostics: false,
+            data_extraction: false,
             chunk_max_size: None,
             content_mode: CodeContentMode::default(),
         }
@@ -154,8 +160,8 @@ impl From<&TreeSitterProcessConfig> for tree_sitter_language_pack::ProcessConfig
             docstrings: p.docstrings,
             symbols: p.symbols,
             diagnostics: p.diagnostics,
+            data_extraction: p.data_extraction,
             chunk_max_size: p.chunk_max_size,
-            ..Default::default()
         }
     }
 }

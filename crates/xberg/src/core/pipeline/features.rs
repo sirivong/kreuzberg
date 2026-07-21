@@ -167,7 +167,10 @@ fn try_code_chunks(result: &ExtractedDocument) -> Option<Vec<crate::types::extra
     use crate::types::extraction::{Chunk, ChunkMetadata};
     use crate::types::metadata::{CodeMetadata, FormatMetadata};
 
-    let FormatMetadata::Code(CodeMetadata { chunks: code_chunks }) = result.metadata.format.as_ref()? else {
+    let FormatMetadata::Code(CodeMetadata {
+        chunks: code_chunks, ..
+    }) = result.metadata.format.as_ref()?
+    else {
         return None;
     };
 

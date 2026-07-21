@@ -1224,11 +1224,7 @@ mod tests {
                 llm: crate::core::config::LlmConfig {
                     model: "openai/text-embedding-3-small".to_string(),
                     api_key: Some("invalid-key-for-test".to_string()),
-                    base_url: None,
-                    timeout_secs: None,
-                    max_retries: None,
-                    temperature: None,
-                    max_tokens: None,
+                    ..Default::default()
                 },
             },
             ..Default::default()

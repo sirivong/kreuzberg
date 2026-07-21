@@ -3,6 +3,8 @@
 //! These types are always available (not feature-gated) since they are
 //! pure configuration data with no runtime dependency on liter-llm.
 
+use std::collections::HashMap;
+
 use serde::{Deserialize, Serialize};
 
 /// Configuration for an LLM provider/model via liter-llm.
@@ -52,6 +54,20 @@ pub struct LlmConfig {
     /// Maximum tokens to generate.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u64>,
+
+    /// Whether liter-llm should load provider credentials from environment variables.
+    ///
+    /// Mirrors liter-llm's `ClientConfigBuilder::load_env`. When `None`, liter-llm's
+    /// own default behavior applies.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub load_env: Option<bool>,
+
+    /// Extra HTTP headers sent with every request to the provider.
+    ///
+    /// Mirrors liter-llm's `ClientConfigBuilder::header`, for gateways or providers
+    /// that require custom auth/routing headers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub headers: Option<HashMap<String, String>>,
 }
 
 /// Configuration for LLM-based structured data extraction.
@@ -173,6 +189,8 @@ mod tests {
         assert!(cfg.max_retries.is_none());
         assert!(cfg.temperature.is_none());
         assert!(cfg.max_tokens.is_none());
+        assert!(cfg.load_env.is_none());
+        assert!(cfg.headers.is_none());
     }
 
     /// Verify the struct-update pattern from the issue compiles and produces
@@ -190,6 +208,48 @@ mod tests {
         assert!(cfg.max_retries.is_none());
         assert!(cfg.temperature.is_none());
         assert!(cfg.max_tokens.is_none());
+        assert!(cfg.load_env.is_none());
+        assert!(cfg.headers.is_none());
+    }
+
+    /// `load_env` and `headers` must round-trip through TOML so they are settable
+    /// from a config file and every language binding.
+    #[test]
+    fn test_llm_config_load_env_and_headers_round_trip() {
+        let toml_src = r#"
+model = "openai/gpt-4o"
+load_env = true
+
+[headers]
+"X-Gateway-Key" = "abc123"
+"X-Tenant" = "acme"
+"#;
+        let cfg: LlmConfig = toml::from_str(toml_src).expect("deserialize LlmConfig from TOML");
+        assert_eq!(cfg.model, "openai/gpt-4o");
+        assert_eq!(cfg.load_env, Some(true));
+        let headers = cfg.headers.as_ref().expect("headers present");
+        assert_eq!(headers.get("X-Gateway-Key").map(String::as_str), Some("abc123"));
+        assert_eq!(headers.get("X-Tenant").map(String::as_str), Some("acme"));
+
+        let round_tripped: LlmConfig =
+            serde_json::from_str(&serde_json::to_string(&cfg).expect("serialize")).expect("deserialize");
+        assert_eq!(round_tripped, cfg);
+    }
+
+    /// Empty passthrough fields stay absent from serialized output so bindings
+    /// never emit `null`/empty knobs the user did not set.
+    #[test]
+    fn test_llm_config_omits_empty_passthrough_fields() {
+        let cfg = LlmConfig {
+            model: "openai/gpt-4o".to_string(),
+            ..Default::default()
+        };
+        let json = serde_json::to_string(&cfg).expect("serialize");
+        assert!(
+            !json.contains("load_env"),
+            "load_env should be omitted when None: {json}"
+        );
+        assert!(!json.contains("headers"), "headers should be omitted when None: {json}");
     }
 
     #[test]

@@ -234,10 +234,7 @@ impl ExtractionConfig {
                         model: value,
                         api_key: None,
                         base_url: None,
-                        timeout_secs: None,
-                        max_retries: None,
-                        temperature: None,
-                        max_tokens: None,
+                        ..Default::default()
                     },
                 });
             } else if let Some(ref mut config) = self.structured_extraction {
@@ -263,10 +260,7 @@ impl ExtractionConfig {
                         model: String::new(),
                         api_key: Some(value),
                         base_url: None,
-                        timeout_secs: None,
-                        max_retries: None,
-                        temperature: None,
-                        max_tokens: None,
+                        ..Default::default()
                     },
                 });
             } else if let Some(ref mut config) = self.structured_extraction {
@@ -292,10 +286,7 @@ impl ExtractionConfig {
                         model: String::new(),
                         api_key: None,
                         base_url: Some(value),
-                        timeout_secs: None,
-                        max_retries: None,
-                        temperature: None,
-                        max_tokens: None,
+                        ..Default::default()
                     },
                 });
             } else if let Some(ref mut config) = self.structured_extraction {
@@ -317,12 +308,7 @@ impl ExtractionConfig {
                 if ocr.vlm_config.is_none() {
                     ocr.vlm_config = Some(super::super::llm::LlmConfig {
                         model: value,
-                        api_key: None,
-                        base_url: None,
-                        timeout_secs: None,
-                        max_retries: None,
-                        temperature: None,
-                        max_tokens: None,
+                        ..Default::default()
                     });
                 } else if let Some(ref mut vlm) = ocr.vlm_config {
                     vlm.model = value;
@@ -347,10 +333,7 @@ impl ExtractionConfig {
                             model: value,
                             api_key: None,
                             base_url: None,
-                            timeout_secs: None,
-                            max_retries: None,
-                            temperature: None,
-                            max_tokens: None,
+                            ..Default::default()
                         },
                     },
                     ..super::super::processing::EmbeddingConfig::default()

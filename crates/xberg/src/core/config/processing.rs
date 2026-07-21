@@ -760,12 +760,7 @@ mod tests {
         let model_type = EmbeddingModelType::Llm {
             llm: crate::core::config::llm::LlmConfig {
                 model: "openai/text-embedding-3-small".to_string(),
-                api_key: None,
-                base_url: None,
-                timeout_secs: None,
-                max_retries: None,
-                temperature: None,
-                max_tokens: None,
+                ..Default::default()
             },
         };
         let json = serde_json::to_string(&model_type).unwrap();

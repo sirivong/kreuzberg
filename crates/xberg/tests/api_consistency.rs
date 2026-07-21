@@ -442,6 +442,7 @@ fn test_tree_sitter_config_serialization_roundtrip() {
             docstrings: true,
             symbols: false,
             diagnostics: false,
+            data_extraction: false,
             chunk_max_size: Some(4000),
             content_mode: Default::default(),
         },
@@ -513,6 +514,7 @@ fn test_tree_sitter_process_config_all_fields_serialized() {
         docstrings: true,
         symbols: true,
         diagnostics: true,
+        data_extraction: true,
         chunk_max_size: Some(2000),
         content_mode: Default::default(),
     };
@@ -528,6 +530,7 @@ fn test_tree_sitter_process_config_all_fields_serialized() {
         "docstrings",
         "symbols",
         "diagnostics",
+        "data_extraction",
         "chunk_max_size",
     ];
     for field in expected_fields {
@@ -540,7 +543,7 @@ fn test_tree_sitter_process_config_all_fields_serialized() {
 fn test_format_metadata_code_variant_serialization() {
     use xberg::types::metadata::{CodeMetadata, FormatMetadata};
 
-    let metadata = FormatMetadata::Code(CodeMetadata { chunks: Vec::new() });
+    let metadata = FormatMetadata::Code(CodeMetadata { chunks: Vec::new(), data: None });
     let json = serde_json::to_value(&metadata).expect("Failed to serialize FormatMetadata::Code");
 
     assert_eq!(json["format_type"], "code", "format_type tag should be 'code'");
