@@ -796,7 +796,11 @@ fn blocks_to_paragraphs(
 /// PDF glyph runs can overlap slightly because of font metrics. Larger
 /// overlaps, reverse ordering, and wide gaps remain structural boundaries.
 fn is_inline_style_transition(current_is_single_visual_line: bool, previous: &SegmentData, next: &SegmentData) -> bool {
-    if !current_is_single_visual_line || previous.is_monospace || next.is_monospace {
+    if !current_is_single_visual_line
+        || previous.is_monospace
+        || next.is_monospace
+        || previous.assigned_role != next.assigned_role
+    {
         return false;
     }
     if !previous.font_size.is_finite()
@@ -3017,6 +3021,51 @@ mod tests {
         ];
 
         assert_eq!(blocks_to_paragraphs(segments, &[], &[]).len(), 2);
+    }
+
+    #[test]
+    fn tagged_heading_and_body_stay_separate_on_the_same_line() {
+        let mut heading = inline_seg("Heading", 10.0, 100.0, true);
+        heading.assigned_role = Some(1);
+        let body = inline_seg("body", 31.0, 100.0, false);
+
+        let paragraphs = blocks_to_paragraphs(vec![heading, body], &[], &[]);
+
+        assert_eq!(paragraphs.len(), 2);
+        assert_eq!(paragraph_text(&paragraphs[0]), "Heading");
+        assert_eq!(paragraphs[0].heading_level, Some(1));
+        assert_eq!(paragraph_text(&paragraphs[1]), "body");
+        assert_eq!(paragraphs[1].heading_level, None);
+    }
+
+    #[test]
+    fn different_tagged_heading_levels_stay_separate_on_the_same_line() {
+        let mut first = inline_seg("First", 10.0, 100.0, true);
+        first.assigned_role = Some(1);
+        let mut second = inline_seg("Second", 31.0, 100.0, false);
+        second.assigned_role = Some(2);
+
+        let paragraphs = blocks_to_paragraphs(vec![first, second], &[], &[]);
+
+        assert_eq!(paragraphs.len(), 2);
+        assert_eq!(paragraph_text(&paragraphs[0]), "First");
+        assert_eq!(paragraphs[0].heading_level, Some(1));
+        assert_eq!(paragraph_text(&paragraphs[1]), "Second");
+        assert_eq!(paragraphs[1].heading_level, Some(2));
+    }
+
+    #[test]
+    fn same_tagged_heading_role_keeps_inline_style_transitions_together() {
+        let mut first = inline_seg("First", 10.0, 100.0, true);
+        first.assigned_role = Some(1);
+        let mut second = inline_seg("Second", 31.0, 100.0, false);
+        second.assigned_role = Some(1);
+
+        let paragraphs = blocks_to_paragraphs(vec![first, second], &[], &[]);
+
+        assert_eq!(paragraphs.len(), 1);
+        assert_eq!(paragraph_text(&paragraphs[0]), "First Second");
+        assert_eq!(paragraphs[0].heading_level, Some(1));
     }
 
     #[test]
