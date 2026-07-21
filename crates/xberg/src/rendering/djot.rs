@@ -115,7 +115,8 @@ pub(crate) fn render_djot(doc: &InternalDocument) -> String {
                 let block = format!("![{}]({})\n\n", desc, url);
                 push_with_bq(&mut out, &block, bq_depth);
 
-                if let Some(ocr_result) = image.and_then(|img| img.ocr_result.as_ref())
+                if elem.should_render_image_ocr()
+                    && let Some(ocr_result) = image.and_then(|img| img.ocr_result.as_ref())
                     && !ocr_result.content.is_empty()
                 {
                     let block = format!("{}\n\n", ocr_result.content);

@@ -26,6 +26,8 @@ use super::ocr_elements::{OcrBoundingGeometry, OcrConfidence, OcrElementLevel, O
 use super::tables::Table;
 use crate::types::ExtractedImage;
 
+const SUPPRESS_IMAGE_OCR_RENDER_ATTRIBUTE: &str = "xberg:internal:suppress-image-ocr-render";
+
 #[cfg_attr(alef, alef(skip))]
 /// Deterministic element identifier, generated via blake3 hashing.
 ///
@@ -467,10 +469,48 @@ impl InternalElement {
     }
 
     /// Regenerate the ID with the correct index (call after pushing to the document).
-    #[cfg(any(feature = "ocr", feature = "xml", feature = "archives", feature = "hwpx"))]
+    #[cfg(any(
+        feature = "ocr",
+        feature = "ocr-pipeline",
+        feature = "xml",
+        feature = "archives",
+        feature = "hwpx"
+    ))]
     pub(crate) fn with_index(mut self, index: u32) -> Self {
         self.id = InternalElementId::generate(self.kind.discriminant(), &self.text, self.page, index);
         self
+    }
+
+    /// Mark an image element so whole-page OCR can replace its nested OCR text
+    /// without removing the image placeholder or mutating the public image data.
+    #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+    pub(crate) fn suppress_image_ocr_rendering(&mut self) {
+        self.attributes
+            .get_or_insert_with(AHashMap::new)
+            .insert(SUPPRESS_IMAGE_OCR_RENDER_ATTRIBUTE.to_string(), "true".to_string());
+    }
+
+    /// Whether renderers should include nested OCR text for this image element.
+    pub(crate) fn should_render_image_ocr(&self) -> bool {
+        !self
+            .attributes
+            .as_ref()
+            .is_some_and(|attributes| attributes.contains_key(SUPPRESS_IMAGE_OCR_RENDER_ATTRIBUTE))
+    }
+
+    /// Attributes safe to expose through the public document structure.
+    pub(crate) fn public_attributes(&self) -> Option<std::collections::HashMap<String, String>> {
+        let original = self.attributes.as_ref()?;
+        let attributes: std::collections::HashMap<String, String> = original
+            .iter()
+            .filter(|(key, _)| key.as_str() != SUPPRESS_IMAGE_OCR_RENDER_ATTRIBUTE)
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect();
+        if attributes.is_empty() && !original.is_empty() {
+            None
+        } else {
+            Some(attributes)
+        }
     }
 }
 
@@ -698,6 +738,24 @@ mod tests {
         assert_eq!(idx, 0);
         assert_eq!(doc.elements.len(), 1);
         assert_eq!(doc.elements[0].text, "Hello world");
+    }
+
+    #[test]
+    fn public_attributes_preserve_explicit_empty_map() {
+        let mut element = InternalElement::text(ElementKind::Paragraph, "text", 0);
+        element.attributes = Some(AHashMap::new());
+
+        assert_eq!(element.public_attributes(), Some(std::collections::HashMap::new()));
+    }
+
+    #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+    #[test]
+    fn public_attributes_hide_internal_image_ocr_suppression() {
+        let mut element = InternalElement::text(ElementKind::Image { image_index: 0 }, "", 0);
+        element.suppress_image_ocr_rendering();
+
+        assert!(element.public_attributes().is_none());
+        assert!(!element.should_render_image_ocr());
     }
 
     #[cfg(any(

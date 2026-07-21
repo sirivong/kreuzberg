@@ -593,11 +593,12 @@ pub(crate) async fn extract_mixed_ocr_native(
         }
     }
 
-    let result = merge_ocr_pages_into_native(native_text, boundaries, &ocr_results);
+    let accepted_replacements = accepted_ocr_page_replacements(native_text, boundaries, &ocr_results);
+    let result = apply_ocr_page_replacements(native_text, boundaries, &accepted_replacements);
 
     Ok((
         result,
-        ocr_results,
+        accepted_replacements,
         accumulated_llm_usage,
         if capture_rasters { Some(captured_rasters) } else { None },
         accumulated_formulas,
@@ -612,41 +613,338 @@ pub(crate) async fn extract_mixed_ocr_native(
 /// skipped rather than applied: an empty OCR result must never overwrite a page's
 /// native text, or a page whose backend produced nothing would silently lose its
 /// already-extracted content.
-#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+#[cfg(all(test, any(feature = "ocr", feature = "ocr-pipeline")))]
 pub(crate) fn merge_ocr_pages_into_native(
     native_text: &str,
     boundaries: &[crate::types::PageBoundary],
     ocr_results: &ahash::AHashMap<u32, String>,
 ) -> String {
+    let accepted = accepted_ocr_page_replacements(native_text, boundaries, ocr_results);
+    apply_ocr_page_replacements(native_text, boundaries, &accepted)
+}
+
+/// Keep only OCR results that can be applied consistently to every mixed-output
+/// representation: non-empty text with a matching, valid UTF-8 page boundary.
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+fn accepted_ocr_page_replacements(
+    native_text: &str,
+    boundaries: &[crate::types::PageBoundary],
+    ocr_results: &ahash::AHashMap<u32, String>,
+) -> ahash::AHashMap<u32, String> {
+    let mut page_counts = std::collections::HashMap::new();
+    for boundary in boundaries {
+        *page_counts.entry(boundary.page_number).or_insert(0usize) += 1;
+    }
+
+    let mut valid_boundaries: Vec<&crate::types::PageBoundary> = boundaries
+        .iter()
+        .filter(|boundary| {
+            page_counts.get(&boundary.page_number) == Some(&1)
+                && boundary.page_number > 0
+                && boundary.byte_start <= boundary.byte_end
+                && boundary.byte_end <= native_text.len()
+                && native_text.is_char_boundary(boundary.byte_start)
+                && native_text.is_char_boundary(boundary.byte_end)
+        })
+        .collect();
+    valid_boundaries.sort_unstable_by_key(|boundary| (boundary.byte_start, boundary.byte_end));
+
+    let mut overlapping_pages = std::collections::HashSet::new();
+    let mut active: Option<&crate::types::PageBoundary> = None;
+    for boundary in &valid_boundaries {
+        if let Some(previous) = active
+            && boundary.byte_start < previous.byte_end
+        {
+            overlapping_pages.insert(previous.page_number);
+            overlapping_pages.insert(boundary.page_number);
+        }
+        if active.is_none_or(|previous| boundary.byte_end > previous.byte_end) {
+            active = Some(boundary);
+        }
+    }
+
+    let valid_pages: std::collections::HashSet<u32> = valid_boundaries
+        .into_iter()
+        .filter(|boundary| !overlapping_pages.contains(&boundary.page_number))
+        .map(|boundary| boundary.page_number)
+        .collect();
+
+    for (&page, text) in ocr_results {
+        if !text.trim().is_empty() && !valid_pages.contains(&page) {
+            tracing::warn!(
+                page,
+                "rejecting mixed OCR page without one valid, non-overlapping text boundary"
+            );
+        }
+    }
+
+    ocr_results
+        .iter()
+        .filter(|(page, text)| valid_pages.contains(page) && !text.trim().is_empty())
+        .map(|(&page, text)| (page, text.clone()))
+        .collect()
+}
+
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+fn apply_ocr_page_replacements(
+    native_text: &str,
+    boundaries: &[crate::types::PageBoundary],
+    accepted: &ahash::AHashMap<u32, String>,
+) -> String {
     let mut result = native_text.to_string();
 
     let mut sorted_boundaries: Vec<&crate::types::PageBoundary> = boundaries
         .iter()
-        .filter(|b| b.byte_end <= native_text.len() && b.byte_start <= b.byte_end)
+        .filter(|boundary| accepted.contains_key(&boundary.page_number))
         .collect();
-    sorted_boundaries.sort_unstable_by_key(|b| std::cmp::Reverse(b.byte_start));
+    sorted_boundaries.sort_unstable_by_key(|boundary| std::cmp::Reverse((boundary.byte_start, boundary.page_number)));
 
     for boundary in sorted_boundaries {
-        if let Some(ocr_text) = ocr_results.get(&boundary.page_number) {
-            if ocr_text.trim().is_empty() {
-                continue;
-            }
-            // Checked against `result` (not `native_text`) so that overlapping
-            // boundaries stay safe after earlier replacements shift the string. ~keep
-            if !result.is_char_boundary(boundary.byte_start) || !result.is_char_boundary(boundary.byte_end) {
-                tracing::warn!(
-                    page = boundary.page_number,
-                    byte_start = boundary.byte_start,
-                    byte_end = boundary.byte_end,
-                    "skipping OCR merge for page with invalid text boundary; keeping native text"
-                );
-                continue;
-            }
+        if let Some(ocr_text) = accepted.get(&boundary.page_number) {
             result.replace_range(boundary.byte_start..boundary.byte_end, ocr_text);
         }
     }
 
     result
+}
+
+/// Replace native text-flow elements on OCR'd pages while preserving the
+/// structured document's tables, images, and reading-order position.
+///
+/// PDF list markers do not carry page numbers, so page ownership is inferred
+/// from balanced container spans before filtering. Page breaks are rebuilt
+/// from the resulting page sequence, and relationships are remapped to the
+/// final element indices (or dropped when either indexed endpoint was removed).
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+pub(crate) fn merge_ocr_pages_into_internal_document(
+    doc: &mut crate::types::internal::InternalDocument,
+    ocr_results: &ahash::AHashMap<u32, String>,
+) {
+    let replacements: std::collections::BTreeMap<u32, &str> = ocr_results
+        .iter()
+        .filter_map(|(&page, text)| (!text.trim().is_empty()).then_some((page, text.as_str())))
+        .collect();
+    if replacements.is_empty() {
+        return;
+    }
+
+    let containers = analyze_container_markers(&doc.elements);
+    let anchors = replacement_anchors(&doc.elements, &containers.inferred_pages, &replacements);
+    let planned = plan_merged_elements(&doc.elements, &containers, &replacements, &anchors);
+    let (rebuilt, old_to_new) = rebuild_planned_elements(planned, doc.elements.len());
+    remap_relationships(&mut doc.relationships, &old_to_new, &rebuilt);
+    doc.elements = rebuilt;
+}
+
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+struct PlannedOcrElement {
+    element: crate::types::internal::InternalElement,
+    old_index: Option<usize>,
+    page: Option<u32>,
+}
+
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+fn replacement_anchors<'a>(
+    elements: &[crate::types::internal::InternalElement],
+    inferred_pages: &[Option<u32>],
+    replacements: &std::collections::BTreeMap<u32, &'a str>,
+) -> std::collections::BTreeMap<usize, Vec<(u32, &'a str)>> {
+    let mut anchors = std::collections::BTreeMap::new();
+    for (&page, &text) in replacements {
+        let anchor = elements
+            .iter()
+            .enumerate()
+            .find(|(index, element)| {
+                inferred_pages[*index]
+                    .or(element.page)
+                    .is_some_and(|element_page| element_page >= page)
+            })
+            .map_or(elements.len(), |(index, _)| index);
+        anchors.entry(anchor).or_insert_with(Vec::new).push((page, text));
+    }
+    anchors
+}
+
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+fn plan_merged_elements(
+    elements: &[crate::types::internal::InternalElement],
+    containers: &ContainerMarkerAnalysis,
+    replacements: &std::collections::BTreeMap<u32, &str>,
+    anchors: &std::collections::BTreeMap<usize, Vec<(u32, &str)>>,
+) -> Vec<PlannedOcrElement> {
+    use crate::types::internal::ElementKind;
+
+    let mut planned = Vec::with_capacity(elements.len() + replacements.len());
+    for (old_index, element) in elements.iter().enumerate() {
+        append_ocr_replacements(&mut planned, anchors.get(&old_index));
+        if containers.drop_marker[old_index] {
+            continue;
+        }
+        if matches!(element.kind, ElementKind::PageBreak) {
+            continue;
+        }
+        let page = element.page.or(containers.inferred_pages[old_index]);
+        let preserve_asset = matches!(element.kind, ElementKind::Image { .. });
+        if !preserve_asset && page.is_some_and(|page| replacements.contains_key(&page)) {
+            continue;
+        }
+        let mut element = element.clone();
+        if matches!(element.kind, ElementKind::Image { .. })
+            && page.is_some_and(|page| replacements.contains_key(&page))
+        {
+            element.suppress_image_ocr_rendering();
+        }
+        planned.push(PlannedOcrElement {
+            element,
+            old_index: Some(old_index),
+            page,
+        });
+    }
+    append_ocr_replacements(&mut planned, anchors.get(&elements.len()));
+    planned
+}
+
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+fn append_ocr_replacements(planned: &mut Vec<PlannedOcrElement>, replacements: Option<&Vec<(u32, &str)>>) {
+    use crate::types::internal::{ElementKind, InternalElement};
+    use crate::types::ocr_elements::OcrElementLevel;
+
+    for &(page, text) in replacements.into_iter().flatten() {
+        for paragraph in text.split("\n\n").map(str::trim).filter(|text| !text.is_empty()) {
+            let element = InternalElement::text(
+                ElementKind::OcrText {
+                    level: OcrElementLevel::Block,
+                },
+                paragraph,
+                0,
+            )
+            .with_page(page);
+            planned.push(PlannedOcrElement {
+                element,
+                old_index: None,
+                page: Some(page),
+            });
+        }
+    }
+}
+
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+fn rebuild_planned_elements(
+    planned: Vec<PlannedOcrElement>,
+    old_len: usize,
+) -> (Vec<crate::types::internal::InternalElement>, Vec<Option<u32>>) {
+    use crate::types::internal::{ElementKind, InternalElement};
+
+    let mut old_to_new = vec![None; old_len];
+    let mut rebuilt = Vec::with_capacity(planned.len());
+    let mut previous_page = None;
+    for planned_element in planned {
+        if let (Some(previous), Some(current)) = (previous_page, planned_element.page)
+            && previous != current
+        {
+            rebuilt.push(InternalElement::text(ElementKind::PageBreak, "", 0));
+        }
+        if let Some(page) = planned_element.page {
+            previous_page = Some(page);
+        }
+        if let Some(old_index) = planned_element.old_index {
+            old_to_new[old_index] = Some(rebuilt.len() as u32);
+        }
+        rebuilt.push(planned_element.element);
+    }
+    for (index, element) in rebuilt.iter_mut().enumerate() {
+        *element = element.clone().with_index(index as u32);
+    }
+    (rebuilt, old_to_new)
+}
+
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+fn remap_relationships(
+    relationships: &mut Vec<crate::types::internal::Relationship>,
+    old_to_new: &[Option<u32>],
+    rebuilt: &[crate::types::internal::InternalElement],
+) {
+    use crate::types::internal::RelationshipTarget;
+
+    let retained_anchors: std::collections::HashSet<&str> =
+        rebuilt.iter().filter_map(|element| element.anchor.as_deref()).collect();
+    relationships.retain_mut(|relationship| {
+        let Some(source) = old_to_new.get(relationship.source as usize).copied().flatten() else {
+            return false;
+        };
+        relationship.source = source;
+        match &mut relationship.target {
+            RelationshipTarget::Index(target) => {
+                let Some(remapped) = old_to_new.get(*target as usize).copied().flatten() else {
+                    return false;
+                };
+                *target = remapped;
+            }
+            RelationshipTarget::Key(key) if !retained_anchors.contains(key.as_str()) => return false,
+            RelationshipTarget::Key(_) => {}
+        }
+        true
+    });
+}
+
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+struct ContainerMarkerAnalysis {
+    inferred_pages: Vec<Option<u32>>,
+    drop_marker: Vec<bool>,
+}
+
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+fn analyze_container_markers(elements: &[crate::types::internal::InternalElement]) -> ContainerMarkerAnalysis {
+    use crate::types::internal::ElementKind;
+
+    fn matching_container(start: ElementKind, end: ElementKind) -> bool {
+        matches!(
+            (start, end),
+            (ElementKind::ListStart { .. }, ElementKind::ListEnd)
+                | (ElementKind::QuoteStart, ElementKind::QuoteEnd)
+                | (ElementKind::GroupStart, ElementKind::GroupEnd)
+        )
+    }
+
+    let mut analysis = ContainerMarkerAnalysis {
+        inferred_pages: vec![None; elements.len()],
+        drop_marker: vec![false; elements.len()],
+    };
+    let mut stack: Vec<(usize, ElementKind)> = Vec::new();
+    for (index, element) in elements.iter().enumerate() {
+        if element.kind.is_container_start() {
+            stack.push((index, element.kind));
+            continue;
+        }
+        if !element.kind.is_container_end() {
+            continue;
+        }
+        let Some(&(start_index, start_kind)) = stack.last() else {
+            analysis.drop_marker[index] = true;
+            continue;
+        };
+        if !matching_container(start_kind, element.kind) {
+            analysis.drop_marker[index] = true;
+            continue;
+        }
+        stack.pop();
+        let pages: std::collections::HashSet<u32> = elements[start_index..=index]
+            .iter()
+            .filter_map(|element| element.page)
+            .collect();
+        if pages.len() == 1 {
+            let page = pages.iter().next().copied();
+            analysis.inferred_pages[start_index] = page;
+            analysis.inferred_pages[index] = page;
+        } else {
+            analysis.drop_marker[start_index] = true;
+            analysis.drop_marker[index] = true;
+        }
+    }
+    for (start_index, _) in stack {
+        analysis.drop_marker[start_index] = true;
+    }
+    analysis
 }
 
 /// Extract text from PDF using OCR on pre-rendered page images.
@@ -1725,6 +2023,333 @@ mod tests {
         assert!(merged.contains("PAGE ONE NATIVE"));
         assert!(merged.contains("CLEAN OCR PAGE TWO"));
         assert!(!merged.contains("garbage page two"));
+    }
+
+    #[test]
+    fn test_accepted_replacements_reject_empty_missing_duplicate_overlap_and_invalid_utf8() {
+        use crate::types::PageBoundary;
+
+        let native = "A•BCDE";
+        let bullet = native.find('•').unwrap();
+        let boundaries = vec![
+            PageBoundary {
+                page_number: 1,
+                byte_start: native.len(),
+                byte_end: native.len(),
+            },
+            PageBoundary {
+                page_number: 3,
+                byte_start: 0,
+                byte_end: 1,
+            },
+            PageBoundary {
+                page_number: 3,
+                byte_start: 1,
+                byte_end: 1,
+            },
+            PageBoundary {
+                page_number: 4,
+                byte_start: bullet + 1,
+                byte_end: native.len(),
+            },
+            PageBoundary {
+                page_number: 5,
+                byte_start: 0,
+                byte_end: native.len(),
+            },
+            PageBoundary {
+                page_number: 6,
+                byte_start: 1,
+                byte_end: native.len(),
+            },
+        ];
+        let mut raw = ahash::AHashMap::new();
+        raw.insert(1, "accepted".to_string());
+        raw.insert(2, "missing boundary".to_string());
+        raw.insert(3, "duplicate boundary".to_string());
+        raw.insert(4, "invalid UTF-8 offset".to_string());
+        raw.insert(5, "overlap one".to_string());
+        raw.insert(6, "overlap two".to_string());
+        raw.insert(7, "   ".to_string());
+
+        let accepted = accepted_ocr_page_replacements(native, &boundaries, &raw);
+
+        assert_eq!(accepted.len(), 1);
+        assert_eq!(accepted.get(&1).map(String::as_str), Some("accepted"));
+    }
+
+    #[test]
+    fn test_zero_width_consecutive_replacements_have_deterministic_page_order() {
+        use crate::types::PageBoundary;
+
+        let boundaries = vec![
+            PageBoundary {
+                page_number: 1,
+                byte_start: 0,
+                byte_end: 0,
+            },
+            PageBoundary {
+                page_number: 2,
+                byte_start: 0,
+                byte_end: 0,
+            },
+        ];
+        let raw = ahash::AHashMap::from_iter([(2, "page two".to_string()), (1, "page one|".to_string())]);
+
+        let accepted = accepted_ocr_page_replacements("", &boundaries, &raw);
+        let merged = apply_ocr_page_replacements("", &boundaries, &accepted);
+
+        assert_eq!(merged, "page one|page two");
+    }
+
+    #[test]
+    fn test_structured_mixed_merge_preserves_assets_and_remaps_relationships() {
+        use crate::types::internal::{
+            ElementKind, InternalDocument, InternalElement, Relationship, RelationshipKind, RelationshipTarget,
+        };
+
+        let mut doc = InternalDocument::new("pdf");
+        doc.tables.push(crate::types::Table {
+            cells: vec![vec!["kept".to_string()]],
+            markdown: "| kept |".to_string(),
+            page_number: 2,
+            bounding_box: None,
+        });
+        doc.images.push(crate::types::ExtractedImage {
+            image_index: 0,
+            page_number: Some(2),
+            ocr_result: Some(Box::new(crate::types::ExtractedDocument {
+                content: "DUPLICATE INLINE OCR".to_string(),
+                ..Default::default()
+            })),
+            ..Default::default()
+        });
+        let mut push = |kind, text: &str, page| {
+            let mut element = InternalElement::text(kind, text, 0);
+            element.page = page;
+            doc.push_element(element);
+        };
+        push(ElementKind::Paragraph, "native page one", Some(1));
+        push(ElementKind::PageBreak, "", None);
+        push(ElementKind::ListStart { ordered: false }, "", None);
+        push(ElementKind::ListItem { ordered: false }, "stale page two", Some(2));
+        push(ElementKind::Table { table_index: 0 }, "", Some(2));
+        push(ElementKind::Image { image_index: 0 }, "", Some(2));
+        push(ElementKind::ListEnd, "", None);
+        push(ElementKind::PageBreak, "", None);
+        push(ElementKind::Paragraph, "native page three", Some(3));
+        doc.elements[3].anchor = Some("removed-target".to_string());
+        doc.elements[8].anchor = Some("retained-target".to_string());
+        doc.relationships.push(Relationship {
+            source: 0,
+            target: RelationshipTarget::Index(5),
+            kind: RelationshipKind::Caption,
+        });
+        doc.relationships.push(Relationship {
+            source: 3,
+            target: RelationshipTarget::Index(8),
+            kind: RelationshipKind::Caption,
+        });
+        doc.relationships.push(Relationship {
+            source: 0,
+            target: RelationshipTarget::Key("retained-target".to_string()),
+            kind: RelationshipKind::InternalLink,
+        });
+        doc.relationships.push(Relationship {
+            source: 0,
+            target: RelationshipTarget::Key("removed-target".to_string()),
+            kind: RelationshipKind::InternalLink,
+        });
+
+        let mut ocr_results = ahash::AHashMap::new();
+        ocr_results.insert(2, "DUPLICATE INLINE OCR\n\nOCR paragraph two".to_string());
+        merge_ocr_pages_into_internal_document(&mut doc, &ocr_results);
+
+        let kinds: Vec<ElementKind> = doc.elements.iter().map(|element| element.kind).collect();
+        assert_eq!(
+            kinds
+                .iter()
+                .filter(|kind| matches!(kind, ElementKind::PageBreak))
+                .count(),
+            2
+        );
+        assert!(!kinds.iter().any(|kind| matches!(kind, ElementKind::Table { .. })));
+        assert_eq!(
+            kinds
+                .iter()
+                .filter(|kind| matches!(kind, ElementKind::Image { .. }))
+                .count(),
+            1
+        );
+        assert!(
+            !doc.elements
+                .iter()
+                .any(|element| element.text.contains("stale page two"))
+        );
+        assert_eq!(
+            doc.elements
+                .iter()
+                .filter(|element| matches!(element.kind, ElementKind::OcrText { .. }))
+                .map(|element| element.text.as_str())
+                .collect::<Vec<_>>(),
+            vec!["DUPLICATE INLINE OCR", "OCR paragraph two"]
+        );
+        assert_eq!(doc.tables.len(), 1);
+        assert_eq!(doc.images.len(), 1);
+        assert!(
+            doc.images[0].ocr_result.is_some(),
+            "public nested OCR data must be preserved"
+        );
+        doc.append_ocr_text = true;
+        for rendered in [
+            crate::rendering::render_plain(&doc),
+            crate::rendering::render_markdown(&doc),
+            crate::rendering::render_djot(&doc),
+        ] {
+            assert_eq!(
+                rendered.matches("DUPLICATE INLINE OCR").count(),
+                1,
+                "whole-page OCR must suppress duplicate nested image OCR rendering: {rendered}"
+            );
+        }
+        let derived = crate::extraction::derive::derive_extraction_result(
+            doc.clone(),
+            true,
+            crate::core::config::OutputFormat::Plain,
+        );
+        let document = serde_json::to_string(derived.document.as_ref().expect("document structure must exist"))
+            .expect("document structure must serialize");
+        assert!(
+            !document.contains("xberg:internal"),
+            "internal renderer flags must not be public"
+        );
+        assert_eq!(doc.relationships.len(), 2);
+        let RelationshipTarget::Index(target) = doc.relationships[0].target else {
+            panic!("retained indexed relationship must stay resolved");
+        };
+        assert!(matches!(doc.elements[target as usize].kind, ElementKind::Image { .. }));
+        assert!(matches!(doc.relationships[1].target, RelationshipTarget::Key(ref key) if key == "retained-target"));
+        let ids: std::collections::HashSet<&str> = doc.elements.iter().map(|element| element.id.as_ref()).collect();
+        assert_eq!(ids.len(), doc.elements.len(), "rebuilt element IDs must be unique");
+    }
+
+    #[test]
+    fn test_structured_mixed_merge_inserts_missing_page_in_order() {
+        use crate::types::internal::{ElementKind, InternalDocument, InternalElement};
+
+        let mut doc = InternalDocument::new("pdf");
+        doc.push_element(InternalElement::text(ElementKind::Paragraph, "page one", 0).with_page(1));
+        doc.push_element(InternalElement::text(ElementKind::PageBreak, "", 0));
+        doc.push_element(InternalElement::text(ElementKind::Paragraph, "page three", 0).with_page(3));
+        let mut ocr_results = ahash::AHashMap::new();
+        ocr_results.insert(2, "new page two".to_string());
+
+        merge_ocr_pages_into_internal_document(&mut doc, &ocr_results);
+
+        let texts: Vec<&str> = doc
+            .elements
+            .iter()
+            .filter(|element| !element.text.is_empty())
+            .map(|element| element.text.as_str())
+            .collect();
+        assert_eq!(texts, vec!["page one", "new page two", "page three"]);
+        assert_eq!(
+            doc.elements
+                .iter()
+                .filter(|element| matches!(element.kind, ElementKind::PageBreak))
+                .count(),
+            2
+        );
+    }
+
+    #[test]
+    fn test_structured_merge_handles_first_last_consecutive_and_textless_pages() {
+        use crate::types::internal::{ElementKind, InternalDocument, InternalElement};
+
+        let mut doc = InternalDocument::new("pdf");
+        for page in 1..=4 {
+            doc.push_element(
+                InternalElement::text(ElementKind::Paragraph, format!("native {page}"), 0).with_page(page),
+            );
+        }
+        let replacements = ahash::AHashMap::from_iter([
+            (1, "same OCR".to_string()),
+            (2, "same OCR".to_string()),
+            (4, "last OCR".to_string()),
+            (5, "textless OCR".to_string()),
+        ]);
+
+        merge_ocr_pages_into_internal_document(&mut doc, &replacements);
+
+        let texts: Vec<&str> = doc
+            .elements
+            .iter()
+            .filter(|element| !element.text.is_empty())
+            .map(|element| element.text.as_str())
+            .collect();
+        assert_eq!(
+            texts,
+            vec!["same OCR", "same OCR", "native 3", "last OCR", "textless OCR"]
+        );
+        let ids: std::collections::HashSet<&str> = doc.elements.iter().map(|element| element.id.as_ref()).collect();
+        assert_eq!(
+            ids.len(),
+            doc.elements.len(),
+            "repeated OCR text still needs unique IDs"
+        );
+        assert_eq!(
+            doc.elements
+                .iter()
+                .filter(|element| matches!(element.kind, ElementKind::PageBreak))
+                .count(),
+            4
+        );
+    }
+
+    #[test]
+    fn test_container_analysis_keeps_only_balanced_same_page_markers() {
+        use crate::types::internal::{ElementKind, InternalElement};
+
+        let element = |kind, page| {
+            let mut element = InternalElement::text(kind, "", 0);
+            element.page = page;
+            element
+        };
+        let elements = vec![
+            element(ElementKind::ListStart { ordered: false }, None),
+            element(ElementKind::GroupStart, Some(1)),
+            element(ElementKind::Paragraph, Some(1)),
+            element(ElementKind::GroupEnd, None),
+            element(ElementKind::ListEnd, None),
+            element(ElementKind::QuoteStart, None),
+            element(ElementKind::Paragraph, Some(1)),
+            element(ElementKind::Paragraph, Some(2)),
+            element(ElementKind::QuoteEnd, None),
+            element(ElementKind::ListEnd, None),
+            element(ElementKind::GroupStart, None),
+            element(ElementKind::ListStart { ordered: true }, Some(1)),
+            element(ElementKind::QuoteStart, Some(1)),
+            element(ElementKind::ListEnd, None),
+            element(ElementKind::QuoteEnd, None),
+        ];
+
+        let analysis = analyze_container_markers(&elements);
+
+        for index in [0, 1, 3, 4] {
+            assert!(!analysis.drop_marker[index], "valid nested marker {index} must survive");
+            assert_eq!(analysis.inferred_pages[index], Some(1));
+        }
+        for index in [5, 8, 9, 10, 11, 13] {
+            assert!(analysis.drop_marker[index], "invalid marker {index} must be flattened");
+        }
+        assert!(
+            !analysis.drop_marker[12],
+            "independently balanced inner quote must survive"
+        );
+        assert!(
+            !analysis.drop_marker[14],
+            "independently balanced inner quote must survive"
+        );
     }
 
     /// Boundaries can go stale when the text they index is rebuilt (e.g.

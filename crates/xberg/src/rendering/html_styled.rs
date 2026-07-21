@@ -415,7 +415,15 @@ fn render_elements(doc: &InternalDocument, p: &str, buf: &mut String) {
 
             ElementKind::Image { image_index } => {
                 if let Some(image) = doc.images.get(image_index as usize) {
-                    render_image(image, &elem.text, p, doc.ocr_text_only, doc.append_ocr_text, buf);
+                    let render_ocr = elem.should_render_image_ocr();
+                    render_image(
+                        image,
+                        &elem.text,
+                        p,
+                        doc.ocr_text_only && render_ocr,
+                        doc.append_ocr_text && render_ocr,
+                        buf,
+                    );
                 }
             }
 
@@ -737,6 +745,25 @@ mod tests {
             !out.contains("OCR caption"),
             "unexpected OCR text when both flags false: {out}"
         );
+    }
+
+    #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+    #[test]
+    fn image_internal_suppression_preserves_figure_without_nested_ocr() {
+        let mut doc = make_image_doc(false, true);
+        doc.elements[0].suppress_image_ocr_rendering();
+
+        let out = render(
+            HtmlOutputConfig {
+                embed_css: false,
+                ..Default::default()
+            },
+            &doc,
+        );
+
+        assert!(out.contains("<figure"));
+        assert!(!out.contains("OCR caption"));
+        assert!(doc.images[0].ocr_result.is_some());
     }
 
     #[test]

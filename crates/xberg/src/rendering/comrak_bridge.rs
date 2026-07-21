@@ -510,35 +510,37 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
         let orig_idx = consolidated_elem.original_index();
         let view = consolidated_elem.resolve(&doc.elements);
 
-        let (elem_kind, elem_text, elem_annotations, elem_depth, _elem_anchor, elem_attributes) = match &view {
-            ElementView::Ref(elem) => {
-                if !is_body_element(elem) {
-                    continue;
-                }
-                if is_container_end(elem) {
-                    handle_container_end(&elem.kind, &mut state);
-                    match elem.kind {
-                        ElementKind::ListEnd => pop_container(&mut container_stack, ContainerKind::List),
-                        ElementKind::QuoteEnd => pop_container(&mut container_stack, ContainerKind::BlockQuote),
-                        ElementKind::GroupEnd => pop_container(&mut container_stack, ContainerKind::Group),
-                        _ => {}
+        let (elem_kind, elem_text, elem_annotations, elem_depth, _elem_anchor, elem_attributes, render_image_ocr) =
+            match &view {
+                ElementView::Ref(elem) => {
+                    if !is_body_element(elem) {
+                        continue;
                     }
-                    continue;
+                    if is_container_end(elem) {
+                        handle_container_end(&elem.kind, &mut state);
+                        match elem.kind {
+                            ElementKind::ListEnd => pop_container(&mut container_stack, ContainerKind::List),
+                            ElementKind::QuoteEnd => pop_container(&mut container_stack, ContainerKind::BlockQuote),
+                            ElementKind::GroupEnd => pop_container(&mut container_stack, ContainerKind::Group),
+                            _ => {}
+                        }
+                        continue;
+                    }
+                    state.pop_to_depth(elem.depth);
+                    (
+                        elem.kind,
+                        elem.text.as_str(),
+                        elem.annotations.as_slice(),
+                        elem.depth,
+                        elem.anchor.as_deref(),
+                        elem.attributes.as_ref(),
+                        elem.should_render_image_ocr(),
+                    )
                 }
-                state.pop_to_depth(elem.depth);
-                (
-                    elem.kind,
-                    elem.text.as_str(),
-                    elem.annotations.as_slice(),
-                    elem.depth,
-                    elem.anchor.as_deref(),
-                    elem.attributes.as_ref(),
-                )
-            }
-            ElementView::Merged { text, annotations, .. } => {
-                (ElementKind::Paragraph, *text, *annotations, 0u16, None, None)
-            }
-        };
+                ElementView::Merged { text, annotations, .. } => {
+                    (ElementKind::Paragraph, *text, *annotations, 0u16, None, None, true)
+                }
+            };
 
         let parent = current_parent(&root, &container_stack);
 
@@ -710,10 +712,10 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                     }
                 };
 
-                let has_ocr = image
-                    .and_then(|img| img.ocr_result.as_ref())
-                    .map(|r| !r.content.is_empty())
-                    .unwrap_or(false);
+                let has_ocr = render_image_ocr
+                    && image
+                        .and_then(|img| img.ocr_result.as_ref())
+                        .is_some_and(|result| !result.content.is_empty());
 
                 if doc.ocr_text_only && has_ocr {
                     let ocr_result = image.and_then(|img| img.ocr_result.as_ref()).unwrap();
@@ -733,7 +735,8 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                     para.append(img_node);
                     parent.append(para);
 
-                    if doc.append_ocr_text
+                    if render_image_ocr
+                        && doc.append_ocr_text
                         && let Some(ocr_result) = image.and_then(|img| img.ocr_result.as_ref())
                         && !ocr_result.content.is_empty()
                     {

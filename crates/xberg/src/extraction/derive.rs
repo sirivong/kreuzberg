@@ -139,10 +139,7 @@ fn derive_document_structure_inner(doc: &mut InternalDocument) -> DocumentStruct
                 page_end: None,
                 bbox: elem.bbox,
                 annotations,
-                attributes: elem
-                    .attributes
-                    .as_ref()
-                    .map(|a| a.iter().map(|(k, v)| (k.clone(), v.clone())).collect()),
+                attributes: elem.public_attributes(),
             };
             let heading_idx = ds.push_node(heading_node);
             ds.nodes[group_idx.0 as usize].children.push(heading_idx);
@@ -320,10 +317,7 @@ fn push_node_with_annotations(
         page_end: None,
         bbox: elem.bbox,
         annotations,
-        attributes: elem
-            .attributes
-            .as_ref()
-            .map(|a| a.iter().map(|(k, v)| (k.clone(), v.clone())).collect()),
+        attributes: elem.public_attributes(),
     };
 
     let node_idx = ds.push_node(node);

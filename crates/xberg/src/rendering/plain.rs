@@ -107,7 +107,8 @@ pub(crate) fn render_plain(doc: &InternalDocument) -> String {
                         out.push_str("]\n\n");
                     }
 
-                    if let Some(ocr_result) = &img.ocr_result
+                    if elem.should_render_image_ocr()
+                        && let Some(ocr_result) = &img.ocr_result
                         && !ocr_result.content.is_empty()
                     {
                         out.push_str(&ocr_result.content);

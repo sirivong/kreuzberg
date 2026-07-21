@@ -28,6 +28,77 @@ use extraction::extract_all_from_oxide_document;
 #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
 use ocr::extract_with_ocr;
 
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PdfDocumentOrigin {
+    Native,
+    Mixed,
+    Ocr,
+}
+
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+fn flat_pdf_document(text: &str, mime_type: &str) -> InternalDocument {
+    let mut doc = InternalDocument::new("pdf");
+    doc.mime_type = mime_type.to_string();
+    for paragraph in text.split("\n\n").map(str::trim).filter(|text| !text.is_empty()) {
+        doc.push_element(InternalElement::text(ElementKind::Paragraph, paragraph, 0));
+    }
+    doc
+}
+
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+fn select_pdf_document(
+    extraction_method: ExtractionMethod,
+    text: &str,
+    mime_type: &str,
+    pre_rendered_doc: Option<InternalDocument>,
+    ocr_internal_doc: Option<InternalDocument>,
+    ocr_results: Option<&ahash::AHashMap<u32, String>>,
+) -> (InternalDocument, PdfDocumentOrigin, bool) {
+    let (mut doc, origin, structured) = match extraction_method {
+        ExtractionMethod::Native => match pre_rendered_doc {
+            Some(doc) => (doc, PdfDocumentOrigin::Native, true),
+            None => (flat_pdf_document(text, mime_type), PdfDocumentOrigin::Native, false),
+        },
+        ExtractionMethod::Mixed => match pre_rendered_doc {
+            Some(mut doc) => {
+                if let Some(results) = ocr_results {
+                    ocr::merge_ocr_pages_into_internal_document(&mut doc, results);
+                }
+                (doc, PdfDocumentOrigin::Mixed, true)
+            }
+            None => (flat_pdf_document(text, mime_type), PdfDocumentOrigin::Mixed, false),
+        },
+        ExtractionMethod::Ocr => match ocr_internal_doc {
+            Some(doc) => (doc, PdfDocumentOrigin::Ocr, true),
+            None => (flat_pdf_document(text, mime_type), PdfDocumentOrigin::Ocr, false),
+        },
+    };
+    doc.mime_type = mime_type.to_string();
+    (doc, origin, structured)
+}
+
+fn inject_unrepresented_tables(doc: &mut InternalDocument, tables: Vec<crate::types::Table>, allow_injection: bool) {
+    if !allow_injection
+        || doc
+            .elements
+            .iter()
+            .any(|element| matches!(element.kind, ElementKind::Table { .. }))
+    {
+        return;
+    }
+    if doc.tables.is_empty() {
+        for table in tables {
+            let table_index = doc.push_table(table);
+            doc.push_element(InternalElement::text(ElementKind::Table { table_index }, "", 0));
+        }
+    } else {
+        for table_index in 0..doc.tables.len() as u32 {
+            doc.push_element(InternalElement::text(ElementKind::Table { table_index }, "", 0));
+        }
+    }
+}
+
 /// Pages to OCR under `OcrStrategy::ScannedPages`, 1-indexed.
 ///
 /// The union of detected scans and pages failing the text-quality gate, so never
@@ -677,9 +748,6 @@ impl PdfExtractor {
         let (text, extraction_method) = (native_text, ExtractionMethod::Native);
 
         #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
-        let ocr_document_owns_tables = ocr_internal_doc.as_ref().is_some_and(|doc| !doc.tables.is_empty());
-
-        #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
         // Full-document OCR is authoritative for tables when it produced
         // them. The structured OCR document already contains the same table
         // values, so later document assembly must not inject them a second
@@ -737,7 +805,7 @@ impl PdfExtractor {
                 }
             }
 
-            if let Some(results_map) = ocr_results_map
+            if let Some(results_map) = ocr_results_map.as_ref()
                 && let Some(ref mut pages) = page_contents
             {
                 for page in pages.iter_mut() {
@@ -773,26 +841,16 @@ impl PdfExtractor {
         let pre_formatted_output: Option<String> = None;
 
         let used_ocr = extraction_method.used_ocr();
-        let use_structured_doc = !used_ocr && pre_rendered_doc.is_some();
 
         #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
-        let mut doc = if let Some(mut ocr_doc) = ocr_internal_doc.take() {
-            ocr_doc.mime_type = mime_type.to_string();
-            ocr_doc
-        } else if let Some(mut pre_doc) = pre_rendered_doc {
-            pre_doc.mime_type = mime_type.to_string();
-            pre_doc
-        } else {
-            let mut d = InternalDocument::new("pdf");
-            d.mime_type = mime_type.to_string();
-            for paragraph in text.split("\n\n") {
-                let trimmed = paragraph.trim();
-                if !trimmed.is_empty() {
-                    d.push_element(InternalElement::text(ElementKind::Paragraph, trimmed, 0));
-                }
-            }
-            d
-        };
+        let (mut doc, document_origin, document_is_structured) = select_pdf_document(
+            extraction_method,
+            &text,
+            mime_type,
+            pre_rendered_doc,
+            ocr_internal_doc.take(),
+            ocr_results_map.as_ref(),
+        );
         #[cfg(not(any(feature = "ocr", feature = "ocr-pipeline")))]
         let mut doc = if let Some(mut pre_doc) = pre_rendered_doc {
             pre_doc.mime_type = mime_type.to_string();
@@ -808,6 +866,8 @@ impl PdfExtractor {
             }
             d
         };
+        #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+        tracing::debug!(?document_origin, document_is_structured, "selected PDF document origin");
 
         #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
         doc.processing_warnings.append(&mut ocr_fallback_warnings);
@@ -834,21 +894,20 @@ impl PdfExtractor {
         doc.form_fields = pdf_form_fields;
 
         #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
-        let inject_tables = !use_structured_doc && !ocr_document_owns_tables;
+        let allow_table_injection =
+            !document_is_structured || (document_origin == PdfDocumentOrigin::Ocr && doc.tables.is_empty());
         #[cfg(not(any(feature = "ocr", feature = "ocr-pipeline")))]
-        let inject_tables = !use_structured_doc;
-
-        if inject_tables {
-            for table in tables {
-                let table_index = doc.push_table(table);
-                doc.push_element(InternalElement::text(ElementKind::Table { table_index }, "", 0));
-            }
-        }
+        let allow_table_injection = true;
+        inject_unrepresented_tables(&mut doc, tables, allow_table_injection);
 
         if let Some(imgs) = images {
             // The OCR path has its own guarded injection block below (see the `#[cfg(feature = "ocr")]`
             let inject_placeholders = config.images.as_ref().is_some_and(|c| c.inject_placeholders);
-            if !use_structured_doc && inject_placeholders {
+            let document_has_image_elements = doc
+                .elements
+                .iter()
+                .any(|element| matches!(element.kind, ElementKind::Image { .. }));
+            if !document_has_image_elements && inject_placeholders {
                 for (idx, img) in imgs.iter().enumerate() {
                     let mut elem = InternalElement::text(
                         ElementKind::Image {
@@ -895,9 +954,18 @@ impl PdfExtractor {
             let images_enabled = config.images.as_ref().map(|c| c.extract_images).unwrap_or(false)
                 || config.pdf_options.as_ref().map(|p| p.extract_images).unwrap_or(false);
             if images_enabled && config.images.as_ref().map(|c| c.inject_placeholders).unwrap_or(false) {
+                let referenced_images: std::collections::HashSet<u32> = doc
+                    .elements
+                    .iter()
+                    .filter_map(|element| match element.kind {
+                        ElementKind::Image { image_index } => Some(image_index),
+                        _ => None,
+                    })
+                    .collect();
                 let elems: Vec<InternalElement> = doc
                     .images
                     .iter()
+                    .filter(|image| !referenced_images.contains(&image.image_index))
                     .map(|img| {
                         let elem = InternalElement::text(
                             ElementKind::Image {
@@ -1114,6 +1182,109 @@ mod tests {
 
         assert_eq!(tables.len(), 1);
         assert_eq!(tables[0].markdown, "native");
+    }
+
+    #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+    #[test]
+    fn full_ocr_flat_fallback_never_selects_stale_native_document() {
+        let mut native = InternalDocument::new("pdf");
+        native.push_element(InternalElement::text(ElementKind::Paragraph, "stale native content", 0));
+
+        let (doc, origin, structured) = select_pdf_document(
+            ExtractionMethod::Ocr,
+            "authoritative OCR content",
+            "application/pdf",
+            Some(native),
+            None,
+            None,
+        );
+
+        assert_eq!(origin, PdfDocumentOrigin::Ocr);
+        assert!(!structured);
+        assert!(
+            doc.elements
+                .iter()
+                .any(|element| element.text == "authoritative OCR content")
+        );
+        assert!(
+            !doc.elements
+                .iter()
+                .any(|element| element.text == "stale native content")
+        );
+    }
+
+    #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+    #[test]
+    fn mixed_origin_replaces_only_targeted_structured_page() {
+        let mut native = InternalDocument::new("pdf");
+        let table = crate::types::Table {
+            cells: vec![vec!["native table".to_string()]],
+            markdown: "| native table |".to_string(),
+            page_number: 2,
+            bounding_box: None,
+        };
+        native.tables.push(table.clone());
+        native.push_element(InternalElement::text(ElementKind::Paragraph, "native page one", 0).with_page(1));
+        native.push_element(InternalElement::text(ElementKind::PageBreak, "", 0));
+        native.push_element(InternalElement::text(ElementKind::Paragraph, "stale page two", 0).with_page(2));
+        native.push_element(InternalElement::text(ElementKind::Table { table_index: 0 }, "", 0).with_page(2));
+        let mut results = ahash::AHashMap::new();
+        results.insert(2, "OCR page two".to_string());
+
+        let (mut doc, origin, structured) = select_pdf_document(
+            ExtractionMethod::Mixed,
+            "flat text must not be selected",
+            "application/pdf",
+            Some(native),
+            None,
+            Some(&results),
+        );
+
+        assert_eq!(origin, PdfDocumentOrigin::Mixed);
+        assert!(structured);
+        assert!(doc.elements.iter().any(|element| element.text == "native page one"));
+        assert!(doc.elements.iter().any(|element| element.text == "OCR page two"));
+        assert!(!doc.elements.iter().any(|element| element.text == "stale page two"));
+        inject_unrepresented_tables(&mut doc, vec![table], false);
+        assert_eq!(doc.tables.len(), 1, "structured table data must remain available");
+        assert!(
+            !doc.elements
+                .iter()
+                .any(|element| matches!(element.kind, ElementKind::Table { .. })),
+            "target-page table markup must not be re-injected after OCR replacement"
+        );
+    }
+
+    #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+    #[test]
+    fn full_ocr_structured_without_ocr_tables_injects_native_fallback_once() {
+        let ocr_doc = InternalDocument::new("pdf");
+        let table = crate::types::Table {
+            cells: vec![vec!["native fallback".to_string()]],
+            markdown: "| native fallback |".to_string(),
+            page_number: 1,
+            bounding_box: None,
+        };
+        let (mut doc, origin, structured) = select_pdf_document(
+            ExtractionMethod::Ocr,
+            "OCR content",
+            "application/pdf",
+            None,
+            Some(ocr_doc),
+            None,
+        );
+        let allow_injection = !structured || (origin == PdfDocumentOrigin::Ocr && doc.tables.is_empty());
+
+        inject_unrepresented_tables(&mut doc, vec![table], allow_injection);
+
+        assert_eq!(doc.tables.len(), 1);
+        assert_eq!(
+            doc.elements
+                .iter()
+                .filter(|element| matches!(element.kind, ElementKind::Table { .. }))
+                .count(),
+            1
+        );
     }
 
     #[cfg(all(feature = "layout-detection", any(feature = "ocr", feature = "ocr-pipeline")))]
@@ -1609,15 +1780,20 @@ mod tests {
     #[cfg(all(feature = "pdf", feature = "ocr"))]
     #[serial]
     async fn test_pdf_exposes_mixed_extraction_method() {
-        use crate::core::config::OcrConfig;
+        use crate::core::config::{OcrConfig, PageConfig};
 
         let _backend = register_mock_ocr_backend("pdf-extraction-method-mixed", "mixed OCR page");
         let extractor = PdfExtractor::new();
         let config = ExtractionConfig {
             force_ocr_pages: Some(vec![1]),
+            output_format: crate::core::config::OutputFormat::Markdown,
             ocr: Some(OcrConfig {
                 backend: "pdf-extraction-method-mixed".to_string(),
                 language: vec!["eng".to_string()],
+                ..Default::default()
+            }),
+            pages: Some(PageConfig {
+                extract_pages: true,
                 ..Default::default()
             }),
             ..Default::default()
@@ -1632,10 +1808,25 @@ mod tests {
             let result = crate::extraction::derive::derive_extraction_result(
                 result,
                 true,
-                crate::core::config::OutputFormat::Plain,
+                crate::core::config::OutputFormat::Markdown,
             );
 
             assert_eq!(extraction_method(&result), Some(ExtractionMethod::Mixed));
+            assert!(result.content.contains("mixed OCR page"));
+            assert!(
+                result
+                    .formatted_content
+                    .as_deref()
+                    .is_some_and(|content| content.contains("mixed OCR page"))
+            );
+            assert!(result.pages.as_ref().is_some_and(|pages| {
+                pages
+                    .first()
+                    .is_some_and(|page| page.content.contains("mixed OCR page"))
+            }));
+            let document = serde_json::to_string(result.document.as_ref().expect("document structure must be derived"))
+                .expect("document structure must serialize");
+            assert!(document.contains("mixed OCR page"));
         }
     }
 
