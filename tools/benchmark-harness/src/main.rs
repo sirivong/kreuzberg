@@ -337,6 +337,11 @@ enum Commands {
         /// Auto-fix HTML tags in markdown ground truth files
         #[arg(long)]
         fix: bool,
+
+        /// Fail (non-zero exit) if any fixture cannot load its ground truth — e.g. the
+        /// reference-corpus cache was not restored. Used as a fast CI pre-check.
+        #[arg(long)]
+        strict: bool,
     },
 
     /// Compute field-level extraction quality (form-fields, formula, structured)
@@ -1008,12 +1013,13 @@ async fn main() -> Result<()> {
             Ok(())
         }
 
-        Commands::ValidateGt { fixtures, fix } => {
+        Commands::ValidateGt { fixtures, fix, strict } => {
             use benchmark_harness::validate_gt::{ValidateGtConfig, validate_ground_truth};
 
             let config = ValidateGtConfig {
                 fixtures_dir: fixtures,
                 fix,
+                strict,
             };
 
             let report = validate_ground_truth(&config)?;
@@ -1069,12 +1075,34 @@ async fn main() -> Result<()> {
                 println!("\nFixes applied: {}", report.fixes_applied);
             }
 
+            if !report.load_failures.is_empty() {
+                println!(
+                    "\nFixtures that failed to load ({} — e.g. missing/unreadable ground truth):",
+                    report.load_failures.len()
+                );
+                for (path, error) in report.load_failures.iter().take(10) {
+                    println!("  {path}: {error}");
+                }
+                if report.load_failures.len() > 10 {
+                    println!("  ... and {} more", report.load_failures.len() - 10);
+                }
+            }
+
             if report.html_issues.is_empty()
                 && report.small_gt_files.is_empty()
                 && report.noisy_gt_files.is_empty()
                 && report.low_diversity_gt.is_empty()
+                && report.load_failures.is_empty()
             {
                 println!("\nAll ground truth files are valid.");
+            }
+
+            if strict && !report.load_failures.is_empty() {
+                return Err(benchmark_harness::Error::Benchmark(format!(
+                    "{} fixture(s) failed to load their ground truth. If these are reference-corpus \
+                     documents, the .corpus-cache was not restored (run restore-corpus-cache.sh).",
+                    report.load_failures.len()
+                )));
             }
 
             Ok(())

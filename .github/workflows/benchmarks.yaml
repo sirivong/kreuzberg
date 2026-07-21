@@ -48,6 +48,7 @@ jobs:
     timeout-minutes: 360
     permissions:
       contents: read
+      id-token: write # WIF auth to GCS for the reference corpus cache
     outputs:
       artifact-name: benchmarks-target
     steps:
@@ -56,6 +57,7 @@ jobs:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
           submodules: recursive
+          lfs: true
       - name: Free disk space
         uses: xberg-io/actions/free-disk-space-linux@v1
 
@@ -91,8 +93,39 @@ jobs:
       - name: Build xberg-cli (release, all features)
         run: cargo build --locked --release -p xberg-cli --features all
 
+      - name: Pull test_documents LFS objects
+        run: git -C test_documents lfs pull
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_BENCHMARK_SA }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Restore reference corpus cache
+        env:
+          GCP_BENCHMARK_BUCKET: ${{ secrets.GCP_BENCHMARK_BUCKET }}
+        run: scripts/benchmarks/restore-corpus-cache.sh
+
+      # Strict pre-check: fails once here if any PDF fixture cannot load its ground truth (e.g. the
+      # reference cache was not restored) instead of aborting every per-document bench job later.
       - name: Validate ground truth
-        run: cargo run --locked --release -p benchmark-harness -- validate-gt --fixtures tools/benchmark-harness/fixtures/
+        run: cargo run --locked --release -p benchmark-harness -- validate-gt --fixtures tools/benchmark-harness/fixtures/pdf/ --strict
+
+      # Package into a non-hidden tar so downstream jobs get the reference corpus without each hitting
+      # GCS, and without depending on the artifact action's hidden-file handling.
+      - name: Package reference corpus cache
+        run: tar -C test_documents -cf corpus-cache.tar .corpus-cache/pdf .corpus-cache/ground_truth
+
+      - name: Upload reference corpus cache
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-corpus-cache
+          path: corpus-cache.tar
+          retention-days: 7
 
       - name: Log disk space before artifact upload
         run: scripts/ci/validate/show-disk-space.sh "Disk space before artifact upload"
@@ -137,6 +170,7 @@ jobs:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
           submodules: recursive
+          lfs: true
       - name: Free disk space
         uses: xberg-io/actions/free-disk-space-linux@v1
 
@@ -158,6 +192,18 @@ jobs:
 
       - name: Restore benchmark binary permissions
         run: scripts/benchmarks/restore-binary-permissions.sh
+
+      - name: Pull test_documents LFS objects
+        run: git -C test_documents lfs pull
+
+      - name: Download reference corpus cache
+        uses: actions/download-artifact@v8
+        with:
+          name: benchmark-corpus-cache
+          path: .
+
+      - name: Unpack reference corpus cache
+        run: tar -C test_documents -xf corpus-cache.tar
 
       - name: Setup ONNX Runtime
         uses: ./.github/actions/setup-onnx-runtime
@@ -205,6 +251,7 @@ jobs:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
           submodules: recursive
+          lfs: true
       - name: Free disk space
         uses: xberg-io/actions/free-disk-space-linux@v1
 
@@ -216,6 +263,18 @@ jobs:
 
       - name: Restore benchmark binary permissions
         run: scripts/benchmarks/restore-binary-permissions.sh
+
+      - name: Pull test_documents LFS objects
+        run: git -C test_documents lfs pull
+
+      - name: Download reference corpus cache
+        uses: actions/download-artifact@v8
+        with:
+          name: benchmark-corpus-cache
+          path: .
+
+      - name: Unpack reference corpus cache
+        run: tar -C test_documents -xf corpus-cache.tar
 
       - name: Install system dependencies (libheif + native libs for harness binary)
         uses: ./.github/actions/install-system-deps
@@ -278,6 +337,7 @@ jobs:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
           submodules: recursive
+          lfs: true
       - name: Free disk space
         uses: xberg-io/actions/free-disk-space-linux@v1
 
@@ -289,6 +349,18 @@ jobs:
 
       - name: Restore benchmark binary permissions
         run: scripts/benchmarks/restore-binary-permissions.sh
+
+      - name: Pull test_documents LFS objects
+        run: git -C test_documents lfs pull
+
+      - name: Download reference corpus cache
+        uses: actions/download-artifact@v8
+        with:
+          name: benchmark-corpus-cache
+          path: .
+
+      - name: Unpack reference corpus cache
+        run: tar -C test_documents -xf corpus-cache.tar
 
       - name: Install system dependencies (libheif + native libs for harness binary)
         uses: ./.github/actions/install-system-deps
@@ -345,6 +417,7 @@ jobs:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
           submodules: recursive
+          lfs: true
       - name: Free disk space
         uses: xberg-io/actions/free-disk-space-linux@v1
 
@@ -356,6 +429,18 @@ jobs:
 
       - name: Restore benchmark binary permissions
         run: scripts/benchmarks/restore-binary-permissions.sh
+
+      - name: Pull test_documents LFS objects
+        run: git -C test_documents lfs pull
+
+      - name: Download reference corpus cache
+        uses: actions/download-artifact@v8
+        with:
+          name: benchmark-corpus-cache
+          path: .
+
+      - name: Unpack reference corpus cache
+        run: tar -C test_documents -xf corpus-cache.tar
 
       - name: Install system dependencies (libheif + native libs for harness binary)
         uses: ./.github/actions/install-system-deps
@@ -418,6 +503,7 @@ jobs:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
           submodules: recursive
+          lfs: true
       - name: Free disk space
         uses: xberg-io/actions/free-disk-space-linux@v1
 
@@ -429,6 +515,18 @@ jobs:
 
       - name: Restore benchmark binary permissions
         run: scripts/benchmarks/restore-binary-permissions.sh
+
+      - name: Pull test_documents LFS objects
+        run: git -C test_documents lfs pull
+
+      - name: Download reference corpus cache
+        uses: actions/download-artifact@v8
+        with:
+          name: benchmark-corpus-cache
+          path: .
+
+      - name: Unpack reference corpus cache
+        run: tar -C test_documents -xf corpus-cache.tar
 
       - name: Install system dependencies (libheif + native libs for harness binary)
         uses: ./.github/actions/install-system-deps
@@ -491,6 +589,7 @@ jobs:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
           submodules: recursive
+          lfs: true
       - name: Free disk space
         uses: xberg-io/actions/free-disk-space-linux@v1
 
@@ -502,6 +601,18 @@ jobs:
 
       - name: Restore benchmark binary permissions
         run: scripts/benchmarks/restore-binary-permissions.sh
+
+      - name: Pull test_documents LFS objects
+        run: git -C test_documents lfs pull
+
+      - name: Download reference corpus cache
+        uses: actions/download-artifact@v8
+        with:
+          name: benchmark-corpus-cache
+          path: .
+
+      - name: Unpack reference corpus cache
+        run: tar -C test_documents -xf corpus-cache.tar
 
       - name: Install system dependencies (libheif + native libs for harness binary)
         uses: ./.github/actions/install-system-deps
@@ -567,6 +678,7 @@ jobs:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
           submodules: recursive
+          lfs: true
       - name: Free disk space
         uses: xberg-io/actions/free-disk-space-linux@v1
 
@@ -578,6 +690,18 @@ jobs:
 
       - name: Restore benchmark binary permissions
         run: scripts/benchmarks/restore-binary-permissions.sh
+
+      - name: Pull test_documents LFS objects
+        run: git -C test_documents lfs pull
+
+      - name: Download reference corpus cache
+        uses: actions/download-artifact@v8
+        with:
+          name: benchmark-corpus-cache
+          path: .
+
+      - name: Unpack reference corpus cache
+        run: tar -C test_documents -xf corpus-cache.tar
 
       - name: Install system dependencies (libheif + native libs for harness binary)
         uses: ./.github/actions/install-system-deps
@@ -637,6 +761,7 @@ jobs:
           ref: ${{ github.event.inputs.branch || github.ref }}
 
           submodules: recursive
+          lfs: true
       - name: Free disk space
         uses: xberg-io/actions/free-disk-space-linux@v1
 
@@ -648,6 +773,18 @@ jobs:
 
       - name: Restore benchmark binary permissions
         run: scripts/benchmarks/restore-binary-permissions.sh
+
+      - name: Pull test_documents LFS objects
+        run: git -C test_documents lfs pull
+
+      - name: Download reference corpus cache
+        uses: actions/download-artifact@v8
+        with:
+          name: benchmark-corpus-cache
+          path: .
+
+      - name: Unpack reference corpus cache
+        run: tar -C test_documents -xf corpus-cache.tar
 
       - name: Install system dependencies (libheif + native libs for harness binary)
         uses: ./.github/actions/install-system-deps
@@ -720,6 +857,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           submodules: recursive
+          lfs: true
 
       - name: Setup Rust
         uses: xberg-io/actions/setup-rust@v1

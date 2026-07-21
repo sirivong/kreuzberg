@@ -13,6 +13,10 @@ pub struct ValidateGtConfig {
     pub fixtures_dir: PathBuf,
     /// When true, auto-convert HTML tags to GFM markdown in-place.
     pub fix: bool,
+    /// When true, treat any fixture that fails to load (e.g. unreadable/missing ground truth) as a
+    /// hard failure. Used as a fast CI pre-check so a missing reference-corpus cache fails once here
+    /// instead of aborting every per-document benchmark job later.
+    pub strict: bool,
 }
 
 /// Summary report produced by [`validate_ground_truth`].
@@ -32,6 +36,9 @@ pub struct ValidateGtReport {
     pub noisy_gt_files: Vec<(String, usize)>,
     /// GT files with low block diversity (no headings for files > 100 bytes).
     pub low_diversity_gt: Vec<String>,
+    /// Fixtures that failed to load at all (unreadable/missing ground truth): (path, error). These
+    /// are the fixtures the `run` command would hard-fail on; `--strict` promotes them to an error.
+    pub load_failures: Vec<(String, String)>,
 }
 
 /// Common HTML tags that should not appear in GFM ground truth.
@@ -186,6 +193,7 @@ pub fn validate_ground_truth(config: &ValidateGtConfig) -> Result<ValidateGtRepo
         fixes_applied: 0,
         noisy_gt_files: Vec::new(),
         low_diversity_gt: Vec::new(),
+        load_failures: Vec::new(),
     };
 
     let fixture_files = collect_json_files(&config.fixtures_dir)?;
@@ -195,6 +203,9 @@ pub fn validate_ground_truth(config: &ValidateGtConfig) -> Result<ValidateGtRepo
             Ok(f) => f,
             Err(e) => {
                 eprintln!("Warning: failed to load fixture {}: {}", fixture_path.display(), e);
+                report
+                    .load_failures
+                    .push((fixture_path.display().to_string(), e.to_string()));
                 continue;
             }
         };
@@ -443,5 +454,52 @@ mod tests {
 
         let (result, _) = convert_html_to_gfm("<sub>text</sub>");
         assert_eq!(result, "text");
+    }
+
+    #[test]
+    fn test_records_load_failure_for_missing_ground_truth() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        // A fixture whose ground-truth text file does not exist — exactly the reference-cache-absent
+        // case. `Fixture::from_file` fails to load it, and validate_ground_truth must record that.
+        std::fs::write(
+            dir.path().join("broken.json"),
+            r#"{"document":"missing.pdf","file_type":"pdf","file_size":1,"ground_truth":{"text_file":"nope.txt","source":"readoc"}}"#,
+        )
+        .expect("write fixture");
+
+        let report = validate_ground_truth(&ValidateGtConfig {
+            fixtures_dir: dir.path().to_path_buf(),
+            fix: false,
+            strict: true,
+        })
+        .expect("validation should still produce a report");
+
+        assert_eq!(
+            report.load_failures.len(),
+            1,
+            "missing GT must be recorded as a load failure"
+        );
+        assert!(report.load_failures[0].0.contains("broken.json"));
+    }
+
+    #[test]
+    fn test_no_load_failure_when_ground_truth_present() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        std::fs::write(dir.path().join("gt.txt"), "some ground truth text").expect("write gt");
+        std::fs::write(
+            dir.path().join("ok.json"),
+            r#"{"document":"doc.pdf","file_type":"pdf","file_size":1,"ground_truth":{"text_file":"gt.txt","source":"readoc"}}"#,
+        )
+        .expect("write fixture");
+
+        let report = validate_ground_truth(&ValidateGtConfig {
+            fixtures_dir: dir.path().to_path_buf(),
+            fix: false,
+            strict: true,
+        })
+        .expect("validation");
+
+        assert!(report.load_failures.is_empty(), "present GT must not be a load failure");
+        assert_eq!(report.with_text_gt, 1);
     }
 }
