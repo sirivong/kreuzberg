@@ -3,6 +3,7 @@
 //! This module handles the core OCR execution logic, including image processing,
 //! text extraction, and result formatting.
 
+use super::api_pool::TesseractApiPool;
 use super::config::{apply_tesseract_variables, hash_config};
 use super::validation::{
     resolve_all_installed_languages, resolve_tessdata_path, strip_control_characters, validate_language_and_traineddata,
@@ -23,111 +24,9 @@ use crate::types::internal::{ElementKind, InternalDocument};
 use crate::types::{OcrExtractionResult, OcrTable, OcrTableBoundingBox};
 use std::collections::HashMap;
 use std::env;
-use std::sync::{LazyLock, Mutex};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use xberg_tesseract::{TessPageSegMode, TessPolyBlockType, TesseractAPI};
-
-const MAX_RETAINED_TESSERACT_APIS: usize = 8;
-
-#[derive(Clone, PartialEq, Eq)]
-struct ApiKey {
-    tessdata_path: String,
-    language: String,
-}
-
-struct IdlePool<K, V> {
-    state: Mutex<IdlePoolState<K, V>>,
-}
-
-struct IdlePoolState<K, V> {
-    capacity: usize,
-    entries: Vec<(K, V)>,
-}
-
-impl<K: PartialEq, V> IdlePool<K, V> {
-    fn new(capacity: usize) -> Self {
-        Self {
-            state: Mutex::new(IdlePoolState {
-                capacity,
-                entries: Vec::with_capacity(capacity),
-            }),
-        }
-    }
-
-    fn take(&self, key: &K) -> Option<V> {
-        let mut state = self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        let index = state.entries.iter().position(|(entry_key, _)| entry_key == key)?;
-        Some(state.entries.swap_remove(index).1)
-    }
-
-    fn put(&self, key: K, value: V) {
-        let mut state = self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        if state.capacity == 0 {
-            return;
-        }
-        if state.entries.len() == state.capacity {
-            state.entries.swap_remove(0);
-        }
-        state.entries.push((key, value));
-    }
-
-    #[cfg(test)]
-    fn set_capacity(&self, capacity: usize) {
-        let mut state = self.state.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
-        state.capacity = capacity;
-        while state.entries.len() > capacity {
-            state.entries.pop();
-        }
-    }
-
-    #[cfg(test)]
-    fn len(&self) -> usize {
-        self.state
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .entries
-            .len()
-    }
-}
-
-static TESSERACT_API_POOL: LazyLock<IdlePool<ApiKey, TesseractAPI>> =
-    LazyLock::new(|| IdlePool::new(MAX_RETAINED_TESSERACT_APIS));
-
-fn get_or_init_api(key: &ApiKey) -> Result<TesseractAPI, OcrError> {
-    if let Some(api) = TESSERACT_API_POOL.take(key) {
-        api.clear()
-            .map_err(|e| OcrError::ProcessingFailed(format!("Failed to clear cached Tesseract API: {}", e)))?;
-        return Ok(api);
-    }
-
-    let api = TesseractAPI::new()
-        .map_err(|e| OcrError::TesseractInitializationFailed(format!("Failed to allocate Tesseract engine: {}", e)))?;
-    api.init(&key.tessdata_path, &key.language).map_err(|e| {
-        OcrError::TesseractInitializationFailed(format!("Failed to initialize language '{}': {}", key.language, e))
-    })?;
-    Ok(api)
-}
-
-struct ApiGuard {
-    api: Option<TesseractAPI>,
-    key: ApiKey,
-}
-
-impl Drop for ApiGuard {
-    fn drop(&mut self) {
-        if let Some(api) = self.api.take() {
-            TESSERACT_API_POOL.put(self.key.clone(), api);
-        }
-    }
-}
-
-impl std::ops::Deref for ApiGuard {
-    type Target = TesseractAPI;
-
-    fn deref(&self) -> &Self::Target {
-        self.api.as_ref().expect("ApiGuard consumed prematurely")
-    }
-}
 
 /// Process-global document-orientation classifier (ONNX PP-LCNet), shared by
 /// every tesseract-backend auto-rotate call. Session initialization is lazy and
@@ -562,6 +461,7 @@ fn extract_elements_via_iterator(
 pub(super) fn perform_ocr(
     image_bytes: &[u8],
     config: &TesseractConfig,
+    api_pool: &Arc<TesseractApiPool>,
     extraction_config: Option<&ExtractionConfig>,
 ) -> Result<OcrExtractionResult, OcrError> {
     let ci_debug_enabled = env::var_os("XBERG_CI_DEBUG").is_some();
@@ -664,12 +564,7 @@ pub(super) fn perform_ocr(
 
     validate_language_and_traineddata(&config.language, &tessdata_path)?;
 
-    let key = ApiKey {
-        tessdata_path: tessdata_path.clone(),
-        language: config.language.clone(),
-    };
-    let api = get_or_init_api(&key)?;
-    let api = ApiGuard { api: Some(api), key };
+    let api = api_pool.checkout(&tessdata_path, &config.language)?;
 
     log_ci_debug(ci_debug_enabled, "init", || {
         format!("language={} datapath='{}'", config.language, tessdata_path)
@@ -1136,11 +1031,12 @@ pub(super) fn process_image_file_with_cache(
     file_path: &str,
     config: &TesseractConfig,
     cache: &OcrCache,
+    api_pool: &Arc<TesseractApiPool>,
     output_format: Option<crate::core::config::OutputFormat>,
 ) -> Result<OcrExtractionResult, OcrError> {
     let image_bytes = std::fs::read(file_path)
         .map_err(|e| OcrError::IOError(format!("Failed to read file '{}': {}", file_path, e)))?;
-    process_image_with_cache(&image_bytes, config, cache, output_format)
+    process_image_with_cache(&image_bytes, config, cache, api_pool, output_format)
 }
 
 /// Check if a language value is the "all" wildcard (case-insensitive).
@@ -1186,6 +1082,7 @@ pub(super) fn process_image_with_cache(
     image_bytes: &[u8],
     config: &TesseractConfig,
     cache: &OcrCache,
+    api_pool: &Arc<TesseractApiPool>,
     output_format: Option<crate::core::config::OutputFormat>,
 ) -> Result<OcrExtractionResult, OcrError> {
     config.validate().map_err(OcrError::InvalidConfiguration)?;
@@ -1193,7 +1090,7 @@ pub(super) fn process_image_with_cache(
     let resolved = resolve_config_language(config)?;
     let config = resolved.as_ref().unwrap_or(config);
 
-    process_image_resolved(image_bytes, config, cache, output_format)
+    process_image_resolved(image_bytes, config, cache, api_pool, output_format)
 }
 
 /// Inner implementation operating on an already-resolved config.
@@ -1205,6 +1102,7 @@ fn process_image_resolved(
     image_bytes: &[u8],
     config: &TesseractConfig,
     cache: &OcrCache,
+    api_pool: &Arc<TesseractApiPool>,
     output_format: Option<crate::core::config::OutputFormat>,
 ) -> Result<OcrExtractionResult, OcrError> {
     let image_hash = crate::cache::blake3_hash_bytes(image_bytes);
@@ -1227,7 +1125,7 @@ fn process_image_resolved(
         ..Default::default()
     });
 
-    let result = perform_ocr(image_bytes, config, extraction_config.as_ref())?;
+    let result = perform_ocr(image_bytes, config, api_pool, extraction_config.as_ref())?;
 
     if config.use_cache {
         let _ = cache.set_cached_result(&image_hash, "tesseract", &config_str, &result);
@@ -1248,6 +1146,7 @@ pub(super) fn process_image_files_batch(
     file_paths: Vec<String>,
     config: &TesseractConfig,
     cache: &OcrCache,
+    api_pool: &Arc<TesseractApiPool>,
 ) -> Vec<BatchItemResult> {
     #[cfg(not(target_arch = "wasm32"))]
     use rayon::prelude::*;
@@ -1298,7 +1197,7 @@ pub(super) fn process_image_files_batch(
                         };
                     }
                 };
-                match process_image_resolved(&image_bytes, config, cache, None) {
+                match process_image_resolved(&image_bytes, config, cache, api_pool, None) {
                     Ok(result) => BatchItemResult {
                         file_path: path.clone(),
                         success: true,
@@ -1333,7 +1232,7 @@ pub(super) fn process_image_files_batch(
                         };
                     }
                 };
-                match process_image_resolved(&image_bytes, config, cache, None) {
+                match process_image_resolved(&image_bytes, config, cache, api_pool, None) {
                     Ok(result) => BatchItemResult {
                         file_path: path.clone(),
                         success: true,
@@ -1356,34 +1255,6 @@ pub(super) fn process_image_files_batch(
 mod tests {
     use super::*;
     use tempfile::tempdir;
-
-    #[test]
-    fn idle_pool_reuses_only_matching_keys() {
-        let pool = IdlePool::new(2);
-        pool.put("eng", 1);
-        pool.put("deu", 2);
-
-        assert_eq!(pool.take(&"fra"), None);
-        assert_eq!(pool.take(&"eng"), Some(1));
-        assert_eq!(pool.take(&"deu"), Some(2));
-    }
-
-    #[test]
-    fn idle_pool_bounds_and_trims_retained_values() {
-        let pool = IdlePool::new(2);
-        pool.put("eng", 1);
-        pool.put("deu", 2);
-        pool.put("fra", 3);
-        assert_eq!(pool.len(), 2);
-        assert_eq!(pool.take(&"eng"), None, "oldest idle handle should be evicted");
-
-        pool.set_capacity(1);
-        assert_eq!(pool.len(), 1);
-        pool.set_capacity(0);
-        assert_eq!(pool.len(), 0);
-        pool.put("ita", 4);
-        assert_eq!(pool.len(), 0);
-    }
 
     #[test]
     fn test_is_all_languages() {
@@ -1449,7 +1320,8 @@ mod tests {
             ..TesseractConfig::default()
         };
 
-        let result = process_image_file_with_cache("/nonexistent/file.png", &config, &cache, None);
+        let api_pool = TesseractApiPool::new();
+        let result = process_image_file_with_cache("/nonexistent/file.png", &config, &cache, &api_pool, None);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("Failed to read file"));
     }
@@ -1466,7 +1338,8 @@ mod tests {
         };
 
         let invalid_data = vec![0, 1, 2, 3, 4];
-        let result = process_image_with_cache(&invalid_data, &config, &cache, None);
+        let api_pool = TesseractApiPool::new();
+        let result = process_image_with_cache(&invalid_data, &config, &cache, &api_pool, None);
 
         assert!(result.is_err());
     }

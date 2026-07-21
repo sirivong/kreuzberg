@@ -35,6 +35,8 @@ use crate::ocr::types::TesseractConfig as InternalTesseractConfig;
 pub struct TesseractBackend {
     processor: OnceCell<Arc<OcrProcessor>>,
     available_languages: OnceCell<Vec<String>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    concurrency: Arc<tokio::sync::Semaphore>,
 }
 
 impl TesseractBackend {
@@ -46,6 +48,8 @@ impl TesseractBackend {
         Self {
             processor: OnceCell::new(),
             available_languages: OnceCell::new(),
+            #[cfg(not(target_arch = "wasm32"))]
+            concurrency: Arc::new(tokio::sync::Semaphore::new(crate::ocr::processor::MAX_TESSERACT_APIS)),
         }
     }
 
@@ -183,9 +187,20 @@ impl OcrBackend for TesseractBackend {
         let output_format = config.output_format.clone();
 
         let processor = Arc::clone(self.processor()?);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let permit = Arc::clone(&self.concurrency)
+            .acquire_owned()
+            .await
+            .map_err(|error| crate::XbergError::Ocr {
+                message: format!("Tesseract concurrency limiter closed unexpectedly: {error}"),
+                source: None,
+            })?;
         let image_bytes = image_bytes.to_vec();
 
         let operation = move || {
+            #[cfg(not(target_arch = "wasm32"))]
+            let _permit = permit;
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match output_format {
                 Some(fmt) => processor.process_image_with_format(&image_bytes, &tess_config_clone, fmt),
                 None => processor.process_image(&image_bytes, &tess_config_clone),
@@ -281,7 +296,18 @@ impl OcrBackend for TesseractBackend {
         let processor = Arc::clone(self.processor()?);
         let path_str = path.to_string_lossy().to_string();
 
+        #[cfg(not(target_arch = "wasm32"))]
+        let permit = Arc::clone(&self.concurrency)
+            .acquire_owned()
+            .await
+            .map_err(|error| crate::XbergError::Ocr {
+                message: format!("Tesseract concurrency limiter closed unexpectedly: {error}"),
+                source: None,
+            })?;
+
         let operation = move || {
+            #[cfg(not(target_arch = "wasm32"))]
+            let _permit = permit;
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match output_format {
                 Some(fmt) => processor.process_image_file_with_format(&path_str, &tess_config_clone, fmt),
                 None => processor.process_image_file(&path_str, &tess_config_clone),
@@ -389,6 +415,74 @@ impl OcrBackend for TesseractBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[tokio::test]
+    async fn test_tesseract_backend_limits_concurrent_calls() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let backend = Arc::new(TesseractBackend::new());
+        let active = Arc::new(AtomicUsize::new(0));
+        let peak = Arc::new(AtomicUsize::new(0));
+        let mut tasks = Vec::new();
+        for _ in 0..12 {
+            let backend = Arc::clone(&backend);
+            let active = Arc::clone(&active);
+            let peak = Arc::clone(&peak);
+            tasks.push(tokio::spawn(async move {
+                let _permit = backend.concurrency.acquire().await.unwrap();
+                let current = active.fetch_add(1, Ordering::SeqCst) + 1;
+                peak.fetch_max(current, Ordering::SeqCst);
+                tokio::task::yield_now().await;
+                active.fetch_sub(1, Ordering::SeqCst);
+            }));
+        }
+        for task in tasks {
+            task.await.unwrap();
+        }
+        assert_eq!(peak.load(Ordering::SeqCst), crate::ocr::processor::MAX_TESSERACT_APIS);
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_tesseract_permit_outlives_cancelled_async_caller() {
+        let backend = Arc::new(TesseractBackend::new());
+        let reserved = Arc::clone(&backend.concurrency)
+            .acquire_many_owned((crate::ocr::processor::MAX_TESSERACT_APIS - 1) as u32)
+            .await
+            .unwrap();
+        let rendezvous = Arc::new(std::sync::Barrier::new(2));
+        let (done_tx, done_rx) = tokio::sync::oneshot::channel();
+        let task = tokio::spawn({
+            let semaphore = Arc::clone(&backend.concurrency);
+            let rendezvous = Arc::clone(&rendezvous);
+            async move {
+                let permit = semaphore.acquire_owned().await.unwrap();
+                tokio::task::spawn_blocking(move || {
+                    {
+                        let _permit = permit;
+                        rendezvous.wait();
+                        rendezvous.wait();
+                    }
+                    let _ = done_tx.send(());
+                })
+                .await
+                .unwrap();
+            }
+        });
+
+        rendezvous.wait();
+        task.abort();
+        assert!(Arc::clone(&backend.concurrency).try_acquire_owned().is_err());
+        rendezvous.wait();
+        done_rx.await.unwrap();
+        drop(reserved);
+
+        assert_eq!(
+            backend.concurrency.available_permits(),
+            crate::ocr::processor::MAX_TESSERACT_APIS
+        );
+    }
 
     #[test]
     fn test_tesseract_backend_creation() {
