@@ -14,16 +14,177 @@ use super::OxideDocument;
 use crate::pdf::error::Result;
 use crate::pdf::hierarchy::SegmentData;
 
+const COLUMN_BRIDGE_FRACTION: f32 = 0.6;
+const MIN_COLUMN_GUTTER_PTS: f32 = 8.0;
+const MIN_COLUMN_SIDE_SPANS: usize = 2;
+const MIN_TWO_COLUMN_CONTENT_WIDTH_PTS: f32 = 144.0;
+const MIN_PROSE_LINES_PER_SIDE: usize = 4;
+const MIN_PROSE_LINE_ALPHA_CHARS: usize = 8;
+const MIN_PROSE_LINE_WORDS: usize = 3;
+const MIN_PROSE_ALPHA_RATIO: f32 = 0.55;
+const MIN_SIDE_BALANCE_RATIO: f32 = 0.15;
+const MIN_VERTICAL_OVERLAP_RATIO: f32 = 0.35;
+const PROSE_LINE_Y_TOLERANCE_PTS: f32 = 4.0;
+
+#[derive(Debug)]
+struct SideSupport {
+    prose_line_ys: Vec<f32>,
+}
+
+fn is_usable_span(span: &pdf_oxide::layout::TextSpan) -> bool {
+    span.artifact_type.is_none()
+        && !span.text.trim().is_empty()
+        && span.bbox.x.is_finite()
+        && span.bbox.y.is_finite()
+        && span.bbox.width.is_finite()
+        && span.bbox.height.is_finite()
+        && span.bbox.width > 0.0
+        && span.bbox.height > 0.0
+}
+
+fn content_bounds(spans: &[&pdf_oxide::layout::TextSpan]) -> Option<(f32, f32)> {
+    let min = spans.iter().map(|span| span.bbox.x).fold(f32::INFINITY, f32::min);
+    let max = spans
+        .iter()
+        .map(|span| span.bbox.x + span.bbox.width)
+        .fold(f32::NEG_INFINITY, f32::max);
+    (min.is_finite() && max.is_finite() && max > min).then_some((min, max))
+}
+
+fn detect_gutter_x(spans: &[&pdf_oxide::layout::TextSpan]) -> Option<f32> {
+    if spans.len() < MIN_COLUMN_SIDE_SPANS * 2 {
+        return None;
+    }
+    let (content_min, content_max) = content_bounds(spans)?;
+    let content_width = content_max - content_min;
+    if content_width < MIN_TWO_COLUMN_CONTENT_WIDTH_PTS {
+        return None;
+    }
+
+    let bridge_width = content_width * COLUMN_BRIDGE_FRACTION;
+    let mut extents: Vec<(f32, f32)> = spans
+        .iter()
+        .filter(|span| span.bbox.width <= bridge_width)
+        .map(|span| (span.bbox.x, span.bbox.x + span.bbox.width))
+        .collect();
+    if extents.len() < MIN_COLUMN_SIDE_SPANS * 2 {
+        return None;
+    }
+    extents.sort_by(|left, right| left.0.total_cmp(&right.0));
+
+    let mut cover_right = extents[0].1;
+    let mut best_gap = 0.0_f32;
+    let mut best_mid = 0.0_f32;
+    let mut left_count = 0usize;
+    for (index, extent) in extents.iter().enumerate().skip(1) {
+        let gap = extent.0 - cover_right;
+        if gap > best_gap {
+            best_gap = gap;
+            best_mid = (cover_right + extent.0) * 0.5;
+            left_count = index;
+        }
+        cover_right = cover_right.max(extent.1);
+    }
+
+    let right_count = extents.len() - left_count;
+    let relative_mid = (best_mid - content_min) / content_width;
+    (best_gap >= MIN_COLUMN_GUTTER_PTS
+        && (0.3..=0.7).contains(&relative_mid)
+        && left_count >= MIN_COLUMN_SIDE_SPANS
+        && right_count >= MIN_COLUMN_SIDE_SPANS)
+        .then_some(best_mid)
+}
+
+fn prose_like(text: &str, monospace_spans: usize, span_count: usize) -> bool {
+    if monospace_spans * 2 >= span_count.max(1) {
+        return false;
+    }
+    let alpha_chars = text.chars().filter(|ch| ch.is_alphabetic()).count();
+    let alphanumeric_chars = text.chars().filter(|ch| ch.is_alphanumeric()).count();
+    let words = text
+        .split_whitespace()
+        .filter(|word| word.chars().any(char::is_alphabetic))
+        .count();
+    alpha_chars >= MIN_PROSE_LINE_ALPHA_CHARS
+        && words >= MIN_PROSE_LINE_WORDS
+        && alpha_chars as f32 / alphanumeric_chars.max(1) as f32 >= MIN_PROSE_ALPHA_RATIO
+}
+
+fn side_support(spans: Vec<&pdf_oxide::layout::TextSpan>) -> SideSupport {
+    let mut prose_line_ys: Vec<_> = spans
+        .into_iter()
+        .filter(|span| prose_like(&span.text, usize::from(span.is_monospace), 1))
+        .map(|span| span.bbox.y)
+        .collect();
+    prose_line_ys.sort_by(f32::total_cmp);
+    prose_line_ys.dedup_by(|left, right| (*left - *right).abs() <= PROSE_LINE_Y_TOLERANCE_PTS);
+    SideSupport { prose_line_ys }
+}
+
+fn has_balanced_vertical_support(left: &SideSupport, right: &SideSupport) -> bool {
+    let left_count = left.prose_line_ys.len();
+    let right_count = right.prose_line_ys.len();
+    if left_count < MIN_PROSE_LINES_PER_SIDE || right_count < MIN_PROSE_LINES_PER_SIDE {
+        return false;
+    }
+    let balance = left_count.min(right_count) as f32 / left_count.max(right_count) as f32;
+    let extent = |ys: &[f32]| {
+        let low = ys.iter().copied().fold(f32::INFINITY, f32::min);
+        let high = ys.iter().copied().fold(f32::NEG_INFINITY, f32::max);
+        (low, high)
+    };
+    let (left_low, left_high) = extent(&left.prose_line_ys);
+    let (right_low, right_high) = extent(&right.prose_line_ys);
+    let overlap = (left_high.min(right_high) - left_low.max(right_low)).max(0.0);
+    let shorter_extent = (left_high - left_low).min(right_high - right_low);
+    balance >= MIN_SIDE_BALANCE_RATIO && shorter_extent > 0.0 && overlap / shorter_extent >= MIN_VERTICAL_OVERLAP_RATIO
+}
+
+fn select_reading_order(
+    spans: &[pdf_oxide::layout::TextSpan],
+    page_width: f32,
+    page_height: f32,
+) -> pdf_oxide::document::ReadingOrder {
+    use pdf_oxide::document::ReadingOrder;
+
+    if !page_width.is_finite() || page_width <= 0.0 || !page_height.is_finite() || page_height <= 0.0 {
+        return ReadingOrder::TopToBottom;
+    }
+    let usable: Vec<_> = spans.iter().filter(|span| is_usable_span(span)).collect();
+    let Some((content_min, content_max)) = content_bounds(&usable) else {
+        return ReadingOrder::TopToBottom;
+    };
+    let content_width = content_max - content_min;
+    if content_width < MIN_TWO_COLUMN_CONTENT_WIDTH_PTS {
+        return ReadingOrder::TopToBottom;
+    }
+    let body: Vec<_> = usable
+        .into_iter()
+        .filter(|span| span.bbox.width <= content_width * COLUMN_BRIDGE_FRACTION)
+        .collect();
+    let gutter_x = detect_gutter_x(&body).unwrap_or((content_min + content_max) * 0.5);
+    let left = side_support(
+        body.iter()
+            .copied()
+            .filter(|span| span.bbox.x + span.bbox.width <= gutter_x)
+            .collect(),
+    );
+    let right = side_support(body.iter().copied().filter(|span| span.bbox.x >= gutter_x).collect());
+    if has_balanced_vertical_support(&left, &right) {
+        ReadingOrder::ColumnAware
+    } else {
+        ReadingOrder::TopToBottom
+    }
+}
+
 /// Extract text segments with font metrics from a PDF page using pdf_oxide.
 ///
 /// Returns `SegmentData` objects containing text, position, and font metadata
 /// (size, bold, italic, monospace). These feed into the existing backend-agnostic
 /// font size clustering pipeline for heading detection.
 ///
-/// Uses default (top-to-bottom) reading order rather than column-aware ordering,
-/// because the hierarchy/structure pipeline depends on physical span position for
-/// font-size clustering and heading detection. Column-aware reordering changes
-/// span sequence in ways that break single-column heading detection.
+/// Starts with top-to-bottom reading order and switches to column-aware ordering
+/// only when the page has conservative geometric evidence of two prose columns.
 ///
 /// # Arguments
 ///
@@ -46,9 +207,9 @@ fn extract_segments_from_page_inner(
     page_index: usize,
     mcid_roles: &HashMap<u32, Option<u8>>,
 ) -> Result<Vec<SegmentData>> {
-    let page_text_data = match doc
+    let mut page_text_data = match doc
         .doc
-        .extract_page_text_with_options(page_index, pdf_oxide::document::ReadingOrder::ColumnAware)
+        .extract_page_text_with_options(page_index, pdf_oxide::document::ReadingOrder::TopToBottom)
     {
         Ok(data) => data,
         Err(e) => {
@@ -59,6 +220,23 @@ fn extract_segments_from_page_inner(
             return Ok(Vec::new());
         }
     };
+    let reading_order = select_reading_order(
+        &page_text_data.spans,
+        page_text_data.page_width,
+        page_text_data.page_height,
+    );
+    if reading_order == pdf_oxide::document::ReadingOrder::ColumnAware {
+        use pdf_oxide::pipeline::{ReadingOrderContext, ReadingOrderStrategy, XYCutStrategy};
+
+        let context = ReadingOrderContext::new().with_page(page_index as u32);
+        match XYCutStrategy::new().apply(page_text_data.spans.clone(), &context) {
+            Ok(ordered) => page_text_data.spans = ordered.into_iter().map(|item| item.span).collect(),
+            Err(error) => tracing::debug!(
+                page = page_index,
+                "pdf_oxide column-aware hierarchy ordering failed; retaining top-to-bottom order: {error}"
+            ),
+        }
+    }
     let spans = page_text_data.spans;
 
     let segments: Vec<SegmentData> = spans
@@ -261,20 +439,180 @@ pub(crate) fn extract_all_segments(doc: &mut OxideDocument) -> Result<(Vec<Vec<S
 
 #[cfg(test)]
 mod tests {
+    use pdf_oxide::document::ReadingOrder;
+    use pdf_oxide::geometry::Rect;
+    use pdf_oxide::layout::TextSpan;
+
     use super::SegmentData;
 
-    /// Regression test for issue #1098: two-column PDF headings missing from elements.
-    ///
-    /// When a PDF has a two-column layout with a heading in column 2, the heading
-    /// must appear in both the markdown output AND the elements array. Previously,
-    /// the heading was being extracted with column-aware reading order for markdown
-    /// but with physical (non-column-aware) order for elements, causing column-2
-    /// headings to be dropped from the elements pipeline.
-    ///
-    /// This test verifies that segment extraction uses column-aware reading order,
-    /// consistent with the markdown extraction path.
+    fn text_span(text: &str, x: f32, y: f32, width: f32) -> TextSpan {
+        TextSpan {
+            text: text.to_string(),
+            bbox: Rect::new(x, y, width, 11.0),
+            ..TextSpan::default()
+        }
+    }
+
+    fn prose_columns() -> Vec<TextSpan> {
+        let mut spans = Vec::new();
+        for (index, text) in [
+            "Left column has substantive prose",
+            "Readers continue through this passage",
+            "The final sentence completes support",
+            "A fourth line strengthens the evidence",
+            "The fifth line confirms a real column",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            spans.push(text_span(text, 50.0, 700.0 - index as f32 * 18.0, 220.0));
+        }
+        for (index, text) in [
+            "Right column also contains prose",
+            "Its paragraph has balanced evidence",
+            "Another sentence closes the column",
+            "A fourth line continues on this side",
+            "The fifth line completes the passage",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            spans.push(text_span(text, 340.0, 700.0 - index as f32 * 18.0, 220.0));
+        }
+        spans
+    }
+
     #[test]
-    fn test_hierarchy_uses_column_aware_reading_order() {}
+    fn single_column_code_gutter_uses_top_to_bottom() {
+        let mut spans = Vec::new();
+        for index in 0..6 {
+            spans.push(text_span(
+                &(index + 1).to_string(),
+                50.0,
+                700.0 - index as f32 * 14.0,
+                12.0,
+            ));
+            let mut code = text_span(
+                "fn parse_value(input: &str) {",
+                90.0,
+                700.0 - index as f32 * 14.0,
+                240.0,
+            );
+            code.is_monospace = true;
+            spans.push(code);
+        }
+        assert_eq!(
+            super::select_reading_order(&spans, 612.0, 792.0),
+            ReadingOrder::TopToBottom
+        );
+    }
+
+    #[test]
+    fn hanging_indent_uses_top_to_bottom() {
+        let mut spans = vec![text_span("Note", 50.0, 700.0, 70.0)];
+        for (index, text) in [
+            "Indented prose continues across this line",
+            "More text belongs to the same paragraph",
+            "The hanging block remains one column",
+            "Its last sentence provides enough length",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            spans.push(text_span(text, 320.0, 700.0 - index as f32 * 18.0, 230.0));
+        }
+        assert_eq!(
+            super::select_reading_order(&spans, 612.0, 792.0),
+            ReadingOrder::TopToBottom
+        );
+    }
+
+    #[test]
+    fn balanced_two_column_prose_uses_column_aware() {
+        assert_eq!(
+            super::select_reading_order(&prose_columns(), 612.0, 792.0),
+            ReadingOrder::ColumnAware
+        );
+    }
+
+    #[test]
+    fn full_width_heading_does_not_hide_prose_columns() {
+        let mut spans = prose_columns();
+        let mut heading = text_span("A Full Width Heading", 50.0, 750.0, 510.0);
+        heading.heading_level = Some(1);
+        spans.push(heading);
+        assert_eq!(
+            super::select_reading_order(&spans, 612.0, 792.0),
+            ReadingOrder::ColumnAware
+        );
+    }
+
+    #[test]
+    fn table_grid_is_not_prose_column_evidence() {
+        let mut spans = Vec::new();
+        for row in 0..4 {
+            let y = 700.0 - row as f32 * 18.0;
+            spans.push(text_span("Regional revenue", 50.0, y, 90.0));
+            spans.push(text_span("annual total", 160.0, y, 80.0));
+            spans.push(text_span("Operating expense", 340.0, y, 90.0));
+            spans.push(text_span("annual total", 450.0, y, 80.0));
+        }
+        assert_eq!(
+            super::select_reading_order(&spans, 612.0, 792.0),
+            ReadingOrder::TopToBottom
+        );
+    }
+
+    #[test]
+    fn nonfinite_and_degenerate_geometry_is_deterministically_top_to_bottom() {
+        let mut spans = prose_columns();
+        spans[0].bbox.x = f32::NAN;
+        assert_eq!(
+            super::select_reading_order(&spans, f32::NAN, 792.0),
+            ReadingOrder::TopToBottom
+        );
+        assert_eq!(
+            super::select_reading_order(&spans, 612.0, 0.0),
+            ReadingOrder::TopToBottom
+        );
+    }
+
+    #[test]
+    fn academic_columns_with_crossing_regions_use_column_aware() {
+        const FIXTURE_LEFT_SUPPORTED_LINES: usize = 7;
+        const FIXTURE_RIGHT_SUPPORTED_LINES: usize = 26;
+        const FIXTURE_CROSSING_SPANS: usize = 37;
+
+        let mut spans = Vec::new();
+        for index in 0..FIXTURE_LEFT_SUPPORTED_LINES {
+            spans.push(text_span(
+                "Left academic prose remains substantive",
+                50.0,
+                680.0 - index as f32 * 16.0,
+                220.0,
+            ));
+        }
+        for index in 0..FIXTURE_RIGHT_SUPPORTED_LINES {
+            spans.push(text_span(
+                "Right academic prose continues beside figures",
+                340.0,
+                700.0 - index as f32 * 16.0,
+                220.0,
+            ));
+        }
+        for index in 0..FIXTURE_CROSSING_SPANS {
+            spans.push(text_span(
+                "Cross-column title author or figure content",
+                50.0,
+                760.0 - index as f32 * 8.0,
+                510.0,
+            ));
+        }
+        assert_eq!(
+            super::select_reading_order(&spans, 612.0, 792.0),
+            ReadingOrder::ColumnAware
+        );
+    }
 
     fn seg(text: &str, x: f32, y: f32, font_size: f32, is_bold: bool) -> SegmentData {
         SegmentData {
