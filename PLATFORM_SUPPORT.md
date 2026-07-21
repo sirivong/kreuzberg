@@ -49,10 +49,23 @@ Legend: ✅ prebuilt shipped · ❌ not shipped · — not applicable
    (`include-macos-x86_64: false`) and iOS-simulator-x86_64 are excluded; there is no Linux or Windows
    SwiftPM artifact.
 6. **Kotlin/Android** ships the two Android ABIs — `arm64-v8a` (devices) and `x86_64` (emulator).
-   The x86_64-emulator native uses the ORT-free `android-target` feature set (no PaddleOCR/layout/
-   embeddings/auto-rotate); arm64 devices get the full ORT-enabled build.
+   The x86_64-emulator native uses the ORT-free `android-target` feature set (no PaddleOCR or
+   embeddings); RT-DETR layout detection, the wired/wireless table classifier, and
+   document-orientation detection now run on the x86_64 emulator too, through the pure-Rust `tract`
+   engine (see note 8) instead of ORT. arm64 devices get the full ORT-enabled build.
 7. **WASM** is a single `wasm32` artifact, portable across any WASM runtime (browser + Node). It uses
-   the `wasm-target` feature set (`ocr-wasm`, `excel-wasm`, `tree-sitter-wasm`; no native ORT).
+   the `wasm-target` feature set (`ocr-wasm`, `excel-wasm`, `layout-tract`, `auto-rotate-tract`; no
+   native ORT, no tree-sitter). Layout detection and document-orientation run through the pure-Rust
+   `tract` engine (see note 8).
+8. **Pure-Rust `tract` engine.** Where a target cannot link native ONNX Runtime, xberg's inference seam
+   can compile select ONNX models against the pure-Rust `tract` engine (`tract-onnx`, no native library,
+   CPU-only) instead. Document-orientation detection (`auto-rotate-tract`) and RT-DETR layout detection
+   (plus the wired/wireless table classifier, with the `pdf` feature) run this way, matching ONNX Runtime
+   within 5e-3 on their outputs. Both are enabled for `android-target` (so the x86_64 Android emulator
+   detects page orientation and layout for the first time) and for `wasm-target`: the WASM build exposes
+   `detectLayout` / `detectOrientation`, which take the `.onnx` weights as streamed bytes (the JS host
+   fetches them and hands them to the seam). PaddleOCR, TATR, SLANeXT, and PP-DocLayout-V3 remain ONNX
+   Runtime-only.
 
 ## Cross-cutting gaps
 

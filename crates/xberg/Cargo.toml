@@ -209,6 +209,53 @@ layout-detection = [
     "tokio-runtime",
     "ort-bundled",
 ]
+# layout-tract: no-ORT sibling of `layout-detection` (issue #1275, Phase 5). Runs RT-DETR
+# layout detection and the PP-LCNet table (wired/wireless) classifier through the pure-Rust
+# `tract` engine instead of ONNX Runtime, so it builds on no-ORT targets (Android x86_64
+# emulator). Table STRUCTURE recognition (TATR, SLANeXT) and PP-DocLayout-V3 stay ORT-only —
+# TATR/SLANeXT were never ported to the `crate::inference` seam, and PP-DocLayout-V3 hits a
+# tract 0.23.4 `LayerNormalization` op-translation bug (see docs-site/src/content/docs/concepts/tract-inference.md);
+# `LayoutEngine::from_config` returns a clear `LayoutError` for those instead of panicking.
+# Deliberately omits `dep:ort`/`ort-bundled`. `layout-detection` (ORT) stays the native
+# default — never enable both in one build.
+layout-tract = [
+    "layout-types",
+    "tract",
+    "dep:fs2",
+    "dep:ndarray",
+    "dep:hf-hub",
+    "dep:reqwest",
+    "dep:sha2",
+    "dep:image",
+    "tokio-runtime",
+]
+# auto-rotate-tract: no-ORT sibling of `auto-rotate` (issue #1275). Same PP-LCNet
+# document-orientation capability, run through the pure-Rust `tract` engine instead
+# of ONNX Runtime, so it builds on no-ORT targets (Android x86_64; WASM once
+# embedded-weight loading lands). Weights are fetched via hf-hub on host/Android;
+# it deliberately omits `dep:ort`/`ort-bundled`. `auto-rotate` (ORT) stays the
+# native default — never enable both in one build.
+auto-rotate-tract = [
+    "auto-rotate-types",
+    "tract",
+    "dep:ndarray",
+    "dep:hf-hub",
+    "dep:reqwest",
+    "dep:sha2",
+    "dep:fs2",
+    "dep:image",
+    "dep:ureq",
+    # model_download's resilient hf-hub client (Ipv4FirstResolver) uses
+    # tokio::spawn_blocking on non-wasm targets; layout-detection pulls this for
+    # the same reason. Gated out on wasm32, where the embedded-weight path lands.
+    "tokio-runtime",
+]
+# tract: pure-Rust ONNX inference engine for the `crate::inference` seam. Additive
+# on native (both engines compile together for cross-engine parity tests); the sole
+# engine on no-ORT targets (WASM, Android x86_64) once their model consumers are
+# wired in a later phase. Native default stays ONNX Runtime — `default_backend()`
+# picks tract only when `ort` is absent (see build.rs `inference_ort`).
+tract = ["dep:tract-onnx", "dep:ndarray"]
 language-detection = ["dep:whatlang"]
 # layout-types: pure-Rust layout struct definitions — no ORT dependency.
 # Included by layout-detection; also usable standalone on WASM/Android targets.
@@ -430,7 +477,20 @@ no-ort-target = [
     "svg",
     "transcription-types",
 ]
-# wasm-target: no-ort-target plus WASM-specific overrides (excel-wasm, tree-sitter-wasm, ocr-wasm).
+# wasm-target: no-ort-target plus WASM-specific overrides (excel-wasm, tree-sitter-wasm, ocr-wasm),
+# plus the pure-Rust `layout-tract` (RT-DETR + table classifier) and `auto-rotate-tract`
+# (PP-LCNet document orientation) capabilities (issue #1275, Workstream A). Both run through
+# the tract engine, so no `dep:ort` is pulled in. Unlike the native/Android variants of these
+# features, WASM never resolves weights via `hf-hub`/`reqwest` (both native-only, wasm-incompatible
+# deps) — the JS host fetches the `.onnx` files itself (RT-DETR alone is ~170MB, far over
+# jsDelivr's 50MB/file cap for anything embedded in the `.wasm`) and hands over the already-resolved
+# bytes through `crates/xberg-wasm`'s injection API, which flows to
+# `LayoutEngine::from_rtdetr_bytes` / `TableClassifier::from_bytes` / `DocOrientationDetector::from_bytes`.
+# The HF-download code paths in `model_download.rs`, `layout::model_manager`, and
+# `doc_orientation::detector::{with_acceleration, resolve_cache_dir}` are `not(target_arch =
+# "wasm32")`-gated so they simply do not compile on this target; only the engine-neutral,
+# bytes-based constructors do. Table STRUCTURE recognition (TATR, SLANeXT) and PP-DocLayout-V3
+# stay ORT-only and are therefore unavailable here too (see the `layout-tract` feature doc above).
 # NOTE: tree-sitter-wasm compiles 100+ embedded C parsers (via tree-sitter-language-pack)
 # for wasm32-unknown-unknown. Clang uses ~13-14 GB peak RSS during compilation, causing OOM
 # on standard GitHub Actions runners (~16 GB). Publish job caps parallelism to 2 (-j 2) to
@@ -442,16 +502,21 @@ no-ort-target = [
 # past ~100 MB, over jsDelivr's 50 MB per-file limit, which broke the live demo
 # (the CDN 403s the oversized .wasm). Code intelligence is therefore unavailable
 # in the WASM build; native targets keep `tree-sitter`. See docs (WASM limitations).
-wasm-target = ["no-ort-target", "excel-wasm", "ocr-wasm"]
+wasm-target = ["no-ort-target", "excel-wasm", "ocr-wasm", "layout-tract", "auto-rotate-tract"]
 # android-target: no-ort-target plus native-Linux variants that work on Android ABI
 # (excel with tokio, native tree-sitter, Tesseract OCR, and API/MCP transport).
-# Excludes ORT-dependent features (paddle-ocr, layout-detection, embeddings, reranker,
-# auto-rotate, transcription).
+# Excludes ORT-dependent ML (paddle-ocr, embeddings, reranker, transcription); document
+# orientation is provided by the pure-Rust `auto-rotate-tract` (tract) variant instead
+# of the ORT-backed `auto-rotate`, and layout detection (RT-DETR + table classifier
+# only — table structure recognition stays ORT-only, see `layout-tract`) by the
+# pure-Rust `layout-tract` variant instead of the ORT-backed `layout-detection`.
 android-target = [
     "no-ort-target",
     "excel",
     "tree-sitter",
     "ocr",
+    "auto-rotate-tract",
+    "layout-tract",
     "api",
     "mcp",
     "liter-llm",
@@ -479,10 +544,14 @@ android-target = [
 # binding crate. Native libheif/libheif-sys is not installed on the standard
 # GitHub `windows-latest` runner image (no libheif.pc on the pkg-config path,
 # no vcpkg integration wired into our publish workflow), so this aggregate
-# drops `heic` along with the ORT-dependent features that Windows already
-# excluded in the FFI Cargo.toml. Mirrors the explicit Windows list that the
-# xberg-ffi crate uses; binding crates reach it via per-crate
-# `[[crates.<x>.target_dep_overrides]]` blocks in `alef.toml`.
+# drops `heic`. Windows links the full ONNX Runtime ML surface: pyke ships a
+# win-x64 ORT prebuilt, so every ORT-dependent feature below resolves via
+# `ort-bundled` (downloaded at build time — no system ORT required), matching
+# the ML surface every other native (non-WASM/Android) target carries. `heic`
+# is the only capability still excluded, for the libheif runner reason above.
+# Mirrors the explicit Windows list that the xberg-ffi crate uses; binding
+# crates reach it via per-crate `[[crates.<x>.target_dep_overrides]]` blocks
+# in `alef.toml`.
 windows-target = [
     "pdf",
     "ocr",
@@ -496,11 +565,20 @@ windows-target = [
     "email",
     "archives",
     "stopwords",
-    "auto-rotate-types",
-    "layout-types",
-    "paddle-ocr-types",
-    "embedding-presets",
-    "reranker-presets",
+    # ORT-dependent ML features. Each implies its corresponding *-types /
+    # *-presets marker feature, so the standalone type-only entries that used
+    # to sit here (auto-rotate-types, layout-types, paddle-ocr-types,
+    # embedding-presets, reranker-presets, transcription-types) are now
+    # redundant and have been folded into the full features below.
+    "auto-rotate",
+    "layout-detection",
+    "paddle-ocr",
+    "embeddings",
+    "reranker",
+    "sparse-embeddings",
+    "late-interaction",
+    "transcription",
+    "ner-onnx",
     "ner",
     "ner-llm-types",
     "presets",
@@ -508,7 +586,6 @@ windows-target = [
     "diff",
     "qr-codes",
     "summarization",
-    "transcription-types",
     "tokio-runtime",
     "api",
     "mcp",
@@ -533,12 +610,8 @@ windows-target = [
     # re-export FootnoteConfig/FootnoteAnchor/FootnoteDefinition/Citation
     # unconditionally, so the defining feature must be enabled on Windows too.
     "markdown-footnotes",
-    # late-interaction-presets = [] (pure-Rust MaxSim + preset metadata, no ORT). The
-    # generated bindings reference the crate-root re-exports (`max_sim_score`, `max_sim_rank`,
-    # `MultiVectorEmbedding`, `LateInteractionMatch`, `LateInteractionPreset`) unconditionally
-    # (pyo3 free-fn wrappers emit no #[cfg] gate), so the defining feature must be enabled on
-    # Windows too — otherwise the wheel build fails with E0425 (configured-out re-export).
-    "late-interaction-presets",
+    # late-interaction-presets is implied by "late-interaction" above (the ORT
+    # ML feature added for full Windows ONNX Runtime parity).
 ]
 # macos-intel-target: native Intel macOS (x86_64-apple-darwin). FULL feature
 # parity with every other platform — including all ONNX Runtime ML (paddle-ocr,
@@ -772,6 +845,9 @@ tower-http = { version = "0.7", features = [
 ], optional = true }
 tracing = { workspace = true }
 tracing-opentelemetry = { version = "0.33", optional = true }
+# Pure-Rust ONNX engine — the inference-seam backend on no-ORT targets (WASM,
+# Android x86_64). `tract-onnx` (not the `tract` facade) is CPU-only + wasm-safe.
+tract-onnx = { workspace = true, optional = true }
 unhwp = { version = "0.5.3", default-features = false, features = ["hwpx"], optional = true }
 unicode-normalization = { version = "0.1.25", optional = true }
 url = { workspace = true }

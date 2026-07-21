@@ -2,8 +2,8 @@ use std::time::Instant;
 
 use image::RgbImage;
 use ndarray::{Array, Array2, Array4};
-use ort::{inputs, session::Session, value::Tensor};
 
+use crate::inference::{InferenceSession, InferenceTensor, default_backend};
 use crate::layout::error::LayoutError;
 use crate::layout::models::LayoutModel;
 use crate::layout::preprocessing;
@@ -29,20 +29,60 @@ const INPUT_SIZE: u32 = 640;
 ///   - `scores`: f32 [batch, num_queries]   (confidence scores)
 #[cfg_attr(alef, alef(skip))]
 pub struct RtDetrModel {
-    session: Session,
+    session: Box<dyn InferenceSession>,
     input_names: Vec<String>,
 }
 
 impl RtDetrModel {
     /// Load a Docling RT-DETR ONNX model from a file.
+    ///
+    /// The session (optimization level, thread budget, execution-provider
+    /// selection, and CPU-only fallback) is built by the [`crate::inference`]
+    /// seam's default backend, so the model is engine-neutral.
+    ///
+    /// Native-only: WASM has no filesystem model path and uses [`Self::from_bytes`].
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn from_file(
         path: &str,
         accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
     ) -> Result<Self, LayoutError> {
-        let budget = crate::core::config::concurrency::resolve_thread_budget(None);
-        let session = crate::layout::session::build_session(path, accel, budget)?;
-        let input_names: Vec<String> = session.inputs().iter().map(|i| i.name().to_string()).collect();
+        let session = default_backend()
+            .load(std::path::Path::new(path), accel)
+            .map_err(|e| LayoutError::Inference(e.to_string()))?;
+        let input_names: Vec<String> = session.input_names().to_vec();
         Ok(Self { session, input_names })
+    }
+
+    /// Load a Docling RT-DETR ONNX model from an in-memory byte buffer.
+    ///
+    /// Used where there is no filesystem path to read from, e.g. WASM builds where
+    /// the JS host fetches and hands over the model weights directly. Uses the same
+    /// engine-neutral [`crate::inference`] seam as [`Self::from_file`].
+    pub(crate) fn from_bytes(
+        model_bytes: &[u8],
+        accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
+    ) -> Result<Self, LayoutError> {
+        let session = default_backend()
+            .load_from_memory(model_bytes, accel)
+            .map_err(|e| LayoutError::Inference(e.to_string()))?;
+        let input_names: Vec<String> = session.input_names().to_vec();
+        Ok(Self { session, input_names })
+    }
+
+    /// The two input names (`images`, `orig_target_sizes`) the RT-DETR graph declares,
+    /// cloned for the `session.run` call.
+    ///
+    /// A model handed to [`Self::from_bytes`] by a caller (e.g. the WASM `detectLayout`
+    /// bridge) could declare fewer than two inputs; return an error rather than panicking
+    /// on an out-of-range index into `input_names`.
+    fn input_names_pair(&self) -> Result<(String, String), LayoutError> {
+        match (self.input_names.first(), self.input_names.get(1)) {
+            (Some(images), Some(sizes)) => Ok((images.clone(), sizes.clone())),
+            _ => Err(LayoutError::Inference(format!(
+                "RT-DETR model must declare 2 inputs (images, orig_target_sizes), found {}",
+                self.input_names.len()
+            ))),
+        }
     }
 
     /// Run inference and extract detections from raw outputs.
@@ -64,21 +104,23 @@ impl RtDetrModel {
         let preprocess_start = Instant::now();
 
         let input_tensor = preprocessing::preprocess_rescale(img, INPUT_SIZE);
-        let images_tensor = Tensor::from_array(input_tensor)?;
 
         let sizes = Array::from_shape_vec((1, 2), vec![orig_height as i64, orig_width as i64])
             .map_err(|e| LayoutError::InvalidOutput(format!("Failed to create sizes tensor: {e}")))?;
-        let sizes_tensor = Tensor::from_array(sizes)?;
 
         let preprocess_ms = preprocess_start.elapsed().as_secs_f64() * 1000.0;
         tracing::debug!(preprocess_ms, "RT-DETR preprocessing complete");
 
         let onnx_start = Instant::now();
 
-        let outputs = self.session.run(inputs![
-            self.input_names[0].as_str() => images_tensor,
-            self.input_names[1].as_str() => sizes_tensor
-        ])?;
+        let (images_name, sizes_name) = self.input_names_pair()?;
+        let outputs = self
+            .session
+            .run(vec![
+                (images_name, InferenceTensor::F32(input_tensor.into_dyn())),
+                (sizes_name, InferenceTensor::I64(sizes.into_dyn())),
+            ])
+            .map_err(|e| LayoutError::Inference(e.to_string()))?;
 
         let onnx_ms = onnx_start.elapsed().as_secs_f64() * 1000.0;
         tracing::debug!(onnx_ms, "RT-DETR ONNX session.run() complete");
@@ -87,16 +129,16 @@ impl RtDetrModel {
         let mut float_shapes: Vec<Vec<usize>> = Vec::new();
         let mut label_data: Vec<i64> = Vec::new();
 
-        for (_name, value) in outputs.iter() {
-            if let Ok(view) = value.try_extract_tensor::<i64>() {
-                label_data = view.1.to_vec();
-                continue;
-            }
-            if let Ok(view) = value.try_extract_tensor::<f32>() {
-                let shape: Vec<usize> = view.0.iter().map(|&d| d as usize).collect();
-                let data: Vec<f32> = view.1.to_vec();
-                float_shapes.push(shape);
-                float_data.push(data);
+        for (_name, value) in outputs {
+            match value {
+                InferenceTensor::I64(array) => {
+                    label_data = array.into_raw_vec_and_offset().0;
+                }
+                InferenceTensor::F32(array) => {
+                    float_shapes.push(array.shape().to_vec());
+                    float_data.push(array.into_raw_vec_and_offset().0);
+                }
+                _ => {}
             }
         }
 
@@ -192,8 +234,10 @@ impl RtDetrModel {
         #[cfg(feature = "otel")]
         let inference_start = Instant::now();
 
+        if images.is_empty() {
+            return Ok(Vec::new());
+        }
         let batch = images.len();
-        assert!(!images.is_empty(), "run_batch_inference called with empty slice");
 
         let ts = INPUT_SIZE as usize;
         let hw = ts * ts;
@@ -205,13 +249,15 @@ impl RtDetrModel {
 
         for img in images {
             let tensor = preprocessing::preprocess_rescale(img, INPUT_SIZE);
-            all_pixel_data.extend_from_slice(tensor.as_slice().expect("tensor not contiguous"));
+            let slice = tensor
+                .as_slice()
+                .ok_or_else(|| LayoutError::InvalidOutput("preprocessed image tensor is not contiguous".to_string()))?;
+            all_pixel_data.extend_from_slice(slice);
             metas.push((img.width(), img.height()));
         }
 
         let images_array = Array4::from_shape_vec((batch, 3, ts, ts), all_pixel_data)
             .map_err(|e| LayoutError::InvalidOutput(format!("Failed to build batch images tensor: {e}")))?;
-        let images_tensor = Tensor::from_array(images_array)?;
 
         let sizes_flat: Vec<i64> = images
             .iter()
@@ -219,17 +265,20 @@ impl RtDetrModel {
             .collect();
         let sizes_array = Array2::from_shape_vec((batch, 2), sizes_flat)
             .map_err(|e| LayoutError::InvalidOutput(format!("Failed to build batch sizes tensor: {e}")))?;
-        let sizes_tensor = Tensor::from_array(sizes_array)?;
 
         let preprocess_ms = preprocess_start.elapsed().as_secs_f64() * 1000.0;
         tracing::debug!(preprocess_ms, batch, "RT-DETR batch preprocessing complete");
 
         let onnx_start = Instant::now();
 
-        let outputs = self.session.run(inputs![
-            self.input_names[0].as_str() => images_tensor,
-            self.input_names[1].as_str() => sizes_tensor
-        ])?;
+        let (images_name, sizes_name) = self.input_names_pair()?;
+        let outputs = self
+            .session
+            .run(vec![
+                (images_name, InferenceTensor::F32(images_array.into_dyn())),
+                (sizes_name, InferenceTensor::I64(sizes_array.into_dyn())),
+            ])
+            .map_err(|e| LayoutError::Inference(e.to_string()))?;
 
         let onnx_ms = onnx_start.elapsed().as_secs_f64() * 1000.0;
         tracing::debug!(onnx_ms, batch, "RT-DETR batch ONNX session.run() complete");
@@ -238,16 +287,16 @@ impl RtDetrModel {
         let mut float_shapes: Vec<Vec<usize>> = Vec::new();
         let mut label_data: Vec<i64> = Vec::new();
 
-        for (_name, value) in outputs.iter() {
-            if let Ok(view) = value.try_extract_tensor::<i64>() {
-                label_data = view.1.to_vec();
-                continue;
-            }
-            if let Ok(view) = value.try_extract_tensor::<f32>() {
-                let shape: Vec<usize> = view.0.iter().map(|&d| d as usize).collect();
-                let data: Vec<f32> = view.1.to_vec();
-                float_shapes.push(shape);
-                float_data.push(data);
+        for (_name, value) in outputs {
+            match value {
+                InferenceTensor::I64(array) => {
+                    label_data = array.into_raw_vec_and_offset().0;
+                }
+                InferenceTensor::F32(array) => {
+                    float_shapes.push(array.shape().to_vec());
+                    float_data.push(array.into_raw_vec_and_offset().0);
+                }
+                _ => {}
             }
         }
 

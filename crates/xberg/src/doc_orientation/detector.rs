@@ -1,28 +1,35 @@
 //! Document orientation detection implementation using PP-LCNet_x1_0_doc_ori.
 //!
 //! Detects page-level orientation (0°, 90°, 180°, 270°) for scanned documents
-//! and images. Requires the `auto-rotate` feature (ONNX Runtime).
+//! and images. Runs through the [`crate::inference`] seam, so it works on either
+//! engine: the ORT-backed `auto-rotate` feature or the pure-Rust `auto-rotate-tract`
+//! variant (no-ORT targets). The model is engine-neutral either way.
 //!
 //! Used by ALL OCR backends when `auto_rotate` is enabled in `OcrConfig`.
 //! More reliable than Tesseract's `DetectOrientationScript` which crashes
 //! on raw images without DPI metadata.
 
+#[cfg(not(target_arch = "wasm32"))]
 use std::path::PathBuf;
 
 use image::RgbImage;
-use ort::session::Session;
-use ort::session::builder::{GraphOptimizationLevel, SessionBuilder};
-use ort::value::Tensor;
 
 use crate::Result;
 use crate::error::XbergError;
+use crate::inference::{InferenceSession, InferenceTensor, default_backend};
 
 use super::types::OrientationResult;
 
-/// HuggingFace repository containing the model.
+/// HuggingFace repository containing the model. Native-only: WASM resolves weights
+/// from caller-supplied bytes (see [`DocOrientationDetector::from_bytes`]), so the
+/// download coordinates are not compiled there.
+#[cfg(not(target_arch = "wasm32"))]
 const HF_REPO_ID: &str = "xberg-io/paddleocr-onnx-models";
+#[cfg(not(target_arch = "wasm32"))]
 const HF_REPO_REVISION: &str = "bfaf0b492cfc1dee0c73245fc5860bfdcf2c3443";
+#[cfg(not(target_arch = "wasm32"))]
 const REMOTE_FILENAME: &str = "v2/classifiers/PP-LCNet_x1_0_doc_ori.onnx";
+#[cfg(not(target_arch = "wasm32"))]
 const SHA256: &str = "6b742aebce6f0f7f71f747931ac7becfc7c96c51641e14943b291eeb334e7947";
 
 const INPUT_SIZE: u32 = 224;
@@ -35,28 +42,80 @@ const ORIENTATION_LABELS: [u32; 4] = [0, 90, 180, 270];
 /// Uniform baseline is 25%. A threshold of 0.35 provides good discrimination.
 pub const MIN_CONFIDENCE: f32 = 0.35;
 
+/// Where a [`DocOrientationDetector`] resolves its ONNX model weights from.
+///
+/// `CacheDir` downloads (and verifies) the model from Hugging Face Hub via
+/// `hf-hub`/`reqwest`, which are native-only — see the target-gated dependency
+/// declarations in `Cargo.toml`. `Bytes` is the WASM path: the JS host fetches the
+/// weights (never embedded in the `.wasm` binary, since RT-DETR-family assets can
+/// run into the hundreds of MB) and hands the already-resolved bytes over.
+enum ModelSource {
+    #[cfg(not(target_arch = "wasm32"))]
+    CacheDir(PathBuf),
+    // Constructed by `from_bytes`, the byte-buffer entry point used on WASM
+    // (where `CacheDir` is unavailable); native builds use `CacheDir`.
+    Bytes(Vec<u8>),
+}
+
 /// Detects document page orientation using the PP-LCNet model.
 ///
-/// Thread-safe: uses unsafe pointer cast for ONNX session (same pattern as embedding engine).
-/// The model is downloaded from HuggingFace on first use and cached locally.
+/// Thread-safe: the model runs behind `&self` through the [`crate::inference`]
+/// seam, which owns the session synchronization. On native targets the model is
+/// downloaded from HuggingFace on first use and cached locally; on `wasm32` it is
+/// constructed from bytes supplied by the caller (see [`Self::from_bytes`]).
 #[cfg_attr(alef, alef(skip))]
 pub struct DocOrientationDetector {
-    session: once_cell::sync::OnceCell<Session>,
-    cache_dir: PathBuf,
+    session: once_cell::sync::OnceCell<Box<dyn InferenceSession>>,
+    source: ModelSource,
     acceleration: Option<crate::core::config::acceleration::AccelerationConfig>,
 }
 
 impl DocOrientationDetector {
     /// Creates a new detector with the given cache directory and acceleration config.
+    ///
+    /// Not available on `wasm32` — see [`Self::from_bytes`] for the WASM constructor.
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn with_acceleration(
         cache_dir: PathBuf,
         accel: Option<crate::core::config::acceleration::AccelerationConfig>,
     ) -> Self {
         Self {
             session: once_cell::sync::OnceCell::new(),
-            cache_dir,
+            source: ModelSource::CacheDir(cache_dir),
             acceleration: accel,
         }
+    }
+
+    /// Creates a new detector from already-resolved ONNX model bytes.
+    ///
+    /// The byte-buffer entry point (used on WASM, where there is no filesystem
+    /// cache or HTTP download): the caller fetches the weights and hands over the
+    /// bytes, which flow straight through to the [`crate::inference`] seam's
+    /// `load_from_memory` — no filesystem path or HTTP download involved.
+    pub fn from_bytes(
+        model_bytes: Vec<u8>,
+        accel: Option<crate::core::config::acceleration::AccelerationConfig>,
+    ) -> Self {
+        Self {
+            session: once_cell::sync::OnceCell::new(),
+            source: ModelSource::Bytes(model_bytes),
+            acceleration: accel,
+        }
+    }
+
+    /// Decode `image_bytes` and detect the document page orientation.
+    ///
+    /// A convenience wrapper over [`Self::detect`] for callers that hold encoded
+    /// image bytes (PNG/JPEG/…) rather than a decoded [`RgbImage`] — notably the
+    /// WASM bridge, which receives image bytes from JS.
+    pub fn detect_image_bytes(&self, image_bytes: &[u8]) -> Result<OrientationResult> {
+        let image = image::load_from_memory(image_bytes)
+            .map_err(|e| XbergError::Ocr {
+                message: format!("Failed to decode image for orientation detection: {e}"),
+                source: None,
+            })?
+            .to_rgb8();
+        self.detect(&image)
     }
 
     /// Detect document page orientation.
@@ -67,36 +126,36 @@ impl DocOrientationDetector {
         let session = self.get_or_init_session()?;
 
         let preprocessed = preprocess(image);
-
         let input_tensor = normalize(&preprocessed);
-        let tensor = Tensor::from_array(input_tensor).map_err(|e| XbergError::Ocr {
-            message: format!("Failed to create doc_ori input tensor: {e}"),
-            source: None,
-        })?;
 
-        #[allow(unsafe_code)]
-        let outputs = unsafe {
-            let session_ptr = session as *const Session as *mut Session;
-            (*session_ptr).run(ort::inputs!["x" => tensor])
-        }
-        .map_err(|e| XbergError::Ocr {
-            message: format!("Doc orientation inference failed: {e}"),
-            source: None,
-        })?;
+        // PP-LCNet's single input is named "x"; read it from the graph rather than
+        // hard-coding, so the same call works whichever engine loaded the model.
+        let input_name = session
+            .input_names()
+            .first()
+            .cloned()
+            .unwrap_or_else(|| "x".to_string());
+        let outputs = session
+            .run(vec![(input_name, InferenceTensor::F32(input_tensor.into_dyn()))])
+            .map_err(|e| XbergError::Ocr {
+                message: format!("Doc orientation inference failed: {e}"),
+                source: None,
+            })?;
 
-        let (_, output_value) = outputs.iter().next().ok_or_else(|| XbergError::Ocr {
+        let (_, output_value) = outputs.first().ok_or_else(|| XbergError::Ocr {
             message: "No output from doc orientation model".to_string(),
             source: None,
         })?;
 
         let scores: Vec<f32> = output_value
-            .try_extract_tensor::<f32>()
-            .map_err(|e| XbergError::Ocr {
-                message: format!("Failed to extract doc_ori output: {e}"),
+            .as_f32()
+            .ok_or_else(|| XbergError::Ocr {
+                message: "doc orientation output is not an f32 tensor".to_string(),
                 source: None,
             })?
-            .1
-            .to_vec();
+            .iter()
+            .copied()
+            .collect();
 
         let max_score = scores.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         let exp_scores: Vec<f32> = scores.iter().map(|&s| (s - max_score).exp()).collect();
@@ -118,12 +177,15 @@ impl DocOrientationDetector {
     }
 
     /// Resolve the verified ONNX model directly from the Hugging Face cache.
-    fn ensure_model(&self) -> Result<PathBuf> {
+    ///
+    /// Not available on `wasm32` — see [`ModelSource::Bytes`].
+    #[cfg(not(target_arch = "wasm32"))]
+    fn ensure_model(cache_dir: &std::path::Path) -> Result<PathBuf> {
         crate::model_download::hf_resolve_file(
             HF_REPO_ID,
             REMOTE_FILENAME,
             Some(HF_REPO_REVISION),
-            Some(&self.cache_dir),
+            Some(cache_dir),
             Some(SHA256),
         )
         .map_err(|e| XbergError::Plugin {
@@ -132,51 +194,44 @@ impl DocOrientationDetector {
         })
     }
 
-    /// Get or initialize the ONNX session (lazy, thread-safe via OnceCell).
-    fn get_or_init_session(&self) -> Result<&Session> {
-        self.session.get_or_try_init(|| {
-            let model_path = self.ensure_model()?;
+    /// Get or initialize the inference session (lazy, thread-safe via OnceCell).
+    ///
+    /// The session (optimization level, thread budget, execution-provider
+    /// selection, and CPU fallback) is built by the [`crate::inference`] seam.
+    fn get_or_init_session(&self) -> Result<&dyn InferenceSession> {
+        let session = self
+            .session
+            .get_or_try_init(|| -> crate::Result<Box<dyn InferenceSession>> {
+                let session = match &self.source {
+                    #[cfg(not(target_arch = "wasm32"))]
+                    ModelSource::CacheDir(cache_dir) => {
+                        let model_path = Self::ensure_model(cache_dir)?;
+                        default_backend()
+                            .load(&model_path, self.acceleration.as_ref())
+                            .map_err(|e| XbergError::Ocr {
+                                message: format!("Failed to load doc_ori model: {e}"),
+                                source: None,
+                            })?
+                    }
+                    ModelSource::Bytes(model_bytes) => default_backend()
+                        .load_from_memory(model_bytes, self.acceleration.as_ref())
+                        .map_err(|e| XbergError::Ocr {
+                            message: format!("Failed to load doc_ori model: {e}"),
+                            source: None,
+                        })?,
+                };
 
-            crate::ort_discovery::ensure_ort_available();
-
-            let num_threads = crate::core::config::concurrency::resolve_thread_budget(None);
-            let builder = SessionBuilder::new()
-                .map_err(|e| XbergError::Ocr {
-                    message: format!("Failed to create doc_ori session builder: {e}"),
-                    source: None,
-                })?
-                .with_optimization_level(GraphOptimizationLevel::All)
-                .map_err(|e| XbergError::Ocr {
-                    message: format!("Failed to set doc_ori optimization level: {e}"),
-                    source: None,
-                })?
-                .with_intra_threads(num_threads)
-                .map_err(|e| XbergError::Ocr {
-                    message: format!("Failed to set doc_ori thread count: {e}"),
-                    source: None,
-                })?
-                .with_inter_threads(1)
-                .map_err(|e| XbergError::Ocr {
-                    message: format!("Failed to set doc_ori inter threads: {e}"),
-                    source: None,
-                })?;
-            let mut builder = crate::ort_discovery::apply_execution_providers(builder, self.acceleration.as_ref())
-                .map_err(|e| XbergError::Ocr {
-                    message: format!("Failed to set doc_ori execution providers: {e}"),
-                    source: None,
-                })?;
-            let session = builder.commit_from_file(&model_path).map_err(|e| XbergError::Ocr {
-                message: format!("Failed to load doc_ori model: {e}"),
-                source: None,
+                tracing::info!("Doc orientation model loaded");
+                Ok(session)
             })?;
-
-            tracing::info!("Doc orientation model loaded");
-            Ok(session)
-        })
+        Ok(session.as_ref())
     }
 }
 
 /// Resolve the standard Hugging Face cache directory for the auto-rotate model.
+///
+/// Not available on `wasm32` — there is no Hugging Face cache on that target.
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) fn resolve_cache_dir() -> PathBuf {
     hf_hub::resolve_cache_dir()
 }

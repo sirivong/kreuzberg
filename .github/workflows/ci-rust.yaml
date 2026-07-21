@@ -101,6 +101,34 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
         shell: bash
 
+      # The workspace clippy above uses each crate's *default* features, which for
+      # `xberg` is a minimal set that excludes layout-detection, OCR, and every ML
+      # model. Lint the full ORT surface explicitly so the layout models
+      # (RT-DETR, PP-DocLayout, table classifier), OCR, and embeddings are held to
+      # -D warnings — otherwise dead code / lint regressions in that code ship
+      # unnoticed (it is compiled by `task rust:test:ci` but never clippy-gated).
+      - name: Clippy full ORT surface (layout + OCR + ML)
+        run: cargo clippy --locked -p xberg --features full --all-targets -- -D warnings
+        shell: bash
+
+      # Lint the pure-Rust `tract` inference engine on a no-ORT feature combo where
+      # it is the *actual* backend (auto-rotate via tract). `full` above never links
+      # tract, so without this the whole tract seam + its model_download path get
+      # zero -D-warnings coverage in CI (this is what caught the auto_rotate cfg /
+      # fs2 feature gaps during the Phase 4 rebase).
+      - name: Clippy no-ORT tract engine
+        run: cargo clippy --locked -p xberg --no-default-features --features "ocr,auto-rotate-tract" --all-targets -- -D warnings
+        shell: bash
+
+      # Lint the pure-Rust `tract` layout build in isolation. This is the narrowest
+      # no-ORT layout combo (RT-DETR only, no auto-rotate/pdf), so it is the one that
+      # actually exercises the `#[allow(dead_code)]` markers on hf_client /
+      # hf_resolve_file / InferenceTensor::as_f32 — the `auto-rotate-tract` leg above
+      # keeps them live. Without this, bare `layout-tract` has zero -D-warnings coverage.
+      - name: Clippy no-ORT tract layout
+        run: cargo clippy --locked -p xberg --no-default-features --features "layout-tract" --all-targets -- -D warnings
+        shell: bash
+
       - name: Run tests
         run: task rust:test:ci
         shell: bash
@@ -115,6 +143,46 @@ jobs:
 
       - name: Check ocr-wasm backend
         run: cargo check --locked -p xberg --no-default-features --features ocr-wasm --lib
+        shell: bash
+
+  # `windows-target` carries the full ONNX Runtime ML surface (issue #1276
+  # workstream D: auto-rotate, layout-detection, paddle-ocr, embeddings,
+  # reranker, sparse/late-interaction, transcription, ner-onnx). The `rust`
+  # job above only runs on Linux/macOS, so its clippy legs can never reach the
+  # `cfg(target_os = "windows")` dependency blocks (ureq/tokenizers/liter-llm)
+  # nor the Windows-only ORT linkage. Lint that surface on a real Windows
+  # runner, mirroring publish.yaml's Windows recipe (ort-bundled + the pyke
+  # win-x64 import lib staged via setup-onnx-runtime, which exports
+  # ORT_LIB_LOCATION job-wide).
+  clippy-windows:
+    name: Clippy Windows ORT surface
+    if: github.repository == 'xberg-io/xberg' && github.actor != 'dependabot[bot]'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+          lfs: true
+
+      - name: Setup Rust
+        uses: xberg-io/actions/setup-rust@v1
+        with:
+          target: x86_64-pc-windows-msvc
+          cache-key-prefix: rust-windows
+          use-sccache: "true"
+
+      - name: Install system dependencies
+        uses: ./.github/actions/install-system-deps
+
+      - name: Setup ONNX Runtime
+        uses: ./.github/actions/setup-onnx-runtime
+        with:
+          ort-version: ${{ env.ORT_VERSION }}
+          dest-dir: crates/xberg-ffi
+
+      - name: Clippy Windows ORT surface
+        run: cargo clippy --locked -p xberg --no-default-features --features windows-target --all-targets -- -D warnings
         shell: bash
 
   live-hf:
@@ -193,4 +261,41 @@ jobs:
           RUST_LOG: warn
           # Cold downloads of large ONNX models on a slow HF day exceed the 300s production default;
           # raise the watchdog for CI only (still bounded well under the 45-min job timeout). ~keep
+          XBERG_MODEL_DOWNLOAD_TIMEOUT_SECS: "900"
+
+      - name: Run tract/ORT parity tests
+        run: |
+          # The tract backend's whole point is bit-close parity with ONNX Runtime. These tests
+          # download the PP-LCNet classifiers and the RT-DETR layout detector and run them
+          # through BOTH engines, asserting each output matches within a tight tolerance.
+          # XBERG_REQUIRE_TRACT_PARITY=1 turns a missing model into a hard
+          # failure so the suite can never pass by comparing nothing (locally, absent the env
+          # var and weights, it self-skips). The `tract` feature is only compiled here — the
+          # main unit-test job builds `full`, which does not include it — so this is the sole
+          # CI enforcement of the branch's core correctness claim. Same 3-attempt retry as above.
+          for attempt in 1 2 3; do
+            if [ $attempt -gt 1 ]; then
+              backoff=$((15 * 3 ** (attempt - 2)))
+              echo "::warning::tract parity tests failed; retry attempt $attempt/3 after ${backoff}s backoff..."
+              sleep $backoff
+            fi
+
+            if cargo test --locked \
+              -p xberg \
+              --features "layout-detection,auto-rotate,tract" \
+              --lib inference::tract_backend \
+              -- --nocapture; then
+              exit 0
+            fi
+          done
+
+          echo "::error::tract parity tests failed after 3 attempts"
+          exit 1
+        shell: bash
+        env:
+          XBERG_REQUIRE_TRACT_PARITY: "1"
+          LD_LIBRARY_PATH: ${{ env.LD_LIBRARY_PATH || '' }}
+          DYLD_LIBRARY_PATH: ${{ env.DYLD_LIBRARY_PATH || '' }}
+          DYLD_FALLBACK_LIBRARY_PATH: ${{ env.DYLD_FALLBACK_LIBRARY_PATH || '' }}
+          RUST_LOG: warn
           XBERG_MODEL_DOWNLOAD_TIMEOUT_SECS: "900"

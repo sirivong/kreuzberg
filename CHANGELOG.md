@@ -9,6 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Pure-Rust layout detection on no-ORT targets (`layout-tract`).** RT-DETR layout detection and
+  the PP-LCNet wired/wireless table classifier can now run through the `tract` engine instead of
+  ONNX Runtime, mirroring the `auto-rotate-tract` pattern. A new `layout-tract` feature is the
+  no-ORT sibling of `layout-detection`, and `android-target` now enables it (the x86_64 emulator
+  previously had no layout detection at all). A new `layout_detection` build cfg (true for either
+  engine variant) lets engine-neutral capability sites avoid enumerating both features; ORT-only
+  plumbing (the shared ORT session builder, YOLO, TATR, SLANeXT, PP-DocLayout-V3, and the
+  `LayoutError::Ort` variant) stays gated on the literal `layout-detection` feature, since table
+  STRUCTURE recognition (TATR/SLANeXT) and PP-DocLayout-V3 (a tract 0.23.4 `LayerNormalization`
+  op-translation bug — see the Pure-Rust Inference concept doc) are not available under tract;
+  `LayoutEngine::from_config` returns a `LayoutError` for those instead of failing to compile or
+  panicking. The ORT-backed `layout-detection` remains the native default. With the `pdf` feature
+  (which `android-target` enables), `TableClassifier` (wired/wireless) is part of the public
+  `crate::layout` API on either engine. Wiring `layout-tract` into the PDF table-structure pipeline
+  remains a deferred follow-up. Part of #1275.
+- **Layout detection and document-orientation on WebAssembly (via `tract`).** `wasm-target` now
+  enables `layout-tract` + `auto-rotate-tract`, so RT-DETR layout detection and PP-LCNet
+  document-orientation run in the browser through the pure-Rust `tract` engine — capabilities that
+  were impossible on WASM while inference required ONNX Runtime. Two new `xberg-wasm` exports,
+  `detectLayout(imageBytes, modelBytes)` and `detectOrientation(imageBytes, modelBytes)`, take the
+  `.onnx` weights as bytes: the JS host fetches them (weights are never embedded — RT-DETR alone
+  would blow the CDN per-file cap) and hands them to the seam's `load_from_memory`, its first
+  production consumer. The release `.wasm` stays under jsdelivr's 50 MB cap (`wasm-opt -Oz`, wired
+  through alef's `[crates.wasm].wasm_opt`). Part of #1275.
+- **Windows bindings gain the full ONNX Runtime ML surface (issue #1276).** `windows-target` now
+  enables `auto-rotate`, `layout-detection`, `paddle-ocr`, `embeddings`, `reranker`,
+  `sparse-embeddings`, `late-interaction`, `transcription`, and `ner-onnx` (previously curated out).
+  Windows already links ONNX Runtime for the python/node/CLI paths via `ort-bundled` (pyke ships a
+  win-x64 prebuilt), so the Go/Java/C# FFI bindings now expose layout, OCR, embeddings, reranking,
+  transcription, and NER on Windows too. `heic` stays excluded (libheif is not on the
+  `windows-latest` runner).
+
+### Changed
+
+- **Layout-model inference errors are engine-neutral.** Layout models on the `crate::inference`
+  seam (RT-DETR, PP-DocLayout-V3, table classifier) now surface seam load/run failures as a new
+  `LayoutError::Inference(String)` variant instead of funnelling them through `LayoutError::Ort`,
+  so they no longer name ONNX Runtime's error type at the seam boundary — a prerequisite for
+  running layout off ORT. Two `.expect()` panics in the layout preprocessing paths were replaced
+  with `Result` propagation, and the tract boundary tensor conversions plus `default_backend()`
+  selection gained offline (model-free) test coverage. Part of #1275.
+
 ## [1.0.0-rc.30] - 2026-07-20
 
 ### Added
@@ -21,6 +65,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `extra_dev_dependencies`, and `test-shims/` supplies the `env` / `wasi_snapshot_preview1`
   stub modules the test glue needs for the same reason the published package needs
   `fix-wasi-imports.mjs`. The vitest e2e suites keep covering the JS side of the contract.
+
+- **Pure-Rust document orientation on no-ORT targets (`auto-rotate-tract`).** The PP-LCNet
+  auto-rotate classifier can now run through the `tract` engine instead of ONNX Runtime, so
+  page-orientation detection works where native ORT cannot link. A new `auto-rotate-tract` feature
+  mirrors `auto-rotate` but selects the pure-Rust backend, and `android-target` now enables it
+  (the x86_64 emulator previously had no orientation detection at all). The ORT-backed `auto-rotate`
+  remains the native default; the engine is chosen at compile time by the inference seam, and tract
+  matches ORT within 1e-3 on the classifier logits. WASM support (embedded-weight loading) follows in
+  a later phase. Part of #1275.
+
+- **Layout detectors on the engine-neutral inference seam.** The RT-DETR and PP-DocLayout-V3 layout
+  models now load and run through the `crate::inference` seam instead of holding a bare
+  `ort::Session`, making layout model execution engine-neutral (the prerequisite for running layout
+  off ONNX Runtime). ONNX Runtime stays the native default and its output is unchanged (pure
+  refactor). RT-DETR additionally runs on the pure-Rust `tract` engine — a new parity test asserts
+  tract tracks ORT within 5e-3 on every RT-DETR output, and the seam now materializes tract's
+  symbolic-dimension (`TDim`) integer outputs (RT-DETR class labels) as `i64`. PP-DocLayout-V3 stays
+  ORT-only under tract pending input-fact pinning (see the Pure-Rust Inference concept doc). Part of #1275.
 
 - **Reversible redaction for authorized callers (`redaction-rehydrate`).** Token-replacement
   redaction can now capture a token to original-text map, encrypt it with a passphrase

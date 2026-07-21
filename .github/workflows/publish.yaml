@@ -1122,6 +1122,18 @@ jobs:
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
 
+      # windows-target now carries the full ONNX Runtime ML surface (issue
+      # #1276 workstream D); Windows needs the pyke win-x64 import lib staged
+      # before cargo build links xberg-ffi. Linux/macOS-arm need no staging
+      # here: ort-bundled's download-binaries fetches + statically links a
+      # prebuilt automatically during the build.
+      - name: Setup ONNX Runtime
+        if: contains(matrix.target, 'windows')
+        uses: ./.github/actions/setup-onnx-runtime
+        with:
+          ort-version: "1.24.2"
+          dest-dir: crates/xberg-ffi
+
       - name: Setup Zig for glibc 2.28 floor
         if: contains(matrix.target, '-linux-gnu')
         uses: xberg-io/actions/setup-zig@v1
@@ -1173,6 +1185,22 @@ jobs:
 
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
+
+      # windows-target now carries the full ONNX Runtime ML surface (issue
+      # #1276 workstream D); Windows needs the pyke win-x64 import lib staged
+      # before cargo build links xberg-ffi. Linux/macOS-arm need no staging
+      # here: ort-bundled's download-binaries fetches + statically links a
+      # prebuilt automatically during the build. Note: matching the existing
+      # Linux/macOS convention below, this raw C distribution ships the
+      # header + library only — it never bundles libonnxruntime.so/.dylib and
+      # does not bundle onnxruntime.dll on Windows either; the C consumer is
+      # expected to supply ONNX Runtime itself, same as on every other target.
+      - name: Setup ONNX Runtime
+        if: contains(matrix.target, 'windows')
+        uses: ./.github/actions/setup-onnx-runtime
+        with:
+          ort-version: "1.24.2"
+          dest-dir: crates/xberg-ffi
 
       - name: Setup Zig for glibc 2.28 floor
         if: contains(matrix.target, '-linux-gnu')
@@ -1239,6 +1267,18 @@ jobs:
 
       - name: Install system dependencies
         uses: ./.github/actions/install-system-deps
+
+      # windows-target now carries the full ONNX Runtime ML surface (issue
+      # #1276 workstream D); Windows needs the pyke win-x64 import lib staged
+      # before cargo build links xberg-ffi. Linux/macOS-arm need no staging
+      # here: ort-bundled's download-binaries fetches + statically links a
+      # prebuilt automatically during the build.
+      - name: Setup ONNX Runtime
+        if: contains(matrix.target, 'windows')
+        uses: ./.github/actions/setup-onnx-runtime
+        with:
+          ort-version: "1.24.2"
+          dest-dir: crates/xberg-ffi
 
       - name: Setup Zig for glibc 2.28 floor
         if: contains(matrix.target, '-linux-gnu')

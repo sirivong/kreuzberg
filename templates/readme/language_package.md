@@ -7,9 +7,11 @@
 ## What This Package Provides
 
 {% if language == "wasm" %}
+
 - **Document intelligence core** — extract text, tables, images, metadata, entities, keywords, and code intelligence through the shared Rust engine.
 - **Format coverage** — PDF, Office, images, HTML/XML, email, archives, notebooks, citations, scientific formats, and plain text.
-- **OCR support** — Tesseract WASM when OCR is enabled; this build does not include ONNX Runtime, PaddleOCR, Candle, or native transcription dependencies.
+- **OCR support** — Tesseract WASM when OCR is enabled.
+- **Pure-Rust ML inference** — RT-DETR layout detection and document-orientation run through the pure-Rust `tract` engine (`detectLayout` / `detectOrientation`, with the `.onnx` weights streamed in). This build links no ONNX Runtime, so PaddleOCR, embeddings, reranking, and native transcription are not included.
 {% else %}
 - **Document intelligence core** — extract text, tables, images, metadata, entities, keywords, code intelligence, and transcripts in builds that enable transcription.
 - **Format coverage** — PDF, Office, images, HTML/XML, email, archives, notebooks, citations, scientific formats, plain text, and audio/video formats in builds that enable transcription.

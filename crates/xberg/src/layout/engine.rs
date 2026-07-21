@@ -9,10 +9,13 @@ use std::time::Instant;
 use image::RgbImage;
 
 use crate::layout::error::LayoutError;
+#[cfg(not(target_arch = "wasm32"))]
 use crate::layout::model_manager::LayoutModelManager;
 use crate::layout::models::LayoutModel;
+#[cfg(feature = "layout-detection")]
 use crate::layout::models::pp_doclayout_v3::PpDocLayoutV3Model;
 use crate::layout::models::rtdetr::RtDetrModel;
+#[cfg(feature = "layout-detection")]
 use crate::layout::models::yolo::{YoloModel, YoloVariant};
 use crate::layout::postprocessing::heuristics;
 use crate::layout::types::DetectionResult;
@@ -111,7 +114,22 @@ pub struct LayoutEngine {
 
 impl LayoutEngine {
     /// Create a layout engine from a full config.
+    ///
+    /// `ModelBackend::RtDetr` and `CustomModelVariant::RtDetr` work on either engine
+    /// (ORT-backed `layout-detection` or pure-Rust `layout-tract`). `PpDocLayoutV3` and
+    /// every YOLO-based `CustomModelVariant` require the ORT-backed `layout-detection`
+    /// feature; under `layout-tract` alone they return a
+    /// [`LayoutError::ModelDownload`] explaining why, rather than failing to compile
+    /// or panicking.
+    ///
+    /// Not available on `wasm32`: model resolution goes through
+    /// [`LayoutModelManager`], which downloads weights from Hugging Face Hub over
+    /// `hf-hub`/`reqwest` — both unavailable on that target. WASM callers construct
+    /// a [`LayoutEngine`] from injected model bytes via [`Self::from_rtdetr_bytes`]
+    /// instead.
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn from_config(config: LayoutEngineConfig) -> Result<Self, LayoutError> {
+        #[cfg(feature = "layout-detection")]
         crate::ort_discovery::ensure_ort_available();
 
         let model: Box<dyn LayoutModel> = match &config.backend {
@@ -128,18 +146,30 @@ impl LayoutEngine {
                 let path_str = model_path.to_string_lossy();
                 Box::new(RtDetrModel::from_file(&path_str, config.acceleration.as_ref())?)
             }
+            #[cfg(feature = "layout-detection")]
             ModelBackend::PpDocLayoutV3 => {
                 let manager = LayoutModelManager::new(config.cache_dir.clone());
                 let model_path = manager.ensure_pp_doclayout_v3_model()?;
                 let path_str = model_path.to_string_lossy();
                 Box::new(PpDocLayoutV3Model::from_file(&path_str, config.acceleration.as_ref())?)
             }
+            #[cfg(not(feature = "layout-detection"))]
+            ModelBackend::PpDocLayoutV3 => {
+                return Err(LayoutError::ModelDownload(
+                    "PP-DocLayout-V3 requires the ORT-backed `layout-detection` feature \
+                     (unsupported under the pure-Rust `layout-tract` engine — see \
+                     docs-site/src/content/docs/concepts/tract-inference.md)"
+                        .into(),
+                ));
+            }
             ModelBackend::Custom { path, variant } => {
                 let path_str = path.to_string_lossy();
                 let accel = config.acceleration.as_ref();
                 match variant {
                     CustomModelVariant::RtDetr => Box::new(RtDetrModel::from_file(&path_str, accel)?),
+                    #[cfg(feature = "layout-detection")]
                     CustomModelVariant::PpDocLayoutV3 => Box::new(PpDocLayoutV3Model::from_file(&path_str, accel)?),
+                    #[cfg(feature = "layout-detection")]
                     CustomModelVariant::YoloDocLayNet => Box::new(YoloModel::from_file(
                         &path_str,
                         YoloVariant::DocLayNet,
@@ -148,6 +178,7 @@ impl LayoutEngine {
                         "Custom-YOLO-DocLayNet",
                         accel,
                     )?),
+                    #[cfg(feature = "layout-detection")]
                     CustomModelVariant::YoloDocStructBench => Box::new(YoloModel::from_file(
                         &path_str,
                         YoloVariant::DocStructBench,
@@ -156,6 +187,7 @@ impl LayoutEngine {
                         "Custom-DocLayout-YOLO",
                         accel,
                     )?),
+                    #[cfg(feature = "layout-detection")]
                     CustomModelVariant::Yolox {
                         input_width,
                         input_height,
@@ -167,11 +199,47 @@ impl LayoutEngine {
                         "Custom-YOLOX",
                         accel,
                     )?),
+                    #[cfg(not(feature = "layout-detection"))]
+                    CustomModelVariant::PpDocLayoutV3
+                    | CustomModelVariant::YoloDocLayNet
+                    | CustomModelVariant::YoloDocStructBench
+                    | CustomModelVariant::Yolox { .. } => {
+                        return Err(LayoutError::ModelDownload(
+                            "this custom model variant requires the ORT-backed \
+                             `layout-detection` feature (unsupported under the pure-Rust \
+                             `layout-tract` engine)"
+                                .into(),
+                        ));
+                    }
                 }
             }
         };
 
         Ok(Self { model, config })
+    }
+
+    /// Create a layout engine directly from RT-DETR model bytes already resolved by the caller.
+    ///
+    /// Bypasses [`LayoutModelManager`] entirely — there is no filesystem path or HTTP
+    /// download involved. This is the WASM entry point: the JS host fetches the ONNX
+    /// weights (never embedded in the `.wasm` binary) and hands over the bytes, which
+    /// flow straight through to the [`crate::inference`] seam's `load_from_memory`.
+    /// Only the RT-DETR detection backend is supported this way; `PpDocLayoutV3` and
+    /// the YOLO variants require the ORT-backed `layout-detection` feature, which is
+    /// not available on `wasm32`.
+    pub fn from_rtdetr_bytes(
+        rtdetr_bytes: &[u8],
+        accel: Option<&crate::core::config::acceleration::AccelerationConfig>,
+    ) -> Result<Self, LayoutError> {
+        let model: Box<dyn LayoutModel> = Box::new(RtDetrModel::from_bytes(rtdetr_bytes, accel)?);
+        Ok(Self {
+            model,
+            config: LayoutEngineConfig {
+                backend: ModelBackend::RtDetr,
+                acceleration: accel.cloned(),
+                ..LayoutEngineConfig::default()
+            },
+        })
     }
 
     /// Run layout detection on an image.
@@ -184,6 +252,16 @@ impl LayoutEngine {
             tracing::trace!(class = ?detection.class_name, confidence = detection.confidence, "Layout detection result");
         }
         Ok(result)
+    }
+
+    /// Decode `image_bytes` and run layout detection.
+    ///
+    /// A convenience wrapper over [`Self::detect`] for callers that hold encoded
+    /// image bytes (PNG/JPEG/…) rather than a decoded [`RgbImage`] — notably the
+    /// WASM bridge, which receives image bytes from JS.
+    pub fn detect_image_bytes(&mut self, image_bytes: &[u8]) -> Result<DetectionResult, LayoutError> {
+        let img = image::load_from_memory(image_bytes)?.to_rgb8();
+        self.detect(&img)
     }
 
     /// Run layout detection on an image and return granular timing data.

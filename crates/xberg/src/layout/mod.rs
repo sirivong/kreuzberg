@@ -1,51 +1,72 @@
-//! Layout detection types and (when `layout-detection` feature is enabled) ONNX Runtime
-//! inference via YOLO + RT-DETR.
+//! Layout detection types and (when the layout-detection capability is enabled) inference
+//! via RT-DETR and, on the ORT engine, YOLO/TATR/SLANeXT/PP-DocLayout-V3.
 //!
 //! The `types` submodule is always available under the `layout-types` feature (pure-Rust,
-//! no ORT dependency). The inference submodules (`engine`, `models`, `session`, etc.)
-//! require the `layout-detection` feature and pull in ONNX Runtime.
+//! no ORT dependency). The inference submodules (`engine`, `models`, etc.) require the
+//! layout-detection capability, available in two variants (mirrors `crate::doc_orientation`):
+//! - `layout-detection` — ONNX Runtime. All models: RT-DETR, YOLO, TATR, SLANeXT,
+//!   PP-DocLayout-V3, table classifier.
+//! - `layout-tract` — pure-Rust `tract` engine (no-ORT targets, e.g. Android x86_64
+//!   emulator). Only the engine-neutral models: RT-DETR (detection) and the table
+//!   classifier (wired/wireless). Table STRUCTURE recognition (TATR, SLANeXT) and
+//!   PP-DocLayout-V3 are ORT-only — see `crate::layout::session` and the `models`
+//!   submodule doc comments for why — and simply do not compile under `layout-tract`.
 //!
-//! The ONNX session is cached globally so that repeated extractions (e.g. batch
+//! The `layout_detection` cfg (set by `build.rs`) is true whenever either variant is
+//! active, so engine-neutral capability sites need not enumerate both. Consumer code
+//! that only works on the ORT engine (table structure recognition, YOLO custom models)
+//! still gates on the literal `layout-detection` feature.
+//!
+//! The ONNX/tract session is cached globally so that repeated extractions (e.g. batch
 //! processing) pay model-load cost only once.
 
 /// Layout detection result types (pure-Rust, available under `layout-types`).
 pub mod types;
 
-#[cfg(feature = "layout-detection")]
+#[cfg(layout_detection)]
 /// High-level layout detection engine wrapping model loading and inference.
 pub mod engine;
-#[cfg(feature = "layout-detection")]
+#[cfg(layout_detection)]
 /// Error types for layout detection failures.
 pub mod error;
-#[cfg(feature = "layout-detection")]
+#[cfg(layout_detection)]
 pub(crate) mod inference_timings;
-#[cfg(feature = "layout-detection")]
+#[cfg(all(layout_detection, not(target_arch = "wasm32")))]
+/// Model downloading and caching (Hugging Face Hub). Not available on `wasm32` — the JS
+/// host supplies model bytes directly, see `crate::layout::engine::LayoutEngine::from_rtdetr_bytes`.
 mod model_manager;
-#[cfg(feature = "layout-detection")]
-/// ONNX model implementations for layout detection (RT-DETR, YOLO, TATR, SLANeXT).
+#[cfg(layout_detection)]
+/// Model implementations for layout detection (RT-DETR, and ORT-only: YOLO, TATR, SLANeXT,
+/// PP-DocLayout-V3, table classifier).
 pub mod models;
-#[cfg(feature = "layout-detection")]
-/// Postprocessing heuristics and NMS for raw model detections.
+#[cfg(layout_detection)]
+/// Postprocessing heuristics for raw model detections. NMS (ORT-only, YOLO) lives under
+/// `feature = "layout-detection"`; RT-DETR is NMS-free.
 pub mod postprocessing;
-#[cfg(feature = "layout-detection")]
-/// Image preprocessing (resize, letterbox, normalization) for layout model input.
+#[cfg(layout_detection)]
+/// Image preprocessing (resize, normalization) for layout model input. Letterbox
+/// preprocessing (ORT-only, YOLO/YOLOX) lives under `feature = "layout-detection"`.
 pub mod preprocessing;
 #[cfg(feature = "layout-detection")]
-/// ONNX Runtime session creation and configuration helpers.
+/// ONNX Runtime session creation and configuration helpers. ORT-only — used by the
+/// bare-`ort::Session` models (YOLO, TATR, SLANeXT); the seam-based models (RT-DETR,
+/// table classifier, PP-DocLayout-V3) go through `crate::inference` instead.
 pub mod session;
 
 pub use types::{BBox, DetectionResult, LayoutClass, LayoutDetection};
 
-#[cfg(feature = "layout-detection")]
+#[cfg(layout_detection)]
 pub use engine::{CustomModelVariant, DetectTimings, LayoutEngine, LayoutEngineConfig, ModelBackend};
-#[cfg(feature = "layout-detection")]
+#[cfg(layout_detection)]
 pub use error::LayoutError;
-#[cfg(feature = "layout-detection")]
+#[cfg(all(layout_detection, not(target_arch = "wasm32")))]
 pub use model_manager::LayoutModelManager;
-#[cfg(feature = "layout-detection")]
+#[cfg(layout_detection)]
 pub use models::LayoutModel;
-#[cfg(feature = "layout-detection")]
+#[cfg(layout_detection)]
 pub use models::rtdetr::RtDetrModel;
+#[cfg(all(layout_detection, feature = "pdf"))]
+pub use models::table_classifier::{TableClassifier, TableType};
 #[cfg(feature = "layout-detection")]
 pub use models::yolo::{YoloModel, YoloVariant};
 
