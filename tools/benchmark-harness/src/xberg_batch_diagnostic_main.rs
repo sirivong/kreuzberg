@@ -1,0 +1,63 @@
+use std::path::PathBuf;
+
+use benchmark_harness::Result;
+use benchmark_harness::batch_diagnostic::{BatchDiagnosticConfig, run_batch_diagnostic};
+use clap::Parser;
+
+#[derive(Debug, Parser)]
+#[command(about = "Fast warmed Xberg batch-vs-sequential diagnostic")]
+struct Args {
+    /// Input documents. Inputs are cycled until batch-size is reached.
+    #[arg(short, long, required = true)]
+    input: Vec<PathBuf>,
+
+    #[arg(long, default_value_t = 8)]
+    batch_size: usize,
+
+    #[arg(long, default_value_t = 1)]
+    warmup: usize,
+
+    #[arg(long, default_value_t = 3)]
+    iterations: usize,
+
+    #[arg(long)]
+    max_threads: Option<usize>,
+
+    #[arg(long)]
+    max_concurrent: Option<usize>,
+
+    /// Emit machine-readable JSON instead of the compact terminal summary.
+    #[arg(long)]
+    json: bool,
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    let args = Args::parse();
+    let report = run_batch_diagnostic(&BatchDiagnosticConfig {
+        inputs: args.input,
+        batch_size: args.batch_size,
+        warmup_iterations: args.warmup,
+        iterations: args.iterations,
+        max_threads: args.max_threads,
+        max_concurrent_extractions: args.max_concurrent,
+    })
+    .await?;
+
+    if args.json {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else {
+        println!(
+            "batch={} iterations={} sequential={:.2}ms ({:.1} docs/s) batch={:.2}ms ({:.1} docs/s) speedup={:.2}x outputs_match={}",
+            report.batch_size,
+            report.iterations,
+            report.sequential_median_ms,
+            report.sequential_documents_per_second,
+            report.batch_median_ms,
+            report.batch_documents_per_second,
+            report.speedup,
+            report.outputs_match,
+        );
+    }
+    Ok(())
+}

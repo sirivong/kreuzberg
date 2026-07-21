@@ -40,6 +40,7 @@
 pub mod adapter;
 pub mod adapters;
 pub mod aggregate;
+pub mod batch_diagnostic;
 pub mod comparison;
 pub mod config;
 pub mod consolidate;

@@ -18,6 +18,10 @@ path = "src/lib.rs"
 name = "benchmark-harness"
 path = "src/main.rs"
 
+[[bin]]
+name = "xberg-batch-diagnostic"
+path = "src/xberg_batch_diagnostic_main.rs"
+
 [features]
 default = []
 profiling = ["pprof"]
