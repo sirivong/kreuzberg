@@ -557,11 +557,7 @@ impl ExtractionOverrides {
             let vlm_llm_config = LlmConfig {
                 model: vlm_model.clone(),
                 api_key: self.vlm_api_key.clone(),
-                base_url: None,
-                timeout_secs: None,
-                max_retries: None,
-                temperature: None,
-                max_tokens: None,
+                ..Default::default()
             };
 
             let backend_options = self.parsed_backend_options().ok().flatten();

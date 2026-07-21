@@ -543,7 +543,10 @@ fn test_tree_sitter_process_config_all_fields_serialized() {
 fn test_format_metadata_code_variant_serialization() {
     use xberg::types::metadata::{CodeMetadata, FormatMetadata};
 
-    let metadata = FormatMetadata::Code(CodeMetadata { chunks: Vec::new(), data: None });
+    let metadata = FormatMetadata::Code(CodeMetadata {
+        chunks: Vec::new(),
+        data: None,
+    });
     let json = serde_json::to_value(&metadata).expect("Failed to serialize FormatMetadata::Code");
 
     assert_eq!(json["format_type"], "code", "format_type tag should be 'code'");

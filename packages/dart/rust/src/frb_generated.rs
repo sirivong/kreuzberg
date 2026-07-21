@@ -39,7 +39,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.12.0";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -940812142;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = 386381274;
 
 // Section: executor
 
@@ -1821,6 +1821,62 @@ fn wire__crate__create_code_chunk_info_from_json_impl(
         },
     )
 }
+fn wire__crate__create_code_data_attribute_from_json_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_code_data_attribute_from_json",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
+            };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_json = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::create_code_data_attribute_from_json(api_json)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__create_code_data_node_from_json_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_code_data_node_from_json",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
+            };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_json = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::create_code_data_node_from_json(api_json)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__create_code_metadata_from_json_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -1927,6 +1983,34 @@ fn wire__crate__create_contributor_role_from_json_impl(
             move |context| {
                 transform_result_sse::<_, String>((move || {
                     let output_ok = crate::create_contributor_role_from_json(api_json)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
+fn wire__crate__create_conversion_options_from_json_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_conversion_options_from_json",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
+            };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_json = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::create_conversion_options_from_json(api_json)?;
                     Ok(output_ok)
                 })())
             }
@@ -5617,6 +5701,34 @@ fn wire__crate__create_pptx_metadata_from_json_impl(
         },
     )
 }
+fn wire__crate__create_preprocessing_options_from_json_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_preprocessing_options_from_json",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(ptr_, rust_vec_len_, data_len_)
+            };
+            let mut deserializer = flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_json = <String>::sse_decode(&mut deserializer);
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, String>((move || {
+                    let output_ok = crate::create_preprocessing_options_from_json(api_json)?;
+                    Ok(output_ok)
+                })())
+            }
+        },
+    )
+}
 fn wire__crate__create_preset_from_json_impl(
     port_: flutter_rust_bridge::for_generated::MessagePort,
     ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
@@ -8438,8 +8550,26 @@ const _: fn() = || {
         let _: i64 = CodeChunkInfo.byte_end;
     }
     {
+        let CodeDataAttribute = None::<crate::CodeDataAttribute>.unwrap();
+        let _: String = CodeDataAttribute.name;
+        let _: String = CodeDataAttribute.value;
+        let _: i64 = CodeDataAttribute.byte_start;
+        let _: i64 = CodeDataAttribute.byte_end;
+    }
+    {
+        let CodeDataNode = None::<crate::CodeDataNode>.unwrap();
+        let _: crate::CodeDataNodeKind = CodeDataNode.kind;
+        let _: Option<String> = CodeDataNode.key;
+        let _: Option<String> = CodeDataNode.value;
+        let _: Vec<crate::CodeDataAttribute> = CodeDataNode.attributes;
+        let _: Vec<crate::CodeDataNode> = CodeDataNode.children;
+        let _: i64 = CodeDataNode.byte_start;
+        let _: i64 = CodeDataNode.byte_end;
+    }
+    {
         let CodeMetadata = None::<crate::CodeMetadata>.unwrap();
         let _: Vec<crate::CodeChunkInfo> = CodeMetadata.chunks;
+        let _: Option<crate::CodeDataNode> = CodeMetadata.data;
     }
     {
         let ContentConfig = None::<crate::ContentConfig>.unwrap();
@@ -8467,6 +8597,49 @@ const _: fn() = || {
         let ContributorRole = None::<crate::ContributorRole>.unwrap();
         let _: String = ContributorRole.name;
         let _: Option<String> = ContributorRole.role;
+    }
+    {
+        let ConversionOptions = None::<crate::ConversionOptions>.unwrap();
+        let _: crate::HeadingStyle = ConversionOptions.heading_style;
+        let _: crate::ListIndentType = ConversionOptions.list_indent_type;
+        let _: i64 = ConversionOptions.list_indent_width;
+        let _: String = ConversionOptions.bullets;
+        let _: String = ConversionOptions.strong_em_symbol;
+        let _: bool = ConversionOptions.escape_asterisks;
+        let _: bool = ConversionOptions.escape_underscores;
+        let _: bool = ConversionOptions.escape_misc;
+        let _: bool = ConversionOptions.escape_ascii;
+        let _: String = ConversionOptions.code_language;
+        let _: bool = ConversionOptions.autolinks;
+        let _: bool = ConversionOptions.default_title;
+        let _: bool = ConversionOptions.br_in_tables;
+        let _: bool = ConversionOptions.compact_tables;
+        let _: crate::HighlightStyle = ConversionOptions.highlight_style;
+        let _: bool = ConversionOptions.extract_metadata;
+        let _: crate::WhitespaceMode = ConversionOptions.whitespace_mode;
+        let _: bool = ConversionOptions.strip_newlines;
+        let _: bool = ConversionOptions.wrap;
+        let _: i64 = ConversionOptions.wrap_width;
+        let _: bool = ConversionOptions.convert_as_inline;
+        let _: String = ConversionOptions.sub_symbol;
+        let _: String = ConversionOptions.sup_symbol;
+        let _: crate::NewlineStyle = ConversionOptions.newline_style;
+        let _: crate::CodeBlockStyle = ConversionOptions.code_block_style;
+        let _: Vec<String> = ConversionOptions.keep_inline_images_in;
+        let _: crate::PreprocessingOptions = ConversionOptions.preprocessing;
+        let _: String = ConversionOptions.encoding;
+        let _: bool = ConversionOptions.debug;
+        let _: Vec<String> = ConversionOptions.strip_tags;
+        let _: Vec<String> = ConversionOptions.preserve_tags;
+        let _: bool = ConversionOptions.skip_images;
+        let _: crate::UrlEscapeStyle = ConversionOptions.url_escape_style;
+        let _: crate::LinkStyle = ConversionOptions.link_style;
+        let _: i64 = ConversionOptions.max_image_size;
+        let _: bool = ConversionOptions.capture_svg;
+        let _: bool = ConversionOptions.infer_dimensions;
+        let _: Option<i64> = ConversionOptions.max_depth;
+        let _: Vec<String> = ConversionOptions.exclude_selectors;
+        let _: crate::TierStrategy = ConversionOptions.tier_strategy;
     }
     {
         let CoreProperties = None::<crate::CoreProperties>.unwrap();
@@ -8944,6 +9117,7 @@ const _: fn() = || {
         let _: Option<crate::PageConfig> = ExtractionConfig.pages;
         let _: Option<crate::KeywordConfig> = ExtractionConfig.keywords;
         let _: Option<crate::PostProcessorConfig> = ExtractionConfig.postprocessor;
+        let _: Option<crate::ConversionOptions> = ExtractionConfig.html_options;
         let _: Option<crate::HtmlOutputConfig> = ExtractionConfig.html_output;
         let _: Option<i64> = ExtractionConfig.extraction_timeout_secs;
         let _: Option<i64> = ExtractionConfig.max_concurrent_extractions;
@@ -9424,6 +9598,8 @@ const _: fn() = || {
         let _: Option<i64> = LlmConfig.max_retries;
         let _: Option<f64> = LlmConfig.temperature;
         let _: Option<i64> = LlmConfig.max_tokens;
+        let _: Option<bool> = LlmConfig.load_env;
+        let _: Option<std::collections::HashMap<String, String>> = LlmConfig.headers;
     }
     {
         let LlmUsage = None::<crate::LlmUsage>.unwrap();
@@ -9976,6 +10152,13 @@ const _: fn() = || {
         let _: Option<i64> = PptxMetadata.table_count;
     }
     {
+        let PreprocessingOptions = None::<crate::PreprocessingOptions>.unwrap();
+        let _: bool = PreprocessingOptions.enabled;
+        let _: crate::PreprocessingPreset = PreprocessingOptions.preset;
+        let _: bool = PreprocessingOptions.remove_navigation;
+        let _: bool = PreprocessingOptions.remove_forms;
+    }
+    {
         let Preset = None::<crate::Preset>.unwrap();
         let _: String = Preset.id;
         let _: String = Preset.version;
@@ -10413,6 +10596,7 @@ const _: fn() = || {
         let _: bool = TreeSitterProcessConfig.docstrings;
         let _: bool = TreeSitterProcessConfig.symbols;
         let _: bool = TreeSitterProcessConfig.diagnostics;
+        let _: bool = TreeSitterProcessConfig.data_extraction;
         let _: Option<i64> = TreeSitterProcessConfig.chunk_max_size;
         let _: crate::CodeContentMode = TreeSitterProcessConfig.content_mode;
     }
@@ -12126,6 +12310,19 @@ impl SseDecode for crate::ClassificationLabel {
     }
 }
 
+impl SseDecode for crate::CodeBlockStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::CodeBlockStyle::Indented,
+            1 => crate::CodeBlockStyle::Backticks,
+            2 => crate::CodeBlockStyle::Tildes,
+            _ => unreachable!("Invalid variant for CodeBlockStyle: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::CodeChunkInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -12157,11 +12354,66 @@ impl SseDecode for crate::CodeContentMode {
     }
 }
 
+impl SseDecode for crate::CodeDataAttribute {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_name = <String>::sse_decode(deserializer);
+        let mut var_value = <String>::sse_decode(deserializer);
+        let mut var_byteStart = <i64>::sse_decode(deserializer);
+        let mut var_byteEnd = <i64>::sse_decode(deserializer);
+        return crate::CodeDataAttribute {
+            name: var_name,
+            value: var_value,
+            byte_start: var_byteStart,
+            byte_end: var_byteEnd,
+        };
+    }
+}
+
+impl SseDecode for crate::CodeDataNode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_kind = <crate::CodeDataNodeKind>::sse_decode(deserializer);
+        let mut var_key = <Option<String>>::sse_decode(deserializer);
+        let mut var_value = <Option<String>>::sse_decode(deserializer);
+        let mut var_attributes = <Vec<crate::CodeDataAttribute>>::sse_decode(deserializer);
+        let mut var_children = <Vec<crate::CodeDataNode>>::sse_decode(deserializer);
+        let mut var_byteStart = <i64>::sse_decode(deserializer);
+        let mut var_byteEnd = <i64>::sse_decode(deserializer);
+        return crate::CodeDataNode {
+            kind: var_kind,
+            key: var_key,
+            value: var_value,
+            attributes: var_attributes,
+            children: var_children,
+            byte_start: var_byteStart,
+            byte_end: var_byteEnd,
+        };
+    }
+}
+
+impl SseDecode for crate::CodeDataNodeKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::CodeDataNodeKind::KeyValue,
+            1 => crate::CodeDataNodeKind::Element,
+            2 => crate::CodeDataNodeKind::Sequence,
+            _ => unreachable!("Invalid variant for CodeDataNodeKind: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::CodeMetadata {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_chunks = <Vec<crate::CodeChunkInfo>>::sse_decode(deserializer);
-        return crate::CodeMetadata { chunks: var_chunks };
+        let mut var_data = <Option<crate::CodeDataNode>>::sse_decode(deserializer);
+        return crate::CodeMetadata {
+            chunks: var_chunks,
+            data: var_data,
+        };
     }
 }
 
@@ -12235,6 +12487,94 @@ impl SseDecode for crate::ContributorRole {
         return crate::ContributorRole {
             name: var_name,
             role: var_role,
+        };
+    }
+}
+
+impl SseDecode for crate::ConversionOptions {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_headingStyle = <crate::HeadingStyle>::sse_decode(deserializer);
+        let mut var_listIndentType = <crate::ListIndentType>::sse_decode(deserializer);
+        let mut var_listIndentWidth = <i64>::sse_decode(deserializer);
+        let mut var_bullets = <String>::sse_decode(deserializer);
+        let mut var_strongEmSymbol = <String>::sse_decode(deserializer);
+        let mut var_escapeAsterisks = <bool>::sse_decode(deserializer);
+        let mut var_escapeUnderscores = <bool>::sse_decode(deserializer);
+        let mut var_escapeMisc = <bool>::sse_decode(deserializer);
+        let mut var_escapeAscii = <bool>::sse_decode(deserializer);
+        let mut var_codeLanguage = <String>::sse_decode(deserializer);
+        let mut var_autolinks = <bool>::sse_decode(deserializer);
+        let mut var_defaultTitle = <bool>::sse_decode(deserializer);
+        let mut var_brInTables = <bool>::sse_decode(deserializer);
+        let mut var_compactTables = <bool>::sse_decode(deserializer);
+        let mut var_highlightStyle = <crate::HighlightStyle>::sse_decode(deserializer);
+        let mut var_extractMetadata = <bool>::sse_decode(deserializer);
+        let mut var_whitespaceMode = <crate::WhitespaceMode>::sse_decode(deserializer);
+        let mut var_stripNewlines = <bool>::sse_decode(deserializer);
+        let mut var_wrap = <bool>::sse_decode(deserializer);
+        let mut var_wrapWidth = <i64>::sse_decode(deserializer);
+        let mut var_convertAsInline = <bool>::sse_decode(deserializer);
+        let mut var_subSymbol = <String>::sse_decode(deserializer);
+        let mut var_supSymbol = <String>::sse_decode(deserializer);
+        let mut var_newlineStyle = <crate::NewlineStyle>::sse_decode(deserializer);
+        let mut var_codeBlockStyle = <crate::CodeBlockStyle>::sse_decode(deserializer);
+        let mut var_keepInlineImagesIn = <Vec<String>>::sse_decode(deserializer);
+        let mut var_preprocessing = <crate::PreprocessingOptions>::sse_decode(deserializer);
+        let mut var_encoding = <String>::sse_decode(deserializer);
+        let mut var_debug = <bool>::sse_decode(deserializer);
+        let mut var_stripTags = <Vec<String>>::sse_decode(deserializer);
+        let mut var_preserveTags = <Vec<String>>::sse_decode(deserializer);
+        let mut var_skipImages = <bool>::sse_decode(deserializer);
+        let mut var_urlEscapeStyle = <crate::UrlEscapeStyle>::sse_decode(deserializer);
+        let mut var_linkStyle = <crate::LinkStyle>::sse_decode(deserializer);
+        let mut var_maxImageSize = <i64>::sse_decode(deserializer);
+        let mut var_captureSvg = <bool>::sse_decode(deserializer);
+        let mut var_inferDimensions = <bool>::sse_decode(deserializer);
+        let mut var_maxDepth = <Option<i64>>::sse_decode(deserializer);
+        let mut var_excludeSelectors = <Vec<String>>::sse_decode(deserializer);
+        let mut var_tierStrategy = <crate::TierStrategy>::sse_decode(deserializer);
+        return crate::ConversionOptions {
+            heading_style: var_headingStyle,
+            list_indent_type: var_listIndentType,
+            list_indent_width: var_listIndentWidth,
+            bullets: var_bullets,
+            strong_em_symbol: var_strongEmSymbol,
+            escape_asterisks: var_escapeAsterisks,
+            escape_underscores: var_escapeUnderscores,
+            escape_misc: var_escapeMisc,
+            escape_ascii: var_escapeAscii,
+            code_language: var_codeLanguage,
+            autolinks: var_autolinks,
+            default_title: var_defaultTitle,
+            br_in_tables: var_brInTables,
+            compact_tables: var_compactTables,
+            highlight_style: var_highlightStyle,
+            extract_metadata: var_extractMetadata,
+            whitespace_mode: var_whitespaceMode,
+            strip_newlines: var_stripNewlines,
+            wrap: var_wrap,
+            wrap_width: var_wrapWidth,
+            convert_as_inline: var_convertAsInline,
+            sub_symbol: var_subSymbol,
+            sup_symbol: var_supSymbol,
+            newline_style: var_newlineStyle,
+            code_block_style: var_codeBlockStyle,
+            keep_inline_images_in: var_keepInlineImagesIn,
+            preprocessing: var_preprocessing,
+            encoding: var_encoding,
+            debug: var_debug,
+            strip_tags: var_stripTags,
+            preserve_tags: var_preserveTags,
+            skip_images: var_skipImages,
+            url_escape_style: var_urlEscapeStyle,
+            link_style: var_linkStyle,
+            max_image_size: var_maxImageSize,
+            capture_svg: var_captureSvg,
+            infer_dimensions: var_inferDimensions,
+            max_depth: var_maxDepth,
+            exclude_selectors: var_excludeSelectors,
+            tier_strategy: var_tierStrategy,
         };
     }
 }
@@ -13340,6 +13680,7 @@ impl SseDecode for crate::ExtractionConfig {
         let mut var_pages = <Option<crate::PageConfig>>::sse_decode(deserializer);
         let mut var_keywords = <Option<crate::KeywordConfig>>::sse_decode(deserializer);
         let mut var_postprocessor = <Option<crate::PostProcessorConfig>>::sse_decode(deserializer);
+        let mut var_htmlOptions = <Option<crate::ConversionOptions>>::sse_decode(deserializer);
         let mut var_htmlOutput = <Option<crate::HtmlOutputConfig>>::sse_decode(deserializer);
         let mut var_extractionTimeoutSecs = <Option<i64>>::sse_decode(deserializer);
         let mut var_maxConcurrentExtractions = <Option<i64>>::sse_decode(deserializer);
@@ -13384,6 +13725,7 @@ impl SseDecode for crate::ExtractionConfig {
             pages: var_pages,
             keywords: var_keywords,
             postprocessor: var_postprocessor,
+            html_options: var_htmlOptions,
             html_output: var_htmlOutput,
             extraction_timeout_secs: var_extractionTimeoutSecs,
             max_concurrent_extractions: var_maxConcurrentExtractions,
@@ -13854,6 +14196,19 @@ impl SseDecode for crate::HeadingLevel {
     }
 }
 
+impl SseDecode for crate::HeadingStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::HeadingStyle::Underlined,
+            1 => crate::HeadingStyle::Atx,
+            2 => crate::HeadingStyle::AtxClosed,
+            _ => unreachable!("Invalid variant for HeadingStyle: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::HeuristicsConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -13928,6 +14283,20 @@ impl SseDecode for crate::HierarchyConfig {
             enabled: var_enabled,
             k_clusters: var_kClusters,
             include_bbox: var_includeBbox,
+        };
+    }
+}
+
+impl SseDecode for crate::HighlightStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::HighlightStyle::DoubleEqual,
+            1 => crate::HighlightStyle::Html,
+            2 => crate::HighlightStyle::Bold,
+            3 => crate::HighlightStyle::None,
+            _ => unreachable!("Invalid variant for HighlightStyle: {}", inner),
         };
     }
 }
@@ -14532,6 +14901,18 @@ impl SseDecode for crate::LinkMetadata {
     }
 }
 
+impl SseDecode for crate::LinkStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::LinkStyle::Inline,
+            1 => crate::LinkStyle::Reference,
+            _ => unreachable!("Invalid variant for LinkStyle: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::LinkType {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -14627,6 +15008,30 @@ impl SseDecode for Vec<crate::CodeChunkInfo> {
         let mut ans_ = Vec::with_capacity(len_ as usize);
         for idx_ in 0..len_ {
             ans_.push(<crate::CodeChunkInfo>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::CodeDataAttribute> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::CodeDataAttribute>::sse_decode(deserializer));
+        }
+        return ans_;
+    }
+}
+
+impl SseDecode for Vec<crate::CodeDataNode> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = Vec::with_capacity(len_ as usize);
+        for idx_ in 0..len_ {
+            ans_.push(<crate::CodeDataNode>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -14965,6 +15370,18 @@ impl SseDecode for Vec<crate::ImageMetadataType> {
             ans_.push(<crate::ImageMetadataType>::sse_decode(deserializer));
         }
         return ans_;
+    }
+}
+
+impl SseDecode for crate::ListIndentType {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::ListIndentType::Spaces,
+            1 => crate::ListIndentType::Tabs,
+            _ => unreachable!("Invalid variant for ListIndentType: {}", inner),
+        };
     }
 }
 
@@ -15496,6 +15913,8 @@ impl SseDecode for crate::LlmConfig {
         let mut var_maxRetries = <Option<i64>>::sse_decode(deserializer);
         let mut var_temperature = <Option<f64>>::sse_decode(deserializer);
         let mut var_maxTokens = <Option<i64>>::sse_decode(deserializer);
+        let mut var_loadEnv = <Option<bool>>::sse_decode(deserializer);
+        let mut var_headers = <Option<std::collections::HashMap<String, String>>>::sse_decode(deserializer);
         return crate::LlmConfig {
             model: var_model,
             api_key: var_apiKey,
@@ -15504,6 +15923,8 @@ impl SseDecode for crate::LlmConfig {
             max_retries: var_maxRetries,
             temperature: var_temperature,
             max_tokens: var_maxTokens,
+            load_env: var_loadEnv,
+            headers: var_headers,
         };
     }
 }
@@ -15729,6 +16150,18 @@ impl SseDecode for crate::NerConfig {
             model: var_model,
             llm: var_llm,
             custom_labels: var_customLabels,
+        };
+    }
+}
+
+impl SseDecode for crate::NewlineStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::NewlineStyle::Spaces,
+            1 => crate::NewlineStyle::Backslash,
+            _ => unreachable!("Invalid variant for NewlineStyle: {}", inner),
         };
     }
 }
@@ -16358,11 +16791,33 @@ impl SseDecode for Option<crate::ChunkingConfig> {
     }
 }
 
+impl SseDecode for Option<crate::CodeDataNode> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::CodeDataNode>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
 impl SseDecode for Option<crate::ContentFilterConfig> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         if (<bool>::sse_decode(deserializer)) {
             return Some(<crate::ContentFilterConfig>::sse_decode(deserializer));
+        } else {
+            return None;
+        }
+    }
+}
+
+impl SseDecode for Option<crate::ConversionOptions> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        if (<bool>::sse_decode(deserializer)) {
+            return Some(<crate::ConversionOptions>::sse_decode(deserializer));
         } else {
             return None;
         }
@@ -17898,6 +18353,35 @@ impl SseDecode for crate::PptxMetadata {
     }
 }
 
+impl SseDecode for crate::PreprocessingOptions {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_enabled = <bool>::sse_decode(deserializer);
+        let mut var_preset = <crate::PreprocessingPreset>::sse_decode(deserializer);
+        let mut var_removeNavigation = <bool>::sse_decode(deserializer);
+        let mut var_removeForms = <bool>::sse_decode(deserializer);
+        return crate::PreprocessingOptions {
+            enabled: var_enabled,
+            preset: var_preset,
+            remove_navigation: var_removeNavigation,
+            remove_forms: var_removeForms,
+        };
+    }
+}
+
+impl SseDecode for crate::PreprocessingPreset {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::PreprocessingPreset::Minimal,
+            1 => crate::PreprocessingPreset::Standard,
+            2 => crate::PreprocessingPreset::Aggressive,
+            _ => unreachable!("Invalid variant for PreprocessingPreset: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::Preset {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -19004,6 +19488,19 @@ impl SseDecode for crate::TextMetadata {
     }
 }
 
+impl SseDecode for crate::TierStrategy {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::TierStrategy::Auto,
+            1 => crate::TierStrategy::Tier2,
+            2 => crate::TierStrategy::Tier1,
+            _ => unreachable!("Invalid variant for TierStrategy: {}", inner),
+        };
+    }
+}
+
 impl SseDecode for crate::TokenReductionConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -19135,6 +19632,7 @@ impl SseDecode for crate::TreeSitterProcessConfig {
         let mut var_docstrings = <bool>::sse_decode(deserializer);
         let mut var_symbols = <bool>::sse_decode(deserializer);
         let mut var_diagnostics = <bool>::sse_decode(deserializer);
+        let mut var_dataExtraction = <bool>::sse_decode(deserializer);
         let mut var_chunkMaxSize = <Option<i64>>::sse_decode(deserializer);
         let mut var_contentMode = <crate::CodeContentMode>::sse_decode(deserializer);
         return crate::TreeSitterProcessConfig {
@@ -19145,6 +19643,7 @@ impl SseDecode for crate::TreeSitterProcessConfig {
             docstrings: var_docstrings,
             symbols: var_symbols,
             diagnostics: var_diagnostics,
+            data_extraction: var_dataExtraction,
             chunk_max_size: var_chunkMaxSize,
             content_mode: var_contentMode,
         };
@@ -19175,6 +19674,18 @@ impl SseDecode for crate::UriKind {
             4 => crate::UriKind::Reference,
             5 => crate::UriKind::Email,
             _ => unreachable!("Invalid variant for UriKind: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::UrlEscapeStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::UrlEscapeStyle::Angle,
+            1 => crate::UrlEscapeStyle::Percent,
+            _ => unreachable!("Invalid variant for UrlEscapeStyle: {}", inner),
         };
     }
 }
@@ -19272,6 +19783,18 @@ impl SseDecode for crate::WhisperModel {
             3 => crate::WhisperModel::Medium,
             4 => crate::WhisperModel::LargeV3,
             _ => unreachable!("Invalid variant for WhisperModel: {}", inner),
+        };
+    }
+}
+
+impl SseDecode for crate::WhitespaceMode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <i32>::sse_decode(deserializer);
+        return match inner {
+            0 => crate::WhitespaceMode::Normalized,
+            1 => crate::WhitespaceMode::Strict,
+            _ => unreachable!("Invalid variant for WhitespaceMode: {}", inner),
         };
     }
 }
@@ -19490,229 +20013,233 @@ fn pde_ffi_dispatcher_primary_impl(
         52 => wire__crate__create_citation_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
         53 => wire__crate__create_classification_label_from_json_impl(port, ptr, rust_vec_len, data_len),
         54 => wire__crate__create_code_chunk_info_from_json_impl(port, ptr, rust_vec_len, data_len),
-        55 => wire__crate__create_code_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        56 => wire__crate__create_content_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        57 => wire__crate__create_content_filter_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        58 => wire__crate__create_contributor_role_from_json_impl(port, ptr, rust_vec_len, data_len),
-        59 => wire__crate__create_core_properties_from_json_impl(port, ptr, rust_vec_len, data_len),
-        60 => wire__crate__create_crawl_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        61 => wire__crate__create_csv_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        62 => wire__crate__create_dbf_field_info_from_json_impl(port, ptr, rust_vec_len, data_len),
-        63 => wire__crate__create_dbf_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        64 => wire__crate__create_detect_response_from_json_impl(port, ptr, rust_vec_len, data_len),
-        65 => wire__crate__create_detection_result_from_json_impl(port, ptr, rust_vec_len, data_len),
-        66 => wire__crate__create_diff_hunk_from_json_impl(port, ptr, rust_vec_len, data_len),
-        67 => wire__crate__create_diff_options_from_json_impl(port, ptr, rust_vec_len, data_len),
-        68 => wire__crate__create_djot_content_from_json_impl(port, ptr, rust_vec_len, data_len),
-        69 => wire__crate__create_djot_image_from_json_impl(port, ptr, rust_vec_len, data_len),
-        70 => wire__crate__create_djot_link_from_json_impl(port, ptr, rust_vec_len, data_len),
-        71 => wire__crate__create_document_boundary_from_json_impl(port, ptr, rust_vec_len, data_len),
-        72 => wire__crate__create_document_counts_from_json_impl(port, ptr, rust_vec_len, data_len),
-        73 => wire__crate__create_document_extractor_dart_impl_impl(port, ptr, rust_vec_len, data_len),
-        74 => wire__crate__create_document_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        75 => wire__crate__create_document_node_from_json_impl(port, ptr, rust_vec_len, data_len),
-        76 => wire__crate__create_document_relationship_from_json_impl(port, ptr, rust_vec_len, data_len),
-        77 => wire__crate__create_document_revision_from_json_impl(port, ptr, rust_vec_len, data_len),
-        78 => wire__crate__create_document_structure_from_json_impl(port, ptr, rust_vec_len, data_len),
-        79 => wire__crate__create_document_summary_from_json_impl(port, ptr, rust_vec_len, data_len),
-        80 => wire__crate__create_docx_app_properties_from_json_impl(port, ptr, rust_vec_len, data_len),
-        81 => wire__crate__create_docx_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        82 => wire__crate__create_element_from_json_impl(port, ptr, rust_vec_len, data_len),
-        83 => wire__crate__create_element_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        84 => wire__crate__create_email_attachment_from_json_impl(port, ptr, rust_vec_len, data_len),
-        85 => wire__crate__create_email_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        86 => wire__crate__create_email_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
-        87 => wire__crate__create_email_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        88 => wire__crate__create_embedded_changes_from_json_impl(port, ptr, rust_vec_len, data_len),
-        89 => wire__crate__create_embedded_diff_from_json_impl(port, ptr, rust_vec_len, data_len),
-        90 => wire__crate__create_embedded_file_from_json_impl(port, ptr, rust_vec_len, data_len),
-        91 => wire__crate__create_embedding_backend_dart_impl_impl(port, ptr, rust_vec_len, data_len),
-        92 => wire__crate__create_embedding_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        93 => wire__crate__create_entity_from_json_impl(port, ptr, rust_vec_len, data_len),
-        94 => wire__crate__create_epub_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        95 => wire__crate__create_error_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        96 => wire__crate__create_excel_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        97 => wire__crate__create_excel_sheet_from_json_impl(port, ptr, rust_vec_len, data_len),
-        98 => wire__crate__create_excel_workbook_from_json_impl(port, ptr, rust_vec_len, data_len),
-        99 => wire__crate__create_extract_input_from_json_impl(port, ptr, rust_vec_len, data_len),
-        100 => wire__crate__create_extracted_document_from_json_impl(port, ptr, rust_vec_len, data_len),
-        101 => wire__crate__create_extracted_image_from_json_impl(port, ptr, rust_vec_len, data_len),
-        102 => wire__crate__create_extracted_uri_from_json_impl(port, ptr, rust_vec_len, data_len),
-        103 => wire__crate__create_extraction_confidence_from_json_impl(port, ptr, rust_vec_len, data_len),
-        104 => wire__crate__create_extraction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        105 => wire__crate__create_extraction_diff_from_json_impl(port, ptr, rust_vec_len, data_len),
-        106 => wire__crate__create_extraction_error_item_from_json_impl(port, ptr, rust_vec_len, data_len),
-        107 => wire__crate__create_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
-        108 => wire__crate__create_extraction_summary_from_json_impl(port, ptr, rust_vec_len, data_len),
-        109 => wire__crate__create_fiction_book_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        110 => wire__crate__create_file_extraction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        111 => wire__crate__create_footnote_anchor_from_json_impl(port, ptr, rust_vec_len, data_len),
-        112 => wire__crate__create_footnote_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        113 => wire__crate__create_footnote_definition_from_json_impl(port, ptr, rust_vec_len, data_len),
-        114 => wire__crate__create_footnote_from_json_impl(port, ptr, rust_vec_len, data_len),
-        115 => wire__crate__create_formatted_block_from_json_impl(port, ptr, rust_vec_len, data_len),
-        116 => wire__crate__create_formula_from_json_impl(port, ptr, rust_vec_len, data_len),
-        117 => wire__crate__create_grid_cell_from_json_impl(port, ptr, rust_vec_len, data_len),
-        118 => wire__crate__create_header_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        119 => wire__crate__create_heading_context_from_json_impl(port, ptr, rust_vec_len, data_len),
-        120 => wire__crate__create_heading_level_from_json_impl(port, ptr, rust_vec_len, data_len),
-        121 => wire__crate__create_heuristics_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        122 => wire__crate__create_hierarchical_block_from_json_impl(port, ptr, rust_vec_len, data_len),
-        123 => wire__crate__create_hierarchy_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        124 => wire__crate__create_html_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        125 => wire__crate__create_html_output_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        126 => wire__crate__create_image_extraction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        127 => wire__crate__create_image_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        128 => wire__crate__create_image_metadata_type_from_json_impl(port, ptr, rust_vec_len, data_len),
-        129 => wire__crate__create_image_preprocessing_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        130 => wire__crate__create_image_preprocessing_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        131 => wire__crate__create_inline_element_from_json_impl(port, ptr, rust_vec_len, data_len),
-        132 => wire__crate__create_jats_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        133 => wire__crate__create_keyword_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        134 => wire__crate__create_keyword_from_json_impl(port, ptr, rust_vec_len, data_len),
-        135 => wire__crate__create_language_detection_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        136 => wire__crate__create_late_interaction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        137 => wire__crate__create_late_interaction_match_from_json_impl(port, ptr, rust_vec_len, data_len),
-        138 => wire__crate__create_late_interaction_preset_from_json_impl(port, ptr, rust_vec_len, data_len),
-        139 => wire__crate__create_layout_detection_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        140 => wire__crate__create_layout_detection_from_json_impl(port, ptr, rust_vec_len, data_len),
-        141 => wire__crate__create_layout_region_from_json_impl(port, ptr, rust_vec_len, data_len),
-        142 => wire__crate__create_link_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        143 => wire__crate__create_llm_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        144 => wire__crate__create_llm_usage_from_json_impl(port, ptr, rust_vec_len, data_len),
-        145 => wire__crate__create_map_result_from_json_impl(port, ptr, rust_vec_len, data_len),
-        146 => wire__crate__create_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        147 => wire__crate__create_model_paths_from_json_impl(port, ptr, rust_vec_len, data_len),
-        148 => wire__crate__create_multi_vector_embedding_from_json_impl(port, ptr, rust_vec_len, data_len),
-        149 => wire__crate__create_multidoc_input_from_json_impl(port, ptr, rust_vec_len, data_len),
-        150 => wire__crate__create_multidoc_thresholds_from_json_impl(port, ptr, rust_vec_len, data_len),
-        151 => wire__crate__create_ner_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        152 => wire__crate__create_ocr_backend_dart_impl_impl(port, ptr, rust_vec_len, data_len),
-        153 => wire__crate__create_ocr_confidence_from_json_impl(port, ptr, rust_vec_len, data_len),
-        154 => wire__crate__create_ocr_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        155 => wire__crate__create_ocr_element_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        156 => wire__crate__create_ocr_element_from_json_impl(port, ptr, rust_vec_len, data_len),
-        157 => wire__crate__create_ocr_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
-        158 => wire__crate__create_ocr_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        159 => wire__crate__create_ocr_pipeline_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        160 => wire__crate__create_ocr_pipeline_stage_from_json_impl(port, ptr, rust_vec_len, data_len),
-        161 => wire__crate__create_ocr_quality_thresholds_from_json_impl(port, ptr, rust_vec_len, data_len),
-        162 => wire__crate__create_ocr_rotation_from_json_impl(port, ptr, rust_vec_len, data_len),
-        163 => wire__crate__create_ocr_table_bounding_box_from_json_impl(port, ptr, rust_vec_len, data_len),
-        164 => wire__crate__create_ocr_table_from_json_impl(port, ptr, rust_vec_len, data_len),
-        165 => wire__crate__create_orientation_result_from_json_impl(port, ptr, rust_vec_len, data_len),
-        166 => wire__crate__create_paddle_ocr_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        167 => wire__crate__create_page_boundary_from_json_impl(port, ptr, rust_vec_len, data_len),
-        168 => wire__crate__create_page_classification_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        169 => wire__crate__create_page_classification_from_json_impl(port, ptr, rust_vec_len, data_len),
-        170 => wire__crate__create_page_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        171 => wire__crate__create_page_content_from_json_impl(port, ptr, rust_vec_len, data_len),
-        172 => wire__crate__create_page_hierarchy_from_json_impl(port, ptr, rust_vec_len, data_len),
-        173 => wire__crate__create_page_info_from_json_impl(port, ptr, rust_vec_len, data_len),
-        174 => wire__crate__create_page_range_from_json_impl(port, ptr, rust_vec_len, data_len),
-        175 => wire__crate__create_page_signals_from_json_impl(port, ptr, rust_vec_len, data_len),
-        176 => wire__crate__create_page_structure_from_json_impl(port, ptr, rust_vec_len, data_len),
-        177 => wire__crate__create_pattern_match_from_json_impl(port, ptr, rust_vec_len, data_len),
-        178 => wire__crate__create_pdf_annotation_from_json_impl(port, ptr, rust_vec_len, data_len),
-        179 => wire__crate__create_pdf_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        180 => wire__crate__create_pdf_form_field_from_json_impl(port, ptr, rust_vec_len, data_len),
-        181 => wire__crate__create_pdf_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        182 => wire__crate__create_post_processor_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        183 => wire__crate__create_post_processor_dart_impl_impl(port, ptr, rust_vec_len, data_len),
-        184 => wire__crate__create_pptx_app_properties_from_json_impl(port, ptr, rust_vec_len, data_len),
-        185 => wire__crate__create_pptx_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
-        186 => wire__crate__create_pptx_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        187 => wire__crate__create_preset_from_json_impl(port, ptr, rust_vec_len, data_len),
-        188 => wire__crate__create_preset_sample_from_json_impl(port, ptr, rust_vec_len, data_len),
-        189 => wire__crate__create_preset_summary_from_json_impl(port, ptr, rust_vec_len, data_len),
-        190 => wire__crate__create_processing_warning_from_json_impl(port, ptr, rust_vec_len, data_len),
-        191 => wire__crate__create_property_change_from_json_impl(port, ptr, rust_vec_len, data_len),
-        192 => wire__crate__create_proxy_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        193 => wire__crate__create_pst_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        194 => wire__crate__create_qr_bounding_box_from_json_impl(port, ptr, rust_vec_len, data_len),
-        195 => wire__crate__create_qr_code_from_json_impl(port, ptr, rust_vec_len, data_len),
-        196 => wire__crate__create_rake_params_from_json_impl(port, ptr, rust_vec_len, data_len),
-        197 => wire__crate__create_recognized_table_from_json_impl(port, ptr, rust_vec_len, data_len),
-        198 => wire__crate__create_redaction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        199 => wire__crate__create_redaction_finding_from_json_impl(port, ptr, rust_vec_len, data_len),
-        200 => wire__crate__create_redaction_pattern_from_json_impl(port, ptr, rust_vec_len, data_len),
-        201 => wire__crate__create_redaction_report_from_json_impl(port, ptr, rust_vec_len, data_len),
-        202 => wire__crate__create_redaction_term_from_json_impl(port, ptr, rust_vec_len, data_len),
-        203 => wire__crate__create_renderer_dart_impl_impl(port, ptr, rust_vec_len, data_len),
-        204 => wire__crate__create_reranked_document_from_json_impl(port, ptr, rust_vec_len, data_len),
-        205 => wire__crate__create_reranker_backend_dart_impl_impl(port, ptr, rust_vec_len, data_len),
-        206 => wire__crate__create_reranker_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        207 => wire__crate__create_resolved_preset_from_json_impl(port, ptr, rust_vec_len, data_len),
-        208 => wire__crate__create_revision_delta_from_json_impl(port, ptr, rust_vec_len, data_len),
-        209 => wire__crate__create_security_limits_from_json_impl(port, ptr, rust_vec_len, data_len),
-        210 => wire__crate__create_server_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        211 => wire__crate__create_sitemap_url_from_json_impl(port, ptr, rust_vec_len, data_len),
-        212 => wire__crate__create_sparse_embedding_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        213 => wire__crate__create_sparse_embedding_from_json_impl(port, ptr, rust_vec_len, data_len),
-        214 => wire__crate__create_sparse_embedding_preset_from_json_impl(port, ptr, rust_vec_len, data_len),
-        215 => wire__crate__create_ssrf_policy_from_json_impl(port, ptr, rust_vec_len, data_len),
-        216 => wire__crate__create_structured_data_from_json_impl(port, ptr, rust_vec_len, data_len),
-        217 => wire__crate__create_structured_data_result_from_json_impl(port, ptr, rust_vec_len, data_len),
-        218 => wire__crate__create_structured_extraction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        219 => wire__crate__create_summarization_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        220 => wire__crate__create_supported_format_from_json_impl(port, ptr, rust_vec_len, data_len),
-        221 => wire__crate__create_svg_options_from_json_impl(port, ptr, rust_vec_len, data_len),
-        222 => wire__crate__create_table_cell_from_json_impl(port, ptr, rust_vec_len, data_len),
-        223 => wire__crate__create_table_diff_from_json_impl(port, ptr, rust_vec_len, data_len),
-        224 => wire__crate__create_table_from_json_impl(port, ptr, rust_vec_len, data_len),
-        225 => wire__crate__create_table_grid_from_json_impl(port, ptr, rust_vec_len, data_len),
-        226 => wire__crate__create_tesseract_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        227 => wire__crate__create_text_annotation_from_json_impl(port, ptr, rust_vec_len, data_len),
-        228 => wire__crate__create_text_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
-        229 => wire__crate__create_text_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        230 => wire__crate__create_token_reduction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        231 => wire__crate__create_token_reduction_options_from_json_impl(port, ptr, rust_vec_len, data_len),
-        232 => wire__crate__create_tokenizer_backend_dart_impl_impl(port, ptr, rust_vec_len, data_len),
-        233 => wire__crate__create_transcription_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        234 => wire__crate__create_translation_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        235 => wire__crate__create_translation_from_json_impl(port, ptr, rust_vec_len, data_len),
-        236 => wire__crate__create_tree_sitter_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        237 => wire__crate__create_tree_sitter_process_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        238 => wire__crate__create_url_extraction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        239 => wire__crate__create_user_chunk_config_from_json_impl(port, ptr, rust_vec_len, data_len),
-        240 => wire__crate__create_validator_dart_impl_impl(port, ptr, rust_vec_len, data_len),
-        241 => wire__crate__create_xlsx_app_properties_from_json_impl(port, ptr, rust_vec_len, data_len),
-        242 => wire__crate__create_xml_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
-        243 => wire__crate__create_xml_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
-        244 => wire__crate__create_yake_params_from_json_impl(port, ptr, rust_vec_len, data_len),
-        245 => wire__crate__create_year_range_from_json_impl(port, ptr, rust_vec_len, data_len),
-        246 => wire__crate__extract_impl(port, ptr, rust_vec_len, data_len),
-        247 => wire__crate__extract_batch_impl(port, ptr, rust_vec_len, data_len),
-        248 => wire__crate__find_unmarked_claims_impl(port, ptr, rust_vec_len, data_len),
-        249 => wire__crate__list_document_extractors_impl(port, ptr, rust_vec_len, data_len),
-        250 => wire__crate__list_embedding_backends_impl(port, ptr, rust_vec_len, data_len),
-        251 => wire__crate__list_ocr_backends_impl(port, ptr, rust_vec_len, data_len),
-        252 => wire__crate__list_post_processors_impl(port, ptr, rust_vec_len, data_len),
-        253 => wire__crate__list_renderers_impl(port, ptr, rust_vec_len, data_len),
-        254 => wire__crate__list_reranker_backends_impl(port, ptr, rust_vec_len, data_len),
-        255 => wire__crate__list_supported_formats_impl(port, ptr, rust_vec_len, data_len),
-        256 => wire__crate__list_tokenizer_backends_impl(port, ptr, rust_vec_len, data_len),
-        257 => wire__crate__list_validators_impl(port, ptr, rust_vec_len, data_len),
-        258 => wire__crate__map_url_impl(port, ptr, rust_vec_len, data_len),
-        259 => wire__crate__max_sim_rank_impl(port, ptr, rust_vec_len, data_len),
-        260 => wire__crate__max_sim_score_impl(port, ptr, rust_vec_len, data_len),
-        261 => wire__crate__register_document_extractor_impl(port, ptr, rust_vec_len, data_len),
-        262 => wire__crate__register_embedding_backend_impl(port, ptr, rust_vec_len, data_len),
-        263 => wire__crate__register_ocr_backend_impl(port, ptr, rust_vec_len, data_len),
-        264 => wire__crate__register_post_processor_impl(port, ptr, rust_vec_len, data_len),
-        265 => wire__crate__register_renderer_impl(port, ptr, rust_vec_len, data_len),
-        266 => wire__crate__register_reranker_backend_impl(port, ptr, rust_vec_len, data_len),
-        267 => wire__crate__register_tokenizer_backend_impl(port, ptr, rust_vec_len, data_len),
-        268 => wire__crate__register_validator_impl(port, ptr, rust_vec_len, data_len),
-        269 => wire__crate__unregister_document_extractor_impl(port, ptr, rust_vec_len, data_len),
-        270 => wire__crate__unregister_embedding_backend_impl(port, ptr, rust_vec_len, data_len),
-        271 => wire__crate__unregister_ocr_backend_impl(port, ptr, rust_vec_len, data_len),
-        272 => wire__crate__unregister_post_processor_impl(port, ptr, rust_vec_len, data_len),
-        273 => wire__crate__unregister_renderer_impl(port, ptr, rust_vec_len, data_len),
-        274 => wire__crate__unregister_reranker_backend_impl(port, ptr, rust_vec_len, data_len),
-        275 => wire__crate__unregister_tokenizer_backend_impl(port, ptr, rust_vec_len, data_len),
-        276 => wire__crate__unregister_validator_impl(port, ptr, rust_vec_len, data_len),
-        277 => wire__crate__verify_excerpt_impl(port, ptr, rust_vec_len, data_len),
+        55 => wire__crate__create_code_data_attribute_from_json_impl(port, ptr, rust_vec_len, data_len),
+        56 => wire__crate__create_code_data_node_from_json_impl(port, ptr, rust_vec_len, data_len),
+        57 => wire__crate__create_code_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        58 => wire__crate__create_content_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        59 => wire__crate__create_content_filter_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        60 => wire__crate__create_contributor_role_from_json_impl(port, ptr, rust_vec_len, data_len),
+        61 => wire__crate__create_conversion_options_from_json_impl(port, ptr, rust_vec_len, data_len),
+        62 => wire__crate__create_core_properties_from_json_impl(port, ptr, rust_vec_len, data_len),
+        63 => wire__crate__create_crawl_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        64 => wire__crate__create_csv_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        65 => wire__crate__create_dbf_field_info_from_json_impl(port, ptr, rust_vec_len, data_len),
+        66 => wire__crate__create_dbf_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        67 => wire__crate__create_detect_response_from_json_impl(port, ptr, rust_vec_len, data_len),
+        68 => wire__crate__create_detection_result_from_json_impl(port, ptr, rust_vec_len, data_len),
+        69 => wire__crate__create_diff_hunk_from_json_impl(port, ptr, rust_vec_len, data_len),
+        70 => wire__crate__create_diff_options_from_json_impl(port, ptr, rust_vec_len, data_len),
+        71 => wire__crate__create_djot_content_from_json_impl(port, ptr, rust_vec_len, data_len),
+        72 => wire__crate__create_djot_image_from_json_impl(port, ptr, rust_vec_len, data_len),
+        73 => wire__crate__create_djot_link_from_json_impl(port, ptr, rust_vec_len, data_len),
+        74 => wire__crate__create_document_boundary_from_json_impl(port, ptr, rust_vec_len, data_len),
+        75 => wire__crate__create_document_counts_from_json_impl(port, ptr, rust_vec_len, data_len),
+        76 => wire__crate__create_document_extractor_dart_impl_impl(port, ptr, rust_vec_len, data_len),
+        77 => wire__crate__create_document_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        78 => wire__crate__create_document_node_from_json_impl(port, ptr, rust_vec_len, data_len),
+        79 => wire__crate__create_document_relationship_from_json_impl(port, ptr, rust_vec_len, data_len),
+        80 => wire__crate__create_document_revision_from_json_impl(port, ptr, rust_vec_len, data_len),
+        81 => wire__crate__create_document_structure_from_json_impl(port, ptr, rust_vec_len, data_len),
+        82 => wire__crate__create_document_summary_from_json_impl(port, ptr, rust_vec_len, data_len),
+        83 => wire__crate__create_docx_app_properties_from_json_impl(port, ptr, rust_vec_len, data_len),
+        84 => wire__crate__create_docx_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        85 => wire__crate__create_element_from_json_impl(port, ptr, rust_vec_len, data_len),
+        86 => wire__crate__create_element_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        87 => wire__crate__create_email_attachment_from_json_impl(port, ptr, rust_vec_len, data_len),
+        88 => wire__crate__create_email_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        89 => wire__crate__create_email_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
+        90 => wire__crate__create_email_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        91 => wire__crate__create_embedded_changes_from_json_impl(port, ptr, rust_vec_len, data_len),
+        92 => wire__crate__create_embedded_diff_from_json_impl(port, ptr, rust_vec_len, data_len),
+        93 => wire__crate__create_embedded_file_from_json_impl(port, ptr, rust_vec_len, data_len),
+        94 => wire__crate__create_embedding_backend_dart_impl_impl(port, ptr, rust_vec_len, data_len),
+        95 => wire__crate__create_embedding_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        96 => wire__crate__create_entity_from_json_impl(port, ptr, rust_vec_len, data_len),
+        97 => wire__crate__create_epub_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        98 => wire__crate__create_error_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        99 => wire__crate__create_excel_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        100 => wire__crate__create_excel_sheet_from_json_impl(port, ptr, rust_vec_len, data_len),
+        101 => wire__crate__create_excel_workbook_from_json_impl(port, ptr, rust_vec_len, data_len),
+        102 => wire__crate__create_extract_input_from_json_impl(port, ptr, rust_vec_len, data_len),
+        103 => wire__crate__create_extracted_document_from_json_impl(port, ptr, rust_vec_len, data_len),
+        104 => wire__crate__create_extracted_image_from_json_impl(port, ptr, rust_vec_len, data_len),
+        105 => wire__crate__create_extracted_uri_from_json_impl(port, ptr, rust_vec_len, data_len),
+        106 => wire__crate__create_extraction_confidence_from_json_impl(port, ptr, rust_vec_len, data_len),
+        107 => wire__crate__create_extraction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        108 => wire__crate__create_extraction_diff_from_json_impl(port, ptr, rust_vec_len, data_len),
+        109 => wire__crate__create_extraction_error_item_from_json_impl(port, ptr, rust_vec_len, data_len),
+        110 => wire__crate__create_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
+        111 => wire__crate__create_extraction_summary_from_json_impl(port, ptr, rust_vec_len, data_len),
+        112 => wire__crate__create_fiction_book_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        113 => wire__crate__create_file_extraction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        114 => wire__crate__create_footnote_anchor_from_json_impl(port, ptr, rust_vec_len, data_len),
+        115 => wire__crate__create_footnote_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        116 => wire__crate__create_footnote_definition_from_json_impl(port, ptr, rust_vec_len, data_len),
+        117 => wire__crate__create_footnote_from_json_impl(port, ptr, rust_vec_len, data_len),
+        118 => wire__crate__create_formatted_block_from_json_impl(port, ptr, rust_vec_len, data_len),
+        119 => wire__crate__create_formula_from_json_impl(port, ptr, rust_vec_len, data_len),
+        120 => wire__crate__create_grid_cell_from_json_impl(port, ptr, rust_vec_len, data_len),
+        121 => wire__crate__create_header_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        122 => wire__crate__create_heading_context_from_json_impl(port, ptr, rust_vec_len, data_len),
+        123 => wire__crate__create_heading_level_from_json_impl(port, ptr, rust_vec_len, data_len),
+        124 => wire__crate__create_heuristics_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        125 => wire__crate__create_hierarchical_block_from_json_impl(port, ptr, rust_vec_len, data_len),
+        126 => wire__crate__create_hierarchy_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        127 => wire__crate__create_html_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        128 => wire__crate__create_html_output_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        129 => wire__crate__create_image_extraction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        130 => wire__crate__create_image_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        131 => wire__crate__create_image_metadata_type_from_json_impl(port, ptr, rust_vec_len, data_len),
+        132 => wire__crate__create_image_preprocessing_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        133 => wire__crate__create_image_preprocessing_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        134 => wire__crate__create_inline_element_from_json_impl(port, ptr, rust_vec_len, data_len),
+        135 => wire__crate__create_jats_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        136 => wire__crate__create_keyword_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        137 => wire__crate__create_keyword_from_json_impl(port, ptr, rust_vec_len, data_len),
+        138 => wire__crate__create_language_detection_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        139 => wire__crate__create_late_interaction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        140 => wire__crate__create_late_interaction_match_from_json_impl(port, ptr, rust_vec_len, data_len),
+        141 => wire__crate__create_late_interaction_preset_from_json_impl(port, ptr, rust_vec_len, data_len),
+        142 => wire__crate__create_layout_detection_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        143 => wire__crate__create_layout_detection_from_json_impl(port, ptr, rust_vec_len, data_len),
+        144 => wire__crate__create_layout_region_from_json_impl(port, ptr, rust_vec_len, data_len),
+        145 => wire__crate__create_link_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        146 => wire__crate__create_llm_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        147 => wire__crate__create_llm_usage_from_json_impl(port, ptr, rust_vec_len, data_len),
+        148 => wire__crate__create_map_result_from_json_impl(port, ptr, rust_vec_len, data_len),
+        149 => wire__crate__create_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        150 => wire__crate__create_model_paths_from_json_impl(port, ptr, rust_vec_len, data_len),
+        151 => wire__crate__create_multi_vector_embedding_from_json_impl(port, ptr, rust_vec_len, data_len),
+        152 => wire__crate__create_multidoc_input_from_json_impl(port, ptr, rust_vec_len, data_len),
+        153 => wire__crate__create_multidoc_thresholds_from_json_impl(port, ptr, rust_vec_len, data_len),
+        154 => wire__crate__create_ner_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        155 => wire__crate__create_ocr_backend_dart_impl_impl(port, ptr, rust_vec_len, data_len),
+        156 => wire__crate__create_ocr_confidence_from_json_impl(port, ptr, rust_vec_len, data_len),
+        157 => wire__crate__create_ocr_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        158 => wire__crate__create_ocr_element_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        159 => wire__crate__create_ocr_element_from_json_impl(port, ptr, rust_vec_len, data_len),
+        160 => wire__crate__create_ocr_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
+        161 => wire__crate__create_ocr_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        162 => wire__crate__create_ocr_pipeline_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        163 => wire__crate__create_ocr_pipeline_stage_from_json_impl(port, ptr, rust_vec_len, data_len),
+        164 => wire__crate__create_ocr_quality_thresholds_from_json_impl(port, ptr, rust_vec_len, data_len),
+        165 => wire__crate__create_ocr_rotation_from_json_impl(port, ptr, rust_vec_len, data_len),
+        166 => wire__crate__create_ocr_table_bounding_box_from_json_impl(port, ptr, rust_vec_len, data_len),
+        167 => wire__crate__create_ocr_table_from_json_impl(port, ptr, rust_vec_len, data_len),
+        168 => wire__crate__create_orientation_result_from_json_impl(port, ptr, rust_vec_len, data_len),
+        169 => wire__crate__create_paddle_ocr_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        170 => wire__crate__create_page_boundary_from_json_impl(port, ptr, rust_vec_len, data_len),
+        171 => wire__crate__create_page_classification_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        172 => wire__crate__create_page_classification_from_json_impl(port, ptr, rust_vec_len, data_len),
+        173 => wire__crate__create_page_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        174 => wire__crate__create_page_content_from_json_impl(port, ptr, rust_vec_len, data_len),
+        175 => wire__crate__create_page_hierarchy_from_json_impl(port, ptr, rust_vec_len, data_len),
+        176 => wire__crate__create_page_info_from_json_impl(port, ptr, rust_vec_len, data_len),
+        177 => wire__crate__create_page_range_from_json_impl(port, ptr, rust_vec_len, data_len),
+        178 => wire__crate__create_page_signals_from_json_impl(port, ptr, rust_vec_len, data_len),
+        179 => wire__crate__create_page_structure_from_json_impl(port, ptr, rust_vec_len, data_len),
+        180 => wire__crate__create_pattern_match_from_json_impl(port, ptr, rust_vec_len, data_len),
+        181 => wire__crate__create_pdf_annotation_from_json_impl(port, ptr, rust_vec_len, data_len),
+        182 => wire__crate__create_pdf_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        183 => wire__crate__create_pdf_form_field_from_json_impl(port, ptr, rust_vec_len, data_len),
+        184 => wire__crate__create_pdf_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        185 => wire__crate__create_post_processor_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        186 => wire__crate__create_post_processor_dart_impl_impl(port, ptr, rust_vec_len, data_len),
+        187 => wire__crate__create_pptx_app_properties_from_json_impl(port, ptr, rust_vec_len, data_len),
+        188 => wire__crate__create_pptx_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
+        189 => wire__crate__create_pptx_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        190 => wire__crate__create_preprocessing_options_from_json_impl(port, ptr, rust_vec_len, data_len),
+        191 => wire__crate__create_preset_from_json_impl(port, ptr, rust_vec_len, data_len),
+        192 => wire__crate__create_preset_sample_from_json_impl(port, ptr, rust_vec_len, data_len),
+        193 => wire__crate__create_preset_summary_from_json_impl(port, ptr, rust_vec_len, data_len),
+        194 => wire__crate__create_processing_warning_from_json_impl(port, ptr, rust_vec_len, data_len),
+        195 => wire__crate__create_property_change_from_json_impl(port, ptr, rust_vec_len, data_len),
+        196 => wire__crate__create_proxy_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        197 => wire__crate__create_pst_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        198 => wire__crate__create_qr_bounding_box_from_json_impl(port, ptr, rust_vec_len, data_len),
+        199 => wire__crate__create_qr_code_from_json_impl(port, ptr, rust_vec_len, data_len),
+        200 => wire__crate__create_rake_params_from_json_impl(port, ptr, rust_vec_len, data_len),
+        201 => wire__crate__create_recognized_table_from_json_impl(port, ptr, rust_vec_len, data_len),
+        202 => wire__crate__create_redaction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        203 => wire__crate__create_redaction_finding_from_json_impl(port, ptr, rust_vec_len, data_len),
+        204 => wire__crate__create_redaction_pattern_from_json_impl(port, ptr, rust_vec_len, data_len),
+        205 => wire__crate__create_redaction_report_from_json_impl(port, ptr, rust_vec_len, data_len),
+        206 => wire__crate__create_redaction_term_from_json_impl(port, ptr, rust_vec_len, data_len),
+        207 => wire__crate__create_renderer_dart_impl_impl(port, ptr, rust_vec_len, data_len),
+        208 => wire__crate__create_reranked_document_from_json_impl(port, ptr, rust_vec_len, data_len),
+        209 => wire__crate__create_reranker_backend_dart_impl_impl(port, ptr, rust_vec_len, data_len),
+        210 => wire__crate__create_reranker_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        211 => wire__crate__create_resolved_preset_from_json_impl(port, ptr, rust_vec_len, data_len),
+        212 => wire__crate__create_revision_delta_from_json_impl(port, ptr, rust_vec_len, data_len),
+        213 => wire__crate__create_security_limits_from_json_impl(port, ptr, rust_vec_len, data_len),
+        214 => wire__crate__create_server_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        215 => wire__crate__create_sitemap_url_from_json_impl(port, ptr, rust_vec_len, data_len),
+        216 => wire__crate__create_sparse_embedding_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        217 => wire__crate__create_sparse_embedding_from_json_impl(port, ptr, rust_vec_len, data_len),
+        218 => wire__crate__create_sparse_embedding_preset_from_json_impl(port, ptr, rust_vec_len, data_len),
+        219 => wire__crate__create_ssrf_policy_from_json_impl(port, ptr, rust_vec_len, data_len),
+        220 => wire__crate__create_structured_data_from_json_impl(port, ptr, rust_vec_len, data_len),
+        221 => wire__crate__create_structured_data_result_from_json_impl(port, ptr, rust_vec_len, data_len),
+        222 => wire__crate__create_structured_extraction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        223 => wire__crate__create_summarization_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        224 => wire__crate__create_supported_format_from_json_impl(port, ptr, rust_vec_len, data_len),
+        225 => wire__crate__create_svg_options_from_json_impl(port, ptr, rust_vec_len, data_len),
+        226 => wire__crate__create_table_cell_from_json_impl(port, ptr, rust_vec_len, data_len),
+        227 => wire__crate__create_table_diff_from_json_impl(port, ptr, rust_vec_len, data_len),
+        228 => wire__crate__create_table_from_json_impl(port, ptr, rust_vec_len, data_len),
+        229 => wire__crate__create_table_grid_from_json_impl(port, ptr, rust_vec_len, data_len),
+        230 => wire__crate__create_tesseract_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        231 => wire__crate__create_text_annotation_from_json_impl(port, ptr, rust_vec_len, data_len),
+        232 => wire__crate__create_text_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
+        233 => wire__crate__create_text_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        234 => wire__crate__create_token_reduction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        235 => wire__crate__create_token_reduction_options_from_json_impl(port, ptr, rust_vec_len, data_len),
+        236 => wire__crate__create_tokenizer_backend_dart_impl_impl(port, ptr, rust_vec_len, data_len),
+        237 => wire__crate__create_transcription_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        238 => wire__crate__create_translation_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        239 => wire__crate__create_translation_from_json_impl(port, ptr, rust_vec_len, data_len),
+        240 => wire__crate__create_tree_sitter_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        241 => wire__crate__create_tree_sitter_process_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        242 => wire__crate__create_url_extraction_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        243 => wire__crate__create_user_chunk_config_from_json_impl(port, ptr, rust_vec_len, data_len),
+        244 => wire__crate__create_validator_dart_impl_impl(port, ptr, rust_vec_len, data_len),
+        245 => wire__crate__create_xlsx_app_properties_from_json_impl(port, ptr, rust_vec_len, data_len),
+        246 => wire__crate__create_xml_extraction_result_from_json_impl(port, ptr, rust_vec_len, data_len),
+        247 => wire__crate__create_xml_metadata_from_json_impl(port, ptr, rust_vec_len, data_len),
+        248 => wire__crate__create_yake_params_from_json_impl(port, ptr, rust_vec_len, data_len),
+        249 => wire__crate__create_year_range_from_json_impl(port, ptr, rust_vec_len, data_len),
+        250 => wire__crate__extract_impl(port, ptr, rust_vec_len, data_len),
+        251 => wire__crate__extract_batch_impl(port, ptr, rust_vec_len, data_len),
+        252 => wire__crate__find_unmarked_claims_impl(port, ptr, rust_vec_len, data_len),
+        253 => wire__crate__list_document_extractors_impl(port, ptr, rust_vec_len, data_len),
+        254 => wire__crate__list_embedding_backends_impl(port, ptr, rust_vec_len, data_len),
+        255 => wire__crate__list_ocr_backends_impl(port, ptr, rust_vec_len, data_len),
+        256 => wire__crate__list_post_processors_impl(port, ptr, rust_vec_len, data_len),
+        257 => wire__crate__list_renderers_impl(port, ptr, rust_vec_len, data_len),
+        258 => wire__crate__list_reranker_backends_impl(port, ptr, rust_vec_len, data_len),
+        259 => wire__crate__list_supported_formats_impl(port, ptr, rust_vec_len, data_len),
+        260 => wire__crate__list_tokenizer_backends_impl(port, ptr, rust_vec_len, data_len),
+        261 => wire__crate__list_validators_impl(port, ptr, rust_vec_len, data_len),
+        262 => wire__crate__map_url_impl(port, ptr, rust_vec_len, data_len),
+        263 => wire__crate__max_sim_rank_impl(port, ptr, rust_vec_len, data_len),
+        264 => wire__crate__max_sim_score_impl(port, ptr, rust_vec_len, data_len),
+        265 => wire__crate__register_document_extractor_impl(port, ptr, rust_vec_len, data_len),
+        266 => wire__crate__register_embedding_backend_impl(port, ptr, rust_vec_len, data_len),
+        267 => wire__crate__register_ocr_backend_impl(port, ptr, rust_vec_len, data_len),
+        268 => wire__crate__register_post_processor_impl(port, ptr, rust_vec_len, data_len),
+        269 => wire__crate__register_renderer_impl(port, ptr, rust_vec_len, data_len),
+        270 => wire__crate__register_reranker_backend_impl(port, ptr, rust_vec_len, data_len),
+        271 => wire__crate__register_tokenizer_backend_impl(port, ptr, rust_vec_len, data_len),
+        272 => wire__crate__register_validator_impl(port, ptr, rust_vec_len, data_len),
+        273 => wire__crate__unregister_document_extractor_impl(port, ptr, rust_vec_len, data_len),
+        274 => wire__crate__unregister_embedding_backend_impl(port, ptr, rust_vec_len, data_len),
+        275 => wire__crate__unregister_ocr_backend_impl(port, ptr, rust_vec_len, data_len),
+        276 => wire__crate__unregister_post_processor_impl(port, ptr, rust_vec_len, data_len),
+        277 => wire__crate__unregister_renderer_impl(port, ptr, rust_vec_len, data_len),
+        278 => wire__crate__unregister_reranker_backend_impl(port, ptr, rust_vec_len, data_len),
+        279 => wire__crate__unregister_tokenizer_backend_impl(port, ptr, rust_vec_len, data_len),
+        280 => wire__crate__unregister_validator_impl(port, ptr, rust_vec_len, data_len),
+        281 => wire__crate__verify_excerpt_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -20711,6 +21238,23 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::ClassificationLabel>> f
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::CodeBlockStyle> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::CodeBlockStyle::Indented => 0.into_dart(),
+            crate::CodeBlockStyle::Backticks => 1.into_dart(),
+            crate::CodeBlockStyle::Tildes => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::CodeBlockStyle> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::CodeBlockStyle>> for crate::CodeBlockStyle {
+    fn into_into_dart(self) -> FrbWrapper<crate::CodeBlockStyle> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::CodeChunkInfo> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -20747,9 +21291,69 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::CodeContentMode>> for c
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::CodeDataAttribute> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.name.into_into_dart().into_dart(),
+            self.0.value.into_into_dart().into_dart(),
+            self.0.byte_start.into_into_dart().into_dart(),
+            self.0.byte_end.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::CodeDataAttribute> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::CodeDataAttribute>> for crate::CodeDataAttribute {
+    fn into_into_dart(self) -> FrbWrapper<crate::CodeDataAttribute> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::CodeDataNode> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.kind.into_into_dart().into_dart(),
+            self.0.key.into_into_dart().into_dart(),
+            self.0.value.into_into_dart().into_dart(),
+            self.0.attributes.into_into_dart().into_dart(),
+            self.0.children.into_into_dart().into_dart(),
+            self.0.byte_start.into_into_dart().into_dart(),
+            self.0.byte_end.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::CodeDataNode> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::CodeDataNode>> for crate::CodeDataNode {
+    fn into_into_dart(self) -> FrbWrapper<crate::CodeDataNode> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::CodeDataNodeKind> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::CodeDataNodeKind::KeyValue => 0.into_dart(),
+            crate::CodeDataNodeKind::Element => 1.into_dart(),
+            crate::CodeDataNodeKind::Sequence => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::CodeDataNodeKind> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::CodeDataNodeKind>> for crate::CodeDataNodeKind {
+    fn into_into_dart(self) -> FrbWrapper<crate::CodeDataNodeKind> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::CodeMetadata> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [self.0.chunks.into_into_dart().into_dart()].into_dart()
+        [
+            self.0.chunks.into_into_dart().into_dart(),
+            self.0.data.into_into_dart().into_dart(),
+        ]
+        .into_dart()
     }
 }
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::CodeMetadata> {}
@@ -20833,6 +21437,60 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::ContributorRole> {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::ContributorRole> {}
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::ContributorRole>> for crate::ContributorRole {
     fn into_into_dart(self) -> FrbWrapper<crate::ContributorRole> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::ConversionOptions> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.heading_style.into_into_dart().into_dart(),
+            self.0.list_indent_type.into_into_dart().into_dart(),
+            self.0.list_indent_width.into_into_dart().into_dart(),
+            self.0.bullets.into_into_dart().into_dart(),
+            self.0.strong_em_symbol.into_into_dart().into_dart(),
+            self.0.escape_asterisks.into_into_dart().into_dart(),
+            self.0.escape_underscores.into_into_dart().into_dart(),
+            self.0.escape_misc.into_into_dart().into_dart(),
+            self.0.escape_ascii.into_into_dart().into_dart(),
+            self.0.code_language.into_into_dart().into_dart(),
+            self.0.autolinks.into_into_dart().into_dart(),
+            self.0.default_title.into_into_dart().into_dart(),
+            self.0.br_in_tables.into_into_dart().into_dart(),
+            self.0.compact_tables.into_into_dart().into_dart(),
+            self.0.highlight_style.into_into_dart().into_dart(),
+            self.0.extract_metadata.into_into_dart().into_dart(),
+            self.0.whitespace_mode.into_into_dart().into_dart(),
+            self.0.strip_newlines.into_into_dart().into_dart(),
+            self.0.wrap.into_into_dart().into_dart(),
+            self.0.wrap_width.into_into_dart().into_dart(),
+            self.0.convert_as_inline.into_into_dart().into_dart(),
+            self.0.sub_symbol.into_into_dart().into_dart(),
+            self.0.sup_symbol.into_into_dart().into_dart(),
+            self.0.newline_style.into_into_dart().into_dart(),
+            self.0.code_block_style.into_into_dart().into_dart(),
+            self.0.keep_inline_images_in.into_into_dart().into_dart(),
+            self.0.preprocessing.into_into_dart().into_dart(),
+            self.0.encoding.into_into_dart().into_dart(),
+            self.0.debug.into_into_dart().into_dart(),
+            self.0.strip_tags.into_into_dart().into_dart(),
+            self.0.preserve_tags.into_into_dart().into_dart(),
+            self.0.skip_images.into_into_dart().into_dart(),
+            self.0.url_escape_style.into_into_dart().into_dart(),
+            self.0.link_style.into_into_dart().into_dart(),
+            self.0.max_image_size.into_into_dart().into_dart(),
+            self.0.capture_svg.into_into_dart().into_dart(),
+            self.0.infer_dimensions.into_into_dart().into_dart(),
+            self.0.max_depth.into_into_dart().into_dart(),
+            self.0.exclude_selectors.into_into_dart().into_dart(),
+            self.0.tier_strategy.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::ConversionOptions> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::ConversionOptions>> for crate::ConversionOptions {
+    fn into_into_dart(self) -> FrbWrapper<crate::ConversionOptions> {
         self.into()
     }
 }
@@ -21898,6 +22556,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::ExtractionConfig> {
             self.0.pages.into_into_dart().into_dart(),
             self.0.keywords.into_into_dart().into_dart(),
             self.0.postprocessor.into_into_dart().into_dart(),
+            self.0.html_options.into_into_dart().into_dart(),
             self.0.html_output.into_into_dart().into_dart(),
             self.0.extraction_timeout_secs.into_into_dart().into_dart(),
             self.0.max_concurrent_extractions.into_into_dart().into_dart(),
@@ -22329,6 +22988,23 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::HeadingLevel>> for crat
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::HeadingStyle> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::HeadingStyle::Underlined => 0.into_dart(),
+            crate::HeadingStyle::Atx => 1.into_dart(),
+            crate::HeadingStyle::AtxClosed => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::HeadingStyle> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::HeadingStyle>> for crate::HeadingStyle {
+    fn into_into_dart(self) -> FrbWrapper<crate::HeadingStyle> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::HeuristicsConfig> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -22406,6 +23082,24 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::HierarchyConfig> {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::HierarchyConfig> {}
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::HierarchyConfig>> for crate::HierarchyConfig {
     fn into_into_dart(self) -> FrbWrapper<crate::HierarchyConfig> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::HighlightStyle> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::HighlightStyle::DoubleEqual => 0.into_dart(),
+            crate::HighlightStyle::Html => 1.into_dart(),
+            crate::HighlightStyle::Bold => 2.into_dart(),
+            crate::HighlightStyle::None => 3.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::HighlightStyle> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::HighlightStyle>> for crate::HighlightStyle {
+    fn into_into_dart(self) -> FrbWrapper<crate::HighlightStyle> {
         self.into()
     }
 }
@@ -23019,6 +23713,22 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::LinkMetadata>> for crat
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::LinkStyle> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::LinkStyle::Inline => 0.into_dart(),
+            crate::LinkStyle::Reference => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::LinkStyle> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::LinkStyle>> for crate::LinkStyle {
+    fn into_into_dart(self) -> FrbWrapper<crate::LinkStyle> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::LinkType> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         match self.0 {
@@ -23035,6 +23745,22 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::LinkType> {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::LinkType> {}
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::LinkType>> for crate::LinkType {
     fn into_into_dart(self) -> FrbWrapper<crate::LinkType> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::ListIndentType> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::ListIndentType::Spaces => 0.into_dart(),
+            crate::ListIndentType::Tabs => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::ListIndentType> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::ListIndentType>> for crate::ListIndentType {
+    fn into_into_dart(self) -> FrbWrapper<crate::ListIndentType> {
         self.into()
     }
 }
@@ -23067,6 +23793,8 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::LlmConfig> {
             self.0.max_retries.into_into_dart().into_dart(),
             self.0.temperature.into_into_dart().into_dart(),
             self.0.max_tokens.into_into_dart().into_dart(),
+            self.0.load_env.into_into_dart().into_dart(),
+            self.0.headers.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -23301,6 +24029,22 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::NerConfig> {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::NerConfig> {}
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::NerConfig>> for crate::NerConfig {
     fn into_into_dart(self) -> FrbWrapper<crate::NerConfig> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::NewlineStyle> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::NewlineStyle::Spaces => 0.into_dart(),
+            crate::NewlineStyle::Backslash => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::NewlineStyle> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::NewlineStyle>> for crate::NewlineStyle {
+    fn into_into_dart(self) -> FrbWrapper<crate::NewlineStyle> {
         self.into()
     }
 }
@@ -24315,6 +25059,41 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::PptxMetadata> {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::PptxMetadata> {}
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::PptxMetadata>> for crate::PptxMetadata {
     fn into_into_dart(self) -> FrbWrapper<crate::PptxMetadata> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::PreprocessingOptions> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.0.enabled.into_into_dart().into_dart(),
+            self.0.preset.into_into_dart().into_dart(),
+            self.0.remove_navigation.into_into_dart().into_dart(),
+            self.0.remove_forms.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::PreprocessingOptions> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::PreprocessingOptions>> for crate::PreprocessingOptions {
+    fn into_into_dart(self) -> FrbWrapper<crate::PreprocessingOptions> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::PreprocessingPreset> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::PreprocessingPreset::Minimal => 0.into_dart(),
+            crate::PreprocessingPreset::Standard => 1.into_dart(),
+            crate::PreprocessingPreset::Aggressive => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::PreprocessingPreset> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::PreprocessingPreset>> for crate::PreprocessingPreset {
+    fn into_into_dart(self) -> FrbWrapper<crate::PreprocessingPreset> {
         self.into()
     }
 }
@@ -25510,6 +26289,23 @@ impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::TextMetadata>> for crat
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::TierStrategy> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::TierStrategy::Auto => 0.into_dart(),
+            crate::TierStrategy::Tier2 => 1.into_dart(),
+            crate::TierStrategy::Tier1 => 2.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::TierStrategy> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::TierStrategy>> for crate::TierStrategy {
+    fn into_into_dart(self) -> FrbWrapper<crate::TierStrategy> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::TokenReductionConfig> {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -25640,6 +26436,7 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::TreeSitterProcessConfig
             self.0.docstrings.into_into_dart().into_dart(),
             self.0.symbols.into_into_dart().into_dart(),
             self.0.diagnostics.into_into_dart().into_dart(),
+            self.0.data_extraction.into_into_dart().into_dart(),
             self.0.chunk_max_size.into_into_dart().into_dart(),
             self.0.content_mode.into_into_dart().into_dart(),
         ]
@@ -25669,6 +26466,22 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::UriKind> {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::UriKind> {}
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::UriKind>> for crate::UriKind {
     fn into_into_dart(self) -> FrbWrapper<crate::UriKind> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::UrlEscapeStyle> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::UrlEscapeStyle::Angle => 0.into_dart(),
+            crate::UrlEscapeStyle::Percent => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::UrlEscapeStyle> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::UrlEscapeStyle>> for crate::UrlEscapeStyle {
+    fn into_into_dart(self) -> FrbWrapper<crate::UrlEscapeStyle> {
         self.into()
     }
 }
@@ -25765,6 +26578,22 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::WhisperModel> {
 impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::WhisperModel> {}
 impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::WhisperModel>> for crate::WhisperModel {
     fn into_into_dart(self) -> FrbWrapper<crate::WhisperModel> {
+        self.into()
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::WhitespaceMode> {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        match self.0 {
+            crate::WhitespaceMode::Normalized => 0.into_dart(),
+            crate::WhitespaceMode::Strict => 1.into_dart(),
+            _ => unreachable!(),
+        }
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for FrbWrapper<crate::WhitespaceMode> {}
+impl flutter_rust_bridge::IntoIntoDart<FrbWrapper<crate::WhitespaceMode>> for crate::WhitespaceMode {
+    fn into_into_dart(self) -> FrbWrapper<crate::WhitespaceMode> {
         self.into()
     }
 }
@@ -26853,6 +27682,23 @@ impl SseEncode for crate::ClassificationLabel {
     }
 }
 
+impl SseEncode for crate::CodeBlockStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::CodeBlockStyle::Indented => 0,
+                crate::CodeBlockStyle::Backticks => 1,
+                crate::CodeBlockStyle::Tildes => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::CodeChunkInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -26881,10 +27727,51 @@ impl SseEncode for crate::CodeContentMode {
     }
 }
 
+impl SseEncode for crate::CodeDataAttribute {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.name, serializer);
+        <String>::sse_encode(self.value, serializer);
+        <i64>::sse_encode(self.byte_start, serializer);
+        <i64>::sse_encode(self.byte_end, serializer);
+    }
+}
+
+impl SseEncode for crate::CodeDataNode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::CodeDataNodeKind>::sse_encode(self.kind, serializer);
+        <Option<String>>::sse_encode(self.key, serializer);
+        <Option<String>>::sse_encode(self.value, serializer);
+        <Vec<crate::CodeDataAttribute>>::sse_encode(self.attributes, serializer);
+        <Vec<crate::CodeDataNode>>::sse_encode(self.children, serializer);
+        <i64>::sse_encode(self.byte_start, serializer);
+        <i64>::sse_encode(self.byte_end, serializer);
+    }
+}
+
+impl SseEncode for crate::CodeDataNodeKind {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::CodeDataNodeKind::KeyValue => 0,
+                crate::CodeDataNodeKind::Element => 1,
+                crate::CodeDataNodeKind::Sequence => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::CodeMetadata {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <Vec<crate::CodeChunkInfo>>::sse_encode(self.chunks, serializer);
+        <Option<crate::CodeDataNode>>::sse_encode(self.data, serializer);
     }
 }
 
@@ -26939,6 +27826,52 @@ impl SseEncode for crate::ContributorRole {
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <String>::sse_encode(self.name, serializer);
         <Option<String>>::sse_encode(self.role, serializer);
+    }
+}
+
+impl SseEncode for crate::ConversionOptions {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <crate::HeadingStyle>::sse_encode(self.heading_style, serializer);
+        <crate::ListIndentType>::sse_encode(self.list_indent_type, serializer);
+        <i64>::sse_encode(self.list_indent_width, serializer);
+        <String>::sse_encode(self.bullets, serializer);
+        <String>::sse_encode(self.strong_em_symbol, serializer);
+        <bool>::sse_encode(self.escape_asterisks, serializer);
+        <bool>::sse_encode(self.escape_underscores, serializer);
+        <bool>::sse_encode(self.escape_misc, serializer);
+        <bool>::sse_encode(self.escape_ascii, serializer);
+        <String>::sse_encode(self.code_language, serializer);
+        <bool>::sse_encode(self.autolinks, serializer);
+        <bool>::sse_encode(self.default_title, serializer);
+        <bool>::sse_encode(self.br_in_tables, serializer);
+        <bool>::sse_encode(self.compact_tables, serializer);
+        <crate::HighlightStyle>::sse_encode(self.highlight_style, serializer);
+        <bool>::sse_encode(self.extract_metadata, serializer);
+        <crate::WhitespaceMode>::sse_encode(self.whitespace_mode, serializer);
+        <bool>::sse_encode(self.strip_newlines, serializer);
+        <bool>::sse_encode(self.wrap, serializer);
+        <i64>::sse_encode(self.wrap_width, serializer);
+        <bool>::sse_encode(self.convert_as_inline, serializer);
+        <String>::sse_encode(self.sub_symbol, serializer);
+        <String>::sse_encode(self.sup_symbol, serializer);
+        <crate::NewlineStyle>::sse_encode(self.newline_style, serializer);
+        <crate::CodeBlockStyle>::sse_encode(self.code_block_style, serializer);
+        <Vec<String>>::sse_encode(self.keep_inline_images_in, serializer);
+        <crate::PreprocessingOptions>::sse_encode(self.preprocessing, serializer);
+        <String>::sse_encode(self.encoding, serializer);
+        <bool>::sse_encode(self.debug, serializer);
+        <Vec<String>>::sse_encode(self.strip_tags, serializer);
+        <Vec<String>>::sse_encode(self.preserve_tags, serializer);
+        <bool>::sse_encode(self.skip_images, serializer);
+        <crate::UrlEscapeStyle>::sse_encode(self.url_escape_style, serializer);
+        <crate::LinkStyle>::sse_encode(self.link_style, serializer);
+        <i64>::sse_encode(self.max_image_size, serializer);
+        <bool>::sse_encode(self.capture_svg, serializer);
+        <bool>::sse_encode(self.infer_dimensions, serializer);
+        <Option<i64>>::sse_encode(self.max_depth, serializer);
+        <Vec<String>>::sse_encode(self.exclude_selectors, serializer);
+        <crate::TierStrategy>::sse_encode(self.tier_strategy, serializer);
     }
 }
 
@@ -27679,6 +28612,7 @@ impl SseEncode for crate::ExtractionConfig {
         <Option<crate::PageConfig>>::sse_encode(self.pages, serializer);
         <Option<crate::KeywordConfig>>::sse_encode(self.keywords, serializer);
         <Option<crate::PostProcessorConfig>>::sse_encode(self.postprocessor, serializer);
+        <Option<crate::ConversionOptions>>::sse_encode(self.html_options, serializer);
         <Option<crate::HtmlOutputConfig>>::sse_encode(self.html_output, serializer);
         <Option<i64>>::sse_encode(self.extraction_timeout_secs, serializer);
         <Option<i64>>::sse_encode(self.max_concurrent_extractions, serializer);
@@ -28035,6 +28969,23 @@ impl SseEncode for crate::HeadingLevel {
     }
 }
 
+impl SseEncode for crate::HeadingStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::HeadingStyle::Underlined => 0,
+                crate::HeadingStyle::Atx => 1,
+                crate::HeadingStyle::AtxClosed => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::HeuristicsConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -28086,6 +29037,24 @@ impl SseEncode for crate::HierarchyConfig {
         <bool>::sse_encode(self.enabled, serializer);
         <i64>::sse_encode(self.k_clusters, serializer);
         <bool>::sse_encode(self.include_bbox, serializer);
+    }
+}
+
+impl SseEncode for crate::HighlightStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::HighlightStyle::DoubleEqual => 0,
+                crate::HighlightStyle::Html => 1,
+                crate::HighlightStyle::Bold => 2,
+                crate::HighlightStyle::None => 3,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -28561,6 +29530,22 @@ impl SseEncode for crate::LinkMetadata {
     }
 }
 
+impl SseEncode for crate::LinkStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::LinkStyle::Inline => 0,
+                crate::LinkStyle::Reference => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::LinkType {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -28647,6 +29632,26 @@ impl SseEncode for Vec<crate::CodeChunkInfo> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <crate::CodeChunkInfo>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::CodeDataAttribute> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::CodeDataAttribute>::sse_encode(item, serializer);
+        }
+    }
+}
+
+impl SseEncode for Vec<crate::CodeDataNode> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <crate::CodeDataNode>::sse_encode(item, serializer);
         }
     }
 }
@@ -28928,6 +29933,22 @@ impl SseEncode for Vec<crate::ImageMetadataType> {
         for item in self {
             <crate::ImageMetadataType>::sse_encode(item, serializer);
         }
+    }
+}
+
+impl SseEncode for crate::ListIndentType {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::ListIndentType::Spaces => 0,
+                crate::ListIndentType::Tabs => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -29379,6 +30400,8 @@ impl SseEncode for crate::LlmConfig {
         <Option<i64>>::sse_encode(self.max_retries, serializer);
         <Option<f64>>::sse_encode(self.temperature, serializer);
         <Option<i64>>::sse_encode(self.max_tokens, serializer);
+        <Option<bool>>::sse_encode(self.load_env, serializer);
+        <Option<std::collections::HashMap<String, String>>>::sse_encode(self.headers, serializer);
     }
 }
 
@@ -29548,6 +30571,22 @@ impl SseEncode for crate::NerConfig {
         <Option<String>>::sse_encode(self.model, serializer);
         <Option<crate::LlmConfig>>::sse_encode(self.llm, serializer);
         <Vec<String>>::sse_encode(self.custom_labels, serializer);
+    }
+}
+
+impl SseEncode for crate::NewlineStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::NewlineStyle::Spaces => 0,
+                crate::NewlineStyle::Backslash => 1,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
     }
 }
 
@@ -30038,12 +31077,32 @@ impl SseEncode for Option<crate::ChunkingConfig> {
     }
 }
 
+impl SseEncode for Option<crate::CodeDataNode> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::CodeDataNode>::sse_encode(value, serializer);
+        }
+    }
+}
+
 impl SseEncode for Option<crate::ContentFilterConfig> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <bool>::sse_encode(self.is_some(), serializer);
         if let Some(value) = self {
             <crate::ContentFilterConfig>::sse_encode(value, serializer);
+        }
+    }
+}
+
+impl SseEncode for Option<crate::ConversionOptions> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.is_some(), serializer);
+        if let Some(value) = self {
+            <crate::ConversionOptions>::sse_encode(value, serializer);
         }
     }
 }
@@ -31327,6 +32386,33 @@ impl SseEncode for crate::PptxMetadata {
     }
 }
 
+impl SseEncode for crate::PreprocessingOptions {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <bool>::sse_encode(self.enabled, serializer);
+        <crate::PreprocessingPreset>::sse_encode(self.preset, serializer);
+        <bool>::sse_encode(self.remove_navigation, serializer);
+        <bool>::sse_encode(self.remove_forms, serializer);
+    }
+}
+
+impl SseEncode for crate::PreprocessingPreset {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::PreprocessingPreset::Minimal => 0,
+                crate::PreprocessingPreset::Standard => 1,
+                crate::PreprocessingPreset::Aggressive => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::Preset {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -32220,6 +33306,23 @@ impl SseEncode for crate::TextMetadata {
     }
 }
 
+impl SseEncode for crate::TierStrategy {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::TierStrategy::Auto => 0,
+                crate::TierStrategy::Tier2 => 1,
+                crate::TierStrategy::Tier1 => 2,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
 impl SseEncode for crate::TokenReductionConfig {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -32302,6 +33405,7 @@ impl SseEncode for crate::TreeSitterProcessConfig {
         <bool>::sse_encode(self.docstrings, serializer);
         <bool>::sse_encode(self.symbols, serializer);
         <bool>::sse_encode(self.diagnostics, serializer);
+        <bool>::sse_encode(self.data_extraction, serializer);
         <Option<i64>>::sse_encode(self.chunk_max_size, serializer);
         <crate::CodeContentMode>::sse_encode(self.content_mode, serializer);
     }
@@ -32330,6 +33434,22 @@ impl SseEncode for crate::UriKind {
                 crate::UriKind::Citation => 3,
                 crate::UriKind::Reference => 4,
                 crate::UriKind::Email => 5,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::UrlEscapeStyle {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::UrlEscapeStyle::Angle => 0,
+                crate::UrlEscapeStyle::Percent => 1,
                 _ => {
                     unimplemented!("");
                 }
@@ -32417,6 +33537,22 @@ impl SseEncode for crate::WhisperModel {
                 crate::WhisperModel::Small => 2,
                 crate::WhisperModel::Medium => 3,
                 crate::WhisperModel::LargeV3 => 4,
+                _ => {
+                    unimplemented!("");
+                }
+            },
+            serializer,
+        );
+    }
+}
+
+impl SseEncode for crate::WhitespaceMode {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <i32>::sse_encode(
+            match self {
+                crate::WhitespaceMode::Normalized => 0,
+                crate::WhitespaceMode::Strict => 1,
                 _ => {
                     unimplemented!("");
                 }

@@ -9,7 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart' hide protected;
 part 'lib.freezed.dart';
 
 // These types are ignored because they are neither used by any `pub` functions nor (for structs and enums) marked `#[frb(unignore)]`: `DocumentExtractorDartCallbacks`, `EmbeddingBackendDartCallbacks`, `OcrBackendDartCallbacks`, `PostProcessorDartCallbacks`, `RendererDartCallbacks`, `RerankerBackendDartCallbacks`, `TokenizerBackendDartCallbacks`, `ValidatorDartCallbacks`
-// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `backend_type`, `can_handle`, `count_tokens`, `dimensions`, `embed`, `emits_structured_markdown`, `estimated_duration_ms`, `extract`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `name`, `name`, `name`, `name`, `name`, `name`, `name`, `name`, `priority`, `priority`, `priority`, `process_document`, `process_image_file`, `process_image`, `process`, `processing_stage`, `render_result`, `rerank`, `should_process`, `should_validate`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `supported_languages`, `supported_mime_types`, `supports_document_processing`, `supports_language`, `supports_table_detection`, `validate`, `version`, `version`, `version`, `version`, `version`, `version`, `version`, `version`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `backend_type`, `can_handle`, `count_tokens`, `dimensions`, `embed`, `emits_structured_markdown`, `estimated_duration_ms`, `extract`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `fmt`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `from`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `initialize`, `name`, `name`, `name`, `name`, `name`, `name`, `name`, `name`, `priority`, `priority`, `priority`, `process_document`, `process_image_file`, `process_image`, `process`, `processing_stage`, `render_result`, `rerank`, `should_process`, `should_validate`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `shutdown`, `supported_languages`, `supported_mime_types`, `supports_document_processing`, `supports_language`, `supports_table_detection`, `validate`, `version`, `version`, `version`, `version`, `version`, `version`, `version`, `version`
 
 /// Extract content from a single bytes or URI input.
 Future<ExtractionResult> extract({
@@ -546,6 +546,13 @@ RustLib.instance.api.crateCreateCodeMetadataFromJson(json: json);
 Future<CodeChunkInfo> createCodeChunkInfoFromJson({required String json}) =>
 RustLib.instance.api.crateCreateCodeChunkInfoFromJson(json: json);
 
+Future<CodeDataAttribute> createCodeDataAttributeFromJson({
+  required String json,
+}) => RustLib.instance.api.crateCreateCodeDataAttributeFromJson(json: json);
+
+Future<CodeDataNode> createCodeDataNodeFromJson({required String json}) =>
+    RustLib.instance.api.crateCreateCodeDataNodeFromJson(json: json);
+
 Future<Metadata> createMetadataFromJson({required String json}) =>
 RustLib.instance.api.crateCreateMetadataFromJson(json: json);
 
@@ -860,6 +867,14 @@ RustLib.instance.api.crateCreateMapResultFromJson(json: json);
 
 Future<SsrfPolicy> createSsrfPolicyFromJson({required String json}) =>
 RustLib.instance.api.crateCreateSsrfPolicyFromJson(json: json);
+
+Future<ConversionOptions> createConversionOptionsFromJson({
+  required String json,
+}) => RustLib.instance.api.crateCreateConversionOptionsFromJson(json: json);
+
+Future<PreprocessingOptions> createPreprocessingOptionsFromJson({
+  required String json,
+}) => RustLib.instance.api.crateCreatePreprocessingOptionsFromJson(json: json);
 
 /// Construct a `OcrBackendDartImpl` from Dart callback closures.
 /// FRB synthesises a Dart-callable function type for each closure parameter,
@@ -2631,6 +2646,20 @@ class ClassificationLabel {
   confidence == other.confidence;
 }
 
+/// Code block fence style in Markdown output.
+///
+/// Determines how code blocks (`<pre><code>`) are rendered in Markdown.
+enum CodeBlockStyle {
+  /// Indented code blocks (4 spaces). `CommonMark` standard.
+  indented,
+
+  /// Fenced code blocks with triple backticks. Default (GFM). Supports language hints.
+  backticks,
+
+  /// Fenced code blocks with tildes (~~~). Supports language hints.
+  tildes,
+}
+
 /// A single structurally-meaningful code chunk produced by tree-sitter parsing.
 ///
 /// Purpose-built payload owned by xberg — deliberately does not expose the upstream
@@ -2696,6 +2725,128 @@ enum CodeContentMode {
   structure,
 }
 
+/// An XML-style attribute attached to an [`Element`](CodeDataNodeKind::Element) node.
+///
+/// Populated only for `CodeDataNodeKind::Element`; always empty for `KeyValue` and
+/// `Sequence` nodes.
+class CodeDataAttribute {
+  /// Attribute name (e.g. `"class"`, `"href"`).
+  final String name;
+
+  /// Attribute value as a raw string (quotes stripped).
+  final String value;
+
+  /// Inclusive start byte offset of the `name="value"` attribute token.
+  final PlatformInt64 byteStart;
+
+  /// Exclusive end byte offset of the `name="value"` attribute token.
+  final PlatformInt64 byteEnd;
+
+  const CodeDataAttribute({
+    required this.name,
+    required this.value,
+    required this.byteStart,
+    required this.byteEnd,
+  });
+
+  @override
+  int get hashCode =>
+      name.hashCode ^ value.hashCode ^ byteStart.hashCode ^ byteEnd.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CodeDataAttribute &&
+          runtimeType == other.runtimeType &&
+          name == other.name &&
+          value == other.value &&
+          byteStart == other.byteStart &&
+          byteEnd == other.byteEnd;
+}
+
+/// A node in the hierarchical data tree produced by data-format extraction.
+///
+/// Purpose-built payload owned by xberg — mirrors
+/// `tree_sitter_language_pack::DataNode` but flattens its `Span` down to plain byte
+/// offsets, so binding generators never need to resolve an external crate's types
+/// across FFI/language boundaries.
+class CodeDataNode {
+  /// Whether this node is a key/value pair, XML element, or sequence item.
+  final CodeDataNodeKind kind;
+
+  /// Key, attribute name, tag name, or positional index (`"0"`, `"1"`, …).
+  /// `None` at the document root.
+  final String? key;
+
+  /// Leaf scalar value, if any. `None` for containers (objects, arrays, XML
+  /// elements with child elements).
+  final String? value;
+
+  /// Attributes on element-shape nodes (XML `STag` attributes). Empty for all
+  /// other kinds.
+  final List<CodeDataAttribute> attributes;
+
+  /// Children for nested containers and XML element bodies.
+  final List<CodeDataNode> children;
+
+  /// Inclusive start byte offset of this node in the original source.
+  final PlatformInt64 byteStart;
+
+  /// Exclusive end byte offset of this node in the original source.
+  final PlatformInt64 byteEnd;
+
+  const CodeDataNode({
+    required this.kind,
+    this.key,
+    this.value,
+    required this.attributes,
+    required this.children,
+    required this.byteStart,
+    required this.byteEnd,
+  });
+
+  @override
+  int get hashCode =>
+      kind.hashCode ^
+      key.hashCode ^
+      value.hashCode ^
+      attributes.hashCode ^
+      children.hashCode ^
+      byteStart.hashCode ^
+      byteEnd.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CodeDataNode &&
+          runtimeType == other.runtimeType &&
+          kind == other.kind &&
+          key == other.key &&
+          value == other.value &&
+          attributes == other.attributes &&
+          children == other.children &&
+          byteStart == other.byteStart &&
+          byteEnd == other.byteEnd;
+}
+
+/// Discriminates the shape of a [`CodeDataNode`].
+///
+/// Purpose-built mirror of `tree_sitter_language_pack::DataNodeKind` — kept as an
+/// xberg-owned type so binding generators never need to resolve the upstream crate's
+/// types across FFI/language boundaries.
+enum CodeDataNodeKind {
+  /// A key/value pair or mapping (JSON/TOML/properties/YAML/HCL/CUE/KDL pair, or a
+  /// wrapper "object"/"mapping" container).
+  keyValue,
+
+  /// An XML element with a tag name in `key` and attributes in `attributes`.
+  element,
+
+  /// A positional sequence item (JSON array element, YAML block sequence item,
+  /// CSV/PSV row or cell).
+  sequence,
+}
+
 /// Code-format metadata: the structural chunks produced by tree-sitter parsing.
 ///
 /// Wrapped by [`FormatMetadata::Code`]. Kept as a named struct (rather than an inline
@@ -2705,17 +2856,22 @@ class CodeMetadata {
   /// Structural code chunks (function/class/module boundaries).
   final List<CodeChunkInfo> chunks;
 
-  const CodeMetadata({required this.chunks});
+  /// Hierarchical key/value data tree extracted from data-format source
+  /// (JSON, YAML, TOML, XML, CSV, etc.), when data extraction was enabled.
+  final CodeDataNode? data;
+
+  const CodeMetadata({required this.chunks, this.data});
 
   @override
-  int get hashCode => chunks.hashCode;
+  int get hashCode => chunks.hashCode ^ data.hashCode;
 
   @override
   bool operator ==(Object other) =>
-  identical(this, other) ||
-  other is CodeMetadata &&
-  runtimeType == other.runtimeType &&
-  chunks == other.chunks;
+      identical(this, other) ||
+      other is CodeMetadata &&
+          runtimeType == other.runtimeType &&
+          chunks == other.chunks &&
+          data == other.data;
 }
 
 /// Content extraction and conversion configuration.
@@ -2938,6 +3094,329 @@ class ContributorRole {
   runtimeType == other.runtimeType &&
   name == other.name &&
   role == other.role;
+}
+
+/// Main conversion options for HTML to Markdown conversion.
+///
+/// Use [`ConversionOptions::builder()`] to construct, or [`Default::default()`] for defaults.
+///
+/// # Example
+///
+/// ```rust
+/// use html_to_markdown_rs::{ConversionOptions, HeadingStyle};
+///
+/// let options = ConversionOptions::builder()
+///     .heading_style(HeadingStyle::Atx)
+///     .wrap(true)
+///     .wrap_width(100)
+///     .build();
+/// ```
+class ConversionOptions {
+  /// Heading style to use in Markdown output (ATX `#` or Setext underline).
+  final HeadingStyle headingStyle;
+
+  /// How to indent nested list items (spaces or tab).
+  final ListIndentType listIndentType;
+
+  /// Number of spaces (or tabs) to use for each level of list indentation.
+  final PlatformInt64 listIndentWidth;
+
+  /// Bullet character(s) to use for unordered list items (e.g. `"-"`, `"*"`).
+  final String bullets;
+
+  /// Character used for bold/italic emphasis markers (`*` or `_`).
+  final String strongEmSymbol;
+
+  /// Escape `*` characters in plain text to avoid unintended bold/italic.
+  final bool escapeAsterisks;
+
+  /// Escape `_` characters in plain text to avoid unintended bold/italic.
+  final bool escapeUnderscores;
+
+  /// Escape miscellaneous Markdown metacharacters (`[]()#` etc.) in plain text.
+  final bool escapeMisc;
+
+  /// Escape ASCII characters that have special meaning in certain Markdown dialects.
+  final bool escapeAscii;
+
+  /// Default language annotation for fenced code blocks that have no language hint.
+  final String codeLanguage;
+
+  /// Automatically convert bare URLs into Markdown autolinks.
+  final bool autolinks;
+
+  /// Emit a default title when no `<title>` tag is present.
+  final bool defaultTitle;
+
+  /// Render `<br>` elements inside table cells as literal line breaks.
+  final bool brInTables;
+
+  /// Emit tables without column padding (compact GFM format).
+  ///
+  /// When `true`, column widths are not computed and cells are emitted with
+  /// no trailing spaces. Separator rows use exactly `---` per column.
+  /// Produces token-efficient output suitable for RAG / LLM contexts.
+  ///
+  /// Default `false` (aligned padding preserved).
+  final bool compactTables;
+
+  /// Style used for `<mark>` / highlighted text (e.g. `==text==`).
+  final HighlightStyle highlightStyle;
+
+  /// Populate `result.metadata` with `<head>` / `<meta>` extraction
+  /// (title, description, Open Graph, Twitter Card, JSON-LD, …).
+  ///
+  /// Default `true`. Disabling skips the metadata pass only — table
+  /// extraction into `result.tables` runs unconditionally.
+  final bool extractMetadata;
+
+  /// Controls how whitespace sequences are normalised in the converted output.
+  ///
+  /// - [`WhitespaceMode::Normalized`] (default) — collapses consecutive whitespace characters
+  ///   (spaces, tabs, newlines) to a single space, matching browser rendering behaviour.
+  /// - [`WhitespaceMode::Strict`] — preserves all whitespace exactly as it appears in the
+  ///   source HTML, including runs of spaces and embedded newlines.
+  ///
+  /// Choose `Strict` only when the source HTML uses deliberate whitespace (e.g. pre-formatted
+  /// content outside `<pre>` tags). For most documents `Normalized` produces cleaner output.
+  final WhitespaceMode whitespaceMode;
+
+  /// Strip all newlines from the output, producing a single-line result.
+  final bool stripNewlines;
+
+  /// Wrap long lines at [`wrap_width`](Self::wrap_width) characters.
+  final bool wrap;
+
+  /// Maximum output line width in characters when [`wrap`](Self::wrap) is `true` (default `80`).
+  ///
+  /// Lines are broken at word boundaries so that no line exceeds this length. A value of `0`
+  /// is treated as "no limit" — equivalent to leaving [`wrap`](Self::wrap) disabled. Has no
+  /// effect when `wrap` is `false`.
+  final PlatformInt64 wrapWidth;
+
+  /// Treat the entire document as inline content (no block-level wrappers).
+  final bool convertAsInline;
+
+  /// Markdown notation for subscript text (e.g. `"~"`).
+  final String subSymbol;
+
+  /// Markdown notation for superscript text (e.g. `"^"`).
+  final String supSymbol;
+
+  /// How to encode hard line breaks (`<br>`) in Markdown.
+  final NewlineStyle newlineStyle;
+
+  /// Style used for fenced code blocks (backticks or tilde).
+  final CodeBlockStyle codeBlockStyle;
+
+  /// HTML tag names whose `<img>` children are kept inline instead of block.
+  final List<String> keepInlineImagesIn;
+
+  /// Options for the HTML pre-processing pass applied before conversion begins.
+  ///
+  /// Pre-processing runs before the HTML is handed to the converter and can perform operations
+  /// such as unwrapping redundant wrapper elements, removing tracking pixels, and normalising
+  /// vendor-specific markup. See [`PreprocessingOptions`] for the full set of knobs.
+  ///
+  /// Defaults to [`PreprocessingOptions::default()`], which enables the standard cleaning
+  /// passes. Set individual fields on [`PreprocessingOptions`] (or construct via
+  /// [`ConversionOptions::builder`]) to opt in or out of specific passes.
+  final PreprocessingOptions preprocessing;
+
+  /// Expected character encoding of the input HTML (default `"utf-8"`).
+  final String encoding;
+
+  /// Emit debug information during conversion.
+  final bool debug;
+
+  /// HTML tag names whose content is stripped from the output entirely.
+  final List<String> stripTags;
+
+  /// HTML tag names that are preserved verbatim in the output.
+  final List<String> preserveTags;
+
+  /// Skip conversion of `<img>` elements (omit images from output).
+  final bool skipImages;
+
+  /// URL encoding strategy for link and image destinations.
+  ///
+  /// Controls how special characters in URL destinations are escaped:
+  /// - [`UrlEscapeStyle::Angle`] (default) — wraps the destination in angle brackets when it
+  ///   contains spaces or newlines. Some parsers misinterpret `>` inside such a destination.
+  /// - [`UrlEscapeStyle::Percent`] — percent-encodes every character that is not an RFC 3986
+  ///   unreserved character or `/`, producing a destination that all Markdown parsers handle
+  ///   correctly even when the URL contains `<`, `>`, spaces, or parentheses.
+  final UrlEscapeStyle urlEscapeStyle;
+
+  /// Link rendering style (inline or reference).
+  final LinkStyle linkStyle;
+
+  /// Maximum decoded image size in bytes (default 5MB).
+  final PlatformInt64 maxImageSize;
+
+  /// Capture SVG elements as images.
+  final bool captureSvg;
+
+  /// Infer image dimensions from data.
+  final bool inferDimensions;
+
+  /// Maximum DOM traversal depth.
+  ///
+  /// `None` uses the library's internal native-stack safety limit. Explicit
+  /// values above that safety limit are clamped to prevent process-aborting
+  /// stack overflows on pathologically deep DOM trees.
+  final PlatformInt64? maxDepth;
+
+  /// CSS selectors for elements to exclude entirely (element + all content).
+  ///
+  /// Unlike `strip_tags` (which removes the tag wrapper but keeps children),
+  /// excluded elements and all their descendants are dropped from the output.
+  /// Supports any CSS selector that `tl` supports: tag names, `.class`,
+  /// `#id`, `[attribute]`, etc.
+  ///
+  /// Invalid selectors are silently skipped at conversion time.
+  ///
+  /// Example: `vec![".cookie-banner".into(), "#ad-container".into(), "[role='complementary']".into()]`
+  final List<String> excludeSelectors;
+
+  /// Which conversion tier to use.
+  ///
+  /// - [`TierStrategy::Auto`] (default) — automatically choose the best path.
+  /// - [`TierStrategy::Tier2`] — always use the Tier-2 DOM-walk path.
+  /// - `TierStrategy::Tier1` — always attempt Tier-1 (testkit only).
+  final TierStrategy tierStrategy;
+
+  const ConversionOptions({
+    required this.headingStyle,
+    required this.listIndentType,
+    required this.listIndentWidth,
+    required this.bullets,
+    required this.strongEmSymbol,
+    required this.escapeAsterisks,
+    required this.escapeUnderscores,
+    required this.escapeMisc,
+    required this.escapeAscii,
+    required this.codeLanguage,
+    required this.autolinks,
+    required this.defaultTitle,
+    required this.brInTables,
+    required this.compactTables,
+    required this.highlightStyle,
+    required this.extractMetadata,
+    required this.whitespaceMode,
+    required this.stripNewlines,
+    required this.wrap,
+    required this.wrapWidth,
+    required this.convertAsInline,
+    required this.subSymbol,
+    required this.supSymbol,
+    required this.newlineStyle,
+    required this.codeBlockStyle,
+    required this.keepInlineImagesIn,
+    required this.preprocessing,
+    required this.encoding,
+    required this.debug,
+    required this.stripTags,
+    required this.preserveTags,
+    required this.skipImages,
+    required this.urlEscapeStyle,
+    required this.linkStyle,
+    required this.maxImageSize,
+    required this.captureSvg,
+    required this.inferDimensions,
+    this.maxDepth,
+    required this.excludeSelectors,
+    required this.tierStrategy,
+  });
+
+  @override
+  int get hashCode =>
+      headingStyle.hashCode ^
+      listIndentType.hashCode ^
+      listIndentWidth.hashCode ^
+      bullets.hashCode ^
+      strongEmSymbol.hashCode ^
+      escapeAsterisks.hashCode ^
+      escapeUnderscores.hashCode ^
+      escapeMisc.hashCode ^
+      escapeAscii.hashCode ^
+      codeLanguage.hashCode ^
+      autolinks.hashCode ^
+      defaultTitle.hashCode ^
+      brInTables.hashCode ^
+      compactTables.hashCode ^
+      highlightStyle.hashCode ^
+      extractMetadata.hashCode ^
+      whitespaceMode.hashCode ^
+      stripNewlines.hashCode ^
+      wrap.hashCode ^
+      wrapWidth.hashCode ^
+      convertAsInline.hashCode ^
+      subSymbol.hashCode ^
+      supSymbol.hashCode ^
+      newlineStyle.hashCode ^
+      codeBlockStyle.hashCode ^
+      keepInlineImagesIn.hashCode ^
+      preprocessing.hashCode ^
+      encoding.hashCode ^
+      debug.hashCode ^
+      stripTags.hashCode ^
+      preserveTags.hashCode ^
+      skipImages.hashCode ^
+      urlEscapeStyle.hashCode ^
+      linkStyle.hashCode ^
+      maxImageSize.hashCode ^
+      captureSvg.hashCode ^
+      inferDimensions.hashCode ^
+      maxDepth.hashCode ^
+      excludeSelectors.hashCode ^
+      tierStrategy.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConversionOptions &&
+          runtimeType == other.runtimeType &&
+          headingStyle == other.headingStyle &&
+          listIndentType == other.listIndentType &&
+          listIndentWidth == other.listIndentWidth &&
+          bullets == other.bullets &&
+          strongEmSymbol == other.strongEmSymbol &&
+          escapeAsterisks == other.escapeAsterisks &&
+          escapeUnderscores == other.escapeUnderscores &&
+          escapeMisc == other.escapeMisc &&
+          escapeAscii == other.escapeAscii &&
+          codeLanguage == other.codeLanguage &&
+          autolinks == other.autolinks &&
+          defaultTitle == other.defaultTitle &&
+          brInTables == other.brInTables &&
+          compactTables == other.compactTables &&
+          highlightStyle == other.highlightStyle &&
+          extractMetadata == other.extractMetadata &&
+          whitespaceMode == other.whitespaceMode &&
+          stripNewlines == other.stripNewlines &&
+          wrap == other.wrap &&
+          wrapWidth == other.wrapWidth &&
+          convertAsInline == other.convertAsInline &&
+          subSymbol == other.subSymbol &&
+          supSymbol == other.supSymbol &&
+          newlineStyle == other.newlineStyle &&
+          codeBlockStyle == other.codeBlockStyle &&
+          keepInlineImagesIn == other.keepInlineImagesIn &&
+          preprocessing == other.preprocessing &&
+          encoding == other.encoding &&
+          debug == other.debug &&
+          stripTags == other.stripTags &&
+          preserveTags == other.preserveTags &&
+          skipImages == other.skipImages &&
+          urlEscapeStyle == other.urlEscapeStyle &&
+          linkStyle == other.linkStyle &&
+          maxImageSize == other.maxImageSize &&
+          captureSvg == other.captureSvg &&
+          inferDimensions == other.inferDimensions &&
+          maxDepth == other.maxDepth &&
+          excludeSelectors == other.excludeSelectors &&
+          tierStrategy == other.tierStrategy;
 }
 
 /// Dublin Core metadata from docProps/core.xml
@@ -5888,6 +6367,12 @@ class ExtractionConfig {
   /// Post-processor configuration (None = use defaults)
   final PostProcessorConfig? postprocessor;
 
+  /// HTML to Markdown conversion options (None = use defaults)
+  ///
+  /// Configure how HTML documents are converted to Markdown, including heading styles,
+  /// list formatting, code block styles, and preprocessing options.
+  final ConversionOptions? htmlOptions;
+
   /// Styled HTML output configuration.
   ///
   /// When set alongside `output_format = OutputFormat::Html`, the extraction
@@ -6107,6 +6592,7 @@ class ExtractionConfig {
     this.pages,
     this.keywords,
     this.postprocessor,
+    this.htmlOptions,
     this.htmlOutput,
     this.extractionTimeoutSecs,
     this.maxConcurrentExtractions,
@@ -6138,98 +6624,100 @@ class ExtractionConfig {
 
   @override
   int get hashCode =>
-  useCache.hashCode ^
-  enableQualityProcessing.hashCode ^
-  ocr.hashCode ^
-  forceOcr.hashCode ^
-  ocrStrategy.hashCode ^
-  forceOcrPages.hashCode ^
-  disableOcr.hashCode ^
-  chunking.hashCode ^
-  contentFilter.hashCode ^
-  images.hashCode ^
-  pdfOptions.hashCode ^
-  tokenReduction.hashCode ^
-  languageDetection.hashCode ^
-  pages.hashCode ^
-  keywords.hashCode ^
-  postprocessor.hashCode ^
-  htmlOutput.hashCode ^
-  extractionTimeoutSecs.hashCode ^
-  maxConcurrentExtractions.hashCode ^
-  resultFormat.hashCode ^
-  securityLimits.hashCode ^
-  maxEmbeddedFileBytes.hashCode ^
-  outputFormat.hashCode ^
-  jupyterCellRendering.hashCode ^
-  layout.hashCode ^
-  transcription.hashCode ^
-  useLayoutForMarkdown.hashCode ^
-  includeDocumentStructure.hashCode ^
-  acceleration.hashCode ^
-  cacheNamespace.hashCode ^
-  cacheTtlSecs.hashCode ^
-  email.hashCode ^
-  url.hashCode ^
-  maxArchiveDepth.hashCode ^
-  treeSitter.hashCode ^
-  structuredExtraction.hashCode ^
-  ner.hashCode ^
-  redaction.hashCode ^
-  summarization.hashCode ^
-  translation.hashCode ^
-  pageClassification.hashCode ^
-  captioning.hashCode ^
-  qrCodes.hashCode;
+      useCache.hashCode ^
+      enableQualityProcessing.hashCode ^
+      ocr.hashCode ^
+      forceOcr.hashCode ^
+      ocrStrategy.hashCode ^
+      forceOcrPages.hashCode ^
+      disableOcr.hashCode ^
+      chunking.hashCode ^
+      contentFilter.hashCode ^
+      images.hashCode ^
+      pdfOptions.hashCode ^
+      tokenReduction.hashCode ^
+      languageDetection.hashCode ^
+      pages.hashCode ^
+      keywords.hashCode ^
+      postprocessor.hashCode ^
+      htmlOptions.hashCode ^
+      htmlOutput.hashCode ^
+      extractionTimeoutSecs.hashCode ^
+      maxConcurrentExtractions.hashCode ^
+      resultFormat.hashCode ^
+      securityLimits.hashCode ^
+      maxEmbeddedFileBytes.hashCode ^
+      outputFormat.hashCode ^
+      jupyterCellRendering.hashCode ^
+      layout.hashCode ^
+      transcription.hashCode ^
+      useLayoutForMarkdown.hashCode ^
+      includeDocumentStructure.hashCode ^
+      acceleration.hashCode ^
+      cacheNamespace.hashCode ^
+      cacheTtlSecs.hashCode ^
+      email.hashCode ^
+      url.hashCode ^
+      maxArchiveDepth.hashCode ^
+      treeSitter.hashCode ^
+      structuredExtraction.hashCode ^
+      ner.hashCode ^
+      redaction.hashCode ^
+      summarization.hashCode ^
+      translation.hashCode ^
+      pageClassification.hashCode ^
+      captioning.hashCode ^
+      qrCodes.hashCode;
 
   @override
   bool operator ==(Object other) =>
-  identical(this, other) ||
-  other is ExtractionConfig &&
-  runtimeType == other.runtimeType &&
-  useCache == other.useCache &&
-  enableQualityProcessing == other.enableQualityProcessing &&
-  ocr == other.ocr &&
-  forceOcr == other.forceOcr &&
-  ocrStrategy == other.ocrStrategy &&
-  forceOcrPages == other.forceOcrPages &&
-  disableOcr == other.disableOcr &&
-  chunking == other.chunking &&
-  contentFilter == other.contentFilter &&
-  images == other.images &&
-  pdfOptions == other.pdfOptions &&
-  tokenReduction == other.tokenReduction &&
-  languageDetection == other.languageDetection &&
-  pages == other.pages &&
-  keywords == other.keywords &&
-  postprocessor == other.postprocessor &&
-  htmlOutput == other.htmlOutput &&
-  extractionTimeoutSecs == other.extractionTimeoutSecs &&
-  maxConcurrentExtractions == other.maxConcurrentExtractions &&
-  resultFormat == other.resultFormat &&
-  securityLimits == other.securityLimits &&
-  maxEmbeddedFileBytes == other.maxEmbeddedFileBytes &&
-  outputFormat == other.outputFormat &&
-  jupyterCellRendering == other.jupyterCellRendering &&
-  layout == other.layout &&
-  transcription == other.transcription &&
-  useLayoutForMarkdown == other.useLayoutForMarkdown &&
-  includeDocumentStructure == other.includeDocumentStructure &&
-  acceleration == other.acceleration &&
-  cacheNamespace == other.cacheNamespace &&
-  cacheTtlSecs == other.cacheTtlSecs &&
-  email == other.email &&
-  url == other.url &&
-  maxArchiveDepth == other.maxArchiveDepth &&
-  treeSitter == other.treeSitter &&
-  structuredExtraction == other.structuredExtraction &&
-  ner == other.ner &&
-  redaction == other.redaction &&
-  summarization == other.summarization &&
-  translation == other.translation &&
-  pageClassification == other.pageClassification &&
-  captioning == other.captioning &&
-  qrCodes == other.qrCodes;
+      identical(this, other) ||
+      other is ExtractionConfig &&
+          runtimeType == other.runtimeType &&
+          useCache == other.useCache &&
+          enableQualityProcessing == other.enableQualityProcessing &&
+          ocr == other.ocr &&
+          forceOcr == other.forceOcr &&
+          ocrStrategy == other.ocrStrategy &&
+          forceOcrPages == other.forceOcrPages &&
+          disableOcr == other.disableOcr &&
+          chunking == other.chunking &&
+          contentFilter == other.contentFilter &&
+          images == other.images &&
+          pdfOptions == other.pdfOptions &&
+          tokenReduction == other.tokenReduction &&
+          languageDetection == other.languageDetection &&
+          pages == other.pages &&
+          keywords == other.keywords &&
+          postprocessor == other.postprocessor &&
+          htmlOptions == other.htmlOptions &&
+          htmlOutput == other.htmlOutput &&
+          extractionTimeoutSecs == other.extractionTimeoutSecs &&
+          maxConcurrentExtractions == other.maxConcurrentExtractions &&
+          resultFormat == other.resultFormat &&
+          securityLimits == other.securityLimits &&
+          maxEmbeddedFileBytes == other.maxEmbeddedFileBytes &&
+          outputFormat == other.outputFormat &&
+          jupyterCellRendering == other.jupyterCellRendering &&
+          layout == other.layout &&
+          transcription == other.transcription &&
+          useLayoutForMarkdown == other.useLayoutForMarkdown &&
+          includeDocumentStructure == other.includeDocumentStructure &&
+          acceleration == other.acceleration &&
+          cacheNamespace == other.cacheNamespace &&
+          cacheTtlSecs == other.cacheTtlSecs &&
+          email == other.email &&
+          url == other.url &&
+          maxArchiveDepth == other.maxArchiveDepth &&
+          treeSitter == other.treeSitter &&
+          structuredExtraction == other.structuredExtraction &&
+          ner == other.ner &&
+          redaction == other.redaction &&
+          summarization == other.summarization &&
+          translation == other.translation &&
+          pageClassification == other.pageClassification &&
+          captioning == other.captioning &&
+          qrCodes == other.qrCodes;
 }
 
 /// The complete diff between two `ExtractedDocument` values.
@@ -7189,6 +7677,20 @@ class HeadingLevel {
   text == other.text;
 }
 
+/// Heading style options for Markdown output.
+///
+/// Controls how headings (h1-h6) are rendered in the output Markdown.
+enum HeadingStyle {
+  /// Underlined style (=== for h1, --- for h2).
+  underlined,
+
+  /// ATX style (# for h1, ## for h2, etc.). Default.
+  atx,
+
+  /// ATX closed style (# title #, with closing hashes).
+  atxClosed,
+}
+
 /// Configuration for document chunking and analysis heuristics.
 ///
 /// Every threshold is a public field so callers can override any subset via
@@ -7392,6 +7894,23 @@ class HierarchyConfig {
   enabled == other.enabled &&
   kClusters == other.kClusters &&
   includeBbox == other.includeBbox;
+}
+
+/// Highlight rendering style for `<mark>` elements.
+///
+/// Controls how highlighted text is rendered in Markdown output.
+enum HighlightStyle {
+  /// Double equals syntax (==text==). Default. Pandoc-compatible.
+  doubleEqual,
+
+  /// Preserve as HTML (==text==). Original HTML tag.
+  html,
+
+  /// Render as bold (**text**). Uses strong emphasis.
+  bold,
+
+  /// Strip formatting, render as plain text. No markup.
+  none,
 }
 
 /// HTML metadata extracted from HTML documents.
@@ -8803,6 +9322,18 @@ class LinkMetadata {
   rel == other.rel;
 }
 
+/// Link rendering style in Markdown output.
+///
+/// Controls whether links and images use inline `[text](url)` syntax or
+/// reference-style `[text][1]` syntax with definitions collected at the end.
+enum LinkStyle {
+  /// Inline links: `[text](url)`. Default.
+  inline,
+
+  /// Reference-style links: `[text][1]` with `[1]: url` at end of document.
+  reference,
+}
+
 /// Link type classification.
 enum LinkType {
   /// Anchor link (#section)
@@ -8822,6 +9353,17 @@ enum LinkType {
 
   /// Other link type
   other,
+}
+
+/// List indentation character type.
+///
+/// Controls whether list items are indented with spaces or tabs.
+enum ListIndentType {
+  /// Use spaces for indentation. Default. Width controlled by `list_indent_width`.
+  spaces,
+
+  /// Use tabs for indentation.
+  tabs,
 }
 
 /// Type of list detection.
@@ -8879,6 +9421,18 @@ class LlmConfig {
   /// Maximum tokens to generate.
   final PlatformInt64? maxTokens;
 
+  /// Whether liter-llm should load provider credentials from environment variables.
+  ///
+  /// Mirrors liter-llm's `ClientConfigBuilder::load_env`. When `None`, liter-llm's
+  /// own default behavior applies.
+  final bool? loadEnv;
+
+  /// Extra HTTP headers sent with every request to the provider.
+  ///
+  /// Mirrors liter-llm's `ClientConfigBuilder::header`, for gateways or providers
+  /// that require custom auth/routing headers.
+  final Map<String, String>? headers;
+
   const LlmConfig({
     required this.model,
     this.apiKey,
@@ -8887,30 +9441,36 @@ class LlmConfig {
     this.maxRetries,
     this.temperature,
     this.maxTokens,
+    this.loadEnv,
+    this.headers,
   });
 
   @override
   int get hashCode =>
-  model.hashCode ^
-  apiKey.hashCode ^
-  baseUrl.hashCode ^
-  timeoutSecs.hashCode ^
-  maxRetries.hashCode ^
-  temperature.hashCode ^
-  maxTokens.hashCode;
+      model.hashCode ^
+      apiKey.hashCode ^
+      baseUrl.hashCode ^
+      timeoutSecs.hashCode ^
+      maxRetries.hashCode ^
+      temperature.hashCode ^
+      maxTokens.hashCode ^
+      loadEnv.hashCode ^
+      headers.hashCode;
 
   @override
   bool operator ==(Object other) =>
-  identical(this, other) ||
-  other is LlmConfig &&
-  runtimeType == other.runtimeType &&
-  model == other.model &&
-  apiKey == other.apiKey &&
-  baseUrl == other.baseUrl &&
-  timeoutSecs == other.timeoutSecs &&
-  maxRetries == other.maxRetries &&
-  temperature == other.temperature &&
-  maxTokens == other.maxTokens;
+      identical(this, other) ||
+      other is LlmConfig &&
+          runtimeType == other.runtimeType &&
+          model == other.model &&
+          apiKey == other.apiKey &&
+          baseUrl == other.baseUrl &&
+          timeoutSecs == other.timeoutSecs &&
+          maxRetries == other.maxRetries &&
+          temperature == other.temperature &&
+          maxTokens == other.maxTokens &&
+          loadEnv == other.loadEnv &&
+          headers == other.headers;
 }
 
 /// Token usage and cost data for a single LLM call made during extraction.
@@ -9401,6 +9961,17 @@ class NerConfig {
   model == other.model &&
   llm == other.llm &&
   customLabels == other.customLabels;
+}
+
+/// Line break syntax in Markdown output.
+///
+/// Controls how soft line breaks (from `<br>` or line breaks in source) are rendered.
+enum NewlineStyle {
+  /// Two trailing spaces at end of line. Default. Standard Markdown syntax.
+  spaces,
+
+  /// Backslash at end of line. Alternative Markdown syntax.
+  backslash,
 }
 
 @freezed
@@ -11878,6 +12449,59 @@ class PptxMetadata {
   tableCount == other.tableCount;
 }
 
+/// HTML preprocessing options for document cleanup before conversion.
+class PreprocessingOptions {
+  /// Enable HTML preprocessing globally
+  final bool enabled;
+
+  /// Preprocessing preset level (Minimal, Standard, Aggressive)
+  final PreprocessingPreset preset;
+
+  /// Remove navigation elements (nav, breadcrumbs, menus, sidebars)
+  final bool removeNavigation;
+
+  /// Remove form elements (forms, inputs, buttons, etc.)
+  final bool removeForms;
+
+  const PreprocessingOptions({
+    required this.enabled,
+    required this.preset,
+    required this.removeNavigation,
+    required this.removeForms,
+  });
+
+  @override
+  int get hashCode =>
+      enabled.hashCode ^
+      preset.hashCode ^
+      removeNavigation.hashCode ^
+      removeForms.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PreprocessingOptions &&
+          runtimeType == other.runtimeType &&
+          enabled == other.enabled &&
+          preset == other.preset &&
+          removeNavigation == other.removeNavigation &&
+          removeForms == other.removeForms;
+}
+
+/// HTML preprocessing aggressiveness level.
+///
+/// Controls the extent of cleanup performed before conversion. Higher levels remove more elements.
+enum PreprocessingPreset {
+  /// Minimal cleanup. Remove only essential noise (scripts, styles).
+  minimal,
+
+  /// Standard cleanup. Default. Removes navigation, forms, and other auxiliary content.
+  standard,
+
+  /// Aggressive cleanup. Remove extensive non-content elements and structure.
+  aggressive,
+}
+
 /// A curated structured-extraction preset loaded from the embedded library.
 ///
 /// Each preset is a JSON file under `src/presets/library/<id>/v1.json` that
@@ -14249,6 +14873,23 @@ class TextMetadata {
   headers == other.headers;
 }
 
+/// Controls which conversion tier is used.
+enum TierStrategy {
+  /// Automatically pick the best tier for the input (default).
+  ///
+  /// Runs the classifier against the prescan report and uses Tier-1 when
+  /// eligible; falls back to Tier-2 on bail or when the classifier routes
+  /// to Tier-2.
+  auto,
+
+  /// Always use the Tier-2 (`tl::parse` + walk) path, skipping Tier-1.
+  tier2,
+
+  /// Force the Tier-1 byte scanner; if it bails, fall back to Tier-2.
+  /// Testkit-only; not stable API.
+  tier1,
+}
+
 /// Configuration for the token-reduction pipeline.
 class TokenReductionConfig {
   /// Reduction intensity level.
@@ -14652,6 +15293,10 @@ class TreeSitterProcessConfig {
   /// Include parse diagnostics. Default: false.
   final bool diagnostics;
 
+  /// Extract a hierarchical key/value data tree from data-format files
+  /// (JSON, YAML, TOML, XML, CSV, etc.). Default: false.
+  final bool dataExtraction;
+
   /// Maximum chunk size in bytes. `None` disables chunking.
   final PlatformInt64? chunkMaxSize;
 
@@ -14666,36 +15311,39 @@ class TreeSitterProcessConfig {
     required this.docstrings,
     required this.symbols,
     required this.diagnostics,
+    required this.dataExtraction,
     this.chunkMaxSize,
     required this.contentMode,
   });
 
   @override
   int get hashCode =>
-  structure.hashCode ^
-  imports.hashCode ^
-  exports.hashCode ^
-  comments.hashCode ^
-  docstrings.hashCode ^
-  symbols.hashCode ^
-  diagnostics.hashCode ^
-  chunkMaxSize.hashCode ^
-  contentMode.hashCode;
+      structure.hashCode ^
+      imports.hashCode ^
+      exports.hashCode ^
+      comments.hashCode ^
+      docstrings.hashCode ^
+      symbols.hashCode ^
+      diagnostics.hashCode ^
+      dataExtraction.hashCode ^
+      chunkMaxSize.hashCode ^
+      contentMode.hashCode;
 
   @override
   bool operator ==(Object other) =>
-  identical(this, other) ||
-  other is TreeSitterProcessConfig &&
-  runtimeType == other.runtimeType &&
-  structure == other.structure &&
-  imports == other.imports &&
-  exports == other.exports &&
-  comments == other.comments &&
-  docstrings == other.docstrings &&
-  symbols == other.symbols &&
-  diagnostics == other.diagnostics &&
-  chunkMaxSize == other.chunkMaxSize &&
-  contentMode == other.contentMode;
+      identical(this, other) ||
+      other is TreeSitterProcessConfig &&
+          runtimeType == other.runtimeType &&
+          structure == other.structure &&
+          imports == other.imports &&
+          exports == other.exports &&
+          comments == other.comments &&
+          docstrings == other.docstrings &&
+          symbols == other.symbols &&
+          diagnostics == other.diagnostics &&
+          dataExtraction == other.dataExtraction &&
+          chunkMaxSize == other.chunkMaxSize &&
+          contentMode == other.contentMode;
 }
 
 /// Semantic classification of an extracted URI.
@@ -14717,6 +15365,26 @@ enum UriKind {
 
   /// An email address (`mailto:` link or bare email).
   email,
+}
+
+/// URL encoding strategy for link and image destinations.
+///
+/// Controls how special characters in URL destinations are handled when they
+/// require escaping to produce valid Markdown.
+///
+/// The `Angle` variant (default) wraps the destination in angle brackets:
+/// `[text](<url with spaces>)`. This is the CommonMark-specified escape hatch
+/// but breaks when the URL itself contains `>`.
+///
+/// The `Percent` variant percent-encodes every character that is not an RFC 3986
+/// unreserved character or `/`, producing a destination safe for all Markdown
+/// parsers: `[text](url%20with%20spaces)`.
+enum UrlEscapeStyle {
+  /// Wrap destinations that contain spaces or newlines in angle brackets. Default.
+  angle,
+
+  /// Percent-encode all characters that are not RFC 3986 unreserved or `/`.
+  percent,
 }
 
 /// URL ingestion and crawl configuration.
@@ -14870,6 +15538,17 @@ enum WhisperModel {
 
   /// Best quality (large-v3). Use only when latency and memory use are acceptable.
   largeV3,
+}
+
+/// Whitespace handling strategy during conversion.
+///
+/// Determines how sequences of whitespace characters (spaces, tabs, newlines) are processed.
+enum WhitespaceMode {
+  /// Collapse multiple whitespace characters to single spaces. Default. Matches browser behavior.
+  normalized,
+
+  /// Preserve all whitespace exactly as it appears in the HTML.
+  strict,
 }
 
 @freezed

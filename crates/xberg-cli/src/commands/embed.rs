@@ -39,11 +39,7 @@ pub fn embed_command(
             let llm_config = xberg::LlmConfig {
                 model: model.to_string(),
                 api_key: llm_api_key,
-                base_url: None,
-                timeout_secs: None,
-                max_retries: None,
-                temperature: None,
-                max_tokens: None,
+                ..Default::default()
             };
 
             let config = xberg::EmbeddingConfig {

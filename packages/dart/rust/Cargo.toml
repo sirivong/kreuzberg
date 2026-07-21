@@ -7,7 +7,7 @@ license = "MIT"
 [package.metadata.cargo-machete]
 # Umbrella + sibling crates are pulled in so flutter_rust_bridge can resolve
 # every referenced type, but the generated Rust wrapper only `use`s a subset.
-ignored = ["async-trait", "crawlberg", "xberg"]
+ignored = ["async-trait", "crawlberg", "html-to-markdown-rs", "xberg"]
 
 [lib]
 crate-type = ["cdylib", "staticlib"]
@@ -53,6 +53,7 @@ android-target = ["xberg/android-target", "api", "api-types", "auto-rotate-types
 async-trait = "0.1"
 crawlberg = { default-features = false, workspace = true }
 flutter_rust_bridge = "=2.12.0"
+html-to-markdown-rs = { default-features = false, workspace = true }
 serde_json = "1"
 tokio = { version = "1", features = ["rt-multi-thread", "sync"] }
 [target.'cfg(all(target_os = "macos", target_arch = "x86_64"))'.dependencies]
