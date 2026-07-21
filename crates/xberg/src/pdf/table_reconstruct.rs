@@ -7,8 +7,8 @@
 
 pub(crate) use crate::table_core::{HocrWord, reconstruct_table, table_to_markdown};
 
-const DENSE_NUMERIC_MIN_DATA_ROWS: usize = 20;
-const DENSE_NUMERIC_MIN_COLUMNS: usize = 8;
+const DENSE_NUMERIC_MIN_DATA_ROWS: usize = 6;
+const DENSE_NUMERIC_MIN_COLUMNS: usize = 6;
 const DENSE_NUMERIC_MIN_CELL_PERCENT: usize = 75;
 
 #[cfg(feature = "pdf")]
@@ -999,9 +999,15 @@ mod tests {
     }
 
     #[test]
-    fn short_numeric_table_does_not_bypass_anti_prose_guards() {
-        let table = vec![vec!["1.000".to_string(); DENSE_NUMERIC_MIN_COLUMNS]; 5];
-        assert!(post_process_table(table, true, false).is_none());
+    fn compact_numeric_boundary_does_not_bypass_anti_prose_guards() {
+        for columns in [3, 5] {
+            let mut table = vec![(0..columns).map(|col| format!("Column {col}")).collect()];
+            table.extend((0..5).map(|_| vec!["1.000".to_string(); columns]));
+
+            let accepted =
+                post_process_table(table, true, false).is_some_and(|processed| is_well_formed_table(&processed));
+            assert!(!accepted, "repetitive {columns}-column compact grid must be rejected");
+        }
     }
 
     #[test]

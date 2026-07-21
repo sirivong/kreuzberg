@@ -27,9 +27,25 @@ use std::collections::HashSet;
 /// burning CPU on guaranteed rejections. The cap is generous on purpose —
 /// the validation chain is fast.
 const MAX_REGIONS_PER_PAGE: usize = 20;
-const DENSE_NUMERIC_MIN_ROWS: usize = 20;
-const DENSE_NUMERIC_MIN_WORD_PERCENT: usize = 75;
+const DENSE_NUMERIC_MIN_RECURRING_ROWS: usize = 5;
+const DENSE_NUMERIC_MIN_WORDS_PER_ROW: usize = 3;
+const DENSE_NUMERIC_MIN_ROW_WORD_PERCENT: usize = 60;
+const DENSE_NUMERIC_MIN_RECURRING_TRACKS: usize = 4;
+const DENSE_NUMERIC_MIN_TRACK_ROW_PERCENT: usize = 60;
+const NUMERIC_HEADER_MIN_TRACK_PERCENT: usize = 60;
+const NUMERIC_HEADER_MIN_ALPHA_PERCENT: usize = 60;
+const NUMERIC_HEADER_MAX_ROWS: usize = 2;
 const DENSE_NUMERIC_COLUMN_GAP_CAP: u32 = 20;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum HeuristicTableRejection {
+    EmptyGrid,
+    PostProcessing,
+    TooFewRows,
+    CodeListing,
+    NotWellFormed,
+    EmptyMarkdown,
+}
 
 /// Extract tables from all pages using pdf_oxide's native table detection.
 ///
@@ -348,6 +364,8 @@ fn cluster_words_into_vertical_regions(
         regions.push(current);
     }
 
+    attach_aligned_numeric_headers(&mut regions, median_height, row_tolerance);
+
     regions.retain(|r| {
         if r.len() < 4 {
             return false;
@@ -367,6 +385,68 @@ fn cluster_words_into_vertical_regions(
     regions
 }
 
+fn attach_aligned_numeric_headers(
+    regions: &mut Vec<Vec<crate::pdf::table_reconstruct::HocrWord>>,
+    median_height: u32,
+    row_tolerance: u32,
+) {
+    let mut index = 1;
+    while index < regions.len() {
+        if is_aligned_numeric_header(&regions[index - 1], &regions[index], median_height, row_tolerance) {
+            let data = regions.remove(index);
+            regions[index - 1].extend(data);
+            tracing::trace!(
+                index = index - 1,
+                "attached aligned header to compact numeric table region"
+            );
+        } else {
+            index += 1;
+        }
+    }
+}
+
+fn is_aligned_numeric_header(
+    header: &[crate::pdf::table_reconstruct::HocrWord],
+    data: &[crate::pdf::table_reconstruct::HocrWord],
+    median_height: u32,
+    row_tolerance: u32,
+) -> bool {
+    let data_rows = numeric_rows(data, row_tolerance);
+    let Some(recurring_rows) = longest_recurring_numeric_run(&data_rows) else {
+        return false;
+    };
+    let tracks = recurring_numeric_track_centers(recurring_rows, median_height);
+    let header_rows = numeric_rows(header, row_tolerance).len();
+    if tracks.len() < DENSE_NUMERIC_MIN_RECURRING_TRACKS || !(1..=NUMERIC_HEADER_MAX_ROWS).contains(&header_rows) {
+        return false;
+    }
+
+    let alpha_words = header
+        .iter()
+        .filter(|word| word.text.chars().any(char::is_alphabetic))
+        .count();
+    if alpha_words.saturating_mul(100) < header.len().saturating_mul(NUMERIC_HEADER_MIN_ALPHA_PERCENT) {
+        return false;
+    }
+
+    let header_bottom = header.iter().map(|word| word.top + word.height).max().unwrap_or(0);
+    let data_top = data.iter().map(|word| word.top).min().unwrap_or(u32::MAX);
+    if data_top.saturating_sub(header_bottom) > median_height.saturating_mul(2) {
+        return false;
+    }
+
+    let x_tolerance = median_height.saturating_mul(2).max(12);
+    let matched_tracks = tracks
+        .iter()
+        .filter(|track| {
+            header
+                .iter()
+                .any(|word| (word.left + word.width / 2).abs_diff(**track) <= x_tolerance)
+        })
+        .count();
+    matched_tracks.saturating_mul(100) >= tracks.len().saturating_mul(NUMERIC_HEADER_MIN_TRACK_PERCENT)
+}
+
 /// Reconstruct a single region's words into a `Table`, applying the same
 /// validation chain the layout-detection path uses (`layout_guided = true`).
 fn reconstruct_region_table(
@@ -375,6 +455,26 @@ fn reconstruct_region_table(
     page_number: u32,
     allow_single_column: bool,
 ) -> Option<Table> {
+    match reconstruct_region_table_with_reason(region, page_height, page_number, allow_single_column) {
+        Ok(table) => Some(table),
+        Err(reason) => {
+            tracing::trace!(
+                page = page_number,
+                words = region.len(),
+                ?reason,
+                "heuristic table region rejected"
+            );
+            None
+        }
+    }
+}
+
+fn reconstruct_region_table_with_reason(
+    region: &[crate::pdf::table_reconstruct::HocrWord],
+    page_height: f32,
+    page_number: u32,
+    allow_single_column: bool,
+) -> std::result::Result<Table, HeuristicTableRejection> {
     use crate::pdf::table_reconstruct::{
         is_well_formed_table, looks_like_code_listing, post_process_table, reconstruct_table, table_to_markdown,
     };
@@ -386,26 +486,28 @@ fn reconstruct_region_table(
 
     let grid = reconstruct_table(region, col_gap, 0.5);
     if grid.is_empty() || grid[0].is_empty() {
-        return None;
+        return Err(HeuristicTableRejection::EmptyGrid);
     }
 
-    let cleaned = post_process_table(grid, true, allow_single_column)?;
+    tracing::trace!(
+        page = page_number,
+        col_gap,
+        rows = grid.len(),
+        cols = grid.first().map_or(0, Vec::len),
+        "heuristic table reconstructed grid"
+    );
+
+    let cleaned = post_process_table(grid, true, allow_single_column).ok_or(HeuristicTableRejection::PostProcessing)?;
     if cleaned.len() <= 1 {
-        return None;
+        return Err(HeuristicTableRejection::TooFewRows);
     }
 
     if looks_like_code_listing(&cleaned) {
-        tracing::trace!(
-            page = page_number,
-            rows = cleaned.len(),
-            cols = cleaned.first().map_or(0, |r| r.len()),
-            "heuristic table region looks like a code listing — skipping false-positive"
-        );
-        return None;
+        return Err(HeuristicTableRejection::CodeListing);
     }
 
     if !is_well_formed_table(&cleaned) {
-        return None;
+        return Err(HeuristicTableRejection::NotWellFormed);
     }
 
     let img_left = region.iter().map(|w| w.left as f64).fold(f64::INFINITY, f64::min);
@@ -425,10 +527,10 @@ fn reconstruct_region_table(
 
     let markdown = table_to_markdown(&cleaned);
     if markdown.trim().is_empty() {
-        return None;
+        return Err(HeuristicTableRejection::EmptyMarkdown);
     }
 
-    Some(Table {
+    Ok(Table {
         cells: cleaned,
         markdown,
         page_number,
@@ -450,21 +552,97 @@ fn is_dense_numeric_region(region: &[crate::pdf::table_reconstruct::HocrWord]) -
         return false;
     }
 
-    let mut row_centers: Vec<u32> = region.iter().map(|word| word.top + word.height / 2).collect();
-    row_centers.sort_unstable();
     let median_height = {
         let mut heights: Vec<u32> = region.iter().map(|word| word.height).collect();
         heights.sort_unstable();
         heights[heights.len() / 2].max(1)
     };
     let row_tolerance = (median_height / 2).max(3);
-    row_centers.dedup_by(|left, right| left.abs_diff(*right) <= row_tolerance);
-    if row_centers.len() < DENSE_NUMERIC_MIN_ROWS {
+    let rows = numeric_rows(region, row_tolerance);
+    let Some(recurring_rows) = longest_recurring_numeric_run(&rows) else {
         return false;
-    }
+    };
 
-    let numeric_words = region.iter().filter(|word| is_numeric_word(&word.text)).count();
-    numeric_words.saturating_mul(100) >= region.len().saturating_mul(DENSE_NUMERIC_MIN_WORD_PERCENT)
+    recurring_numeric_x_tracks(recurring_rows, median_height) >= DENSE_NUMERIC_MIN_RECURRING_TRACKS
+}
+
+fn numeric_rows(
+    region: &[crate::pdf::table_reconstruct::HocrWord],
+    row_tolerance: u32,
+) -> Vec<Vec<&crate::pdf::table_reconstruct::HocrWord>> {
+    let mut sorted: Vec<_> = region.iter().collect();
+    sorted.sort_by_key(|word| word.top + word.height / 2);
+    let mut rows: Vec<Vec<&crate::pdf::table_reconstruct::HocrWord>> = Vec::new();
+    for word in sorted {
+        let center = word.top + word.height / 2;
+        match rows.last_mut() {
+            Some(row) if (row[0].top + row[0].height / 2).abs_diff(center) <= row_tolerance => row.push(word),
+            _ => rows.push(vec![word]),
+        }
+    }
+    rows
+}
+
+fn longest_recurring_numeric_run<'a>(
+    rows: &'a [Vec<&'a crate::pdf::table_reconstruct::HocrWord>],
+) -> Option<&'a [Vec<&'a crate::pdf::table_reconstruct::HocrWord>]> {
+    let mut best = 0..0;
+    let mut start = 0;
+    for (index, row) in rows.iter().enumerate() {
+        if is_numeric_row(row) {
+            continue;
+        }
+        if index - start > best.len() {
+            best = start..index;
+        }
+        start = index + 1;
+    }
+    if rows.len() - start > best.len() {
+        best = start..rows.len();
+    }
+    (best.len() >= DENSE_NUMERIC_MIN_RECURRING_ROWS).then(|| &rows[best])
+}
+
+fn is_numeric_row(row: &[&crate::pdf::table_reconstruct::HocrWord]) -> bool {
+    let numeric_words = row.iter().filter(|word| is_numeric_word(&word.text)).count();
+    numeric_words >= DENSE_NUMERIC_MIN_WORDS_PER_ROW
+        && numeric_words.saturating_mul(100) >= row.len().saturating_mul(DENSE_NUMERIC_MIN_ROW_WORD_PERCENT)
+}
+
+fn recurring_numeric_x_tracks(rows: &[Vec<&crate::pdf::table_reconstruct::HocrWord>], median_height: u32) -> usize {
+    recurring_numeric_track_centers(rows, median_height).len()
+}
+
+fn recurring_numeric_track_centers(
+    rows: &[Vec<&crate::pdf::table_reconstruct::HocrWord>],
+    median_height: u32,
+) -> Vec<u32> {
+    let x_tolerance = median_height.saturating_mul(2).max(12);
+    let min_row_support = rows
+        .len()
+        .saturating_mul(DENSE_NUMERIC_MIN_TRACK_ROW_PERCENT)
+        .div_ceil(100);
+    let mut candidates: Vec<u32> = rows
+        .iter()
+        .flatten()
+        .filter(|word| is_numeric_word(&word.text))
+        .map(|word| word.left + word.width / 2)
+        .collect();
+    candidates.sort_unstable();
+    candidates.dedup_by(|left, right| left.abs_diff(*right) <= x_tolerance);
+    candidates
+        .into_iter()
+        .filter(|candidate| {
+            rows.iter()
+                .filter(|row| {
+                    row.iter().any(|word| {
+                        is_numeric_word(&word.text) && (word.left + word.width / 2).abs_diff(*candidate) <= x_tolerance
+                    })
+                })
+                .count()
+                >= min_row_support
+        })
+        .collect()
 }
 
 fn is_numeric_word(text: &str) -> bool {
@@ -948,8 +1126,8 @@ mod tests {
     #[test]
     fn dense_numeric_region_caps_adaptive_column_gap() {
         let mut words = Vec::new();
-        for row in 0..DENSE_NUMERIC_MIN_ROWS {
-            for col in 0..8 {
+        for row in 0..7 {
+            for col in 0..7 {
                 words.push(make_word("1.000", 20 + col * 120, 100 + row as u32 * 12, 20));
             }
         }
@@ -960,9 +1138,76 @@ mod tests {
     }
 
     #[test]
+    fn aligned_multiline_header_attaches_to_compact_numeric_table() {
+        let mut header = Vec::new();
+        for col in 0..7 {
+            header.push(make_word("Heading", 20 + col * 120, 100, 50));
+            header.push(make_word("unit", 20 + col * 120, 112, 30));
+        }
+        let mut data = Vec::new();
+        for row in 0..6 {
+            for col in 0..7 {
+                data.push(make_word("1.000", 20 + col * 120, 130 + row * 12, 30));
+            }
+        }
+        let expected_words = header.len() + data.len();
+        let mut regions = vec![header, data];
+
+        attach_aligned_numeric_headers(&mut regions, 10, 5);
+
+        assert_eq!(regions.len(), 1);
+        assert_eq!(regions[0].len(), expected_words);
+    }
+
+    #[test]
+    fn compact_numeric_table_reconstructs_end_to_end() {
+        let mut words = Vec::new();
+        for col in 0..7 {
+            words.push(make_word("Heading", 20 + col * 100, 100, 30));
+        }
+        for row in 0..6 {
+            for col in 0..7 {
+                words.push(make_word("1.000", 20 + col * 100, 130 + row * 12, 30));
+            }
+        }
+
+        let regions = cluster_words_into_vertical_regions(&words);
+        assert_eq!(
+            regions.len(),
+            1,
+            "header and compact numeric body should form one candidate"
+        );
+        let table = reconstruct_region_table(&regions[0], 792.0, 1, false).expect("compact table should reconstruct");
+
+        assert_eq!(table.cells.len(), 7);
+        assert!(table.cells.iter().all(|row| row.len() == 7));
+        assert!(!table.markdown.trim().is_empty());
+    }
+
+    #[test]
+    fn unaligned_prose_does_not_attach_to_compact_numeric_table() {
+        let header = vec![
+            make_word("This", 500, 100, 30),
+            make_word("paragraph", 550, 100, 60),
+            make_word("continues", 620, 112, 50),
+        ];
+        let mut data = Vec::new();
+        for row in 0..6 {
+            for col in 0..7 {
+                data.push(make_word("1.000", 20 + col * 80, 130 + row * 12, 30));
+            }
+        }
+        let mut regions = vec![header, data];
+
+        attach_aligned_numeric_headers(&mut regions, 10, 5);
+
+        assert_eq!(regions.len(), 2);
+    }
+
+    #[test]
     fn alphabetic_region_keeps_adaptive_column_gap() {
         let mut words = Vec::new();
-        for row in 0..DENSE_NUMERIC_MIN_ROWS {
+        for row in 0..7 {
             for col in 0..8 {
                 words.push(make_word("value", 20 + col * 120, 100 + row as u32 * 12, 20));
             }
@@ -970,6 +1215,64 @@ mod tests {
 
         let adaptive = crate::pdf::structure::regions::tables::compute_adaptive_column_gap(&words, 900.0);
         assert_eq!(heuristic_column_gap(&words, 900.0), adaptive);
+    }
+
+    #[test]
+    fn multi_column_prose_does_not_cap_adaptive_column_gap() {
+        let mut words = Vec::new();
+        for row in 0..8 {
+            for col in 0..3 {
+                words.push(make_word(
+                    if row % 3 == 0 { "2024" } else { "paragraph" },
+                    20 + col * 280,
+                    100 + row * 12,
+                    100,
+                ));
+            }
+        }
+
+        let adaptive = crate::pdf::structure::regions::tables::compute_adaptive_column_gap(&words, 800.0);
+        assert_eq!(heuristic_column_gap(&words, 800.0), adaptive);
+    }
+
+    #[test]
+    fn sparse_numeric_rows_do_not_cap_adaptive_column_gap() {
+        let mut words = Vec::new();
+        for row in 0..9 {
+            let text = if row % 2 == 0 { "1.000" } else { "value" };
+            for col in 0..5 {
+                words.push(make_word(text, 20 + col * 140, 100 + row * 12, 30));
+            }
+        }
+
+        let adaptive = crate::pdf::structure::regions::tables::compute_adaptive_column_gap(&words, 700.0);
+        assert_eq!(heuristic_column_gap(&words, 700.0), adaptive);
+    }
+
+    #[test]
+    fn heuristic_empty_region_reports_rejection_reason() {
+        let rejection = reconstruct_region_table_with_reason(&[], 792.0, 1, false).unwrap_err();
+        assert_eq!(rejection, HeuristicTableRejection::EmptyGrid);
+    }
+
+    #[test]
+    fn heuristic_code_listing_reports_rejection_reason() {
+        let words = vec![
+            make_word("fn", 20, 100, 20),
+            make_word("main", 100, 100, 30),
+            make_word("{", 20, 112, 10),
+            make_word("call();", 100, 112, 50),
+            make_word("}", 20, 124, 10),
+            make_word("// end", 100, 124, 50),
+        ];
+        let rejection = reconstruct_region_table_with_reason(&words, 792.0, 1, false).unwrap_err();
+        assert!(
+            matches!(
+                rejection,
+                HeuristicTableRejection::PostProcessing | HeuristicTableRejection::CodeListing
+            ),
+            "unexpected rejection: {rejection:?}"
+        );
     }
 
     #[test]
