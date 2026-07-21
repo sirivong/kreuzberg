@@ -250,7 +250,7 @@ enum Commands {
         #[arg(long, value_delimiter = ',')]
         doc: Option<Vec<String>>,
 
-        /// Run a named benchmark group (tables, structure, multicolumn, text-quality, ocr-fallback)
+        /// Run a named benchmark group (hotspot, smoke, promotion, tables, structure, lists)
         #[arg(long)]
         group: Option<String>,
 
@@ -836,7 +836,7 @@ async fn main() -> Result<()> {
             use benchmark_harness::comparison::Pipeline;
             use benchmark_harness::pipeline_benchmark::{
                 PipelineBenchmarkConfig, SortMetric, default_paths, print_pipeline_table, print_triage_blocks,
-                run_pipeline_benchmark, write_json_output,
+                run_pipeline_benchmark, write_json_output_with_config,
             };
 
             let selected_paths = match paths {
@@ -846,10 +846,11 @@ async fn main() -> Result<()> {
 
             let sort_metric = SortMetric::parse(&sort_by).unwrap_or_default();
 
-            let doc_filter = {
-                let mut patterns: Vec<String> = doc.unwrap_or_default();
+            let (doc_filter, exact_doc_filter) = {
+                let patterns: Vec<String> = doc.unwrap_or_default();
+                let mut exact_names = Vec::new();
                 if let Some(ref group_name) = group {
-                    use benchmark_harness::groups::{find_group, group_names};
+                    use benchmark_harness::groups::{find_group, group_names, resolve_group_docs};
                     let g = find_group(group_name).ok_or_else(|| {
                         benchmark_harness::Error::Config(format!(
                             "Unknown group '{}'. Available: {}",
@@ -857,10 +858,15 @@ async fn main() -> Result<()> {
                             group_names().join(", ")
                         ))
                     })?;
-                    eprintln!("Group '{}': {} ({} docs)", g.name, g.description, g.docs.len());
-                    patterns.extend(g.docs.iter().map(|s| s.to_string()));
+                    exact_names = resolve_group_docs(&fixtures, g)?;
+                    eprintln!(
+                        "Group '{}': {} ({} matched docs)",
+                        g.name,
+                        g.description,
+                        exact_names.len()
+                    );
                 }
-                patterns
+                (patterns, exact_names)
             };
 
             if let Some(ref prof_dir) = profile_dir {
@@ -876,6 +882,7 @@ async fn main() -> Result<()> {
                         fixtures_dir: fixtures.clone(),
                         paths: vec![pipeline],
                         doc_filter: doc_filter.clone(),
+                        exact_doc_filter: exact_doc_filter.clone(),
                         dump_outputs,
                         json_output: None,
                         sort_by: sort_metric,
@@ -898,6 +905,7 @@ async fn main() -> Result<()> {
                 fixtures_dir: fixtures,
                 paths: selected_paths,
                 doc_filter: doc_filter.clone(),
+                exact_doc_filter,
                 dump_outputs,
                 json_output: json_output.clone(),
                 sort_by: sort_metric,
@@ -913,7 +921,7 @@ async fn main() -> Result<()> {
             }
 
             if let Some(ref path) = json_output {
-                write_json_output(&results, path)?;
+                write_json_output_with_config(&results, path, &config)?;
             }
 
             Ok(())

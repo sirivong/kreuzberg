@@ -5,6 +5,7 @@
 
 use crate::Result;
 use crate::fixture::FixtureManager;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 /// A document in the benchmark corpus with resolved paths.
@@ -22,6 +23,10 @@ pub struct CorpusDocument {
     pub ground_truth_text: Option<PathBuf>,
     /// Absolute path to markdown ground truth (if available)
     pub ground_truth_markdown: Option<PathBuf>,
+    /// Fixture metadata used by maintained benchmark groups.
+    pub metadata: HashMap<String, serde_json::Value>,
+    /// Fixture descriptor path, retained for reproducibility hashing.
+    pub fixture_path: PathBuf,
 }
 
 /// Filter criteria for corpus discovery.
@@ -37,6 +42,8 @@ pub struct CorpusFilter {
     pub max_file_size: Option<u64>,
     /// Only include fixtures whose name contains one of these strings
     pub name_patterns: Vec<String>,
+    /// Exact fixture stems. Combined with `name_patterns` using OR semantics.
+    pub exact_names: Vec<String>,
 }
 
 /// Build a filtered corpus from the fixture directory.
@@ -62,7 +69,10 @@ pub fn build_corpus(fixtures_dir: &Path, filter: &CorpusFilter) -> Result<Vec<Co
             .unwrap_or("")
             .to_string();
 
-        if !filter.name_patterns.is_empty() && !filter.name_patterns.iter().any(|p| name.contains(p.as_str())) {
+        let has_name_filter = !filter.name_patterns.is_empty() || !filter.exact_names.is_empty();
+        let matches_name = filter.name_patterns.iter().any(|p| name.contains(p.as_str()))
+            || filter.exact_names.iter().any(|exact| exact == &name);
+        if has_name_filter && !matches_name {
             continue;
         }
 
@@ -96,6 +106,8 @@ pub fn build_corpus(fixtures_dir: &Path, filter: &CorpusFilter) -> Result<Vec<Co
             file_size: fixture.file_size,
             ground_truth_text: gt_text,
             ground_truth_markdown: gt_markdown,
+            metadata: fixture.metadata.clone(),
+            fixture_path: fixture_path.clone(),
         });
     }
 
@@ -140,5 +152,6 @@ mod tests {
         assert!(!filter.require_markdown_ground_truth);
         assert!(filter.max_file_size.is_none());
         assert!(filter.name_patterns.is_empty());
+        assert!(filter.exact_names.is_empty());
     }
 }

@@ -592,6 +592,7 @@ dependencies = [
  "ahash 0.8.12",
  "anyhow",
  "async-trait",
+ "blake3",
  "chrono",
  "clap",
  "dotenvy",

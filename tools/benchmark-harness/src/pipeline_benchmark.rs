@@ -18,6 +18,7 @@ use crate::corpus::{self, CorpusDocument, CorpusFilter};
 use crate::quality::structural_sidecar::{self, StructuralNode, StructuralSidecar};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 /// Which pipeline paths to include.
@@ -25,6 +26,8 @@ pub struct PipelineBenchmarkConfig {
     pub fixtures_dir: PathBuf,
     pub paths: Vec<Pipeline>,
     pub doc_filter: Vec<String>,
+    /// Exact fixture stems resolved from a maintained benchmark group.
+    pub exact_doc_filter: Vec<String>,
     pub dump_outputs: bool,
     pub json_output: Option<PathBuf>,
     pub sort_by: SortMetric,
@@ -97,6 +100,22 @@ pub struct PipelineRunSummary {
     pub pipeline_count: usize,
     pub aggregates: Vec<PipelineAggregate>,
     pub docs: Vec<PipelineDocResult>,
+    #[serde(default)]
+    pub provenance: PipelineRunProvenance,
+}
+
+/// Inputs required to reproduce and audit a benchmark result.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct PipelineRunProvenance {
+    pub hash_algorithm: String,
+    pub git_dirty: bool,
+    pub git_diff_hash: Option<String>,
+    pub binary_hash: Option<String>,
+    pub scorer_hash: String,
+    pub corpus_hash: Option<String>,
+    pub config_hash: Option<String>,
+    pub features: Vec<String>,
+    pub argv: Vec<String>,
 }
 
 /// Default 6-path set.
@@ -136,35 +155,7 @@ async fn extract_and_score(
         crate::comparison::score_document(&content, gt_text, gt_markdown);
 
     let (sf1, order_score, per_type_sf1) = match gt_markdown {
-        Some(md) => {
-            let gt_sidecar = StructuralSidecar::from_markdown(md);
-            let has_structure = gt_sidecar
-                .nodes
-                .iter()
-                .any(|node| !matches!(node, StructuralNode::Paragraph { .. }));
-
-            if !has_structure {
-                (f64::NAN, f64::NAN, HashMap::new())
-            } else {
-                let capped = if content.len() > 50_000 {
-                    let mut end = 50_000;
-                    while end > 0 && !content.is_char_boundary(end) {
-                        end -= 1;
-                    }
-                    &content[..end]
-                } else {
-                    &content
-                };
-                let score =
-                    structural_sidecar::score_structural(&StructuralSidecar::from_markdown(capped), &gt_sidecar);
-                let dimensions = score
-                    .dimensions()
-                    .into_iter()
-                    .map(|(name, value)| (name.to_string(), value))
-                    .collect();
-                (score.sf1, score.d5_order, dimensions)
-            }
-        }
+        Some(md) => score_structural_markdown(&content, md),
         None => (f64::NAN, f64::NAN, HashMap::new()),
     };
 
@@ -187,16 +178,42 @@ async fn extract_and_score(
     }
 }
 
+fn score_structural_markdown(predicted: &str, ground_truth: &str) -> (f64, f64, HashMap<String, f64>) {
+    let gt_sidecar = StructuralSidecar::from_markdown(ground_truth);
+    let has_structure = gt_sidecar
+        .nodes
+        .iter()
+        .any(|node| !matches!(node, StructuralNode::Paragraph { .. }));
+
+    if !has_structure {
+        return (f64::NAN, f64::NAN, HashMap::new());
+    }
+
+    let score = structural_sidecar::score_structural(&StructuralSidecar::from_markdown(predicted), &gt_sidecar);
+    let dimensions = score
+        .dimensions()
+        .into_iter()
+        .map(|(name, value)| (name.to_string(), value))
+        .collect();
+    (score.sf1, score.d5_order, dimensions)
+}
+
 /// Run the pipeline benchmark.
 pub async fn run_pipeline_benchmark(config: &PipelineBenchmarkConfig) -> Result<Vec<PipelineDocResult>> {
     let filter = CorpusFilter {
         file_types: None,
         require_ground_truth: true,
         name_patterns: config.doc_filter.clone(),
+        exact_names: config.exact_doc_filter.clone(),
         ..Default::default()
     };
 
     let docs = corpus::build_corpus(&config.fixtures_dir, &filter)?;
+    if docs.is_empty() {
+        return Err(crate::Error::Config(
+            "pipeline benchmark selection matched zero documents".to_string(),
+        ));
+    }
     eprintln!(
         "Pipeline benchmark: {} documents, {} paths",
         docs.len(),
@@ -412,7 +429,7 @@ pub fn print_triage_blocks(results: &[PipelineDocResult], sort_by: SortMetric, b
         return;
     }
 
-    let block_types = ["H1", "H2", "H3", "Table", "Code", "ListItem", "Paragraph"];
+    const STRUCTURAL_DIMENSIONS: [&str; 6] = ["paragraph", "heading", "list", "table", "edges", "order"];
 
     let mut sorted: Vec<&PipelineDocResult> = results.iter().collect();
     sorted.sort_by(|a, b| {
@@ -435,7 +452,7 @@ pub fn print_triage_blocks(results: &[PipelineDocResult], sort_by: SortMetric, b
     for doc in &display {
         eprintln!("\n  {}", doc.name);
         for pr in &doc.results {
-            let blocks_str: String = block_types
+            let blocks_str: String = STRUCTURAL_DIMENSIONS
                 .iter()
                 .filter_map(|bt| pr.per_type_sf1.get(*bt).map(|v| format!("{}:{:.0}%", bt, v * 100.0)))
                 .collect::<Vec<_>>()
@@ -514,8 +531,16 @@ pub fn compute_aggregates(results: &[PipelineDocResult]) -> Vec<PipelineAggregat
 
 /// Build a full run summary for JSON serialization.
 pub fn build_summary(results: &[PipelineDocResult]) -> PipelineRunSummary {
+    build_summary_with_config(results, None)
+}
+
+/// Build a run summary and fingerprint the exact benchmark inputs when config is available.
+pub fn build_summary_with_config(
+    results: &[PipelineDocResult],
+    config: Option<&PipelineBenchmarkConfig>,
+) -> PipelineRunSummary {
     let git_sha = std::process::Command::new("git")
-        .args(["rev-parse", "--short", "HEAD"])
+        .args(["rev-parse", "HEAD"])
         .output()
         .ok()
         .and_then(|o| String::from_utf8(o.stdout).ok())
@@ -531,12 +556,185 @@ pub fn build_summary(results: &[PipelineDocResult]) -> PipelineRunSummary {
         pipeline_count: results.first().map(|r| r.results.len()).unwrap_or(0),
         aggregates: compute_aggregates(results),
         docs: results.to_vec(),
+        provenance: build_provenance(config),
     }
+}
+
+fn build_provenance(config: Option<&PipelineBenchmarkConfig>) -> PipelineRunProvenance {
+    let status = command_output("git", &["status", "--porcelain=v1", "-z", "--untracked-files=all"]);
+    let git_dirty = status.as_ref().is_some_and(|bytes| !bytes.is_empty());
+    let git_diff_hash = git_dirty.then(hash_worktree).flatten();
+
+    PipelineRunProvenance {
+        hash_algorithm: "blake3".to_string(),
+        git_dirty,
+        git_diff_hash,
+        binary_hash: std::env::current_exe()
+            .ok()
+            .and_then(|path| hash_files(&[("binary", path)])),
+        scorer_hash: scorer_hash(),
+        corpus_hash: config.and_then(hash_selected_corpus),
+        config_hash: config.map(hash_config),
+        features: enabled_features(),
+        argv: std::env::args_os()
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect(),
+    }
+}
+
+fn command_output(program: &str, args: &[&str]) -> Option<Vec<u8>> {
+    let output = std::process::Command::new(program).args(args).output().ok()?;
+    output.status.success().then_some(output.stdout)
+}
+
+fn hash_worktree() -> Option<String> {
+    let mut hasher = blake3::Hasher::new();
+    hash_bytes_into(
+        &mut hasher,
+        &command_output("git", &["diff", "--binary", "HEAD", "--"])?,
+    );
+    let untracked = command_output("git", &["ls-files", "--others", "--exclude-standard", "-z"])?;
+    let mut paths: Vec<&[u8]> = untracked
+        .split(|byte| *byte == 0)
+        .filter(|path| !path.is_empty())
+        .collect();
+    paths.sort_unstable();
+    for path in paths {
+        hash_bytes_into(&mut hasher, path);
+        let path = PathBuf::from(String::from_utf8_lossy(path).into_owned());
+        hash_file_into(&mut hasher, &path).ok()?;
+    }
+    Some(hasher.finalize().to_hex().to_string())
+}
+
+fn scorer_hash() -> String {
+    let mut hasher = blake3::Hasher::new();
+    for source in [
+        include_bytes!("structural_sidecar.rs").as_slice(),
+        include_bytes!("quality.rs").as_slice(),
+        include_bytes!("markdown_quality.rs").as_slice(),
+        include_bytes!("pipeline_benchmark.rs").as_slice(),
+    ] {
+        hash_bytes_into(&mut hasher, source);
+    }
+    hasher.finalize().to_hex().to_string()
+}
+
+fn hash_config(config: &PipelineBenchmarkConfig) -> String {
+    let mut hasher = blake3::Hasher::new();
+    hash_bytes_into(&mut hasher, config.fixtures_dir.to_string_lossy().as_bytes());
+    for path in &config.paths {
+        hash_bytes_into(&mut hasher, path.name().as_bytes());
+    }
+    for pattern in &config.doc_filter {
+        hash_bytes_into(&mut hasher, pattern.as_bytes());
+    }
+    for name in &config.exact_doc_filter {
+        hash_bytes_into(&mut hasher, name.as_bytes());
+    }
+    hash_bytes_into(&mut hasher, &[u8::from(config.dump_outputs)]);
+    match &config.json_output {
+        Some(path) => hash_bytes_into(&mut hasher, path.to_string_lossy().as_bytes()),
+        None => hash_bytes_into(&mut hasher, &[]),
+    }
+    hash_bytes_into(&mut hasher, format!("{:?}", config.sort_by).as_bytes());
+    hash_bytes_into(&mut hasher, &config.bottom_n.unwrap_or(usize::MAX).to_le_bytes());
+    hash_bytes_into(&mut hasher, &[u8::from(config.triage_blocks)]);
+    hasher.finalize().to_hex().to_string()
+}
+
+fn hash_selected_corpus(config: &PipelineBenchmarkConfig) -> Option<String> {
+    let docs = corpus::build_corpus(
+        &config.fixtures_dir,
+        &CorpusFilter {
+            require_ground_truth: true,
+            name_patterns: config.doc_filter.clone(),
+            exact_names: config.exact_doc_filter.clone(),
+            ..Default::default()
+        },
+    )
+    .ok()?;
+    let mut files = Vec::new();
+    for doc in docs {
+        files.push((format!("{}/fixture", doc.name), doc.fixture_path));
+        files.push((format!("{}/document", doc.name), doc.document_path));
+        if let Some(path) = doc.ground_truth_text {
+            files.push((format!("{}/ground_truth_text", doc.name), path));
+        }
+        if let Some(path) = doc.ground_truth_markdown {
+            files.push((format!("{}/ground_truth_markdown", doc.name), path));
+        }
+    }
+    let refs: Vec<(&str, PathBuf)> = files
+        .iter()
+        .map(|(label, path)| (label.as_str(), path.clone()))
+        .collect();
+    hash_files(&refs)
+}
+
+fn hash_files(files: &[(&str, PathBuf)]) -> Option<String> {
+    let mut hasher = blake3::Hasher::new();
+    for (label, path) in files {
+        hash_bytes_into(&mut hasher, label.as_bytes());
+        hash_file_into(&mut hasher, path).ok()?;
+    }
+    Some(hasher.finalize().to_hex().to_string())
+}
+
+fn hash_file_into(hasher: &mut blake3::Hasher, path: &Path) -> std::io::Result<()> {
+    let mut file = std::fs::File::open(path)?;
+    hasher.update(&file.metadata()?.len().to_le_bytes());
+    let mut buffer = [0_u8; 64 * 1024];
+    loop {
+        let read = file.read(&mut buffer)?;
+        if read == 0 {
+            return Ok(());
+        }
+        hasher.update(&buffer[..read]);
+    }
+}
+
+fn hash_bytes_into(hasher: &mut blake3::Hasher, bytes: &[u8]) {
+    hasher.update(&(bytes.len() as u64).to_le_bytes());
+    hasher.update(bytes);
+}
+
+fn enabled_features() -> Vec<String> {
+    let mut features = vec!["xberg/full".to_string()];
+    for (enabled, name) in [
+        (cfg!(feature = "profiling"), "profiling"),
+        (cfg!(feature = "memory-profiling"), "memory-profiling"),
+        (cfg!(feature = "glm-ocr-bench"), "glm-ocr-bench"),
+        (cfg!(feature = "candle-deepseek-ocr-bench"), "candle-deepseek-ocr-bench"),
+        (
+            cfg!(feature = "candle-paddleocr-vl-15-bench"),
+            "candle-paddleocr-vl-15-bench",
+        ),
+    ] {
+        if enabled {
+            features.push(name.to_string());
+        }
+    }
+    features
 }
 
 /// Write the run summary to a JSON file.
 pub fn write_json_output(results: &[PipelineDocResult], path: &std::path::Path) -> Result<()> {
     let summary = build_summary(results);
+    write_summary(&summary, path)
+}
+
+/// Write a run summary including hashes for the selected config and corpus.
+pub fn write_json_output_with_config(
+    results: &[PipelineDocResult],
+    path: &std::path::Path,
+    config: &PipelineBenchmarkConfig,
+) -> Result<()> {
+    let summary = build_summary_with_config(results, Some(config));
+    write_summary(&summary, path)
+}
+
+fn write_summary(summary: &PipelineRunSummary, path: &Path) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent).map_err(crate::Error::Io)?;
     }
@@ -545,4 +743,64 @@ pub fn write_json_output(results: &[PipelineDocResult], path: &std::path::Path) 
     std::fs::write(path, json).map_err(crate::Error::Io)?;
     eprintln!("JSON output written to: {}", path.display());
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_config(fixtures_dir: PathBuf) -> PipelineBenchmarkConfig {
+        PipelineBenchmarkConfig {
+            fixtures_dir,
+            paths: vec![Pipeline::Baseline],
+            doc_filter: Vec::new(),
+            exact_doc_filter: Vec::new(),
+            dump_outputs: false,
+            json_output: None,
+            sort_by: SortMetric::Sf1,
+            bottom_n: None,
+            triage_blocks: false,
+        }
+    }
+
+    #[test]
+    fn structural_scoring_uses_content_after_50_kib() {
+        let prefix = format!("{}\n\n", "plain text ".repeat(6_000));
+        assert!(prefix.len() > 50 * 1024);
+        let markdown = format!("{prefix}# Tail heading\n");
+        let (sf1, _, dimensions) = score_structural_markdown(&markdown, &markdown);
+        assert_eq!(sf1, 1.0);
+        assert_eq!(dimensions.get("heading"), Some(&1.0));
+    }
+
+    #[test]
+    fn legacy_summary_deserializes_without_provenance() {
+        let summary: PipelineRunSummary = serde_json::from_value(serde_json::json!({
+            "timestamp": "2026-01-01T00:00:00Z",
+            "git_sha": "abc",
+            "doc_count": 0,
+            "pipeline_count": 0,
+            "aggregates": [],
+            "docs": []
+        }))
+        .unwrap();
+        assert!(summary.provenance.hash_algorithm.is_empty());
+    }
+
+    #[test]
+    fn config_hash_tracks_exact_selection() {
+        let mut config = test_config(PathBuf::from("fixtures"));
+        let before = hash_config(&config);
+        config.exact_doc_filter.push("fixture-a".to_string());
+        assert_ne!(before, hash_config(&config));
+    }
+
+    #[tokio::test]
+    async fn empty_selection_is_an_error() {
+        let fixtures = tempfile::tempdir().unwrap();
+        let error = run_pipeline_benchmark(&test_config(fixtures.path().to_path_buf()))
+            .await
+            .unwrap_err();
+        assert!(matches!(error, crate::Error::Config(_)));
+    }
 }
