@@ -41,7 +41,12 @@ Revisit each only if a non-quantized export or an upstream tract fix lands.
 
 ## Latency
 
-Measured on Apple Silicon (aarch64), release build, single-thread CPU, best-of-8 warm inferences:
+Measured on Apple Silicon (aarch64), release build, best-of-8 warm inferences. Each engine runs
+**as xberg ships it**: ONNX Runtime with its default intra-op thread pool (up to `min(8, cores)`
+threads), tract single-threaded (the seam configures no tract thread pool). The ratio below is
+therefore an *as-shipped, wall-clock* comparison — the real cost you pay on a no-ORT build versus
+native ORT — and an **upper bound** on the pure per-core kernel gap, since part of ORT's lead is
+thread parallelism rather than kernel efficiency.
 
 | Model | tract load | ORT load | tract run | ORT run | tract / ORT run |
 |---|---|---|---|---|---|
@@ -49,7 +54,8 @@ Measured on Apple Silicon (aarch64), release build, single-thread CPU, best-of-8
 | PP-LCNet table classifier | 22 ms | 9 ms | 31.9 ms | 2.2 ms | 14.4× |
 | PP-LCNet document-orientation | 22 ms | 8 ms | 31.9 ms | 2.8 ms | 11.5× |
 
-tract's pure-Rust CPU kernels run roughly 11–19× slower than ONNX Runtime. This is the accepted
+As each engine ships (ORT multi-threaded, tract single-threaded), tract's pure-Rust CPU path runs
+roughly 11–19× slower than ONNX Runtime in wall-clock. This is the accepted
 trade-off: these models run about once per page, and on the targets tract exists for — WASM and the
 Android x86_64 emulator, where ONNX Runtime cannot link at all — the alternative is no inference, not
 ORT. Native builds keep ONNX Runtime, so the regression never reaches native users. RT-DETR's
