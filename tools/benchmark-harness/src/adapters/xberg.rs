@@ -8,7 +8,7 @@
 use crate::{
     adapters::subprocess::SubprocessAdapter,
     error::Result,
-    types::{OutputFormat, XbergPipeline},
+    types::{BatchCapability, BatchEntryPoint, BatchTimingScope, OutputFormat, XbergPipeline},
 };
 use std::path::PathBuf;
 use which::which;
@@ -175,7 +175,18 @@ pub fn create_xberg_adapter(
     });
 
     let mut adapter = if batch {
-        SubprocessAdapter::with_batch_support(&framework_name, cli_path, args, env, supported_formats)
+        SubprocessAdapter::with_batch_capability(
+            &framework_name,
+            cli_path,
+            args,
+            env,
+            supported_formats,
+            BatchCapability {
+                entry_point: BatchEntryPoint::XbergCliExtractBatch,
+                timing_scope: BatchTimingScope::ColdEndToEndSubprocess,
+                per_item_timing: true,
+            },
+        )
     } else {
         SubprocessAdapter::new(&framework_name, cli_path, args, env, supported_formats)
     }

@@ -6,7 +6,7 @@
 
 use crate::{
     Error, Result,
-    types::{BenchmarkResult, OutputFormat},
+    types::{BatchCapability, BenchmarkResult, OutputFormat},
 };
 use async_trait::async_trait;
 use std::path::Path;
@@ -67,10 +67,10 @@ pub trait FrameworkAdapter: Send + Sync {
 
     /// Extract content from multiple documents using framework's batch API
     ///
-    /// Frameworks with native batch support should override this method to use
+    /// Frameworks with native batch support must override this method to use
     /// their optimized batch extraction API (e.g., Xberg's unified `extract_batch`).
-    ///
-    /// Default implementation calls `extract()` sequentially for each file.
+    /// The default fails closed so batch benchmarks can never silently measure
+    /// repeated single-file extraction.
     ///
     /// # Arguments
     /// * `file_paths` - Paths to documents to extract
@@ -88,27 +88,16 @@ pub trait FrameworkAdapter: Send + Sync {
         force_ocr: &[bool],
         output_format: OutputFormat,
     ) -> Result<Vec<BenchmarkResult>> {
-        if force_ocr.len() != file_paths.len() {
-            return Err(crate::Error::Benchmark(format!(
-                "batch force_ocr cardinality mismatch: received {} flags for {} files",
-                force_ocr.len(),
-                file_paths.len()
-            )));
-        }
-        let mut results = Vec::new();
-        for (i, path) in file_paths.iter().enumerate() {
-            let fo = force_ocr.get(i).copied().unwrap_or(false);
-            results.push(self.extract(path, timeout, fo, output_format).await?);
-        }
-        Ok(results)
+        let _ = (file_paths, timeout, force_ocr, output_format);
+        Err(crate::Error::Config(format!(
+            "framework '{}' does not expose a verified native batch API",
+            self.name()
+        )))
     }
 
-    /// Check if this adapter supports batch extraction
-    ///
-    /// Returns true if the adapter overrides `extract_batch()` with an optimized implementation.
-    /// Default is false (uses sequential extraction).
-    fn supports_batch(&self) -> bool {
-        false
+    /// Return the verified batch API and timing semantics exposed by this adapter.
+    fn batch_capability(&self) -> Option<BatchCapability> {
+        None
     }
 
     /// Get version information for this framework

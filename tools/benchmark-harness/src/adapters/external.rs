@@ -1,4 +1,8 @@
-use crate::{adapters::subprocess::SubprocessAdapter, error::Result};
+use crate::{
+    adapters::subprocess::SubprocessAdapter,
+    error::Result,
+    types::{BatchCapability, BatchEntryPoint, BatchTimingScope},
+};
 use std::time::Duration;
 use std::{env, path::PathBuf};
 
@@ -88,15 +92,27 @@ pub fn create_docling_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
     args.push(script_path.to_string_lossy().to_string());
     args.push(format!("--timeout={}", PYTHON_EXTRACTION_TIMEOUT_SECS));
     args.push(ocr_flag(ocr_enabled));
-    args.push("sync".to_string());
+    let mut single_file_args = args.clone();
+    single_file_args.push("sync".to_string());
+    args.push("batch".to_string());
 
     let supported_formats = get_supported_formats("docling");
-    Ok(
-        SubprocessAdapter::new("docling", command, args, vec![], supported_formats)
-            .with_configured_ocr(ocr_enabled)
-            .with_format_aware(true)
-            .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS)),
+    Ok(SubprocessAdapter::with_batch_capability(
+        "docling",
+        command,
+        args,
+        vec![],
+        supported_formats,
+        BatchCapability {
+            entry_point: BatchEntryPoint::DoclingConvertAll,
+            timing_scope: BatchTimingScope::ColdEndToEndSubprocess,
+            per_item_timing: false,
+        },
     )
+    .with_configured_ocr(ocr_enabled)
+    .with_format_aware(true)
+    .with_single_file_args(single_file_args)
+    .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS)))
 }
 
 /// Creates a subprocess adapter for Unstructured.
@@ -155,13 +171,21 @@ pub fn create_liteparse_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> 
     args.push(ocr_flag(ocr_enabled));
 
     let supported_formats = get_supported_formats("liteparse");
-    Ok(
-        SubprocessAdapter::with_batch_support("liteparse", command, args, vec![], supported_formats)
-            .with_configured_ocr(ocr_enabled)
-            .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS))
-            .with_format_aware(true)
-            .with_native_batch(true),
+    Ok(SubprocessAdapter::with_batch_capability(
+        "liteparse",
+        command,
+        args,
+        vec![],
+        supported_formats,
+        BatchCapability {
+            entry_point: BatchEntryPoint::LiteparseBatchParse,
+            timing_scope: BatchTimingScope::ColdEndToEndSubprocess,
+            per_item_timing: false,
+        },
     )
+    .with_configured_ocr(ocr_enabled)
+    .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS))
+    .with_format_aware(true))
 }
 
 /// Helper function to get the path to a wrapper script
@@ -481,6 +505,26 @@ pub fn create_mineru_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapter::FrameworkAdapter;
+
+    #[test]
+    fn docling_batch_wrapper_conformance_runs_with_cargo_tests() {
+        let python = std::env::var_os("PYTHON").unwrap_or_else(|| "python3".into());
+        let script = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("test_docling_extract.py");
+        let output = std::process::Command::new(python)
+            .arg(script)
+            .output()
+            .expect("Python is required to validate the Docling benchmark wrapper");
+
+        assert!(
+            output.status.success(),
+            "Docling wrapper conformance failed:\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 
     #[test]
     fn test_get_script_path() {
@@ -490,7 +534,16 @@ mod tests {
 
     #[tokio::test]
     async fn test_adapter_creation() {
-        let _ = create_docling_adapter(true);
+        if let Ok(docling) = create_docling_adapter(true) {
+            assert_eq!(
+                docling.batch_capability(),
+                Some(BatchCapability {
+                    entry_point: BatchEntryPoint::DoclingConvertAll,
+                    timing_scope: BatchTimingScope::ColdEndToEndSubprocess,
+                    per_item_timing: false,
+                })
+            );
+        }
         let _ = create_unstructured_adapter(true);
         let _ = create_markitdown_adapter(true);
         let _ = create_tika_adapter(true);

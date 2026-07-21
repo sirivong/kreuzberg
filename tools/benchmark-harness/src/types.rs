@@ -357,6 +357,10 @@ pub struct FrameworkCapabilities {
     #[serde(default)]
     pub batch_support: bool,
 
+    /// Verified batch entry point and timing semantics used for this result.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub batch_capability: Option<BatchCapability>,
+
     /// Whether framework supports async extraction
     #[serde(default)]
     pub async_support: bool,
@@ -372,6 +376,31 @@ pub struct FrameworkCapabilities {
     /// Disk installation size (if known)
     #[serde(default)]
     pub installation_size: Option<DiskSizeInfo>,
+}
+
+/// Concrete framework API used for a batch benchmark.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BatchEntryPoint {
+    XbergCliExtractBatch,
+    DoclingConvertAll,
+    LiteparseBatchParse,
+}
+
+/// Scope represented by the measured batch makespan.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum BatchTimingScope {
+    WarmSteadyState,
+    ColdEndToEndSubprocess,
+}
+
+/// Verified batch capability advertised by an adapter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BatchCapability {
+    pub entry_point: BatchEntryPoint,
+    pub timing_scope: BatchTimingScope,
+    pub per_item_timing: bool,
 }
 
 fn is_zero_u64(v: &u64) -> bool {

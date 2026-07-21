@@ -6,7 +6,10 @@
 
 use crate::adapter::FrameworkAdapter;
 use crate::monitoring::{ResourceMonitor, ResourceStats};
-use crate::types::{BenchmarkResult, ErrorKind, FrameworkCapabilities, OcrStatus, OutputFormat, PerformanceMetrics};
+use crate::types::{
+    BatchCapability, BatchEntryPoint, BenchmarkResult, ErrorKind, FrameworkCapabilities, OcrStatus, OutputFormat,
+    PerformanceMetrics,
+};
 use crate::{Error, Result};
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
@@ -155,7 +158,13 @@ fn parse_batch_output(stdout: &str) -> Result<ParsedBatchOutput> {
         let per_file_durations = per_file_values
             .iter()
             .enumerate()
-            .map(|(index, value)| duration_from_ms(value, &format!("per_file_ms[{index}]")).map(Some))
+            .map(|(index, value)| {
+                if value.is_null() {
+                    Ok(None)
+                } else {
+                    duration_from_ms(value, &format!("per_file_ms[{index}]")).map(Some)
+                }
+            })
             .collect::<Result<Vec<_>>>()?;
 
         return Ok(ParsedBatchOutput {
@@ -205,15 +214,13 @@ pub struct SubprocessAdapter {
     command: PathBuf,
     args: Vec<String>,
     env: Vec<(String, String)>,
-    supports_batch: bool,
+    batch_capability: Option<BatchCapability>,
     working_dir: Option<PathBuf>,
     supported_formats: Vec<String>,
     max_timeout: Option<Duration>,
     skip_files: Vec<String>,
     /// When true, append --format=<output_format> to subprocess args
     format_aware: bool,
-    /// When true (and format_aware=true), adapter uses native batch API via lit batch-parse
-    use_native_batch: bool,
     supported_output_formats: Vec<OutputFormat>,
     /// Single-file command arguments for adapters whose batch command uses a
     /// different subcommand. Used by warmup and mixed per-file OCR fallback.
@@ -504,13 +511,12 @@ impl SubprocessAdapter {
             command: command.into(),
             args,
             env,
-            supports_batch: false,
+            batch_capability: None,
             working_dir: None,
             supported_formats,
             max_timeout: None,
             skip_files: vec![],
             format_aware: false,
-            use_native_batch: false,
             supported_output_formats: vec![OutputFormat::Markdown],
             single_file_args: None,
             configured_ocr_status: None,
@@ -529,25 +535,25 @@ impl SubprocessAdapter {
     /// * `args` - Base arguments (e.g., ["-m", "xberg"])
     /// * `env` - Environment variables
     /// * `supported_formats` - List of file extensions this framework can process
-    pub fn with_batch_support(
+    pub(crate) fn with_batch_capability(
         name: impl Into<String>,
         command: impl Into<PathBuf>,
         args: Vec<String>,
         env: Vec<(String, String)>,
         supported_formats: Vec<String>,
+        batch_capability: BatchCapability,
     ) -> Self {
         Self {
             name: name.into(),
             command: command.into(),
             args,
             env,
-            supports_batch: true,
+            batch_capability: Some(batch_capability),
             working_dir: None,
             supported_formats,
             max_timeout: None,
             skip_files: vec![],
             format_aware: false,
-            use_native_batch: false,
             supported_output_formats: vec![OutputFormat::Markdown],
             single_file_args: None,
             configured_ocr_status: None,
@@ -597,13 +603,6 @@ impl SubprocessAdapter {
     /// Set the bounded worker count used by native batch implementations.
     pub fn with_batch_workers(mut self, workers: usize) -> Self {
         self.batch_workers = workers.max(1);
-        self
-    }
-
-    /// Enable native batch mode: use framework's native batch API instead of looping extract()
-    /// Only meaningful when format_aware=true and supports_batch=true
-    pub fn with_native_batch(mut self, enabled: bool) -> Self {
-        self.use_native_batch = enabled;
         self
     }
 
@@ -674,7 +673,10 @@ impl SubprocessAdapter {
         force_ocr: bool,
         output_format: OutputFormat,
     ) -> Result<SubprocessExecution> {
-        if self.use_native_batch && self.format_aware {
+        if self
+            .batch_capability
+            .is_some_and(|capability| capability.entry_point == BatchEntryPoint::LiteparseBatchParse)
+        {
             return self
                 .execute_liteparse_native_batch(file_paths, timeout, force_ocr, output_format)
                 .await;
@@ -912,7 +914,8 @@ impl SubprocessAdapter {
     ) -> BenchmarkResult {
         let framework_capabilities = FrameworkCapabilities {
             ocr_support: Self::framework_supports_ocr(&self.name),
-            batch_support: self.supports_batch,
+            batch_support: self.batch_capability.is_some(),
+            batch_capability: self.batch_capability,
             ..Default::default()
         };
 
@@ -1171,7 +1174,8 @@ impl FrameworkAdapter for SubprocessAdapter {
 
         let framework_capabilities = FrameworkCapabilities {
             ocr_support: Self::framework_supports_ocr(&self.name),
-            batch_support: self.supports_batch,
+            batch_support: self.batch_capability.is_some(),
+            batch_capability: self.batch_capability,
             ..Default::default()
         };
 
@@ -1220,8 +1224,8 @@ impl FrameworkAdapter for SubprocessAdapter {
         "unknown".to_string()
     }
 
-    fn supports_batch(&self) -> bool {
-        self.supports_batch
+    fn batch_capability(&self) -> Option<BatchCapability> {
+        self.batch_capability
     }
 
     async fn extract_batch(
@@ -1231,6 +1235,12 @@ impl FrameworkAdapter for SubprocessAdapter {
         force_ocr: &[bool],
         output_format: OutputFormat,
     ) -> Result<Vec<BenchmarkResult>> {
+        let batch_capability = self.batch_capability.ok_or_else(|| {
+            Error::Config(format!(
+                "framework '{}' does not expose a verified native batch API",
+                self.name
+            ))
+        })?;
         if force_ocr.len() != file_paths.len() {
             return Err(Error::Benchmark(format!(
                 "batch force_ocr cardinality mismatch: received {} flags for {} files",
@@ -1255,15 +1265,6 @@ impl FrameworkAdapter for SubprocessAdapter {
             .effective_timeout(timeout)
             .checked_mul(file_paths.len() as u32)
             .unwrap_or(Duration::MAX);
-
-        if !self.supports_batch {
-            let mut results = Vec::new();
-            for (i, path) in file_paths.iter().enumerate() {
-                let fo = force_ocr.get(i).copied().unwrap_or(false);
-                results.push(self.extract(path, timeout, fo, output_format).await?);
-            }
-            return Ok(results);
-        }
 
         let execution = match self
             .execute_subprocess_batch(file_paths, timeout, batch_force_ocr, output_format)
@@ -1309,6 +1310,19 @@ impl FrameworkAdapter for SubprocessAdapter {
                 "batch timing cardinality mismatch: received {} per-file durations for {} files",
                 parsed_batch.per_file_durations.len(),
                 file_paths.len()
+            )));
+        }
+        if batch_capability.per_item_timing {
+            if parsed_batch.per_file_durations.iter().any(Option::is_none) {
+                return Err(Error::Benchmark(format!(
+                    "framework '{}' declares per-item batch timing but returned unavailable timing values",
+                    self.name
+                )));
+            }
+        } else if parsed_batch.per_file_durations.iter().any(Option::is_some) {
+            return Err(Error::Benchmark(format!(
+                "framework '{}' declares per-item batch timing unavailable but returned numeric timing values",
+                self.name
             )));
         }
 
@@ -1392,7 +1406,8 @@ impl FrameworkAdapter for SubprocessAdapter {
 
         let framework_capabilities = FrameworkCapabilities {
             ocr_support: Self::framework_supports_ocr(&self.name),
-            batch_support: self.supports_batch,
+            batch_support: self.batch_capability.is_some(),
+            batch_capability: self.batch_capability,
             ..Default::default()
         };
 
@@ -1488,6 +1503,14 @@ impl Default for PerformanceMetrics {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn test_batch_capability(per_item_timing: bool) -> BatchCapability {
+        BatchCapability {
+            entry_point: BatchEntryPoint::XbergCliExtractBatch,
+            timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+            per_item_timing,
+        }
+    }
 
     #[test]
     fn test_subprocess_adapter_creation() {
@@ -1701,7 +1724,7 @@ mod tests {
         let adapter =
             SubprocessAdapter::new("test", "echo", vec![], vec![], vec!["pdf".to_string()]).with_format_aware(true);
         assert!(adapter.format_aware);
-        assert!(!adapter.use_native_batch);
+        assert!(adapter.batch_capability.is_none());
         assert_eq!(
             adapter.supported_output_formats(),
             vec![OutputFormat::Plaintext, OutputFormat::Markdown]
@@ -1710,12 +1733,53 @@ mod tests {
 
     #[test]
     fn test_native_batch_builder() {
-        let adapter = SubprocessAdapter::with_batch_support("test", "echo", vec![], vec![], vec!["pdf".to_string()])
-            .with_format_aware(true)
-            .with_native_batch(true);
-        assert!(adapter.supports_batch);
+        let adapter = SubprocessAdapter::with_batch_capability(
+            "test",
+            "echo",
+            vec![],
+            vec![],
+            vec!["pdf".to_string()],
+            BatchCapability {
+                entry_point: BatchEntryPoint::LiteparseBatchParse,
+                timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+                per_item_timing: false,
+            },
+        )
+        .with_format_aware(true);
+        assert!(adapter.batch_capability.is_some());
         assert!(adapter.format_aware);
-        assert!(adapter.use_native_batch);
+        assert_eq!(
+            adapter.batch_capability.map(|capability| capability.entry_point),
+            Some(BatchEntryPoint::LiteparseBatchParse)
+        );
+    }
+
+    #[test]
+    fn generic_batch_builder_preserves_separate_single_file_command() {
+        let adapter = SubprocessAdapter::with_batch_capability(
+            "docling",
+            "python",
+            vec!["docling_extract.py".to_string(), "batch".to_string()],
+            vec![],
+            vec!["pdf".to_string()],
+            BatchCapability {
+                entry_point: BatchEntryPoint::DoclingConvertAll,
+                timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+                per_item_timing: false,
+            },
+        )
+        .with_single_file_args(vec!["docling_extract.py".to_string(), "sync".to_string()]);
+
+        assert!(adapter.batch_capability.is_some());
+        assert_eq!(adapter.args.last().map(String::as_str), Some("batch"));
+        assert_eq!(
+            adapter
+                .single_file_args
+                .as_ref()
+                .and_then(|args| args.last())
+                .map(String::as_str),
+            Some("sync")
+        );
     }
 
     #[test]
@@ -1778,13 +1842,44 @@ mod tests {
 
     #[tokio::test]
     async fn batch_rejects_force_ocr_cardinality_mismatch() {
-        let adapter = SubprocessAdapter::with_batch_support("test", "echo", vec![], vec![], vec!["pdf".to_string()]);
+        let adapter = SubprocessAdapter::with_batch_capability(
+            "test",
+            "echo",
+            vec![],
+            vec![],
+            vec!["pdf".to_string()],
+            test_batch_capability(true),
+        );
         let input = tempfile::NamedTempFile::new().unwrap();
         let error = adapter
             .extract_batch(&[input.path()], Duration::from_secs(1), &[], OutputFormat::Markdown)
             .await
             .unwrap_err();
         assert!(error.to_string().contains("force_ocr cardinality mismatch"));
+    }
+
+    #[tokio::test]
+    async fn batch_rejects_non_native_adapter_without_spawning_single_file_commands() {
+        let adapter = SubprocessAdapter::new(
+            "single-only",
+            "command-that-must-not-run",
+            vec![],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+        let input = tempfile::NamedTempFile::new().unwrap();
+
+        let error = adapter
+            .extract_batch(
+                &[input.path()],
+                Duration::from_secs(1),
+                &[false],
+                OutputFormat::Markdown,
+            )
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("verified native batch API"));
     }
 
     #[cfg(unix)]
@@ -1815,12 +1910,13 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn batch_rejects_output_cardinality_mismatch() {
-        let adapter = SubprocessAdapter::with_batch_support(
+        let adapter = SubprocessAdapter::with_batch_capability(
             "test",
             "sh",
             vec!["-c".to_string(), "printf '[{\"content\":\"only one\"}]'".to_string()],
             vec![],
             vec!["pdf".to_string()],
+            test_batch_capability(false),
         );
         let first = tempfile::NamedTempFile::new().unwrap();
         let second = tempfile::NamedTempFile::new().unwrap();
@@ -1839,7 +1935,7 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn xberg_batch_envelope_uses_reported_timings_ocr_and_honest_throughput() {
-        let adapter = SubprocessAdapter::with_batch_support(
+        let adapter = SubprocessAdapter::with_batch_capability(
             "test",
             "sh",
             vec![
@@ -1849,6 +1945,7 @@ mod tests {
             ],
             vec![],
             vec!["pdf".to_string()],
+            test_batch_capability(true),
         );
         let mut first = tempfile::NamedTempFile::new().unwrap();
         let mut second = tempfile::NamedTempFile::new().unwrap();
@@ -1884,13 +1981,117 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
+    async fn batch_envelope_preserves_unavailable_per_item_timings() {
+        let capability = BatchCapability {
+            entry_point: BatchEntryPoint::DoclingConvertAll,
+            timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+            per_item_timing: false,
+        };
+        let adapter = SubprocessAdapter::with_batch_capability(
+            "docling",
+            "sh",
+            vec![
+                "-c".to_string(),
+                "printf '{\"results\":[{\"content\":\"one\"},{\"content\":\"two\"}],\"total_ms\":10,\"per_file_ms\":[null,null]}'"
+                    .to_string(),
+            ],
+            vec![],
+            vec!["pdf".to_string()],
+            capability,
+        );
+        let first = tempfile::NamedTempFile::new().unwrap();
+        let second = tempfile::NamedTempFile::new().unwrap();
+
+        let results = adapter
+            .extract_batch(
+                &[first.path(), second.path()],
+                Duration::from_secs(1),
+                &[false, false],
+                OutputFormat::Markdown,
+            )
+            .await
+            .unwrap();
+
+        assert!(results.iter().all(|result| result.extraction_duration.is_none()));
+        assert!(
+            results
+                .iter()
+                .all(|result| { result.framework_capabilities.batch_capability == Some(capability) })
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn batch_rejects_numeric_timing_when_capability_declares_unavailable() {
+        let adapter = SubprocessAdapter::with_batch_capability(
+            "docling",
+            "sh",
+            vec![
+                "-c".to_string(),
+                "printf '{\"results\":[{\"content\":\"one\"}],\"total_ms\":10,\"per_file_ms\":[1]}'".to_string(),
+            ],
+            vec![],
+            vec!["pdf".to_string()],
+            BatchCapability {
+                entry_point: BatchEntryPoint::DoclingConvertAll,
+                timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+                per_item_timing: false,
+            },
+        );
+        let input = tempfile::NamedTempFile::new().unwrap();
+
+        let error = adapter
+            .extract_batch(
+                &[input.path()],
+                Duration::from_secs(1),
+                &[false],
+                OutputFormat::Markdown,
+            )
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("unavailable but returned numeric"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn batch_requires_numeric_timing_when_capability_declares_per_item() {
+        let adapter = SubprocessAdapter::with_batch_capability(
+            "xberg-test",
+            "sh",
+            vec![
+                "-c".to_string(),
+                "printf '{\"results\":[{\"content\":\"one\"}],\"total_ms\":10,\"per_file_ms\":[null]}'".to_string(),
+            ],
+            vec![],
+            vec!["pdf".to_string()],
+            test_batch_capability(true),
+        );
+        let input = tempfile::NamedTempFile::new().unwrap();
+
+        let error = adapter
+            .extract_batch(
+                &[input.path()],
+                Duration::from_secs(1),
+                &[false],
+                OutputFormat::Markdown,
+            )
+            .await
+            .unwrap_err();
+
+        assert!(error.to_string().contains("declares per-item batch timing"));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
     async fn batch_process_failure_preserves_measured_resource_stats() {
-        let adapter = SubprocessAdapter::with_batch_support(
+        let adapter = SubprocessAdapter::with_batch_capability(
             "test",
             "sh",
             vec!["-c".to_string(), "printf 'batch failed' >&2; exit 9".to_string()],
             vec![],
             vec!["pdf".to_string()],
+            test_batch_capability(false),
         );
         let first = tempfile::NamedTempFile::new().unwrap();
         let second = tempfile::NamedTempFile::new().unwrap();
@@ -1924,7 +2125,7 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn partial_batch_item_failure_rejects_entire_batch() {
-        let adapter = SubprocessAdapter::with_batch_support(
+        let adapter = SubprocessAdapter::with_batch_capability(
             "test",
             "sh",
             vec![
@@ -1933,6 +2134,7 @@ mod tests {
             ],
             vec![],
             vec!["pdf".to_string()],
+            test_batch_capability(false),
         );
         let first = tempfile::NamedTempFile::new().unwrap();
         let second = tempfile::NamedTempFile::new().unwrap();
@@ -1954,7 +2156,7 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn batch_rejects_envelope_timing_cardinality_mismatch() {
-        let adapter = SubprocessAdapter::with_batch_support(
+        let adapter = SubprocessAdapter::with_batch_capability(
             "test",
             "sh",
             vec![
@@ -1964,6 +2166,7 @@ mod tests {
             ],
             vec![],
             vec!["pdf".to_string()],
+            test_batch_capability(true),
         );
         let first = tempfile::NamedTempFile::new().unwrap();
         let second = tempfile::NamedTempFile::new().unwrap();
@@ -1984,12 +2187,13 @@ mod tests {
     #[cfg(unix)]
     #[tokio::test]
     async fn mixed_ocr_batch_is_rejected_as_non_comparable() {
-        let adapter = SubprocessAdapter::with_batch_support(
+        let adapter = SubprocessAdapter::with_batch_capability(
             "test",
             "sh",
             vec!["-c".to_string(), "exit 99".to_string()],
             vec![],
             vec!["pdf".to_string()],
+            test_batch_capability(false),
         );
         let first = tempfile::NamedTempFile::new().unwrap();
         let second = tempfile::NamedTempFile::new().unwrap();

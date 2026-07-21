@@ -10,13 +10,22 @@ use crate::registry::AdapterRegistry;
 use crate::stats::percentile_r7;
 use crate::system_load::SystemLoad;
 use crate::types::{
-    BenchmarkResult, DiskSizeInfo, DurationStatistics, ErrorKind, IterationResult, OutputFormat, PerformanceMetrics,
+    BatchCapability, BatchTimingScope, BenchmarkResult, DiskSizeInfo, DurationStatistics, ErrorKind, IterationResult,
+    OutputFormat, PerformanceMetrics,
 };
 use crate::{Error, Result};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
+
+fn effective_batch_warmup_iterations(capability: BatchCapability, configured: usize) -> usize {
+    if capability.timing_scope == BatchTimingScope::ColdEndToEndSubprocess {
+        0
+    } else {
+        configured
+    }
+}
 
 #[cfg(feature = "profiling")]
 use crate::profile_report::ProfileReport;
@@ -691,6 +700,12 @@ impl BenchmarkRunner {
         force_ocr_flags: Vec<bool>,
         output_format: OutputFormat,
     ) -> Result<Vec<BenchmarkResult>> {
+        let batch_capability = adapter.batch_capability().ok_or_else(|| {
+            Error::Config(format!(
+                "framework '{}' does not expose a verified native batch API",
+                adapter.name()
+            ))
+        })?;
         if force_ocr_flags.len() != file_paths.len() {
             return Err(Error::Benchmark(format!(
                 "batch force_ocr cardinality mismatch: received {} flags for {} files",
@@ -699,14 +714,19 @@ impl BenchmarkRunner {
             )));
         }
 
-        let total_iterations = config.warmup_iterations + config.benchmark_iterations;
+        let warmup_iterations = effective_batch_warmup_iterations(batch_capability, config.warmup_iterations);
+        let total_iterations = warmup_iterations + config.benchmark_iterations;
         let mut all_batch_results = Vec::new();
 
         for iteration in 0..total_iterations {
             let refs: Vec<&std::path::Path> = file_paths.iter().map(|p| p.as_path()).collect();
-            let batch_results = adapter
+            let mut batch_results = adapter
                 .extract_batch(&refs, config.timeout, &force_ocr_flags, output_format)
                 .await?;
+            for result in &mut batch_results {
+                result.framework_capabilities.batch_support = true;
+                result.framework_capabilities.batch_capability = Some(batch_capability);
+            }
             if batch_results.len() != file_paths.len() {
                 return Err(Error::Benchmark(format!(
                     "framework '{}' returned {} batch results for {} files",
@@ -730,7 +750,7 @@ impl BenchmarkRunner {
 
             let has_timeout = batch_results.iter().any(|r| r.error_kind == ErrorKind::Timeout);
 
-            if iteration >= config.warmup_iterations || has_timeout {
+            if iteration >= warmup_iterations || has_timeout {
                 all_batch_results.push(batch_results);
             }
 
@@ -888,6 +908,14 @@ impl BenchmarkRunner {
             return Err(Error::Benchmark("No frameworks available for benchmarking".to_string()));
         }
 
+        let use_batch = matches!(self.config.benchmark_mode, BenchmarkMode::Batch);
+        if use_batch && let Some(adapter) = frameworks.iter().find(|adapter| adapter.batch_capability().is_none()) {
+            return Err(Error::Config(format!(
+                "framework '{}' does not expose a verified native batch API",
+                adapter.name()
+            )));
+        }
+
         let ocr_required_count = self
             .fixtures
             .fixtures()
@@ -937,6 +965,17 @@ impl BenchmarkRunner {
         Self::setup_frameworks(&frameworks).await?;
 
         for adapter in &frameworks {
+            if use_batch
+                && adapter
+                    .batch_capability()
+                    .is_some_and(|capability| capability.timing_scope == BatchTimingScope::ColdEndToEndSubprocess)
+            {
+                println!(
+                    "Skipping warmup for {}: each batch invocation is measured cold end-to-end",
+                    adapter.name()
+                );
+                continue;
+            }
             let warmup_fixture = self
                 .fixtures
                 .fixtures()
@@ -979,8 +1018,6 @@ impl BenchmarkRunner {
 
         let mut results = Vec::new();
 
-        let use_batch = matches!(self.config.benchmark_mode, BenchmarkMode::Batch);
-
         if use_batch {
             use std::collections::HashMap;
 
@@ -1020,71 +1057,31 @@ impl BenchmarkRunner {
 
                     let (file_paths, force_ocr_flags): (Vec<PathBuf>, Vec<bool>) = entries.iter().cloned().unzip();
 
-                    if adapter.supports_batch() {
-                        let adapter = Arc::clone(adapter);
-                        let config = config.clone();
-                        let cold_start = self.cold_start_durations.get(adapter_name).copied();
+                    let adapter = Arc::clone(adapter);
+                    let config = config.clone();
+                    let cold_start = self.cold_start_durations.get(adapter_name).copied();
 
-                        match Self::run_batch_iterations_static(
-                            file_paths,
-                            adapter,
-                            &config,
-                            cold_start,
-                            force_ocr_flags,
-                            self.output_format,
-                        )
-                        .await
-                        {
-                            Ok(mut batch_results) => {
-                                for result in &mut batch_results {
-                                    self.enrich_with_framework_size(result);
-                                }
-                                results.extend(batch_results);
+                    match Self::run_batch_iterations_static(
+                        file_paths,
+                        adapter,
+                        &config,
+                        cold_start,
+                        force_ocr_flags,
+                        self.output_format,
+                    )
+                    .await
+                    {
+                        Ok(mut batch_results) => {
+                            for result in &mut batch_results {
+                                self.enrich_with_framework_size(result);
                             }
-                            Err(e) => {
-                                if let Err(teardown_error) = Self::teardown_frameworks(&frameworks).await {
-                                    eprintln!("Warning: teardown after batch failure also failed: {teardown_error}");
-                                }
-                                return Err(e);
-                            }
+                            results.extend(batch_results);
                         }
-                    } else {
-                        let mut consecutive_failures: u32 = 0;
-                        const MAX_CONSECUTIVE_FAILURES: u32 = 10;
-
-                        for (file_path, force_ocr) in file_paths.into_iter().zip(force_ocr_flags) {
-                            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES {
-                                eprintln!(
-                                    "Skipping remaining files for {} — {} consecutive failures",
-                                    adapter_name, MAX_CONSECUTIVE_FAILURES
-                                );
-                                break;
+                        Err(e) => {
+                            if let Err(teardown_error) = Self::teardown_frameworks(&frameworks).await {
+                                eprintln!("Warning: teardown after batch failure also failed: {teardown_error}");
                             }
-
-                            let adapter = Arc::clone(adapter);
-                            let config = config.clone();
-                            let cold_start = self.cold_start_durations.get(adapter_name).copied();
-
-                            match Self::run_iterations_static(
-                                &file_path,
-                                adapter,
-                                &config,
-                                cold_start,
-                                force_ocr,
-                                self.output_format,
-                            )
-                            .await
-                            {
-                                Ok(mut result) => {
-                                    consecutive_failures = 0;
-                                    self.enrich_with_framework_size(&mut result);
-                                    results.push(result);
-                                }
-                                Err(e) => {
-                                    consecutive_failures += 1;
-                                    eprintln!("Benchmark task failed for {}: {}", adapter_name, e);
-                                }
-                            }
+                            return Err(e);
                         }
                     }
                 }
@@ -1257,8 +1254,12 @@ mod tests {
             Ok(file_paths.iter().map(|path| self.result(path, output_format)).collect())
         }
 
-        fn supports_batch(&self) -> bool {
-            true
+        fn batch_capability(&self) -> Option<crate::types::BatchCapability> {
+            Some(crate::types::BatchCapability {
+                entry_point: crate::types::BatchEntryPoint::XbergCliExtractBatch,
+                timing_scope: crate::types::BatchTimingScope::WarmSteadyState,
+                per_item_timing: false,
+            })
         }
     }
 
@@ -1270,6 +1271,10 @@ mod tests {
 
         fn supports_format(&self, _file_type: &str) -> bool {
             true
+        }
+
+        fn supported_output_formats(&self) -> Vec<OutputFormat> {
+            vec![OutputFormat::Markdown]
         }
 
         async fn extract(
@@ -1382,6 +1387,23 @@ mod tests {
         let error = validate_batch_ocr_cohort(true, 3, 1).unwrap_err();
         assert!(error.to_string().contains("homogeneous OCR cohort"));
         assert!(error.to_string().contains("will not label sequential fallback"));
+    }
+
+    #[test]
+    fn cold_subprocess_batch_never_runs_discarded_warmup_iterations() {
+        let cold = BatchCapability {
+            entry_point: crate::types::BatchEntryPoint::DoclingConvertAll,
+            timing_scope: BatchTimingScope::ColdEndToEndSubprocess,
+            per_item_timing: false,
+        };
+        let warm = BatchCapability {
+            entry_point: crate::types::BatchEntryPoint::XbergCliExtractBatch,
+            timing_scope: BatchTimingScope::WarmSteadyState,
+            per_item_timing: true,
+        };
+
+        assert_eq!(effective_batch_warmup_iterations(cold, 3), 0);
+        assert_eq!(effective_batch_warmup_iterations(warm, 3), 3);
     }
 
     #[tokio::test]
@@ -1535,6 +1557,36 @@ mod tests {
                 .to_string()
                 .contains("requested framework 'missing' is not registered")
         );
+    }
+
+    #[tokio::test]
+    async fn batch_mode_rejects_non_native_adapter_before_setup() {
+        let setup_calls = Arc::new(AtomicUsize::new(0));
+        let teardown_calls = Arc::new(AtomicUsize::new(0));
+        let mut registry = AdapterRegistry::new();
+        registry
+            .register(Arc::new(TeardownAdapter {
+                name: "single-only",
+                setup_calls: Arc::clone(&setup_calls),
+                teardown_calls: Arc::clone(&teardown_calls),
+                fail_setup: false,
+                fail_teardown: false,
+            }))
+            .unwrap();
+        let config = BenchmarkConfig {
+            benchmark_mode: BenchmarkMode::Batch,
+            ..Default::default()
+        };
+        let mut runner = BenchmarkRunner::new(config, registry);
+
+        let error = runner.run(&["single-only".to_string()]).await.unwrap_err();
+
+        assert!(
+            error.to_string().contains("verified native batch API"),
+            "unexpected error: {error}"
+        );
+        assert_eq!(setup_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(teardown_calls.load(Ordering::SeqCst), 0);
     }
 
     #[tokio::test]

@@ -551,14 +551,17 @@ async fn main() -> Result<()> {
                     external_count
                 );
             } else {
-                use benchmark_harness::adapters::create_liteparse_adapter;
+                use benchmark_harness::adapters::{create_docling_adapter, create_liteparse_adapter};
+                try_register!("docling", || create_docling_adapter(ocr), external_count);
                 try_register!(
                     "liteparse",
                     || create_liteparse_adapter(ocr).map(|adapter| adapter.with_batch_workers(config.max_concurrent)),
                     external_count
                 );
-                eprintln!("[adapter] Batch mode: only liteparse available (uses native lit batch-parse API)");
-                eprintln!("[adapter] Other frameworks skipped: no native batch APIs");
+                eprintln!(
+                    "[adapter] Batch mode: verified APIs are docling convert_all (cold end-to-end subprocess) and liteparse batch-parse"
+                );
+                eprintln!("[adapter] Other external frameworks skipped: native batch behavior is unverified");
             }
 
             eprintln!(

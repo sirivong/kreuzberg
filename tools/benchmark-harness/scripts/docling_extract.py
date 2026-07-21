@@ -78,43 +78,47 @@ def extract_sync(file_path: str, converter: DocumentConverter, output_format: st
 
 def extract_batch(
     file_paths: list[str], converter: DocumentConverter, output_format: str = "markdown"
-) -> list[dict[str, Any]]:
-    """Extract multiple files using batch API."""
+) -> dict[str, Any]:
+    """Extract multiple files using Docling's lazy ``convert_all`` API."""
     start = time.perf_counter()
     results = converter.convert_all(file_paths, raises_on_error=False)
-    total_duration_ms = (time.perf_counter() - start) * 1000.0
-
-    per_file_duration_ms = total_duration_ms / len(file_paths) if file_paths else 0
-
-    outputs = []
+    outputs: list[dict[str, Any]] = []
     for result in results:
+        item: dict[str, Any]
         if result.status.name == "SUCCESS":
             content = _render(result.document, output_format)
-            outputs.append(
-                {
-                    "content": content,
-                    "metadata": {"framework": "docling", "output_format": output_format},
-                    "_extraction_time_ms": per_file_duration_ms,
-                    "_batch_total_ms": total_duration_ms,
-                    "_peak_memory_bytes": _get_peak_memory_bytes(),
-                }
-            )
+            item = {
+                "content": content,
+                "metadata": {"framework": "docling", "output_format": output_format},
+                "_peak_memory_bytes": _get_peak_memory_bytes(),
+            }
         else:
-            outputs.append(
-                {
-                    "content": "",
-                    "metadata": {
-                        "framework": "docling",
-                        "error": str(result.errors) if result.errors else "Unknown error",
-                        "status": result.status.name,
-                    },
-                    "_extraction_time_ms": per_file_duration_ms,
-                    "_batch_total_ms": total_duration_ms,
-                    "_peak_memory_bytes": _get_peak_memory_bytes(),
-                }
-            )
+            error = str(result.errors) if result.errors else "Unknown error"
+            item = {
+                "content": "",
+                "error": error,
+                "metadata": {
+                    "framework": "docling",
+                    "error": error,
+                    "status": result.status.name,
+                },
+                "_peak_memory_bytes": _get_peak_memory_bytes(),
+            }
+        outputs.append(item)
 
-    return outputs
+    total_duration_ms = (time.perf_counter() - start) * 1000.0
+    return {
+        "results": outputs,
+        "total_ms": total_duration_ms,
+        "per_file_ms": [None] * len(outputs),
+        "metadata": {
+            "framework": "docling",
+            "batch_api": "DocumentConverter.convert_all",
+            "reported_total_timing_scope": "convert_all_lazy_iteration_and_render",
+            "benchmark_timing_scope": "cold_end_to_end_subprocess",
+            "per_item_timing": "unavailable",
+        },
+    }
 
 
 def _worker(fn, args, conn):
@@ -266,12 +270,8 @@ def main() -> None:
                 print("Error: batch mode requires at least one file", file=sys.stderr)
                 sys.exit(1)
 
-            if len(file_paths) == 1:
-                results = extract_batch(file_paths, converter, output_format)
-                print(json.dumps(results[0]), end="")
-            else:
-                results = extract_batch(file_paths, converter, output_format)
-                print(json.dumps(results), end="")
+            payload = extract_batch(file_paths, converter, output_format)
+            print(json.dumps(payload), end="")
 
         else:
             print(f"Error: Unknown mode '{mode}'. Use sync, batch, or server", file=sys.stderr)
