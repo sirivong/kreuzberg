@@ -165,7 +165,7 @@ fn atomic_publish_with_lock_timeout(
     #[cfg(windows)]
     {
         let backup = tmp.path().with_extension("backup");
-        return publish_with_rollback(tmp.path(), dst, &backup, sha256, label);
+        publish_with_rollback(tmp.path(), dst, &backup, sha256, label)
     }
 
     #[cfg(not(windows))]

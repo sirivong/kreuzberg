@@ -108,6 +108,11 @@ pub(crate) fn open_file_bytes(path: &Path) -> Result<FileBytes> {
 /// # Errors
 ///
 /// Returns `XbergError::Io` for I/O errors (these always bubble up).
+// Shared file-read helper for the html/email/structured/pdf/jats/ocr/candle extractors;
+// unused only in the degenerate `no-default-features` build where every caller feature is
+// off. A cfg-gate on the caller-feature union is brittle across single-feature CI combos, so
+// the helper is simply allowed to be unused there. ~keep
+#[allow(dead_code)]
 pub(crate) async fn read_file_async(path: impl AsRef<Path>) -> Result<Vec<u8>> {
     #[cfg(all(feature = "tokio-runtime", not(target_arch = "wasm32")))]
     {
