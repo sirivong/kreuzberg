@@ -7,10 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [Unreleased]
+## [1.0.0-rc.31] - 2026-07-21
 
 ### Added
 
+- **Sibling-library config passthrough for liter-llm, tree-sitter, and html-to-markdown.**
+  Configuration surfaces that previously lived only inside the wrapped crates are now exposed on
+  Xberg's own config types and forwarded across every binding: `LlmConfig` gains `load_env` and
+  `headers` (wired into client creation), `TreeSitterProcessConfig` gains `data_extraction` — with a
+  structured `CodeDataNode` tree (`CodeDataNode` / `CodeDataAttribute` / `CodeDataNodeKind`) attached
+  to `CodeMetadata.data` — and the HTML→Markdown pipeline's `html_options` is no longer skipped. Dead
+  and redundant per-language binding excludes were pruned in the same pass (alef 0.42.0).
+- **PDF headings recovered from document outlines.** Bookmark/outline entries are resolved to their
+  target locations and promoted to headings in the structured document, so PDFs that carry their
+  table of contents in the outline tree rather than in styled body text now produce a real heading
+  hierarchy. Outline destination resolution was also hardened against malformed or dangling targets.
+- **Layout regions preserved through structured PDF assembly.** Detected layout regions now flow
+  through the reading-order and page-assembly stages into the structured document instead of being
+  discarded after detection, improving block segmentation and reading order in the assembled output.
 - **Pure-Rust layout detection on no-ORT targets (`layout-tract`).** RT-DETR layout detection and
   the PP-LCNet wired/wireless table classifier can now run through the `tract` engine instead of
   ONNX Runtime, mirroring the `auto-rotate-tract` pattern. A new `layout-tract` feature is the
@@ -52,6 +66,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   running layout off ORT. Two `.expect()` panics in the layout preprocessing paths were replaced
   with `Result` propagation, and the tract boundary tensor conversions plus `default_backend()`
   selection gained offline (model-free) test coverage. Part of #1275.
+
+### Fixed
+
+- **VLM OCR no longer times out at ~60s (#1273).** An unset `vlm_config.timeout_secs` inherited
+  liter-llm's built-in 60s client timeout, too short for full-page VLM transcription, so extractions
+  failed around the one-minute mark. The VLM OCR path now applies a 300s default when
+  `timeout_secs` is unset; explicit values still win.
+- **EML bodies in legacy multi-byte charsets no longer decode to replacement characters (#1278).**
+  CJK encodings such as `ks_c_5601-1987`/EUC-KR, Shift-JIS, Big5, and GBK rendered as U+FFFD because
+  mail-parser gates its multi-byte decoders behind the `full_encoding` feature, which xberg did not
+  enable. That feature is now on, and the standalone `email` extractor pulls in the `html` path it
+  renders bodies through.
+- **C# NuGet musl natives no longer fail with `DllNotFoundException` (#1280).** The musl FFI build
+  shipped `libxberg_ffi.so` alone, so .NET could not resolve its `libonnxruntime.so` at runtime. The
+  vendored shared-library closure (ONNX Runtime + image codecs) is now bundled beside the FFI library
+  with `RUNPATH=$ORIGIN`, and every `*.so` from the build output is shipped in publish staging.
+- **PDF structured output preserves structure and region boundaries through page assembly.**
+  Reading order is now selected per page, structure role boundaries and semantic region boundaries
+  survive assembly, explicit groups close correctly beneath headings, dense numeric tables and inline
+  style runs are recovered, native text is suppressed only for the tables actually emitted, mixed
+  native/OCR text is preserved, and word compounds survive the text-repair pass.
+- **OCR native-backend runtime enabled; CLI layout timing gated by feature.** The native OCR backend
+  now has its runtime dependency wired in the feature graph, and the CLI's layout-timing output is
+  gated by the layout feature so builds without it stay clean.
+- **WASM builds exclude host-only async paths.** tokio OS primitives, rayon, and `JoinSet` code
+  paths are now excluded from `wasm32`, keeping the wasm target buildable and free of unsupported
+  runtime imports.
+- **Hugging Face model cache keys are consistent and correctly gated** across the ML feature set,
+  avoiding divergent or unused cache paths.
 
 ## [1.0.0-rc.30] - 2026-07-20
 
