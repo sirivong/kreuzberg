@@ -150,13 +150,20 @@ async fn extract_and_score(
     fixtures_dir: &Path,
 ) -> PipelineResult {
     let (content_opt, time_ms) = crate::comparison::extract_pipeline(pipeline, doc, fixtures_dir).await;
+    let extraction_failed = content_opt.is_none();
     let content = content_opt.unwrap_or_default();
-    let (tf1, _basic_sf1, _basic_order, _basic_per_type) =
-        crate::comparison::score_document(&content, gt_text, gt_markdown);
+    let tf1 = if extraction_failed {
+        f64::NAN
+    } else {
+        let (tf1, _basic_sf1, _basic_order, _basic_per_type) =
+            crate::comparison::score_document(&content, gt_text, gt_markdown);
+        tf1
+    };
 
-    let (sf1, order_score, per_type_sf1) = match gt_markdown {
-        Some(md) => score_structural_markdown(&content, md),
-        None => (f64::NAN, f64::NAN, HashMap::new()),
+    let (sf1, order_score, per_type_sf1) = match (extraction_failed, gt_markdown) {
+        (true, _) => (f64::NAN, f64::NAN, HashMap::new()),
+        (false, Some(md)) => score_structural_markdown(&content, md),
+        (false, None) => (f64::NAN, f64::NAN, HashMap::new()),
     };
 
     let ext_tokens = crate::quality::tokenize(&content);
@@ -382,7 +389,7 @@ pub fn print_pipeline_table(results: &[PipelineDocResult], sort_by: SortMetric, 
         let sf1_vals: Vec<f64> = results
             .iter()
             .map(|r| r.results[i].sf1)
-            .filter(|v| !v.is_nan())
+            .filter(|v| v.is_finite())
             .collect();
         let sf1 = if !sf1_vals.is_empty() {
             sf1_vals.iter().sum::<f64>() / sf1_vals.len() as f64
@@ -392,7 +399,7 @@ pub fn print_pipeline_table(results: &[PipelineDocResult], sort_by: SortMetric, 
         let tf1_vals: Vec<f64> = results
             .iter()
             .map(|r| r.results[i].tf1)
-            .filter(|v| !v.is_nan())
+            .filter(|v| v.is_finite())
             .collect();
         let tf1 = if !tf1_vals.is_empty() {
             tf1_vals.iter().sum::<f64>() / tf1_vals.len() as f64
@@ -402,7 +409,7 @@ pub fn print_pipeline_table(results: &[PipelineDocResult], sort_by: SortMetric, 
         let time_vals: Vec<f64> = results
             .iter()
             .map(|r| r.results[i].time_ms)
-            .filter(|v| !v.is_nan())
+            .filter(|v| v.is_finite())
             .collect();
         if time_vals.is_empty() {
             eprint!(" {:>7.1}% {:>7.1}% {:>7}", sf1 * 100.0, tf1 * 100.0, "N/A");
@@ -481,7 +488,6 @@ pub fn compute_aggregates(results: &[PipelineDocResult]) -> Vec<PipelineAggregat
         return Vec::new();
     }
 
-    let n = results.len() as f64;
     let num_pipelines = results[0].results.len();
     let mut aggregates = Vec::new();
 
@@ -491,13 +497,17 @@ pub fn compute_aggregates(results: &[PipelineDocResult]) -> Vec<PipelineAggregat
         let mut sf1s: Vec<f64> = results
             .iter()
             .map(|r| r.results[i].sf1)
-            .filter(|v| !v.is_nan())
+            .filter(|v| v.is_finite())
             .collect();
-        let mut tf1s: Vec<f64> = results.iter().map(|r| r.results[i].tf1).collect();
+        let mut tf1s: Vec<f64> = results
+            .iter()
+            .map(|r| r.results[i].tf1)
+            .filter(|v| v.is_finite())
+            .collect();
         let mut times: Vec<f64> = results
             .iter()
             .map(|r| r.results[i].time_ms)
-            .filter(|v| !v.is_nan())
+            .filter(|v| v.is_finite())
             .collect();
 
         sf1s.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
@@ -505,22 +515,35 @@ pub fn compute_aggregates(results: &[PipelineDocResult]) -> Vec<PipelineAggregat
         times.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let sf1_n = sf1s.len() as f64;
+        let tf1_n = tf1s.len() as f64;
 
         aggregates.push(PipelineAggregate {
             pipeline: pipeline_name,
             mean_sf1: if sf1_n > 0.0 {
                 sf1s.iter().sum::<f64>() / sf1_n
             } else {
-                0.0
+                f64::NAN
             },
-            mean_tf1: tf1s.iter().sum::<f64>() / n,
+            mean_tf1: if tf1_n > 0.0 {
+                tf1s.iter().sum::<f64>() / tf1_n
+            } else {
+                f64::NAN
+            },
             mean_time_ms: if times.is_empty() {
                 f64::NAN
             } else {
                 times.iter().sum::<f64>() / times.len() as f64
             },
-            p50_sf1: percentile(&sf1s, 0.5),
-            p50_tf1: percentile(&tf1s, 0.5),
+            p50_sf1: if sf1s.is_empty() {
+                f64::NAN
+            } else {
+                percentile(&sf1s, 0.5)
+            },
+            p50_tf1: if tf1s.is_empty() {
+                f64::NAN
+            } else {
+                percentile(&tf1s, 0.5)
+            },
             p50_time_ms: percentile(&times, 0.5),
             p90_time_ms: percentile(&times, 0.9),
         });
@@ -771,6 +794,71 @@ mod tests {
         let (sf1, _, dimensions) = score_structural_markdown(&markdown, &markdown);
         assert_eq!(sf1, 1.0);
         assert_eq!(dimensions.get("heading"), Some(&1.0));
+    }
+
+    #[test]
+    fn aggregates_ignore_unavailable_tf1_scores() {
+        let pipeline_result = |tf1| PipelineResult {
+            pipeline: Pipeline::Docling,
+            sf1: tf1,
+            tf1,
+            order_score: tf1,
+            per_type_sf1: HashMap::new(),
+            time_ms: 10.0,
+            missing_tokens: Vec::new(),
+            extra_tokens: Vec::new(),
+            content: String::new(),
+        };
+        let doc_result = |name: &str, tf1| PipelineDocResult {
+            name: name.to_string(),
+            file_type: "pdf".to_string(),
+            file_size: 1,
+            results: vec![pipeline_result(tf1)],
+        };
+        let results = vec![doc_result("success", 0.75), doc_result("failure", f64::NAN)];
+
+        let aggregates = compute_aggregates(&results);
+
+        assert_eq!(aggregates.len(), 1);
+        assert_eq!(aggregates[0].mean_tf1, 0.75);
+        assert_eq!(aggregates[0].p50_tf1, 0.75);
+        assert!(
+            serde_json::to_string(&aggregates)
+                .unwrap()
+                .contains("\"mean_tf1\":0.75")
+        );
+    }
+
+    #[test]
+    fn aggregates_preserve_all_unavailable_scores() {
+        let results = vec![PipelineDocResult {
+            name: "failure".to_string(),
+            file_type: "pdf".to_string(),
+            file_size: 1,
+            results: vec![PipelineResult {
+                pipeline: Pipeline::Docling,
+                sf1: f64::NAN,
+                tf1: f64::NAN,
+                order_score: f64::NAN,
+                per_type_sf1: HashMap::new(),
+                time_ms: f64::NAN,
+                missing_tokens: Vec::new(),
+                extra_tokens: Vec::new(),
+                content: String::new(),
+            }],
+        }];
+
+        let aggregates = compute_aggregates(&results);
+        let serialized = serde_json::to_value(&aggregates).unwrap();
+
+        assert!(aggregates[0].mean_sf1.is_nan());
+        assert!(aggregates[0].mean_tf1.is_nan());
+        assert!(aggregates[0].p50_sf1.is_nan());
+        assert!(aggregates[0].p50_tf1.is_nan());
+        assert!(serialized[0]["mean_sf1"].is_null());
+        assert!(serialized[0]["mean_tf1"].is_null());
+        assert!(serialized[0]["p50_sf1"].is_null());
+        assert!(serialized[0]["p50_tf1"].is_null());
     }
 
     #[test]

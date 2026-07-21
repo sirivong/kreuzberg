@@ -586,22 +586,50 @@ pub fn score_document(
     (tf1, sf1, order_score, per_type_sf1)
 }
 
-/// Read vendored markdown + cached timing for a single document.
-/// Returns (content, time_ms) where time_ms is NaN if no cached timing exists.
-pub fn read_vendored_cached(doc_name: &str, fixtures_dir: &std::path::Path, vendored_name: &str) -> (String, f64) {
-    let vendored_dir = fixtures_dir
+fn resolve_vendored_dir(fixtures_path: &Path, vendored_name: &str) -> std::path::PathBuf {
+    let search_start = if fixtures_path.is_file() {
+        fixtures_path.parent().unwrap_or(fixtures_path)
+    } else {
+        fixtures_path
+    };
+    let fixtures_root = search_start
+        .ancestors()
+        .find(|ancestor| ancestor.file_name().is_some_and(|name| name == "fixtures"))
+        .unwrap_or(search_start);
+
+    fixtures_root
         .parent()
-        .unwrap_or(fixtures_dir)
+        .unwrap_or(fixtures_root)
         .join("vendored")
-        .join(vendored_name);
+        .join(vendored_name)
+}
+
+/// Read vendored markdown + cached timing for a single document.
+///
+/// Returns an error when the cached markdown is missing or empty. A missing
+/// timing remains valid for quality-only comparisons and is represented by
+/// `NaN`.
+pub fn read_vendored_cached(doc_name: &str, fixtures_path: &Path, vendored_name: &str) -> Result<(String, f64)> {
+    let vendored_dir = resolve_vendored_dir(fixtures_path, vendored_name);
     let md_path = vendored_dir.join("md").join(format!("{}.md", doc_name));
     let timing_path = vendored_dir.join("timing").join(format!("{}.ms", doc_name));
-    let md = std::fs::read_to_string(&md_path).unwrap_or_default();
+    let md = std::fs::read_to_string(&md_path).map_err(|error| {
+        crate::Error::Benchmark(format!(
+            "Failed to read vendored {vendored_name} output for {doc_name} at {}: {error}",
+            md_path.display()
+        ))
+    })?;
+    if md.trim().is_empty() {
+        return Err(crate::Error::Benchmark(format!(
+            "Vendored {vendored_name} output for {doc_name} is empty at {}",
+            md_path.display()
+        )));
+    }
     let cached_ms = std::fs::read_to_string(&timing_path)
         .ok()
         .and_then(|s| s.trim().parse::<f64>().ok())
         .unwrap_or(f64::NAN);
-    (md, cached_ms)
+    Ok((md, cached_ms))
 }
 
 /// Extract content from a document using the given pipeline.
@@ -618,8 +646,13 @@ pub async fn extract_pipeline(
                 Pipeline::RapidOcr => "rapidocr",
                 _ => "docling",
             };
-            let (content, time_ms) = read_vendored_cached(&doc.name, fixtures_dir, vendored_name);
-            (Some(content), time_ms)
+            match read_vendored_cached(&doc.name, fixtures_dir, vendored_name) {
+                Ok((content, time_ms)) => (Some(content), time_ms),
+                Err(error) => {
+                    eprintln!("  ERROR {}/{}: {}", doc.name, pipeline.name(), error);
+                    (None, f64::NAN)
+                }
+            }
         }
         _ => {
             let t = Instant::now();
@@ -690,9 +723,9 @@ async fn run_pipeline(
     fixtures_dir: &std::path::Path,
 ) -> PipelineResult {
     let (content_opt, time_ms) = extract_pipeline(pipeline, doc, fixtures_dir).await;
-
+    let extraction_failed = content_opt.is_none();
     let content = content_opt.unwrap_or_default();
-    let (tf1, sf1, order_score, per_type_sf1) = if content.is_empty() && time_ms > 170_000.0 {
+    let (tf1, sf1, order_score, per_type_sf1) = if extraction_failed || (content.is_empty() && time_ms > 170_000.0) {
         (f64::NAN, f64::NAN, f64::NAN, std::collections::HashMap::new())
     } else {
         score_document(&content, gt_text, gt_markdown)
@@ -818,12 +851,12 @@ pub fn print_comparison_table(results: &[DocResult]) {
         let sf1_vals: Vec<f64> = results
             .iter()
             .map(|r| r.results[i].sf1)
-            .filter(|v| !v.is_nan())
+            .filter(|v| v.is_finite())
             .collect();
         let tf1_vals: Vec<f64> = results
             .iter()
             .map(|r| r.results[i].tf1)
-            .filter(|v| !v.is_nan())
+            .filter(|v| v.is_finite())
             .collect();
         let avg_sf1 = if sf1_vals.is_empty() {
             f64::NAN
@@ -838,7 +871,7 @@ pub fn print_comparison_table(results: &[DocResult]) {
         let times: Vec<f64> = results
             .iter()
             .map(|r| r.results[i].time_ms)
-            .filter(|t| !t.is_nan() && *t > 0.0)
+            .filter(|t| t.is_finite() && *t > 0.0)
             .collect();
         let avg_time = if times.is_empty() {
             f64::NAN
@@ -855,7 +888,7 @@ pub fn print_comparison_table(results: &[DocResult]) {
     eprintln!();
 
     for (i, name) in pipeline_names.iter().enumerate() {
-        let failed = results.iter().filter(|r| r.results[i].sf1.is_nan()).count();
+        let failed = results.iter().filter(|r| !r.results[i].sf1.is_finite()).count();
         if failed > 0 {
             eprintln!("  {}: {} timeouts/errors (excluded from averages)", name, failed);
         }
@@ -891,8 +924,16 @@ pub fn print_per_format_summary(results: &[DocResult]) {
     for (format, docs) in &by_format {
         eprint!("{:<12} {:>5}", format, docs.len());
         for (i, _) in pipeline_names.iter().enumerate() {
-            let sf1_vals: Vec<f64> = docs.iter().map(|d| d.results[i].sf1).filter(|v| !v.is_nan()).collect();
-            let tf1_vals: Vec<f64> = docs.iter().map(|d| d.results[i].tf1).filter(|v| !v.is_nan()).collect();
+            let sf1_vals: Vec<f64> = docs
+                .iter()
+                .map(|d| d.results[i].sf1)
+                .filter(|v| v.is_finite())
+                .collect();
+            let tf1_vals: Vec<f64> = docs
+                .iter()
+                .map(|d| d.results[i].tf1)
+                .filter(|v| v.is_finite())
+                .collect();
             let avg_sf1 = if sf1_vals.is_empty() {
                 f64::NAN
             } else {
@@ -959,15 +1000,23 @@ pub fn write_comparison_json(results: &[DocResult], path: &std::path::Path) -> R
                 .iter()
                 .enumerate()
                 .map(|(i, name)| {
-                    let sf1_vals: Vec<f64> = docs.iter().map(|d| d.results[i].sf1).filter(|v| !v.is_nan()).collect();
-                    let tf1_vals: Vec<f64> = docs.iter().map(|d| d.results[i].tf1).filter(|v| !v.is_nan()).collect();
+                    let sf1_vals: Vec<f64> = docs
+                        .iter()
+                        .map(|d| d.results[i].sf1)
+                        .filter(|v| v.is_finite())
+                        .collect();
+                    let tf1_vals: Vec<f64> = docs
+                        .iter()
+                        .map(|d| d.results[i].tf1)
+                        .filter(|v| v.is_finite())
+                        .collect();
                     let avg_sf1 = if sf1_vals.is_empty() {
-                        0.0
+                        f64::NAN
                     } else {
                         sf1_vals.iter().sum::<f64>() / sf1_vals.len() as f64
                     };
                     let avg_tf1 = if tf1_vals.is_empty() {
-                        0.0
+                        f64::NAN
                     } else {
                         tf1_vals.iter().sum::<f64>() / tf1_vals.len() as f64
                     };
@@ -996,20 +1045,20 @@ pub fn write_comparison_json(results: &[DocResult], path: &std::path::Path) -> R
             let sf1_vals: Vec<f64> = results
                 .iter()
                 .map(|r| r.results[i].sf1)
-                .filter(|v| !v.is_nan())
+                .filter(|v| v.is_finite())
                 .collect();
             let tf1_vals: Vec<f64> = results
                 .iter()
                 .map(|r| r.results[i].tf1)
-                .filter(|v| !v.is_nan())
+                .filter(|v| v.is_finite())
                 .collect();
             let avg_sf1 = if sf1_vals.is_empty() {
-                0.0
+                f64::NAN
             } else {
                 sf1_vals.iter().sum::<f64>() / sf1_vals.len() as f64
             };
             let avg_tf1 = if tf1_vals.is_empty() {
-                0.0
+                f64::NAN
             } else {
                 tf1_vals.iter().sum::<f64>() / tf1_vals.len() as f64
             };
@@ -1119,28 +1168,38 @@ pub fn check_guardrails(results: &[DocResult], config: &GuardrailsConfig) -> Vec
             continue;
         };
 
-        if let Some(min_sf1) = contract.min_sf1
-            && pr.sf1 < min_sf1
-        {
-            failures.push(format!(
-                "SF1 regression: {} {} SF1 {:.1}% < minimum {:.1}%",
-                contract.doc,
-                contract.pipeline,
-                pr.sf1 * 100.0,
-                min_sf1 * 100.0,
-            ));
+        if let Some(min_sf1) = contract.min_sf1 {
+            if !pr.sf1.is_finite() {
+                failures.push(format!(
+                    "SF1 unavailable: {} {} has no finite score",
+                    contract.doc, contract.pipeline
+                ));
+            } else if pr.sf1 < min_sf1 {
+                failures.push(format!(
+                    "SF1 regression: {} {} SF1 {:.1}% < minimum {:.1}%",
+                    contract.doc,
+                    contract.pipeline,
+                    pr.sf1 * 100.0,
+                    min_sf1 * 100.0,
+                ));
+            }
         }
 
-        if let Some(min_tf1) = contract.min_tf1
-            && pr.tf1 < min_tf1
-        {
-            failures.push(format!(
-                "TF1 regression: {} {} TF1 {:.1}% < minimum {:.1}%",
-                contract.doc,
-                contract.pipeline,
-                pr.tf1 * 100.0,
-                min_tf1 * 100.0,
-            ));
+        if let Some(min_tf1) = contract.min_tf1 {
+            if !pr.tf1.is_finite() {
+                failures.push(format!(
+                    "TF1 unavailable: {} {} has no finite score",
+                    contract.doc, contract.pipeline
+                ));
+            } else if pr.tf1 < min_tf1 {
+                failures.push(format!(
+                    "TF1 regression: {} {} TF1 {:.1}% < minimum {:.1}%",
+                    contract.doc,
+                    contract.pipeline,
+                    pr.tf1 * 100.0,
+                    min_tf1 * 100.0,
+                ));
+            }
         }
     }
 
@@ -1427,12 +1486,182 @@ mod tests {
         }
     }
 
+    fn create_vendored_fixture(root: &Path, content: &str) -> (std::path::PathBuf, std::path::PathBuf) {
+        let fixtures_dir = root.join("fixtures");
+        let fixture_path = fixtures_dir.join("example.json");
+        let vendored_dir = root.join("vendored").join("docling");
+        std::fs::create_dir_all(vendored_dir.join("md")).unwrap();
+        std::fs::create_dir_all(vendored_dir.join("timing")).unwrap();
+        std::fs::create_dir_all(&fixtures_dir).unwrap();
+        std::fs::write(&fixture_path, "{}").unwrap();
+        std::fs::write(vendored_dir.join("md/example.md"), content).unwrap();
+        std::fs::write(vendored_dir.join("timing/example.ms"), "12.5").unwrap();
+        (fixtures_dir, fixture_path)
+    }
+
     #[test]
-    fn test_read_vendored_cached_missing() {
-        let tmp = std::env::temp_dir().join("benchmark_harness_test_nonexistent");
-        let (content, time_ms) = read_vendored_cached("no_such_doc", &tmp, "no_such_vendor");
-        assert!(content.is_empty(), "Content should be empty for missing vendored file");
-        assert!(time_ms.is_nan(), "time_ms should be NaN for missing timing file");
+    fn read_vendored_cached_resolves_fixture_directory() {
+        let temp = tempfile::tempdir().unwrap();
+        let (fixtures_dir, _) = create_vendored_fixture(temp.path(), "cached markdown");
+
+        let (content, time_ms) = read_vendored_cached("example", &fixtures_dir, "docling").unwrap();
+
+        assert_eq!(content, "cached markdown");
+        assert_eq!(time_ms, 12.5);
+    }
+
+    #[test]
+    fn read_vendored_cached_resolves_fixture_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let (_, fixture_path) = create_vendored_fixture(temp.path(), "cached markdown");
+
+        let (content, time_ms) = read_vendored_cached("example", &fixture_path, "docling").unwrap();
+
+        assert_eq!(content, "cached markdown");
+        assert_eq!(time_ms, 12.5);
+    }
+
+    #[test]
+    fn read_vendored_cached_ignores_unrelated_nested_vendored_dir() {
+        let temp = tempfile::tempdir().unwrap();
+        let _fixture = create_vendored_fixture(temp.path(), "cached markdown");
+        let nested_fixtures = temp.path().join("fixtures/nested");
+        let nested_fixture = nested_fixtures.join("example.json");
+        std::fs::create_dir_all(nested_fixtures.join("vendored/other-framework")).unwrap();
+        std::fs::write(&nested_fixture, "{}").unwrap();
+
+        for fixtures_path in [&nested_fixtures, &nested_fixture] {
+            let (content, time_ms) = read_vendored_cached("example", fixtures_path, "docling").unwrap();
+            assert_eq!(content, "cached markdown");
+            assert_eq!(time_ms, 12.5);
+        }
+    }
+
+    #[test]
+    fn read_vendored_cached_rejects_missing_markdown() {
+        let temp = tempfile::tempdir().unwrap();
+        let fixtures_dir = temp.path().join("fixtures");
+        std::fs::create_dir_all(temp.path().join("vendored/docling/md")).unwrap();
+        std::fs::create_dir_all(&fixtures_dir).unwrap();
+
+        let error = read_vendored_cached("missing", &fixtures_dir, "docling").unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("Failed to read vendored docling output for missing")
+        );
+    }
+
+    #[test]
+    fn read_vendored_cached_rejects_empty_markdown() {
+        let temp = tempfile::tempdir().unwrap();
+        let (fixtures_dir, _) = create_vendored_fixture(temp.path(), "  \n");
+
+        let error = read_vendored_cached("example", &fixtures_dir, "docling").unwrap_err();
+
+        assert!(
+            error
+                .to_string()
+                .contains("Vendored docling output for example is empty")
+        );
+    }
+
+    #[tokio::test]
+    async fn vendored_cache_miss_produces_nan_pipeline_scores() {
+        let temp = tempfile::tempdir().unwrap();
+        let fixtures_dir = temp.path().join("fixtures");
+        std::fs::create_dir_all(temp.path().join("vendored/docling/md")).unwrap();
+        std::fs::create_dir_all(&fixtures_dir).unwrap();
+        let doc = CorpusDocument {
+            name: "missing".to_string(),
+            document_path: temp.path().join("missing.pdf"),
+            file_type: "pdf".to_string(),
+            file_size: 0,
+            ground_truth_text: None,
+            ground_truth_markdown: None,
+            metadata: HashMap::new(),
+            fixture_path: fixtures_dir.join("missing.json"),
+        };
+
+        let result = run_pipeline(
+            Pipeline::Docling,
+            &doc,
+            "ground truth",
+            Some("# Ground truth"),
+            &fixtures_dir,
+        )
+        .await;
+
+        assert!(result.sf1.is_nan());
+        assert!(result.tf1.is_nan());
+        assert!(result.order_score.is_nan());
+        assert!(result.time_ms.is_nan());
+    }
+
+    #[test]
+    fn guardrails_fail_when_contracted_scores_are_unavailable() {
+        let results = vec![DocResult {
+            name: "missing".to_string(),
+            file_type: "pdf".to_string(),
+            results: vec![PipelineResult {
+                pipeline: Pipeline::Docling,
+                sf1: f64::NAN,
+                tf1: f64::NAN,
+                order_score: f64::NAN,
+                per_type_sf1: HashMap::new(),
+                time_ms: f64::NAN,
+                missing_tokens: Vec::new(),
+                extra_tokens: Vec::new(),
+                content: String::new(),
+            }],
+        }];
+        let config = GuardrailsConfig {
+            version: "1.0".to_string(),
+            generated_at: String::new(),
+            threshold_factor: 0.9,
+            contracts: vec![GuardrailContract {
+                doc: "missing".to_string(),
+                pipeline: "docling".to_string(),
+                min_sf1: Some(0.5),
+                min_tf1: Some(0.5),
+            }],
+        };
+
+        let failures = check_guardrails(&results, &config);
+
+        assert_eq!(failures.len(), 2);
+        assert!(failures.iter().any(|failure| failure.starts_with("SF1 unavailable:")));
+        assert!(failures.iter().any(|failure| failure.starts_with("TF1 unavailable:")));
+    }
+
+    #[test]
+    fn comparison_json_preserves_unavailable_aggregate_scores() {
+        let temp = tempfile::tempdir().unwrap();
+        let output_path = temp.path().join("comparison.json");
+        let results = vec![DocResult {
+            name: "missing".to_string(),
+            file_type: "pdf".to_string(),
+            results: vec![PipelineResult {
+                pipeline: Pipeline::Docling,
+                sf1: f64::NAN,
+                tf1: f64::NAN,
+                order_score: f64::NAN,
+                per_type_sf1: HashMap::new(),
+                time_ms: f64::NAN,
+                missing_tokens: Vec::new(),
+                extra_tokens: Vec::new(),
+                content: String::new(),
+            }],
+        }];
+
+        write_comparison_json(&results, &output_path).unwrap();
+        let output: serde_json::Value = serde_json::from_slice(&std::fs::read(output_path).unwrap()).unwrap();
+
+        assert!(output["by_format"]["pdf"]["pipelines"][0]["avg_sf1"].is_null());
+        assert!(output["by_format"]["pdf"]["pipelines"][0]["avg_tf1"].is_null());
+        assert!(output["overall"]["pipelines"][0]["avg_sf1"].is_null());
+        assert!(output["overall"]["pipelines"][0]["avg_tf1"].is_null());
     }
 
     #[test]
