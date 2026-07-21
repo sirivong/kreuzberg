@@ -1103,6 +1103,8 @@ fn is_bare_list_marker(text: &str) -> bool {
 
 /// Check if text starts with a common list marker.
 fn looks_like_list_item(text: &str) -> bool {
+    const MAX_NUMERIC_LIST_MARKER_DIGITS: usize = 3;
+
     let t = text.trim_start();
 
     if t.starts_with('•')
@@ -1157,7 +1159,12 @@ fn looks_like_list_item(text: &str) -> bool {
             num_len += 1;
         }
         let marker_like = all_digits || num_len == 1 || all_roman;
-        if num_len <= 4 && marker_like && (chars.peek() == Some(&'.') || chars.peek() == Some(&')')) {
+        let marker_length_allowed = if all_digits {
+            num_len <= MAX_NUMERIC_LIST_MARKER_DIGITS
+        } else {
+            num_len <= 4
+        };
+        if marker_length_allowed && marker_like && (chars.peek() == Some(&'.') || chars.peek() == Some(&')')) {
             chars.next();
             return chars.peek().is_some_and(|c| c.is_whitespace()) && {
                 chars.next();
@@ -4742,7 +4749,16 @@ mod list_marker_tests {
     fn newline_separated_marker_and_text_is_a_list_item() {
         assert!(looks_like_list_item("1.\nÉnumération 1"));
         assert!(looks_like_list_item("1. First point"));
+        assert!(looks_like_list_item("123. One hundred twenty-third point"));
+        assert!(looks_like_list_item("999. Nine hundred ninety-ninth point"));
+        assert!(!looks_like_list_item("1000. Four-digit identifier"));
+        assert!(looks_like_list_item("viii. eighth item"));
         assert!(looks_like_list_item("(2)\nsecond item"));
+    }
+
+    #[test]
+    fn four_digit_year_is_not_a_list_item() {
+        assert!(!looks_like_list_item("2023. A total of 3 trucks were used"));
     }
 
     #[test]
