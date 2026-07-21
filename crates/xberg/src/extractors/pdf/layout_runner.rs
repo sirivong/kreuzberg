@@ -67,6 +67,23 @@ type LayoutForMarkdownOutput = (
 );
 
 #[cfg(all(feature = "pdf", feature = "layout-detection"))]
+struct RenderedLayoutPage {
+    page_index: usize,
+    page_width_pts: f32,
+    page_height_pts: f32,
+    rotation: u32,
+    image: Option<image::RgbImage>,
+}
+
+#[cfg(all(feature = "pdf", feature = "layout-detection"))]
+struct AssembledLayoutPage {
+    image: image::RgbImage,
+    result: PageLayoutResult,
+    hints: Vec<LayoutHint>,
+    detection: crate::layout::DetectionResult,
+}
+
+#[cfg(all(feature = "pdf", feature = "layout-detection"))]
 async fn run_layout_for_pdf_pages_async(
     content: &[u8],
     layout_config: &LayoutDetectionConfig,
@@ -114,6 +131,151 @@ fn displayed_page_dimensions(width: f32, height: f32, rotation_degrees: u32) -> 
 }
 
 #[cfg(all(feature = "pdf", feature = "layout-detection"))]
+fn render_layout_chunk(
+    doc: &pdf_oxide::PdfDocument,
+    page_rotations: &[u32],
+    chunk_start: usize,
+    chunk_end: usize,
+) -> Vec<RenderedLayoutPage> {
+    (chunk_start..chunk_end)
+        .map(|page_index| {
+            let (media_width, media_height) = doc
+                .get_page_media_box(page_index)
+                .map(|(llx, lly, urx, ury)| ((urx - llx).abs(), (ury - lly).abs()))
+                .unwrap_or((612.0, 792.0));
+            let rotation = page_rotations.get(page_index).copied().unwrap_or(0);
+            let (page_width_pts, page_height_pts) = displayed_page_dimensions(media_width, media_height, rotation);
+            let image = render_layout_page(doc, page_index, page_width_pts, page_height_pts);
+
+            RenderedLayoutPage {
+                page_index,
+                page_width_pts,
+                page_height_pts,
+                rotation,
+                image,
+            }
+        })
+        .collect()
+}
+
+#[cfg(all(feature = "pdf", feature = "layout-detection"))]
+fn render_layout_page(
+    doc: &pdf_oxide::PdfDocument,
+    page_index: usize,
+    page_width_pts: f32,
+    page_height_pts: f32,
+) -> Option<image::RgbImage> {
+    let rendered = crate::pdf::render::render_page_with_safeguards(doc, page_index, 150).map_err(|error| {
+        tracing::warn!(
+            page = page_index + 1,
+            page_width_pts,
+            page_height_pts,
+            error = %error,
+            "layout runner: skipping page with render failure, returning empty detections"
+        );
+    });
+    let rendered = rendered.ok()?;
+
+    image::load_from_memory(&rendered.data)
+        .map(image::DynamicImage::into_rgb8)
+        .map_err(|error| {
+            tracing::warn!(
+                page = page_index + 1,
+                page_width_pts,
+                page_height_pts,
+                error = %error,
+                "layout runner: skipping page (PNG decode failed), returning empty detections"
+            );
+        })
+        .ok()
+}
+
+#[cfg(all(feature = "pdf", feature = "layout-detection"))]
+fn detect_layout_chunk(
+    engine: &mut crate::layout::LayoutEngine,
+    pages: &[RenderedLayoutPage],
+) -> Result<Vec<Option<crate::layout::DetectionResult>>> {
+    let rendered_positions: Vec<usize> = pages
+        .iter()
+        .enumerate()
+        .filter_map(|(position, page)| page.image.as_ref().map(|_| position))
+        .collect();
+    if rendered_positions.is_empty() {
+        return Ok((0..pages.len()).map(|_| None).collect());
+    }
+
+    let images: Vec<&image::RgbImage> = rendered_positions
+        .iter()
+        .map(|&position| pages[position].image.as_ref().expect("filtered to rendered pages"))
+        .collect();
+    let results = engine
+        .detect_batch(&images)
+        .map_err(|error| XbergError::Other(format!("layout runner: batch detection failed: {error}")))?;
+    validate_batch_cardinality(images.len(), results.len())?;
+
+    let mut detections: Vec<Option<crate::layout::DetectionResult>> = (0..pages.len()).map(|_| None).collect();
+    for (&position, (detection, _timings)) in rendered_positions.iter().zip(results) {
+        detections[position] = Some(detection);
+    }
+    Ok(detections)
+}
+
+#[cfg(all(feature = "pdf", feature = "layout-detection"))]
+fn assemble_layout_chunk(
+    pages: Vec<RenderedLayoutPage>,
+    detections: Vec<Option<crate::layout::DetectionResult>>,
+) -> Result<Vec<AssembledLayoutPage>> {
+    validate_batch_cardinality(pages.len(), detections.len())?;
+    Ok(pages
+        .into_iter()
+        .zip(detections)
+        .map(|(page, detection)| assemble_layout_page(page, detection))
+        .collect())
+}
+
+#[cfg(all(feature = "pdf", feature = "layout-detection"))]
+fn assemble_layout_page(
+    page: RenderedLayoutPage,
+    detection: Option<crate::layout::DetectionResult>,
+) -> AssembledLayoutPage {
+    let image = page.image.unwrap_or_else(render_failure_placeholder);
+    let detection = detection.unwrap_or_else(|| crate::layout::DetectionResult {
+        page_width: image.width(),
+        page_height: image.height(),
+        detections: Vec::new(),
+    });
+    let hints = pixel_detection_to_layout_hints_pdf_space(
+        &detection,
+        image.width(),
+        image.height(),
+        page.page_width_pts,
+        page.page_height_pts,
+    );
+
+    tracing::debug!(
+        page = page.page_index + 1,
+        detections = detection.detections.len(),
+        hints = hints.len(),
+        page_width_pts = page.page_width_pts,
+        page_height_pts = page.page_height_pts,
+        rotation = page.rotation,
+        image_width_px = image.width(),
+        image_height_px = image.height(),
+        "layout runner: page detections"
+    );
+
+    AssembledLayoutPage {
+        image,
+        result: PageLayoutResult {
+            page_width_pts: page.page_width_pts,
+            page_height_pts: page.page_height_pts,
+        },
+        hints,
+        detection,
+    }
+}
+
+#[cfg(all(feature = "pdf", feature = "layout-detection"))]
 pub(super) fn run_layout_for_pdf_pages(
     content: &[u8],
     layout_config: &LayoutDetectionConfig,
@@ -147,137 +309,29 @@ pub(super) fn run_layout_for_pdf_pages(
 
     for (chunk_idx, chunk_start) in (0..page_count).step_by(LAYOUT_BATCH_CHUNK_SIZE).enumerate() {
         let chunk_end = (chunk_start + LAYOUT_BATCH_CHUNK_SIZE).min(page_count);
-        let chunk_size = chunk_end - chunk_start;
+        let pages = render_layout_chunk(&doc, &page_rotations, chunk_start, chunk_end);
+        let rendered = pages.iter().filter(|page| page.image.is_some()).count();
+        tracing::debug!(
+            chunk_idx,
+            total_chunks,
+            chunk_start,
+            chunk_end,
+            rendered,
+            "layout runner: detecting chunk"
+        );
 
-        let mut chunk_page_meta: Vec<(f32, f32)> = Vec::with_capacity(chunk_size);
-        let mut chunk_images: Vec<Option<image::RgbImage>> = Vec::with_capacity(chunk_size);
-
-        for page_idx in chunk_start..chunk_end {
-            let (media_width, media_height) = doc
-                .get_page_media_box(page_idx)
-                .map(|(llx, lly, urx, ury)| ((urx - llx).abs(), (ury - lly).abs()))
-                .unwrap_or((612.0, 792.0));
-            let rotation = page_rotations.get(page_idx).copied().unwrap_or(0);
-            let (pw, ph) = displayed_page_dimensions(media_width, media_height, rotation);
-            chunk_page_meta.push((pw, ph));
-
-            let rgb_opt = match crate::pdf::render::render_page_with_safeguards(&doc, page_idx, 150) {
-                Err(e) => {
-                    tracing::warn!(
-                        page = page_idx + 1,
-                        page_width_pts = pw,
-                        page_height_pts = ph,
-                        error = %e,
-                        "layout runner: skipping page with render failure, returning empty detections"
-                    );
-                    None
-                }
-                Ok(rendered) => match image::load_from_memory(&rendered.data) {
-                    Err(e) => {
-                        tracing::warn!(
-                            page = page_idx + 1,
-                            page_width_pts = pw,
-                            page_height_pts = ph,
-                            error = %e,
-                            "layout runner: skipping page (PNG decode failed), returning empty detections"
-                        );
-                        None
-                    }
-                    // pdf_oxide applies inherited page rotation while rendering.
-                    // Keep this raster unchanged so its coordinates stay aligned
-                    // with layout detections and reused OCR input. ~keep
-                    Ok(img) => Some(img.into_rgb8()),
-                },
-            };
-            chunk_images.push(rgb_opt);
-        }
-
-        let rendered_positions: Vec<usize> = chunk_images
-            .iter()
-            .enumerate()
-            .filter_map(|(k, opt)| opt.as_ref().map(|_| k))
-            .collect();
-
-        let detection_results = if rendered_positions.is_empty() {
-            tracing::debug!(
-                chunk_idx,
-                total_chunks,
-                "layout runner: all pages in chunk failed to render, skipping detection"
-            );
-            Vec::new()
-        } else {
-            let rgb_refs: Vec<&image::RgbImage> = rendered_positions
-                .iter()
-                .map(|&k| chunk_images[k].as_ref().expect("filtered to Some above"))
-                .collect();
-
-            tracing::debug!(
-                chunk_idx,
-                total_chunks,
-                chunk_start,
-                chunk_end,
-                rendered = rgb_refs.len(),
-                "layout runner: detecting chunk"
-            );
-
-            let results = match engine.detect_batch(&rgb_refs) {
-                Ok(results) => results,
-                Err(e) => {
-                    crate::layout::return_engine(engine);
-                    return Err(XbergError::Other(format!("layout runner: batch detection failed: {e}")));
-                }
-            };
-            if let Err(error) = validate_batch_cardinality(rgb_refs.len(), results.len()) {
+        let detections = match detect_layout_chunk(&mut engine, &pages) {
+            Ok(detections) => detections,
+            Err(error) => {
                 crate::layout::return_engine(engine);
                 return Err(error);
             }
-            results
         };
-
-        let mut detected_by_pos: Vec<Option<_>> = (0..chunk_size).map(|_| None).collect();
-        for (&pos, result) in rendered_positions.iter().zip(detection_results) {
-            detected_by_pos[pos] = Some(result);
-        }
-
-        for k in 0..chunk_size {
-            let (pw, ph) = chunk_page_meta[k];
-            let rotation = page_rotations.get(chunk_start + k).copied().unwrap_or(0);
-            let img = chunk_images[k].take().unwrap_or_else(render_failure_placeholder);
-
-            if let Some((detection, _timings)) = detected_by_pos[k].take() {
-                let image_width_px = img.width();
-                let image_height_px = img.height();
-
-                let hints: Vec<LayoutHint> =
-                    pixel_detection_to_layout_hints_pdf_space(&detection, image_width_px, image_height_px, pw, ph);
-
-                tracing::debug!(
-                    detections = detection.detections.len(),
-                    hints = hints.len(),
-                    page_width_pts = pw,
-                    page_height_pts = ph,
-                    rotation,
-                    image_width_px,
-                    image_height_px,
-                    "layout runner: page detections"
-                );
-
-                all_hints.push(hints);
-                all_detections.push(detection);
-            } else {
-                all_hints.push(Vec::new());
-                all_detections.push(crate::layout::DetectionResult {
-                    page_width: img.width(),
-                    page_height: img.height(),
-                    detections: Vec::new(),
-                });
-            }
-
-            all_layout_results.push(PageLayoutResult {
-                page_width_pts: pw,
-                page_height_pts: ph,
-            });
-            all_images.push(img);
+        for page in assemble_layout_chunk(pages, detections)? {
+            all_images.push(page.image);
+            all_layout_results.push(page.result);
+            all_hints.push(page.hints);
+            all_detections.push(page.detection);
         }
     }
 
@@ -354,9 +408,19 @@ pub(super) async fn run_layout_for_ocr(
 #[cfg(all(test, feature = "pdf", feature = "layout-detection"))]
 mod tests {
     use super::{
-        FAILED_RENDER_PLACEHOLDER_SIDE, displayed_page_dimensions, render_failure_placeholder,
-        validate_batch_cardinality,
+        FAILED_RENDER_PLACEHOLDER_SIDE, RenderedLayoutPage, assemble_layout_chunk, displayed_page_dimensions,
+        render_failure_placeholder, validate_batch_cardinality,
     };
+
+    fn rendered_page(page_index: usize, width: u32, page_width_pts: f32) -> RenderedLayoutPage {
+        RenderedLayoutPage {
+            page_index,
+            page_width_pts,
+            page_height_pts: 200.0,
+            rotation: 0,
+            image: Some(image::RgbImage::new(width, 20)),
+        }
+    }
 
     fn rotated_pdf(inherited: bool) -> Vec<u8> {
         use lopdf::{Document, Object, Stream, dictionary};
@@ -440,6 +504,56 @@ mod tests {
             (FAILED_RENDER_PLACEHOLDER_SIDE, FAILED_RENDER_PLACEHOLDER_SIDE)
         );
         assert!(image.pixels().all(|pixel| pixel.0 == [u8::MAX; 3]));
+    }
+
+    #[test]
+    fn assembly_preserves_page_order_and_detection_mapping() {
+        let pages = vec![rendered_page(0, 10, 100.0), rendered_page(1, 20, 110.0)];
+        let detections = vec![
+            Some(crate::layout::DetectionResult {
+                page_width: 10,
+                page_height: 20,
+                detections: Vec::new(),
+            }),
+            Some(crate::layout::DetectionResult {
+                page_width: 20,
+                page_height: 20,
+                detections: Vec::new(),
+            }),
+        ];
+
+        let assembled = assemble_layout_chunk(pages, detections).expect("aligned chunk must assemble");
+
+        assert_eq!(assembled[0].image.width(), 10);
+        assert_eq!(assembled[0].result.page_width_pts, 100.0);
+        assert_eq!(assembled[0].detection.page_width, 10);
+        assert_eq!(assembled[1].image.width(), 20);
+        assert_eq!(assembled[1].result.page_width_pts, 110.0);
+        assert_eq!(assembled[1].detection.page_width, 20);
+    }
+
+    #[test]
+    fn assembly_keeps_failed_render_slot_with_empty_detection() {
+        let mut failed_page = rendered_page(1, 20, 110.0);
+        failed_page.image = None;
+
+        let assembled = assemble_layout_chunk(vec![failed_page], vec![None]).expect("failed render must stay aligned");
+
+        assert_eq!(
+            assembled[0].image.dimensions(),
+            (FAILED_RENDER_PLACEHOLDER_SIDE, FAILED_RENDER_PLACEHOLDER_SIDE)
+        );
+        assert!(assembled[0].detection.detections.is_empty());
+        assert_eq!(assembled[0].result.page_width_pts, 110.0);
+    }
+
+    #[test]
+    fn assembly_rejects_detection_cardinality_mismatch() {
+        let error = assemble_layout_chunk(vec![rendered_page(0, 10, 100.0)], Vec::new())
+            .err()
+            .expect("missing detection slot must fail");
+
+        assert!(error.to_string().contains("0 results for 1 rendered pages"));
     }
 
     #[test]
