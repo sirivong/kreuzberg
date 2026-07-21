@@ -564,8 +564,8 @@ mod tests {
         for raw in [
             "[]",
             r#"{"unknown_diagnostic_field":true}"#,
-            r#"{"concurrency":{"max_threds":4}}"#,
-            r#"{"ocr":{"backend":"tesseract","langauge":["eng"]}}"#,
+            r#"{"concurrency":{"max_thr\u0065ds":4}}"#,
+            r#"{"ocr":{"backend":"tesseract","lang\u0061uge":["eng"]}}"#,
         ] {
             let error = resolve_extraction_config(&diagnostic_config(Some(raw))).unwrap_err();
             assert!(matches!(
