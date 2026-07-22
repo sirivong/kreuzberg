@@ -10,8 +10,13 @@ use crate::{
     error::Result,
     types::{BatchCapability, BatchEntryPoint, BatchTimingScope, OutputFormat, XbergPipeline},
 };
-use std::path::PathBuf;
+use std::{
+    ffi::OsStr,
+    path::{Path, PathBuf},
+};
 use which::which;
+
+const XBERG_CLI_BINARY_ENV_VAR: &str = "XBERG_CLI_BINARY";
 
 /// Environment variable that requests per-stage cold-start timing from the xberg CLI (must
 /// match `crates/xberg-cli/src/commands/extract.rs::STAGE_TIMING_ENV_VAR`).
@@ -206,14 +211,26 @@ pub fn create_xberg_adapter(
 /// Locates the xberg executable.
 ///
 /// Searches in priority order:
-/// 1. `target/release/xberg`
-/// 2. `target/debug/xberg`
-/// 3. `which xberg`
+/// 1. The executable file specified by `XBERG_CLI_BINARY`
+/// 2. `target/release/xberg`
+/// 3. `target/debug/xberg`
+/// 4. `which xberg`
 ///
 /// # Returns
 /// * `Ok(PathBuf)` - Path to the executable
-/// * `Err(Error)` - If xberg cannot be found
+/// * `Err(Error)` - If the override is invalid or xberg cannot be found
 fn locate_xberg_cli() -> Result<PathBuf> {
+    let binary_override = std::env::var_os(XBERG_CLI_BINARY_ENV_VAR);
+    locate_xberg_cli_with_override(binary_override.as_deref())
+}
+
+fn locate_xberg_cli_with_override(binary_override: Option<&OsStr>) -> Result<PathBuf> {
+    if let Some(binary_override) = binary_override {
+        let path = PathBuf::from(binary_override);
+        validate_xberg_cli_override(&path)?;
+        return Ok(path);
+    }
+
     let release_path = PathBuf::from("target/release/xberg");
     if release_path.exists() {
         return Ok(release_path);
@@ -233,9 +250,67 @@ fn locate_xberg_cli() -> Result<PathBuf> {
     ))
 }
 
+fn validate_xberg_cli_override(path: &Path) -> Result<()> {
+    let metadata = path.metadata().map_err(|error| {
+        crate::Error::Benchmark(format!(
+            "{XBERG_CLI_BINARY_ENV_VAR} points to `{}` but its metadata could not be read: {error}",
+            path.display()
+        ))
+    })?;
+
+    if !metadata.is_file() {
+        return Err(crate::Error::Benchmark(format!(
+            "{XBERG_CLI_BINARY_ENV_VAR} must point to an executable file, but `{}` is not a file",
+            path.display()
+        )));
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        if metadata.permissions().mode() & 0o111 == 0 {
+            return Err(crate::Error::Benchmark(format!(
+                "{XBERG_CLI_BINARY_ENV_VAR} must point to an executable file, but `{}` has no execute permission",
+                path.display()
+            )));
+        }
+    }
+
+    #[cfg(windows)]
+    {
+        let extension = path.extension().and_then(OsStr::to_str).map(str::to_ascii_lowercase);
+        let is_executable = matches!(extension.as_deref(), Some("exe" | "com" | "cmd" | "bat"));
+        if !is_executable {
+            return Err(crate::Error::Benchmark(format!(
+                "{XBERG_CLI_BINARY_ENV_VAR} must point to an executable file, but `{}` has no executable extension",
+                path.display()
+            )));
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn create_executable_file(directory: &Path) -> PathBuf {
+        let path = directory.join(if cfg!(windows) { "xberg.exe" } else { "xberg" });
+        std::fs::write(&path, b"test executable").unwrap();
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            let mut permissions = path.metadata().unwrap().permissions();
+            permissions.set_mode(0o755);
+            std::fs::set_permissions(&path, permissions).unwrap();
+        }
+
+        path
+    }
 
     #[test]
     fn test_pipeline_baseline_str() {
@@ -283,5 +358,70 @@ mod tests {
             Err(error) => error,
         };
         assert!(error.to_string().contains("requires OCR"));
+    }
+
+    #[test]
+    fn explicit_binary_override_takes_precedence() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = create_executable_file(directory.path());
+
+        let located = locate_xberg_cli_with_override(Some(path.as_os_str())).unwrap();
+
+        assert_eq!(located, path);
+    }
+
+    #[test]
+    fn explicit_binary_override_rejects_missing_path_with_context() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("missing-xberg");
+
+        let error = locate_xberg_cli_with_override(Some(path.as_os_str())).unwrap_err();
+        let message = error.to_string();
+
+        assert!(message.contains(XBERG_CLI_BINARY_ENV_VAR));
+        assert!(message.contains(path.to_string_lossy().as_ref()));
+        assert!(message.contains("metadata could not be read"));
+    }
+
+    #[test]
+    fn explicit_binary_override_rejects_directory() {
+        let directory = tempfile::tempdir().unwrap();
+
+        let error = locate_xberg_cli_with_override(Some(directory.path().as_os_str())).unwrap_err();
+        let message = error.to_string();
+
+        assert!(message.contains(XBERG_CLI_BINARY_ENV_VAR));
+        assert!(message.contains(directory.path().to_string_lossy().as_ref()));
+        assert!(message.contains("is not a file"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn explicit_binary_override_rejects_file_without_execute_permission() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("xberg");
+        std::fs::write(&path, b"not executable").unwrap();
+
+        let error = locate_xberg_cli_with_override(Some(path.as_os_str())).unwrap_err();
+        let message = error.to_string();
+
+        assert!(message.contains(XBERG_CLI_BINARY_ENV_VAR));
+        assert!(message.contains(path.to_string_lossy().as_ref()));
+        assert!(message.contains("has no execute permission"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn explicit_binary_override_rejects_file_without_executable_extension() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("xberg.txt");
+        std::fs::write(&path, b"not executable").unwrap();
+
+        let error = locate_xberg_cli_with_override(Some(path.as_os_str())).unwrap_err();
+        let message = error.to_string();
+
+        assert!(message.contains(XBERG_CLI_BINARY_ENV_VAR));
+        assert!(message.contains(path.to_string_lossy().as_ref()));
+        assert!(message.contains("has no executable extension"));
     }
 }
