@@ -105,6 +105,13 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
 
+      # restore-corpus-cache.sh decompresses the GCS .tar.zst; the runner image
+      # ships liblzma but not the zstd CLI. apt index is fresh from the earlier
+      # install-system-deps step. Only this setup job unpacks the .zst — bench jobs
+      # consume the re-packaged plain .tar artifact, so they need no zstd.
+      - name: Install zstd (corpus cache decompression)
+        run: sudo apt-get install -y zstd
+
       - name: Restore reference corpus cache
         env:
           GCP_BENCHMARK_BUCKET: ${{ secrets.GCP_BENCHMARK_BUCKET }}
