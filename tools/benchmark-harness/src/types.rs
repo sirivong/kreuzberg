@@ -216,8 +216,10 @@ pub struct BenchmarkResult {
     /// Only available for external frameworks with internal timing
     pub extraction_duration: Option<Duration>,
 
-    /// Subprocess overhead (duration - extraction_duration)
-    /// Only available when extraction_duration is present
+    /// Subprocess overhead outside framework-reported extraction work.
+    ///
+    /// For native batches this is process-wall time minus the reported batch
+    /// total. It is never inferred from per-item extraction timings.
     pub subprocess_overhead: Option<Duration>,
 
     /// Performance metrics (averaged across iterations if multiple)

@@ -355,7 +355,7 @@ fn worker_semantics(mode: BenchmarkMode, capability: Option<BatchCapability>) ->
     match (mode, capability.map(|value| value.entry_point)) {
         (BenchmarkMode::SingleFile, _) => "sequential single-file execution",
         (BenchmarkMode::Batch, Some(BatchEntryPoint::XbergCliExtractBatch)) => {
-            "document concurrency within the configured thread budget"
+            "configured total thread budget; document concurrency is resolved per workload"
         }
         (BenchmarkMode::Batch, Some(BatchEntryPoint::DoclingConvertAll)) => {
             "convert_all document stream; adapter does not override Docling workers"
@@ -402,6 +402,21 @@ mod tests {
         assert_eq!(
             worker_semantics(BenchmarkMode::SingleFile, None),
             "sequential single-file execution"
+        );
+    }
+
+    #[test]
+    fn xberg_batch_worker_semantics_do_not_claim_dynamic_concurrency() {
+        assert_eq!(
+            worker_semantics(
+                BenchmarkMode::Batch,
+                Some(BatchCapability {
+                    entry_point: BatchEntryPoint::XbergCliExtractBatch,
+                    timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+                    per_item_timing: true,
+                })
+            ),
+            "configured total thread budget; document concurrency is resolved per workload"
         );
     }
 }

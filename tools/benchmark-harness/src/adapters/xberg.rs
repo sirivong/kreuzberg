@@ -28,6 +28,20 @@ use which::which;
 const STAGE_TIMING_ENV_VAR: &str = "XBERG_EMIT_STAGE_TIMING";
 const BENCHMARK_CONFIG_JSON: &str = r#"{"extraction_timeout_secs":1740,"use_cache":false}"#;
 
+fn benchmark_base_args(batch: bool, content_format: &str) -> Vec<String> {
+    let subcommand = if batch { "batch" } else { "extract" };
+    vec![
+        subcommand.to_string(),
+        "--no-config-discovery".to_string(),
+        "--format".to_string(),
+        "json".to_string(),
+        "--content-format".to_string(),
+        content_format.to_string(),
+        "--config-json".to_string(),
+        BENCHMARK_CONFIG_JSON.to_string(),
+    ]
+}
+
 /// Creates a Xberg adapter for the given pipeline and configuration.
 ///
 /// # Arguments
@@ -68,16 +82,7 @@ pub fn create_xberg_adapter(
         OutputFormat::Plaintext => "plain",
     };
 
-    let subcommand = if batch { "batch" } else { "extract" };
-    let mut args = vec![
-        subcommand.to_string(),
-        "--format".to_string(),
-        "json".to_string(),
-        "--content-format".to_string(),
-        content_format.to_string(),
-        "--config-json".to_string(),
-        BENCHMARK_CONFIG_JSON.to_string(),
-    ];
+    let mut args = benchmark_base_args(batch, content_format);
 
     match pipeline {
         XbergPipeline::Baseline => {
@@ -261,6 +266,14 @@ mod tests {
     fn benchmark_config_disables_extraction_cache() {
         let config: serde_json::Value = serde_json::from_str(BENCHMARK_CONFIG_JSON).unwrap();
         assert_eq!(config["use_cache"], false);
+    }
+
+    #[test]
+    fn benchmark_invocations_disable_user_config_discovery() {
+        for batch in [false, true] {
+            let args = benchmark_base_args(batch, "markdown");
+            assert!(args.iter().any(|arg| arg == "--no-config-discovery"));
+        }
     }
 
     #[test]

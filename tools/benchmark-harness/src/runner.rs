@@ -275,6 +275,13 @@ fn aggregate_metrics(iterations: &[IterationResult]) -> PerformanceMetrics {
     }
 }
 
+fn average_durations(durations: impl Iterator<Item = Duration>) -> Option<Duration> {
+    let (total, count) = durations.fold((Duration::ZERO, 0_u32), |(total, count), duration| {
+        (total.saturating_add(duration), count.saturating_add(1))
+    });
+    (count > 0).then(|| total / count)
+}
+
 /// Orchestrates benchmark execution across fixtures and frameworks
 pub struct BenchmarkRunner {
     config: BenchmarkConfig,
@@ -902,6 +909,9 @@ impl BenchmarkRunner {
                 None
             };
 
+            let avg_subprocess_overhead =
+                average_durations(file_iterations.iter().filter_map(|result| result.subprocess_overhead));
+
             let first_result = file_iterations[0];
             let representative_result = file_iterations
                 .iter()
@@ -941,7 +951,7 @@ impl BenchmarkRunner {
                 error_kind,
                 duration: statistics.mean,
                 extraction_duration: avg_extraction_duration,
-                subprocess_overhead: None,
+                subprocess_overhead: avg_subprocess_overhead,
                 metrics: aggregated_metrics,
                 quality: representative_result.quality.clone(),
                 iterations,
@@ -1256,6 +1266,17 @@ mod tests {
     fn fixed_batch_ranges_reject_partial_batches() {
         assert!(fixed_batch_ranges(5, Some(4)).is_err());
         assert!(fixed_batch_ranges(0, Some(0)).is_err());
+    }
+
+    #[test]
+    fn repeated_batch_overhead_is_averaged() {
+        let overheads = [Duration::from_millis(5), Duration::from_millis(15)];
+
+        assert_eq!(
+            average_durations(overheads.into_iter()),
+            Some(Duration::from_millis(10))
+        );
+        assert_eq!(average_durations(std::iter::empty()), None);
     }
 
     struct SequenceAdapter {

@@ -689,7 +689,11 @@ impl SubprocessAdapter {
         cmd.args(self.request_args(force_ocr));
 
         if self.name.starts_with("xberg-") {
-            cmd.arg("--max-concurrent").arg(self.batch_workers.to_string());
+            let worker_budget = self.batch_workers.to_string();
+            cmd.arg("--max-concurrent")
+                .arg(&worker_budget)
+                .arg("--max-threads")
+                .arg(worker_budget);
         }
 
         if self.format_aware {
@@ -1089,10 +1093,8 @@ impl FrameworkAdapter for SubprocessAdapter {
     fn worker_provenance(&self, requested: usize) -> (Option<usize>, Option<usize>) {
         match self.batch_capability.map(|capability| capability.entry_point) {
             Some(crate::types::BatchEntryPoint::DoclingConvertAll) => (None, None),
-            Some(
-                crate::types::BatchEntryPoint::XbergCliExtractBatch
-                | crate::types::BatchEntryPoint::LiteparseBatchParse,
-            ) => (Some(requested), Some(self.batch_workers)),
+            Some(crate::types::BatchEntryPoint::XbergCliExtractBatch) => (Some(requested), None),
+            Some(crate::types::BatchEntryPoint::LiteparseBatchParse) => (Some(requested), Some(self.batch_workers)),
             None => (Some(requested), Some(requested)),
         }
     }
@@ -1380,6 +1382,9 @@ impl FrameworkAdapter for SubprocessAdapter {
         let batch_makespan = parsed_batch
             .reported_total_duration
             .map_or(duration, |reported| duration.max(reported));
+        let batch_subprocess_overhead = parsed_batch
+            .reported_total_duration
+            .map(|reported| duration.saturating_sub(reported));
 
         let batch_ocr_statuses: Vec<OcrStatus> = parsed_batch
             .items
@@ -1487,7 +1492,7 @@ impl FrameworkAdapter for SubprocessAdapter {
                     error_kind: item_error_kind,
                     duration: batch_makespan,
                     extraction_duration,
-                    subprocess_overhead: None,
+                    subprocess_overhead: batch_subprocess_overhead,
                     metrics: PerformanceMetrics {
                         baseline_memory_bytes: resource_stats.baseline_memory_bytes,
                         peak_memory_bytes: resource_stats.peak_memory_bytes,
@@ -1876,6 +1881,61 @@ mod tests {
     }
 
     #[test]
+    fn xberg_worker_provenance_does_not_guess_dynamic_document_concurrency() {
+        let adapter = SubprocessAdapter::with_batch_capability(
+            "xberg-test",
+            "echo",
+            vec![],
+            vec![],
+            vec!["pdf".to_string()],
+            BatchCapability {
+                entry_point: BatchEntryPoint::XbergCliExtractBatch,
+                timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+                per_item_timing: true,
+            },
+        )
+        .with_batch_workers(4);
+
+        assert_eq!(adapter.worker_provenance(4), (Some(4), None));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn xberg_batch_passes_worker_budget_to_concurrency_and_thread_limits() {
+        let script = r#"
+            concurrent=""
+            threads=""
+            while [ "$#" -gt 0 ]; do
+                case "$1" in
+                    --max-concurrent) concurrent="$2"; shift 2 ;;
+                    --max-threads) threads="$2"; shift 2 ;;
+                    *) shift ;;
+                esac
+            done
+            [ "$concurrent" = "7" ] && [ "$threads" = "7" ] || exit 64
+            printf '{"results":[{"content":"ok"}],"total_ms":0,"per_file_ms":[1]}'
+        "#;
+        let adapter = SubprocessAdapter::with_batch_capability(
+            "xberg-test",
+            "sh",
+            vec!["-c".to_string(), script.to_string(), "worker-budget-probe".to_string()],
+            vec![],
+            vec!["pdf".to_string()],
+            test_batch_capability(true),
+        )
+        .with_batch_workers(7);
+        let file = tempfile::NamedTempFile::new().unwrap();
+
+        let results = adapter
+            .extract_batch(&[file.path()], Duration::from_secs(1), &[false], OutputFormat::Markdown)
+            .await
+            .unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert!(results[0].success);
+    }
+
+    #[test]
     fn forced_ocr_upgrades_external_no_ocr_flag() {
         let adapter = SubprocessAdapter::new(
             "docling",
@@ -2035,7 +2095,11 @@ mod tests {
         assert!(results.iter().all(|result| result.duration == Duration::from_secs(2)));
         assert_eq!(results[0].extraction_duration, Some(Duration::from_millis(100)));
         assert_eq!(results[1].extraction_duration, Some(Duration::from_millis(200)));
-        assert!(results.iter().all(|result| result.subprocess_overhead.is_none()));
+        assert!(
+            results
+                .iter()
+                .all(|result| result.subprocess_overhead == Some(Duration::ZERO))
+        );
         assert_eq!(results[0].ocr_status, OcrStatus::NotUsed);
         assert_eq!(results[1].ocr_status, OcrStatus::Used);
         assert_eq!(results[0].extracted_text.as_deref(), Some("one"));
@@ -2047,6 +2111,62 @@ mod tests {
         assert_eq!(total_throughput, 200.0);
         assert_eq!(results[0].metrics.throughput_bytes_per_sec, 200.0);
         assert_eq!(results[1].metrics.throughput_bytes_per_sec, 0.0);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn batch_overhead_uses_process_wall_minus_reported_total() {
+        let adapter = SubprocessAdapter::with_batch_capability(
+            "test",
+            "sh",
+            vec![
+                "-c".to_string(),
+                "sleep 0.05; printf '{\"results\":[{\"content\":\"ok\"}],\"total_ms\":1,\"per_file_ms\":[1]}'"
+                    .to_string(),
+            ],
+            vec![],
+            vec!["pdf".to_string()],
+            test_batch_capability(true),
+        );
+        let file = tempfile::NamedTempFile::new().unwrap();
+
+        let result = adapter
+            .extract_batch(&[file.path()], Duration::from_secs(1), &[false], OutputFormat::Markdown)
+            .await
+            .unwrap()
+            .remove(0);
+
+        assert_eq!(
+            result.subprocess_overhead,
+            Some(result.duration.saturating_sub(Duration::from_millis(1)))
+        );
+        assert!(result.subprocess_overhead > Some(Duration::ZERO));
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn batch_array_does_not_infer_overhead_from_per_item_timing() {
+        let adapter = SubprocessAdapter::with_batch_capability(
+            "test",
+            "sh",
+            vec![
+                "-c".to_string(),
+                "printf '[{\"content\":\"ok\",\"_extraction_time_ms\":1}]'".to_string(),
+            ],
+            vec![],
+            vec!["pdf".to_string()],
+            test_batch_capability(true),
+        );
+        let file = tempfile::NamedTempFile::new().unwrap();
+
+        let result = adapter
+            .extract_batch(&[file.path()], Duration::from_secs(1), &[false], OutputFormat::Markdown)
+            .await
+            .unwrap()
+            .remove(0);
+
+        assert_eq!(result.extraction_duration, Some(Duration::from_millis(1)));
+        assert_eq!(result.subprocess_overhead, None);
     }
 
     #[cfg(unix)]
