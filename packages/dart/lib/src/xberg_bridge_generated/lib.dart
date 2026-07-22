@@ -6386,10 +6386,11 @@ class ExtractionConfig {
   /// input or long-running workloads.
   final PlatformInt64? extractionTimeoutSecs;
 
-  /// Maximum concurrent extractions in batch operations (None = (num_cpus × 1.5).ceil()).
+  /// Maximum concurrent document extractions in batch operations.
   ///
-  /// Limits parallelism to prevent resource exhaustion when processing
-  /// large batches. Defaults to (num_cpus × 1.5).ceil() when not set.
+  /// This is a ceiling within the configured total thread budget, not an
+  /// independent pool size. When unset, the scheduler derives document and
+  /// per-document concurrency from `ConcurrencyConfig::max_threads`.
   final PlatformInt64? maxConcurrentExtractions;
 
   /// Result structure format
@@ -10261,7 +10262,20 @@ class OcrConfig {
   /// Output format for OCR results (optional, for format conversion)
   final OutputFormat? outputFormat;
 
-  /// PaddleOCR-specific configuration (optional, JSON passthrough)
+  /// PaddleOCR-specific configuration (optional, JSON passthrough).
+  ///
+  /// Deserialized into a [`PaddleOcrConfig`](crate::PaddleOcrConfig), so any of its fields can be
+  /// overridden here — most notably `model_version` (`"pp-ocrv6"` default / `"pp-ocrv5"`) and
+  /// `model_tier`. In TOML:
+  ///
+  /// ```toml
+  /// [ocr.paddle_ocr_config]
+  /// model_version = "pp-ocrv5"
+  /// model_tier = "server"
+  /// ```
+  ///
+  /// The `XBERG_OCR_MODEL_VERSION` / `XBERG_OCR_MODEL_TIER` environment variables set the same two
+  /// keys for env-configured servers (issue #1279).
   final String? paddleOcrConfig;
 
   /// Arbitrary per-call options passed through to the backend unchanged.

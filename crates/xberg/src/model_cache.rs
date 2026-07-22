@@ -40,12 +40,12 @@ impl<T: Send> Default for ModelCache<T> {
 
 impl<T: Send> ModelCache<T> {
     /// Create a single-instance model pool.
-    pub const fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         Self::with_capacity(1)
     }
 
     /// Create a pool capped at `capacity` live or constructing models.
-    pub const fn with_capacity(capacity: usize) -> Self {
+    pub(crate) const fn with_capacity(capacity: usize) -> Self {
         assert!(capacity > 0, "model cache capacity must be positive");
         Self {
             capacity,
