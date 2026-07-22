@@ -36,6 +36,8 @@ const NUMERIC_HEADER_MIN_TRACK_PERCENT: usize = 60;
 const NUMERIC_HEADER_MIN_ALPHA_PERCENT: usize = 60;
 const NUMERIC_HEADER_MAX_ROWS: usize = 2;
 const DENSE_NUMERIC_COLUMN_GAP_CAP: u32 = 20;
+const SPLIT_NUMERIC_TRACK_MIN_ROWS_PER_SIDE: usize = 2;
+const SPLIT_NUMERIC_TRACK_MIN_TOTAL_ROWS: usize = 6;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum HeuristicTableRejection {
@@ -484,7 +486,9 @@ fn reconstruct_region_table_with_reason(
     let region_width = region_right.saturating_sub(region_left) as f32;
     let col_gap = heuristic_column_gap(region, region_width);
 
-    let grid = reconstruct_table(region, col_gap, 0.5);
+    let column_positions = crate::table_core::detect_columns(region, col_gap);
+    let mut grid = reconstruct_table(region, col_gap, 0.5);
+    repair_split_numeric_track(&mut grid, region, &column_positions);
     if grid.is_empty() || grid[0].is_empty() {
         return Err(HeuristicTableRejection::EmptyGrid);
     }
@@ -545,6 +549,105 @@ fn heuristic_column_gap(region: &[crate::pdf::table_reconstruct::HocrWord], regi
     } else {
         adaptive_gap
     }
+}
+
+/// Merge one numeric x-track that was split by anchored column clustering.
+///
+/// `detect_columns` groups against each cluster's first x-position. A header
+/// glyph at the edge of a numeric column can therefore anchor one cluster and
+/// split values with a few points of normal alignment jitter into a second,
+/// nearly coincident track. Restrict the repair to geometrically overlapping
+/// tracks whose numeric cells alternate, with header text on exactly one side.
+fn repair_split_numeric_track(
+    grid: &mut [Vec<String>],
+    region: &[crate::pdf::table_reconstruct::HocrWord],
+    column_positions: &[u32],
+) -> bool {
+    if grid.first().map_or(0, Vec::len) != column_positions.len() {
+        return false;
+    }
+
+    let candidates: Vec<(usize, bool)> = (0..column_positions.len().saturating_sub(1))
+        .filter_map(|column| {
+            split_numeric_track_candidate(grid, region, column_positions, column)
+                .map(|header_on_left| (column, header_on_left))
+        })
+        .collect();
+    let [(column, _header_on_left)] = candidates.as_slice() else {
+        return false;
+    };
+
+    for row in grid {
+        let right = row.remove(column + 1);
+        if row[*column].trim().is_empty() {
+            row[*column] = right;
+        }
+    }
+    true
+}
+
+fn split_numeric_track_candidate(
+    grid: &[Vec<String>],
+    region: &[crate::pdf::table_reconstruct::HocrWord],
+    column_positions: &[u32],
+    column: usize,
+) -> Option<bool> {
+    let mut left_numeric = 0usize;
+    let mut right_numeric = 0usize;
+    let mut left_header = false;
+    let mut right_header = false;
+    for (row_index, row) in grid.iter().enumerate() {
+        let left = row.get(column)?.trim();
+        let right = row.get(column + 1)?.trim();
+        if !left.is_empty() && !right.is_empty() {
+            return None;
+        }
+        let (text, on_left) = if !left.is_empty() {
+            (left, true)
+        } else if !right.is_empty() {
+            (right, false)
+        } else {
+            continue;
+        };
+        if is_numeric_word(text) {
+            if on_left {
+                left_numeric += 1;
+            } else {
+                right_numeric += 1;
+            }
+        } else if row_index >= NUMERIC_HEADER_MAX_ROWS {
+            return None;
+        } else if on_left {
+            left_header = true;
+        } else {
+            right_header = true;
+        }
+    }
+
+    if left_numeric < SPLIT_NUMERIC_TRACK_MIN_ROWS_PER_SIDE
+        || right_numeric < SPLIT_NUMERIC_TRACK_MIN_ROWS_PER_SIDE
+        || left_numeric + right_numeric < SPLIT_NUMERIC_TRACK_MIN_TOTAL_ROWS
+        || left_header == right_header
+    {
+        return None;
+    }
+
+    let separation = column_positions[column].abs_diff(column_positions[column + 1]);
+    let mut numeric_widths: Vec<u32> = region
+        .iter()
+        .filter(|word| is_numeric_word(&word.text))
+        .filter_map(|word| {
+            let nearest = column_positions
+                .iter()
+                .enumerate()
+                .min_by_key(|(_, position)| position.abs_diff(word.left))?
+                .0;
+            matches!(nearest, current if current == column || current == column + 1).then_some(word.width)
+        })
+        .collect();
+    numeric_widths.sort_unstable();
+    let median_width = *numeric_widths.get(numeric_widths.len() / 2)?;
+    (separation.saturating_mul(2) < median_width).then_some(left_header)
 }
 
 fn is_dense_numeric_region(region: &[crate::pdf::table_reconstruct::HocrWord]) -> bool {
@@ -1000,6 +1103,31 @@ mod tests {
         }
     }
 
+    #[test]
+    fn test_extract_tables_heuristic_repairs_embedded_fixture_numeric_track() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../test_documents/pdf/embedded_images_tables.pdf");
+        if !path.exists() {
+            return;
+        }
+        let bytes = std::fs::read(&path).expect("read embedded table fixture");
+        let mut doc = OxideDocument::open_bytes(&bytes).expect("open embedded table fixture");
+
+        let tables = extract_tables_heuristic(&mut doc, false, &HashSet::new()).expect("heuristic extraction");
+        let table = tables
+            .iter()
+            .find(|table| table.cells[0].iter().any(|cell| cell.contains("Inhibitor")))
+            .expect("polarization table");
+
+        assert_eq!(table.cells.len(), 7);
+        assert!(table.cells.iter().all(|row| row.len() == 7), "{:?}", table.cells);
+        assert!(
+            table.cells[1..]
+                .iter()
+                .all(|row| row.iter().all(|cell| !cell.trim().is_empty()))
+        );
+    }
+
     /// `skip_pages` (1-indexed) suppresses the heuristic on the listed pages.
     /// This is the per-page composition contract: native finds page N, we
     /// pass `{N}` to the heuristic and it must not emit any tables for page N.
@@ -1182,6 +1310,70 @@ mod tests {
         assert_eq!(table.cells.len(), 7);
         assert!(table.cells.iter().all(|row| row.len() == 7));
         assert!(!table.markdown.trim().is_empty());
+    }
+
+    fn alternating_numeric_tracks(
+        header: [&str; 2],
+        word_width: u32,
+    ) -> (Vec<Vec<String>>, Vec<crate::pdf::table_reconstruct::HocrWord>) {
+        let mut grid = vec![vec!["ID".to_string(), header[0].to_string(), header[1].to_string()]];
+        let mut words = Vec::new();
+        for row in 0..6 {
+            let mut cells = vec![(row + 1).to_string(), String::new(), String::new()];
+            let column = if row % 3 == 0 { 2 } else { 1 };
+            cells[column] = format!("{}.{row}", row + 1);
+            words.push(make_word(
+                &cells[column],
+                if column == 1 { 100 } else { 104 },
+                120 + row * 12,
+                word_width,
+            ));
+            grid.push(cells);
+        }
+        (grid, words)
+    }
+
+    #[test]
+    fn repairs_overlapping_mutually_exclusive_numeric_tracks() {
+        let (mut grid, words) = alternating_numeric_tracks(["Polarization resistance", ""], 20);
+
+        assert!(repair_split_numeric_track(&mut grid, &words, &[20, 100, 104]));
+        assert!(grid.iter().all(|row| row.len() == 2));
+        assert_eq!(grid[0][1], "Polarization resistance");
+        assert!(grid[1..].iter().all(|row| !row[1].is_empty()));
+    }
+
+    #[test]
+    fn preserves_named_adjacent_sparse_numeric_columns() {
+        let (mut grid, words) = alternating_numeric_tracks(["Debit", "Credit"], 20);
+
+        assert!(!repair_split_numeric_track(&mut grid, &words, &[20, 100, 104]));
+        assert!(grid.iter().all(|row| row.len() == 3));
+    }
+
+    #[test]
+    fn preserves_unnamed_adjacent_sparse_numeric_columns() {
+        let (mut grid, words) = alternating_numeric_tracks(["", ""], 20);
+
+        assert!(!repair_split_numeric_track(&mut grid, &words, &[20, 100, 104]));
+        assert!(grid.iter().all(|row| row.len() == 3));
+    }
+
+    #[test]
+    fn preserves_geometrically_distinct_alternating_numeric_tracks() {
+        let (mut grid, words) = alternating_numeric_tracks(["Combined amount", ""], 4);
+
+        assert!(!repair_split_numeric_track(&mut grid, &words, &[20, 100, 104]));
+        assert!(grid.iter().all(|row| row.len() == 3));
+    }
+
+    #[test]
+    fn preserves_alternating_numeric_tracks_with_late_nonnumeric_cell() {
+        let (mut grid, words) = alternating_numeric_tracks(["", ""], 20);
+        grid.push(vec!["7".to_string(), "N/A footnote".to_string(), String::new()]);
+
+        assert!(!repair_split_numeric_track(&mut grid, &words, &[20, 100, 104]));
+        assert!(grid.iter().all(|row| row.len() == 3));
     }
 
     #[test]
