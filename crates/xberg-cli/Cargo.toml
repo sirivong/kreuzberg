@@ -70,6 +70,11 @@ chunking-tokenizers = ["xberg/chunking-tokenizers"]
 html = ["xberg/html"]
 url-ingestion = ["xberg/url-ingestion"]
 liter-llm = ["xberg/liter-llm"]
+# Page classification (issue #1298): pulls only `xberg/classification` (which
+# depends on the already-enabled `liter-llm` HTTP path, no ORT/model deps), so
+# containers built with `--features all` ship it. It stays opt-in at runtime —
+# it runs only when a classification LLM config is supplied.
+classification = ["xberg/classification"]
 tree-sitter = ["xberg/tree-sitter", "dep:tree-sitter-language-pack"]
 ner-onnx = ["xberg/ner-onnx"]
 heic = ["xberg/heic"]
@@ -84,6 +89,7 @@ all = [
     "chunking-tokenizers",
     "tree-sitter",
     "liter-llm",
+    "classification",
 ]
 
 [dependencies]
