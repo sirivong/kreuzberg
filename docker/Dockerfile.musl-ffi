@@ -63,7 +63,12 @@ RUN file /build/libxberg_ffi.so && \
     echo "=== Dynamic dependencies ===" && \
     readelf -d /build/libxberg_ffi.so 2>/dev/null | grep NEEDED || echo "No dynamic dependencies (fully static)" && \
     echo "=== Bundled libraries ===" && \
-    ls -la /build/*.so
+    ls -la /build/*.so*
 
+# `*.so*` (not `*.so`) is deliberate: Alpine's onnxruntime/libheif packages ship
+# versioned sonames (libonnxruntime.so.1, libheif.so.1) that do not end in the
+# literal ".so" suffix, so a plain `*.so` glob silently drops them from both the
+# diagnostic listing above and this COPY — leaving the NuGet/Java native package
+# with libxberg_ffi.so alone and no ORT (xberg #1280 recurrence). ~keep
 FROM scratch
-COPY --from=builder /build/*.so /
+COPY --from=builder /build/*.so* /

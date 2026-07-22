@@ -1516,7 +1516,9 @@ jobs:
           # Dockerfile.musl-ffi bundles the FFI library plus its vendored shared-lib
           # closure (libonnxruntime + codecs) with RUNPATH=$ORIGIN, so ship all of
           # them — not just libxberg_ffi.so — or .NET fails to load ORT at runtime (#1280).
-          cp build-output/*.so "dist/csharp-natives/runtimes/${RID}/native/"
+          # `*.so*` (not `*.so`) matches versioned sonames like libonnxruntime.so.1,
+          # which a plain `*.so` glob silently drops. ~keep
+          cp build-output/*.so* "dist/csharp-natives/runtimes/${RID}/native/"
 
       - uses: actions/upload-artifact@v7
         with:
