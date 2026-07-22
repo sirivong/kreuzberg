@@ -619,19 +619,23 @@ pub struct ChunkMetadata {
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub node_ids: Vec<NodeId>,
 
-    /// Per-page bounding-box spans this chunk covers.
+    /// Per-page bounding-box spans this chunk covers, for viewer highlighting (#1295).
     ///
-    /// Empty until page-level bounding-box aggregation is implemented
-    /// (tracked under #1295); this field is the wire-format foundation for
-    /// that follow-up.
+    /// One entry per page the chunk overlaps, in page order — the first and last entries'
+    /// `page` fields equal [`first_page`](Self::first_page)/[`last_page`](Self::last_page).
+    /// Populated whenever page-boundary provenance is available (the same condition under
+    /// which `first_page`/`last_page` are populated); each entry's `bbox` is additionally
+    /// populated when the document's structured node tree ([`ExtractedDocument::document`]) is
+    /// available, as the union of that page's body-layer node bounding boxes found within this
+    /// chunk. Empty when page-boundary provenance is unavailable (mirrors `first_page`/
+    /// `last_page` being `None`).
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub page_spans: Vec<PageSpan>,
 }
 
 /// A single page covered by a chunk, with an optional bounding box on that page.
 ///
-/// Populated by future page-level bounding-box aggregation (#1295). Currently
-/// always empty on [`ChunkMetadata::page_spans`].
+/// See [`ChunkMetadata::page_spans`] (#1295) for population semantics.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(feature = "api", derive(utoipa::ToSchema))]
 pub struct PageSpan {

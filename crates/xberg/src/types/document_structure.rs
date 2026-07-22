@@ -180,12 +180,17 @@ impl DocumentStructure {
     /// does not currently track which byte ranges of its output came from
     /// which `NodeIndex`. Always returns `None`.
     ///
-    /// This is the seam `ChunkMetadata::node_ids` population and
-    /// `ChunkMetadata::page_spans` population are expected to build on.
-    /// Tracked under #1294/#1295 — implementing this requires either
-    /// threading node provenance through the renderers, or re-deriving node
-    /// spans by re-scanning rendered output for node text with page/order
-    /// disambiguation.
+    /// This is the seam `ChunkMetadata::node_ids` population (tracked under #1296) is expected
+    /// to build on; implementing it requires either threading node provenance through the
+    /// renderers, or re-deriving node spans by re-scanning rendered output for node text with
+    /// page/order disambiguation.
+    ///
+    /// `ChunkMetadata::page_spans` (#1295) does not depend on this method: it derives its page
+    /// numbers from the existing byte-range-to-page boundary mapping (the same one used for
+    /// `first_page`/`last_page`, see `chunking::boundaries::calculate_page_spans`) and fills in
+    /// bounding boxes via a page-scoped textual containment check against node text (see
+    /// `chunking::page_spans::populate_page_span_bboxes`), without requiring an exact node ->
+    /// byte-offset mapping.
     ///
     /// # Parameters
     ///
@@ -193,12 +198,12 @@ impl DocumentStructure {
     ///
     /// Not bound to language bindings (`alef(skip)`): the tuple return type
     /// is not FFI-friendly, and the method is a placeholder with no behavior
-    /// to expose yet. A binding-facing surface can be added once #1294/#1295
-    /// implement real offset resolution.
+    /// to expose yet. A binding-facing surface can be added once #1296
+    /// implements real offset resolution.
     #[cfg_attr(alef, alef(skip))]
     #[must_use]
     pub fn node_rendered_offset(&self, _node_index: NodeIndex) -> Option<(usize, usize)> {
-        // TODO(#1294/#1295): implement real node -> rendered-offset mapping and
+        // TODO(#1296): implement real node -> rendered-offset mapping.
         None
     }
 }

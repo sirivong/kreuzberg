@@ -465,6 +465,12 @@ pub(super) fn execute_chunking(result: &mut ExtractedDocument, config: &Extracti
                     }
                 }
 
+                if let Some(ref structure) = result.document
+                    && let Some(ref mut chunks) = result.chunks
+                {
+                    crate::chunking::page_spans::populate_page_span_bboxes(chunks, structure);
+                }
+
                 #[cfg(feature = "embeddings")]
                 if let Some(ref embedding_config) = chunking_config.embedding
                     && let Some(ref mut chunks) = result.chunks
