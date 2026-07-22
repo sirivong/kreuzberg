@@ -21,6 +21,9 @@ path = "src/main.rs"
 
 [features]
 default = [
+    "formats",
+    "analysis",
+    "core-cli",
     "embeddings",
     "html",
     "url-ingestion",
@@ -31,7 +34,17 @@ default = [
     "chunking-tokenizers",
     "tree-sitter",
 ]
-ort-bundled = ["xberg/ort-bundled"]
+pdf-surface = ["xberg/pdf"]
+pdf-heuristic = ["pdf-surface"]
+pdf-ocr = ["pdf-heuristic", "ocr-surface", "xberg/ocr"]
+formats = ["pdf-surface", "xberg/formats"]
+analysis = ["xberg/analysis"]
+url-surface = []
+core-cli = ["url-surface", "xberg/url-ingestion", "xberg/cli"]
+# Internal compatibility aggregate. Before lean PDF profiles existed, every
+# xberg-cli feature inherited these capabilities from the dependency declaration.
+legacy-base = ["formats", "analysis", "core-cli", "ocr-surface"]
+ort-bundled = ["legacy-base", "xberg/ort-bundled"]
 # Load ONNX Runtime at runtime (dlopen) instead of static-linking a prebuilt.
 # The x86_64-apple-darwin CLI is built with the normal default features PLUS
 # this, so it keeps full feature parity with the aarch64 CLI: ort-sys
@@ -39,45 +52,53 @@ ort-bundled = ["xberg/ort-bundled"]
 # before the (nonexistent) x86_64-mac prebuilt is ever resolved. ort finds
 # libonnxruntime.dylib relative to the executable, so the release tarball just
 # ships the dylib next to the `xberg` binary — no ORT_DYLIB_PATH needed.
-ort-dynamic = ["xberg/ort-dynamic"]
+ort-dynamic = ["legacy-base", "xberg/ort-dynamic"]
 
 # Native Intel macOS (x86_64-apple-darwin) platform aggregate. Passthrough to
 # the xberg `macos-intel-target` set (full feature parity, ort loaded
 # dynamically). Used by the bindings via alef target overrides; the CLI release
 # build instead keeps its default features and adds `ort-dynamic` for exact
 # parity with the aarch64 CLI.
-macos-intel = ["xberg/macos-intel-target"]
+macos-intel = [
+    "legacy-base",
+    "ocr-surface",
+    "pdf-surface",
+    "xberg/macos-intel-target",
+]
 
-ocr = ["xberg/ocr"]
+# Dependency-free marker for OCR-capable CLI flags. Candle/VLM backends enable
+# this without pulling the native Tesseract implementation.
+ocr-surface = []
+ocr = ["legacy-base", "ocr-surface", "xberg/ocr"]
 
-api = ["xberg/api"]
-mcp = ["xberg/mcp"]
-mcp-http = ["xberg/mcp-http"]
-embeddings = ["xberg/embeddings"]
-paddle-ocr = ["xberg/paddle-ocr"]
-candle-ocr = ["xberg/candle-ocr"]
-candle-trocr = ["xberg/candle-trocr"]
-candle-paddleocr-vl = ["xberg/candle-paddleocr-vl"]
-candle-glm-ocr = ["xberg/candle-glm-ocr"]
-candle-deepseek-ocr = ["xberg/candle-deepseek-ocr"]
-candle-vlm-ocr = ["xberg/candle-vlm-ocr"]
-candle-cuda = ["xberg/candle-cuda"]
-candle-metal = ["xberg/candle-metal"]
-candle-accelerate = ["xberg/candle-accelerate"]
-candle-mkl = ["xberg/candle-mkl"]
-layout-detection = ["xberg/layout-detection"]
-chunking-tokenizers = ["xberg/chunking-tokenizers"]
-html = ["xberg/html"]
-url-ingestion = ["xberg/url-ingestion"]
-liter-llm = ["xberg/liter-llm"]
+api = ["legacy-base", "xberg/api"]
+mcp = ["legacy-base", "xberg/mcp"]
+mcp-http = ["legacy-base", "xberg/mcp-http"]
+embeddings = ["legacy-base", "xberg/embeddings"]
+paddle-ocr = ["legacy-base", "ocr-surface", "xberg/paddle-ocr"]
+candle-ocr = ["legacy-base", "ocr-surface", "xberg/candle-ocr"]
+candle-trocr = ["legacy-base", "ocr-surface", "xberg/candle-trocr"]
+candle-paddleocr-vl = ["legacy-base", "ocr-surface", "xberg/candle-paddleocr-vl"]
+candle-glm-ocr = ["legacy-base", "ocr-surface", "layout-detection", "xberg/candle-glm-ocr"]
+candle-deepseek-ocr = ["legacy-base", "ocr-surface", "xberg/candle-deepseek-ocr"]
+candle-vlm-ocr = ["legacy-base", "ocr-surface", "layout-detection", "xberg/candle-vlm-ocr"]
+candle-cuda = ["legacy-base", "xberg/candle-cuda"]
+candle-metal = ["legacy-base", "xberg/candle-metal"]
+candle-accelerate = ["legacy-base", "xberg/candle-accelerate"]
+candle-mkl = ["legacy-base", "xberg/candle-mkl"]
+layout-detection = ["legacy-base", "xberg/layout-detection"]
+chunking-tokenizers = ["legacy-base", "xberg/chunking-tokenizers"]
+html = ["legacy-base", "xberg/html"]
+url-ingestion = ["legacy-base", "url-surface", "xberg/url-ingestion"]
+liter-llm = ["legacy-base", "ocr-surface", "xberg/liter-llm"]
 # Page classification (issue #1298): pulls only `xberg/classification` (which
 # depends on the already-enabled `liter-llm` HTTP path, no ORT/model deps), so
 # containers built with `--features all` ship it. It stays opt-in at runtime —
 # it runs only when a classification LLM config is supplied.
-classification = ["xberg/classification"]
-tree-sitter = ["xberg/tree-sitter", "dep:tree-sitter-language-pack"]
-ner-onnx = ["xberg/ner-onnx"]
-heic = ["xberg/heic"]
+classification = ["legacy-base", "xberg/classification"]
+tree-sitter = ["legacy-base", "xberg/tree-sitter", "dep:tree-sitter-language-pack"]
+ner-onnx = ["legacy-base", "xberg/ner-onnx"]
+heic = ["legacy-base", "xberg/heic"]
 all = [
     "default",
     "api",
@@ -108,7 +129,7 @@ tokio = { workspace = true, features = ["process", "fs", "rt-multi-thread"] }
 tracing = { workspace = true }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 tree-sitter-language-pack = { workspace = true, features = ["dynamic-loading", "download", "serde"], optional = true }
-xberg = { workspace = true, features = ["formats", "analysis", "tokio-runtime", "simd-utf8", "cli"] }
+xberg = { workspace = true, features = ["tokio-runtime", "simd-utf8"] }
 
 [dev-dependencies]
 bytes = { workspace = true }

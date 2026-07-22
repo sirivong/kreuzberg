@@ -9,9 +9,11 @@
 //! - `chunk` - Text chunking commands
 
 use anyhow::{Context, Result};
+#[cfg(any(feature = "core-cli", feature = "embeddings"))]
 use std::io::Read;
 
 pub mod cache;
+#[cfg(feature = "core-cli")]
 pub mod chunk;
 pub mod config;
 #[cfg(feature = "embeddings")]
@@ -23,7 +25,16 @@ pub mod overrides;
 #[cfg(any(feature = "api", feature = "mcp"))]
 pub mod server;
 
-pub use cache::{clear_command, manifest_command, stats_command, warm_command};
+#[cfg(any(
+    feature = "embeddings",
+    feature = "layout-detection",
+    feature = "paddle-ocr",
+    feature = "tree-sitter",
+    feature = "ner-onnx"
+))]
+pub use cache::warm_command;
+pub use cache::{clear_command, manifest_command, stats_command};
+#[cfg(feature = "core-cli")]
 pub use chunk::chunk_command;
 pub use config::load_config;
 #[cfg(feature = "embeddings")]
@@ -72,6 +83,7 @@ pub fn validate_file_exists(path: &std::path::Path) -> Result<()> {
 }
 
 /// Validates chunking parameters for correctness.
+#[cfg(feature = "core-cli")]
 pub fn validate_chunk_params(chunk_size: Option<usize>, chunk_overlap: Option<usize>) -> Result<()> {
     if let Some(size) = chunk_size {
         if size == 0 {
@@ -110,6 +122,7 @@ pub fn validate_batch_paths(paths: &[std::path::PathBuf]) -> Result<()> {
 }
 
 /// Read text from stdin, trimming whitespace.
+#[cfg(any(feature = "core-cli", feature = "embeddings"))]
 pub fn read_stdin() -> Result<String> {
     let mut input = String::new();
     std::io::stdin()

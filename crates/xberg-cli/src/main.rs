@@ -68,10 +68,20 @@ use commands::mcp_command;
 use commands::overrides::ExtractionOverrides;
 #[cfg(feature = "api")]
 use commands::serve_command;
+#[cfg(any(
+    feature = "embeddings",
+    feature = "layout-detection",
+    feature = "paddle-ocr",
+    feature = "tree-sitter",
+    feature = "ner-onnx"
+))]
+use commands::warm_command;
 use commands::{
-    BatchInputFormat, batch_command, chunk_command, clear_command, extract_command, load_config, manifest_command,
-    stats_command, validate_chunk_params, validate_file_exists, validate_output_dir, warm_command,
+    BatchInputFormat, batch_command, clear_command, extract_command, load_config, manifest_command, stats_command,
+    validate_file_exists, validate_output_dir,
 };
+#[cfg(feature = "core-cli")]
+use commands::{chunk_command, validate_chunk_params};
 use input::{
     apply_json_overrides, resolve_batch_inputs, resolve_extract_input, validate_batch_input_uris,
     validate_extract_input,
@@ -99,15 +109,27 @@ enum Commands {
     /// Extract text from a document
     Extract {
         /// URI to the document. Local paths and file:// URIs are supported in this checkout.
-        #[arg(value_name = "URI", required_unless_present_any = ["url", "stdin"])]
+        #[cfg_attr(
+            feature = "url-surface",
+            arg(value_name = "URI", required_unless_present_any = ["url", "stdin"])
+        )]
+        #[cfg_attr(
+            not(feature = "url-surface"),
+            arg(value_name = "URI", required_unless_present = "stdin")
+        )]
         uri: Option<String>,
 
         /// HTTP(S) URL to extract.
+        #[cfg(feature = "url-surface")]
         #[arg(long, conflicts_with_all = ["uri", "stdin"])]
         url: Option<String>,
 
         /// Read document bytes from stdin.
-        #[arg(long, conflicts_with_all = ["uri", "url"])]
+        #[cfg_attr(
+            feature = "url-surface",
+            arg(long, conflicts_with_all = ["uri", "url"])
+        )]
+        #[cfg_attr(not(feature = "url-surface"), arg(long, conflicts_with = "uri"))]
         stdin: bool,
 
         /// Path to config file (TOML, YAML, or JSON). If not specified, searches for xberg.toml/yaml/json in current and parent directories.
@@ -339,6 +361,7 @@ enum Commands {
     ///
     /// Splits text into chunks using configurable size and overlap.
     /// Reads from --text flag or stdin if no text is provided.
+    #[cfg(feature = "core-cli")]
     Chunk {
         /// Text to chunk. If not provided, reads from stdin.
         #[arg(long)]
@@ -446,6 +469,13 @@ enum CacheCommands {
     /// Use --ner to download the default GLiNER NER model, --ner-model <MODEL>
     /// for a specific GLiNER alias/catalog id, or --all-ner-models for every
     /// known GLiNER NER model.
+    #[cfg(any(
+        feature = "embeddings",
+        feature = "layout-detection",
+        feature = "paddle-ocr",
+        feature = "tree-sitter",
+        feature = "ner-onnx"
+    ))]
     Warm {
         /// Xberg cache directory; for HF models, an explicit HF cache root
         ///
@@ -459,14 +489,17 @@ enum CacheCommands {
         format: WireFormat,
 
         /// Download all embedding model presets (fast, balanced, quality, multilingual)
+        #[cfg(feature = "embeddings")]
         #[arg(long)]
         all_embeddings: bool,
 
         /// Download a specific embedding model preset
+        #[cfg(feature = "embeddings")]
         #[arg(long, value_name = "PRESET")]
         embedding_model: Option<String>,
 
         /// Download all table structure models including SLANeXT variants (~730MB)
+        #[cfg(feature = "layout-detection")]
         #[arg(
             long,
             help = "Download all table structure models including SLANeXT variants (~730MB)"
@@ -474,14 +507,17 @@ enum CacheCommands {
         all_table_models: bool,
 
         /// Download all tree-sitter grammar parsers
+        #[cfg(feature = "tree-sitter")]
         #[arg(long)]
         all_grammars: bool,
 
         /// Download specific tree-sitter grammar groups (comma-separated: web,systems,scripting,data,jvm,functional)
+        #[cfg(feature = "tree-sitter")]
         #[arg(long, value_name = "GROUPS", value_delimiter = ',')]
         grammar_groups: Option<Vec<String>>,
 
         /// Download specific tree-sitter grammars by language name (comma-separated)
+        #[cfg(feature = "tree-sitter")]
         #[arg(long, value_name = "LANGUAGES", value_delimiter = ',')]
         grammars: Option<Vec<String>>,
 
@@ -569,6 +605,7 @@ fn main() -> Result<()> {
     match cli.command {
         Commands::Extract {
             uri,
+            #[cfg(feature = "url-surface")]
             url,
             stdin,
             config: config_path,
@@ -580,7 +617,12 @@ fn main() -> Result<()> {
             output_dir,
             overrides,
         } => {
-            let input = resolve_extract_input(uri, url, stdin)?;
+            let input = resolve_extract_input(
+                uri,
+                #[cfg(feature = "url-surface")]
+                url,
+                stdin,
+            )?;
             validate_extract_input(&input)?;
             if let Some(ref dir) = output_dir {
                 validate_output_dir(dir)?;
@@ -771,14 +813,27 @@ fn main() -> Result<()> {
             CacheCommands::Manifest { format } => {
                 manifest_command(format)?;
             }
+            #[cfg(any(
+                feature = "embeddings",
+                feature = "layout-detection",
+                feature = "paddle-ocr",
+                feature = "tree-sitter",
+                feature = "ner-onnx"
+            ))]
             CacheCommands::Warm {
                 cache_dir,
                 format,
+                #[cfg(feature = "embeddings")]
                 all_embeddings,
+                #[cfg(feature = "embeddings")]
                 embedding_model,
+                #[cfg(feature = "layout-detection")]
                 all_table_models,
+                #[cfg(feature = "tree-sitter")]
                 all_grammars,
+                #[cfg(feature = "tree-sitter")]
                 grammar_groups,
+                #[cfg(feature = "tree-sitter")]
                 grammars,
                 #[cfg(feature = "ner-onnx")]
                 ner,
@@ -790,11 +845,17 @@ fn main() -> Result<()> {
                 warm_command(
                     cache_dir.clone(),
                     format,
+                    #[cfg(feature = "embeddings")]
                     all_embeddings,
+                    #[cfg(feature = "embeddings")]
                     embedding_model,
+                    #[cfg(feature = "layout-detection")]
                     all_table_models,
+                    #[cfg(feature = "tree-sitter")]
                     all_grammars,
+                    #[cfg(feature = "tree-sitter")]
                     grammar_groups,
+                    #[cfg(feature = "tree-sitter")]
                     grammars,
                     #[cfg(feature = "ner-onnx")]
                     ner,
@@ -831,6 +892,7 @@ fn main() -> Result<()> {
             embed_command(texts, &preset, &provider, model, api_key, plugin, format)?;
         }
 
+        #[cfg(feature = "core-cli")]
         Commands::Chunk {
             text,
             config: config_path,
@@ -891,4 +953,141 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod feature_profile_tests {
+    use super::*;
+
+    fn command_arg_ids(command: &str) -> Vec<String> {
+        Cli::command()
+            .find_subcommand(command)
+            .expect("command should exist")
+            .get_arguments()
+            .map(|arg| arg.get_id().as_str().to_owned())
+            .collect()
+    }
+
+    #[cfg(not(feature = "core-cli"))]
+    #[test]
+    fn lean_profile_omits_chunk_command() {
+        assert!(Cli::command().find_subcommand("chunk").is_none());
+    }
+
+    #[cfg(feature = "core-cli")]
+    #[test]
+    fn core_cli_exposes_chunk_command() {
+        assert!(Cli::command().find_subcommand("chunk").is_some());
+    }
+
+    #[cfg(not(feature = "url-surface"))]
+    #[test]
+    fn lean_profile_omits_url_flag() {
+        assert!(!command_arg_ids("extract").iter().any(|id| id == "url"));
+    }
+
+    #[cfg(feature = "url-surface")]
+    #[test]
+    fn url_ingestion_exposes_url_flag() {
+        assert!(command_arg_ids("extract").iter().any(|id| id == "url"));
+    }
+
+    #[cfg(not(feature = "ocr-surface"))]
+    #[test]
+    fn lean_profile_omits_ocr_overrides() {
+        let args = command_arg_ids("extract");
+        for unavailable in ["ocr", "ocr_backend", "force_ocr"] {
+            assert!(!args.iter().any(|id| id == unavailable));
+        }
+    }
+
+    #[cfg(feature = "ocr-surface")]
+    #[test]
+    fn ocr_capable_profile_exposes_ocr_overrides() {
+        let args = command_arg_ids("extract");
+        for required in ["ocr", "ocr_backend", "force_ocr"] {
+            assert!(args.iter().any(|id| id == required));
+        }
+    }
+
+    #[cfg(not(feature = "pdf-surface"))]
+    #[test]
+    fn non_pdf_profile_omits_pdf_overrides() {
+        let args = command_arg_ids("extract");
+        for unavailable in [
+            "pdf_password",
+            "pdf_extract_images",
+            "pdf_extract_tables",
+            "pdf_ocr_inline_images",
+            "pdf_extract_metadata",
+            "pdf_backend",
+        ] {
+            assert!(!args.iter().any(|id| id == unavailable));
+        }
+    }
+
+    #[cfg(feature = "pdf-surface")]
+    #[test]
+    fn pdf_profile_exposes_pdf_overrides() {
+        let args = command_arg_ids("extract");
+        for required in [
+            "pdf_password",
+            "pdf_extract_images",
+            "pdf_extract_tables",
+            "pdf_extract_metadata",
+            "pdf_backend",
+        ] {
+            assert!(args.iter().any(|id| id == required));
+        }
+        assert_eq!(
+            args.iter().any(|id| id == "pdf_ocr_inline_images"),
+            cfg!(feature = "ocr-surface")
+        );
+    }
+
+    #[cfg(not(feature = "analysis"))]
+    #[test]
+    fn lean_profile_omits_analysis_overrides() {
+        let args = command_arg_ids("extract");
+        for unavailable in ["quality", "detect_language", "token_reduction"] {
+            assert!(!args.iter().any(|id| id == unavailable));
+        }
+    }
+
+    #[cfg(not(any(feature = "core-cli", feature = "analysis")))]
+    #[test]
+    fn lean_profile_omits_chunking_overrides() {
+        let args = command_arg_ids("extract");
+        for unavailable in ["chunk", "chunk_size", "chunk_overlap", "chunking_tokenizer"] {
+            assert!(!args.iter().any(|id| id == unavailable));
+        }
+    }
+
+    #[cfg(not(any(
+        feature = "embeddings",
+        feature = "layout-detection",
+        feature = "paddle-ocr",
+        feature = "tree-sitter",
+        feature = "ner-onnx"
+    )))]
+    #[test]
+    fn lean_profile_omits_warm_command() {
+        let command = Cli::command();
+        let cache = command.find_subcommand("cache").expect("cache command should exist");
+        assert!(cache.find_subcommand("warm").is_none());
+    }
+
+    #[cfg(any(
+        feature = "embeddings",
+        feature = "layout-detection",
+        feature = "paddle-ocr",
+        feature = "tree-sitter",
+        feature = "ner-onnx"
+    ))]
+    #[test]
+    fn warm_capable_profile_exposes_warm_command() {
+        let command = Cli::command();
+        let cache = command.find_subcommand("cache").expect("cache command should exist");
+        assert!(cache.find_subcommand("warm").is_some());
+    }
 }

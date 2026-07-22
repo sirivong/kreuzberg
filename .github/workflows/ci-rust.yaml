@@ -130,6 +130,31 @@ jobs:
         run: cargo check --locked -p xberg --no-default-features --features ocr-wasm --lib
         shell: bash
 
+      - name: Check xberg-cli feature profiles
+        if: runner.os == 'Linux'
+        run: |
+          cargo clippy --locked -p xberg-cli -- -D warnings
+
+          for features in \
+            all \
+            pdf-heuristic \
+            pdf-ocr \
+            core-cli \
+            paddle-ocr \
+            candle-ocr \
+            liter-llm; do
+            echo "::group::xberg-cli features: ${features}"
+            cargo clippy --locked -p xberg-cli --no-default-features --features "${features}" -- -D warnings
+            echo "::endgroup::"
+          done
+
+          for features in pdf-heuristic pdf-ocr core-cli; do
+            echo "::group::xberg-cli profile tests: ${features}"
+            cargo test --locked -p xberg-cli --no-default-features --features "${features}" feature_profile_tests
+            echo "::endgroup::"
+          done
+        shell: bash
+
   # `cfg(target_os = "windows")` dependency blocks (ureq/tokenizers/liter-llm)
   clippy-windows:
     name: Clippy Windows ORT surface
