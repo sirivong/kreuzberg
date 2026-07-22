@@ -2038,6 +2038,32 @@ mod tests {
     }
 
     #[cfg(unix)]
+    #[tokio::test(flavor = "current_thread")]
+    async fn measured_command_drains_output_larger_than_pipe_capacity() {
+        const CONTENT_BYTES: usize = 300_000;
+
+        let adapter = SubprocessAdapter::new(
+            "test",
+            "sh",
+            vec![
+                "-c".to_string(),
+                "printf '{\"content\":\"'; yes x | head -c 600000 | tr -d '\\n'; printf '\"}'".to_string(),
+            ],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+        let input = tempfile::NamedTempFile::new().unwrap();
+
+        let result = adapter
+            .extract(input.path(), Duration::from_secs(5), false, OutputFormat::Markdown)
+            .await
+            .unwrap();
+
+        assert!(result.success);
+        assert_eq!(result.extracted_text.as_deref().map(str::len), Some(CONTENT_BYTES));
+    }
+
+    #[cfg(unix)]
     #[tokio::test]
     async fn batch_rejects_output_cardinality_mismatch() {
         let adapter = SubprocessAdapter::with_batch_capability(

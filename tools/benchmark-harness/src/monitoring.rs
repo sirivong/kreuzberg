@@ -20,9 +20,10 @@
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::time::Duration;
 use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
-use tokio::sync::{Mutex, Notify, oneshot};
+use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
 /// Calculate adaptive sampling interval based on file size.
@@ -211,6 +212,12 @@ fn collect_process_tree_cpu(pid: Pid, system: &System) -> f64 {
 ///
 /// Tracks both low-level CPU/memory metrics and optional heap allocation data.
 /// Use the "memory-profiling" feature for enhanced allocation analysis.
+#[derive(Default)]
+struct SamplerState {
+    task: Option<JoinHandle<()>>,
+    stop_sender: Option<Sender<()>>,
+}
+
 pub struct ResourceMonitor {
     samples: Arc<Mutex<Vec<ResourceSample>>>,
     snapshots: Arc<Mutex<Vec<MemorySnapshot>>>,
@@ -219,8 +226,7 @@ pub struct ResourceMonitor {
     /// Baseline RSS captured at start(), used to compute delta-based memory metrics.
     /// This removes the effect of pre-loaded models/runtimes from per-extraction measurements.
     baseline_memory_bytes: Arc<Mutex<u64>>,
-    task: Mutex<Option<JoinHandle<()>>>,
-    stop_notify: Arc<Notify>,
+    sampler: Mutex<SamplerState>,
 }
 
 impl ResourceMonitor {
@@ -236,8 +242,7 @@ impl ResourceMonitor {
             running: Arc::new(AtomicBool::new(false)),
             pid,
             baseline_memory_bytes: Arc::new(Mutex::new(0)),
-            task: Mutex::new(None),
-            stop_notify: Arc::new(Notify::new()),
+            sampler: Mutex::new(SamplerState::default()),
         }
     }
 
@@ -253,8 +258,7 @@ impl ResourceMonitor {
             running: Arc::new(AtomicBool::new(false)),
             pid: Pid::from_u32(pid),
             baseline_memory_bytes: Arc::new(Mutex::new(0)),
-            task: Mutex::new(None),
-            stop_notify: Arc::new(Notify::new()),
+            sampler: Mutex::new(SamplerState::default()),
         }
     }
 
@@ -303,54 +307,65 @@ impl ResourceMonitor {
     /// # Arguments
     /// * `sample_interval` - How often to sample (e.g., Duration::from_millis(10))
     pub async fn start(&self, sample_interval: Duration) {
-        if self.running.swap(true, Ordering::SeqCst) {
+        let mut sampler = self.sampler.lock().await;
+        if self.running.load(Ordering::SeqCst) {
             return;
         }
 
-        let samples = Arc::clone(&self.samples);
-        let snapshots = Arc::clone(&self.snapshots);
-        let running = Arc::clone(&self.running);
-        let baseline_memory = Arc::clone(&self.baseline_memory_bytes);
-        let stop_notify = Arc::clone(&self.stop_notify);
         let pid = self.pid;
-        let (ready_tx, ready_rx) = oneshot::channel();
-
-        let task = tokio::spawn(async move {
+        let initial_sample = tokio::task::spawn_blocking(move || {
             let mut system = System::new();
             let start = std::time::Instant::now();
             let refresh_kind = ProcessRefreshKind::nothing().with_memory().with_cpu();
 
             system.refresh_processes_specifics(ProcessesToUpdate::All, false, refresh_kind);
             let baseline_rss = collect_process_tree_memory(pid, &system);
-            *baseline_memory.lock().await = baseline_rss;
+            let sample = Self::collect_sample(pid, &system, start.elapsed());
 
-            if let Some((sample, snapshot)) = Self::collect_sample(pid, &system, start.elapsed()) {
-                samples.lock().await.push(sample);
-                snapshots.lock().await.push(snapshot);
-            }
-            let _ = ready_tx.send(());
+            (system, start, refresh_kind, baseline_rss, sample)
+        })
+        .await;
+        let Ok((mut system, start, refresh_kind, baseline_rss, initial_sample)) = initial_sample else {
+            return;
+        };
 
-            let mut interval = tokio::time::interval(sample_interval);
-            interval.tick().await;
+        let mut baseline_memory = self.baseline_memory_bytes.lock().await;
+        let mut samples = self.samples.lock().await;
+        let mut snapshots = self.snapshots.lock().await;
+        *baseline_memory = baseline_rss;
+        if let Some((sample, snapshot)) = initial_sample {
+            samples.push(sample);
+            snapshots.push(snapshot);
+        }
+        drop((baseline_memory, samples, snapshots));
+
+        let samples = Arc::clone(&self.samples);
+        let snapshots = Arc::clone(&self.snapshots);
+        let running = Arc::clone(&self.running);
+        let (stop_tx, stop_rx) = mpsc::channel();
+        self.running.store(true, Ordering::SeqCst);
+        let task = tokio::task::spawn_blocking(move || {
+            let mut next_sample = std::time::Instant::now() + sample_interval;
 
             while running.load(Ordering::SeqCst) {
-                tokio::select! {
-                    _ = interval.tick() => {
-                        if !running.load(Ordering::SeqCst) {
-                            break;
-                        }
-                        system.refresh_processes_specifics(ProcessesToUpdate::All, false, refresh_kind);
-                        if let Some((sample, snapshot)) = Self::collect_sample(pid, &system, start.elapsed()) {
-                            samples.lock().await.push(sample);
-                            snapshots.lock().await.push(snapshot);
-                        }
-                    }
-                    () = stop_notify.notified() => break,
+                let wait = next_sample.saturating_duration_since(std::time::Instant::now());
+                match stop_rx.recv_timeout(wait) {
+                    Ok(()) | Err(RecvTimeoutError::Disconnected) => break,
+                    Err(RecvTimeoutError::Timeout) => {}
                 }
+                if !running.load(Ordering::SeqCst) {
+                    break;
+                }
+                system.refresh_processes_specifics(ProcessesToUpdate::All, false, refresh_kind);
+                if let Some((sample, snapshot)) = Self::collect_sample(pid, &system, start.elapsed()) {
+                    samples.blocking_lock().push(sample);
+                    snapshots.blocking_lock().push(snapshot);
+                }
+                next_sample += sample_interval;
             }
         });
-        *self.task.lock().await = Some(task);
-        let _ = ready_rx.await;
+        sampler.stop_sender = Some(stop_tx);
+        sampler.task = Some(task);
     }
 
     /// Take a single synchronous memory and CPU measurement of the current process tree.
@@ -383,10 +398,16 @@ impl ResourceMonitor {
 
     /// Stop monitoring and return collected samples
     pub async fn stop(&self) -> Vec<ResourceSample> {
-        self.running.store(false, Ordering::SeqCst);
-        self.stop_notify.notify_waiters();
+        let (stop_sender, task) = {
+            let mut sampler = self.sampler.lock().await;
+            self.running.store(false, Ordering::SeqCst);
+            (sampler.stop_sender.take(), sampler.task.take())
+        };
+        if let Some(stop_sender) = stop_sender {
+            let _ = stop_sender.send(());
+        }
 
-        if let Some(task) = self.task.lock().await.take() {
+        if let Some(task) = task {
             let _ = task.await;
         }
 
@@ -689,11 +710,58 @@ mod tests {
 
         monitor.start(Duration::from_secs(1)).await;
         let baseline = monitor.baseline_memory().await;
-        let samples = monitor.stop().await;
+        let samples = tokio::time::timeout(Duration::from_millis(250), monitor.stop())
+            .await
+            .expect("stop must wake a sampler with a long interval promptly");
 
         assert!(baseline > 0, "start must capture the baseline before returning");
         assert_eq!(samples.len(), 1, "the initial sample must not depend on the interval");
         assert_eq!(samples[0].memory_bytes, baseline);
+    }
+
+    #[tokio::test]
+    async fn cancelled_start_does_not_poison_monitor_lifecycle() {
+        let monitor = Arc::new(ResourceMonitor::new());
+        let sampler_guard = monitor.sampler.lock().await;
+        let starting_monitor = Arc::clone(&monitor);
+        let start_task = tokio::spawn(async move {
+            starting_monitor.start(Duration::from_millis(1)).await;
+        });
+        tokio::task::yield_now().await;
+        assert!(!start_task.is_finished(), "start must be waiting for sampler ownership");
+
+        start_task.abort();
+        assert!(start_task.await.unwrap_err().is_cancelled());
+        drop(sampler_guard);
+
+        tokio::time::timeout(Duration::from_secs(1), monitor.start(Duration::from_millis(1)))
+            .await
+            .expect("a cancelled start must not leave the monitor marked as running");
+        let samples = tokio::time::timeout(Duration::from_secs(1), monitor.stop())
+            .await
+            .expect("monitor must remain stoppable after restarting");
+        assert!(!samples.is_empty());
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn sampling_does_not_starve_current_thread_runtime() {
+        const HEARTBEAT_COUNT: usize = 20;
+        const HEARTBEAT_INTERVAL: Duration = Duration::from_millis(2);
+        const HEARTBEAT_DEADLINE: Duration = Duration::from_millis(250);
+
+        let monitor = ResourceMonitor::new();
+        monitor.start(Duration::from_millis(1)).await;
+
+        let heartbeat = tokio::time::timeout(HEARTBEAT_DEADLINE, async {
+            for _ in 0..HEARTBEAT_COUNT {
+                tokio::time::sleep(HEARTBEAT_INTERVAL).await;
+            }
+        })
+        .await;
+        let samples = monitor.stop().await;
+
+        assert!(heartbeat.is_ok(), "resource sampling starved the Tokio runtime");
+        assert!(samples.len() >= 2, "background sampling did not remain active");
     }
 
     #[tokio::test]
