@@ -63,6 +63,17 @@ pub(super) fn segments_need_space(
         return false;
     }
 
+    // A kerning-run split never changes style mid-word: pdf_oxide only fragments a
+    // single styled run. When the two segments differ in weight/slant/pitch this is a
+    // real word boundary (e.g. an inline bold or italic run), not a span split, so a
+    // space is required regardless of how tight the horizontal gap is.
+    if prev_seg.is_bold != next_seg.is_bold
+        || prev_seg.is_italic != next_seg.is_italic
+        || prev_seg.is_monospace != next_seg.is_monospace
+    {
+        return true;
+    }
+
     let eff_height = next_seg.height.max(prev_seg.height).max(next_seg.font_size * 0.5);
     let same_line = (prev_seg.baseline_y - next_seg.baseline_y).abs() < eff_height * 0.5;
     if !same_line {
@@ -125,6 +136,21 @@ mod tests {
         let prev = segment("office", 100.0, 30.0, 10.0, 700.0);
         let next = segment("is", 140.0, 8.0, 10.0, 700.0);
         assert!(segments_need_space(&prev, "office", &next, "is"));
+    }
+
+    #[test]
+    fn test_segments_need_space_style_change_inserts_space() {
+        // Distinct words across an inline style change (plain -> bold) can abut with a
+        // tiny gap (here x_gap = 1pt, well under 0.5*font_size), but a style change is a
+        // real word boundary, not a kerning split, so a space must be inserted. Guards
+        // the inline-bold-run regression.
+        let prev = segment("plain", 10.0, 20.0, 20.0, 100.0);
+        let next = {
+            let mut s = segment("bold", 31.0, 20.0, 20.0, 100.0);
+            s.is_bold = true;
+            s
+        };
+        assert!(segments_need_space(&prev, "plain", &next, "bold"));
     }
 
     #[test]
