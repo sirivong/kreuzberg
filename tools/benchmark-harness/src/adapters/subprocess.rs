@@ -338,6 +338,9 @@ impl SubprocessAdapter {
         };
         let monitor = child_pid.map(ResourceMonitor::new_for_pid);
         if let Some(monitor) = &monitor {
+            #[cfg(unix)]
+            monitor.prepare().await;
+            #[cfg(not(unix))]
             monitor.start(sample_interval).await;
         }
         #[cfg(unix)]
@@ -353,6 +356,12 @@ impl SubprocessAdapter {
         };
         #[cfg(not(unix))]
         let barrier_error: Option<Error> = None;
+        #[cfg(unix)]
+        if barrier_error.is_none()
+            && let Some(monitor) = &monitor
+        {
+            monitor.activate(sample_interval).await;
+        }
         #[cfg(unix)]
         let wait_timeout = timeout;
         #[cfg(not(unix))]
@@ -390,10 +399,9 @@ impl SubprocessAdapter {
         } else {
             ResourceStats::default()
         };
-        #[cfg(not(unix))]
         let error = if child_pid.is_some() && resource_stats.sample_count == 0 && error.is_none() {
             Some(Error::Benchmark(format!(
-                "{operation} completed before RSS monitoring captured a sample; result is not measurable on this platform"
+                "{operation} completed before RSS monitoring captured a target sample; result is not measurable on this platform"
             )))
         } else {
             error
@@ -1913,6 +1921,7 @@ mod tests {
                 esac
             done
             [ "$concurrent" = "7" ] && [ "$threads" = "7" ] || exit 64
+            sleep 0.02
             printf '{"results":[{"content":"ok"}],"total_ms":0,"per_file_ms":[1]}'
         "#;
         let adapter = SubprocessAdapter::with_batch_capability(
@@ -2069,7 +2078,10 @@ mod tests {
         let adapter = SubprocessAdapter::with_batch_capability(
             "test",
             "sh",
-            vec!["-c".to_string(), "printf '[{\"content\":\"only one\"}]'".to_string()],
+            vec![
+                "-c".to_string(),
+                "sleep 0.02; printf '[{\"content\":\"only one\"}]'".to_string(),
+            ],
             vec![],
             vec!["pdf".to_string()],
             test_batch_capability(false),
@@ -2096,7 +2108,7 @@ mod tests {
             "sh",
             vec![
                 "-c".to_string(),
-                "printf '{\"results\":[{\"content\":\"one\",\"metadata\":{\"ocr_used\":false}},{\"content\":\"two\",\"metadata\":{\"ocr_used\":true}}],\"total_ms\":2000,\"per_file_ms\":[100,200]}'"
+                "sleep 0.02; printf '{\"results\":[{\"content\":\"one\",\"metadata\":{\"ocr_used\":false}},{\"content\":\"two\",\"metadata\":{\"ocr_used\":true}}],\"total_ms\":2000,\"per_file_ms\":[100,200]}'"
                     .to_string(),
             ],
             vec![],
@@ -2208,7 +2220,7 @@ mod tests {
             "sh",
             vec![
                 "-c".to_string(),
-                "printf '{\"results\":[{\"content\":\"one\"},{\"content\":\"two\"}],\"total_ms\":10,\"per_file_ms\":[null,null]}'"
+                "sleep 0.02; printf '{\"results\":[{\"content\":\"one\"},{\"content\":\"two\"}],\"total_ms\":10,\"per_file_ms\":[null,null]}'"
                     .to_string(),
             ],
             vec![],
@@ -2244,7 +2256,8 @@ mod tests {
             "sh",
             vec![
                 "-c".to_string(),
-                "printf '{\"results\":[{\"content\":\"one\"}],\"total_ms\":10,\"per_file_ms\":[1]}'".to_string(),
+                "sleep 0.02; printf '{\"results\":[{\"content\":\"one\"}],\"total_ms\":10,\"per_file_ms\":[1]}'"
+                    .to_string(),
             ],
             vec![],
             vec!["pdf".to_string()],
@@ -2277,7 +2290,8 @@ mod tests {
             "sh",
             vec![
                 "-c".to_string(),
-                "printf '{\"results\":[{\"content\":\"one\"}],\"total_ms\":10,\"per_file_ms\":[null]}'".to_string(),
+                "sleep 0.02; printf '{\"results\":[{\"content\":\"one\"}],\"total_ms\":10,\"per_file_ms\":[null]}'"
+                    .to_string(),
             ],
             vec![],
             vec!["pdf".to_string()],
@@ -2304,7 +2318,10 @@ mod tests {
         let adapter = SubprocessAdapter::with_batch_capability(
             "test",
             "sh",
-            vec!["-c".to_string(), "printf 'batch failed' >&2; exit 9".to_string()],
+            vec![
+                "-c".to_string(),
+                "sleep 0.02; printf 'batch failed' >&2; exit 9".to_string(),
+            ],
             vec![],
             vec!["pdf".to_string()],
             test_batch_capability(false),
@@ -2377,7 +2394,7 @@ mod tests {
             "sh",
             vec![
                 "-c".to_string(),
-                "printf '{\"results\":[{\"content\":\"one\"},{\"content\":\"two\"}],\"total_ms\":10,\"per_file_ms\":[1]}'"
+                "sleep 0.02; printf '{\"results\":[{\"content\":\"one\"},{\"content\":\"two\"}],\"total_ms\":10,\"per_file_ms\":[1]}'"
                     .to_string(),
             ],
             vec![],
@@ -2447,7 +2464,7 @@ mod tests {
 
         assert!(matches!(execution.error, Some(Error::Timeout(_))));
         assert!(execution.resource_stats.baseline_memory_bytes > 0);
-        assert!(execution.resource_stats.peak_memory_bytes >= execution.resource_stats.baseline_memory_bytes);
+        assert!(execution.resource_stats.peak_memory_bytes > 0);
         assert!(execution.resource_stats.sample_count > 0);
         assert!(start.elapsed() < Duration::from_secs(2));
     }
@@ -2483,7 +2500,7 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test]
-    async fn measured_ultrashort_command_has_a_nonzero_rss_sample() {
+    async fn measured_ultrashort_command_is_not_measurable_from_blocked_shell_rss() {
         let mut cmd = SubprocessAdapter::measured_command("sh");
         cmd.args(["-c", "printf ok"])
             .stdout(Stdio::piped())
@@ -2500,18 +2517,24 @@ mod tests {
         .await
         .unwrap();
 
-        assert!(outcome.error.is_none());
+        assert!(
+            matches!(&outcome.error, Some(Error::Benchmark(message)) if message.contains("target sample")),
+            "ultrashort command must fail RSS measurability: {:?}",
+            outcome.error
+        );
         assert!(outcome.output.unwrap().status.success());
         assert!(outcome.resource_stats.baseline_memory_bytes > 0);
-        assert!(outcome.resource_stats.peak_memory_bytes >= outcome.resource_stats.baseline_memory_bytes);
-        assert!(outcome.resource_stats.sample_count > 0);
+        assert_eq!(outcome.resource_stats.peak_memory_bytes, 0);
+        assert_eq!(outcome.resource_stats.sample_count, 0);
     }
 
     #[cfg(unix)]
     #[tokio::test]
     async fn measured_nonzero_exit_preserves_resource_stats() {
         let mut cmd = SubprocessAdapter::measured_command("sh");
-        cmd.args(["-c", "exit 7"]).stdout(Stdio::piped()).stderr(Stdio::piped());
+        cmd.args(["-c", "sleep 0.02; exit 7"])
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
         SubprocessAdapter::configure_measured_stdin(&mut cmd);
         SubprocessAdapter::configure_child_process(&mut cmd);
 
@@ -2519,7 +2542,7 @@ mod tests {
             &mut cmd,
             Duration::from_secs(1),
             "failing command",
-            Duration::from_millis(100),
+            Duration::from_millis(1),
         )
         .await
         .unwrap();
