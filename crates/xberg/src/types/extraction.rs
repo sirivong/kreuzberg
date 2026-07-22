@@ -631,6 +631,15 @@ pub struct ChunkMetadata {
     /// `last_page` being `None`).
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
     pub page_spans: Vec<PageSpan>,
+
+    /// Multi-label classification result for this chunk.
+    ///
+    /// Populated by the chunk-classification post-processor when
+    /// [`ExtractionConfig::chunk_classification`](crate::core::config::ExtractionConfig::chunk_classification)
+    /// is set. A chunk may match zero, one, or many of the configured label
+    /// definitions. Empty when chunk classification was not configured.
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub classifications: Vec<super::classification::ClassificationLabel>,
 }
 
 /// A single page covered by a chunk, with an optional bounding box on that page.
@@ -1029,6 +1038,7 @@ mod tests {
             image_indices: Vec::new(),
             node_ids: Vec::new(),
             page_spans: Vec::new(),
+            classifications: Vec::new(),
         }
     }
 

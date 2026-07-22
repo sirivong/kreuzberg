@@ -351,6 +351,7 @@ fn try_code_chunks(result: &ExtractedDocument) -> Option<Vec<crate::types::extra
                 image_indices: Vec::new(),
                 node_ids: Vec::new(),
                 page_spans: Vec::new(),
+                classifications: Vec::new(),
             },
         })
         .collect();

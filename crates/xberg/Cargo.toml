@@ -399,7 +399,9 @@ summarization = ["stopwords"]                      # TextRank extractive only; p
 summarization-llm = ["summarization", "liter-llm"]
 
 translation = ["liter-llm"]
-classification = ["liter-llm"]
+# tokio-runtime is required by chunk-classification's bounded-concurrency batch scheduler
+# (tokio::sync::Semaphore / tokio::task::JoinSet).
+classification = ["liter-llm", "tokio-runtime"]
 captioning = ["liter-llm"]
 qr-codes = ["dep:rqrr", "dep:image"] # Pure-Rust QR decoding via rqrr.
 

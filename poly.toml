@@ -527,6 +527,12 @@ file_safety = { exclude = [
   "**/*.patch",
   "**/frb_generated.rs",
   "charts/**",
+  "crates/xberg-node/src/lib.rs",
+  "crates/xberg-php/src/lib.rs",
+  "crates/xberg-py/src/lib.rs",
+  "crates/xberg-wasm/src/lib.rs",
+  "packages/dart/rust/src/lib.rs",
+  "packages/swift/rust/src/lib.rs",
 ] }
 cargo = true
 commit = { stages = ["commit-msg"] }

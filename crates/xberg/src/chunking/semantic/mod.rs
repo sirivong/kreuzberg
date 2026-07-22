@@ -137,6 +137,7 @@ pub(crate) fn chunk_semantic(
                 image_indices: Vec::new(),
                 node_ids: Vec::new(),
                 page_spans,
+                classifications: Vec::new(),
             },
         });
     }

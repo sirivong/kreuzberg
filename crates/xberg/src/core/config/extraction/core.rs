@@ -381,6 +381,13 @@ pub struct ExtractionConfig {
     #[cfg_attr(feature = "alef-meta", alef(since = "5.0.0"))]
     pub page_classification: Option<super::super::classification::PageClassificationConfig>,
 
+    /// Per-chunk multi-label classification configuration. When set, the
+    /// chunk-classification post-processor runs at the Middle stage (after
+    /// chunking) and populates `ChunkMetadata::classifications` on every chunk.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "alef-meta", alef(since = "5.0.0"))]
+    pub chunk_classification: Option<super::super::chunk_classification::ChunkClassificationConfig>,
+
     /// VLM captioning configuration for extracted images. When set, the captioning
     /// post-processor runs at the Middle stage and writes a caption into each
     /// `ExtractedImage::caption`.
@@ -478,6 +485,7 @@ impl Default for ExtractionConfig {
             summarization: None,
             translation: None,
             page_classification: None,
+            chunk_classification: None,
             captioning: None,
             qr_codes: None,
             cancel_token: None,
@@ -547,6 +555,7 @@ impl ExtractionConfig {
             ref summarization,
             ref translation,
             ref page_classification,
+            ref chunk_classification,
             ref captioning,
             ref qr_codes,
         } = *overrides;
@@ -652,6 +661,9 @@ impl ExtractionConfig {
         }
         if let Some(v) = page_classification {
             config.page_classification = Some(v.clone());
+        }
+        if let Some(v) = chunk_classification {
+            config.chunk_classification = Some(v.clone());
         }
         if let Some(v) = captioning {
             config.captioning = Some(v.clone());

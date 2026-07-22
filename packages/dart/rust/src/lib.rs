@@ -12695,6 +12695,7 @@ impl From<ChunkMetadata> for xberg::ChunkMetadata {
             image_indices: v.image_indices.into_iter().map(|x| x as u32).collect::<Vec<_>>(),
             node_ids: Vec::new(),
             page_spans: Vec::new(),
+            classifications: Vec::new(),
         }
     }
 }

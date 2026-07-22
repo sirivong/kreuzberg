@@ -206,6 +206,7 @@ fn build_chunks_from_sections(
                     image_indices: Vec::new(),
                     node_ids: Vec::new(),
                     page_spans: page_spans.clone(),
+                    classifications: Vec::new(),
                 },
             });
         } else {
@@ -235,6 +236,7 @@ fn build_chunks_from_sections(
                         image_indices: Vec::new(),
                         node_ids: Vec::new(),
                         page_spans: page_spans.clone(),
+                        classifications: Vec::new(),
                     },
                 });
             }
