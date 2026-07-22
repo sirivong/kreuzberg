@@ -21,65 +21,217 @@ use std::borrow::Cow;
 /// re-joined) inside the combined `content` string, so that the byte offsets passed
 /// to the chunker are valid indices into `result.content`.
 ///
-/// Pages whose content cannot be found are silently skipped (the chunker will
-/// still produce output, just without page-range metadata for those pages).
+/// Pages whose content cannot be located exactly (e.g. dehyphenation, markdown
+/// formatting, marker insertion, or OCR merges made the rendered text diverge from
+/// `page.content`) still get a **best-effort, interpolated** boundary rather than
+/// being dropped (#1294): every page is guaranteed an entry in the returned slice,
+/// in page order, with non-overlapping, monotonically increasing byte ranges.
 #[cfg(feature = "chunking")]
 pub(crate) fn recompute_boundaries_from_pages(content: &str, pages: &[crate::types::PageContent]) -> Vec<PageBoundary> {
-    let mut boundaries = Vec::with_capacity(pages.len());
+    if pages.is_empty() {
+        return Vec::new();
+    }
+
+    let mut located = locate_page_boundaries(content, pages);
+    normalize_located_boundaries(&mut located);
+    fill_boundary_gaps(&mut located, pages, content);
+
+    located.into_iter().flatten().collect()
+}
+
+/// Paragraph-normalise a page's raw content: trim each `"\n\n"`-separated segment
+/// and drop empty segments, matching the rendering pipeline's paragraph trimming.
+#[cfg(feature = "chunking")]
+fn normalize_page_content(raw: &str) -> String {
+    raw.split("\n\n")
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n\n")
+}
+
+/// First pass: locate each page's content within `content`, advancing a monotonic
+/// search cursor. Pages that cannot be located by either the exact-block or the
+/// single-line fallback match are left as `None`, to be interpolated by
+/// [`fill_boundary_gaps`].
+#[cfg(feature = "chunking")]
+fn locate_page_boundaries(content: &str, pages: &[crate::types::PageContent]) -> Vec<Option<PageBoundary>> {
+    let mut located = Vec::with_capacity(pages.len());
     let mut search_offset = 0usize;
 
     for page in pages {
         if page.content.trim().is_empty() {
-            boundaries.push(PageBoundary {
+            located.push(Some(PageBoundary {
                 page_number: page.page_number,
                 byte_start: search_offset,
                 byte_end: search_offset,
-            });
+            }));
             continue;
         }
 
-        let normalized: String = page
-            .content
-            .split("\n\n")
-            .map(str::trim)
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>()
-            .join("\n\n");
+        let normalized = normalize_page_content(&page.content);
 
-        if let Some(pos) = content[search_offset..].find(normalized.as_str()) {
-            let byte_start = search_offset + pos;
-            let byte_end = content.floor_char_boundary(byte_start + normalized.len());
-            boundaries.push(PageBoundary {
-                page_number: page.page_number,
-                byte_start,
-                byte_end,
-            });
-            search_offset = byte_end;
+        if let Some(boundary) = locate_exact_block(content, &normalized, page.page_number, &mut search_offset) {
+            located.push(Some(boundary));
             continue;
         }
 
-        if let Some(line) = page.content.lines().find(|l| !l.trim().is_empty()).map(|l| l.trim())
-            && let Some(pos) = content[search_offset..].find(line)
-        {
-            let byte_start = search_offset + pos;
-            let raw_end = (byte_start + normalized.len()).min(content.len());
-            let byte_end = content.floor_char_boundary(raw_end);
-            boundaries.push(PageBoundary {
-                page_number: page.page_number,
-                byte_start,
-                byte_end,
-            });
-            search_offset = byte_end;
+        if let Some(boundary) = locate_by_first_line(content, page, &normalized, &mut search_offset) {
+            located.push(Some(boundary));
             continue;
         }
 
         tracing::debug!(
             page = page.page_number,
-            "Could not locate page content in rendered text — skipping page boundary"
+            "Could not locate page content in rendered text — will interpolate boundary"
         );
+        located.push(None);
     }
 
-    boundaries
+    located
+}
+
+/// Locate a page by an exact match of its paragraph-normalised content.
+#[cfg(feature = "chunking")]
+fn locate_exact_block(
+    content: &str,
+    normalized: &str,
+    page_number: u32,
+    search_offset: &mut usize,
+) -> Option<PageBoundary> {
+    let pos = content[*search_offset..].find(normalized)?;
+    let byte_start = *search_offset + pos;
+    let byte_end = content.floor_char_boundary(byte_start + normalized.len());
+    *search_offset = byte_end;
+    Some(PageBoundary {
+        page_number,
+        byte_start,
+        byte_end,
+    })
+}
+
+/// Fallback locate: anchor on the page's first non-blank line only.
+///
+/// The search cursor advances just past the matched anchor **line** — not the
+/// estimated full-page length — so a bad length estimate for this page cannot
+/// skip past (and thereby hide) legitimate content belonging to later pages.
+/// That decoupling is what stops a single overshoot from cascading into
+/// skipped boundaries for every subsequent page (#1294 root cause 2); any
+/// resulting overlap between this page's estimated end and the next located
+/// page's start is repaired afterwards by [`normalize_located_boundaries`].
+#[cfg(feature = "chunking")]
+fn locate_by_first_line(
+    content: &str,
+    page: &crate::types::PageContent,
+    normalized: &str,
+    search_offset: &mut usize,
+) -> Option<PageBoundary> {
+    let line = page.content.lines().find(|l| !l.trim().is_empty())?.trim();
+    let pos = content[*search_offset..].find(line)?;
+    let byte_start = *search_offset + pos;
+    let raw_end = (byte_start + normalized.len()).min(content.len());
+    let byte_end = content.floor_char_boundary(raw_end).max(byte_start);
+
+    let safe_advance = content.floor_char_boundary((byte_start + line.len()).min(content.len()));
+    *search_offset = safe_advance.max(*search_offset);
+
+    Some(PageBoundary {
+        page_number: page.page_number,
+        byte_start,
+        byte_end,
+    })
+}
+
+/// Repair overlaps left by [`locate_by_first_line`]'s length estimate: walking
+/// right-to-left, clamp each resolved boundary's `byte_end` to at most the next
+/// resolved boundary's `byte_start`, so the returned set is always
+/// non-overlapping (a precondition the chunker's page-boundary validation enforces).
+#[cfg(feature = "chunking")]
+fn normalize_located_boundaries(located: &mut [Option<PageBoundary>]) {
+    let mut next_start: Option<usize> = None;
+
+    for boundary_opt in located.iter_mut().rev() {
+        if let Some(boundary) = boundary_opt.as_mut() {
+            if let Some(next) = next_start {
+                boundary.byte_end = boundary.byte_end.min(next);
+                boundary.byte_start = boundary.byte_start.min(boundary.byte_end);
+            }
+            next_start = Some(boundary.byte_start);
+        }
+    }
+}
+
+/// Second pass: interpolate best-effort boundaries for runs of pages that could
+/// not be located in [`locate_page_boundaries`], proportionally distributing the
+/// byte range between the surrounding resolved boundaries (or content start/end)
+/// by each page's normalised content length. This guarantees every page is
+/// assigned a boundary even when rendering diverges too far from the raw page
+/// text to locate exactly (#1294).
+#[cfg(feature = "chunking")]
+fn fill_boundary_gaps(located: &mut [Option<PageBoundary>], pages: &[crate::types::PageContent], content: &str) {
+    let content_len = content.len();
+    let mut i = 0;
+
+    while i < located.len() {
+        if located[i].is_some() {
+            i += 1;
+            continue;
+        }
+
+        let mut j = i;
+        while j < located.len() && located[j].is_none() {
+            j += 1;
+        }
+
+        let gap_start = if i == 0 {
+            0
+        } else {
+            located[i - 1].as_ref().map_or(0, |b| b.byte_end)
+        };
+        let gap_end = located
+            .get(j)
+            .and_then(|b| b.as_ref())
+            .map_or(content_len, |b| b.byte_start)
+            .max(gap_start);
+
+        distribute_gap(located, &pages[i..j], i, gap_start, gap_end, content);
+        i = j;
+    }
+}
+
+/// Distribute `[gap_start, gap_end)` across `run_pages` (starting at
+/// `located[run_start_index]`), weighted by each page's trimmed content length.
+#[cfg(feature = "chunking")]
+fn distribute_gap(
+    located: &mut [Option<PageBoundary>],
+    run_pages: &[crate::types::PageContent],
+    run_start_index: usize,
+    gap_start: usize,
+    gap_end: usize,
+    content: &str,
+) {
+    let weights: Vec<usize> = run_pages.iter().map(|p| p.content.trim().len().max(1)).collect();
+    let total: usize = weights.iter().sum();
+    let span = gap_end - gap_start;
+    let last = weights.len().saturating_sub(1);
+
+    let mut offset = gap_start;
+    for (k, weight) in weights.iter().enumerate() {
+        let raw_end = if k == last {
+            gap_end
+        } else {
+            offset + (span * weight / total)
+        };
+        let byte_start = content.floor_char_boundary(offset.min(content.len()));
+        let byte_end = content.floor_char_boundary(raw_end.clamp(byte_start, gap_end).min(content.len()));
+
+        located[run_start_index + k] = Some(PageBoundary {
+            page_number: run_pages[k].page_number,
+            byte_start,
+            byte_end,
+        });
+        offset = byte_end;
+    }
 }
 
 /// Clamp page boundaries into valid char boundaries within `text`.
@@ -472,7 +624,7 @@ mod tests {
     }
 
     #[test]
-    fn recompute_boundaries_raw_content_causes_skipped_pages() {
+    fn recompute_boundaries_raw_content_causes_interpolated_page() {
         let p1_clean = "Hello world";
         let p2_raw = "ab\x01cd";
         let p2_clean = "ab-cd";
@@ -482,9 +634,58 @@ mod tests {
         let pages = vec![make_page(1, p1_clean), make_page(2, p2_raw), make_page(3, p3_clean)];
         let boundaries = recompute_boundaries_from_pages(&content, &pages);
 
-        assert_eq!(boundaries.len(), 2, "page with raw/cleaned mismatch should be skipped");
+        assert_eq!(
+            boundaries.len(),
+            3,
+            "every page must get a boundary, including unlocatable ones"
+        );
         assert_eq!(boundaries[0].page_number, 1);
-        assert_eq!(boundaries[1].page_number, 3);
+        assert_eq!(
+            boundaries[1].page_number, 2,
+            "unlocatable page 2 must be interpolated, not skipped"
+        );
+        assert_eq!(boundaries[2].page_number, 3);
+
+        for w in boundaries.windows(2) {
+            assert!(
+                w[0].byte_end <= w[1].byte_start,
+                "boundaries must be non-overlapping: {:?} then {:?}",
+                w[0],
+                w[1]
+            );
+        }
+        assert!(boundaries[1].byte_start <= boundaries[1].byte_end);
+        assert!(boundaries[1].byte_end <= content.len());
+        assert!(boundaries[1].byte_start >= boundaries[0].byte_end);
+        assert!(boundaries[1].byte_end <= boundaries[2].byte_start);
+    }
+
+    #[test]
+    fn recompute_boundaries_fallback_length_overshoot_does_not_cascade() {
+        let page_a_raw = "Start marker\n\nExtra padding text that never appears in the final rendering";
+        let content = "Start marker\n\nNext page text";
+
+        let pages = vec![make_page(1, page_a_raw), make_page(2, "Next page text")];
+        let boundaries = recompute_boundaries_from_pages(content, &pages);
+
+        assert_eq!(
+            boundaries.len(),
+            2,
+            "both pages must resolve; overshoot must not skip page 2"
+        );
+        assert_eq!(boundaries[0].page_number, 1);
+        assert_eq!(boundaries[1].page_number, 2);
+        assert!(
+            boundaries[0].byte_end <= boundaries[1].byte_start,
+            "overshot page 1 end ({}) must be clamped below page 2 start ({})",
+            boundaries[0].byte_end,
+            boundaries[1].byte_start
+        );
+        assert_eq!(
+            &content[boundaries[1].byte_start..boundaries[1].byte_end],
+            "Next page text",
+            "page 2 must resolve via exact match once the search cursor isn't overshot"
+        );
     }
 
     #[test]
@@ -889,7 +1090,7 @@ mod tests {
     }
 
     #[test]
-    fn chunk_page_provenance_html_output_degrades_silently_for_html_special_chars() {
+    fn chunk_page_provenance_html_output_recovers_via_interpolation_for_html_special_chars() {
         let p1_raw = "AT&T quarterly report";
         let plain = p1_raw.to_string();
         let html = "<p>AT&amp;T quarterly report</p>".to_string();
@@ -919,11 +1120,13 @@ mod tests {
         let chunks = result.chunks.expect("chunks must still be produced");
         assert!(!chunks.is_empty());
         for chunk in &chunks {
-            assert!(
-                chunk.metadata.first_page.is_none(),
-                "HTML-escaped page text must produce no provenance (known limitation), got: {:?}",
+            assert_eq!(
+                chunk.metadata.first_page,
+                Some(1),
+                "single un-locatable page must still be interpolated to page 1, got: {:?}",
                 chunk.metadata.first_page
             );
+            assert_eq!(chunk.metadata.last_page, Some(1));
         }
     }
 

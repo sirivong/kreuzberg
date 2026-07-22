@@ -108,7 +108,7 @@ pub(crate) fn chunk_semantic(
     let mut chunks = Vec::with_capacity(total_chunks);
 
     for (index, mc) in merged.into_iter().enumerate() {
-        let heading_ctx = resolve_heading_context(mc.byte_start, &heading_map);
+        let heading_ctx = resolve_heading_context(mc.byte_start, &heading_map, page_boundaries);
         let chunk_type = classify_chunk(&mc.text, heading_ctx.as_ref());
 
         let (first_page, last_page) = if let Some(pb) = page_boundaries {

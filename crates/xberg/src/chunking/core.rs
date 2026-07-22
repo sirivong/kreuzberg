@@ -133,10 +133,12 @@ pub(crate) fn chunk_text_with_heading_source(
         let heading_map = build_heading_map(heading_source.unwrap_or(text));
         if !heading_map.is_empty() {
             for chunk in &mut chunks {
-                chunk.metadata.heading_context = resolve_heading_context(chunk.metadata.byte_start, &heading_map);
+                chunk.metadata.heading_context =
+                    resolve_heading_context(chunk.metadata.byte_start, &heading_map, page_boundaries);
             }
 
             if config.prepend_heading_context {
+                // NOTE (#1294): this mutates `chunk.content` only. `byte_start`/`byte_end`
                 for chunk in &mut chunks {
                     let Some(ref ctx) = chunk.metadata.heading_context else {
                         continue;
@@ -803,6 +805,82 @@ mod tests {
                 );
             }
         }
+    }
+
+    /// Regression test for #1294 item 3: after `prepend_heading_context` mutates
+    /// `chunk.content`, `byte_start`/`byte_end` must still index the *source* text
+    /// passed to `chunk_text` — never the mutated (prefixed) `chunk.content` — and
+    /// page-range attribution derived from those offsets must be unaffected by the
+    /// mutation. Verified by comparing against the same chunking run with
+    /// `prepend_heading_context` off: the offsets (and page range) must be
+    /// identical, only `content` may differ.
+    #[test]
+    fn test_prepend_heading_context_does_not_desync_byte_offsets_or_page_range() {
+        let p1 = "Body text for page one goes here";
+        let p2 = "Body text for page two goes here";
+        let source = format!("# Title\n\n{p1}\n\n## Section\n\n{p2}");
+
+        let boundaries = vec![
+            PageBoundary {
+                page_number: 1,
+                byte_start: 0,
+                byte_end: "# Title\n\n".len() + p1.len(),
+            },
+            PageBoundary {
+                page_number: 2,
+                byte_start: "# Title\n\n".len() + p1.len(),
+                byte_end: source.len(),
+            },
+        ];
+
+        let base_config = ChunkingConfig {
+            max_characters: 40,
+            overlap: 0,
+            trim: true,
+            chunker_type: ChunkerType::Markdown,
+            ..Default::default()
+        };
+        let prepend_config = ChunkingConfig {
+            prepend_heading_context: true,
+            ..base_config.clone()
+        };
+
+        let baseline = chunk_text(&source, &base_config, Some(&boundaries)).unwrap();
+        let prefixed = chunk_text(&source, &prepend_config, Some(&boundaries)).unwrap();
+
+        assert_eq!(baseline.chunks.len(), prefixed.chunks.len());
+        assert!(!prefixed.chunks.is_empty());
+
+        let mut any_prefixed = false;
+        for (base, prefixed) in baseline.chunks.iter().zip(prefixed.chunks.iter()) {
+            assert_eq!(
+                base.metadata.byte_start, prefixed.metadata.byte_start,
+                "prepend_heading_context must not shift byte_start"
+            );
+            assert_eq!(
+                base.metadata.byte_end, prefixed.metadata.byte_end,
+                "prepend_heading_context must not shift byte_end"
+            );
+            assert_eq!(
+                base.metadata.first_page, prefixed.metadata.first_page,
+                "prepend_heading_context must not change page-range attribution"
+            );
+            assert_eq!(base.metadata.last_page, prefixed.metadata.last_page);
+            assert!(
+                prefixed.metadata.byte_end <= source.len(),
+                "byte_end must index into the source text length, not the mutated chunk.content length"
+            );
+            if prefixed.content != base.content {
+                any_prefixed = true;
+            }
+        }
+        assert!(any_prefixed, "at least one chunk must actually get a heading prefix");
+
+        let has_page_provenance = prefixed.chunks.iter().any(|c| c.metadata.first_page.is_some());
+        assert!(
+            has_page_provenance,
+            "page-range attribution must survive the prepend_heading_context content mutation"
+        );
     }
 
     #[test]
