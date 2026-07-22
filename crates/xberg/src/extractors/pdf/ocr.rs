@@ -2075,6 +2075,23 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "ocr")]
+    #[test]
+    fn test_undecodable_ratio_helper_excludes_cjk_kana_hangul_emoji() {
+        // CJK ideographs, Hiragana/Katakana, Hangul, and astral-plane emoji all live outside
+        // the BMP Private Use Area (U+E000-U+F8FF), so legitimate multilingual text must never
+        // be flagged as an undecodable glyph-index layer (issue #1254 false-positive guard).
+        let text = "\u{65E5}\u{672C}\u{8A9E} \u{D55C}\u{AD6D}\u{C5B4} \u{4E2D}\u{6587} \
+                    \u{3072}\u{3089}\u{304C}\u{306A} \u{30AB}\u{30BF}\u{30AB}\u{30CA} \
+                    with latin words and emoji \u{1F600}\u{1F680}";
+        let stats = NativeTextStats::from(text);
+        assert_eq!(
+            stats.undecodable_ratio, 0.0,
+            "CJK/Kana/Hangul/emoji must not count as undecodable, got {}",
+            stats.undecodable_ratio
+        );
+    }
+
     /// A text layer that decodes almost entirely into the Unicode Private Use Area — the
     /// signature of a `Type0`/`Identity-H` font with `CIDToGIDMap /Identity`, no
     /// `/ToUnicode` CMap, and an embedded subset with neither `cmap` nor `post` — must be

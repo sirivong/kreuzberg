@@ -186,6 +186,7 @@ mod tests {
                 image_indices: Vec::new(),
                 node_ids: Vec::new(),
                 page_spans: spans,
+                classifications: Vec::new(),
             },
         }
     }

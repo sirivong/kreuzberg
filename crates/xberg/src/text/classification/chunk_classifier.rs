@@ -227,10 +227,11 @@ pub async fn classify_chunks(result: &mut ExtractedDocument, config: &ChunkClass
         let llm_config = Arc::clone(&llm_config);
         let semaphore = Arc::clone(&semaphore);
         join_set.spawn(async move {
-            let _permit = semaphore
-                .acquire_owned()
-                .await
-                .expect("chunk-classification semaphore is never closed");
+            let _permit = semaphore.acquire_owned().await.map_err(|_| {
+                crate::XbergError::Other(
+                    "chunk-classification concurrency semaphore closed unexpectedly".to_string(),
+                )
+            })?;
             classify_batch(&batch, &ctx, &llm_config).await
         });
     }
