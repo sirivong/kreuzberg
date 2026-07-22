@@ -47,6 +47,17 @@ fn benchmark_base_args(batch: bool, content_format: &str) -> Vec<String> {
     ]
 }
 
+fn append_tesseract_ocr_args(args: &mut Vec<String>, ocr_enabled: bool) {
+    if ocr_enabled {
+        args.extend([
+            "--ocr".to_string(),
+            "true".to_string(),
+            "--ocr-backend".to_string(),
+            "tesseract".to_string(),
+        ]);
+    }
+}
+
 /// Creates a Xberg adapter for the given pipeline and configuration.
 ///
 /// # Arguments
@@ -91,19 +102,13 @@ pub fn create_xberg_adapter(
 
     match pipeline {
         XbergPipeline::Baseline => {
-            args.push("--ocr".to_string());
-            args.push(ocr_enabled.to_string());
-            args.push("--ocr-backend".to_string());
-            args.push("tesseract".to_string());
+            append_tesseract_ocr_args(&mut args, ocr_enabled);
         }
         XbergPipeline::Layout => {
             args.push("--layout".to_string());
             args.push("true".to_string());
             args.push("--use-layout-for-markdown".to_string());
-            args.push("--ocr".to_string());
-            args.push(ocr_enabled.to_string());
-            args.push("--ocr-backend".to_string());
-            args.push("tesseract".to_string());
+            append_tesseract_ocr_args(&mut args, ocr_enabled);
         }
         XbergPipeline::PaddleOcr => {
             args.push("--ocr".to_string());
@@ -349,6 +354,16 @@ mod tests {
             let args = benchmark_base_args(batch, "markdown");
             assert!(args.iter().any(|arg| arg == "--no-config-discovery"));
         }
+    }
+
+    #[test]
+    fn disabled_ocr_does_not_emit_feature_gated_cli_flags() {
+        let mut args = Vec::new();
+        append_tesseract_ocr_args(&mut args, false);
+        assert!(args.is_empty());
+
+        append_tesseract_ocr_args(&mut args, true);
+        assert_eq!(args, ["--ocr", "true", "--ocr-backend", "tesseract"]);
     }
 
     #[test]
