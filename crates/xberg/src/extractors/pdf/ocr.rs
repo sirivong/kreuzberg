@@ -647,6 +647,7 @@ pub(crate) async fn extract_mixed_ocr_native(
             })
             .collect();
         let encoded = encoded?;
+        drop(page_images);
 
         // `tokio::task::JoinSet::spawn` requires `Send` futures, but extractor/backend futures
         // are `!Send` on wasm32 (async_trait(?Send), see plugins/extractor/trait.rs) — and
