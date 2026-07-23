@@ -4,39 +4,35 @@ requires = ["hatchling"]
 
 [project]
 name = "llama-index-node-parser-xberg"
-version = "0.1.0"
-description = "Element-aware LlamaIndex node parser for xberg-extracted documents"
+version = "1.0.0rc32"
+description = "Structure-aware LlamaIndex node parser that turns xberg native chunks and elements into nodes"
 readme = "README.md"
 keywords = ["ai", "chunking", "document-structure", "xberg", "llamaindex", "llm", "node-parser", "rag"]
 license = "MIT"
-maintainers = [
-    { name = "Na'aman Hirschfeld", email = "naaman@xberg.io" },
-    { name = "Varun Tandon", email = "varun@xberg.io" },
-]
-authors = [{ name = "Xberg.dev", email = "contact@xberg.io" }]
+maintainers = [{ name = "xberg", email = "contact@xberg.io" }]
+authors = [{ name = "xberg", email = "contact@xberg.io" }]
 requires-python = ">=3.10"
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Text Processing :: General",
-    "Topic :: Text Processing :: Indexing",
-    "Typing :: Typed",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Text Processing :: General",
+  "Topic :: Text Processing :: Indexing",
+  "Typing :: Typed",
 ]
-dependencies = ["llama-index-core>=0.13,<0.15"]
-urls.Homepage = "https://github.com/xberg-io/llama-index-xberg"
-urls.Issues = "https://github.com/xberg-io/llama-index-xberg/issues"
-urls.Xberg = "https://github.com/xberg-io/xberg"
-urls.Repository = "https://github.com/xberg-io/llama-index-xberg"
+dependencies = ["llama-index-core>=0.14.23,<0.15"]
+urls.Homepage = "https://github.com/xberg-io/xberg/tree/main/integrations/python/llama-index/node_parsers/llama-index-node-parser-xberg"
+urls.Issues = "https://github.com/xberg-io/xberg/issues"
+urls.Repository = "https://github.com/xberg-io/xberg/tree/main/integrations/python/llama-index/node_parsers/llama-index-node-parser-xberg"
 
 [dependency-groups]
 dev = ["pytest>=9", "pytest-asyncio>=0.24", "pytest-cov>=6"]
@@ -44,11 +40,6 @@ dev = ["pytest>=9", "pytest-asyncio>=0.24", "pytest-cov>=6"]
 [tool.hatch]
 build.targets.sdist.include = ["llama_index/"]
 build.targets.wheel.include = ["llama_index/"]
-
-[tool.codespell]
-check-filenames = true
-check-hidden = true
-skip = "*.csv,*.html,*.json,*.jsonl,*.pdf,*.txt,*.ipynb"
 
 [tool.mypy]
 disallow_untyped_defs = true
@@ -68,3 +59,8 @@ report.fail_under = 80
 contains_example = false
 import_path = "llama_index.node_parser.xberg"
 class_authors.XbergNodeParser = "v-tan"
+
+[tool.uv]
+# xberg ships as a pre-release (1.0.0rcN) until the 1.0.0 GA; persist prerelease
+# resolution so the lockfile is authoritative and `uv run` does not re-resolve. ~keep
+prerelease = "allow"

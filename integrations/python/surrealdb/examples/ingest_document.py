@@ -18,7 +18,7 @@ from typing import Any
 
 from surrealdb import AsyncSurreal
 
-from xberg_surrealdb import DocumentConnector
+from surrealdb_xberg import DocumentConnector
 
 
 def _print_doc(doc: dict[str, Any]) -> None:
@@ -65,20 +65,20 @@ async def main(file_paths: list[str]) -> None:
         connector = DocumentConnector(db=db)
         await connector.setup_schema()
 
-        # --- Ingest ---
+        # --- Ingest --- ~keep
         print(f"Ingesting {len(paths)} file(s)...")
         await connector.ingest_files(paths)
         print("Done.\n")
 
         table = connector.table
 
-        # --- Inspect stored documents ---
+        # --- Inspect stored documents --- ~keep
         docs = await connector.client.query(f"SELECT * FROM {table}")  # noqa: S608
         print(f"Stored {len(docs)} document(s).\n")
         for doc in docs:
             _print_doc(doc)
 
-        # --- Demo: auto-search using extracted keywords ---
+        # --- Demo: auto-search using extracted keywords --- ~keep
         if docs and (kws := docs[0].get("keywords")):
             demo_query = kws[0]["keyword"]
             print(f'--- Demo: BM25 search for "{demo_query}" ---')
@@ -96,7 +96,7 @@ async def main(file_paths: list[str]) -> None:
         elif docs:
             print("(no keywords extracted — skipping demo search)\n")
 
-        # --- Interactive search loop ---
+        # --- Interactive search loop --- ~keep
         print("Enter a search query to run BM25 search, or 'q' to quit.\n")
         while True:
             query = input("query> ").strip()

@@ -2,13 +2,15 @@
 
 from datetime import datetime, timezone
 from pathlib import Path
-from unittest.mock import MagicMock
 
-from xberg import ExtractionResult
+import pytest
+from xberg import ExtractedDocument
+from xberg._xberg import Metadata
 
-from xberg_surrealdb._base import (
+from surrealdb_xberg._base import (
     _collect_files,
     _content_hash,
+    _guess_mime_type,
     _map_result_to_doc,
     _parse_datetime,
 )
@@ -83,16 +85,80 @@ async def test_collect_files_empty_directory(tmp_path: Path) -> None:
 
 
 def test_map_result_to_doc_handles_missing_metadata_keys() -> None:
-    result = MagicMock(spec=ExtractionResult)
-    result.content = "test content"
-    result.mime_type = "text/plain"
-    result.metadata = {}
-    result.quality_score = None
-    result.detected_languages = []
-    result.extracted_keywords = []
+    document = ExtractedDocument(
+        content="test content",
+        mime_type="text/plain",
+        metadata=Metadata(),
+        detected_languages=[],
+        chunks=[],
+        extracted_keywords=[],
+        quality_score=None,
+    )
 
-    doc = _map_result_to_doc(result, "source.txt", "documents")
+    doc = _map_result_to_doc(document, "source.txt", "documents")
 
     assert doc["title"] is None
     assert doc["authors"] is None
     assert doc["created_at"] is None
+    assert doc["quality_score"] is None
+    assert doc["detected_languages"] == []
+    assert doc["keywords"] == []
+
+
+def test_map_result_to_doc_maps_metadata_and_keywords() -> None:
+    from tests.conftest import make_document
+
+    document = make_document()
+    doc = _map_result_to_doc(document, "source.txt", "documents")
+
+    assert doc["title"] == "Test Document"
+    assert doc["authors"] == "Alice, Bob"
+    assert doc["detected_languages"] == ["en"]
+    assert doc["keywords"] == ["test"]
+    assert doc["created_at"] is not None
+    assert doc["metadata"]["title"] == "Test Document"
+    assert doc["metadata"]["authors"] == ["Alice", "Bob"]
+
+
+def test_map_result_to_doc_no_entities_tables_summary_defaults() -> None:
+    document = ExtractedDocument(
+        content="test content",
+        mime_type="text/plain",
+        metadata=Metadata(),
+        detected_languages=[],
+        chunks=[],
+        extracted_keywords=[],
+        quality_score=None,
+    )
+
+    doc = _map_result_to_doc(document, "source.txt", "documents")
+
+    assert doc["summary"] is None
+    assert doc["entities"] == []
+    assert doc["tables"] == []
+
+
+def test_map_result_to_doc_persists_entities_tables_summary() -> None:
+    from tests.conftest import make_document, make_entity, make_table
+
+    document = make_document(
+        entities=[make_entity("person", "Alice", 0, 5, 0.87)],
+        tables=[make_table("|a|b|\n|-|-|\n|1|2|", 3, [["a", "b"], ["1", "2"]])],
+        summary="A concise abstractive summary.",
+    )
+
+    doc = _map_result_to_doc(document, "source.pdf", "documents")
+
+    assert doc["summary"] == "A concise abstractive summary."
+    assert doc["entities"] == [
+        {"category": "person", "text": "Alice", "start": 0, "end": 5, "confidence": pytest.approx(0.87)},
+    ]
+    assert doc["tables"] == [
+        {"markdown": "|a|b|\n|-|-|\n|1|2|", "page_number": 3, "cells": [["a", "b"], ["1", "2"]]},
+    ]
+
+
+def test_guess_mime_type_known_and_unknown() -> None:
+    assert _guess_mime_type("report.pdf") == "application/pdf"
+    assert _guess_mime_type("notes.txt") == "text/plain"
+    assert _guess_mime_type("mystery.unknownext") == "application/octet-stream"

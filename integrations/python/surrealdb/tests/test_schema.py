@@ -1,6 +1,6 @@
 """Tests for schema DDL generation."""
 
-from xberg_surrealdb.schema import (
+from surrealdb_xberg.schema import (
     build_connector_schema,
     build_document_schema,
     build_pipeline_schema,
@@ -33,8 +33,17 @@ def test_document_schema_generates_all_fields() -> None:
         "content_hash",
         "detected_languages",
         "keywords",
+        "summary",
+        "entities",
+        "tables",
     ]:
         assert f"FIELD IF NOT EXISTS {field}" in joined
+
+
+def test_document_schema_defines_flexible_entity_and_table_objects() -> None:
+    joined = " ".join(build_document_schema(table="documents"))
+    assert "FIELD IF NOT EXISTS entities[*] ON TABLE documents TYPE object FLEXIBLE" in joined
+    assert "FIELD IF NOT EXISTS tables[*] ON TABLE documents TYPE object FLEXIBLE" in joined
 
 
 def test_document_schema_generates_unique_indexes() -> None:

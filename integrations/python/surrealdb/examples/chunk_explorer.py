@@ -19,7 +19,7 @@ from typing import Any
 
 from surrealdb import AsyncSurreal
 
-from xberg_surrealdb import DocumentPipeline
+from surrealdb_xberg import DocumentPipeline
 
 SEPARATOR = "─" * 60
 

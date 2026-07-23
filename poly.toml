@@ -184,10 +184,14 @@ preserve_patterns = ["SAFETY", "SPDX", "Copyright", "License", "licensed under"]
   "S108",
   "S310",
   "S311",
+  "S608",
   "PT011",
   "PT012",
+  "PT019",
   "PERF401",
   "PTH123",
+  "PLC0415",
+  "SLF001",
   "T201",
   "TC001",
   "TC002",
@@ -409,6 +413,24 @@ preserve_patterns = ["SAFETY", "SPDX", "Copyright", "License", "licensed under"]
   "TC003",
 ]
 "tools/perf/*.py" = ["D103", "T201"]
+# Runnable example/demo scripts (integrations/**/examples): prints, no module/function
+# docstrings, implicit-namespace layout, and blocking stdlib calls are expected.
+"**/examples/**" = [
+  "ANN",
+  "ASYNC240",
+  "ASYNC250",
+  "D100",
+  "D103",
+  "I001",
+  "INP001",
+  "PLR2004",
+  "PLC0415",
+  "S101",
+  "S608",
+  "SLF001",
+  "T201",
+  "typo",
+]
 
 [hooks]
 stages = ["pre-commit"]

@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to xberg-surrealdb will be documented in this file.
+All notable changes to surrealdb-xberg will be documented in this file.
 
 ## [0.2.0] — 2026-05-15
 

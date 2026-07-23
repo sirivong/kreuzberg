@@ -18,7 +18,7 @@ from pathlib import Path
 
 from surrealdb import AsyncSurreal
 
-from xberg_surrealdb import DocumentPipeline
+from surrealdb_xberg import DocumentPipeline
 
 SEPARATOR = "─" * 60
 
@@ -71,17 +71,17 @@ async def main(directory: str) -> None:
         pipeline = DocumentPipeline(db=db, embed=False)
         await pipeline.setup_schema()
 
-        # Phase 1: First ingestion
+        # Phase 1: First ingestion ~keep
         first = await ingest_and_report(pipeline, directory, f"First ingestion: {len(files)} file(s)")
 
-        # Phase 2: Re-ingest same directory (should be a no-op)
+        # Phase 2: Re-ingest same directory (should be a no-op) ~keep
         second = await ingest_and_report(pipeline, directory, "Re-ingesting same directory (dedup test)", prev=first)
         if second == first:
             print("  Dedup confirmed: no duplicates created.")
         else:
             print("  WARNING: counts changed — dedup may not be working.")
 
-        # Phase 3: Add a new file and re-ingest
+        # Phase 3: Add a new file and re-ingest ~keep
         new_file = path / "_incremental_test.txt"
         new_file.write_text(
             "This is a new document added after the initial ingestion. "

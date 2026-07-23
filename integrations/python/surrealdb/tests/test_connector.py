@@ -4,10 +4,17 @@ import hashlib
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from xberg import ExtractionConfig
+import anyio
+from surrealdb.errors import ServerError
+from xberg import ExtractionConfig, ExtractionResult
 
-from xberg_surrealdb.connector import DocumentConnector
-from xberg_surrealdb.exceptions import IngestionError, SchemaNotInitializedError
+from tests.conftest import make_document
+from surrealdb_xberg.connector import DocumentConnector
+from surrealdb_xberg.exceptions import DimensionMismatchError, IngestionError, SchemaNotInitializedError
+
+_INPUT = "surrealdb_xberg._base._input_from_path"
+_EXTRACT = "surrealdb_xberg._base.extract"
+_EXTRACT_BATCH = "surrealdb_xberg._base.extract_batch"
 
 
 def test_analyzer_name(mock_client: AsyncMock) -> None:
@@ -25,7 +32,7 @@ def test_table_property(mock_client: AsyncMock) -> None:
     assert connector.table == "my_docs"
 
 
-@patch("xberg_surrealdb.connector.build_connector_schema")
+@patch("surrealdb_xberg.connector.build_connector_schema")
 async def test_connector_setup_schema_forwards_params(
     mock_build: MagicMock,
     mock_client: AsyncMock,
@@ -51,33 +58,37 @@ async def test_connector_setup_schema_forwards_params(
     mock_client.query.assert_any_call("STMT2;")
 
 
-@patch("xberg_surrealdb._base.extract_file")
+@patch(_INPUT, new_callable=AsyncMock)
+@patch(_EXTRACT, new_callable=AsyncMock)
 async def test_ingest_file(
-    mock_extract: MagicMock,
+    mock_extract: AsyncMock,
+    _mock_input: AsyncMock,
     connector: DocumentConnector,
     mock_client: AsyncMock,
-    sample_extraction_result: MagicMock,
+    sample_result: ExtractionResult,
 ) -> None:
-    mock_extract.return_value = sample_extraction_result
+    mock_extract.return_value = sample_result
 
     await connector.ingest_file("/tmp/test.pdf")
 
-    mock_extract.assert_called_once_with("/tmp/test.pdf", config=None)
+    mock_extract.assert_awaited_once()
     mock_client.query.assert_called_once()
     call_args = mock_client.query.call_args
     assert "INSERT IGNORE INTO documents" in call_args[0][0]
     records = call_args[0][1]["records"]
     assert records[0]["source"] == "/tmp/test.pdf"
-    assert records[0]["content"] == sample_extraction_result.content
+    assert records[0]["content"] == sample_result.results[0].content
 
 
-@patch("xberg_surrealdb._base.extract_file")
+@patch(_INPUT, new_callable=AsyncMock)
+@patch(_EXTRACT, new_callable=AsyncMock)
 async def test_ingest_file_passes_custom_config(
-    mock_extract: MagicMock,
+    mock_extract: AsyncMock,
+    _mock_input: AsyncMock,
     mock_client: AsyncMock,
-    sample_extraction_result: MagicMock,
+    sample_result: ExtractionResult,
 ) -> None:
-    mock_extract.return_value = sample_extraction_result
+    mock_extract.return_value = sample_result
     user_config = ExtractionConfig()
 
     connector = DocumentConnector(db=mock_client, config=user_config)
@@ -86,49 +97,54 @@ async def test_ingest_file_passes_custom_config(
 
     await connector.ingest_file("/tmp/test.pdf")
 
-    mock_extract.assert_called_once_with("/tmp/test.pdf", config=user_config)
+    # extract(input, config) — config is the second positional argument. ~keep
+    assert mock_extract.call_args.args[1] is user_config
 
 
-@patch("xberg_surrealdb._base.extract_bytes")
+@patch(_EXTRACT, new_callable=AsyncMock)
 async def test_ingest_bytes(
-    mock_extract: MagicMock,
+    mock_extract: AsyncMock,
     connector: DocumentConnector,
     mock_client: AsyncMock,
-    sample_extraction_result: MagicMock,
+    sample_result: ExtractionResult,
 ) -> None:
-    mock_extract.return_value = sample_extraction_result
+    mock_extract.return_value = sample_result
 
     await connector.ingest_bytes(data=b"hello world", mime_type="text/plain", source="api://response")
 
-    mock_extract.assert_called_once_with(b"hello world", "text/plain", config=None)
+    mock_extract.assert_awaited_once()
     records = mock_client.query.call_args[0][1]["records"]
     assert records[0]["source"] == "api://response"
 
 
-@patch("xberg_surrealdb._base.extract_file")
+@patch(_INPUT, new_callable=AsyncMock)
+@patch(_EXTRACT, new_callable=AsyncMock)
 async def test_content_hash_computed(
-    mock_extract: MagicMock,
+    mock_extract: AsyncMock,
+    _mock_input: AsyncMock,
     connector: DocumentConnector,
     mock_client: AsyncMock,
-    sample_extraction_result: MagicMock,
+    sample_result: ExtractionResult,
 ) -> None:
-    mock_extract.return_value = sample_extraction_result
+    mock_extract.return_value = sample_result
 
     await connector.ingest_file("/tmp/test.txt")
 
     records = mock_client.query.call_args[0][1]["records"]
-    expected_hash = hashlib.sha256(sample_extraction_result.content.encode()).hexdigest()
+    expected_hash = hashlib.sha256(sample_result.results[0].content.encode()).hexdigest()
     assert records[0]["content_hash"] == expected_hash
 
 
-@patch("xberg_surrealdb._base.extract_file")
+@patch(_INPUT, new_callable=AsyncMock)
+@patch(_EXTRACT, new_callable=AsyncMock)
 async def test_metadata_fields_mapped(
-    mock_extract: MagicMock,
+    mock_extract: AsyncMock,
+    _mock_input: AsyncMock,
     connector: DocumentConnector,
     mock_client: AsyncMock,
-    sample_extraction_result: MagicMock,
+    sample_result: ExtractionResult,
 ) -> None:
-    mock_extract.return_value = sample_extraction_result
+    mock_extract.return_value = sample_result
 
     await connector.ingest_file("/tmp/test.txt")
 
@@ -137,40 +153,81 @@ async def test_metadata_fields_mapped(
     assert doc["title"] == "Test Document"
     assert doc["authors"] == "Alice, Bob"
     assert doc["quality_score"] == 0.95
-    assert doc["detected_languages"] == [{"language": "en", "confidence": 0.99}]
+    assert doc["detected_languages"] == ["en"]
     assert doc["keywords"] == ["test"]
 
 
-@patch("xberg_surrealdb._base.extract_file")
-async def test_connector_ingest_files_processes_all_paths(
-    mock_extract: MagicMock,
+@patch(_INPUT, new_callable=AsyncMock)
+@patch(_EXTRACT_BATCH, new_callable=AsyncMock)
+async def test_connector_ingest_files_batches_extraction_and_insert(
+    mock_extract_batch: AsyncMock,
+    _mock_input: AsyncMock,
     connector: DocumentConnector,
     mock_client: AsyncMock,
-    sample_extraction_result: MagicMock,
 ) -> None:
-    """ingest_files() extracts and ingests each path."""
-    mock_extract.return_value = sample_extraction_result
+    """ingest_files() extracts every path in one extract_batch and inserts rows together."""
+    documents = [make_document(content=f"doc {i}") for i in range(3)]
+    mock_extract_batch.return_value = ExtractionResult(results=documents)
 
     await connector.ingest_files(["/tmp/a.txt", "/tmp/b.txt", "/tmp/c.txt"])
 
-    assert mock_extract.call_count == 3
-    mock_extract.assert_any_call("/tmp/a.txt", config=None)
-    mock_extract.assert_any_call("/tmp/b.txt", config=None)
-    mock_extract.assert_any_call("/tmp/c.txt", config=None)
-    assert mock_client.query.call_count == 3
+    mock_extract_batch.assert_awaited_once()
+    # A single extract_batch call, and a single batched INSERT for all three rows. ~keep
+    mock_client.query.assert_called_once()
+    records = mock_client.query.call_args[0][1]["records"]
+    assert len(records) == 3
+    assert {r["source"] for r in records} == {"/tmp/a.txt", "/tmp/b.txt", "/tmp/c.txt"}
 
 
-@patch("xberg_surrealdb._base.extract_file")
+@patch(_INPUT, new_callable=AsyncMock)
+@patch(_EXTRACT, new_callable=AsyncMock)
 async def test_connector_raises_on_silent_insert_error(
-    mock_extract: MagicMock,
+    mock_extract: AsyncMock,
+    _mock_input: AsyncMock,
     connector: DocumentConnector,
     mock_client: AsyncMock,
-    sample_extraction_result: MagicMock,
+    sample_result: ExtractionResult,
 ) -> None:
-    mock_extract.return_value = sample_extraction_result
+    """Defensive fallback: an error string in the result list still raises."""
+    mock_extract.return_value = sample_result
     mock_client.query = AsyncMock(return_value=["Some unexpected database error"])
 
     with pytest.raises(IngestionError, match="INSERT IGNORE failed silently"):
+        await connector.ingest_file("/tmp/test.pdf")
+
+
+@patch(_INPUT, new_callable=AsyncMock)
+@patch(_EXTRACT, new_callable=AsyncMock)
+async def test_connector_wraps_server_error_as_ingestion_error(
+    mock_extract: AsyncMock,
+    _mock_input: AsyncMock,
+    connector: DocumentConnector,
+    mock_client: AsyncMock,
+    sample_result: ExtractionResult,
+) -> None:
+    """SurrealDB 2.0 raises ServerError on status ERR — it is re-raised as IngestionError."""
+    mock_extract.return_value = sample_result
+    mock_client.query = AsyncMock(side_effect=ServerError("Query", "record already exists"))
+
+    with pytest.raises(IngestionError, match="record already exists"):
+        await connector.ingest_file("/tmp/test.pdf")
+
+
+@patch(_INPUT, new_callable=AsyncMock)
+@patch(_EXTRACT, new_callable=AsyncMock)
+async def test_connector_wraps_dimension_server_error(
+    mock_extract: AsyncMock,
+    _mock_input: AsyncMock,
+    connector: DocumentConnector,
+    mock_client: AsyncMock,
+    sample_result: ExtractionResult,
+) -> None:
+    mock_extract.return_value = sample_result
+    mock_client.query = AsyncMock(
+        side_effect=ServerError("Query", "Incorrect vector dimension (384). Expected 768."),
+    )
+
+    with pytest.raises(DimensionMismatchError, match="Vector dimension mismatch"):
         await connector.ingest_file("/tmp/test.pdf")
 
 
@@ -194,3 +251,11 @@ async def test_connector_raises_without_schema(
 
     with pytest.raises(SchemaNotInitializedError, match="setup_schema"):
         await getattr(connector, method)(*args, **kwargs)
+
+
+def test_connector_ingest_batch_empty_is_noop(mock_client: AsyncMock) -> None:
+    """An empty batch must not issue any query."""
+    connector = DocumentConnector(db=mock_client)
+
+    anyio.run(connector._ingest_batch, [])
+    mock_client.query.assert_not_called()

@@ -4,39 +4,35 @@ requires = ["hatchling"]
 
 [project]
 name = "llama-index-readers-xberg"
-version = "0.1.1"
-description = "LlamaIndex reader for 88+ document formats powered by xberg's Rust extraction engine"
+version = "1.0.0rc32"
+description = "LlamaIndex reader for 91+ document formats powered by xberg's Rust extraction engine"
 readme = "README.md"
 keywords = ["ai", "document-extraction", "xberg", "llamaindex", "llm", "ocr", "pdf", "rag", "text-extraction"]
 license = "MIT"
-maintainers = [
-    { name = "Na'aman Hirschfeld", email = "naaman@xberg.io" },
-    { name = "Varun Tandon", email = "varun@xberg.io" },
-]
-authors = [{ name = "Xberg.dev", email = "contact@xberg.io" }]
+maintainers = [{ name = "xberg", email = "contact@xberg.io" }]
+authors = [{ name = "xberg", email = "contact@xberg.io" }]
 requires-python = ">=3.10"
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
-    "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "Topic :: Text Processing :: General",
-    "Topic :: Text Processing :: Indexing",
-    "Typing :: Typed",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Text Processing :: General",
+  "Topic :: Text Processing :: Indexing",
+  "Typing :: Typed",
 ]
-dependencies = ["xberg>=1.0.0", "llama-index-core>=0.13,<0.15"]
-urls.Homepage = "https://github.com/xberg-io/llama-index-xberg"
-urls.Issues = "https://github.com/xberg-io/llama-index-xberg/issues"
-urls.Xberg = "https://github.com/xberg-io/xberg"
-urls.Repository = "https://github.com/xberg-io/llama-index-xberg"
+dependencies = ["xberg>=1.0.0rc32,<1.1", "llama-index-core>=0.14.23,<0.15"]
+urls.Homepage = "https://github.com/xberg-io/xberg/tree/main/integrations/python/llama-index/readers/llama-index-readers-xberg"
+urls.Issues = "https://github.com/xberg-io/xberg/issues"
+urls.Repository = "https://github.com/xberg-io/xberg/tree/main/integrations/python/llama-index/readers/llama-index-readers-xberg"
 
 [dependency-groups]
 dev = ["pytest>=9", "pytest-asyncio>=0.24", "pytest-cov>=6"]
@@ -57,3 +53,8 @@ report.fail_under = 80
 contains_example = false
 import_path = "llama_index.readers.xberg"
 class_authors.XbergReader = "v-tan"
+
+[tool.uv]
+# xberg ships as a pre-release (1.0.0rcN) until the 1.0.0 GA; persist prerelease
+# resolution so the lockfile is authoritative and `uv run` does not re-resolve. ~keep
+prerelease = "allow"

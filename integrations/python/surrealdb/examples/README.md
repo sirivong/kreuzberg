@@ -1,6 +1,6 @@
 # Examples
 
-Runnable examples demonstrating xberg-surrealdb usage patterns.
+Runnable examples demonstrating surrealdb-xberg usage patterns.
 
 ## Prerequisites
 

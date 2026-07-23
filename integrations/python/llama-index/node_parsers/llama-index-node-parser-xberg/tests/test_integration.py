@@ -56,7 +56,7 @@ def test_serialization_round_trip() -> None:
 
     data = parser.to_dict()
     # id_func serializes to a dict that can't round-trip to Callable —
-    # this is a known LlamaIndex-wide limitation, not specific to us
+    # this is a known LlamaIndex-wide limitation, not specific to us ~keep
     data.pop("id_func", None)
     restored = XbergNodeParser.from_dict(data)
 

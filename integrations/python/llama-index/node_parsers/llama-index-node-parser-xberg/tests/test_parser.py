@@ -6,7 +6,12 @@ import pytest
 from llama_index.core.schema import BaseNode, Document
 from llama_index.node_parser.xberg import XbergNodeParser
 
-from tests.conftest import make_element, make_xberg_document
+from tests.conftest import (
+    make_chunk,
+    make_element,
+    make_xberg_chunk_document,
+    make_xberg_document,
+)
 
 
 def test_elements_produce_correct_text_nodes() -> None:
@@ -25,6 +30,66 @@ def test_elements_produce_correct_text_nodes() -> None:
     assert nodes[2].text == "| A | B |\n| 1 | 2 |"
     assert nodes[2].metadata["element_type"] == "table"
     assert nodes[2].metadata["page_number"] == 2
+
+
+def test_chunks_produce_correct_text_nodes() -> None:
+    doc = make_xberg_chunk_document()
+    parser = XbergNodeParser()
+
+    nodes = parser.get_nodes_from_documents([doc])
+
+    assert len(nodes) == 2
+    assert nodes[0].text == "Introduction paragraph."
+    assert nodes[0].metadata["chunk_type"] == "heading"
+    assert nodes[0].metadata["heading_path"] == ["Introduction"]
+    assert nodes[0].metadata["page_number"] == 1
+    assert nodes[0].metadata["chunk_index"] == 0
+    assert nodes[1].text == "Body paragraph on page two."
+    assert nodes[1].metadata["heading_path"] == ["Introduction", "Details"]
+    assert nodes[1].metadata["page_number"] == 2
+    assert nodes[1].metadata["last_page"] == 2
+    assert nodes[1].metadata["token_count"] == 7
+
+
+def test_chunks_preferred_over_elements() -> None:
+    doc = make_xberg_chunk_document()
+    # Attach elements too — chunks must win. ~keep
+    doc.metadata["_xberg_elements"] = [make_element(text="element text", element_index=0)]
+    parser = XbergNodeParser()
+
+    nodes = parser.get_nodes_from_documents([doc])
+
+    assert len(nodes) == 2
+    assert all("chunk_type" in node.metadata for node in nodes)
+    assert all("element_type" not in node.metadata for node in nodes)
+
+
+def test_chunk_children_have_prev_next_relationships() -> None:
+    doc = make_xberg_chunk_document()
+    parser = XbergNodeParser()
+
+    nodes = parser.get_nodes_from_documents([doc])
+
+    assert nodes[0].next_node is not None
+    assert nodes[0].next_node.node_id == nodes[1].node_id
+    assert nodes[1].prev_node is not None
+    assert nodes[1].prev_node.node_id == nodes[0].node_id
+
+
+def test_empty_chunks_skipped_and_forwarding_key_stripped() -> None:
+    chunks = [
+        make_chunk(content="Real chunk", chunk_index=0, total_chunks=2),
+        make_chunk(content="   ", chunk_index=1, total_chunks=2),
+    ]
+    doc = make_xberg_chunk_document(chunks=chunks)
+    parser = XbergNodeParser()
+
+    nodes = parser.get_nodes_from_documents([doc])
+
+    assert len(nodes) == 1
+    assert nodes[0].text == "Real chunk"
+    assert "_xberg_chunks" not in nodes[0].metadata
+    assert "chunk_type" in nodes[0].excluded_embed_metadata_keys
 
 
 def test_source_relationship_points_to_parent() -> None:
@@ -66,7 +131,7 @@ def test_missing_elements_warns_and_passes_through(caplog: pytest.LogCaptureFixt
     assert len(nodes) == 1
     assert nodes[0].text == "Plain text"
     assert nodes[0].id_ == "plain-001"
-    assert "no '_xberg_elements' metadata" in caplog.text
+    assert "no '_xberg_chunks' or '_xberg_elements' metadata" in caplog.text
 
 
 def test_empty_elements_list_warns_and_passes_through(caplog: pytest.LogCaptureFixture) -> None:
@@ -78,7 +143,7 @@ def test_empty_elements_list_warns_and_passes_through(caplog: pytest.LogCaptureF
 
     assert len(nodes) == 1
     assert nodes[0].text == "Full document text."
-    assert "no '_xberg_elements' metadata" in caplog.text
+    assert "no '_xberg_chunks' or '_xberg_elements' metadata" in caplog.text
 
 
 def test_xberg_elements_stripped_from_children_not_passthrough() -> None:

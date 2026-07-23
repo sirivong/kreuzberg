@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 from langchain_core.documents import Document
-from xberg import XbergError
+from xberg import ChunkingConfig, ExtractionConfig, PageConfig, XbergError
 
 from langchain_xberg import XbergLoader
 
@@ -23,14 +23,11 @@ def _assert_valid_documents(
     assert len(docs) >= min_count
     for doc in docs:
         assert isinstance(doc, Document)
-        assert doc.page_content  # non-empty
+        assert doc.page_content
         assert isinstance(doc.metadata, dict)
         assert "source" in doc.metadata
         if expected_source:
             assert expected_source in str(doc.metadata["source"])
-
-
-# --- Sync single-file tests ---
 
 
 def test_load_txt() -> None:
@@ -63,9 +60,6 @@ def test_load_html() -> None:
     assert "sample" in docs[0].page_content.lower()
 
 
-# --- Bytes mode ---
-
-
 def test_load_bytes() -> None:
     data = b"Hello from bytes extraction test."
     loader = XbergLoader(data=data, mime_type="text/plain")
@@ -75,14 +69,10 @@ def test_load_bytes() -> None:
     assert "Hello" in docs[0].page_content
 
 
-# --- Batch / directory ---
-
-
 def test_load_directory() -> None:
     loader = XbergLoader(file_path=FIXTURES)
     docs = loader.load()
 
-    # fixtures/ has sample.txt, sample.html, sample.pdf, sample.docx
     _assert_valid_documents(docs, min_count=4)
 
 
@@ -97,7 +87,26 @@ def test_load_multiple_file_paths() -> None:
     assert any("sample.html" in s for s in sources)
 
 
-# --- Lazy load ---
+def test_load_with_chunking() -> None:
+    config = ExtractionConfig(chunking=ChunkingConfig(max_characters=200, overlap=20))
+    loader = XbergLoader(file_path=FIXTURES / "sample.pdf", config=config)
+    docs = loader.load()
+
+    _assert_valid_documents(docs, min_count=2, expected_source="sample.pdf")
+    total = docs[0].metadata["total_chunks"]
+    assert len(docs) == total
+    for index, doc in enumerate(docs):
+        assert doc.metadata["chunk_index"] == index
+        assert "chunk_type" in doc.metadata
+
+
+def test_load_with_page_splitting() -> None:
+    config = ExtractionConfig(pages=PageConfig(extract_pages=True))
+    loader = XbergLoader(file_path=FIXTURES / "sample.pdf", config=config)
+    docs = loader.load()
+
+    _assert_valid_documents(docs, expected_source="sample.pdf")
+    assert all("page" in doc.metadata for doc in docs)
 
 
 def test_lazy_load_yields_documents() -> None:
@@ -107,9 +116,6 @@ def test_lazy_load_yields_documents() -> None:
     assert hasattr(result, "__next__")
     docs = list(result)
     _assert_valid_documents(docs)
-
-
-# --- Async ---
 
 
 async def test_async_load_single_file() -> None:
@@ -126,9 +132,6 @@ async def test_async_load_directory() -> None:
         docs.append(doc)
 
     _assert_valid_documents(docs, min_count=4)
-
-
-# --- Error propagation ---
 
 
 def test_nonexistent_file_raises() -> None:

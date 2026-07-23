@@ -17,8 +17,8 @@ import pytest
 from surrealdb import AsyncSurreal
 
 from tests.conftest import FIXTURES_DIR
-from xberg_surrealdb import AsyncSurrealQueryable, DocumentConnector, DocumentPipeline
-from xberg_surrealdb.exceptions import SchemaNotInitializedError
+from surrealdb_xberg import AsyncSurrealQueryable, DocumentConnector, DocumentPipeline
+from surrealdb_xberg.exceptions import SchemaNotInitializedError
 
 pytestmark = pytest.mark.integration
 
@@ -409,32 +409,40 @@ async def test_pipeline_hybrid_rrf_via_client(server_db: AsyncSurrealQueryable, 
 
 async def test_fast_preset_produces_384_dim_embeddings(tmp_path: Path) -> None:
     """Verify the 'fast' preset produces 384-dim embeddings via real xberg extraction."""
-    from xberg import extract_file
+    from xberg import ExtractInput, extract
 
     mock_client = AsyncMock(spec=AsyncSurrealQueryable)
     sample = tmp_path / "sample.txt"
     sample.write_text("Machine learning is a subset of artificial intelligence.")
 
     pipeline = DocumentPipeline(db=mock_client, embed=True, embedding_model="fast")
-    result = await extract_file(str(sample), config=pipeline._config)
+    result = await extract(
+        ExtractInput(kind="bytes", bytes=sample.read_bytes(), mime_type="text/plain", filename=sample.name),
+        pipeline._config,
+    )
 
-    assert len(result.chunks) > 0
-    for chunk in result.chunks:
+    document = result.results[0]
+    assert document.chunks
+    for chunk in document.chunks:
         assert chunk.embedding is not None
         assert len(chunk.embedding) == 384
 
 
 async def test_fast_preset_embed_query_produces_384_dim() -> None:
     """Verify the 'fast' preset can embed a query string with correct dimensions."""
-    from xberg import extract_bytes
+    from xberg import ExtractInput, extract
 
     mock_client = AsyncMock(spec=AsyncSurrealQueryable)
     pipeline = DocumentPipeline(db=mock_client, embed=True, embedding_model="fast")
-    result = await extract_bytes(b"machine learning", "text/plain", config=pipeline._config)
+    result = await extract(
+        ExtractInput(kind="bytes", bytes=b"machine learning", mime_type="text/plain"),
+        pipeline._config,
+    )
 
-    assert len(result.chunks) > 0
-    assert result.chunks[0].embedding is not None
-    assert len(result.chunks[0].embedding) == 384
+    document = result.results[0]
+    assert document.chunks
+    assert document.chunks[0].embedding is not None
+    assert len(document.chunks[0].embedding) == 384
 
 
 FIXTURE_FILES = {

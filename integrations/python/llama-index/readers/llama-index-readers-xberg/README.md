@@ -31,12 +31,13 @@ LlamaIndex reader for 91+ file formats powered by [xberg](https://github.com/xbe
 pip install llama-index-readers-xberg
 ```
 
-Requires Python ≥3.10, `xberg>=1.0.0`, and `llama-index-core>=0.13,<0.15`.
+Requires Python ≥3.10, `xberg>=1.0.0`, and `llama-index-core>=0.14.23,<0.15`.
 
 ## Features
 
 - **91+ file formats** -- PDF, DOCX, PPTX, XLSX, HTML, images, emails, archives, and more ([full list](https://docs.xberg.io/reference/formats/))
 - **Rich metadata** -- quality scores, language detection, keywords, annotations
+- **Native chunking** -- xberg semantic chunks with heading path and page span, forwarded to `XbergNodeParser`
 - **Element extraction** -- structural elements for structure-aware RAG pipelines
 - **Image extraction** -- base64-encoded image data with position, format, and OCR metadata
 - **Per-page splitting** -- one `Document` per page for fine-grained retrieval
@@ -99,10 +100,31 @@ for doc in documents:
     print(f"Page {doc.metadata['page_number']}: {doc.text[:80]}...")
 ```
 
+### Native Chunking
+
+Enable xberg's native chunker to attach semantic chunks — each carrying its
+heading path and page span — under `_xberg_chunks`. Feed the documents into
+`XbergNodeParser` (from `llama-index-node-parser-xberg`) to turn each chunk
+into a node. This is the preferred input for RAG.
+
+```python
+from xberg import ChunkingConfig, ExtractionConfig
+
+reader = XbergReader(
+    extraction_config=ExtractionConfig(
+        chunking=ChunkingConfig(max_characters=1000, overlap=200, prepend_heading_context=True),
+    )
+)
+documents = reader.load_data("report.pdf")
+
+chunks = documents[0].metadata["_xberg_chunks"]
+```
+
 ### Element Extraction
 
 Setting `result_format="element_based"` populates `_xberg_elements` in document
-metadata for structure-aware processing.
+metadata for structure-aware processing. `XbergNodeParser` uses these when no
+chunks are present.
 
 ```python
 from xberg import ExtractionConfig
@@ -173,7 +195,7 @@ documents = await sdr.aload_data()
 - **Error tolerance**: By default, `raise_on_error=False` -- the reader logs warnings and skips files that fail extraction.
 - **Strict mode**: Set `raise_on_error=True` to propagate extraction exceptions immediately.
 - **Deterministic IDs**: Document IDs are SHA-256 hashes of the file path (or byte content) and page number, enabling stable deduplication across pipeline runs.
-- **Metadata exclusion**: Large metadata fields (`_xberg_elements`, `images`) are automatically excluded from LLM and embedding metadata keys to keep prompt sizes manageable.
+- **Metadata exclusion**: Large metadata fields (`_xberg_chunks`, `_xberg_elements`, `images`) are automatically excluded from LLM and embedding metadata keys to keep prompt sizes manageable.
 - **Table handling**: Tables extracted by xberg are appended as markdown to the document text when they are not already present in the content.
 - **Serialization**: The reader fully supports `to_dict()`/`from_dict()` round-tripping, including `ExtractionConfig` with nested `OcrConfig` and `PageConfig`. This enables pipeline caching and persistence with `IngestionPipeline`.
 
@@ -194,5 +216,6 @@ Each `Document` produced by `XbergReader` includes these metadata fields (when a
 | `extracted_keywords` | `list[dict]` | Keywords with text, score, and algorithm |
 | `annotations` | `list[dict]` | Document annotations (comments, highlights) |
 | `processing_warnings` | `list[dict]` | Warnings encountered during extraction |
+| `_xberg_chunks` | `list[dict]` | Native semantic chunks with heading path and page span (with `chunking=...`) |
 | `_xberg_elements` | `list` | Structural elements (with `result_format="element_based"`) |
 | `images` | `list[dict]` | Base64-encoded images with position and format metadata |

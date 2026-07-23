@@ -23,7 +23,9 @@
   </a>
 </div>
 
-Element-aware LlamaIndex node parser for xberg-extracted documents.
+Structure-aware LlamaIndex node parser for xberg-extracted documents. It turns
+xberg's native **chunks** into nodes, and falls back to structural **elements**
+when chunks are absent.
 
 ## Installation
 
@@ -31,35 +33,35 @@ Element-aware LlamaIndex node parser for xberg-extracted documents.
 pip install llama-index-node-parser-xberg
 ```
 
-Requires `llama-index-core>=0.13.0,<0.15`. This package does not depend on
-`xberg` directly — the `xberg` package is a dependency of the reader
-(`llama-index-readers-xberg`), which is needed for producing documents with
-element metadata.
+Requires `llama-index-core>=0.14.23,<0.15`. This package does not depend on
+`xberg` directly — `xberg` is a dependency of the reader
+(`llama-index-readers-xberg`), which produces the documents this parser splits.
 
 ## Prerequisites
 
-> **This parser requires documents with `_xberg_elements` metadata.**
-> These are produced by `XbergReader` configured with element-based
-> extraction. Install `llama-index-readers-xberg` (which brings in
-> `xberg`) to use the full workflow.
+> **This parser requires documents with `_xberg_chunks` or `_xberg_elements`
+> metadata.** These are produced by `XbergReader`. Prefer native chunking; use
+> element-based extraction when you want one node per structural element.
+> Documents carrying neither pass through unchanged with a warning.
 
 ```python
-from xberg import ExtractionConfig
+from xberg import ChunkingConfig, ExtractionConfig
 from llama_index.readers.xberg import XbergReader
 
+# Preferred: native semantic chunks with heading path and page span.
 reader = XbergReader(
-    extraction_config=ExtractionConfig(result_format="element_based")
+    extraction_config=ExtractionConfig(chunking=ChunkingConfig(max_characters=1000, overlap=200))
 )
 documents = reader.load_data("report.pdf")
 ```
 
 ## Features
 
-- Element-aware splitting — headings, paragraphs, tables, and code blocks each become a node
-- Element type metadata preserved on each node (`element_type`, `page_number`, `element_index`)
-- Source document relationships tracked via `NodeRelationship.SOURCE`
-- Graceful degradation — documents without elements pass through with a warning
-- Composes with other transformations (e.g., `SentenceSplitter` for further chunking)
+- Chunk-aware splitting — each xberg native chunk becomes a node, carrying `chunk_type`, `heading_path`, and page span
+- Element fallback — when no chunks are present, headings, paragraphs, tables, and code blocks each become a node
+- Source and prev/next relationships tracked via `NodeRelationship`
+- Graceful degradation — documents without chunk or element metadata pass through with a warning
+- Composes with other transformations (e.g., `SentenceSplitter`)
 - Async support via `aget_nodes_from_documents`
 - Serialization support (`to_dict` / `from_dict`)
 
@@ -70,12 +72,12 @@ documents = reader.load_data("report.pdf")
 Full reader-to-nodes flow:
 
 ```python
-from xberg import ExtractionConfig
+from xberg import ChunkingConfig, ExtractionConfig
 from llama_index.readers.xberg import XbergReader
 from llama_index.node_parser.xberg import XbergNodeParser
 
 reader = XbergReader(
-    extraction_config=ExtractionConfig(result_format="element_based")
+    extraction_config=ExtractionConfig(chunking=ChunkingConfig(max_characters=1000, overlap=200))
 )
 documents = reader.load_data("report.pdf")
 
@@ -85,7 +87,7 @@ nodes = parser.get_nodes_from_documents(documents)
 
 ### IngestionPipeline
 
-Chain with `SentenceSplitter` for further chunking of large elements:
+Chain with `SentenceSplitter` to further split any oversized nodes:
 
 ```python
 from llama_index.core.ingestion import IngestionPipeline
@@ -94,7 +96,7 @@ from llama_index.core.node_parser import SentenceSplitter
 pipeline = IngestionPipeline(
     transformations=[
         XbergNodeParser(),
-        SentenceSplitter(chunk_size=512),  # Further split large elements
+        SentenceSplitter(chunk_size=512),  # Further split large nodes
     ]
 )
 nodes = pipeline.run(documents=documents)
@@ -121,7 +123,9 @@ nodes = await parser.aget_nodes_from_documents(documents)
 
 ## Behavior Notes
 
-- Documents without `_xberg_elements` metadata pass through unchanged with
-  a warning. This is intentional — silently falling back would prevent users
-  from noticing they are not getting element-aware splitting.
-- Empty or whitespace-only elements are automatically skipped.
+- Chunks take priority over elements. When a document carries both
+  `_xberg_chunks` and `_xberg_elements`, the parser splits on chunks.
+- Documents without either metadata key pass through unchanged with a warning.
+  This is intentional — silently falling back would hide that you are not
+  getting structure-aware splitting.
+- Empty or whitespace-only chunks and elements are automatically skipped.

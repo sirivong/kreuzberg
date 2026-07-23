@@ -19,7 +19,7 @@ from typing import Any
 
 from surrealdb import AsyncSurreal
 
-from xberg_surrealdb import DocumentPipeline
+from surrealdb_xberg import DocumentPipeline
 
 LIMIT = 5
 SEPARATOR = "─" * 60
@@ -93,7 +93,7 @@ async def main(directory: str) -> None:
             if not query or query.lower() == "q":
                 break
 
-            # 1. BM25 full-text search with highlights
+            # 1. BM25 full-text search with highlights ~keep
             print(f"\n{SEPARATOR}")
             print("1. BM25 Full-Text Search (with highlights)")
             print(SEPARATOR)
@@ -106,7 +106,7 @@ async def main(directory: str) -> None:
             )
             _print_bm25(bm25)
 
-            # 2. Vector semantic search (HNSW + cosine distance)
+            # 2. Vector semantic search (HNSW + cosine distance) ~keep
             print(f"\n{SEPARATOR}")
             print("2. Vector Semantic Search (HNSW cosine)")
             print(SEPARATOR)
@@ -119,7 +119,7 @@ async def main(directory: str) -> None:
             )
             _print_vector(vector)
 
-            # 3. Hybrid search (RRF fusion of vector + BM25)
+            # 3. Hybrid search (RRF fusion of vector + BM25) ~keep
             print(f"\n{SEPARATOR}")
             print("3. Hybrid Search (RRF: vector + BM25)")
             print(SEPARATOR)

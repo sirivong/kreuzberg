@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 from llama_index.readers.xberg import XbergReader
-from xberg import ExtractionConfig, PageConfig
+from xberg import ChunkingConfig, ExtractionConfig, PageConfig
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -17,9 +17,6 @@ def reader() -> XbergReader:
 @pytest.fixture
 def fixtures_dir() -> Path:
     return FIXTURES
-
-
-# --- Scenario 1: User extracts a PDF standalone ---
 
 
 def test_standalone_pdf_extraction(reader: XbergReader) -> None:
@@ -36,9 +33,6 @@ def test_standalone_pdf_extraction(reader: XbergReader) -> None:
     assert "total_pages" in meta
 
 
-# --- Scenario 2: User extracts from raw bytes ---
-
-
 def test_bytes_extraction_matches_file(reader: XbergReader) -> None:
     file_docs = reader.load_data(FIXTURES / "sample.pdf")
     pdf_bytes = (FIXTURES / "sample.pdf").read_bytes()
@@ -46,11 +40,7 @@ def test_bytes_extraction_matches_file(reader: XbergReader) -> None:
 
     assert len(bytes_docs) >= 1
     assert bytes_docs[0].text, "Bytes extraction should produce non-empty text"
-    # Same source, same content
     assert bytes_docs[0].text == file_docs[0].text
-
-
-# --- Scenario 3: User extracts multi-page PDF with per-page splitting ---
 
 
 def test_per_page_splitting(fixtures_dir: Path) -> None:
@@ -69,7 +59,26 @@ def test_per_page_splitting(fixtures_dir: Path) -> None:
         assert doc.text, f"Page {doc.metadata['page_number']} should have non-empty text"
 
 
-# --- Scenario 4: User points SimpleDirectoryReader at mixed files ---
+def test_native_chunking_populates_chunk_metadata(fixtures_dir: Path) -> None:
+    reader = XbergReader(
+        extraction_config=ExtractionConfig(chunking=ChunkingConfig(max_characters=400, overlap=40)),
+    )
+    docs = reader.load_data(fixtures_dir / "sample.pdf")
+
+    # Chunks are document-global, so one Document carries the full chunk list. ~keep
+    assert len(docs) == 1
+    chunks = docs[0].metadata["_xberg_chunks"]
+    assert len(chunks) > 1
+
+    first = chunks[0]
+    assert first["content"].strip()
+    assert isinstance(first["chunk_type"], str)
+    assert first["metadata"]["chunk_index"] == 0
+    assert first["metadata"]["total_chunks"] == len(chunks)
+    assert isinstance(first["metadata"]["heading_path"], list)
+
+    # The forwarding key is kept out of LLM/embedding metadata. ~keep
+    assert "_xberg_chunks" in docs[0].excluded_embed_metadata_keys
 
 
 def test_sdr_mixed_directory(reader: XbergReader, fixtures_dir: Path) -> None:
@@ -96,9 +105,6 @@ def test_sdr_mixed_directory(reader: XbergReader, fixtures_dir: Path) -> None:
         assert doc.text, f"{doc.metadata['file_name']} should have non-empty text"
 
 
-# --- Scenario 5: User uses SDR with filename_as_id ---
-
-
 def test_sdr_filename_as_id(reader: XbergReader, fixtures_dir: Path) -> None:
     from llama_index.core import SimpleDirectoryReader
 
@@ -117,9 +123,6 @@ def test_sdr_filename_as_id(reader: XbergReader, fixtures_dir: Path) -> None:
     for doc in docs:
         assert "_part_" in doc.id_, f"SDR should set ID to {{filepath}}_part_{{i}}, got {doc.id_}"
         assert doc.metadata["file_name"] in doc.id_
-
-
-# --- Scenario 6: User uses async SDR extraction ---
 
 
 @pytest.mark.asyncio
@@ -145,9 +148,6 @@ async def test_sdr_async_extraction(reader: XbergReader, fixtures_dir: Path) -> 
         assert "file_name" in doc.metadata
 
 
-# --- Scenario 7: User feeds reader output into IngestionPipeline, re-runs for dedup ---
-
-
 def test_pipeline_deduplication(reader: XbergReader, fixtures_dir: Path) -> None:
     from llama_index.core.ingestion import DocstoreStrategy, IngestionPipeline
     from llama_index.core.node_parser import SentenceSplitter
@@ -163,16 +163,11 @@ def test_pipeline_deduplication(reader: XbergReader, fixtures_dir: Path) -> None
         docstore_strategy=DocstoreStrategy.UPSERTS,
     )
 
-    # First run — should produce nodes
     nodes_first = pipeline.run(documents=docs)
     assert len(nodes_first) > 0, "First pipeline run should produce nodes"
 
-    # Second run — identical docs, should deduplicate
     nodes_second = pipeline.run(documents=docs)
     assert len(nodes_second) == 0, "Second run with identical docs should produce no new nodes (dedup by hash)"
-
-
-# --- Scenario 8: User re-extracts with changed metadata, pipeline re-processes ---
 
 
 def test_pipeline_reprocesses_on_metadata_change(reader: XbergReader, fixtures_dir: Path) -> None:
@@ -187,15 +182,13 @@ def test_pipeline_reprocesses_on_metadata_change(reader: XbergReader, fixtures_d
         docstore_strategy=DocstoreStrategy.UPSERTS,
     )
 
-    # First run — baseline
     docs_v1 = reader.load_data(fixtures_dir / "sample.txt")
     nodes_v1 = pipeline.run(documents=docs_v1)
     assert len(nodes_v1) > 0
 
-    # Second run — same file but different extra_info changes the hash
     docs_v2 = reader.load_data(fixtures_dir / "sample.txt", extra_info={"version": "2"})
 
-    # Same file path → same doc ID, but different metadata → different hash
+    # Same file path → same doc ID, but different metadata → different hash ~keep
     assert docs_v1[0].id_ == docs_v2[0].id_, "Same file should produce same doc ID"
 
     nodes_v2 = pipeline.run(documents=docs_v2)
