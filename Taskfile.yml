@@ -32,6 +32,8 @@ includes:
     taskfile: ./.task/languages/zig.yml
   version:
     taskfile: ./.task/tools/version-sync.yml
+  integrations:
+    taskfile: ./.task/tools/integrations.yml
   benchmark:
     taskfile: ./.task/workflows/benchmark.yml
   docs:
@@ -57,6 +59,7 @@ tasks:
     cmds:
       - task: rust:install
       - alef setup
+      - task: integrations:sync
       - command -v poly >/dev/null 2>&1 || brew install goldziher/tap/poly
       - poly hooks install
 
@@ -180,6 +183,7 @@ tasks:
       - task: swift:update
       - task: kotlin-android:update
       - task: zig:update
+      - task: integrations:update
       - alef update
 
   upgrade:
@@ -199,6 +203,7 @@ tasks:
       - task: swift:upgrade
       - task: kotlin-android:upgrade
       - task: zig:upgrade
+      - task: integrations:upgrade
       - cmd: alef update --latest
         ignore_error: true
       - gau --update .
