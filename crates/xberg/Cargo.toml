@@ -44,7 +44,7 @@ pool-metrics = []
 
 simd-utf8 = ["dep:simdutf8"]
 
-tokio-runtime = ["dep:tokio"]
+tokio-runtime = ["dep:tokio", "dep:futures"]
 
 # PDF extraction is currently backed by pdf_oxide. Keep this as the canonical
 # `pdf` feature until/unless a second PDF backend is introduced.
@@ -933,6 +933,7 @@ xberg-paddle-ocr = { path = "../xberg-paddle-ocr", version = "1.0.0-rc.34", opti
 # are below. `chunking-tokenizers`/`onnx-runtime`/etc. reference it unconditionally via
 # `dep:fs2`, which is a no-op on targets where the dependency isn't declared.
 fs2 = { workspace = true, optional = true }
+futures = { workspace = true, optional = true }
 tokio = { workspace = true, optional = true, features = ["process", "fs", "rt-multi-thread"] }
 
 # hf-hub 1.0 (every native target, including Android and Windows): the single declaration for
