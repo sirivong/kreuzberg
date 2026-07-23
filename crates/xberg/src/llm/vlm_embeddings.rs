@@ -20,7 +20,7 @@
     any(feature = "embeddings", feature = "static-embeddings"),
     not(target_arch = "wasm32")
 ))]
-use liter_llm::{EmbeddingInput, EmbeddingRequest, LlmClient};
+use liter_llm::{EmbeddingFormat, EmbeddingInput, EmbeddingRequest, LlmClient};
 
 #[cfg(all(
     feature = "tokio-runtime",
@@ -74,7 +74,11 @@ pub(crate) async fn embed_via_llm<T: AsRef<str>>(
     let request = EmbeddingRequest {
         model: config.model.clone(),
         input,
-        encoding_format: None,
+        // Base64-encoded floats decode ~3x faster and bit-exact in liter-llm's
+        // `deserialize_embedding` compared to a JSON float array. Providers that
+        // ignore this hint and return a float array anyway still work, since
+        // `deserialize_embedding` accepts both shapes.
+        encoding_format: Some(EmbeddingFormat::Base64),
         dimensions: None,
         user: None,
     };
@@ -217,5 +221,46 @@ mod tests {
         let sorted_indices = vec![0u32, 1, 1, 2];
         let result = validate_contiguous_indices(&sorted_indices, 4, "test-model");
         assert!(result.is_err(), "a duplicate index must be rejected");
+    }
+
+    /// Confirms that a base64-encoded provider response (the shape requested by
+    /// `encoding_format: Some(EmbeddingFormat::Base64)` in `embed_via_llm`) decodes
+    /// through `liter_llm::EmbeddingObject` to the exact same floats as an equivalent
+    /// JSON float array response. This is the deserialization path
+    /// `embed_via_llm`'s `response.data` relies on; if the request built the wrong
+    /// `encoding_format` variant (or a provider only understands one shape), this
+    /// test would not itself catch a request-side regression, but it pins the
+    /// contract that both response shapes must keep producing bit-identical vectors.
+    #[test]
+    fn base64_embedding_response_matches_float_response_bit_exact() {
+        use base64::Engine as _;
+
+        let floats: [f32; 5] = [1.0, -2.5, 12.375, 0.0, f32::MIN_POSITIVE];
+
+        let mut bytes = Vec::with_capacity(floats.len() * 4);
+        for value in floats {
+            bytes.extend_from_slice(&value.to_le_bytes());
+        }
+        let encoded = base64::engine::general_purpose::STANDARD.encode(&bytes);
+
+        let base64_body = format!(r#"{{"object":"embedding","index":0,"embedding":{encoded:?}}}"#);
+        let float_body = format!(
+            r#"{{"object":"embedding","index":0,"embedding":{floats}}}"#,
+            floats = serde_json::to_string(&floats.to_vec()).expect("serialize float array")
+        );
+
+        let base64_object: liter_llm::EmbeddingObject =
+            serde_json::from_str(&base64_body).expect("base64 embedding response should deserialize");
+        let float_object: liter_llm::EmbeddingObject =
+            serde_json::from_str(&float_body).expect("float array embedding response should deserialize");
+
+        assert_eq!(
+            base64_object.embedding, floats,
+            "base64-decoded floats must match the source bit-exactly"
+        );
+        assert_eq!(
+            base64_object.embedding, float_object.embedding,
+            "base64 and float-array response shapes must decode to identical vectors"
+        );
     }
 }
