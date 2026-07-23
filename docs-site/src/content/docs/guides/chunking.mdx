@@ -110,6 +110,7 @@ Each chunk in `result.chunks` contains:
 | `metadata.heading_context`              | Active heading hierarchy (Markdown chunker only) |
 | `metadata.heading_path` | Flattened RAG-shaped heading breadcrumb (e.g., `["Title", "Section", "Subsection"]`) for vector database retrieval and context. |
 | `metadata.page_spans` | Per-page coordinates the chunk covers — see [Per-Page Chunk Coordinates](#per-page-chunk-coordinates) below. |
+| `metadata.node_ids` | Ids of the covered `document.nodes[]` entries — see [Linking Chunks to Document Nodes](#linking-chunks-to-document-nodes) below. |
 | `metadata.classifications` | Multi-label classification result — see [Chunk Classification](#chunk-classification) below. |
 | `embedding`                             | Embedding vector (when configured)               |
 
@@ -138,6 +139,13 @@ Chunks can be sized by token count instead of characters — enable the `chunkin
 ```
 
 Cross-page fragment stitching for `page_spans` mirrors the same-page-only scope of [table identity](/guides/output-formats/#table-identity-and-anchors) — each page's span is reported independently.
+
+## Linking Chunks to Document Nodes
+
+`metadata.node_ids` is a list of the `id` values of the `document.nodes[]` (DocumentStructure) entries whose text the chunk covers, deduplicated and in document node-traversal order. Join `chunk.metadata.node_ids` against `document.nodes[].id` to trace a chunk back to the structural nodes it came from.
+
+- Populated only when document structure is available (the PDF extraction path) — plain-text and structure-less documents get an empty `node_ids`.
+- Membership is a best-effort verbatim-text-containment check (a node's text found within the chunk), gated on a minimum node-text length, so very short nodes may not be linked. It is not a byte-exact mapping.
 
 ## Chunk Classification
 
