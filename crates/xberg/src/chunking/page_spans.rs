@@ -1,22 +1,24 @@
-//! Per-page bounding-box aggregation for chunk `page_spans` (#1295).
+//! Per-page bounding-box aggregation for chunk `page_spans` (#1295) and node-id backreferences
+//! (#1296).
 //!
 //! [`crate::chunking::boundaries::calculate_page_spans`] derives the *page numbers*
 //! a chunk covers from byte-range overlap against [`PageBoundary`](crate::types::PageBoundary)
-//! markers — the same mechanism already used for `first_page`/`last_page`. This module adds the
-//! *bounding box* half: once a document's structured node tree
-//! ([`DocumentStructure`]) is available, [`populate_page_span_bboxes`] fills each
-//! [`PageSpan`](crate::types::PageSpan)'s `bbox` with the union of the bounding boxes of the
-//! body-layer nodes on that page whose text appears in the chunk.
+//! markers — the same mechanism already used for `first_page`/`last_page`. This module adds two
+//! things once a document's structured node tree ([`DocumentStructure`]) is available:
+//! [`populate_page_span_bboxes`] fills each [`PageSpan`](crate::types::PageSpan)'s `bbox` with the
+//! union of the bounding boxes of the body-layer nodes on that page whose text appears in the
+//! chunk, and — reusing the same node/chunk match — collects those nodes' ids into the chunk's
+//! [`ChunkMetadata::node_ids`](crate::types::ChunkMetadata::node_ids).
 //!
 //! There is currently no byte-offset mapping from rendered output back to individual
-//! [`DocumentNode`](crate::types::document_structure::DocumentNode)s (tracked under #1294/#1296;
+//! [`DocumentNode`](crate::types::document_structure::DocumentNode)s (tracked under #1294;
 //! see [`DocumentStructure::node_rendered_offset`](crate::types::document_structure::DocumentStructure::node_rendered_offset)).
 //! In its absence, node-to-chunk membership on a given page is determined by a textual
 //! containment check — the same substring-matching approach
 //! [`locate_page_boundaries`](crate::core::pipeline::features) already uses to align raw page
 //! text with rendered content — rather than a byte-exact intersection.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::types::document_structure::{ContentLayer, DocumentNode, DocumentStructure, NodeContent};
 use crate::types::{BoundingBox, Chunk};
@@ -31,7 +33,8 @@ use crate::types::{BoundingBox, Chunk};
 /// page still appears in `page_spans`, just without a bbox contribution from that node.
 const MIN_NODE_TEXT_MATCH_LEN: usize = 10;
 
-/// Fill in `bbox` on each chunk's `page_spans` using the document's structured node tree.
+/// Fill in `bbox` on each chunk's `page_spans`, and `metadata.node_ids`, using the document's
+/// structured node tree.
 ///
 /// For every chunk and every [`PageSpan`](crate::types::PageSpan) already present on it (as
 /// produced by `calculate_page_spans`), this unions the bounding boxes of all body-layer nodes
@@ -41,8 +44,13 @@ const MIN_NODE_TEXT_MATCH_LEN: usize = 10;
 /// - carry matching text (see [`node_text_for_matching`]) found verbatim within the chunk's
 ///   `content`.
 ///
-/// Chunks with empty `page_spans` (no page-boundary provenance) and nodes without a usable text
-/// or bbox are skipped. A span's `bbox` stays `None` when no node in `structure` matches.
+/// The same per-page match additionally collects the `id` of every matching body-layer node
+/// (regardless of whether it carries a `bbox`) into the chunk's
+/// [`ChunkMetadata::node_ids`](crate::types::ChunkMetadata::node_ids), deduplicated and in
+/// node-traversal order, without a second sweep over nodes × chunks.
+///
+/// Chunks with empty `page_spans` (no page-boundary provenance) are skipped entirely — their
+/// `node_ids` stays empty. A span's `bbox` stays `None` when no node in `structure` matches.
 ///
 /// Nodes are bucketed by page once, up front (see [`index_body_nodes_by_page`]), so each
 /// chunk/page_span pair only scans the (typically small) set of nodes on its own page instead of
@@ -56,11 +64,17 @@ pub(crate) fn populate_page_span_bboxes(chunks: &mut [Chunk], structure: &Docume
             continue;
         }
 
+        let mut matched_node_ids = Vec::new();
         for span in chunk.metadata.page_spans.iter_mut() {
-            span.bbox = nodes_by_page
-                .get(&span.page)
-                .and_then(|nodes| union_matching_node_bboxes(&chunk.content, nodes));
+            let Some(nodes) = nodes_by_page.get(&span.page) else {
+                span.bbox = None;
+                continue;
+            };
+            let (bbox, ids) = match_page_nodes(&chunk.content, nodes);
+            span.bbox = bbox;
+            matched_node_ids.extend(ids);
         }
+        chunk.metadata.node_ids = dedup_preserve_order(matched_node_ids);
     }
 }
 
@@ -89,15 +103,37 @@ fn index_body_nodes_by_page(nodes: &[DocumentNode]) -> HashMap<u32, Vec<&Documen
     index
 }
 
-/// Union the bounding boxes of all `nodes` (already scoped to a single page) whose text is found
-/// in `chunk_content`.
-fn union_matching_node_bboxes(chunk_content: &str, nodes: &[&DocumentNode]) -> Option<BoundingBox> {
-    nodes
-        .iter()
-        .filter_map(|node| node.bbox.map(|bbox| (*node, bbox)))
-        .filter(|(node, _)| node_text_matches_chunk(node, chunk_content))
-        .map(|(_, bbox)| bbox)
-        .fold(None, |acc, bbox| Some(union_bbox(acc, bbox)))
+/// Match all `nodes` (already scoped to a single page) whose text is found in `chunk_content`,
+/// returning both the union of their bounding boxes and the ids of the matched nodes.
+///
+/// A node contributes its `id` whenever its text matches, independent of whether it carries a
+/// `bbox` — `node_ids` link chunks back to structure nodes and shouldn't be gated on layout
+/// coordinates being available.
+fn match_page_nodes<'a>(chunk_content: &str, nodes: &[&'a DocumentNode]) -> (Option<BoundingBox>, Vec<&'a str>) {
+    let mut union = None;
+    let mut ids = Vec::new();
+
+    for node in nodes.iter().filter(|node| node_text_matches_chunk(node, chunk_content)) {
+        if let Some(bbox) = node.bbox {
+            union = Some(union_bbox(union, bbox));
+        }
+        if !node.id.is_empty() {
+            ids.push(node.id.as_str());
+        }
+    }
+
+    (union, ids)
+}
+
+/// Deduplicate `ids` while preserving the order of first occurrence, allocating each retained id
+/// exactly once. The borrowed `&str` inputs are tied to the document's node tree, so the set can
+/// test membership without cloning.
+fn dedup_preserve_order(ids: Vec<&str>) -> Vec<String> {
+    let mut seen = HashSet::with_capacity(ids.len());
+    ids.into_iter()
+        .filter(|id| seen.insert(*id))
+        .map(str::to_string)
+        .collect()
 }
 
 /// Check whether `node`'s matchable text (see [`node_text_for_matching`]) appears verbatim in
@@ -151,6 +187,21 @@ mod tests {
     fn body_node(text: &str, page: u32, bbox: Option<BoundingBox>) -> DocumentNode {
         DocumentNode {
             id: String::new(),
+            content: NodeContent::Paragraph { text: text.to_string() },
+            parent: None,
+            children: Vec::new(),
+            content_layer: ContentLayer::Body,
+            page: Some(page),
+            page_end: None,
+            bbox,
+            annotations: Vec::new(),
+            attributes: None,
+        }
+    }
+
+    fn body_node_with_id(id: &str, text: &str, page: u32, bbox: Option<BoundingBox>) -> DocumentNode {
+        DocumentNode {
+            id: id.to_string(),
             content: NodeContent::Paragraph { text: text.to_string() },
             parent: None,
             children: Vec::new(),
@@ -454,5 +505,109 @@ mod tests {
             "page 4 must only see the spanning node"
         );
         assert!(!index.contains_key(&1), "page 1 has no covering nodes");
+    }
+
+    #[test]
+    fn should_populate_node_ids_for_matching_nodes_and_leave_empty_when_no_node_matches() {
+        let structure = DocumentStructure {
+            nodes: vec![
+                body_node_with_id(
+                    "node-1",
+                    "First paragraph on page one.",
+                    1,
+                    Some(bbox(10.0, 10.0, 50.0, 50.0)),
+                ),
+                body_node_with_id(
+                    "node-2",
+                    "Second paragraph on page one.",
+                    1,
+                    Some(bbox(60.0, 60.0, 120.0, 120.0)),
+                ),
+                body_node_with_id(
+                    "node-3",
+                    "Unrelated paragraph on page two.",
+                    2,
+                    Some(bbox(1.0, 1.0, 2.0, 2.0)),
+                ),
+            ],
+            source_format: None,
+            relationships: Vec::new(),
+            node_types: Vec::new(),
+        };
+        let mut chunks = vec![
+            chunk_with_spans(
+                "First paragraph on page one.\n\nSecond paragraph on page one.",
+                vec![PageSpan { page: 1, bbox: None }],
+            ),
+            chunk_with_spans(
+                "Completely different chunk text that matches no node.",
+                vec![PageSpan { page: 2, bbox: None }],
+            ),
+        ];
+
+        populate_page_span_bboxes(&mut chunks, &structure);
+
+        assert_eq!(
+            chunks[0].metadata.node_ids,
+            vec!["node-1".to_string(), "node-2".to_string()],
+            "chunk must reference exactly the ids of the nodes whose text it covers, in traversal order"
+        );
+        assert!(
+            chunks[1].metadata.node_ids.is_empty(),
+            "chunk matching no node must have empty node_ids"
+        );
+    }
+
+    #[test]
+    fn should_dedupe_node_id_when_the_same_multi_page_node_matches_more_than_one_span() {
+        let mut node = body_node_with_id(
+            "node-multi",
+            "Table caption spanning pages.",
+            2,
+            Some(bbox(5.0, 5.0, 15.0, 15.0)),
+        );
+        node.page_end = Some(3);
+        let structure = DocumentStructure {
+            nodes: vec![node],
+            source_format: None,
+            relationships: Vec::new(),
+            node_types: Vec::new(),
+        };
+        let mut chunks = vec![chunk_with_spans(
+            "Table caption spanning pages.",
+            vec![PageSpan { page: 2, bbox: None }, PageSpan { page: 3, bbox: None }],
+        )];
+
+        populate_page_span_bboxes(&mut chunks, &structure);
+
+        assert_eq!(
+            chunks[0].metadata.node_ids,
+            vec!["node-multi".to_string()],
+            "a node spanning multiple pages must contribute its id once, not once per page"
+        );
+    }
+
+    #[test]
+    fn should_populate_node_id_even_when_the_matching_node_has_no_bbox() {
+        let structure = DocumentStructure {
+            nodes: vec![body_node_with_id(
+                "node-no-bbox",
+                "Hello world, this is page one.",
+                1,
+                None,
+            )],
+            source_format: None,
+            relationships: Vec::new(),
+            node_types: Vec::new(),
+        };
+        let mut chunks = vec![chunk_with_spans(
+            "Hello world, this is page one.",
+            vec![PageSpan { page: 1, bbox: None }],
+        )];
+
+        populate_page_span_bboxes(&mut chunks, &structure);
+
+        assert_eq!(chunks[0].metadata.page_spans[0].bbox, None);
+        assert_eq!(chunks[0].metadata.node_ids, vec!["node-no-bbox".to_string()]);
     }
 }
