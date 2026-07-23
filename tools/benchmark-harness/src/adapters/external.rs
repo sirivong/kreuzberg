@@ -4,7 +4,10 @@ use crate::{
     types::{BatchCapability, BatchEntryPoint, BatchTimingScope},
 };
 use std::time::Duration;
-use std::{env, path::PathBuf};
+use std::{
+    env,
+    path::{Path, PathBuf},
+};
 
 use super::ocr_flag;
 
@@ -23,6 +26,9 @@ const PYTHON_TIMEOUT_MARGIN_SECS: u64 = 30;
 
 /// Python-side extraction timeout passed via `--timeout=N` CLI arg.
 const PYTHON_EXTRACTION_TIMEOUT_SECS: u64 = PERSISTENT_MAX_TIMEOUT_SECS - PYTHON_TIMEOUT_MARGIN_SECS;
+const LITEPARSE_BINARY: &str = "lit";
+const LITEPARSE_VERSION_PREFIX: &str = "lit ";
+const LITEPARSE_REQUIRED_BATCH_OPTIONS: [&str; 3] = ["--format", "--no-ocr", "--num-workers"];
 
 /// Helper function to define supported file types for each framework
 ///
@@ -161,9 +167,10 @@ pub fn create_markitdown_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter>
 /// - Batch mode: `lit batch-parse <input_dir> <output_dir> --format text|markdown`
 /// - Both plaintext and markdown output formats
 pub fn create_liteparse_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
-    which::which("lit").map_err(|_| {
+    let liteparse_command = which::which(LITEPARSE_BINARY).map_err(|_| {
         crate::Error::Config("lit (liteparse) not found. Install with: cargo install liteparse".to_string())
     })?;
+    verify_liteparse_cli(&liteparse_command)?;
 
     let script_path = get_script_path("liteparse_extract.sh")?;
     let command = PathBuf::from("bash");
@@ -185,7 +192,54 @@ pub fn create_liteparse_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> 
     )
     .with_configured_ocr(ocr_enabled)
     .with_max_timeout(Duration::from_secs(PERSISTENT_MAX_TIMEOUT_SECS))
+    .with_native_batch_command(liteparse_command)
     .with_format_aware(true))
+}
+
+fn verify_liteparse_cli(command: &Path) -> Result<()> {
+    let version = std::process::Command::new(command)
+        .arg("--version")
+        .output()
+        .map_err(|error| crate::Error::Config(format!("failed to run '{} --version': {error}", command.display())))?;
+    let version_text = String::from_utf8_lossy(&version.stdout);
+    let valid_version = version.status.success()
+        && version_text
+            .lines()
+            .next()
+            .is_some_and(|line| line.trim().starts_with(LITEPARSE_VERSION_PREFIX));
+    if !valid_version {
+        return Err(crate::Error::Config(format!(
+            "'{}' is not the LiteParse CLI: expected a successful 'lit <version>' identity probe",
+            command.display()
+        )));
+    }
+
+    let batch_help = std::process::Command::new(command)
+        .args(["batch-parse", "--help"])
+        .output()
+        .map_err(|error| {
+            crate::Error::Config(format!(
+                "failed to probe LiteParse native batch capability at '{}': {error}",
+                command.display()
+            ))
+        })?;
+    let help_text = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&batch_help.stdout),
+        String::from_utf8_lossy(&batch_help.stderr)
+    );
+    if !batch_help.status.success()
+        || LITEPARSE_REQUIRED_BATCH_OPTIONS
+            .iter()
+            .any(|required| !help_text.contains(required))
+    {
+        return Err(crate::Error::Config(format!(
+            "LiteParse CLI '{}' does not expose the required native batch-parse interface",
+            command.display()
+        )));
+    }
+
+    Ok(())
 }
 
 /// Helper function to get the path to a wrapper script
@@ -506,6 +560,73 @@ pub fn create_mineru_adapter(ocr_enabled: bool) -> Result<SubprocessAdapter> {
 mod tests {
     use super::*;
     use crate::adapter::FrameworkAdapter;
+
+    #[cfg(unix)]
+    fn fake_liteparse(script_body: &str) -> (tempfile::TempDir, PathBuf) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp = tempfile::tempdir().expect("temporary directory");
+        let command = temp.path().join("lit");
+        std::fs::write(&command, format!("#!/bin/sh\n{script_body}\n")).expect("write fake LiteParse CLI");
+        let mut permissions = std::fs::metadata(&command).expect("fake CLI metadata").permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&command, permissions).expect("make fake CLI executable");
+        (temp, command)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn liteparse_probe_requires_identity_and_native_batch_options() {
+        let (_temp, command) = fake_liteparse(
+            r#"
+if [ "$1" = "--version" ]; then
+  echo "lit 2.8.0"
+  exit 0
+fi
+if [ "$1" = "batch-parse" ] && [ "$2" = "--help" ]; then
+  echo "--format --no-ocr --num-workers"
+  exit 0
+fi
+exit 2
+"#,
+        );
+
+        assert!(verify_liteparse_cli(&command).is_ok());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn liteparse_probe_rejects_version_only_cli() {
+        let (_temp, command) = fake_liteparse(
+            r#"
+if [ "$1" = "--version" ]; then
+  echo "lit 2.8.0"
+  exit 0
+fi
+exit 2
+"#,
+        );
+
+        let error = verify_liteparse_cli(&command).expect_err("batch capability must be verified");
+        assert!(error.to_string().contains("native batch-parse interface"));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn liteparse_probe_rejects_unrelated_lit_binary() {
+        let (_temp, command) = fake_liteparse(
+            r#"
+if [ "$1" = "--version" ]; then
+  echo "literal-tool 1.0.0"
+  exit 0
+fi
+exit 2
+"#,
+        );
+
+        let error = verify_liteparse_cli(&command).expect_err("identity must be verified");
+        assert!(error.to_string().contains("not the LiteParse CLI"));
+    }
 
     #[test]
     fn docling_batch_wrapper_conformance_runs_with_cargo_tests() {

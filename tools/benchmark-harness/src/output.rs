@@ -4,7 +4,7 @@
 //! in JSON format.
 
 use crate::stats::percentile_r7;
-use crate::types::{BenchmarkResult, ErrorKind};
+use crate::types::{BenchmarkResult, ErrorKind, successful_performance_samples};
 use crate::{Error, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -76,6 +76,9 @@ pub struct FrameworkExtensionStats {
     pub count: usize,
     /// Number of successful extractions
     pub successful: usize,
+    /// Number of independent process samples used for duration and RSS.
+    #[serde(default)]
+    pub performance_samples: usize,
     /// Number of framework-side extraction errors (not our fault)
     pub framework_errors: usize,
     /// Number of harness-side errors (potentially our fault)
@@ -217,19 +220,20 @@ fn calculate_framework_stats(results: &[&BenchmarkResult]) -> FrameworkExtension
         }
     }
 
-    let successful_results: Vec<&&BenchmarkResult> = results.iter().filter(|r| r.success).collect();
+    let successful_results: Vec<&BenchmarkResult> = results.iter().copied().filter(|result| result.success).collect();
+    let performance_results = successful_performance_samples(results.iter().copied());
 
-    let avg_duration_ms = if !successful_results.is_empty() {
-        successful_results
+    let avg_duration_ms = if !performance_results.is_empty() {
+        performance_results
             .iter()
             .map(|r| r.duration.as_secs_f64() * 1000.0)
             .sum::<f64>()
-            / successful_results.len() as f64
+            / performance_results.len() as f64
     } else {
         0.0
     };
 
-    let mut durations: Vec<f64> = successful_results
+    let mut durations: Vec<f64> = performance_results
         .iter()
         .map(|r| r.duration.as_secs_f64() * 1000.0)
         .collect();
@@ -272,10 +276,10 @@ fn calculate_framework_stats(results: &[&BenchmarkResult]) -> FrameworkExtension
         None
     };
 
-    // Batch adapters store one positive aggregate-throughput anchor and zero
-    // on sibling per-file rows. Average only reported measurements so the
-    // anchor is not divided by successful batch cardinality. ~keep
-    let reported_throughputs: Vec<f64> = successful_results
+    // New batch rows repeat one process measurement across sibling documents
+    // and are deduplicated above; legacy rows expose one positive throughput
+    // anchor. Average only reported measurements in either representation. ~keep
+    let reported_throughputs: Vec<f64> = performance_results
         .iter()
         .map(|r| r.metrics.throughput_bytes_per_sec / 1_000_000.0)
         .filter(|throughput| throughput.is_finite() && *throughput > 0.0)
@@ -286,12 +290,12 @@ fn calculate_framework_stats(results: &[&BenchmarkResult]) -> FrameworkExtension
         0.0
     };
 
-    let avg_peak_memory_mb = if !successful_results.is_empty() {
-        successful_results
+    let avg_peak_memory_mb = if !performance_results.is_empty() {
+        performance_results
             .iter()
             .map(|r| r.metrics.peak_memory_bytes as f64 / 1_000_000.0)
             .sum::<f64>()
-            / successful_results.len() as f64
+            / performance_results.len() as f64
     } else {
         0.0
     };
@@ -333,6 +337,7 @@ fn calculate_framework_stats(results: &[&BenchmarkResult]) -> FrameworkExtension
     FrameworkExtensionStats {
         count,
         successful,
+        performance_samples: performance_results.len(),
         framework_errors,
         harness_errors,
         timeouts,
@@ -621,14 +626,28 @@ mod tests {
 
     #[test]
     fn test_framework_stats_does_not_divide_batch_throughput_anchor_by_cardinality() {
-        let anchor = create_benchmark_result("framework1", true, 100, None, 3_000_000.0, 10_000_000);
-        let sibling1 = create_benchmark_result("framework1", true, 100, None, 0.0, 10_000_000);
-        let sibling2 = create_benchmark_result("framework1", true, 100, None, 0.0, 10_000_000);
+        let capability = crate::types::BatchCapability {
+            entry_point: crate::types::BatchEntryPoint::DoclingConvertAll,
+            timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+            per_item_timing: false,
+        };
+        let mut anchor = create_benchmark_result("framework1", true, 100, Some(10), 3_000_000.0, 10_000_000);
+        let mut sibling1 = create_benchmark_result("framework1", true, 900, Some(20), 0.0, 90_000_000);
+        let mut sibling2 = create_benchmark_result("framework1", true, 1_700, Some(30), 0.0, 170_000_000);
+        for (index, result) in [&mut anchor, &mut sibling1, &mut sibling2].into_iter().enumerate() {
+            result.framework_capabilities.batch_support = true;
+            result.framework_capabilities.batch_capability = Some(capability);
+            result.framework_capabilities.batch_performance_sample = Some(index == 0);
+        }
         let results = vec![&anchor, &sibling1, &sibling2];
 
         let stats = calculate_framework_stats(&results);
 
+        assert_eq!(stats.performance_samples, 1);
         assert_eq!(stats.avg_throughput_mbps, 3.0);
+        assert_eq!(stats.avg_duration_ms, 100.0);
+        assert_eq!(stats.avg_peak_memory_mb, 10.0);
+        assert_eq!(stats.avg_extraction_duration_ms, Some(20.0));
     }
 
     #[test]

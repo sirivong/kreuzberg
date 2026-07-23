@@ -14,6 +14,7 @@ use crate::{Error, Result};
 use async_trait::async_trait;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 #[cfg(unix)]
 use tokio::io::AsyncWriteExt;
@@ -281,6 +282,10 @@ pub struct SubprocessAdapter {
     configured_ocr_status: Option<OcrStatus>,
     /// Worker limit passed to native batch implementations.
     batch_workers: usize,
+    /// Resolved executable used by a specialized native batch path.
+    native_batch_command: Option<PathBuf>,
+    /// Per-adapter sequence used to distinguish repeated batch invocations.
+    batch_sequence: AtomicU64,
     /// Explicit `--max-threads` budget passed only to Xberg's native batch CLI.
     ///
     /// When unset, Xberg receives [`Self::batch_workers`] to preserve the
@@ -589,6 +594,8 @@ impl SubprocessAdapter {
             single_file_args: None,
             configured_ocr_status: None,
             batch_workers: 1,
+            native_batch_command: None,
+            batch_sequence: AtomicU64::new(0),
             xberg_max_threads: None,
         }
     }
@@ -627,6 +634,8 @@ impl SubprocessAdapter {
             single_file_args: None,
             configured_ocr_status: None,
             batch_workers: 1,
+            native_batch_command: None,
+            batch_sequence: AtomicU64::new(0),
             xberg_max_threads: None,
         }
     }
@@ -676,6 +685,11 @@ impl SubprocessAdapter {
         self
     }
 
+    pub(crate) fn with_native_batch_command(mut self, command: PathBuf) -> Self {
+        self.native_batch_command = Some(command);
+        self
+    }
+
     /// Set Xberg's configured thread budget independently of batch workers.
     pub fn with_xberg_max_threads(mut self, max_threads: usize) -> Self {
         self.xberg_max_threads = Some(max_threads.max(1));
@@ -684,6 +698,71 @@ impl SubprocessAdapter {
 
     fn effective_xberg_max_threads(&self) -> usize {
         self.xberg_max_threads.unwrap_or(self.batch_workers)
+    }
+
+    fn liteparse_batch_command(&self) -> &Path {
+        self.native_batch_command.as_deref().unwrap_or_else(|| Path::new("lit"))
+    }
+
+    fn liteparse_batch_args(
+        &self,
+        input_dir: impl Into<String>,
+        output_dir: impl Into<String>,
+        output_format: impl Into<String>,
+        disable_ocr: bool,
+    ) -> Vec<String> {
+        let mut args = vec![
+            "batch-parse".to_string(),
+            input_dir.into(),
+            output_dir.into(),
+            "--format".to_string(),
+            output_format.into(),
+            "--num-workers".to_string(),
+            self.batch_workers.to_string(),
+            "--quiet".to_string(),
+        ];
+        if disable_ocr {
+            args.push("--no-ocr".to_string());
+        }
+        args
+    }
+
+    fn batch_sample_id(&self, file_paths: &[&Path], force_ocr: bool, output_format: OutputFormat) -> String {
+        let mut hasher = blake3::Hasher::new();
+        let sequence = self.batch_sequence.fetch_add(1, Ordering::Relaxed);
+        let invocation_time = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_nanos();
+        hasher.update(&std::process::id().to_le_bytes());
+        hasher.update(&(std::ptr::from_ref(self).addr() as u64).to_le_bytes());
+        hasher.update(&sequence.to_le_bytes());
+        hasher.update(&invocation_time.to_le_bytes());
+        hasher.update(&(self.batch_workers as u64).to_le_bytes());
+        hasher.update(&(self.effective_xberg_max_threads() as u64).to_le_bytes());
+        let output_format = output_format.to_string();
+        let ocr_mode: &[u8] = match (force_ocr, self.configured_ocr_status) {
+            (true, _) => b"force-ocr",
+            (false, Some(OcrStatus::Used)) => b"configured-ocr-enabled",
+            (false, Some(OcrStatus::NotUsed)) => b"configured-ocr-disabled",
+            (false, _) => b"framework-reported-ocr",
+        };
+        let entry_point: &[u8] = match self.batch_capability.map(|capability| capability.entry_point) {
+            Some(BatchEntryPoint::XbergCliExtractBatch) => b"xberg-cli-extract-batch",
+            Some(BatchEntryPoint::DoclingConvertAll) => b"docling-convert-all",
+            Some(BatchEntryPoint::LiteparseBatchParse) => b"liteparse-batch-parse",
+            None => b"unverified",
+        };
+        for value in [self.name.as_bytes(), entry_point, output_format.as_bytes(), ocr_mode] {
+            hasher.update(&(value.len() as u64).to_le_bytes());
+            hasher.update(value);
+        }
+        for path in file_paths {
+            let value = path.as_os_str().as_encoded_bytes();
+            hasher.update(&(value.len() as u64).to_le_bytes());
+            hasher.update(value);
+        }
+        hasher.finalize().to_hex().to_string()
     }
 
     /// Get the effective timeout, clamped by the adapter's max_timeout if set.
@@ -900,19 +979,16 @@ impl SubprocessAdapter {
             OutputFormat::Markdown => "markdown",
             OutputFormat::Plaintext => "text",
         };
+        let disable_ocr = !force_ocr && self.args.iter().any(|arg| arg == "--no-ocr");
+        let args = self.liteparse_batch_args(
+            input_dir.to_string_lossy().into_owned(),
+            output_dir.to_string_lossy().into_owned(),
+            format_arg,
+            disable_ocr,
+        );
 
-        let mut cmd = Self::measured_command("lit");
-        cmd.arg("batch-parse")
-            .arg(&input_dir)
-            .arg(&output_dir)
-            .arg("--format")
-            .arg(format_arg)
-            .arg("--num-workers")
-            .arg(self.batch_workers.to_string())
-            .arg("--quiet");
-        if !force_ocr && self.args.iter().any(|arg| arg == "--no-ocr") {
-            cmd.arg("--no-ocr");
-        }
+        let mut cmd = Self::measured_command(self.liteparse_batch_command());
+        cmd.args(args);
 
         Self::configure_measured_stdin(&mut cmd);
         cmd.stdout(Stdio::piped());
@@ -1004,6 +1080,7 @@ impl SubprocessAdapter {
             ocr_support: Self::framework_supports_ocr(&self.name),
             batch_support: self.batch_capability.is_some(),
             batch_capability: self.batch_capability,
+            batch_performance_sample: Some(true),
             ..Default::default()
         };
 
@@ -1164,9 +1241,16 @@ impl FrameworkAdapter for SubprocessAdapter {
             mode == crate::config::BenchmarkMode::Batch
                 && capability.entry_point == crate::types::BatchEntryPoint::LiteparseBatchParse
         }) {
-            return which::which("lit")
-                .ok()
-                .map(|command| crate::provenance::ExecutableProvenance::from_invocation(&command, &[]));
+            let args = self.liteparse_batch_args(
+                "<input-dir>",
+                "<output-dir>",
+                "<output-format>",
+                self.args.iter().any(|arg| arg == "--no-ocr"),
+            );
+            return Some(crate::provenance::ExecutableProvenance::from_invocation(
+                self.liteparse_batch_command(),
+                &args,
+            ));
         }
         Some(crate::provenance::ExecutableProvenance::from_invocation(
             &self.command,
@@ -1301,6 +1385,7 @@ impl FrameworkAdapter for SubprocessAdapter {
             ocr_support: Self::framework_supports_ocr(&self.name),
             batch_support: self.batch_capability.is_some(),
             batch_capability: self.batch_capability,
+            batch_performance_sample: Some(true),
             ..Default::default()
         };
 
@@ -1352,7 +1437,9 @@ impl FrameworkAdapter for SubprocessAdapter {
                 .envs(self.env.iter().map(|(key, value)| (key, value)))
                 .output(),
             Some(crate::types::BatchEntryPoint::LiteparseBatchParse) => {
-                std::process::Command::new("lit").arg("--version").output()
+                std::process::Command::new(self.liteparse_batch_command())
+                    .arg("--version")
+                    .output()
             }
             _ => std::process::Command::new(&self.command).arg("--version").output(),
         };
@@ -1398,6 +1485,7 @@ impl FrameworkAdapter for SubprocessAdapter {
                     .to_string(),
             ));
         }
+        let batch_sample_id = self.batch_sample_id(file_paths, batch_force_ocr, output_format);
 
         let timeout = self
             .effective_timeout(timeout)
@@ -1549,6 +1637,7 @@ impl FrameworkAdapter for SubprocessAdapter {
             ocr_support: Self::framework_supports_ocr(&self.name),
             batch_support: self.batch_capability.is_some(),
             batch_capability: self.batch_capability,
+            batch_sample_id: Some(batch_sample_id),
             ..Default::default()
         };
 
@@ -1569,6 +1658,8 @@ impl FrameworkAdapter for SubprocessAdapter {
                     Some("Missing validation for batch item".to_string()),
                     ErrorKind::HarnessError,
                 ));
+                let mut item_capabilities = framework_capabilities.clone();
+                item_capabilities.batch_performance_sample = Some(throughput_anchor == Some(idx));
 
                 BenchmarkResult {
                     framework: self.name.clone(),
@@ -1586,14 +1677,10 @@ impl FrameworkAdapter for SubprocessAdapter {
                         peak_memory_bytes: resource_stats.peak_memory_bytes,
                         peak_memory_delta_bytes: resource_stats.peak_memory_delta_bytes,
                         avg_cpu_percent: resource_stats.avg_cpu_percent,
-                        // The per-item schema has no batch-level metrics slot.
-                        // Store aggregate throughput once so downstream filters
-                        // recover it without multiplying it by batch cardinality. ~keep
-                        throughput_bytes_per_sec: if throughput_anchor == Some(idx) {
-                            batch_throughput
-                        } else {
-                            0.0
-                        },
+                        // Every sibling carries the same process sample so each
+                        // reporting bucket can recover it; aggregation deduplicates
+                        // by `batch_sample_id`. ~keep
+                        throughput_bytes_per_sec: batch_throughput,
                         p50_memory_bytes: resource_stats.p50_memory_bytes,
                         p95_memory_bytes: resource_stats.p95_memory_bytes,
                         p99_memory_bytes: resource_stats.p99_memory_bytes,
@@ -1603,7 +1690,7 @@ impl FrameworkAdapter for SubprocessAdapter {
                     statistics: None,
                     cold_start_duration: None,
                     file_extension,
-                    framework_capabilities: framework_capabilities.clone(),
+                    framework_capabilities: item_capabilities,
                     pdf_metadata: None,
                     ocr_status,
                     extracted_text: batch_contents.get(idx).cloned().flatten(),
@@ -1990,6 +2077,72 @@ mod tests {
     }
 
     #[test]
+    fn liteparse_batch_provenance_hashes_normalized_semantic_arguments() {
+        let command = PathBuf::from("/opt/liteparse/bin/lit");
+        let adapter = SubprocessAdapter::with_batch_capability(
+            "liteparse",
+            "bash",
+            vec!["liteparse_extract.sh".to_string(), "--no-ocr".to_string()],
+            vec![],
+            vec!["pdf".to_string()],
+            BatchCapability {
+                entry_point: BatchEntryPoint::LiteparseBatchParse,
+                timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+                per_item_timing: false,
+            },
+        )
+        .with_batch_workers(4)
+        .with_native_batch_command(command.clone());
+        let expected_args = vec![
+            "batch-parse".to_string(),
+            "<input-dir>".to_string(),
+            "<output-dir>".to_string(),
+            "--format".to_string(),
+            "<output-format>".to_string(),
+            "--num-workers".to_string(),
+            "4".to_string(),
+            "--quiet".to_string(),
+            "--no-ocr".to_string(),
+        ];
+
+        assert_eq!(
+            adapter.liteparse_batch_args("<input-dir>", "<output-dir>", "<output-format>", true),
+            expected_args
+        );
+        assert_eq!(
+            adapter.executable_provenance_for_mode(crate::config::BenchmarkMode::Batch),
+            Some(crate::provenance::ExecutableProvenance::from_invocation(
+                &command,
+                &expected_args
+            ))
+        );
+    }
+
+    #[test]
+    fn repeated_identical_batch_invocations_receive_distinct_sample_ids() {
+        let adapter = SubprocessAdapter::with_batch_capability(
+            "docling",
+            "python",
+            vec![],
+            vec![],
+            vec!["pdf".to_string()],
+            BatchCapability {
+                entry_point: BatchEntryPoint::DoclingConvertAll,
+                timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+                per_item_timing: false,
+            },
+        )
+        .with_batch_workers(4);
+        let input = Path::new("/tmp/identical.pdf");
+        let paths = [input];
+
+        let first = adapter.batch_sample_id(&paths, false, OutputFormat::Markdown);
+        let second = adapter.batch_sample_id(&paths, false, OutputFormat::Markdown);
+
+        assert_ne!(first, second);
+    }
+
+    #[test]
     fn generic_batch_builder_preserves_separate_single_file_command() {
         let adapter = SubprocessAdapter::with_batch_capability(
             "docling",
@@ -2364,6 +2517,33 @@ mod tests {
     }
 
     #[cfg(unix)]
+    #[tokio::test]
+    async fn batch_capable_single_zero_byte_result_is_marked_as_a_process_sample() {
+        let adapter = SubprocessAdapter::with_batch_capability(
+            "docling",
+            "sh",
+            vec!["-c".to_string(), "printf '{\"content\":\"ok\"}'".to_string()],
+            vec![],
+            vec!["pdf".to_string()],
+            BatchCapability {
+                entry_point: BatchEntryPoint::DoclingConvertAll,
+                timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+                per_item_timing: false,
+            },
+        );
+        let input = tempfile::NamedTempFile::new().unwrap();
+
+        let result = adapter
+            .extract(input.path(), Duration::from_secs(1), false, OutputFormat::Markdown)
+            .await
+            .unwrap();
+
+        assert_eq!(result.metrics.throughput_bytes_per_sec, 0.0);
+        assert_eq!(result.framework_capabilities.batch_performance_sample, Some(true));
+        assert!(result.is_performance_sample());
+    }
+
+    #[cfg(unix)]
     #[tokio::test(flavor = "current_thread")]
     async fn measured_command_drains_output_larger_than_pipe_capacity() {
         const CONTENT_BYTES: usize = 300_000;
@@ -2459,13 +2639,15 @@ mod tests {
         assert_eq!(results[1].ocr_status, OcrStatus::Used);
         assert_eq!(results[0].extracted_text.as_deref(), Some("one"));
         assert_eq!(results[1].extracted_text.as_deref(), Some("two"));
-        let total_throughput = results
-            .iter()
-            .map(|result| result.metrics.throughput_bytes_per_sec)
-            .sum::<f64>();
-        assert_eq!(total_throughput, 200.0);
         assert_eq!(results[0].metrics.throughput_bytes_per_sec, 200.0);
-        assert_eq!(results[1].metrics.throughput_bytes_per_sec, 0.0);
+        assert_eq!(results[1].metrics.throughput_bytes_per_sec, 200.0);
+        assert_eq!(results[0].framework_capabilities.batch_performance_sample, Some(true));
+        assert_eq!(results[1].framework_capabilities.batch_performance_sample, Some(false));
+        assert_eq!(
+            results[0].framework_capabilities.batch_sample_id,
+            results[1].framework_capabilities.batch_sample_id
+        );
+        assert!(results[0].framework_capabilities.batch_sample_id.is_some());
     }
 
     #[cfg(unix)]

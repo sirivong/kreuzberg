@@ -278,6 +278,36 @@ impl BenchmarkResult {
     pub fn framework_key(&self, execution_mode: &str) -> String {
         format!("{}:{}:{}", self.framework, self.output_format, execution_mode)
     }
+
+    /// Whether this row owns the aggregate process metrics for its native batch.
+    ///
+    /// Native batch adapters mark exactly one process-metric sample. Single-file
+    /// results omit the marker and always own their metrics.
+    pub(crate) fn is_performance_sample(&self) -> bool {
+        self.framework_capabilities.batch_performance_sample.unwrap_or_else(|| {
+            self.framework_capabilities.batch_capability.is_none() || self.metrics.throughput_bytes_per_sec > 0.0
+        })
+    }
+}
+
+pub(crate) fn successful_performance_samples<'a>(
+    results: impl IntoIterator<Item = &'a BenchmarkResult>,
+) -> Vec<&'a BenchmarkResult> {
+    let mut batch_samples = std::collections::HashSet::new();
+    let mut samples = Vec::new();
+    for result in results {
+        if !result.success {
+            continue;
+        }
+        if let Some(sample_id) = result.framework_capabilities.batch_sample_id.as_deref() {
+            if batch_samples.insert(sample_id) {
+                samples.push(result);
+            }
+        } else if result.is_performance_sample() {
+            samples.push(result);
+        }
+    }
+    samples
 }
 
 /// Performance metrics collected during extraction
@@ -362,6 +392,17 @@ pub struct FrameworkCapabilities {
     /// Verified batch entry point and timing semantics used for this result.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub batch_capability: Option<BatchCapability>,
+
+    /// Whether this row owns its native batch's process metrics.
+    ///
+    /// `None` denotes a single-file measurement. Native batches set exactly
+    /// one row to `Some(true)` and all sibling rows to `Some(false)`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub batch_performance_sample: Option<bool>,
+
+    /// Opaque identity shared by every document row from one batch process.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub batch_sample_id: Option<String>,
 
     /// Whether framework supports async extraction
     #[serde(default)]

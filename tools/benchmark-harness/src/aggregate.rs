@@ -34,7 +34,7 @@
 //!   not encoded in the name, so the key must carry it explicitly.
 
 use crate::stats::{percentile_r7, sanitize_f64};
-use crate::types::{BenchmarkResult, DiskSizeInfo, ErrorKind, OutputFormat};
+use crate::types::{BenchmarkResult, DiskSizeInfo, ErrorKind, OutputFormat, successful_performance_samples};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -186,6 +186,9 @@ pub struct FrameworkModeAggregation {
     pub mode: String,
     /// Cold start duration statistics (if available)
     pub cold_start: Option<DurationPercentiles>,
+    /// Process metrics deduplicated across all file-type and OCR buckets.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub overall_performance: Option<PerformancePercentiles>,
     /// Results grouped by file type
     pub by_file_type: HashMap<String, FileTypeAggregation>,
 }
@@ -204,8 +207,13 @@ pub struct FileTypeAggregation {
 /// Performance percentiles for a group of results
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PerformancePercentiles {
-    /// Number of successful samples used for percentile calculations
+    /// Number of successful document samples used for quality calculations.
     pub successful_sample_count: usize,
+    /// Number of process-level samples used for duration, throughput, and RSS.
+    ///
+    /// Native batches contribute one sample regardless of document cardinality.
+    #[serde(default)]
+    pub performance_sample_count: usize,
     /// Total number of samples in this group (including failed)
     pub total_sample_count: usize,
     /// Number of framework-side extraction errors (not our fault)
@@ -364,6 +372,7 @@ pub fn aggregate_new_format(results: &[BenchmarkResult]) -> NewConsolidatedResul
 
         let all_results: Vec<&BenchmarkResult> = file_type_results.values().flat_map(|v| v.iter().copied()).collect();
         let cold_start = aggregate_cold_starts(&all_results);
+        let overall_performance = Some(calculate_percentiles(&all_results));
 
         let mut by_file_type = HashMap::new();
         for (file_type, results_for_type) in file_type_results {
@@ -385,6 +394,7 @@ pub fn aggregate_new_format(results: &[BenchmarkResult]) -> NewConsolidatedResul
                 output_format,
                 mode: mode.to_string(),
                 cold_start,
+                overall_performance,
                 by_file_type,
             },
         );
@@ -533,20 +543,21 @@ fn aggregate_by_ocr_status(
 /// Success rate is calculated from all results.
 fn calculate_percentiles(results: &[&BenchmarkResult]) -> PerformancePercentiles {
     let successful: Vec<&BenchmarkResult> = results.iter().filter(|r| r.success).copied().collect();
+    let performance_samples = successful_performance_samples(results.iter().copied());
 
-    let mut durations: Vec<f64> = successful
+    let mut durations: Vec<f64> = performance_samples
         .iter()
         .map(|r| r.duration.as_secs_f64() * 1000.0)
         .filter(|&v| !v.is_nan() && v.is_finite())
         .collect();
 
-    let mut throughputs: Vec<f64> = successful
+    let mut throughputs: Vec<f64> = performance_samples
         .iter()
         .map(|r| r.metrics.throughput_bytes_per_sec / 1_000_000.0)
         .filter(|&v| v > 0.0 && v.is_finite())
         .collect();
 
-    let mut memories: Vec<f64> = successful
+    let mut memories: Vec<f64> = performance_samples
         .iter()
         .map(|r| r.metrics.peak_memory_bytes as f64 / 1_000_000.0)
         .filter(|&v| !v.is_nan() && v.is_finite())
@@ -687,6 +698,7 @@ fn calculate_percentiles(results: &[&BenchmarkResult]) -> PerformancePercentiles
 
     PerformancePercentiles {
         successful_sample_count: successful.len(),
+        performance_sample_count: performance_samples.len(),
         total_sample_count: results.len(),
         framework_errors,
         harness_errors,
@@ -917,36 +929,24 @@ fn build_shared_corpus_quality_ranking(
 
 /// Build cross-framework comparison rankings from aggregated data
 ///
-/// Metrics are weighted by successful_sample_count so that file types with more
-/// samples (e.g., 93 PDFs) dominate the ranking over file types with fewer samples
-/// (e.g., 1 BMP). This prevents frameworks that handle more file types or do OCR
-/// from being unfairly penalized in the overall ranking.
+/// Uses the framework-mode-wide process aggregation so a native batch contributes
+/// once even when its document rows span several file-type or OCR buckets.
 fn build_comparison(by_framework_mode: &HashMap<String, FrameworkModeAggregation>) -> ComparisonData {
     let mut metrics: Vec<(String, f64, f64, OutputFormat)> = Vec::new();
 
     for (key, agg) in by_framework_mode {
-        let mut throughputs: Vec<(f64, usize)> = Vec::new();
-        let mut memories: Vec<(f64, usize)> = Vec::new();
-
-        for ft in agg.by_file_type.values() {
-            for perf in [&ft.no_ocr, &ft.with_ocr].into_iter().flatten() {
-                if perf.successful_sample_count == 0 {
-                    continue;
-                }
-                let weight = perf.successful_sample_count;
-                throughputs.push((perf.throughput.p50, weight));
-                memories.push((perf.memory.p50, weight));
-            }
-        }
-
-        if throughputs.is_empty() {
+        let Some(performance) = agg
+            .overall_performance
+            .as_ref()
+            .filter(|performance| performance.performance_sample_count > 0)
+        else {
             continue;
-        }
+        };
 
         metrics.push((
             key.clone(),
-            weighted_avg(&throughputs),
-            weighted_avg(&memories),
+            performance.throughput.p50,
+            performance.memory.p50,
             agg.output_format,
         ));
     }
@@ -1310,6 +1310,159 @@ mod tests {
         assert!(percentiles.duration.p50 > 0.0);
         assert!(percentiles.throughput.p50 > 0.0);
         assert!(percentiles.memory.p50 > 0.0);
+    }
+
+    #[test]
+    fn batch_process_metrics_are_sampled_once_while_item_durations_are_preserved() {
+        let capability = crate::types::BatchCapability {
+            entry_point: crate::types::BatchEntryPoint::XbergCliExtractBatch,
+            timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+            per_item_timing: true,
+        };
+        let mut results = [
+            create_test_result("xberg-batch", "pdf", OcrStatus::NotUsed, 100, 3_000_000.0, 10_000_000),
+            create_test_result("xberg-batch", "pdf", OcrStatus::NotUsed, 900, 0.0, 90_000_000),
+            create_test_result("xberg-batch", "pdf", OcrStatus::NotUsed, 1_700, 0.0, 170_000_000),
+        ];
+        for (index, result) in results.iter_mut().enumerate() {
+            result.framework_capabilities.batch_support = true;
+            result.framework_capabilities.batch_capability = Some(capability);
+            result.framework_capabilities.batch_performance_sample = Some(index == 0);
+            result.extraction_duration = Some(Duration::from_millis((index as u64 + 1) * 10));
+        }
+
+        let refs: Vec<&BenchmarkResult> = results.iter().collect();
+        let percentiles = calculate_percentiles(&refs);
+
+        assert_eq!(percentiles.successful_sample_count, 3);
+        assert_eq!(percentiles.performance_sample_count, 1);
+        assert_eq!(percentiles.duration.p50, 100.0);
+        assert_eq!(percentiles.memory.p50, 10.0);
+        assert_eq!(percentiles.throughput.p50, 3.0);
+        assert_eq!(
+            percentiles.extraction_duration.as_ref().map(|values| values.p50),
+            Some(20.0)
+        );
+    }
+
+    #[test]
+    fn mixed_batch_buckets_retain_one_process_sample_independent_of_input_order() {
+        let build_results = |reversed: bool| {
+            let mut results = vec![
+                create_test_result("xberg-batch", "pdf", OcrStatus::NotUsed, 100, 3_000_000.0, 10_000_000),
+                create_test_result("xberg-batch", "docx", OcrStatus::Used, 100, 3_000_000.0, 10_000_000),
+            ];
+            if reversed {
+                results.reverse();
+            }
+            let capability = crate::types::BatchCapability {
+                entry_point: crate::types::BatchEntryPoint::XbergCliExtractBatch,
+                timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+                per_item_timing: true,
+            };
+            for (index, result) in results.iter_mut().enumerate() {
+                result.framework_capabilities.batch_support = true;
+                result.framework_capabilities.batch_capability = Some(capability);
+                result.framework_capabilities.batch_performance_sample = Some(index == 0);
+                result.framework_capabilities.batch_sample_id = Some(format!("mixed-batch-{reversed}"));
+            }
+            results
+        };
+
+        for reversed in [false, true] {
+            let aggregated = aggregate_new_format(&build_results(reversed));
+            let framework = &aggregated.by_framework_mode["xberg:markdown:batch"];
+            let overall = framework.overall_performance.as_ref().expect("overall process metrics");
+            let pdf = framework.by_file_type["pdf"]
+                .no_ocr
+                .as_ref()
+                .expect("PDF no-OCR metrics");
+            let docx = framework.by_file_type["docx"]
+                .with_ocr
+                .as_ref()
+                .expect("DOCX OCR metrics");
+
+            assert_eq!(overall.performance_sample_count, 1);
+            assert_eq!(pdf.performance_sample_count, 1);
+            assert_eq!(docx.performance_sample_count, 1);
+            assert_eq!(overall.throughput.p50, 3.0);
+            assert_eq!(pdf.throughput.p50, 3.0);
+            assert_eq!(docx.throughput.p50, 3.0);
+            assert_eq!(aggregated.comparison.throughput_ranking[0].value, 3.0);
+        }
+    }
+
+    #[test]
+    fn repeated_identical_semantic_batches_remain_independent_process_samples() {
+        let capability = crate::types::BatchCapability {
+            entry_point: crate::types::BatchEntryPoint::DoclingConvertAll,
+            timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+            per_item_timing: false,
+        };
+        let mut results = Vec::new();
+        for (sample_id, duration, throughput, memory) in [
+            ("invocation-1", 100, 1_000_000.0, 10_000_000),
+            ("invocation-2", 300, 3_000_000.0, 30_000_000),
+        ] {
+            for sibling in 0..2 {
+                let mut result =
+                    create_test_result("docling-batch", "pdf", OcrStatus::NotUsed, duration, throughput, memory);
+                result.framework_capabilities.batch_support = true;
+                result.framework_capabilities.batch_capability = Some(capability);
+                result.framework_capabilities.batch_performance_sample = Some(sibling == 0);
+                result.framework_capabilities.batch_sample_id = Some(sample_id.to_string());
+                results.push(result);
+            }
+        }
+
+        let aggregated = aggregate_new_format(&results);
+        let overall = aggregated.by_framework_mode["docling:markdown:batch"]
+            .overall_performance
+            .as_ref()
+            .expect("overall process metrics");
+
+        assert_eq!(overall.performance_sample_count, 2);
+        assert_eq!(overall.duration.p50, 200.0);
+        assert_eq!(overall.throughput.p50, 2.0);
+        assert_eq!(overall.memory.p50, 20.0);
+    }
+
+    #[test]
+    fn batch_capable_single_zero_throughput_is_an_explicit_process_sample() {
+        let mut result = create_test_result("docling", "pdf", OcrStatus::NotUsed, 100, 0.0, 10_000_000);
+        result.framework_capabilities.batch_support = true;
+        result.framework_capabilities.batch_capability = Some(crate::types::BatchCapability {
+            entry_point: crate::types::BatchEntryPoint::DoclingConvertAll,
+            timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+            per_item_timing: false,
+        });
+        result.framework_capabilities.batch_performance_sample = Some(true);
+
+        let percentiles = calculate_percentiles(&[&result]);
+
+        assert_eq!(percentiles.performance_sample_count, 1);
+        assert_eq!(percentiles.duration.p50, 100.0);
+        assert_eq!(percentiles.memory.p50, 10.0);
+    }
+
+    #[test]
+    fn legacy_batch_rows_fall_back_to_the_positive_throughput_anchor() {
+        let capability = crate::types::BatchCapability {
+            entry_point: crate::types::BatchEntryPoint::DoclingConvertAll,
+            timing_scope: crate::types::BatchTimingScope::ColdEndToEndSubprocess,
+            per_item_timing: false,
+        };
+        let mut anchor = create_test_result("docling", "pdf", OcrStatus::NotUsed, 100, 3_000_000.0, 10_000_000);
+        let mut sibling = create_test_result("docling", "pdf", OcrStatus::NotUsed, 100, 0.0, 10_000_000);
+        for result in [&mut anchor, &mut sibling] {
+            result.framework_capabilities.batch_support = true;
+            result.framework_capabilities.batch_capability = Some(capability);
+        }
+
+        let percentiles = calculate_percentiles(&[&anchor, &sibling]);
+
+        assert_eq!(percentiles.performance_sample_count, 1);
+        assert_eq!(percentiles.throughput.p50, 3.0);
     }
 
     #[test]
