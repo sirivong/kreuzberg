@@ -27,19 +27,28 @@ Bump/set helpers chain both automatically:
 
 ## Integrations are lockstep with core
 
-The integration packages under `integrations/` (langchain, llama-index readers +
-node-parser, crewai, txtai, surrealdb — Python; spring-ai — Java) are versioned and
-**published together with core**. `scripts/sync_integration_versions.py` sets, for each:
+The integration packages under `integrations/` are versioned and **published together
+with core** across three ecosystems:
+
+- **Python → PyPI**: langchain, llama-index (readers + node-parser), crewai, txtai, surrealdb.
+- **Java → Maven Central**: spring-ai (`io.xberg:spring-ai-xberg`).
+- **npm → npm**: n8n-nodes-xberg, langchain-xberg, llamaindex-xberg (`@xberg-io/*`).
+
+`scripts/sync_integration_versions.py` sets, for each manifest:
 
 - the package's own `version` — PEP 440 form for pyproject (`1.0.0-rc.32` → `1.0.0rc32`),
-  native form for the Maven pom (`1.0.0-rc.32`);
-- the `xberg` dependency floor (`xberg>=<core>` / `<xberg.version>`), so an integration
-  always requires the core it ships with. Naming the rc in the specifier is deliberate —
-  a bare `xberg>=1.0.0` excludes all `1.0.0rcN` pre-releases per PEP 440.
+  native form for the Maven pom and npm `package.json` (`1.0.0-rc.32`, also valid semver);
+- the `xberg` dependency pin, so an integration always requires the core it ships with:
+  - pyproject: a **floor** `xberg>=<core>` (PEP 440 form). Naming the rc is deliberate —
+    a bare `xberg>=1.0.0` excludes all `1.0.0rcN` pre-releases per PEP 440.
+  - pom: `<xberg.version>` (native form).
+  - npm `package.json`: an **exact** `@xberg-io/xberg` pin (native/semver form), matching
+    the package's own version.
 
 To add a new integration: add its manifest to `VERSION_TARGETS` (own version) and, if it
-depends on xberg, `XBERG_DEP_MANIFESTS` in `scripts/sync_integration_versions.py`. The
-llama-index dev aggregator (`integrations/python/llama-index/pyproject.toml`, version
+depends on xberg, `XBERG_DEP_MANIFESTS` in `scripts/sync_integration_versions.py`
+(npm `package.json` manifests are collected in `NPM_MANIFESTS`, which feeds both lists).
+The llama-index dev aggregator (`integrations/python/llama-index/pyproject.toml`, version
 `0.0.0`, unpublished) is dep-only — not a version target.
 
 ## Do
