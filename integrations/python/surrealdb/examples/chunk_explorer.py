@@ -18,7 +18,6 @@ from pathlib import Path
 from typing import Any
 
 from surrealdb import AsyncSurreal
-
 from surrealdb_xberg import DocumentPipeline
 
 SEPARATOR = "─" * 60
@@ -27,6 +26,11 @@ SEPARATOR = "─" * 60
 def _truncate(text: str, length: int = 120) -> str:
     text = text.replace("\n", " ").strip()
     return f"{text[:length]}..." if len(text) > length else text
+
+
+def _list_files(directory: Path) -> list[Path]:
+    """Blocking directory walk, run off-thread via asyncio.to_thread."""
+    return [p for p in directory.rglob("*") if p.is_file()]
 
 
 def _print_chunks(chunks: list[dict[str, Any]]) -> None:
@@ -108,7 +112,7 @@ async def show_siblings(pipeline: DocumentPipeline, result: dict[str, Any]) -> N
 
 async def main(directory: str) -> None:
     path = Path(directory)
-    if not path.is_dir():
+    if not await asyncio.to_thread(path.is_dir):
         print(f"Not a directory: {directory}")
         sys.exit(1)
 
@@ -119,7 +123,7 @@ async def main(directory: str) -> None:
         pipeline = DocumentPipeline(db=db, embed=False)
         await pipeline.setup_schema()
 
-        files = sorted(p for p in path.rglob("*") if p.is_file())
+        files = sorted(await asyncio.to_thread(_list_files, path))
         if not files:
             print(f"No files found in {directory}")
             sys.exit(1)
@@ -139,7 +143,7 @@ async def main(directory: str) -> None:
         last_results: list[dict[str, Any]] = []
 
         while True:
-            cmd = input("\n> ").strip()
+            cmd = (await asyncio.to_thread(input, "\n> ")).strip()
             if not cmd or cmd.lower() == "q":
                 break
 

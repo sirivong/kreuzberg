@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Any
 
 from surrealdb import AsyncSurreal
-
 from surrealdb_xberg import DocumentConnector
 
 
@@ -99,7 +98,7 @@ async def main(file_paths: list[str]) -> None:
         # --- Interactive search loop --- ~keep
         print("Enter a search query to run BM25 search, or 'q' to quit.\n")
         while True:
-            query = input("query> ").strip()
+            query = (await asyncio.to_thread(input, "query> ")).strip()
             if not query or query.lower() == "q":
                 break
 

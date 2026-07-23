@@ -17,10 +17,14 @@ import sys
 from pathlib import Path
 
 from surrealdb import AsyncSurreal
-
 from surrealdb_xberg import DocumentPipeline
 
 SEPARATOR = "─" * 60
+
+
+def _list_files(directory: Path) -> list[Path]:
+    """Recursively list files under a directory (sync; run via asyncio.to_thread)."""
+    return sorted(p for p in directory.rglob("*") if p.is_file())
 
 
 async def count(pipeline: DocumentPipeline) -> tuple[int, int]:
@@ -55,11 +59,11 @@ async def ingest_and_report(
 
 async def main(directory: str) -> None:
     path = Path(directory)
-    if not path.is_dir():
+    if not await asyncio.to_thread(path.is_dir):
         print(f"Not a directory: {directory}")
         sys.exit(1)
 
-    files = sorted(p for p in path.rglob("*") if p.is_file())
+    files = await asyncio.to_thread(_list_files, path)
     if not files:
         print(f"No files found in {directory}")
         sys.exit(1)

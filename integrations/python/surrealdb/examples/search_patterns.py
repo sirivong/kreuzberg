@@ -18,11 +18,15 @@ from pathlib import Path
 from typing import Any
 
 from surrealdb import AsyncSurreal
-
 from surrealdb_xberg import DocumentPipeline
 
 LIMIT = 5
 SEPARATOR = "─" * 60
+
+
+def _list_files(directory: Path) -> list[Path]:
+    """Recursively list files under a directory (sync; run via asyncio.to_thread)."""
+    return sorted(p for p in directory.rglob("*") if p.is_file())
 
 
 def _print_bm25(results: list[dict[str, Any]]) -> None:
@@ -63,7 +67,7 @@ def _print_hybrid(results: list[dict[str, Any]]) -> None:
 
 async def main(directory: str) -> None:
     path = Path(directory)
-    if not path.is_dir():
+    if not await asyncio.to_thread(path.is_dir):
         print(f"Not a directory: {directory}")
         sys.exit(1)
 
@@ -74,7 +78,7 @@ async def main(directory: str) -> None:
         pipeline = DocumentPipeline(db=db, embed=True, embedding_model="balanced")
         await pipeline.setup_schema()
 
-        files = sorted(p for p in path.rglob("*") if p.is_file())
+        files = await asyncio.to_thread(_list_files, path)
         if not files:
             print(f"No files found in {directory}")
             sys.exit(1)
@@ -89,7 +93,7 @@ async def main(directory: str) -> None:
         print("Enter a search query, or 'q' to quit.\n")
 
         while True:
-            query = input("query> ").strip()
+            query = (await asyncio.to_thread(input, "query> ")).strip()
             if not query or query.lower() == "q":
                 break
 

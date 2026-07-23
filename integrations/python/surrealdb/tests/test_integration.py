@@ -92,7 +92,7 @@ async def test_connector_full_roundtrip(server_db: AsyncSurrealQueryable, sample
 
     t = connector.table
     results = await connector.client.query(
-        f"SELECT *, search::score(1) AS score FROM {t} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",
+        f"SELECT *, search::score(1) AS score FROM {t} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",  # noqa: S608 -- table name only; trusted literal set via constructor kwarg in this test, not user input
         {"query": "machine learning", "limit": 5},
     )
     assert len(results) > 0
@@ -109,7 +109,7 @@ async def test_connector_ingest_multiple_files(
 
     t = connector.table
     results = await connector.client.query(
-        f"SELECT *, search::score(1) AS score FROM {t} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",
+        f"SELECT *, search::score(1) AS score FROM {t} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",  # noqa: S608 -- table name only; trusted literal set via constructor kwarg in this test, not user input
         {"query": "database", "limit": 10},
     )
     assert len(results) > 0
@@ -133,7 +133,7 @@ async def test_connector_ingest_bytes(server_db: AsyncSurrealQueryable) -> None:
 
     t = connector.table
     results = await connector.client.query(
-        f"SELECT *, search::score(1) AS score FROM {t} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",
+        f"SELECT *, search::score(1) AS score FROM {t} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",  # noqa: S608 -- table name only; trusted literal set via constructor kwarg in this test, not user input
         {"query": "python programming", "limit": 5},
     )
     assert len(results) > 0
@@ -173,11 +173,11 @@ async def test_connector_search_limit_respected(server_db: AsyncSurrealQueryable
 
     t = connector.table
     results_1 = await connector.client.query(
-        f"SELECT *, search::score(1) AS score FROM {t} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",
+        f"SELECT *, search::score(1) AS score FROM {t} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",  # noqa: S608 -- table name only; trusted literal set via constructor kwarg in this test, not user input
         {"query": "learning", "limit": 1},
     )
     results_all = await connector.client.query(
-        f"SELECT *, search::score(1) AS score FROM {t} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",
+        f"SELECT *, search::score(1) AS score FROM {t} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",  # noqa: S608 -- table name only; trusted literal set via constructor kwarg in this test, not user input
         {"query": "learning", "limit": 10},
     )
     assert len(results_1) <= 1
@@ -194,7 +194,7 @@ async def test_connector_custom_table_name(server_db: AsyncSurrealQueryable, sam
 
     t = connector.table
     results = await connector.client.query(
-        f"SELECT *, search::score(1) AS score FROM {t} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",
+        f"SELECT *, search::score(1) AS score FROM {t} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",  # noqa: S608 -- table name only; trusted literal set via constructor kwarg in this test, not user input
         {"query": "machine learning", "limit": 10},
     )
     assert len(results) > 0
@@ -309,7 +309,7 @@ async def test_pipeline_custom_table_names(server_db: AsyncSurrealQueryable, sam
 
     ct = pipeline.chunk_table
     results = await pipeline.client.query(
-        f"SELECT *, search::score(1) AS score FROM {ct} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",
+        f"SELECT *, search::score(1) AS score FROM {ct} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",  # noqa: S608 -- table name only; trusted literal set via constructor kwarg in this test, not user input
         {"query": "machine learning", "limit": 10},
     )
     assert len(results) > 0
@@ -366,7 +366,7 @@ async def test_pipeline_bm25_via_client(server_db: AsyncSurrealQueryable, sample
 
     ct = pipeline.chunk_table
     results = await pipeline.client.query(
-        f"SELECT *, search::score(1) AS score FROM {ct} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",
+        f"SELECT *, search::score(1) AS score FROM {ct} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",  # noqa: S608 -- table name only; trusted literal set via constructor kwarg in this test, not user input
         {"query": "machine learning", "limit": 5},
     )
     assert len(results) > 0
@@ -381,7 +381,7 @@ async def test_pipeline_vector_search_via_client(server_db: AsyncSurrealQueryabl
     embedding = await pipeline.embed_query("artificial intelligence")
     ct = pipeline.chunk_table
     results = await pipeline.client.query(
-        f"SELECT *, vector::distance::knn() AS distance FROM {ct} "
+        f"SELECT *, vector::distance::knn() AS distance FROM {ct} "  # noqa: S608 -- table name only; trusted literal set via constructor kwarg in this test, not user input
         f"WHERE embedding <|5,COSINE|> $embedding ORDER BY distance",
         {"embedding": embedding},
     )
@@ -397,7 +397,7 @@ async def test_pipeline_hybrid_rrf_via_client(server_db: AsyncSurrealQueryable, 
     embedding = await pipeline.embed_query("machine learning algorithms")
     ct = pipeline.chunk_table
     results = await pipeline.client.query(
-        f"SELECT * FROM search::rrf(["
+        f"SELECT * FROM search::rrf(["  # noqa: S608 -- table name only; trusted literal set via constructor kwarg in this test, not user input
         f"(SELECT id, content FROM {ct} WHERE embedding <|5,COSINE|> $embedding),"
         f"(SELECT id, content, search::score(1) AS score FROM {ct} "
         f"WHERE content @1@ $query ORDER BY score DESC LIMIT 5)"
@@ -522,7 +522,7 @@ async def test_connector_search_fixture_content(server_db: AsyncSurrealQueryable
 
     t = connector.table
     results = await connector.client.query(
-        f"SELECT *, search::score(1) AS score FROM {t} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",
+        f"SELECT *, search::score(1) AS score FROM {t} WHERE content @1@ $query ORDER BY score DESC LIMIT $limit",  # noqa: S608 -- table name only; trusted literal set via constructor kwarg in this test, not user input
         {"query": "sample document testing", "limit": 10},
     )
     assert len(results) > 0
