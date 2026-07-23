@@ -508,7 +508,7 @@ mod tests {
 
         #[cfg(feature = "office")]
         {
-            expected_count += 16;
+            expected_count += 17;
             assert!(extractor_names.contains(&"bibtex-extractor".to_string()));
             assert!(extractor_names.contains(&"citation-extractor".to_string()));
             assert!(extractor_names.contains(&"epub-extractor".to_string()));
@@ -525,6 +525,7 @@ mod tests {
             assert!(extractor_names.contains(&"ppt-extractor".to_string()));
             assert!(extractor_names.contains(&"pptx-extractor".to_string()));
             assert!(extractor_names.contains(&"odt-extractor".to_string()));
+            assert!(extractor_names.contains(&"odp-extractor".to_string()));
         }
 
         #[cfg(feature = "hwp")]
