@@ -204,6 +204,15 @@ fn is_debug_enabled() -> bool {
     std::env::var("BENCHMARK_DEBUG").is_ok()
 }
 
+fn config_json_enables_ocr(args: &[String]) -> bool {
+    args.windows(2)
+        .rev()
+        .find(|pair| pair[0] == "--config-json")
+        .and_then(|pair| serde_json::from_str::<serde_json::Value>(&pair[1]).ok())
+        .and_then(|config| config.pointer("/ocr/enabled").and_then(serde_json::Value::as_bool))
+        == Some(true)
+}
+
 /// Base adapter for subprocess-based extraction
 ///
 /// This adapter spawns a subprocess to perform extraction and monitors
@@ -242,19 +251,24 @@ impl SubprocessAdapter {
             return args;
         }
 
-        if let Some(index) = args.iter().position(|arg| arg == "--no-ocr") {
-            args[index] = "--ocr".to_string();
-        } else if let Some(index) = args.iter().position(|arg| arg == "--ocr") {
-            if let Some(value) = args.get_mut(index + 1)
-                && matches!(value.as_str(), "true" | "false")
-            {
-                *value = "true".to_string();
+        let is_xberg = self.name.starts_with("xberg-");
+        let has_cli_ocr_override = args.iter().any(|arg| matches!(arg.as_str(), "--ocr" | "--no-ocr"));
+        let preserve_configured_xberg_ocr = is_xberg && !has_cli_ocr_override && config_json_enables_ocr(base_args);
+        if !preserve_configured_xberg_ocr {
+            if let Some(index) = args.iter().position(|arg| arg == "--no-ocr") {
+                args[index] = "--ocr".to_string();
+            } else if let Some(index) = args.iter().position(|arg| arg == "--ocr") {
+                if let Some(value) = args.get_mut(index + 1)
+                    && matches!(value.as_str(), "true" | "false")
+                {
+                    *value = "true".to_string();
+                }
+            } else {
+                args.push("--ocr".to_string());
             }
-        } else {
-            args.push("--ocr".to_string());
         }
 
-        if self.name.starts_with("xberg-") {
+        if is_xberg {
             if let Some(index) = args.iter().position(|arg| arg == "--force-ocr") {
                 if let Some(value) = args.get_mut(index + 1) {
                     *value = "true".to_string();
@@ -1970,6 +1984,88 @@ mod tests {
 
         let args = adapter.request_args(true);
         assert_eq!(&args[..2], ["--ocr", "true"]);
+        assert!(args.windows(2).any(|pair| pair == ["--force-ocr", "true"]));
+    }
+
+    #[test]
+    fn forced_ocr_preserves_enabled_xberg_json_config_without_cli_ocr_override() {
+        let config = r#"{"use_cache":false,"ocr":{"enabled":true,"backend":"tesseract","tesseract_config":{"use_cache":false}}}"#;
+        let adapter = SubprocessAdapter::new(
+            "xberg-markdown-baseline",
+            "echo",
+            vec!["--config-json".to_string(), config.to_string()],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+
+        let args = adapter.request_args(true);
+        assert_eq!(args[1], config);
+        assert!(!args.iter().any(|arg| arg == "--ocr"));
+        assert!(args.windows(2).any(|pair| pair == ["--force-ocr", "true"]));
+    }
+
+    #[test]
+    fn forced_ocr_adds_force_flag_to_xberg_json_ocr_config() {
+        let adapter = SubprocessAdapter::new(
+            "xberg-markdown-baseline",
+            "echo",
+            vec!["--config-json".to_string(), r#"{"ocr":{"enabled":true}}"#.to_string()],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+
+        let args = adapter.request_args(true);
+        assert!(args.windows(2).any(|pair| pair == ["--force-ocr", "true"]));
+    }
+
+    #[test]
+    fn forced_ocr_upgrades_explicit_xberg_cli_override_despite_json_config() {
+        let adapter = SubprocessAdapter::new(
+            "xberg-markdown-baseline",
+            "echo",
+            vec![
+                "--config-json".to_string(),
+                r#"{"ocr":{"enabled":true}}"#.to_string(),
+                "--ocr".to_string(),
+                "false".to_string(),
+            ],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+
+        let args = adapter.request_args(true);
+        let ocr_index = args.iter().position(|arg| arg == "--ocr").unwrap();
+        assert_eq!(args[ocr_index + 1], "true");
+        assert!(args.windows(2).any(|pair| pair == ["--force-ocr", "true"]));
+    }
+
+    #[test]
+    fn forced_ocr_adds_cli_ocr_for_native_xberg_config() {
+        let adapter = SubprocessAdapter::new(
+            "xberg-markdown-baseline",
+            "echo",
+            vec!["--config-json".to_string(), r#"{"use_cache":false}"#.to_string()],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+
+        let args = adapter.request_args(true);
+        assert!(args.iter().any(|arg| arg == "--ocr"));
+        assert!(args.windows(2).any(|pair| pair == ["--force-ocr", "true"]));
+    }
+
+    #[test]
+    fn forced_ocr_uses_existing_behavior_for_malformed_xberg_config_json() {
+        let adapter = SubprocessAdapter::new(
+            "xberg-markdown-baseline",
+            "echo",
+            vec!["--config-json".to_string(), "{malformed".to_string()],
+            vec![],
+            vec!["pdf".to_string()],
+        );
+
+        let args = adapter.request_args(true);
+        assert!(args.iter().any(|arg| arg == "--ocr"));
         assert!(args.windows(2).any(|pair| pair == ["--force-ocr", "true"]));
     }
 
