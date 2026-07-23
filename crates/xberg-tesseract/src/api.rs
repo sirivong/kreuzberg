@@ -1170,11 +1170,11 @@ impl TesseractAPI {
     ///
     /// # Arguments
     ///
-    /// * `pix` - Pointer to the image data.
+    /// * `pix` - Valid Leptonica `PIX *` pointer that remains alive for this call.
     ///
     /// # Returns
     ///
-    /// Returns `Ok(())` if setting the image is successful, otherwise returns an error.
+    /// Returns `Ok(())` after Tesseract has synchronously copied the image.
     pub fn set_image_2(&self, pix: *mut c_void) -> Result<()> {
         let handle = self.handle.lock().map_err(|_| TesseractError::MutexLockError)?;
         unsafe { TessBaseAPISetImage2(*handle, pix) };

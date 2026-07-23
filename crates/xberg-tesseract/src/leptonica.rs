@@ -551,12 +551,9 @@ impl Pix {
     ///
     /// # Safety
     ///
-    /// The caller must ensure the `Pix` outlives any use of the returned
-    /// pointer.  `TessBaseAPISetImage2` **borrows** the pointer — it does not
-    /// take ownership — so the `Pix` must remain alive until after
-    /// `TessBaseAPIRecognize` (or any other Tesseract call that consumes the
-    /// image data) has completed.  Dropping the `Pix` while Tesseract holds
-    /// the pointer will result in a use-after-free.
+    /// The caller must ensure the `Pix` remains alive while the returned
+    /// pointer is used. `TessBaseAPISetImage2` synchronously deep-copies the
+    /// image, so the `Pix` only needs to outlive that call.
     ///
     /// The caller must **not** free the returned pointer; `Pix::drop` is
     /// solely responsible for deallocation via `pixDestroy`.

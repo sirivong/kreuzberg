@@ -605,8 +605,7 @@ pub(super) fn perform_ocr(
 
     apply_tesseract_variables(&api, config)?;
 
-    #[cfg_attr(not(auto_rotate), allow(unused_mut))]
-    let mut pix_guard: Option<xberg_tesseract::Pix> = {
+    let processed_pix: Option<xberg_tesseract::Pix> = {
         match xberg_tesseract::Pix::from_raw_rgb(&image_data, width, height) {
             Ok(mut pix) => {
                 if let Ok((xres, yres)) = pix.get_resolution()
@@ -631,7 +630,7 @@ pub(super) fn perform_ocr(
         }
     };
 
-    if let Some(ref pix) = pix_guard {
+    if let Some(ref pix) = processed_pix {
         api.set_image_2(pix.as_ptr())
             .map_err(|e| OcrError::ProcessingFailed(format!("Failed to set preprocessed image: {}", e)))?;
     } else {
@@ -644,6 +643,7 @@ pub(super) fn perform_ocr(
         )
         .map_err(|e| OcrError::ProcessingFailed(format!("Failed to set image: {}", e)))?;
     }
+    drop(processed_pix);
 
     let source_dpi = source_dpi.max(70);
     api.set_source_resolution(source_dpi)
@@ -720,7 +720,7 @@ pub(super) fn perform_ocr(
                         .map_err(|e| OcrError::ProcessingFailed(format!("Failed to set rotated image: {}", e)))?;
                     }
 
-                    pix_guard = rotated_pix;
+                    drop(rotated_pix);
 
                     api.set_source_resolution(source_dpi).map_err(|e| {
                         OcrError::ProcessingFailed(format!("Failed to set source resolution after rotation: {}", e))
@@ -1002,8 +1002,6 @@ pub(super) fn perform_ocr(
             );
         }
     }
-
-    drop(pix_guard);
 
     drop(api);
 
