@@ -8,7 +8,7 @@
 //! extraction reads in column order rather than visual reading order.
 
 #[cfg(feature = "layout-detection")]
-use crate::pdf::structure::types::{LayoutHint, LayoutRegionPath, LayoutRegionTag};
+use crate::pdf::structure::types::{LayoutHint, LayoutHintClass, LayoutRegionPath, LayoutRegionTag};
 
 /// Region x-centers closer than this (in PDF points) are merged into one column.
 const COLUMN_MERGE_THRESHOLD_PTS: f32 = 20.0;
@@ -380,6 +380,13 @@ fn order_blocks_by_graph(blocks: &[OrderBlock], page_width_pts: Option<f32>) -> 
 
 const MIN_SEGMENT_REGION_COVERAGE: f32 = 0.2;
 const MIN_CHILD_REGION_CONTAINMENT: f32 = 0.8;
+const MIN_PARTIAL_TEXT_OWNERS: usize = 2;
+/// Treat small left-edge variation as indentation/noise; a larger page-relative
+/// separation is strong evidence of distinct column origins.
+const MAX_SINGLE_COLUMN_LEFT_SPREAD_NORM: f32 = 0.05;
+/// All lines must share at least half of the narrowest line's width so a weak
+/// overlap between adjacent columns cannot masquerade as one text flow.
+const MIN_SINGLE_COLUMN_COMMON_WIDTH_RATIO: f32 = 0.5;
 /// Semantic children covering nearly all of a segment outrank their enclosing
 /// wrapper. This preserves Title/ListItem/Text classification while a partial
 /// child (for example, a narrow caption overlapping a form) cannot steal text.
@@ -584,6 +591,89 @@ fn choose_segment_owner(
     )
 }
 
+fn has_single_column_segment_geometry(
+    segments: &[crate::pdf::hierarchy::SegmentData],
+    page_width_pts: Option<f32>,
+) -> bool {
+    let Some(page_width_pts) = page_width_pts.filter(|width| width.is_finite() && *width > 0.0) else {
+        return false;
+    };
+    let Some(segment_blocks) = segments.iter().map(segment_block).collect::<Option<Vec<_>>>() else {
+        return false;
+    };
+    let left_min = segment_blocks
+        .iter()
+        .map(|block| block.left)
+        .fold(f32::INFINITY, f32::min);
+    let left_max = segment_blocks
+        .iter()
+        .map(|block| block.left)
+        .fold(f32::NEG_INFINITY, f32::max);
+    if left_max - left_min > MAX_SINGLE_COLUMN_LEFT_SPREAD_NORM * page_width_pts {
+        return false;
+    }
+
+    let common_left = segment_blocks
+        .iter()
+        .map(|block| block.left)
+        .fold(f32::NEG_INFINITY, f32::max);
+    let common_right = segment_blocks
+        .iter()
+        .map(|block| block.right)
+        .fold(f32::INFINITY, f32::min);
+    let narrowest_width = segment_blocks
+        .iter()
+        .map(|block| block.right - block.left)
+        .fold(f32::INFINITY, f32::min);
+    let common_width_ratio = (common_right - common_left).max(0.0) / narrowest_width;
+
+    common_width_ratio.is_finite() && common_width_ratio >= MIN_SINGLE_COLUMN_COMMON_WIDTH_RATIO
+}
+
+fn partial_ownership_is_generic_text_flow(
+    owners: &[Option<usize>],
+    hints: &[LayoutHint],
+    eligible: &[bool],
+    roots: &[Option<usize>],
+) -> bool {
+    if hints
+        .iter()
+        .enumerate()
+        .any(|(index, hint)| eligible[index] && hint.class_name != LayoutHintClass::Text)
+    {
+        return false;
+    }
+    let owned_count = owners.iter().filter(|owner| owner.is_some()).count();
+    let uncovered_count = owners.len() - owned_count;
+    if owned_count == 0 || uncovered_count == 0 || owned_count > uncovered_count {
+        return false;
+    }
+
+    let owner_indices = owners
+        .iter()
+        .flatten()
+        .copied()
+        .collect::<std::collections::BTreeSet<_>>();
+    owner_indices.len() >= MIN_PARTIAL_TEXT_OWNERS
+        && owner_indices
+            .iter()
+            .all(|owner| roots.get(*owner).is_some_and(Option::is_some))
+}
+
+fn should_preserve_native_partial_text_flow(
+    segments: &[crate::pdf::hierarchy::SegmentData],
+    owners: &[Option<usize>],
+    hints: &[LayoutHint],
+    eligible: &[bool],
+    roots: &[Option<usize>],
+    no_reorder: bool,
+    page_width_pts: Option<f32>,
+) -> bool {
+    !no_reorder
+        && partial_ownership_is_generic_text_flow(owners, hints, eligible, roots)
+        && has_single_column_segment_geometry(segments, page_width_pts)
+}
+
 fn pathless_group(segment_count: usize) -> Vec<LayoutSegmentGroup> {
     vec![LayoutSegmentGroup {
         segment_indices: (0..segment_count).collect(),
@@ -745,6 +835,10 @@ pub(crate) fn plan_segment_groups_by_layout(
         .map(|segment| choose_segment_owner(segment, hints, &eligible, &blocks, &roots))
         .collect::<Vec<_>>();
     if owners.iter().all(Option::is_none) {
+        return pathless_group(segments.len());
+    }
+    if should_preserve_native_partial_text_flow(segments, &owners, hints, &eligible, &roots, no_reorder, page_width_pts)
+    {
         return pathless_group(segments.len());
     }
 
@@ -1201,6 +1295,253 @@ mod tests {
         let path = groups[0].region_path.unwrap();
         assert_eq!(path.root.id, 0);
         assert!(path.child.is_none());
+    }
+
+    #[test]
+    fn partial_minority_single_column_text_ownership_preserves_native_flow() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![
+            planned_segment("May 5, 2023", 10.0, 100.0, 40.0, 10.0),
+            planned_segment("To Whom it May Concern:", 10.0, 80.0, 90.0, 10.0),
+            planned_segment("There were deliveries.", 10.0, 60.0, 100.0, 10.0),
+            planned_segment("A total of 3 trucks were used.", 10.0, 50.0, 120.0, 10.0),
+            planned_segment("Best Regards,", 10.0, 30.0, 50.0, 10.0),
+            planned_segment("Mallori", 10.0, 10.0, 30.0, 10.0),
+        ];
+        let hints = vec![
+            planned_hint(LayoutHintClass::Text, 0.0, 95.0, 120.0, 115.0),
+            planned_hint(LayoutHintClass::Text, 0.0, 75.0, 120.0, 95.0),
+        ];
+
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], false, Some(300.0));
+
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].segment_indices, [0, 1, 2, 3, 4, 5]);
+        assert!(groups[0].hint_indices.is_empty());
+        assert!(groups[0].region_path.is_none());
+    }
+
+    #[test]
+    fn single_column_geometry_accepts_left_spread_threshold() {
+        let segments = vec![
+            planned_segment("wide", 0.0, 20.0, 20.0, 10.0),
+            planned_segment("indented", 10.0, 0.0, 10.0, 10.0),
+        ];
+
+        assert!(has_single_column_segment_geometry(&segments, Some(200.0)));
+        assert!(!has_single_column_segment_geometry(
+            &[segments[0].clone(), planned_segment("too far", 10.1, 0.0, 10.0, 10.0),],
+            Some(200.0),
+        ));
+    }
+
+    #[test]
+    fn single_column_geometry_accepts_common_width_threshold() {
+        let at_threshold = vec![
+            planned_segment("left", 0.0, 20.0, 20.0, 10.0),
+            planned_segment("right", 10.0, 0.0, 20.0, 10.0),
+        ];
+        let below_threshold = vec![
+            at_threshold[0].clone(),
+            planned_segment("weak overlap", 10.1, 0.0, 20.0, 10.0),
+        ];
+
+        assert!(has_single_column_segment_geometry(&at_threshold, Some(400.0)));
+        assert!(!has_single_column_segment_geometry(&below_threshold, Some(400.0),));
+    }
+
+    #[test]
+    fn partial_text_ownership_preserves_multi_column_groups() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![
+            planned_segment("left", 10.0, 100.0, 40.0, 10.0),
+            planned_segment("right", 210.0, 100.0, 40.0, 10.0),
+            planned_segment("uncovered left", 10.0, 80.0, 80.0, 10.0),
+            planned_segment("uncovered right", 210.0, 80.0, 80.0, 10.0),
+        ];
+        let hints = vec![
+            planned_hint(LayoutHintClass::Text, 0.0, 95.0, 100.0, 115.0),
+            planned_hint(LayoutHintClass::Text, 200.0, 95.0, 300.0, 115.0),
+        ];
+
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], false, Some(300.0));
+
+        assert!(groups.len() > 1);
+        assert!(groups.iter().any(|group| group.region_path.is_some()));
+    }
+
+    #[test]
+    fn owned_left_and_uncovered_right_preserve_layout_groups() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![
+            planned_segment("owned left one", 10.0, 100.0, 80.0, 10.0),
+            planned_segment("owned left two", 10.0, 80.0, 80.0, 10.0),
+            planned_segment("uncovered right one", 180.0, 100.0, 100.0, 10.0),
+            planned_segment("uncovered right two", 180.0, 80.0, 100.0, 10.0),
+        ];
+        let hints = vec![
+            planned_hint(LayoutHintClass::Text, 0.0, 95.0, 100.0, 115.0),
+            planned_hint(LayoutHintClass::Text, 0.0, 75.0, 100.0, 95.0),
+        ];
+
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], false, Some(300.0));
+
+        assert!(groups.len() > 1);
+        assert!(groups.iter().any(|group| !group.hint_indices.is_empty()));
+    }
+
+    #[test]
+    fn staggered_columns_preserve_layout_groups() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![
+            planned_segment("owned left one", 10.0, 120.0, 80.0, 10.0),
+            planned_segment("owned left two", 10.0, 100.0, 80.0, 10.0),
+            planned_segment("uncovered right one", 180.0, 60.0, 100.0, 10.0),
+            planned_segment("uncovered right two", 180.0, 40.0, 100.0, 10.0),
+        ];
+        let hints = vec![
+            planned_hint(LayoutHintClass::Text, 0.0, 115.0, 100.0, 135.0),
+            planned_hint(LayoutHintClass::Text, 0.0, 95.0, 100.0, 115.0),
+        ];
+
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], false, Some(300.0));
+
+        assert!(groups.len() > 1);
+        assert!(groups.iter().any(|group| !group.hint_indices.is_empty()));
+    }
+
+    #[test]
+    fn weak_horizontal_overlap_preserves_layout_groups() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![
+            planned_segment("owned left one", 10.0, 100.0, 120.0, 10.0),
+            planned_segment("owned left two", 10.0, 80.0, 120.0, 10.0),
+            planned_segment("uncovered right one", 120.0, 100.0, 120.0, 10.0),
+            planned_segment("uncovered right two", 120.0, 80.0, 120.0, 10.0),
+        ];
+        let hints = vec![
+            planned_hint(LayoutHintClass::Text, 0.0, 95.0, 140.0, 115.0),
+            planned_hint(LayoutHintClass::Text, 0.0, 75.0, 140.0, 95.0),
+        ];
+
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], false, Some(300.0));
+
+        assert!(groups.len() > 1);
+        assert!(groups.iter().any(|group| !group.hint_indices.is_empty()));
+    }
+
+    #[test]
+    fn majority_text_ownership_preserves_layout_groups() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![
+            planned_segment("one", 10.0, 100.0, 40.0, 10.0),
+            planned_segment("two", 10.0, 80.0, 40.0, 10.0),
+            planned_segment("three", 10.0, 60.0, 40.0, 10.0),
+            planned_segment("uncovered", 10.0, 40.0, 40.0, 10.0),
+        ];
+        let hints = vec![
+            planned_hint(LayoutHintClass::Text, 0.0, 95.0, 100.0, 115.0),
+            planned_hint(LayoutHintClass::Text, 0.0, 75.0, 100.0, 95.0),
+            planned_hint(LayoutHintClass::Text, 0.0, 55.0, 100.0, 75.0),
+        ];
+
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], false, Some(300.0));
+
+        assert!(groups.len() > 1);
+        assert!(groups.iter().any(|group| !group.hint_indices.is_empty()));
+    }
+
+    #[test]
+    fn partial_text_ownership_has_no_segment_count_cliff() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = (0..12)
+            .map(|index| planned_segment("line", 10.0, 200.0 - index as f32 * 20.0, 40.0, 10.0))
+            .collect::<Vec<_>>();
+        let hints = vec![
+            planned_hint(LayoutHintClass::Text, 0.0, 195.0, 100.0, 215.0),
+            planned_hint(LayoutHintClass::Text, 0.0, 175.0, 100.0, 195.0),
+        ];
+
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], false, Some(300.0));
+
+        assert_eq!(groups.len(), 1);
+        assert!(groups[0].region_path.is_none());
+    }
+
+    #[test]
+    fn semantic_owner_preserves_partial_layout_groups() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![
+            planned_segment("body", 10.0, 100.0, 40.0, 10.0),
+            planned_segment("Section", 10.0, 80.0, 40.0, 10.0),
+            planned_segment("uncovered one", 10.0, 60.0, 70.0, 10.0),
+            planned_segment("uncovered two", 10.0, 40.0, 70.0, 10.0),
+        ];
+        let hints = vec![
+            planned_hint(LayoutHintClass::Text, 0.0, 95.0, 100.0, 115.0),
+            planned_hint(LayoutHintClass::SectionHeader, 0.0, 75.0, 100.0, 95.0),
+        ];
+
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], false, Some(300.0));
+
+        assert!(groups.len() > 1);
+        assert!(groups.iter().any(|group| group.hint_indices == [1]));
+    }
+
+    #[test]
+    fn unowned_semantic_hint_preserves_partial_layout_groups() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![
+            planned_segment("owned one", 10.0, 100.0, 40.0, 10.0),
+            planned_segment("owned two", 10.0, 80.0, 40.0, 10.0),
+            planned_segment("uncovered one", 10.0, 60.0, 70.0, 10.0),
+            planned_segment("uncovered two", 10.0, 40.0, 70.0, 10.0),
+        ];
+        let hints = vec![
+            planned_hint(LayoutHintClass::Text, 0.0, 95.0, 100.0, 115.0),
+            planned_hint(LayoutHintClass::Text, 0.0, 75.0, 100.0, 95.0),
+            planned_hint(LayoutHintClass::SectionHeader, 200.0, 200.0, 280.0, 220.0),
+        ];
+
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], false, Some(300.0));
+
+        assert!(groups.len() > 1);
+        assert!(groups.iter().any(|group| !group.hint_indices.is_empty()));
+    }
+
+    #[test]
+    fn wrapper_root_preserves_partial_layout_groups() {
+        use crate::pdf::structure::types::LayoutHintClass;
+
+        let segments = vec![
+            planned_segment("child one", 10.0, 100.0, 40.0, 10.0),
+            planned_segment("child two", 10.0, 80.0, 40.0, 10.0),
+            planned_segment("uncovered one", 200.0, 60.0, 70.0, 10.0),
+            planned_segment("uncovered two", 200.0, 40.0, 70.0, 10.0),
+        ];
+        let hints = vec![
+            planned_hint(LayoutHintClass::Form, 0.0, 70.0, 100.0, 120.0),
+            planned_hint(LayoutHintClass::Text, 0.0, 95.0, 100.0, 115.0),
+            planned_hint(LayoutHintClass::Text, 0.0, 75.0, 100.0, 95.0),
+        ];
+
+        let groups = plan_segment_groups_by_layout(&segments, &hints, &[], false, Some(300.0));
+
+        assert!(groups.len() > 1);
+        assert!(groups.iter().any(|group| {
+            group
+                .region_path
+                .is_some_and(|path| path.root.class_name == Some(LayoutHintClass::Form))
+        }));
     }
 
     #[test]
