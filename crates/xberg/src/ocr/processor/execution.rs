@@ -354,6 +354,18 @@ const MIN_ORIENTATION_CONFIDENCE: f32 = 0.35;
 #[cfg(auto_rotate)]
 const _: () = assert!(MIN_ORIENTATION_CONFIDENCE == crate::doc_orientation::MIN_CONFIDENCE);
 
+fn preprocess_pix(pix: xberg_tesseract::Pix) -> xberg_tesseract::Result<xberg_tesseract::Pix> {
+    let normalized = pix.background_normalize()?;
+    drop(pix);
+
+    let sharpened = normalized.unsharp_mask(3, 0.5)?;
+    drop(normalized);
+
+    let grayscale = sharpened.to_grayscale()?;
+    drop(sharpened);
+    Ok(grayscale)
+}
+
 /// Check whether a center point (x, y) lies within a bounding box.
 fn point_in_bbox(x: i32, y: i32, left: i32, top: i32, right: i32, bottom: i32) -> bool {
     x >= left && x <= right && y >= top && y <= bottom
@@ -593,7 +605,6 @@ pub(super) fn perform_ocr(
 
     apply_tesseract_variables(&api, config)?;
 
-    // DROP ORDER NOTE: `pix_guard` is declared AFTER `api` (the `ApiGuard`), so Rust
     #[cfg_attr(not(auto_rotate), allow(unused_mut))]
     let mut pix_guard: Option<xberg_tesseract::Pix> = {
         match xberg_tesseract::Pix::from_raw_rgb(&image_data, width, height) {
@@ -604,10 +615,7 @@ pub(super) fn perform_ocr(
                     let _ = pix.set_resolution(72, 72);
                 }
 
-                let processed = pix
-                    .background_normalize()
-                    .and_then(|p| p.unsharp_mask(3, 0.5))
-                    .and_then(|p| p.to_grayscale());
+                let processed = preprocess_pix(pix);
                 match processed {
                     Ok(p) => Some(p),
                     Err(e) => {
@@ -695,12 +703,7 @@ pub(super) fn perform_ocr(
 
                     let rotated_pix = xberg_tesseract::Pix::from_raw_rgb(&rotated_data, new_width, new_height)
                         .ok()
-                        .and_then(|pix| {
-                            pix.background_normalize()
-                                .and_then(|p| p.unsharp_mask(3, 0.5))
-                                .and_then(|p| p.to_grayscale())
-                                .ok()
-                        });
+                        .and_then(|pix| preprocess_pix(pix).ok());
 
                     if let Some(ref pix) = rotated_pix {
                         api.set_image_2(pix.as_ptr()).map_err(|e| {
@@ -1341,6 +1344,28 @@ mod tests {
         let result = process_image_with_cache(&invalid_data, &config, &cache, &api_pool, None);
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_preprocess_pix_produces_grayscale_with_valid_resolution() {
+        let width = 32;
+        let height = 32;
+        let mut rgb_data = Vec::with_capacity((width * height * 3) as usize);
+        for y in 0..height {
+            for x in 0..width {
+                let value = if (x + y) % 2 == 0 { 32 } else { 224 };
+                rgb_data.extend_from_slice(&[value, value, value]);
+            }
+        }
+        let mut pix = xberg_tesseract::Pix::from_raw_rgb(&rgb_data, width, height).unwrap();
+        pix.set_resolution(300, 300).unwrap();
+
+        let processed = preprocess_pix(pix).unwrap();
+
+        assert_eq!(processed.width(), width as i32);
+        assert_eq!(processed.height(), height as i32);
+        assert_eq!(processed.depth(), 8);
+        assert_eq!(processed.get_resolution().unwrap(), (72, 72));
     }
 
     #[cfg(auto_rotate)]
