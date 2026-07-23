@@ -2,11 +2,11 @@
 title: "SurrealDB"
 ---
 
-The `xberg-surrealdb` package connects Xberg's document extraction pipeline to [SurrealDB](https://surrealdb.com/). It handles schema creation, content deduplication, optional chunking and embedding, and index configuration.
+The `surrealdb-xberg` package connects Xberg's document extraction pipeline to [SurrealDB](https://surrealdb.com/). It handles schema creation, content deduplication, optional chunking and embedding, and index configuration.
 
-[![PyPI](https://img.shields.io/pypi/v/xberg-surrealdb)](https://pypi.org/project/xberg-surrealdb/)
-[![Python](https://img.shields.io/pypi/pyversions/xberg-surrealdb)](https://pypi.org/project/xberg-surrealdb/)
-[![License](https://img.shields.io/pypi/l/xberg-surrealdb)](https://github.com/xberg-io/xberg-surrealdb/blob/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/surrealdb-xberg)](https://pypi.org/project/surrealdb-xberg/)
+[![Python](https://img.shields.io/pypi/pyversions/surrealdb-xberg)](https://pypi.org/project/surrealdb-xberg/)
+[![License](https://img.shields.io/pypi/l/surrealdb-xberg)](https://github.com/xberg-io/xberg/blob/main/LICENSE)
 
 ## How it works
 
@@ -33,14 +33,16 @@ flowchart LR
 
 - **Schema management** — `setup_schema()` creates tables, indices, and analyzers. No manual DDL required.
 - **Deduplication** — Deterministic record IDs derived from content hashes prevent duplicate rows across ingestion runs.
+- **Rich records** — Documents store content, metadata, keywords, named entities (NER), tables, summary, detected languages, and quality score — not just text.
+- **Batched extraction** — `ingest_files()` and `ingest_directory()` run a single `extract_batch` call, then batched idempotent inserts.
 - **Flexible ingestion** — Single files, file lists, directories (with glob), or raw bytes.
-- **Extraction control** — Pass Xberg's `ExtractionConfig` to set OCR behavior, output format, and quality processing.
+- **Extraction control** — Pass Xberg's `ExtractionConfig` to enable OCR, keywords, NER, summarization, and chunking.
 - **Batch tuning** — Adjust `insert_batch_size` to balance throughput against memory usage.
 
 ## Installation
 
 ```bash
-pip install xberg-surrealdb
+pip install surrealdb-xberg
 ```
 
 Requires Python 3.10+. You also need a running SurrealDB instance:
@@ -52,7 +54,7 @@ docker run --rm -p 8000:8000 surrealdb/surrealdb:latest start --allow-all --user
 ## Quick start
 
 ```python
-from xberg_surrealdb import DocumentPipeline
+from surrealdb_xberg import DocumentPipeline
 
 pipeline = DocumentPipeline(db=db, embed=True, embedding_model="balanced")
 await pipeline.setup_schema()
@@ -70,4 +72,4 @@ The package provides two entry points. Choose based on whether you need chunking
 | Indices    | BM25 on documents                   | BM25 + HNSW on chunks                 | BM25 on chunks                  |
 | Best for   | Keyword search over whole documents | Semantic or hybrid search over chunks | Keyword search over chunks      |
 
-For the complete API reference, embedding model options, chunking configuration, and database schema details, see the [xberg-surrealdb readme](https://github.com/xberg-io/xberg-surrealdb). For general SurrealDB usage, see the [SurrealDB docs](https://surrealdb.com/docs).
+For the complete API reference, embedding model options, chunking configuration, and database schema details, see the [surrealdb-xberg readme](https://github.com/xberg-io/xberg/tree/main/integrations/python/surrealdb). For general SurrealDB usage, see the [SurrealDB docs](https://surrealdb.com/docs).
