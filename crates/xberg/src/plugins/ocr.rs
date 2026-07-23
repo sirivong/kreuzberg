@@ -167,6 +167,12 @@ pub trait OcrBackend: Plugin {
     /// The default implementation delegates to [`Self::process_image`]. Backends
     /// that hand work to an owned blocking task can override this method to avoid
     /// copying the image buffer.
+    ///
+    /// Excluded from the polyglot binding surface: it is an owned-buffer perf
+    /// override whose `Arc<Vec<u8>>` parameter has no binding representation, and
+    /// foreign backends satisfy the trait through [`Self::process_image`] via this
+    /// default delegation.
+    #[cfg_attr(alef, alef(skip))]
     async fn process_image_owned(&self, image_bytes: Arc<Vec<u8>>, config: &OcrConfig) -> Result<ExtractedDocument> {
         self.process_image(image_bytes.as_slice(), config).await
     }
