@@ -10040,6 +10040,8 @@ const _: fn() = || {
         let _: f64 = OcrQualityThresholds.alnum_ws_ratio_threshold;
         let _: f64 = OcrQualityThresholds.pipeline_min_quality;
         let _: f64 = OcrQualityThresholds.min_undecodable_ratio;
+        let _: bool = OcrQualityThresholds.enable_provenance_ocr_routing;
+        let _: f64 = OcrQualityThresholds.min_provenance_fallback_ratio;
     }
     {
         let OcrRotation = None::<crate::OcrRotation>.unwrap();
@@ -16795,6 +16797,8 @@ impl SseDecode for crate::OcrQualityThresholds {
         let mut var_alnumWsRatioThreshold = <f64>::sse_decode(deserializer);
         let mut var_pipelineMinQuality = <f64>::sse_decode(deserializer);
         let mut var_minUndecodableRatio = <f64>::sse_decode(deserializer);
+        let mut var_enableProvenanceOcrRouting = <bool>::sse_decode(deserializer);
+        let mut var_minProvenanceFallbackRatio = <f64>::sse_decode(deserializer);
         return crate::OcrQualityThresholds {
             min_total_non_whitespace: var_minTotalNonWhitespace,
             min_non_whitespace_per_page: var_minNonWhitespacePerPage,
@@ -16813,6 +16817,8 @@ impl SseDecode for crate::OcrQualityThresholds {
             alnum_ws_ratio_threshold: var_alnumWsRatioThreshold,
             pipeline_min_quality: var_pipelineMinQuality,
             min_undecodable_ratio: var_minUndecodableRatio,
+            enable_provenance_ocr_routing: var_enableProvenanceOcrRouting,
+            min_provenance_fallback_ratio: var_minProvenanceFallbackRatio,
         };
     }
 }
@@ -24712,6 +24718,8 @@ impl flutter_rust_bridge::IntoDart for FrbWrapper<crate::OcrQualityThresholds> {
             self.0.alnum_ws_ratio_threshold.into_into_dart().into_dart(),
             self.0.pipeline_min_quality.into_into_dart().into_dart(),
             self.0.min_undecodable_ratio.into_into_dart().into_dart(),
+            self.0.enable_provenance_ocr_routing.into_into_dart().into_dart(),
+            self.0.min_provenance_fallback_ratio.into_into_dart().into_dart(),
         ]
         .into_dart()
     }
@@ -31245,6 +31253,8 @@ impl SseEncode for crate::OcrQualityThresholds {
         <f64>::sse_encode(self.alnum_ws_ratio_threshold, serializer);
         <f64>::sse_encode(self.pipeline_min_quality, serializer);
         <f64>::sse_encode(self.min_undecodable_ratio, serializer);
+        <bool>::sse_encode(self.enable_provenance_ocr_routing, serializer);
+        <f64>::sse_encode(self.min_provenance_fallback_ratio, serializer);
     }
 }
 

@@ -169,7 +169,7 @@ use_default_ignores = true
 preserve_patterns = ["SAFETY", "SPDX", "Copyright", "License", "licensed under"]
 
 [per-file-ignores]
-"**/api.py" = ["F401", "I001", "RET504", "TC006", "UP035"]
+"**/api.py" = ["F401", "I001", "TC006", "UP035"]
 "**/*.pyi" = ["A002", "F401", "I001", "PYI033", "TC006", "UP035"]
 "**/options.py" = ["F401", "I001", "RUF100"]
 "**/__init__.py" = ["I001"]
@@ -185,14 +185,10 @@ preserve_patterns = ["SAFETY", "SPDX", "Copyright", "License", "licensed under"]
   "S108",
   "S310",
   "S311",
-  "S608",
   "PT011",
   "PT012",
-  "PT019",
   "PERF401",
   "PTH123",
-  "PLC0415",
-  "SLF001",
   "T201",
   "TC001",
   "TC002",
@@ -300,6 +296,8 @@ preserve_patterns = ["SAFETY", "SPDX", "Copyright", "License", "licensed under"]
   "A001",
   "N801",
 ]
+"**/examples/**" = ["ANN", "D100", "D103", "I001", "INP001", "PLR2004", "S101", "PLC0415", "SLF001", "T201", "typo"]
+"**/tests/**/*.py" = ["PT019", "PLC0415", "SLF001"]
 "**/text_repair.rs" = ["typo"]
 ".cargo/config.toml" = ["comment", "doc-comment"]
 "Package.swift" = ["comment", "doc-comment"]
@@ -315,6 +313,7 @@ preserve_patterns = ["SAFETY", "SPDX", "Copyright", "License", "licensed under"]
 "docker/**" = ["DL3006", "DL3059"]
 "e2e/**/*.py" = ["A001", "N801"]
 "packages/**" = ["comment", "doc-comment"]
+"packages/python/**/api.py" = ["RET504"]
 "packages/python/build.py" = ["INP001"]
 "scripts/**/*.py" = [
   "B023",
@@ -414,22 +413,6 @@ preserve_patterns = ["SAFETY", "SPDX", "Copyright", "License", "licensed under"]
   "TC003",
 ]
 "tools/perf/*.py" = ["D103", "T201"]
-"**/examples/**" = [
-  "ANN",
-  "ASYNC240",
-  "ASYNC250",
-  "D100",
-  "D103",
-  "I001",
-  "INP001",
-  "PLR2004",
-  "PLC0415",
-  "S101",
-  "S608",
-  "SLF001",
-  "T201",
-  "typo",
-]
 
 [hooks]
 stages = ["pre-commit"]

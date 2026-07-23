@@ -1,5 +1,5 @@
 [workspace]
-alef_version = "0.42.0"
+alef_version = "0.43.0"
 # -D warnings (emitted into every generated Rust binding as #![allow(...)]).
 extra_clippy_allows = ["redundant_field_names"]
 languages = [
@@ -140,6 +140,8 @@ openwebui = "openwebui"
 webui = "webui"
 rumdl = "rumdl"
 opf = "opf"
+# "Tower"/"lower" substring in pdf/structure/lines.rs #1291 tests + CHANGELOG. ~keep
+ower = "ower"
 hocr = "hocr"
 odf = "odf"
 multline = "multline"
@@ -312,6 +314,19 @@ traineddata = "traineddata"
   "TC003",
 ]
 "tools/benchmark-harness/scripts/*.php" = ["no-unescaped-output"]
+# alef-generated Python entrypoint; RET504 fires on the passthrough return alef
+# emits. Do not hand-fix generated code — suppress instead. Uses a distinct
+# glob from the builtin "**/api.py" default (same builtin key can't be
+# re-declared here without producing a duplicate poly.toml key). ~keep
+"packages/python/**/api.py" = ["RET504"]
+# Test-code relaxations on top of the builtin "**/tests/**" defaults: tests
+# access private members (SLF001), use lazy/local imports (PLC0415), and
+# inject unused pytest fixtures (PT019). Scoped to *.py (a distinct glob from
+# the builtin "**/tests/**" key) since these are ruff-only codes. ~keep
+"**/tests/**/*.py" = ["PT019", "PLC0415", "SLF001"]
+# Example scripts: legitimately print output, aren't packages, and skip full
+# annotations/docstrings. Not a builtin default — declared here in full. ~keep
+"**/examples/**" = ["ANN", "D100", "D103", "I001", "INP001", "PLR2004", "S101", "PLC0415", "SLF001", "T201", "typo"]
 
 [[crates]]
 name = "xberg"
