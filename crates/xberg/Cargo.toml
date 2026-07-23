@@ -592,6 +592,12 @@ windows-target = [
     "api",
     "mcp",
     "liter-llm",
+    # classification = [liter-llm, tokio-runtime], both already enabled above, so
+    # this adds no new deps (Windows-safe). Required because the generated bindings
+    # reference enrich::ChunkClassificationEnrichmentConfig (and the sibling
+    # ClassificationEnrichmentConfig) unconditionally; without it those types are
+    # #[cfg]-compiled-out on Windows and the bindings fail with E0425.
+    "classification",
     "structured",
     "quality",
     # Pure-Rust features missing from the original list whose public types the
