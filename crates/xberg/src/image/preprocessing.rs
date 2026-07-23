@@ -1,9 +1,8 @@
 use crate::error::{Result, XbergError};
 use crate::types::{ImageDpiConfig as ExtractionConfig, ImagePreprocessingMetadata};
-use image::{DynamicImage, ImageBuffer, Rgb};
 
 use super::dpi::calculate_smart_dpi;
-use super::resize::resize_image;
+use super::resize::resize_rgb;
 
 const PDF_POINTS_PER_INCH: f64 = 72.0;
 
@@ -238,20 +237,14 @@ fn perform_resize(
     calculated_dpi: Option<i32>,
     config: &ExtractionConfig,
 ) -> Result<NormalizeResult> {
-    let img_buffer = ImageBuffer::<Rgb<u8>, Vec<u8>>::from_raw(original_width, original_height, rgb_data.to_vec())
-        .ok_or_else(|| {
-            XbergError::parsing(format!(
-                "Failed to create image buffer from {}x{} RGB data",
-                original_width, original_height
-            ))
-        })?;
-
-    let image = DynamicImage::ImageRgb8(img_buffer);
-
-    let resized = resize_image(&image, new_width, new_height, final_scale)?;
-
-    let rgb_image = resized.to_rgb8();
-    let result_rgb_data = rgb_image.into_raw();
+    let result_rgb_data = resize_rgb(
+        rgb_data,
+        original_width,
+        original_height,
+        new_width,
+        new_height,
+        final_scale,
+    )?;
 
     let metadata = ImagePreprocessingMetadata {
         original_dimensions: (original_width as usize, original_height as usize),
