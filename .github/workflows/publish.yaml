@@ -3320,3 +3320,128 @@ jobs:
           package-dir: cli-proxy/npm
           access: public
           provenance: "true"
+
+  # --- First-party integrations (lockstep with core; see integrations/README.md) ---
+  # These are additive best-effort stages: they publish the integrations that ship
+  # with this core version, but are intentionally NOT part of release-finalize /
+  # announce-discord `needs`, so an integration hiccup never blocks the core release.
+  # Each depends on the matching core publish job so the core artifact lands first. ~keep
+
+  publish-integrations-pypi:
+    name: Publish integrations to PyPI
+    needs: [prepare, publish-pypi]
+    if: >-
+      ${{ !cancelled() && needs.publish-pypi.result != 'failure'
+      && needs.prepare.outputs.release_python == 'true'
+      && needs.prepare.outputs.is_tag == 'true' }}
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - name: Build integration distributions
+        run: |
+          set -euo pipefail
+          mkdir -p integrations-dist
+          pkgs=(
+            integrations/python/crewai
+            integrations/python/txtai
+            integrations/python/surrealdb
+            integrations/python/langchain
+            integrations/python/llama-index/readers/llama-index-readers-xberg
+            integrations/python/llama-index/node_parsers/llama-index-node-parser-xberg
+          )
+          for p in "${pkgs[@]}"; do
+            echo "::group::build $p"
+            uv build --sdist --wheel --out-dir integrations-dist "$p"
+            echo "::endgroup::"
+          done
+          ls -la integrations-dist
+      # Every integration PyPI project trusts (xberg-io/xberg, publish.yaml, env pypi),
+      # so a single OIDC upload publishes all of them. ~keep
+      - uses: xberg-io/actions/publish-pypi@v1
+        with:
+          packages-dir: integrations-dist
+          dry-run: ${{ needs.prepare.outputs.dry_run }}
+
+  publish-integrations-maven:
+    name: Publish spring-ai integration to Maven Central
+    needs: [prepare, publish-maven]
+    if: >-
+      ${{ !cancelled() && needs.publish-maven.result != 'failure'
+      && needs.prepare.outputs.release_java == 'true'
+      && needs.prepare.outputs.is_tag == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          server-id: central
+          server-username: MAVEN_USERNAME
+          server-password: MAVEN_PASSWORD
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+          gpg-passphrase: MAVEN_GPG_PASSPHRASE
+      - uses: xberg-io/actions/setup-maven@v1
+      - uses: xberg-io/actions/publish-maven@v1
+        with:
+          pom-file: integrations/java/spring-ai/pom.xml
+          maven-profile: publish
+          extra-args: -DskipTests
+          dry-run: ${{ needs.prepare.outputs.dry_run }}
+        env:
+          MAVEN_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+  publish-integrations-npm:
+    name: Publish ${{ matrix.package }} to npm
+    needs: [prepare, publish-node]
+    if: >-
+      ${{ !cancelled() && needs.publish-node.result != 'failure'
+      && needs.prepare.outputs.release_node == 'true'
+      && needs.prepare.outputs.is_tag == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - n8n-nodes-xberg
+          - langchain-xberg
+          - llamaindex-xberg
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.checkout_ref }}
+      - uses: xberg-io/actions/setup-node-workspace@v1
+        with:
+          node-version: "24"
+          registry-url: "https://registry.npmjs.org/"
+      - name: Build
+        working-directory: integrations/node/${{ matrix.package }}
+        run: |
+          npm ci
+          npm run build
+      - uses: xberg-io/actions/publish-npm@v1
+        with:
+          package-dir: integrations/node/${{ matrix.package }}
+          access: public
+          npm-tag: ${{ needs.prepare.outputs.npm_tag }}
+          provenance: "true"
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

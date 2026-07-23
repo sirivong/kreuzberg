@@ -1,0 +1,45 @@
+version: "3"
+internal: true
+
+# Dependency management for the first-party integrations under integrations/.
+# Python integrations are standalone uv projects (each owns its uv.lock); the
+# spring-ai integration is a Maven project. --prerelease=allow is required because
+# the pinned xberg is a pre-release (1.0.0rcNN) until the 1.0.0 GA. ~keep
+
+vars:
+  # Standalone uv projects (each owns its own uv.lock). The two llama-index
+  # sub-packages are developed/locked through the llama-index dev aggregator. ~keep
+  UV_DIRS: >-
+    integrations/python/crewai
+    integrations/python/txtai
+    integrations/python/surrealdb
+    integrations/python/langchain
+    integrations/python/llama-index
+  SPRING_AI: "integrations/java/spring-ai"
+
+tasks:
+  sync:
+    desc: "Install integration dependencies (Python uv projects)"
+    cmds:
+      - for: { var: UV_DIRS }
+        cmd: cd {{.ITEM}} && uv sync --all-extras --prerelease=allow
+
+  update:
+    desc: "Update integration dependencies within major versions"
+    cmds:
+      - for: { var: UV_DIRS }
+        cmd: cd {{.ITEM}} && uv sync --all-extras --upgrade-package "*" --prerelease=allow
+      - cmd: |
+          cd {{.SPRING_AI}} && command -v mvn >/dev/null 2>&1 \
+            && mvn -q versions:use-next-versions -DgenerateBackupPoms=false \
+            || echo "Maven not found, skipping spring-ai update"
+
+  upgrade:
+    desc: "Upgrade integration dependencies to latest and refresh lock files"
+    cmds:
+      - for: { var: UV_DIRS }
+        cmd: cd {{.ITEM}} && uv sync --all-extras --upgrade --prerelease=allow
+      - cmd: |
+          cd {{.SPRING_AI}} && command -v mvn >/dev/null 2>&1 \
+            && mvn -q versions:use-latest-releases -DgenerateBackupPoms=false \
+            || echo "Maven not found, skipping spring-ai upgrade"

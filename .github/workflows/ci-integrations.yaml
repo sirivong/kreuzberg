@@ -1,0 +1,95 @@
+name: CI Integrations
+
+# Tests for the first-party integrations under integrations/. Path-filtered so it
+# does not run on core-only changes. The Python packages are standalone uv projects
+# (each owns its uv.lock); spring-ai is Maven; the n8n node is a TypeScript package.
+# All depend on the published xberg binding (pre-release until 1.0.0 GA), hence
+# --prerelease=allow. ~keep
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "integrations/**"
+      - ".github/workflows/ci-integrations.yaml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "integrations/**"
+      - ".github/workflows/ci-integrations.yaml"
+  workflow_dispatch:
+
+concurrency:
+  group: ci-integrations-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    name: Python (${{ matrix.package }} · py${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.13"]
+        package:
+          - python/crewai
+          - python/txtai
+          - python/surrealdb
+          - python/langchain
+          - python/llama-index/readers/llama-index-readers-xberg
+          - python/llama-index/node_parsers/llama-index-node-parser-xberg
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Sync
+        working-directory: integrations/${{ matrix.package }}
+        run: uv sync --all-extras --prerelease=allow
+      - name: Test
+        working-directory: integrations/${{ matrix.package }}
+        run: uv run pytest -q
+
+  java:
+    name: Java (spring-ai)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Test
+        run: mvn -B -f integrations/java/spring-ai/pom.xml test
+
+  node:
+    name: Node (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - n8n-nodes-xberg
+          - langchain-xberg
+          - llamaindex-xberg
+    defaults:
+      run:
+        working-directory: integrations/node/${{ matrix.package }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install
+        run: npm ci
+      - name: Lint
+        run: npm run lint --if-present
+      - name: Build
+        run: npm run build --if-present
+      - name: Test
+        run: npm test --if-present
