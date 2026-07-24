@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0-rc.36] - 2026-07-24
+
+Republish of rc.35 (same library code — #1296 chunk-to-node linkage and #1303 base64 embeddings)
+under a fresh version, because the rc.35 release only partially published: the linux Node/Python,
+NuGet, and Docker channels failed on pre-existing packaging bugs while the immutable registries
+(crates.io, Hex, Maven Central, RubyGems, WASM) had already shipped, burning the rc.35 number.
+
+### Fixed
+
+- **ONNX Runtime bundling for linux Node + Python artifacts.** The Node dockerfiles and the wheel
+  build no longer drop `libonnxruntime.so.1`: the staging globs match versioned sonames (`*.so*`)
+  and the Python wheel job now vendors the native closure like the other targets.
+- **NuGet package size (413).** The `XbergIo.Xberg` meta-package is now a thin managed package that
+  resolves natives through a `runtime.json` RID graph to the per-RID `runtime.<rid>` packages,
+  instead of bundling every RID's native closure itself.
+- **Docker/GPU test fixtures.** CI now pulls the `test_documents` submodule's git-LFS objects, so the
+  Docker smoke test and GPU extraction tests read real documents instead of LFS pointer stubs.
+
 ## [1.0.0-rc.35] - 2026-07-23
 
 ### Added
