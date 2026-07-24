@@ -444,6 +444,7 @@ fn process_single_page(
         }
         merge_continuation_paragraphs(&mut paragraphs);
         synchronize_paragraph_text_metadata(&mut paragraphs);
+        merge_spatial_footnote_markers(&mut paragraphs);
         if let Some(ref hints) = page_hints {
             let classification_hints = regular_layout_hints(hints);
             super::layout_classify::apply_layout_overrides(
@@ -526,6 +527,7 @@ fn process_single_page(
             );
         }
         demote_structure_annotation_headings(&mut paragraphs);
+        merge_spatial_footnote_markers(&mut paragraphs);
         retain_page_furniture_safely(&mut paragraphs);
         paragraphs
     }
@@ -2625,6 +2627,91 @@ fn un_mark_layout_furniture_per_config(paragraphs: &mut [PdfParagraph], include_
             _ => {}
         }
     }
+}
+
+const FOOTNOTE_MARKER_MAX_CHARS: usize = 3;
+const FOOTNOTE_MARKER_MAX_FONT_RATIO: f32 = 0.8;
+const FOOTNOTE_MARKER_MAX_GAP_EM: f32 = 0.5;
+const FOOTNOTE_MARKER_MIN_VERTICAL_OVERLAP_RATIO: f32 = 0.8;
+const FOOTNOTE_MARKER_MIN_RISE_EM: f32 = 0.1;
+
+/// Rejoin a small raised footnote marker that was split from its body.
+///
+/// Standalone numeric markers are initially classified as page numbers. Only
+/// strong same-line geometry can override that classification, so genuine page
+/// numbers and numbered list items remain untouched.
+fn merge_spatial_footnote_markers(paragraphs: &mut Vec<PdfParagraph>) {
+    let mut index = 0;
+    while index + 1 < paragraphs.len() {
+        if !is_spatial_footnote_pair(&paragraphs[index], &paragraphs[index + 1]) {
+            index += 1;
+            continue;
+        }
+
+        let marker = paragraphs.remove(index);
+        let body = &mut paragraphs[index];
+        let mut lines = marker.lines;
+        lines.append(&mut body.lines);
+        body.lines = lines;
+        body.text.clear();
+        body.block_bbox = marker.block_bbox.zip(body.block_bbox).map(|(marker_bbox, body_bbox)| {
+            (
+                marker_bbox.0.min(body_bbox.0),
+                marker_bbox.1.min(body_bbox.1),
+                marker_bbox.2.max(body_bbox.2),
+                marker_bbox.3.max(body_bbox.3),
+            )
+        });
+        body.word_count = PdfParagraph::compute_word_count("", &body.lines);
+        body.is_page_furniture = false;
+        index += 1;
+    }
+}
+
+fn is_spatial_footnote_pair(marker: &PdfParagraph, body: &PdfParagraph) -> bool {
+    if !marker.is_page_furniture
+        || body.is_page_furniture
+        || body.heading_level.is_some()
+        || body.is_list_item
+        || body.is_code_block
+        || body.is_formula
+        || body.caption_for.is_some()
+        || marker.layout_region_path != body.layout_region_path
+        || !is_compact_footnote_marker(&paragraph_text_raw(marker))
+    {
+        return false;
+    }
+
+    let Some((marker_left, marker_bottom, marker_right, marker_top)) = marker.block_bbox else {
+        return false;
+    };
+    let Some((body_left, body_bottom, _, body_top)) = body.block_bbox else {
+        return false;
+    };
+    let marker_height = marker_top - marker_bottom;
+    let body_height = body_top - body_bottom;
+    let overlap = marker_top.min(body_top) - marker_bottom.max(body_bottom);
+    let minimum_height = marker_height.min(body_height);
+    let horizontal_gap = body_left - marker_right;
+
+    marker_left < body_left
+        && horizontal_gap >= 0.0
+        && horizontal_gap <= body.dominant_font_size * FOOTNOTE_MARKER_MAX_GAP_EM
+        && marker.dominant_font_size <= body.dominant_font_size * FOOTNOTE_MARKER_MAX_FONT_RATIO
+        && marker_bottom - body_bottom >= body.dominant_font_size * FOOTNOTE_MARKER_MIN_RISE_EM
+        && minimum_height > 0.0
+        && overlap >= minimum_height * FOOTNOTE_MARKER_MIN_VERTICAL_OVERLAP_RATIO
+}
+
+fn is_compact_footnote_marker(text: &str) -> bool {
+    let marker = text.trim();
+    let char_count = marker.chars().count();
+    char_count > 0
+        && char_count <= FOOTNOTE_MARKER_MAX_CHARS
+        && (marker.chars().all(|character| character.is_ascii_digit())
+            || marker
+                .chars()
+                .all(|character| matches!(character, '*' | '†' | '‡' | '§')))
 }
 
 /// Filter page furniture paragraphs with a safety valve.
@@ -5221,6 +5308,117 @@ where new shares are issued;";
             3,
             "non-consecutive heading duplicates must be preserved"
         );
+    }
+
+    fn positioned_footnote_paragraph(
+        text: &str,
+        bbox: (f32, f32, f32, f32),
+        font_size: f32,
+        is_page_furniture: bool,
+    ) -> PdfParagraph {
+        let mut segment = seg_at(text, bbox.0, bbox.1, font_size, false);
+        segment.width = bbox.2 - bbox.0;
+        let mut paragraph = para(vec![line(vec![segment])]);
+        paragraph.dominant_font_size = font_size;
+        paragraph.is_page_furniture = is_page_furniture;
+        paragraph.block_bbox = Some(bbox);
+        paragraph
+    }
+
+    #[test]
+    fn spatial_footnote_markers_survive_furniture_filter_and_deduplication() {
+        let pairs = [
+            ("1", "2021 estimate", 101.0221, 97.2274),
+            ("2", "2020 estimate", 89.5231, 85.7284),
+            ("3", "2020 estimate", 78.024, 74.2294),
+        ];
+        let mut paragraphs = Vec::new();
+        for (marker, body, marker_bottom, body_bottom) in pairs {
+            paragraphs.push(positioned_footnote_paragraph(
+                marker,
+                (72.0, marker_bottom, 75.3369, marker_bottom + 6.0),
+                6.0,
+                true,
+            ));
+            paragraphs.push(positioned_footnote_paragraph(
+                body,
+                (78.1142, body_bottom, 140.9093, body_bottom + 10.0),
+                10.0,
+                false,
+            ));
+        }
+
+        merge_spatial_footnote_markers(&mut paragraphs);
+        retain_page_furniture_safely(&mut paragraphs);
+        let mut pages = vec![paragraphs];
+        deduplicate_paragraphs(&mut pages);
+
+        assert_eq!(
+            pages[0].iter().map(paragraph_text_raw).collect::<Vec<_>>(),
+            ["1 2021 estimate", "2 2020 estimate", "3 2020 estimate"]
+        );
+        assert_eq!(pages[0][0].block_bbox, Some((72.0, 97.2274, 140.9093, 107.2274)));
+    }
+
+    #[test]
+    fn spatial_footnote_merge_rejects_page_numbers_and_list_markers() {
+        let page_number = positioned_footnote_paragraph("1", (300.0, 20.0, 303.0, 26.0), 6.0, true);
+        let distant_body = positioned_footnote_paragraph("Following paragraph", (72.0, 40.0, 180.0, 50.0), 10.0, false);
+        let list_number = positioned_footnote_paragraph("2", (72.0, 80.0, 75.0, 90.0), 10.0, true);
+        let list_body = positioned_footnote_paragraph("List body", (78.0, 80.0, 130.0, 90.0), 10.0, false);
+        let small_list_number = positioned_footnote_paragraph("3", (72.0, 60.0, 75.0, 66.0), 6.0, true);
+        let aligned_list_body =
+            positioned_footnote_paragraph("Small list body", (78.0, 60.0, 150.0, 70.0), 10.0, false);
+        let mut paragraphs = vec![
+            page_number,
+            distant_body,
+            list_number,
+            list_body,
+            small_list_number,
+            aligned_list_body,
+        ];
+
+        merge_spatial_footnote_markers(&mut paragraphs);
+
+        assert_eq!(paragraphs.len(), 6);
+        assert_eq!(
+            paragraphs.iter().map(paragraph_text_raw).collect::<Vec<_>>(),
+            ["1", "Following paragraph", "2", "List body", "3", "Small list body"]
+        );
+    }
+
+    #[test]
+    fn spatial_footnote_merge_requires_compatible_geometry_and_layout_path() {
+        let marker = positioned_footnote_paragraph("12", (72.0, 100.0, 76.0, 106.0), 6.0, true);
+        let large_gap_body = positioned_footnote_paragraph("Large gap", (90.0, 96.0, 140.0, 106.0), 10.0, false);
+        let weak_overlap_body = positioned_footnote_paragraph("Weak overlap", (78.0, 104.0, 140.0, 114.0), 10.0, false);
+        let mut mismatched_path_body =
+            positioned_footnote_paragraph("Other region", (78.0, 96.0, 140.0, 106.0), 10.0, false);
+        mismatched_path_body.layout_region_path = Some(super::super::types::LayoutRegionPath {
+            root: super::super::types::LayoutRegionTag {
+                id: 1,
+                class_name: Some(super::super::types::LayoutHintClass::Footnote),
+            },
+            child: None,
+        });
+
+        for body in [large_gap_body, weak_overlap_body, mismatched_path_body] {
+            let mut paragraphs = vec![marker.clone(), body];
+            merge_spatial_footnote_markers(&mut paragraphs);
+            assert_eq!(paragraphs.len(), 2);
+        }
+    }
+
+    #[test]
+    fn spatial_footnote_merge_accepts_conventional_symbol_marker() {
+        let marker = positioned_footnote_paragraph("†", (72.0, 100.0, 75.0, 106.0), 6.0, true);
+        let body = positioned_footnote_paragraph("Source note", (78.0, 96.0, 140.0, 106.0), 10.0, false);
+        let mut paragraphs = vec![marker, body];
+
+        merge_spatial_footnote_markers(&mut paragraphs);
+
+        assert_eq!(paragraphs.len(), 1);
+        assert_eq!(paragraph_text_raw(&paragraphs[0]), "† Source note");
     }
 
     /// Verify that the index offset formula used for image mapping is correct.
