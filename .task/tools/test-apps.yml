@@ -30,7 +30,8 @@ tasks:
     dir: "{{.ROOT_DIR}}/test_apps/python"
     deps: [mock-server:build]
     cmds:
-      - uv sync
+      # xberg is pinned to a pre-release (e.g. 1.0.0rc37); uv won't resolve it without this.
+      - uv sync --prerelease=allow
       - uv run --no-sync python -m pytest tests/test_smoke.py -v
 
   smoke:node:
@@ -54,7 +55,8 @@ tasks:
     env:
       GOWORK: "off"
     cmds:
-      - go mod download
+      # The generated go.sum can miss test-dep (testify) module hashes; tidy completes it before `go test`.
+      - go mod tidy
       - go test -v -run '^Test_Smoke' ./...
 
   smoke:java:
