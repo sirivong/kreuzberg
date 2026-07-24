@@ -476,6 +476,16 @@ jobs:
           cibw-before-build-windows: "rustup install 1.95-x86_64-pc-windows-msvc --profile minimal --component rust-src --component rustfmt --component clippy && rustup target add x86_64-pc-windows-msvc --toolchain 1.95-x86_64-pc-windows-msvc && pip install maturin uv && set PATH=%USERPROFILE%\\.cargo\\bin;%PATH%"
           cibw-environment-windows: 'MATURIN_BUILD_ARGS="--target x86_64-pc-windows-msvc" RUSTUP_TOOLCHAIN="1.95-x86_64-pc-windows-msvc" RUSTC_WRAPPER='
 
+      - name: Vendor ONNX Runtime into wheel
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          # auditwheel's default repair only bundles libs it can resolve via ldd
+          # at repair time; it has been observed to drop libonnxruntime.so here
+          # (#1284 follow-up). Vendor explicitly, same as every other native
+          # target in this workflow, instead of depending on auditwheel alone.
+          for w in wheelhouse/*.whl; do scripts/ci/vendor-native-closure.sh "$w"; done
+
       - name: Verify wheel glibc floor + bundled ONNX Runtime
         if: runner.os == 'Linux'
         shell: bash
@@ -650,8 +660,10 @@ jobs:
           # Ship the .node's vendored shared-lib closure (libonnxruntime + codecs)
           # beside it — the .node's RUNPATH is $ORIGIN, so co-located libs resolve
           # at require() time. Without them consumers hit ERR_DLOPEN_FAILED.
-          if ls build-output/*.so >/dev/null 2>&1; then
-            cp -v build-output/*.so "staging/npm/${platform}/"
+          # `*.so*` (not `*.so`) matches versioned sonames like libonnxruntime.so.1,
+          # which a plain `*.so` glob silently drops. ~keep
+          if ls build-output/*.so* >/dev/null 2>&1; then
+            cp -v build-output/*.so* "staging/npm/${platform}/"
           else
             echo "::error::no vendored shared libs produced by musl build for ${platform}"; exit 1
           fi
@@ -723,8 +735,10 @@ jobs:
           # Ship the .node's vendored shared-lib closure (libonnxruntime + codecs)
           # beside it — the .node's RUNPATH is $ORIGIN, so co-located libs resolve
           # at require() time. Without them consumers hit ERR_DLOPEN_FAILED.
-          if ls build-output/*.so >/dev/null 2>&1; then
-            cp -v build-output/*.so "staging/npm/${platform}/"
+          # `*.so*` (not `*.so`) matches versioned sonames like libonnxruntime.so.1,
+          # which a plain `*.so` glob silently drops. ~keep
+          if ls build-output/*.so* >/dev/null 2>&1; then
+            cp -v build-output/*.so* "staging/npm/${platform}/"
           else
             echo "::error::no vendored shared libs produced by manylinux build for ${platform}"; exit 1
           fi
@@ -2758,14 +2772,22 @@ jobs:
         with:
           dotnet-version: "8.0.x"
 
+      - name: Render runtime.json for the meta-package's RID fallback graph
+        # rc.35 still shipped every RID's native closure inside the meta package
+        # itself (Xberg.csproj packed `runtimes/**` directly) and nuget.org
+        # rejected the push with 413, even though the per-RID runtime.<rid>
+        # packages below were already lean and published fine. The meta package
+        # must instead carry only the managed assembly + this rendered
+        # runtime.json, which tells NuGet's RID-fallback graph which
+        # XbergIo.Xberg.runtime.<rid> package to pull in for the consumer's RID
+        # — the standard runtime-package split, same shape as e.g. SQLitePCLRaw.
+        # The RID list here must match packages/csharp/Xberg/runtime.json.template. ~keep
+        run: |
+          sed "s/{{VERSION}}/${{ needs.prepare.outputs.version }}/g" \
+            packages/csharp/Xberg/runtime.json.template > packages/csharp/Xberg/runtime.json
+        shell: bash
+
       - name: Pack NuGet packages (meta + one per-RID runtime package)
-        # rc.33 shipped every RID's native closure in the single XbergIo.Xberg
-        # package and nuget.org rejected the push with 413 (package too large).
-        # Split into a lean AnyCPU meta-package (managed dll + runtime.json) plus
-        # one XbergIo.Xberg.runtime.<rid> package per RID, each carrying only its
-        # own runtimes/<rid>/native/ payload — the standard runtime-package
-        # split, same shape as e.g. SQLitePCLRaw. The RID list here must match
-        # packages/csharp/Xberg/runtime.json.template. ~keep
         run: |
           set -euo pipefail
           dotnet pack packages/csharp/Xberg/Xberg.csproj \

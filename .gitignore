@@ -220,6 +220,8 @@ tests/e2e/logs/
 tests/e2e/test_report.json
 temp-test-*
 packages/csharp/test_html_debug.cs
+# CI renders this from runtime.json.template at publish time; template is the source of truth.
+packages/csharp/Xberg/runtime.json
 
 # AI / MCP / Agent config
 .claude/

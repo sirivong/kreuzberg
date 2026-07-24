@@ -99,7 +99,7 @@ vendor_tree() {
   while IFS= read -r lib; do
     found=1
     vendor_one "$lib"
-  done < <(find "$root" \( -name 'libxberg_*.so' -o -name '*.node' -o -name 'php_xberg.so' \) -type f)
+  done < <(find "$root" \( -name 'libxberg_*.so' -o -name '_xberg*.so' -o -name 'php_xberg.so' -o -name '*.node' \) -type f)
   [ "$found" = 1 ] || die "no xberg native library found under $root"
 }
 
@@ -113,6 +113,18 @@ main() {
     vendor_tree "$WORKDIR"
     rm -f "$artifact"
     tar -czf "$artifact" -C "$WORKDIR" .
+    ;;
+  *.whl)
+    WORKDIR="$(mktemp -d)"
+    trap cleanup EXIT
+    # Resolve to an absolute path before the subshell cd's into $WORKDIR below,
+    # or a relative $artifact would be (re)created inside $WORKDIR instead of
+    # the original cwd.
+    artifact="$(cd "$(dirname "$artifact")" && pwd)/$(basename "$artifact")"
+    unzip -qo "$artifact" -d "$WORKDIR"
+    vendor_tree "$WORKDIR"
+    rm -f "$artifact"
+    (cd "$WORKDIR" && zip -qr "$artifact" .)
     ;;
   *.so | *.node) vendor_one "$artifact" ;;
   *)

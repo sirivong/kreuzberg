@@ -84,10 +84,12 @@ RUN file /build/*.node && \
     echo "=== Dynamic dependencies ===" && \
     readelf -d /build/*.node 2>/dev/null | grep NEEDED && \
     echo "=== Vendored libs (ship beside the .node) ===" && \
-    ls -la /build/*.so && \
+    ls -la /build/*.so* && \
     echo "=== Max GLIBC symbol version (floor) ===" && \
     { objdump -T /build/*.node 2>/dev/null | grep -oE 'GLIBC_[0-9]+\.[0-9]+' | sort -V | tail -1 || true; }
 
 FROM scratch
 COPY --from=builder /build/*.node /
-COPY --from=builder /build/*.so /
+# `*.so*` (not `*.so`) matches versioned sonames like libonnxruntime.so.1,
+# which a plain `*.so` glob silently drops. ~keep
+COPY --from=builder /build/*.so* /
