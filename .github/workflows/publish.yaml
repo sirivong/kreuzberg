@@ -2132,6 +2132,39 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           assets: xberg-go-*.tar.gz
 
+  tag-go-module:
+    name: Tag Go module for pkg.go.dev resolution
+    needs: [prepare, upload-go-release]
+    # dry-run releases must NEVER mint real remote tags; the tag script has no
+    # dry-run awareness of its own, so this job is skipped entirely when dry_run
+    # is true instead of trying to thread a flag through the script. ~keep
+    if: ${{ needs.prepare.outputs.is_tag == 'true' && needs.prepare.outputs.dry_run != 'true' && needs.upload-go-release.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_APP_PRIVATE_KEY }}
+          owner: xberg-io
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: true
+
+      - name: Configure git identity
+        run: |
+          git config user.name "xberg-bot[bot]"
+          git config user.email "xberg-bot[bot]@users.noreply.github.com"
+
+      - name: Create and push packages/go tags
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: scripts/publish/go/tag-and-push-go-module.sh "${{ needs.prepare.outputs.tag }}"
+
   upload-c-ffi-release:
     name: Upload C FFI archives to GitHub Release
     needs: [prepare, c-ffi-libraries]
