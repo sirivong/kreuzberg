@@ -509,21 +509,28 @@ pub(super) fn repair_ligature_spaces(text: &str) -> Cow<'_, str> {
     }
 
     let mut result = String::with_capacity(text.len());
-    let bytes = text.as_bytes();
-    let len = bytes.len();
-    let mut i = 0;
+    let mut chars = text.char_indices().peekable();
+    let mut word_start = 0;
 
-    while i < len {
-        if bytes[i] == b'f' && i + 2 < len && bytes[i + 1] == b' ' {
-            let next = bytes[i + 2];
-            if (next == b'i' || next == b'l' || next == b'f') && i > 0 && bytes[i - 1].is_ascii_alphabetic() {
-                result.push('f');
-                i += 2;
+    while let Some((index, ch)) = chars.next() {
+        if ch == 'f' && chars.peek().is_some_and(|(_, next)| *next == ' ') {
+            let mut lookahead = chars.clone();
+            lookahead.next();
+            let continuation = lookahead.next().map(|(_, next)| next);
+            let current_word = &text[word_start..index + ch.len_utf8()];
+            let is_ligature_continuation = matches!(continuation, Some('i' | 'l' | 'f'));
+
+            if is_ligature_continuation && !is_common_short_word(current_word) {
+                result.push(ch);
+                chars.next();
                 continue;
             }
         }
-        result.push(bytes[i] as char);
-        i += 1;
+
+        result.push(ch);
+        if !ch.is_alphabetic() {
+            word_start = index + ch.len_utf8();
+        }
     }
 
     if result == text {
@@ -1022,6 +1029,23 @@ mod tests {
     #[test]
     fn test_expand_ligatures_no_space_no_absorption() {
         assert_eq!(expand_ligatures_with_space_absorption("\u{FB01}nally"), "finally");
+    }
+
+    #[test]
+    fn test_repair_ligature_spaces_preserves_short_word_boundary() {
+        let text = "café kinetics of inhibitor adsorption if flow changes";
+        let repaired = repair_ligature_spaces(text);
+
+        assert_eq!(repaired, text);
+        assert!(matches!(repaired, Cow::Borrowed(_)));
+    }
+
+    #[test]
+    fn test_repair_ligature_spaces_repairs_intra_word_breaks() {
+        assert_eq!(
+            repair_ligature_spaces("f irst eff iciently signif icant"),
+            "first efficiently significant"
+        );
     }
 
     #[test]
