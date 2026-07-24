@@ -25,10 +25,26 @@ const MIN_PROSE_ALPHA_RATIO: f32 = 0.55;
 const MIN_SIDE_BALANCE_RATIO: f32 = 0.15;
 const MIN_VERTICAL_OVERLAP_RATIO: f32 = 0.35;
 const PROSE_LINE_Y_TOLERANCE_PTS: f32 = 4.0;
+const INLINE_SCRIPT_LOOKBACK: usize = 8;
+const INLINE_SCRIPT_MIN_FONT_RATIO: f32 = 0.5;
+const INLINE_SCRIPT_MAX_FONT_RATIO: f32 = 0.8;
+const INLINE_SCRIPT_MIN_BASELINE_SHIFT_EM: f32 = 0.08;
+const INLINE_SCRIPT_MAX_BASELINE_SHIFT_EM: f32 = 0.35;
+const INLINE_SCRIPT_MAX_SUFFIX_GAP_EM: f32 = 0.12;
+const INLINE_SCRIPT_SAME_BASELINE_TOLERANCE_EM: f32 = 0.02;
+const INLINE_SCRIPT_MAX_CHARS: usize = 4;
+const INLINE_SCRIPT_MIN_WIDTH_COVERAGE: f32 = 0.7;
+const INLINE_SCRIPT_MAX_WIDTH_COVERAGE: f32 = 1.3;
 
 #[derive(Debug)]
 struct SideSupport {
     prose_line_ys: Vec<f32>,
+}
+
+#[derive(Debug)]
+struct ScriptAttachment {
+    script_index: usize,
+    insertion_index: usize,
 }
 
 fn is_usable_span(span: &pdf_oxide::layout::TextSpan) -> bool {
@@ -177,6 +193,283 @@ fn select_reading_order(
     }
 }
 
+fn rejoin_inline_scripts(spans: Vec<pdf_oxide::layout::TextSpan>) -> Vec<pdf_oxide::layout::TextSpan> {
+    let mut by_base: HashMap<usize, Vec<ScriptAttachment>> = HashMap::new();
+    let mut attached = vec![false; spans.len()];
+    for script_index in 0..spans.len() {
+        if by_base.contains_key(&script_index) {
+            continue;
+        }
+        let Some((base_index, insertion_index)) = find_inline_script_base(&spans, &attached, script_index) else {
+            continue;
+        };
+        attached[script_index] = true;
+        by_base.entry(base_index).or_default().push(ScriptAttachment {
+            script_index,
+            insertion_index,
+        });
+    }
+
+    let mut repaired = Vec::with_capacity(spans.len());
+    for (index, span) in spans.iter().enumerate() {
+        if attached[index] {
+            continue;
+        }
+        match by_base.remove(&index) {
+            Some(scripts) => emit_base_with_scripts(span, scripts, &spans, &mut repaired),
+            None => repaired.push(span.clone()),
+        }
+    }
+    repaired
+}
+
+fn find_inline_script_base(
+    spans: &[pdf_oxide::layout::TextSpan],
+    attached: &[bool],
+    script_index: usize,
+) -> Option<(usize, usize)> {
+    let script = spans.get(script_index)?;
+    if !is_compact_horizontal_ascii_span(script) {
+        return None;
+    }
+
+    let start = script_index.saturating_sub(INLINE_SCRIPT_LOOKBACK);
+    (start..script_index)
+        .filter(|base_index| !attached[*base_index])
+        .filter_map(|base_index| {
+            let base = &spans[base_index];
+            inline_script_insertion(base, script, base_index + 1 == script_index).map(|insertion| {
+                (
+                    base_index,
+                    insertion,
+                    (script.bbox.y - base.bbox.y).abs(),
+                    horizontal_attachment_distance(base, script),
+                    script_index - base_index,
+                )
+            })
+        })
+        .min_by(|left, right| {
+            left.2
+                .total_cmp(&right.2)
+                .then_with(|| left.3.total_cmp(&right.3))
+                .then_with(|| left.4.cmp(&right.4))
+        })
+        .map(|(base_index, insertion_index, _, _, _)| (base_index, insertion_index))
+}
+
+fn inline_script_insertion(
+    base: &pdf_oxide::layout::TextSpan,
+    script: &pdf_oxide::layout::TextSpan,
+    immediately_follows: bool,
+) -> Option<usize> {
+    if base.artifact_type.is_some()
+        || script.artifact_type.is_some()
+        || !is_horizontal_ltr(base)
+        || !base.text.is_ascii()
+        || !base.text.chars().any(|character| character.is_ascii_alphabetic())
+        || !has_valid_span_geometry(base)
+        || !has_valid_span_geometry(script)
+    {
+        return None;
+    }
+    let font_ratio = script.font_size / base.font_size;
+    if !(INLINE_SCRIPT_MIN_FONT_RATIO..=INLINE_SCRIPT_MAX_FONT_RATIO).contains(&font_ratio) {
+        return None;
+    }
+
+    let base_right = base.bbox.x + base.bbox.width;
+    let gap = script.bbox.x - base_right;
+    let baseline_shift = (script.bbox.y - base.bbox.y).abs();
+    if baseline_shift > base.font_size * INLINE_SCRIPT_MAX_BASELINE_SHIFT_EM {
+        return None;
+    }
+    let same_baseline_suffix = immediately_follows
+        && gap >= 0.0
+        && gap <= base.font_size * INLINE_SCRIPT_MAX_SUFFIX_GAP_EM
+        && baseline_shift <= base.font_size * INLINE_SCRIPT_SAME_BASELINE_TOLERANCE_EM;
+    let shifted_script = baseline_shift >= base.font_size * INLINE_SCRIPT_MIN_BASELINE_SHIFT_EM
+        && baseline_shift <= base.font_size * INLINE_SCRIPT_MAX_BASELINE_SHIFT_EM;
+    let normalized_rise = script.text_rise.abs() * script.font_size / base.font_size;
+    let explicit_rise = normalized_rise.is_finite()
+        && (INLINE_SCRIPT_MIN_BASELINE_SHIFT_EM..=INLINE_SCRIPT_MAX_BASELINE_SHIFT_EM).contains(&normalized_rise);
+    if !same_baseline_suffix && !shifted_script && !explicit_rise {
+        return None;
+    }
+    if script.bbox.x < base.bbox.x || gap > base.font_size * INLINE_SCRIPT_MAX_SUFFIX_GAP_EM {
+        return None;
+    }
+
+    let char_count = base.text.chars().count();
+    if script.bbox.x >= base_right {
+        return Some(char_count);
+    }
+    character_origins(base).map(|origins| origins.partition_point(|origin| *origin < script.bbox.x))
+}
+
+fn is_compact_horizontal_ascii_span(span: &pdf_oxide::layout::TextSpan) -> bool {
+    let char_count = span.text.chars().count();
+    char_count > 0
+        && char_count <= INLINE_SCRIPT_MAX_CHARS
+        && span.artifact_type.is_none()
+        && span.text.is_ascii()
+        && !span.text.chars().any(char::is_whitespace)
+        && span.text.chars().all(|character| {
+            character.is_ascii_alphanumeric() || matches!(character, '+' | '-' | '=' | '(' | ')' | ',' | '.')
+        })
+        && is_horizontal_ltr(span)
+}
+
+fn is_horizontal_ltr(span: &pdf_oxide::layout::TextSpan) -> bool {
+    span.wmode == 0 && !span.rtl_draw_logical && span.rotation_degrees.abs() <= f32::EPSILON
+}
+
+fn has_valid_span_geometry(span: &pdf_oxide::layout::TextSpan) -> bool {
+    span.bbox.x.is_finite()
+        && span.bbox.y.is_finite()
+        && span.bbox.width.is_finite()
+        && span.bbox.height.is_finite()
+        && span.font_size.is_finite()
+        && span.bbox.width > 0.0
+        && span.bbox.height > 0.0
+        && span.font_size > 0.0
+}
+
+fn character_origins(span: &pdf_oxide::layout::TextSpan) -> Option<Vec<f32>> {
+    let char_count = span.text.chars().count();
+    let bbox_right = span.bbox.x + span.bbox.width;
+    if span.char_x_offsets.len() == char_count
+        && span.char_x_offsets.iter().all(|origin| origin.is_finite())
+        && span.char_x_offsets.windows(2).all(|pair| pair[0] < pair[1])
+        && span.char_x_offsets.first().is_some_and(|origin| *origin >= span.bbox.x)
+        && span.char_x_offsets.last().is_some_and(|origin| *origin <= bbox_right)
+    {
+        return Some(span.char_x_offsets.clone());
+    }
+
+    let width_sum: f32 = span.char_widths.iter().sum();
+    let coverage = width_sum / span.bbox.width;
+    if span.char_widths.len() != char_count
+        || !span.char_widths.iter().all(|width| width.is_finite() && *width > 0.0)
+        || !width_sum.is_finite()
+        || width_sum <= 0.0
+        || !(INLINE_SCRIPT_MIN_WIDTH_COVERAGE..=INLINE_SCRIPT_MAX_WIDTH_COVERAGE).contains(&coverage)
+    {
+        return None;
+    }
+
+    let scale = span.bbox.width / width_sum;
+    let mut x = span.bbox.x;
+    Some(
+        span.char_widths
+            .iter()
+            .map(|width| {
+                let origin = x;
+                x += width * scale;
+                origin
+            })
+            .collect(),
+    )
+}
+
+fn horizontal_attachment_distance(base: &pdf_oxide::layout::TextSpan, script: &pdf_oxide::layout::TextSpan) -> f32 {
+    let base_right = base.bbox.x + base.bbox.width;
+    if script.bbox.x <= base_right {
+        0.0
+    } else {
+        script.bbox.x - base_right
+    }
+}
+
+fn emit_base_with_scripts(
+    base: &pdf_oxide::layout::TextSpan,
+    mut scripts: Vec<ScriptAttachment>,
+    spans: &[pdf_oxide::layout::TextSpan],
+    output: &mut Vec<pdf_oxide::layout::TextSpan>,
+) {
+    scripts.sort_by(|left, right| {
+        left.insertion_index.cmp(&right.insertion_index).then_with(|| {
+            spans[left.script_index]
+                .bbox
+                .x
+                .total_cmp(&spans[right.script_index].bbox.x)
+        })
+    });
+    let mut range_start = 0;
+    let char_count = base.text.chars().count();
+    for script in scripts {
+        let fragment = (script.insertion_index > range_start)
+            .then(|| split_span(base, range_start, script.insertion_index))
+            .flatten();
+        let normalized = normalize_script_span(&spans[script.script_index], base);
+        if script.insertion_index == char_count {
+            if let Some(mut fragment) = fragment {
+                append_span_text(&mut fragment, &normalized);
+                output.push(fragment);
+            } else if let Some(previous) = output.last_mut() {
+                append_span_text(previous, &normalized);
+            }
+        } else {
+            output.extend(fragment);
+            output.push(normalized);
+        }
+        range_start = script.insertion_index;
+    }
+    if let Some(fragment) = split_span(base, range_start, char_count) {
+        output.push(fragment);
+    }
+}
+
+fn append_span_text(target: &mut pdf_oxide::layout::TextSpan, suffix: &pdf_oxide::layout::TextSpan) {
+    target.text.push_str(&suffix.text);
+    let target_right = target.bbox.x + target.bbox.width;
+    let suffix_right = suffix.bbox.x + suffix.bbox.width;
+    target.bbox.width = target_right.max(suffix_right) - target.bbox.x;
+    target.char_x_offsets.clear();
+    target.char_widths.clear();
+}
+
+fn split_span(span: &pdf_oxide::layout::TextSpan, start: usize, end: usize) -> Option<pdf_oxide::layout::TextSpan> {
+    if start >= end {
+        return None;
+    }
+    let chars: Vec<char> = span.text.chars().collect();
+    if start == 0 && end == chars.len() {
+        return Some(span.clone());
+    }
+    let origins = character_origins(span)?;
+    let mut fragment = span.clone();
+    fragment.text = chars[start..end].iter().collect();
+    fragment.bbox.x = origins[start];
+    let end_x = origins.get(end).copied().unwrap_or(span.bbox.x + span.bbox.width);
+    fragment.bbox.width = (end_x - fragment.bbox.x).max(0.0);
+    fragment.char_x_offsets = origins[start..end].to_vec();
+    if span.char_widths.len() == chars.len() {
+        fragment.char_widths = span.char_widths[start..end].to_vec();
+    } else {
+        fragment.char_widths.clear();
+    }
+    Some(fragment)
+}
+
+fn normalize_script_span(
+    script: &pdf_oxide::layout::TextSpan,
+    base: &pdf_oxide::layout::TextSpan,
+) -> pdf_oxide::layout::TextSpan {
+    let mut normalized = script.clone();
+    normalized.bbox.y = base.bbox.y;
+    normalized.bbox.height = base.bbox.height;
+    normalized.font_name.clone_from(&base.font_name);
+    normalized.font_size = base.font_size;
+    normalized.font_weight = base.font_weight;
+    normalized.is_italic = base.is_italic;
+    normalized.is_monospace = base.is_monospace;
+    normalized.mcid = base.mcid;
+    normalized.mcid_scope.clone_from(&base.mcid_scope);
+    normalized.heading_level = base.heading_level;
+    normalized.text_rise = 0.0;
+    normalized
+}
+
 /// Extract text segments with font metrics from a PDF page using pdf_oxide.
 ///
 /// Returns `SegmentData` objects containing text, position, and font metadata
@@ -237,7 +530,7 @@ fn extract_segments_from_page_inner(
             ),
         }
     }
-    let spans = page_text_data.spans;
+    let spans = rejoin_inline_scripts(page_text_data.spans);
 
     let segments: Vec<SegmentData> = spans
         .into_iter()
@@ -628,6 +921,224 @@ mod tests {
             baseline_y: y,
             assigned_role: None,
         }
+    }
+
+    fn positioned_span(text: &str, x: f32, y: f32, width: f32, font_size: f32, char_x_offsets: Vec<f32>) -> TextSpan {
+        TextSpan {
+            text: text.to_string(),
+            bbox: Rect::new(x, y, width, font_size),
+            font_size,
+            char_x_offsets,
+            ..TextSpan::default()
+        }
+    }
+
+    #[test]
+    fn should_interleave_internal_and_suffix_subscripts_from_character_geometry() {
+        let base = positioned_span("H SO", 100.0, 200.0, 20.0, 10.0, vec![100.0, 105.0, 110.0, 115.0]);
+        let trailing = positioned_span(" solution", 125.0, 200.0, 40.0, 10.0, vec![]);
+        let subscript_two = positioned_span("2", 105.0, 198.4, 3.0, 6.7, vec![105.0]);
+        let subscript_four = positioned_span("4", 120.0, 198.4, 3.0, 6.7, vec![120.0]);
+
+        let repaired = super::rejoin_inline_scripts(vec![base, trailing, subscript_two, subscript_four]);
+        let texts: Vec<_> = repaired.iter().map(|span| span.text.as_str()).collect();
+
+        assert_eq!(texts, ["H", "2", " SO4", " solution"]);
+        assert_eq!(repaired[1].bbox.y, 200.0);
+        assert_eq!(repaired[1].font_size, 10.0);
+        assert_eq!(repaired[2].bbox.y, 200.0);
+        assert_eq!(repaired[2].font_size, 10.0);
+    }
+
+    #[test]
+    fn should_use_complete_character_widths_when_origins_are_unavailable() {
+        let mut base = positioned_span("H SO", 100.0, 200.0, 20.0, 10.0, vec![]);
+        base.char_widths = vec![4.5, 4.5, 4.5, 4.5];
+        let trailing = positioned_span(" solution", 125.0, 200.0, 40.0, 10.0, vec![]);
+        let subscript = positioned_span("2", 105.0, 198.4, 3.0, 6.7, vec![105.0]);
+
+        let repaired = super::rejoin_inline_scripts(vec![base, trailing, subscript]);
+        let texts: Vec<_> = repaired.iter().map(|span| span.text.as_str()).collect();
+
+        assert_eq!(texts, ["H", "2", " SO", " solution"]);
+    }
+
+    #[test]
+    fn should_keep_adjacent_same_baseline_unit_suffix_inline() {
+        let base = positioned_span("A/cm", 100.0, 200.0, 20.0, 10.0, vec![]);
+        let exponent = positioned_span("2", 120.1, 200.0, 3.0, 6.7, vec![120.1]);
+        let closing = positioned_span(")", 123.2, 200.0, 3.0, 10.0, vec![123.2]);
+
+        let repaired = super::rejoin_inline_scripts(vec![base, exponent, closing]);
+        let texts: Vec<_> = repaired.iter().map(|span| span.text.as_str()).collect();
+
+        assert_eq!(texts, ["A/cm2", ")"]);
+        assert_eq!(repaired[0].font_size, 10.0);
+    }
+
+    #[test]
+    fn should_preserve_native_order_when_internal_character_offsets_are_missing() {
+        let base = positioned_span("H SO", 100.0, 200.0, 20.0, 10.0, vec![]);
+        let trailing = positioned_span(" solution", 125.0, 200.0, 40.0, 10.0, vec![]);
+        let subscript = positioned_span("2", 105.0, 198.4, 3.0, 6.7, vec![105.0]);
+
+        let repaired = super::rejoin_inline_scripts(vec![base, trailing, subscript]);
+        let texts: Vec<_> = repaired.iter().map(|span| span.text.as_str()).collect();
+
+        assert_eq!(texts, ["H SO", " solution", "2"]);
+        assert_eq!(repaired[2].font_size, 6.7);
+    }
+
+    #[test]
+    fn should_preserve_native_order_for_non_strict_character_geometry() {
+        for mut base in [
+            positioned_span("H SO", 100.0, 200.0, 20.0, 10.0, vec![100.0, 105.0, 105.0, 115.0]),
+            positioned_span("H SO", 100.0, 200.0, 20.0, 10.0, vec![]),
+        ] {
+            if base.char_x_offsets.is_empty() {
+                base.char_widths = vec![5.0, 0.0, 5.0, 5.0];
+            }
+            let trailing = positioned_span(" solution", 125.0, 200.0, 40.0, 10.0, vec![]);
+            let subscript = positioned_span("2", 105.0, 198.4, 3.0, 6.7, vec![105.0]);
+
+            let repaired = super::rejoin_inline_scripts(vec![base, trailing, subscript]);
+            assert_eq!(
+                repaired.iter().map(|span| span.text.as_str()).collect::<Vec<_>>(),
+                ["H SO", " solution", "2"]
+            );
+        }
+    }
+
+    #[test]
+    fn should_not_join_separate_same_baseline_table_cells() {
+        let label = positioned_span("Total", 100.0, 200.0, 25.0, 10.0, vec![]);
+        let cell = positioned_span("2", 150.0, 200.0, 3.0, 6.7, vec![150.0]);
+
+        let repaired = super::rejoin_inline_scripts(vec![label, cell]);
+
+        assert_eq!(repaired.len(), 2);
+        assert_eq!(repaired[1].font_size, 6.7);
+    }
+
+    #[test]
+    fn should_not_reorder_rotated_vertical_or_rtl_spans() {
+        for configure in [
+            |span: &mut TextSpan| span.rotation_degrees = 90.0,
+            |span: &mut TextSpan| span.wmode = 1,
+            |span: &mut TextSpan| span.rtl_draw_logical = true,
+        ] {
+            let mut base = positioned_span("H SO", 100.0, 200.0, 20.0, 10.0, vec![100.0, 105.0, 110.0, 115.0]);
+            configure(&mut base);
+            let trailing = positioned_span(" solution", 125.0, 200.0, 40.0, 10.0, vec![]);
+            let subscript = positioned_span("2", 105.0, 198.4, 3.0, 6.7, vec![105.0]);
+
+            let repaired = super::rejoin_inline_scripts(vec![base, trailing, subscript]);
+            let texts: Vec<_> = repaired.iter().map(|span| span.text.as_str()).collect();
+
+            assert_eq!(texts, ["H SO", " solution", "2"]);
+        }
+    }
+
+    #[test]
+    fn should_bound_and_normalize_text_rise_against_base_font() {
+        let base = positioned_span("Unit", 100.0, 200.0, 20.0, 10.0, vec![]);
+        let separator = positioned_span(" tail", 130.0, 200.0, 20.0, 10.0, vec![]);
+        let mut insufficient_rise = positioned_span("2", 120.1, 200.0, 3.0, 6.7, vec![120.1]);
+        insufficient_rise.text_rise = 0.1;
+        let unrepaired = super::rejoin_inline_scripts(vec![base.clone(), separator.clone(), insufficient_rise]);
+        assert_eq!(
+            unrepaired.iter().map(|span| span.text.as_str()).collect::<Vec<_>>(),
+            ["Unit", " tail", "2"]
+        );
+
+        let mut normalized_rise = positioned_span("2", 120.1, 200.0, 3.0, 6.7, vec![120.1]);
+        normalized_rise.text_rise = 0.15;
+        let repaired = super::rejoin_inline_scripts(vec![base.clone(), separator.clone(), normalized_rise]);
+        assert_eq!(
+            repaired.iter().map(|span| span.text.as_str()).collect::<Vec<_>>(),
+            ["Unit2", " tail"]
+        );
+
+        let mut distant = positioned_span("2", 120.1, 195.0, 3.0, 6.7, vec![120.1]);
+        distant.text_rise = 0.3;
+        let bounded = super::rejoin_inline_scripts(vec![base, separator, distant]);
+        assert_eq!(
+            bounded.iter().map(|span| span.text.as_str()).collect::<Vec<_>>(),
+            ["Unit", " tail", "2"]
+        );
+    }
+
+    #[test]
+    fn should_never_attach_or_leak_artifact_spans() {
+        let base = positioned_span("Unit", 100.0, 200.0, 20.0, 10.0, vec![]);
+        let mut artifact_script = positioned_span("2", 120.1, 198.4, 3.0, 6.7, vec![120.1]);
+        artifact_script.artifact_type = Some(pdf_oxide::extractors::text::ArtifactType::Layout);
+        let repaired = super::rejoin_inline_scripts(vec![base, artifact_script]);
+        assert_eq!(repaired[0].text, "Unit");
+        assert_eq!(repaired[1].text, "2");
+        assert!(repaired[1].artifact_type.is_some());
+
+        let mut artifact_base = positioned_span("Unit", 100.0, 200.0, 20.0, 10.0, vec![]);
+        artifact_base.artifact_type = Some(pdf_oxide::extractors::text::ArtifactType::Layout);
+        let script = positioned_span("2", 120.1, 198.4, 3.0, 6.7, vec![120.1]);
+        let repaired = super::rejoin_inline_scripts(vec![artifact_base, script]);
+        assert_eq!(repaired.len(), 2);
+        assert!(repaired[0].artifact_type.is_some());
+    }
+
+    #[test]
+    fn should_choose_nearest_baseline_then_nearest_native_base() {
+        let closer_old = positioned_span("Old", 100.0, 199.0, 20.0, 10.0, vec![]);
+        let farther_recent = positioned_span("New", 100.0, 200.0, 20.0, 10.0, vec![]);
+        let script = positioned_span("2", 120.1, 197.5, 3.0, 6.7, vec![120.1]);
+        let repaired = super::rejoin_inline_scripts(vec![closer_old, farther_recent, script]);
+        assert_eq!(
+            repaired.iter().map(|span| span.text.as_str()).collect::<Vec<_>>(),
+            ["Old2", "New"]
+        );
+
+        let old_tie = positioned_span("Old", 100.0, 200.0, 20.0, 10.0, vec![]);
+        let recent_tie = positioned_span("New", 100.0, 200.0, 20.0, 10.0, vec![]);
+        let script = positioned_span("2", 120.1, 198.4, 3.0, 6.7, vec![120.1]);
+        let repaired = super::rejoin_inline_scripts(vec![old_tie, recent_tie, script]);
+        assert_eq!(
+            repaired.iter().map(|span| span.text.as_str()).collect::<Vec<_>>(),
+            ["Old", "New2"]
+        );
+    }
+
+    #[test]
+    fn should_not_attach_to_a_span_that_is_already_a_script() {
+        let base = positioned_span("A", 100.0, 200.0, 10.0, 10.0, vec![]);
+        let script_base = positioned_span("b", 110.1, 198.4, 3.0, 6.7, vec![110.1]);
+        let nested_script = positioned_span("c", 113.2, 197.2, 2.0, 4.2, vec![113.2]);
+        let repaired = super::rejoin_inline_scripts(vec![base, script_base, nested_script]);
+        assert_eq!(
+            repaired.iter().map(|span| span.text.as_str()).collect::<Vec<_>>(),
+            ["Ab", "c"]
+        );
+    }
+
+    #[test]
+    fn should_normalize_hierarchy_metadata_to_the_base() {
+        let mut base = positioned_span("H SO", 100.0, 200.0, 20.0, 10.0, vec![100.0, 105.0, 110.0, 115.0]);
+        base.font_name = "BaseFont".to_string();
+        base.font_weight = pdf_oxide::layout::text_block::FontWeight::Bold;
+        base.is_italic = true;
+        base.is_monospace = true;
+        base.mcid = Some(7);
+        base.heading_level = Some(2);
+        let script = positioned_span("2", 105.0, 198.4, 3.0, 6.7, vec![105.0]);
+
+        let repaired = super::rejoin_inline_scripts(vec![base, script]);
+        let normalized = &repaired[1];
+        assert_eq!(normalized.font_name, "BaseFont");
+        assert_eq!(normalized.font_weight, pdf_oxide::layout::text_block::FontWeight::Bold);
+        assert!(normalized.is_italic);
+        assert!(normalized.is_monospace);
+        assert_eq!(normalized.mcid, Some(7));
+        assert_eq!(normalized.heading_level, Some(2));
+        assert_eq!(normalized.text_rise, 0.0);
     }
 
     #[test]
