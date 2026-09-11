@@ -6,8 +6,8 @@
 // note and the file's baseline entry together once it goes green. Help wanted.
 
 use super::constants::{
-    MAX_BOLD_HEADING_WORD_COUNT, MAX_HEADING_DISTANCE_MULTIPLIER, MAX_HEADING_WORD_COUNT, MIN_BLOCKS_FOR_FONT_HEADING,
-    MIN_HEADING_FONT_GAP, MIN_HEADING_FONT_RATIO,
+    MAX_BOLD_HEADING_WORD_COUNT, MAX_HEADING_DISTANCE_MULTIPLIER, MAX_HEADING_WORD_COUNT, MAX_TITLE_WORD_COUNT,
+    MIN_BLOCKS_FOR_FONT_HEADING, MIN_HEADING_FONT_GAP, MIN_HEADING_FONT_RATIO,
 };
 use super::regions::{looks_like_bare_url, looks_like_figure_label};
 use super::types::{LayoutHintClass, PdfParagraph};
@@ -141,6 +141,7 @@ pub(super) fn classify_paragraphs(paragraphs: &mut [PdfParagraph], heading_map: 
             && word_count <= MAX_HEADING_WORD_COUNT
             && !super::layout_classify::is_separator_text(&para_text)
             && !looks_like_bare_url(&para_text)
+            && !reads_as_body_content(&para_text, word_count)
         {
             para.heading_level = Some(level);
             continue;
@@ -1019,6 +1020,38 @@ fn infer_section_level(text: &str) -> u8 {
 /// A trailing ellipsis (`...` or the `…` glyph) is a truncation marker — common
 /// in headings and truncated titles ("Impaired Glucose Tolerance ...") — not a
 /// sentence terminator, so it does not disqualify a line from being a heading.
+/// Whether `text` reads as body content rather than a heading.
+///
+/// Two signals, both of which the heading gates previously lacked entirely.
+///
+/// A leading list bullet disqualifies outright: a heading is not a bullet. On the Intel SDM this
+/// alone accounts for 1231 blocks that were emitted as `# ` headings -- every one of them a
+/// sentence in a bulleted list, and 1199 of them ending in a full stop.
+///
+/// Beyond [`MAX_TITLE_WORD_COUNT`] words, a sentence shape disqualifies too: the block either closes
+/// a sentence or runs on past an interior one. The word floor is what keeps a genuine title that
+/// happens to end in a period ("TableFormer: Table Structure Understanding with Transformers.") --
+/// titles are short, and the prose that was being promoted is not. An interior boundary counts only
+/// when a capital follows it, so a decimal, an abbreviation or a numbered prefix does not trip it,
+/// and [`is_section_pattern`] keeps "ARTICLE IV." and "3.2. Methods" exactly as it does for the bold
+/// branch. GH#1599. ~keep
+pub(super) fn reads_as_body_content(text: &str, word_count: usize) -> bool {
+    let trimmed = text.trim();
+    if trimmed.starts_with(['\u{2022}', '\u{00B7}', '\u{25E6}', '\u{25AA}']) {
+        return true;
+    }
+    if is_section_pattern(trimmed) || word_count <= MAX_TITLE_WORD_COUNT {
+        return false;
+    }
+    if ends_with_sentence_period(trimmed) {
+        return true;
+    }
+    let characters: Vec<char> = trimmed.chars().collect();
+    characters
+        .windows(3)
+        .any(|window| window[0] == '.' && window[1] == ' ' && window[2].is_uppercase())
+}
+
 pub(super) fn ends_with_sentence_period(text: &str) -> bool {
     let t = text.trim_end();
     t.ends_with('.') && !t.ends_with("..")
@@ -1983,6 +2016,61 @@ pub(super) fn mark_cross_page_repeating_short_text(all_pages: &mut [Vec<PdfParag
 
 #[cfg(test)]
 mod tests {
+    use super::reads_as_body_content;
+
+    /// GH#1599: the font-size heading gates had no shape test, so a block whose cluster landed above
+    /// the body font became a heading on word count alone. On the Intel SDM that promoted 1852
+    /// bulleted sentences to `# ` headings.
+    #[test]
+    fn should_treat_a_bulleted_line_as_body_content() {
+        assert!(reads_as_body_content(
+            "\u{00B7} Streaming loads must be 16-byte aligned.",
+            6
+        ));
+        assert!(reads_as_body_content(
+            "\u{2022} PCD and PWT pins (Pentium processor)",
+            6
+        ));
+    }
+
+    /// A block that runs on past an interior full stop is prose, however its font clustered.
+    #[test]
+    fn should_treat_a_line_running_past_a_sentence_boundary_as_body_content() {
+        assert!(reads_as_body_content(
+            "Site 07 access blocked by washout on county rd 12. Attempted alternate route via ridge trail",
+            15,
+        ));
+    }
+
+    /// The other side, and the reason the period test alone was not enough: a real title may end in
+    /// a full stop. Dropping this one cost a paper its `# ` title in the corpus measurement.
+    #[test]
+    fn should_keep_a_short_title_that_ends_in_a_period() {
+        assert!(!reads_as_body_content(
+            "TableFormer: Table Structure Understanding with Transformers.",
+            7,
+        ));
+    }
+
+    /// Section patterns legitimately end in a period at any length.
+    #[test]
+    fn should_keep_a_numbered_section_heading_that_ends_in_a_period() {
+        assert!(!reads_as_body_content(
+            "3.2. Methods and Materials Used Throughout This Study.",
+            8
+        ));
+        assert!(!reads_as_body_content("ARTICLE IV.", 2));
+    }
+
+    /// A long heading with no sentence shape at all is still a heading.
+    #[test]
+    fn should_keep_a_long_heading_with_no_sentence_shape() {
+        assert!(!reads_as_body_content(
+            "Determining an Access Sub Page Write Permission For Extended Page Tables",
+            11,
+        ));
+    }
+
     use super::*;
     use crate::pdf::hierarchy::SegmentData;
 

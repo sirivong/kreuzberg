@@ -2527,6 +2527,14 @@ fn finalize_paragraph(
         && (word_count > 20
             || super::layout_classify::is_separator_text(trimmed)
             || page_number_like
+            // A heading is not a sentence. This gate had no shape test, so a block whose font
+            // clustered above body became a heading on word count alone -- and 20 words is a whole
+            // sentence. On a scanned page that promoted ordinary prose and split the paragraph in
+            // two, the promoted line becoming a heading and its continuation staying body text.
+            // The bold branch below already refuses a block that ends in a period; this is the same
+            // judgement, plus the case where the line runs on past an interior full stop. GH#1599.
+            // ~keep
+            || super::classify::reads_as_body_content(trimmed, word_count)
             || (SUPPRESS_LOWERCASE_START_HEADINGS && super::classify::starts_with_lowercase_or_continuation(trimmed)))
     {
         heading_level = None;
