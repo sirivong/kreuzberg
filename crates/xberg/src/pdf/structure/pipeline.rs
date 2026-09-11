@@ -4058,15 +4058,25 @@ fn deduplicate_identical_tables(tables: &mut Vec<crate::types::Table>) {
 #[derive(Clone)]
 struct TableCoverage {
     bbox: crate::types::BoundingBox,
-    /// Every cell's text, whitespace-collapsed and lowercased, joined by `\u{1}`.
+    /// Every cell's alphanumeric glyphs, lowercased and concatenated in row-major order.
     /// Built once per table so the per-segment test is a substring search.
     cell_text: String,
 }
 
-/// Collapse runs of whitespace and lowercase, so a cell that joined several printed
-/// runs still contains each run's normalized form as a substring.
+/// Reduce text to lowercase alphanumerics, dropping whitespace and punctuation entirely.
+///
+/// Cell assembly does not preserve a printed run's boundaries: one visual line commonly spans
+/// several cells, and a wrapped cell inserts separators a printed run does not have. GH#1616's
+/// first fix compared whitespace-collapsed text, so any run the grid split across cells failed to
+/// match and was emitted a second time as prose -- on `issue-912` that cost 81 of 263 words,
+/// dropping precision from 0.984 to 0.692 while recall stayed flat, which is the signature of
+/// duplication rather than loss. Concatenating glyphs makes the test indifferent to where the grid
+/// chose to put its boundaries, which is the only thing it was ever wrong about. ~keep
 fn normalize_for_table_coverage(text: &str) -> String {
-    text.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
+    text.chars()
+        .filter(|c| c.is_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect()
 }
 
 fn table_bboxes_by_page(tables: &[crate::types::Table]) -> ahash::AHashMap<usize, Vec<TableCoverage>> {
@@ -4084,10 +4094,9 @@ fn table_bboxes_by_page(tables: &[crate::types::Table]) -> ahash::AHashMap<usize
                     .iter()
                     .flat_map(|row| row.iter())
                     .map(|cell| normalize_for_table_coverage(cell))
-                    .collect::<Vec<_>>()
-                    .join("\u{1}")
+                    .collect::<String>()
             } else {
-                normalize_for_table_coverage(&table.markdown.replace(['|', '-'], " "))
+                normalize_for_table_coverage(&table.markdown)
             };
             coverage_by_page
                 .entry(table.page_number.saturating_sub(1) as usize)
@@ -4110,10 +4119,11 @@ fn table_bboxes_by_page(tables: &[crate::types::Table]) -> ahash::AHashMap<usize
 ///
 /// The text test restores the invariant that a bounding box cannot delete content the
 /// grid does not represent: a covered run is dropped only when some cell actually
-/// carries it. Matching is on whitespace-collapsed, lowercased text so a cell that
-/// joined several printed runs still matches each of them, which is the normal case --
-/// cell assembly merges runs, so requiring equality would suppress almost nothing and
-/// reintroduce the duplication this filter exists to prevent.
+/// carries it. Matching is on [`normalize_for_table_coverage`]'s glyph concatenation, so
+/// it is indifferent to where cell assembly put its boundaries -- a printed run split
+/// across two cells, or a visual line spanning several, still matches. Requiring the
+/// grid's own whitespace instead suppressed almost nothing and re-emitted whole tables
+/// as prose (GH#1616 again, from the other side).
 ///
 /// Segments with zero area or empty text are always kept. ~keep
 fn filter_segments_by_table_bboxes(segments: Vec<SegmentData>, tables: &[TableCoverage]) -> Vec<SegmentData> {
@@ -7841,6 +7851,46 @@ mod tests {
         );
     }
 
+    /// GH#1616's first fix compared whitespace-collapsed text, which a grid's own cell boundaries
+    /// defeat: one printed line commonly spans several cells and a wrapped cell inserts separators
+    /// the printed run does not have. On `issue-912` the table's own rows came back a second time
+    /// as prose -- 81 extra word instances in 263, precision 0.984 -> 0.692 with recall unmoved.
+    ///
+    /// Geometry here is taken from that page: a ledger row rendered as one run, reconstructed into
+    /// two cells that split it mid-list and add a stray separator comma.
+    #[test]
+    fn should_suppress_a_printed_run_the_grid_split_across_two_cells() {
+        let coverage = vec![TableCoverage {
+            bbox: crate::types::BoundingBox {
+                x0: 48.0,
+                y0: 300.0,
+                x1: 560.0,
+                y1: 400.0,
+            },
+            cell_text: table_cell_text(&["Chq. No. 085900 BILL NO.133, 132,", "139, ,138, 143, 140,"]),
+        }];
+        let segments = vec![
+            column_seg(
+                "Chq. No. 085900 BILL NO.133, 132, 139,138, 143, 140,",
+                60.0,
+                400.0,
+                350.0,
+            ),
+            column_seg("Being payment against a bill the grid omits", 60.0, 400.0, 320.0),
+        ];
+
+        let kept: Vec<String> = filter_segments_by_table_bboxes(segments, &coverage)
+            .into_iter()
+            .map(|seg| seg.text)
+            .collect();
+
+        assert_eq!(
+            kept,
+            vec!["Being payment against a bill the grid omits".to_string()],
+            "a run the grid carries across a cell boundary must not be emitted again as prose"
+        );
+    }
+
     /// The other half of the same invariant, and the reason the geometric test cannot
     /// simply be dropped: text a table DOES carry must still be suppressed, or every
     /// table's contents are emitted twice.
@@ -7866,11 +7916,7 @@ mod tests {
     }
 
     fn table_cell_text(cells: &[&str]) -> String {
-        cells
-            .iter()
-            .map(|cell| normalize_for_table_coverage(cell))
-            .collect::<Vec<_>>()
-            .join("\u{1}")
+        cells.iter().map(|cell| normalize_for_table_coverage(cell)).collect()
     }
 
     fn column_seg(text: &str, x: f32, width: f32, baseline_y: f32) -> SegmentData {
