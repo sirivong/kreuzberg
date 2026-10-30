@@ -226,7 +226,26 @@ pub(super) fn put_layers_first_in_run(
     layers: &ahash::AHashMap<u32, String>,
     verdicts: &[super::scoring::OcrPageNoiseVerdict],
     page_index_offset: usize,
+    marker_format: Option<&str>,
 ) {
+    // The flat text is the page texts joined with a page marker or a blank line, as the run
+    // assembled it. It is rebuilt from the pages, never searched for a page text: identical
+    // pages would match the wrong one.
+    let join = |page_texts: &[String]| -> String {
+        let mut joined = String::new();
+        for (i, page_text) in page_texts.iter().enumerate() {
+            match marker_format {
+                Some(format) => {
+                    joined.push_str(&format.replace("{page_num}", &(page_index_offset + i + 1).to_string()))
+                }
+                None if i > 0 => joined.push_str("\n\n"),
+                None => {}
+            }
+            joined.push_str(page_text);
+        }
+        joined
+    };
+    let flat_is_page_join = join(page_texts) == *text;
     let mut pages: Vec<u32> = verdicts
         .iter()
         .filter(|verdict| !verdict.discarded)
@@ -234,7 +253,6 @@ pub(super) fn put_layers_first_in_run(
         .collect();
     pages.sort_unstable();
     pages.dedup();
-    let mut cursor = 0usize;
     for page in pages {
         let Some(layer) = layers.get(&page) else { continue };
         let Some(local) = (page as usize).checked_sub(page_index_offset + 1) else {
@@ -247,17 +265,13 @@ pub(super) fn put_layers_first_in_run(
             continue;
         };
         let with_layer = format!("{missing}\n\n{page_text}");
-        if !page_text.is_empty()
-            && let Some(found) = text[cursor..].find(page_text.as_str())
-        {
-            let start = cursor + found;
-            text.replace_range(start..start + page_text.len(), &with_layer);
-            cursor = start + with_layer.len();
-        }
         *page_text = with_layer;
         if let Some(doc) = doc.as_deref_mut() {
             insert_layer_into_document(doc, Some(page), &missing);
         }
+    }
+    if flat_is_page_join {
+        *text = join(page_texts);
     }
 }
 /// Attach a page's OCR tables and OCR elements to its structured document.

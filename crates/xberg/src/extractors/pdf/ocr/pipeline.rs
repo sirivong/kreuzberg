@@ -2350,8 +2350,15 @@ pub(crate) async fn extract_with_ocr_with_page_hints(
         None,
     ))
     .await?;
-    let (text, page_texts, doc) =
-        with_run_layers_first(run_layers, &recognition_noise_verdicts, 0, text, page_texts, doc);
+    let (text, page_texts, doc) = with_run_layers_first(
+        run_layers,
+        &recognition_noise_verdicts,
+        0,
+        text,
+        page_texts,
+        doc,
+        config,
+    );
     Ok((
         text,
         mean_conf,
@@ -5056,6 +5063,7 @@ fn with_run_layers_first(
     mut text: String,
     mut page_texts: Vec<String>,
     mut doc: Option<crate::types::internal::InternalDocument>,
+    config: &ExtractionConfig,
 ) -> (String, Vec<String>, Option<crate::types::internal::InternalDocument>) {
     if let Some(layers) = layers {
         super::document::put_layers_first_in_run(
@@ -5065,6 +5073,11 @@ fn with_run_layers_first(
             &layers,
             verdicts,
             page_index_offset,
+            config
+                .pages
+                .as_ref()
+                .filter(|pages| pages.insert_page_markers)
+                .map(|pages| pages.marker_format.as_str()),
         );
     }
     (text, page_texts, doc)
@@ -5272,6 +5285,7 @@ async fn run_ocr_pipeline_stages(
                         text,
                         stage_page_texts,
                         stage_doc,
+                        config,
                     );
                     // ~keep Attach prior-stage diagnostics before this accepted-stage early
                     // return; otherwise successful fallback silently erases why it ran.
@@ -5370,6 +5384,7 @@ async fn run_ocr_pipeline_stages(
                 text,
                 page_texts,
                 doc,
+                config,
             );
             let threshold = pipeline.quality_thresholds.pipeline_min_quality;
             tracing::warn!(

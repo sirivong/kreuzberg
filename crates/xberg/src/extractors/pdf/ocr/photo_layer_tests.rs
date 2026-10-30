@@ -154,6 +154,7 @@ fn should_put_the_layer_first_on_the_noise_page_of_a_whole_document_run_only() {
         &layers,
         &[verdict(1, false), verdict(2, true)],
         0,
+        None,
     );
     assert_eq!(page_texts[1], "Meeting Notes\n\nxq zv wj");
     assert_eq!(page_texts[0], "page one text");
@@ -528,4 +529,58 @@ async fn should_put_the_layer_first_on_a_noise_page_of_a_single_backend_whole_do
         "the structured document holds the layer"
     );
     assert_eq!(with_ocr_words.0, NOISY, "a layer made of OCR words adds nothing");
+}
+
+/// Two pages with identical OCR text and a layer only on the later page: the layer goes on page 2
+/// in the flat text, the page texts and the document alike, never on page 1. ~keep
+#[test]
+fn should_put_the_layer_on_the_later_of_two_identical_ocr_pages() {
+    use super::document::{flat_ocr_page_document, put_layers_first_in_run};
+    use super::scoring::OcrPageNoiseVerdict;
+
+    let verdict = |page_index: usize| OcrPageNoiseVerdict {
+        page_index,
+        low_confidence: true,
+        fragmented_noise: false,
+        dictionary_noise: false,
+        fragmented_word_ratio: 0.0,
+        word_count: 3,
+        mean_confidence: Some(0.2),
+        dict_invalid_word_ratio: None,
+        discarded: false,
+    };
+    let mut page_texts = vec!["xq zv wj".to_string(), "xq zv wj".to_string()];
+    let mut text = page_texts.join("\n\n");
+    let mut doc = flat_ocr_page_document("xq zv wj");
+    doc.elements[0].page = Some(1);
+    let mut second = flat_ocr_page_document("xq zv wj");
+    second.elements[0].page = Some(2);
+    doc.elements.append(&mut second.elements);
+    let layers = ahash::AHashMap::from([(2, "Meeting Notes".to_string())]);
+    put_layers_first_in_run(
+        &mut text,
+        &mut page_texts,
+        Some(&mut doc),
+        &layers,
+        &[verdict(0), verdict(1)],
+        0,
+        None,
+    );
+    assert_eq!(page_texts, ["xq zv wj", "Meeting Notes\n\nxq zv wj"]);
+    assert_eq!(text, "xq zv wj\n\nMeeting Notes\n\nxq zv wj");
+    let texts: Vec<&str> = doc.elements.iter().map(|e| e.text.as_str()).collect();
+    assert_eq!(texts, ["xq zv wj", "Meeting Notes", "xq zv wj"]);
+
+    let mut marked_pages = vec!["xq zv wj".to_string(), "xq zv wj".to_string()];
+    let mut marked = "<p1>xq zv wj<p2>xq zv wj".to_string();
+    put_layers_first_in_run(
+        &mut marked,
+        &mut marked_pages,
+        None,
+        &layers,
+        &[verdict(1)],
+        0,
+        Some("<p{page_num}>"),
+    );
+    assert_eq!(marked, "<p1>xq zv wj<p2>Meeting Notes\n\nxq zv wj");
 }
