@@ -38,9 +38,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: xberg-io/actions/setup-ai-rulez@v1
+      - uses: xberg-io/actions/setup-mise@v1
         with:
-          ai-rulez-version: "latest"
+          install-args: python github:Goldziher/ai-rulez
       - uses: xberg-io/actions/validate-ai-rulez@v1
         with:
           expected-config-count: "2"

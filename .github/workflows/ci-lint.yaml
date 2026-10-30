@@ -56,14 +56,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Install mise
+      - name: Install Python and ai-rulez
         uses: xberg-io/actions/setup-mise@v1
         with:
-          install: "false"
-      - name: Install ai-rulez
-        uses: xberg-io/actions/setup-ai-rulez@v1
-        with:
-          ai-rulez-version: "latest"
+          install-args: python github:Goldziher/ai-rulez
       - name: Validate AI governance inputs
         run: mise run governance:verify
       - name: Test the ai-rulez installation pins
@@ -116,10 +112,10 @@ jobs:
       UV_PYTHON_PREFERENCE: only-system
     steps:
       - uses: actions/checkout@v7
-      - name: Install Python, uv and Node
+      - name: Install Python, uv, Node and ai-rulez
         uses: xberg-io/actions/setup-mise@v1
         with:
-          install-args: python uv node
+          install-args: python uv node github:Goldziher/ai-rulez
       - name: Resolve the mise Python version
         id: mise-python
         shell: bash
@@ -136,12 +132,8 @@ jobs:
       - name: Verify plugin version tracks core
         run: python3 scripts/sync_integration_versions.py --check
       # Byte-verify the ai-rulez-generated coding-agent plugin bundles under plugin/
-      # match plugin/.ai-rulez (BLAKE3 provenance). Runs the latest ai-rulez on purpose: a release
-      # that changes generator output fails here first; run `mise run plugin:generate` and commit. ~keep
-      - name: Install ai-rulez
-        uses: xberg-io/actions/setup-ai-rulez@v1
-        with:
-          ai-rulez-version: "latest"
+      # match plugin/.ai-rulez (BLAKE3 provenance). Use the mise.toml version so
+      # generation and validation agree on the exact bundle bytes. ~keep
       - name: Verify generated plugin bundles are current
         run: |
           ai-rulez verify --plugin

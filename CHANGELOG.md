@@ -114,6 +114,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **(ci): Install governance tools through the locked mise toolchain.**
+  Generation and validation now use the reviewed AI-Rulez and Python versions.
 - **(rendering): Honor table header metadata in HTML and preserve headerless data rows.** (#2332)
 - **(development): Keep generated skill summaries within Claude and Codex context budgets.**
 - **(ci): Refresh governance server tracking for ai-rulez 5.9.3 validation.**
