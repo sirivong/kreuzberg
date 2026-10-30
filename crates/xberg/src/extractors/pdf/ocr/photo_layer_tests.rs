@@ -190,6 +190,61 @@ fn should_show_that_the_existing_judgements_abstain_on_a_one_line_layer() {
     }
 }
 
+/// An OCR backend that returns fixed text; a noisy one reports a low mean confidence.
+#[cfg(all(feature = "pdf", feature = "ocr"))]
+struct StageBackend {
+    name: &'static str,
+    text: &'static str,
+    noisy: bool,
+}
+
+#[cfg(all(feature = "pdf", feature = "ocr"))]
+#[async_trait::async_trait]
+impl crate::plugins::OcrBackend for StageBackend {
+    fn backend_type(&self) -> crate::plugins::OcrBackendType {
+        crate::plugins::OcrBackendType::Custom
+    }
+    fn supports_language(&self, _: &str) -> bool {
+        true
+    }
+    async fn process_image(
+        &self,
+        _: &[u8],
+        _: &crate::core::config::OcrConfig,
+    ) -> crate::Result<crate::types::ExtractedDocument> {
+        let mut metadata = crate::types::Metadata::default();
+        if self.noisy {
+            metadata
+                .additional
+                .insert("mean_text_conf".into(), serde_json::json!(18.0));
+        }
+        Ok(crate::types::ExtractedDocument {
+            content: self.text.to_string(),
+            metadata,
+            ..Default::default()
+        })
+    }
+    fn confidence_semantics(&self) -> crate::plugins::ConfidenceSemantics {
+        crate::plugins::ConfidenceSemantics::Legibility { scale_max: 100.0 }
+    }
+}
+
+#[cfg(all(feature = "pdf", feature = "ocr"))]
+impl crate::plugins::Plugin for StageBackend {
+    fn name(&self) -> &str {
+        self.name
+    }
+    fn version(&self) -> String {
+        "1.0.0".to_string()
+    }
+    fn initialize(&self) -> crate::Result<()> {
+        Ok(())
+    }
+    fn shutdown(&self) -> crate::Result<()> {
+        Ok(())
+    }
+}
+
 /// A pipeline scores every stage on its OCR text. A text layer put before noisy OCR text must not
 /// raise that stage above a better stage, so the winner is the one the base picks without any
 /// layer, and only the chosen stage gets its layer. ~keep
@@ -200,8 +255,6 @@ async fn should_pick_the_same_pipeline_stage_with_and_without_a_text_layer() {
     use super::pipeline::{PageOcrHints, run_ocr_pipeline_for_page};
     use super::scoring::{compute_quality_score, pipeline_stage_score};
     use crate::core::config::{ExtractionConfig, OcrConfig, OcrPipelineConfig, OcrPipelineStage};
-    use crate::plugins::{ConfidenceSemantics, OcrBackend, OcrBackendType, Plugin};
-    use crate::types::ExtractedDocument;
     use std::sync::Arc;
 
     const NOISY: &str = "layer-test-noisy-stage";
@@ -210,53 +263,6 @@ async fn should_pick_the_same_pipeline_stage_with_and_without_a_text_layer() {
     const PLAIN_TEXT: &str = "Total due on receipt";
     const LAYER: &str = "The committee met on Tuesday to review the annual budget. Members agreed that the proposal \
         was sound and asked the treasurer to prepare the final report. The next meeting takes place in the spring.";
-
-    struct StageBackend {
-        name: &'static str,
-        text: &'static str,
-        noisy: bool,
-    }
-
-    #[async_trait::async_trait]
-    impl OcrBackend for StageBackend {
-        fn backend_type(&self) -> OcrBackendType {
-            OcrBackendType::Custom
-        }
-        fn supports_language(&self, _: &str) -> bool {
-            true
-        }
-        async fn process_image(&self, _: &[u8], _: &OcrConfig) -> crate::Result<ExtractedDocument> {
-            let mut metadata = crate::types::Metadata::default();
-            if self.noisy {
-                metadata
-                    .additional
-                    .insert("mean_text_conf".into(), serde_json::json!(18.0));
-            }
-            Ok(ExtractedDocument {
-                content: self.text.to_string(),
-                metadata,
-                ..Default::default()
-            })
-        }
-        fn confidence_semantics(&self) -> ConfidenceSemantics {
-            ConfidenceSemantics::Legibility { scale_max: 100.0 }
-        }
-    }
-
-    impl Plugin for StageBackend {
-        fn name(&self) -> &str {
-            self.name
-        }
-        fn version(&self) -> String {
-            "1.0.0".to_string()
-        }
-        fn initialize(&self) -> crate::Result<()> {
-            Ok(())
-        }
-        fn shutdown(&self) -> crate::Result<()> {
-            Ok(())
-        }
-    }
 
     crate::plugins::register_ocr_backend(Arc::new(StageBackend {
         name: NOISY,
@@ -375,8 +381,6 @@ async fn should_pick_the_same_pipeline_stage_with_and_without_a_text_layer() {
 async fn should_decide_a_page_replacement_on_the_ocr_text_before_the_layer_goes_first() {
     use super::pipeline::extract_mixed_ocr_native;
     use crate::core::config::{ExtractionConfig, OcrConfig, OcrPipelineConfig, OcrPipelineStage};
-    use crate::plugins::{ConfidenceSemantics, OcrBackend, OcrBackendType, Plugin};
-    use crate::types::{ExtractedDocument, Metadata};
     use std::sync::Arc;
 
     const BACKEND: &str = "layer-test-page-route-backend";
@@ -385,48 +389,12 @@ async fn should_decide_a_page_replacement_on_the_ocr_text_before_the_layer_goes_
         was sound and asked the treasurer to prepare the final report. The next meeting takes place in the spring.";
     const TITLE: &str = "Meeting Notes";
 
-    struct NoisyBackend;
-
-    #[async_trait::async_trait]
-    impl OcrBackend for NoisyBackend {
-        fn backend_type(&self) -> OcrBackendType {
-            OcrBackendType::Custom
-        }
-        fn supports_language(&self, _: &str) -> bool {
-            true
-        }
-        async fn process_image(&self, _: &[u8], _: &OcrConfig) -> crate::Result<ExtractedDocument> {
-            let mut metadata = Metadata::default();
-            metadata
-                .additional
-                .insert("mean_text_conf".into(), serde_json::json!(18.0));
-            Ok(ExtractedDocument {
-                content: NOISY.to_string(),
-                metadata,
-                ..Default::default()
-            })
-        }
-        fn confidence_semantics(&self) -> ConfidenceSemantics {
-            ConfidenceSemantics::Legibility { scale_max: 100.0 }
-        }
-    }
-
-    impl Plugin for NoisyBackend {
-        fn name(&self) -> &str {
-            BACKEND
-        }
-        fn version(&self) -> String {
-            "1.0.0".to_string()
-        }
-        fn initialize(&self) -> crate::Result<()> {
-            Ok(())
-        }
-        fn shutdown(&self) -> crate::Result<()> {
-            Ok(())
-        }
-    }
-
-    crate::plugins::register_ocr_backend(Arc::new(NoisyBackend)).unwrap();
+    crate::plugins::register_ocr_backend(Arc::new(StageBackend {
+        name: BACKEND,
+        text: NOISY,
+        noisy: true,
+    }))
+    .unwrap();
     let pdf = crate::pdf::render::build_minimal_pdf_with_mediabox(612.0, 792.0);
     let single_backend = ExtractionConfig {
         use_cache: false,
@@ -493,4 +461,71 @@ async fn should_decide_a_page_replacement_on_the_ocr_text_before_the_layer_goes_
             "{route}: the short layer goes first"
         );
     }
+}
+
+/// A whole-document run chooses its output on the OCR text, then puts the layer first on a noise
+/// page, in the flat text, the page text and the structured document. A page without a layer, and
+/// a layer whose words the OCR text already holds, stay as the OCR text. ~keep
+#[cfg(all(feature = "pdf", feature = "ocr"))]
+#[tokio::test]
+#[serial_test::serial]
+async fn should_put_the_layer_first_on_a_noise_page_of_a_single_backend_whole_document_run() {
+    use super::pipeline::{PageOcrHints, extract_with_ocr_with_page_hints};
+    use crate::core::config::{ExtractionConfig, OcrConfig};
+    use std::sync::Arc;
+
+    const BACKEND: &str = "layer-test-whole-document-backend";
+    const NOISY: &str = "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z A B C D";
+    const TITLE: &str = "Meeting Notes";
+
+    crate::plugins::register_ocr_backend(Arc::new(StageBackend {
+        name: BACKEND,
+        text: NOISY,
+        noisy: true,
+    }))
+    .unwrap();
+    let config = ExtractionConfig {
+        use_cache: false,
+        ocr: Some(OcrConfig {
+            backend: BACKEND.to_string(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let images = [image::DynamicImage::new_rgb8(16, 16)];
+    let run = |layer: &'static str| {
+        let (config, images) = (&config, &images);
+        async move {
+            let hints = PageOcrHints {
+                source_dpi: None,
+                known_full_page_scan: false,
+                single_block_pages: None,
+                native_page_layers: Some(Arc::new(ahash::AHashMap::from([(1, layer.to_string())]))),
+            };
+            extract_with_ocr_with_page_hints(
+                None,
+                Some(images),
+                #[cfg(feature = "layout-detection")]
+                None,
+                config,
+                None,
+                Some(hints),
+            )
+            .await
+            .expect("the whole-document run must return a result")
+        }
+    };
+    let with_title = run(TITLE).await;
+    let with_ocr_words = run("a b c").await;
+    crate::plugins::unregister_ocr_backend(BACKEND).unwrap();
+
+    let expected = format!("{TITLE}\n\n{NOISY}");
+    assert_eq!(with_title.0, expected, "the flat text holds the layer first");
+    assert_eq!(with_title.6, [expected.as_str()], "the page text holds the layer first");
+    let document = with_title.4.expect("the run must return a document");
+    assert!(
+        document.elements.iter().any(|element| element.text == TITLE),
+        "the structured document holds the layer"
+    );
+    assert_eq!(with_ocr_words.0, NOISY, "a layer made of OCR words adds nothing");
 }
