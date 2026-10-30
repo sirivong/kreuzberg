@@ -688,6 +688,9 @@ async fn extract_mixed_ocr_native_with_layout_inputs(
         return Ok(MixedOcrRun::native(native_text));
     }
 
+    // Pages whose OCR text got the recognition-noise verdict and was not discarded. The caller
+    // decides each page on its OCR text alone and puts the layer first only on a replaced page.
+    let mut noise_verdict_pages: std::collections::HashSet<u32> = std::collections::HashSet::new();
     // The readable text layers that a page keeps first when its OCR text is judged recognition
     // noise. A forced page is replaced by definition and keeps none. ~keep
     let ocr_output_thresholds = config
@@ -698,8 +701,12 @@ async fn extract_mixed_ocr_native_with_layout_inputs(
     let page_layers = match pages.native_layers {
         Some(layers) => Some(layers),
         None if all_pages_failed_policy == AllPagesFailedPolicy::PreserveNative => {
-            let layers =
-                super::document::clean_native_page_layers(native_text, boundaries, Some(&ocr_set), &ocr_output_thresholds);
+            let layers = super::document::clean_native_page_layers(
+                native_text,
+                boundaries,
+                Some(&ocr_set),
+                &ocr_output_thresholds,
+            );
             (!layers.is_empty()).then(|| std::sync::Arc::new(layers))
         }
         None => None,
@@ -1036,8 +1043,7 @@ async fn extract_mixed_ocr_native_with_layout_inputs(
                         known_full_page_scan: crate::pdf::scan_detect::full_page_raster_density(&render_doc, *page_idx)
                             .is_some(),
                         single_block_pages: Some(std::sync::Arc::clone(&single_block_pages)),
-                        native_page_layers: page_layers.clone(),
-                        layer_prefix_sink: None,
+                        native_page_layers: None,
                     };
                     // See `extract_with_ocr_for_page`'s doc comment on
                     // `points_per_pixel_override`: this call hands the stage a single
@@ -1118,10 +1124,14 @@ async fn extract_mixed_ocr_native_with_layout_inputs(
                         mut page_raw_paragraphs,
                         preprocessing,
                         page_ocr_confidences,
+                        noise_verdicts,
                     ) = result;
                     accumulated_llm_usage.extend(usage);
                     ocr_confidence_by_page.extend(page_ocr_confidences);
                     let page_number = (page_idx + 1) as u32;
+                    if noise_verdicts.iter().any(|verdict| !verdict.discarded) {
+                        noise_verdict_pages.insert(page_number);
+                    }
                     if let Some(metadata) = preprocessing.into_values().next() {
                         preprocessing_by_page.insert(page_number, metadata);
                     }
@@ -1197,8 +1207,7 @@ async fn extract_mixed_ocr_native_with_layout_inputs(
                         known_full_page_scan: crate::pdf::scan_detect::full_page_raster_density(&render_doc, *page_idx)
                             .is_some(),
                         single_block_pages: Some(std::sync::Arc::clone(&single_block_pages)),
-                        native_page_layers: page_layers.clone(),
-                        layer_prefix_sink: None,
+                        native_page_layers: None,
                     };
                     let points_per_pixel_override = {
                         let (_, page_height_pt) = page_dimensions_pt(&render_doc, *page_idx);
@@ -1253,10 +1262,14 @@ async fn extract_mixed_ocr_native_with_layout_inputs(
                         mut page_raw_paragraphs,
                         preprocessing,
                         page_ocr_confidences,
+                        noise_verdicts,
                     ) = result;
                     accumulated_llm_usage.extend(usage);
                     ocr_confidence_by_page.extend(page_ocr_confidences);
                     let page_number = (*page_idx + 1) as u32;
+                    if noise_verdicts.iter().any(|verdict| !verdict.discarded) {
+                        noise_verdict_pages.insert(page_number);
+                    }
                     if let Some(metadata) = preprocessing.into_values().next() {
                         preprocessing_by_page.insert(page_number, metadata);
                     }
@@ -1843,7 +1856,6 @@ async fn extract_mixed_ocr_native_with_layout_inputs(
     // Pipeline stages already assess their output in `extract_with_ocr_for_page` using the
     // actual producing backend. Assess only the direct single-backend route here to avoid
     // duplicate warnings and guessed pipeline confidence semantics. ~keep
-    let mut noise_verdict_pages: std::collections::HashSet<u32> = std::collections::HashSet::new();
     if let Some(producing_backend) = backend.as_ref() {
         let confidence_semantics = producing_backend.confidence_semantics();
         let producing_backend_name = producing_backend.name().to_string();
@@ -1897,13 +1909,16 @@ async fn extract_mixed_ocr_native_with_layout_inputs(
         }
     }
 
-    // A page whose OCR text is judged recognition noise keeps its text layer first, when that
-    // layer is readable text. A forced page is replaced by definition and keeps no layer. ~keep
+    let mut accepted_replacements =
+        accepted_ocr_page_replacements(native_text, boundaries, &ocr_results, &ocr_output_thresholds);
+    // The replacement is decided on the OCR text alone. A page that it replaces, whose OCR text
+    // got the noise verdict, now gets its readable text layer first. A page it keeps native
+    // stays as it was. ~keep
     let mut page_layers_before_noise: ahash::AHashMap<u32, String> = ahash::AHashMap::new();
     if let Some(layers) = page_layers.as_ref() {
         for page_number in &noise_verdict_pages {
             if let Some(layer) = layers.get(page_number)
-                && let Some(text) = ocr_results.get_mut(page_number)
+                && let Some(text) = accepted_replacements.get_mut(page_number)
                 && let Some(missing) = super::document::layer_lines_absent_from_ocr(layer, text)
             {
                 *text = format!("{missing}\n\n{text}");
@@ -1911,9 +1926,6 @@ async fn extract_mixed_ocr_native_with_layout_inputs(
             }
         }
     }
-
-    let accepted_replacements =
-        accepted_ocr_page_replacements(native_text, boundaries, &ocr_results, &ocr_output_thresholds);
     structured_ocr_pages
         .retain(|page, _| accepted_replacements.contains_key(page) || table_only_xobject_recovery_pages.contains(page));
     retain_ocr_formulas_for_accepted_pages(&mut accumulated_formulas, &accepted_replacements);
@@ -2028,7 +2040,7 @@ async fn extract_mixed_ocr_native_with_layout_inputs(
         if accepted_replacements.contains_key(page_number)
             && let Some(page_doc) = structured_ocr_pages.get_mut(page_number)
         {
-            super::document::prepend_layer_to_page_document(page_doc, layer);
+            super::document::insert_layer_into_document(page_doc, None, layer);
         }
     }
 
@@ -2156,7 +2168,9 @@ pub(crate) async fn extract_full_document_ocr_pipeline_per_page(
     }
     let (_, page_count, _) = open_pdf_for_page_ocr(content)?;
     let page_numbers = (1..=page_count as u32).collect::<Vec<_>>();
-    let native_layers = page_ocr_hints.as_ref().and_then(|hints| hints.native_page_layers.clone());
+    let native_layers = page_ocr_hints
+        .as_ref()
+        .and_then(|hints| hints.native_page_layers.clone());
     let mut single_block_pages = page_ocr_hints
         .and_then(|hints| hints.single_block_pages)
         .map(|pages| pages.iter().copied().collect::<Vec<_>>())
@@ -2304,6 +2318,9 @@ pub(crate) async fn extract_with_ocr_with_page_hints(
     ahash::AHashMap<u32, crate::types::ImagePreprocessingMetadata>,
     ahash::AHashMap<u32, crate::types::page::PageOcrConfidence>,
 )> {
+    let run_layers = page_ocr_hints
+        .as_ref()
+        .and_then(|hints| hints.native_page_layers.clone());
     let (
         text,
         mean_conf,
@@ -2317,7 +2334,7 @@ pub(crate) async fn extract_with_ocr_with_page_hints(
         _raw_page_paragraphs,
         preprocessing,
         ocr_confidence,
-        _recognition_noise_verdicts,
+        recognition_noise_verdicts,
     ) = Box::pin(extract_with_ocr_for_page(
         content,
         images,
@@ -2333,6 +2350,8 @@ pub(crate) async fn extract_with_ocr_with_page_hints(
         None,
     ))
     .await?;
+    let (text, page_texts, doc) =
+        with_run_layers_first(run_layers, &recognition_noise_verdicts, 0, text, page_texts, doc);
     Ok((
         text,
         mean_conf,
@@ -2357,20 +2376,10 @@ pub(crate) struct PageOcrHints {
     pub(crate) known_full_page_scan: bool,
     /// One-indexed document page numbers selected by automatic fabricated-map routing.
     pub(crate) single_block_pages: Option<std::sync::Arc<std::collections::HashSet<u32>>>,
-    /// Readable text layers by one-indexed document page, for a whole-document run that
-    /// keeps the layer first on a page whose OCR text is judged recognition noise.
+    /// Readable text layers by one-indexed document page, for a whole-document run. After the run
+    /// has chosen its output, a page whose OCR text is judged recognition noise gets its layer
+    /// first.
     pub(crate) native_page_layers: Option<std::sync::Arc<ahash::AHashMap<u32, String>>>,
-    /// Receives the layer text a page run put before its OCR text. A pipeline reads it to score
-    /// the stage on the OCR text alone, so the layer cannot change which stage wins. ~keep
-    pub(crate) layer_prefix_sink: Option<std::sync::Arc<std::sync::Mutex<Vec<String>>>>,
-}
-
-/// The stage text without the layer lines a page run put before the OCR text.
-#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
-pub(super) fn text_without_layer_prefixes(text: &str, prefixes: &[String]) -> String {
-    prefixes.iter().fold(text.to_string(), |text, prefix| {
-        text.replacen(&format!("{prefix}\n\n"), "", 1)
-    })
 }
 
 #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
@@ -2741,7 +2750,6 @@ pub(super) async fn extract_with_ocr_for_page(
     // empty string is ambiguous -- a blank page produces one too -- and the structured
     // paragraphs of a rejected page must be dropped along with its text.
     let mut rejected_pages = vec![false; total_pages];
-    let mut noise_verdict_pages = vec![false; total_pages];
     let mut all_page_paragraphs: Vec<Option<Vec<crate::pdf::structure::types::PdfParagraph>>> = vec![None; total_pages];
     let mut public_ocr_pages = ahash::AHashMap::new();
     // Written only by the two OCR-paragraph assembly blocks below (`layout-detection`
@@ -3781,7 +3789,6 @@ pub(super) async fn extract_with_ocr_for_page(
                 );
                 page_texts[page_idx] = acceptance.content;
                 rejected_pages[page_idx] = acceptance.discarded;
-                noise_verdict_pages[page_idx] = acceptance.verdict.is_some() && !acceptance.discarded;
                 if let Some(verdict) = acceptance.verdict {
                     recognition_noise_verdicts.push(verdict);
                 }
@@ -3867,7 +3874,6 @@ pub(super) async fn extract_with_ocr_for_page(
             );
             page_texts[page_idx] = acceptance.content;
             rejected_pages[page_idx] = acceptance.discarded;
-            noise_verdict_pages[page_idx] = acceptance.verdict.is_some() && !acceptance.discarded;
             if let Some(verdict) = acceptance.verdict {
                 recognition_noise_verdicts.push(verdict);
             }
@@ -3921,27 +3927,6 @@ pub(super) async fn extract_with_ocr_for_page(
         _ => None,
     };
 
-    // A whole-document run keeps the readable text layer first on a page whose OCR text is
-    // judged recognition noise; the caller hands the layers in through the page hints. ~keep
-    let mut layer_before_noise: Vec<Option<String>> = vec![None; total_pages];
-    if let Some(layers) = page_ocr_hints.as_ref().and_then(|hints| hints.native_page_layers.as_ref()) {
-        for (page_idx, text) in page_texts.iter_mut().enumerate() {
-            if !noise_verdict_pages[page_idx] {
-                continue;
-            }
-            let page_number = (page_index_offset + page_idx + 1) as u32;
-            if let Some(layer) = layers.get(&page_number)
-                && let Some(missing) = super::document::layer_lines_absent_from_ocr(layer, text)
-            {
-                *text = format!("{missing}\n\n{text}");
-                if let Some(sink) = page_ocr_hints.as_ref().and_then(|hints| hints.layer_prefix_sink.as_ref()) {
-                    sink.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).push(missing.clone());
-                }
-                layer_before_noise[page_idx] = Some(missing);
-            }
-        }
-    }
-
     let page_marker_cfg = config.pages.as_ref().filter(|p| p.insert_page_markers);
     let mut result = String::new();
     for (i, text) in page_texts.iter().enumerate() {
@@ -3972,22 +3957,6 @@ pub(super) async fn extract_with_ocr_for_page(
     for (page_idx, page_rejected) in rejected_pages.iter().enumerate() {
         if *page_rejected {
             all_page_paragraphs[page_idx] = None;
-        }
-    }
-    // The structured page keeps the layer first as well. A page without paragraphs is rebuilt
-    // from its page text below, which already holds the layer, unless its tables claim it. ~keep
-    for (page_idx, layer) in layer_before_noise.iter().enumerate() {
-        let Some(layer) = layer else { continue };
-        if rejected_pages[page_idx] {
-            continue;
-        }
-        let has_paragraphs = all_page_paragraphs[page_idx]
-            .as_ref()
-            .is_some_and(|paragraphs| !paragraphs.is_empty());
-        if has_paragraphs || pages_text_claimed_by_tables[page_idx] {
-            let mut paragraphs = crate::pdf::structure::adapters::ocr_text_to_paragraphs(layer);
-            paragraphs.extend(all_page_paragraphs[page_idx].take().unwrap_or_default());
-            all_page_paragraphs[page_idx] = Some(paragraphs);
         }
     }
     discard_ocr_elements_from_rejected_pages(&mut all_ocr_elements, &rejected_pages, page_index_offset);
@@ -4911,6 +4880,7 @@ pub(crate) async fn run_ocr_pipeline(
         _raw_page_paragraphs,
         preprocessing,
         ocr_confidence,
+        _noise_verdicts,
     ) = Box::pin(run_ocr_pipeline_for_page(
         content,
         images,
@@ -5019,7 +4989,8 @@ pub(super) async fn run_ocr_pipeline_for_page(
 
 /// What a pipeline run returns: the text, the tables, the OCR elements, the document, the LLM
 /// usage, the text of each page, the page rasters, the formulas, the bare paragraphs of each
-/// page, the preprocessing metadata and the OCR confidence of each page.
+/// page, the preprocessing metadata, the OCR confidence of each page and the recognition-noise
+/// verdicts of the returned stage.
 #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
 type OcrPipelineOutput = (
     String,
@@ -5033,6 +5004,7 @@ type OcrPipelineOutput = (
     Vec<Vec<crate::pdf::structure::types::PdfParagraph>>,
     ahash::AHashMap<u32, crate::types::ImagePreprocessingMetadata>,
     ahash::AHashMap<u32, crate::types::page::PageOcrConfidence>,
+    Vec<OcrPageNoiseVerdict>,
 );
 
 /// Add to `doc` the records that the stages of a pipeline run made for the pages the run
@@ -5072,6 +5044,30 @@ pub(super) fn attach_unread_page_failures(
     merge_ocr_page_failures(&mut retained_doc.ocr_page_failures, unread);
     retained_doc.ocr_page_failures.sort_by_key(|failure| failure.page);
     doc
+}
+
+/// Put the layer first on each noise page of the returned stage of a whole-document run, after
+/// the stage was scored and chosen on its OCR text alone. A run without layers is unchanged.
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+fn with_run_layers_first(
+    layers: Option<std::sync::Arc<ahash::AHashMap<u32, String>>>,
+    verdicts: &[OcrPageNoiseVerdict],
+    page_index_offset: usize,
+    mut text: String,
+    mut page_texts: Vec<String>,
+    mut doc: Option<crate::types::internal::InternalDocument>,
+) -> (String, Vec<String>, Option<crate::types::internal::InternalDocument>) {
+    if let Some(layers) = layers {
+        super::document::put_layers_first_in_run(
+            &mut text,
+            &mut page_texts,
+            doc.as_mut(),
+            &layers,
+            verdicts,
+            page_index_offset,
+        );
+    }
+    (text, page_texts, doc)
 }
 
 /// What a pipeline run gives to each of its stages without a change: the parameters of
@@ -5117,6 +5113,11 @@ async fn run_ocr_pipeline_stages(
     // classical pipelines stay score-based) rather than carried on `OcrPipelineConfig`, so
     // the binding-facing config stays unchanged (#1341).
     let selection = ocr_config.pipeline_selection();
+    // The layers of a whole-document run; a page route hands none and puts them first itself.
+    let run_layers = inputs
+        .page_ocr_hints
+        .as_ref()
+        .and_then(|hints| hints.native_page_layers.clone());
 
     let mut stages = pipeline.stages.clone();
     stages.sort_by_key(|b| std::cmp::Reverse(b.priority));
@@ -5158,9 +5159,9 @@ async fn run_ocr_pipeline_stages(
         Vec<Vec<crate::pdf::structure::types::PdfParagraph>>,
         ahash::AHashMap<u32, crate::types::ImagePreprocessingMetadata>,
         ahash::AHashMap<u32, crate::types::page::PageOcrConfidence>,
+        Vec<OcrPageNoiseVerdict>,
     )> = None;
 
-    let mut best_selection_text: Option<String> = None;
     let mut accumulated_usage: Vec<crate::types::LlmUsage> = Vec::new();
     // Track stages that errored outright (e.g. a VLM fallback that failed
     // authentication) so the failure is surfaced to the caller instead of being
@@ -5195,11 +5196,6 @@ async fn run_ocr_pipeline_stages(
             "Pipeline: trying OCR backend"
         );
 
-        let layer_prefixes = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
-        let stage_hints = inputs.page_ocr_hints.clone().map(|mut hints| {
-            hints.layer_prefix_sink = hints.native_page_layers.is_some().then(|| layer_prefixes.clone());
-            hints
-        });
         let result = Box::pin(extract_with_ocr_for_page(
             inputs.content,
             inputs.images,
@@ -5210,7 +5206,7 @@ async fn run_ocr_pipeline_stages(
             inputs.page_rotation_degrees,
             inputs.skip_document_global_heuristic,
             inputs.points_per_pixel_override,
-            stage_hints,
+            inputs.page_ocr_hints.clone(),
             inputs.page_index_offset,
             inputs.xobject_document,
         ))
@@ -5232,13 +5228,7 @@ async fn run_ocr_pipeline_stages(
                 stage_ocr_confidence,
                 stage_recognition_noise_verdicts,
             )) => {
-                // The stage is judged on its OCR text alone: a text layer put before it must not
-                // change the score, the accept decision or the choice between stages. ~keep
-                let selection_text = text_without_layer_prefixes(
-                    &text,
-                    &layer_prefixes.lock().unwrap_or_else(|poisoned| poisoned.into_inner()),
-                );
-                let text_score = compute_quality_score(&selection_text, &pipeline.quality_thresholds);
+                let text_score = compute_quality_score(&text, &pipeline.quality_thresholds);
                 let score = pipeline_stage_score(text_score, mean_conf);
 
                 tracing::debug!(
@@ -5275,6 +5265,14 @@ async fn run_ocr_pipeline_stages(
                 }
 
                 if score >= pipeline.quality_thresholds.pipeline_min_quality {
+                    let (text, stage_page_texts, stage_doc) = with_run_layers_first(
+                        run_layers,
+                        &stage_recognition_noise_verdicts,
+                        inputs.page_index_offset,
+                        text,
+                        stage_page_texts,
+                        stage_doc,
+                    );
                     // ~keep Attach prior-stage diagnostics before this accepted-stage early
                     // return; otherwise successful fallback silently erases why it ran.
                     let stage_doc =
@@ -5291,6 +5289,7 @@ async fn run_ocr_pipeline_stages(
                         stage_raw_paragraphs,
                         stage_preprocessing,
                         stage_ocr_confidence,
+                        stage_recognition_noise_verdicts,
                     ));
                 }
 
@@ -5309,16 +5308,15 @@ async fn run_ocr_pipeline_stages(
                 // non-empty one that is a materially worse replacement for an already-dense
                 // incumbent (F46).
                 let best_score = best_result.as_ref().map(|(_, best_score, ..)| *best_score);
-                let best_text = best_selection_text.as_deref();
+                let best_text = best_result.as_ref().map(|(text, ..)| text.as_str());
                 if should_replace_best_effort_result(
                     selection,
                     best_score,
                     best_text,
-                    &selection_text,
+                    &text,
                     score,
                     &pipeline.quality_thresholds,
                 ) {
-                    best_selection_text = Some(selection_text);
                     best_result = Some((
                         text,
                         score,
@@ -5331,6 +5329,7 @@ async fn run_ocr_pipeline_stages(
                         stage_raw_paragraphs,
                         stage_preprocessing,
                         stage_ocr_confidence,
+                        stage_recognition_noise_verdicts,
                     ));
                 }
             }
@@ -5362,7 +5361,16 @@ async fn run_ocr_pipeline_stages(
             raw_page_paragraphs,
             preprocessing,
             ocr_confidence,
+            noise_verdicts,
         )) => {
+            let (text, page_texts, doc) = with_run_layers_first(
+                run_layers,
+                &noise_verdicts,
+                inputs.page_index_offset,
+                text,
+                page_texts,
+                doc,
+            );
             let threshold = pipeline.quality_thresholds.pipeline_min_quality;
             tracing::warn!(
                 score,
@@ -5411,6 +5419,7 @@ async fn run_ocr_pipeline_stages(
                 raw_page_paragraphs,
                 preprocessing,
                 ocr_confidence,
+                noise_verdicts,
             ))
         }
         None => {
@@ -5445,6 +5454,7 @@ async fn run_ocr_pipeline_stages(
                     Vec::new(),
                     recovery.preprocessing,
                     ahash::AHashMap::new(),
+                    Vec::new(),
                 ));
             }
 

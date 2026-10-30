@@ -334,8 +334,12 @@ pub(super) fn evaluate_native_text_for_ocr_with_garbage_threshold(
         && stats.meaningful_words >= thresholds.min_meaningful_words;
 
     let has_substantial_content = avg_non_whitespace >= MIN_AVG_NON_WHITESPACE_TO_TRUST;
-    let definitive_failure =
-        native_text_definitively_failed(&stats, has_substantial_content, thresholds, apply_absolute_garbage_threshold);
+    let definitive_failure = native_text_definitively_failed(
+        &stats,
+        has_substantial_content,
+        thresholds,
+        apply_absolute_garbage_threshold,
+    );
 
     let fallback = if definitive_failure {
         true

@@ -27,28 +27,70 @@ fn should_skip_layer_lines_the_ocr_text_already_holds() {
     );
 }
 
+/// The letters of a layer word that occur in the OCR text only across a word boundary, or in a
+/// longer word, are not evidence that the OCR read the word. ~keep
+#[test]
+fn should_keep_a_layer_word_that_the_ocr_text_holds_only_across_a_word_boundary() {
+    assert_eq!(
+        layer_lines_absent_from_ocr("Quillmarrow", "the quill marrow road").as_deref(),
+        Some("Quillmarrow")
+    );
+    assert_eq!(
+        layer_lines_absent_from_ocr("Quill", "the quillmarrow road").as_deref(),
+        Some("Quill")
+    );
+    assert_eq!(
+        layer_lines_absent_from_ocr("Quill Marrow", "the quill marrow road"),
+        None
+    );
+    assert_eq!(
+        layer_lines_absent_from_ocr("Plot 100", "plot 1OO").as_deref(),
+        Some("Plot 100")
+    );
+}
+
 #[test]
 fn should_collect_layers_only_for_requested_pages_with_one_boundary() {
     let text = "Meeting Notes--|~..Agenda Items";
     let boundaries = [
-        PageBoundary { byte_start: 0, byte_end: 13, page_number: 1 },
-        PageBoundary { byte_start: 13, byte_end: 19, page_number: 2 },
-        PageBoundary { byte_start: 19, byte_end: 31, page_number: 3 },
-        PageBoundary { byte_start: 19, byte_end: 31, page_number: 3 },
+        PageBoundary {
+            byte_start: 0,
+            byte_end: 13,
+            page_number: 1,
+        },
+        PageBoundary {
+            byte_start: 13,
+            byte_end: 19,
+            page_number: 2,
+        },
+        PageBoundary {
+            byte_start: 19,
+            byte_end: 31,
+            page_number: 3,
+        },
+        PageBoundary {
+            byte_start: 19,
+            byte_end: 31,
+            page_number: 3,
+        },
     ];
     let thresholds = OcrQualityThresholds::default();
     let all = clean_native_page_layers(text, &boundaries, None, &thresholds);
     assert_eq!(all.get(&1).map(String::as_str), Some("Meeting Notes"));
     assert!(!all.contains_key(&2), "a symbol-only layer is not clean");
     assert!(!all.contains_key(&3), "a page with two boundaries is skipped");
-    let only_two = clean_native_page_layers(text, &boundaries, Some(&std::collections::HashSet::from([2])), &thresholds);
+    let only_two = clean_native_page_layers(
+        text,
+        &boundaries,
+        Some(&std::collections::HashSet::from([2])),
+        &thresholds,
+    );
     assert!(only_two.is_empty(), "page 1 is not requested and page 2 is not clean");
 }
 
-#[cfg(feature = "pdf")]
 #[test]
 fn should_put_the_layer_before_the_structured_page_and_shift_relationships() {
-    use super::document::{flat_ocr_page_document, prepend_layer_to_page_document};
+    use super::document::{flat_ocr_page_document, insert_layer_into_document};
     use crate::types::internal::{Relationship, RelationshipKind, RelationshipTarget};
 
     let mut page = flat_ocr_page_document("first block\n\nsecond block");
@@ -57,11 +99,77 @@ fn should_put_the_layer_before_the_structured_page_and_shift_relationships() {
         target: RelationshipTarget::Index(1),
         kind: RelationshipKind::InternalLink,
     });
-    prepend_layer_to_page_document(&mut page, "Meeting Notes");
+    insert_layer_into_document(&mut page, None, "Meeting Notes");
     let texts: Vec<&str> = page.elements.iter().map(|e| e.text.as_str()).collect();
     assert_eq!(texts, ["Meeting Notes", "first block", "second block"]);
     assert_eq!(page.relationships[0].source, 1);
     assert!(matches!(page.relationships[0].target, RelationshipTarget::Index(2)));
+}
+
+#[test]
+fn should_put_the_layer_first_on_the_noise_page_of_a_whole_document_run_only() {
+    use super::document::{flat_ocr_page_document, put_layers_first_in_run};
+    use super::scoring::OcrPageNoiseVerdict;
+    use crate::types::internal::{Relationship, RelationshipKind, RelationshipTarget};
+
+    let verdict = |page_index: usize, discarded: bool| OcrPageNoiseVerdict {
+        page_index,
+        low_confidence: true,
+        fragmented_noise: false,
+        dictionary_noise: false,
+        fragmented_word_ratio: 0.0,
+        word_count: 3,
+        mean_confidence: Some(0.2),
+        dict_invalid_word_ratio: None,
+        discarded,
+    };
+    let mut page_texts = vec![
+        "page one text".to_string(),
+        "xq zv wj".to_string(),
+        "page three text".to_string(),
+    ];
+    let mut text = page_texts.join("\n\n");
+    let mut doc = flat_ocr_page_document("page one text");
+    for (page, body) in [(2u32, "xq zv wj"), (3, "page three text")] {
+        let mut part = flat_ocr_page_document(body);
+        part.elements[0].page = Some(page);
+        doc.elements.append(&mut part.elements);
+    }
+    doc.elements[0].page = Some(1);
+    doc.relationships.push(Relationship {
+        source: 2,
+        target: RelationshipTarget::Index(0),
+        kind: RelationshipKind::InternalLink,
+    });
+    let layers = ahash::AHashMap::from([
+        (1, "Page One".to_string()),
+        (2, "Meeting Notes".to_string()),
+        (3, "Page Three".to_string()),
+    ]);
+    // Page 1 has no verdict, page 3's verdict was discarded: only page 2 gets its layer.
+    put_layers_first_in_run(
+        &mut text,
+        &mut page_texts,
+        Some(&mut doc),
+        &layers,
+        &[verdict(1, false), verdict(2, true)],
+        0,
+    );
+    assert_eq!(page_texts[1], "Meeting Notes\n\nxq zv wj");
+    assert_eq!(page_texts[0], "page one text");
+    assert_eq!(page_texts[2], "page three text");
+    assert_eq!(text, "page one text\n\nMeeting Notes\n\nxq zv wj\n\npage three text");
+    let texts: Vec<&str> = doc.elements.iter().map(|e| e.text.as_str()).collect();
+    assert_eq!(texts, ["page one text", "Meeting Notes", "xq zv wj", "page three text"]);
+    assert_eq!(doc.elements[1].page, Some(2));
+    assert_eq!(
+        doc.relationships[0].source, 3,
+        "a relationship past the insertion point shifts"
+    );
+    assert!(
+        matches!(doc.relationships[0].target, RelationshipTarget::Index(0)),
+        "one before it stays"
+    );
 }
 
 /// The two existing text judgements (language plausibility and the recognition-noise ratio)
@@ -74,20 +182,24 @@ fn should_show_that_the_existing_judgements_abstain_on_a_one_line_layer() {
 
     let thresholds = OcrQualityThresholds::default();
     for line in ["Meeting Notes", "Qxzv Kjwq Zxcv Wqjx Vkzq Jqxz"] {
-        assert_eq!(evaluate_text_plausibility(line, &thresholds), PlausibilityVerdict::NotEvaluated);
+        assert_eq!(
+            evaluate_text_plausibility(line, &thresholds),
+            PlausibilityVerdict::NotEvaluated
+        );
         assert!(!is_ocr_recognition_noise(line, &thresholds));
     }
 }
 
-/// A pipeline scores every stage on its OCR text. A text layer that a stage put before noisy OCR
-/// text must not raise that stage above a better stage, so the winner is the one the base picks
-/// without any layer. ~keep
+/// A pipeline scores every stage on its OCR text. A text layer put before noisy OCR text must not
+/// raise that stage above a better stage, so the winner is the one the base picks without any
+/// layer, and only the chosen stage gets its layer. ~keep
 #[cfg(all(feature = "pdf", feature = "ocr"))]
 #[tokio::test]
 #[serial_test::serial]
 async fn should_pick_the_same_pipeline_stage_with_and_without_a_text_layer() {
     use super::pipeline::{PageOcrHints, run_ocr_pipeline_for_page};
-    use crate::core::config::{OcrConfig, OcrPipelineConfig, OcrPipelineStage};
+    use super::scoring::{compute_quality_score, pipeline_stage_score};
+    use crate::core::config::{ExtractionConfig, OcrConfig, OcrPipelineConfig, OcrPipelineStage};
     use crate::plugins::{ConfidenceSemantics, OcrBackend, OcrBackendType, Plugin};
     use crate::types::ExtractedDocument;
     use std::sync::Arc;
@@ -146,8 +258,18 @@ async fn should_pick_the_same_pipeline_stage_with_and_without_a_text_layer() {
         }
     }
 
-    crate::plugins::register_ocr_backend(Arc::new(StageBackend { name: NOISY, text: NOISY_TEXT, noisy: true })).unwrap();
-    crate::plugins::register_ocr_backend(Arc::new(StageBackend { name: PLAIN, text: PLAIN_TEXT, noisy: false })).unwrap();
+    crate::plugins::register_ocr_backend(Arc::new(StageBackend {
+        name: NOISY,
+        text: NOISY_TEXT,
+        noisy: true,
+    }))
+    .unwrap();
+    crate::plugins::register_ocr_backend(Arc::new(StageBackend {
+        name: PLAIN,
+        text: PLAIN_TEXT,
+        noisy: false,
+    }))
+    .unwrap();
 
     let stage = |backend: &str, priority: u32| OcrPipelineStage {
         backend: backend.to_string(),
@@ -159,10 +281,25 @@ async fn should_pick_the_same_pipeline_stage_with_and_without_a_text_layer() {
         vlm_config: None,
         backend_options: None,
     };
+    // The accept bar sits between the noisy stage scored alone and scored with the layer in front:
+    // only a pipeline that scores the layer text accepts the noisy stage on the first try. ~keep
+    let defaults = crate::core::config::OcrQualityThresholds::default();
+    let noisy_conf = Some(0.18);
+    let score_alone = pipeline_stage_score(compute_quality_score(NOISY_TEXT, &defaults), noisy_conf);
+    let score_layered = pipeline_stage_score(
+        compute_quality_score(&format!("{LAYER}\n\n{NOISY_TEXT}"), &defaults),
+        noisy_conf,
+    );
+    let score_plain = pipeline_stage_score(compute_quality_score(PLAIN_TEXT, &defaults), None);
+    let accept_at = (score_alone + score_layered) / 2.0;
+    assert!(
+        score_alone < accept_at && accept_at <= score_layered && accept_at <= score_plain,
+        "the accept bar must separate the stages: alone {score_alone}, layered {score_layered}, plain {score_plain}"
+    );
     let pipeline = OcrPipelineConfig {
         stages: vec![stage(NOISY, 120), stage(PLAIN, 100)],
         quality_thresholds: crate::core::config::OcrQualityThresholds {
-            pipeline_min_quality: 0.99,
+            pipeline_min_quality: accept_at,
             ..Default::default()
         },
     };
@@ -180,10 +317,9 @@ async fn should_pick_the_same_pipeline_stage_with_and_without_a_text_layer() {
         known_full_page_scan: false,
         single_block_pages: None,
         native_page_layers: layers.map(Arc::new),
-        layer_prefix_sink: None,
     };
-    let run = |hints: PageOcrHints| {
-        let (config, pipeline, images) = (&config, &pipeline, &images);
+    let run = |pipeline: OcrPipelineConfig, hints: PageOcrHints| {
+        let (config, images) = (&config, &images);
         async move {
             run_ocr_pipeline_for_page(
                 None,
@@ -191,7 +327,7 @@ async fn should_pick_the_same_pipeline_stage_with_and_without_a_text_layer() {
                 #[cfg(feature = "layout-detection")]
                 None,
                 config,
-                pipeline,
+                &pipeline,
                 None,
                 0,
                 true,
@@ -206,20 +342,155 @@ async fn should_pick_the_same_pipeline_stage_with_and_without_a_text_layer() {
         }
     };
 
-    let without_layer = run(hints(None)).await;
-    let with_layer = run(hints(Some(ahash::AHashMap::from([(1, LAYER.to_string())])))).await;
+    let layers = || Some(ahash::AHashMap::from([(1, LAYER.to_string())]));
+    let noisy_only = OcrPipelineConfig {
+        stages: vec![stage(NOISY, 120)],
+        quality_thresholds: pipeline.quality_thresholds.clone(),
+    };
+    let noisy_with_layer = run(noisy_only.clone(), hints(layers())).await;
+    let without_layer = run(pipeline.clone(), hints(None)).await;
+    let with_layer = run(pipeline.clone(), hints(layers())).await;
     crate::plugins::unregister_ocr_backend(NOISY).unwrap();
     crate::plugins::unregister_ocr_backend(PLAIN).unwrap();
 
-    assert_eq!(without_layer, PLAIN_TEXT, "without a layer the plain stage scores higher");
+    assert!(
+        noisy_with_layer.contains(LAYER) && noisy_with_layer.ends_with(NOISY_TEXT),
+        "the noisy stage must carry the layer before its text, or this test proves nothing: {noisy_with_layer:?}"
+    );
+    assert_eq!(
+        without_layer, PLAIN_TEXT,
+        "without a layer the plain stage scores higher"
+    );
     assert_eq!(with_layer, PLAIN_TEXT, "a layer must not change which stage wins");
 }
 
-#[test]
-fn should_remove_only_the_layer_prefixes_a_stage_added() {
-    use super::pipeline::text_without_layer_prefixes;
+/// Page route: a replacement is decided on the OCR text alone. A noise page whose OCR text keeps
+/// under half of the letters of a substantial clean layer stays native, byte for byte, even
+/// though the layer put before the OCR text would pass the same check. A short layer that the
+/// check does not protect is replaced, with the layer first. Both the single-backend route and
+/// the pipeline route are driven. ~keep
+#[cfg(all(feature = "pdf", feature = "ocr"))]
+#[tokio::test]
+#[serial_test::serial]
+async fn should_decide_a_page_replacement_on_the_ocr_text_before_the_layer_goes_first() {
+    use super::pipeline::extract_mixed_ocr_native;
+    use crate::core::config::{ExtractionConfig, OcrConfig, OcrPipelineConfig, OcrPipelineStage};
+    use crate::plugins::{ConfidenceSemantics, OcrBackend, OcrBackendType, Plugin};
+    use crate::types::{ExtractedDocument, Metadata};
+    use std::sync::Arc;
 
-    let text = "Budget 2026\n\nocr line\nBudget 2026";
-    assert_eq!(text_without_layer_prefixes(text, &["Budget 2026".to_string()]), "ocr line\nBudget 2026");
-    assert_eq!(text_without_layer_prefixes(text, &[]), text);
+    const BACKEND: &str = "layer-test-page-route-backend";
+    const NOISY: &str = "A B C D E F G H I J K L M N O P Q R S T U V W X Y Z A B C D";
+    const LONG_LAYER: &str = "The committee met on Tuesday to review the annual budget. Members agreed that the proposal \
+        was sound and asked the treasurer to prepare the final report. The next meeting takes place in the spring.";
+    const TITLE: &str = "Meeting Notes";
+
+    struct NoisyBackend;
+
+    #[async_trait::async_trait]
+    impl OcrBackend for NoisyBackend {
+        fn backend_type(&self) -> OcrBackendType {
+            OcrBackendType::Custom
+        }
+        fn supports_language(&self, _: &str) -> bool {
+            true
+        }
+        async fn process_image(&self, _: &[u8], _: &OcrConfig) -> crate::Result<ExtractedDocument> {
+            let mut metadata = Metadata::default();
+            metadata
+                .additional
+                .insert("mean_text_conf".into(), serde_json::json!(18.0));
+            Ok(ExtractedDocument {
+                content: NOISY.to_string(),
+                metadata,
+                ..Default::default()
+            })
+        }
+        fn confidence_semantics(&self) -> ConfidenceSemantics {
+            ConfidenceSemantics::Legibility { scale_max: 100.0 }
+        }
+    }
+
+    impl Plugin for NoisyBackend {
+        fn name(&self) -> &str {
+            BACKEND
+        }
+        fn version(&self) -> String {
+            "1.0.0".to_string()
+        }
+        fn initialize(&self) -> crate::Result<()> {
+            Ok(())
+        }
+        fn shutdown(&self) -> crate::Result<()> {
+            Ok(())
+        }
+    }
+
+    crate::plugins::register_ocr_backend(Arc::new(NoisyBackend)).unwrap();
+    let pdf = crate::pdf::render::build_minimal_pdf_with_mediabox(612.0, 792.0);
+    let single_backend = ExtractionConfig {
+        use_cache: false,
+        ocr: Some(OcrConfig {
+            backend: BACKEND.to_string(),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let pipeline = ExtractionConfig {
+        use_cache: false,
+        ocr: Some(OcrConfig {
+            pipeline: Some(OcrPipelineConfig {
+                stages: vec![OcrPipelineStage {
+                    backend: BACKEND.to_string(),
+                    priority: 100,
+                    language: None,
+                    tesseract_config: None,
+                    paddle_ocr_config: None,
+                    paddle_ocr_settings: None,
+                    vlm_config: None,
+                    backend_options: None,
+                }],
+                quality_thresholds: crate::core::config::OcrQualityThresholds {
+                    pipeline_min_quality: 0.0,
+                    ..Default::default()
+                },
+            }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    let boundary = |text: &str| {
+        [crate::types::PageBoundary {
+            byte_start: 0,
+            byte_end: text.len(),
+            page_number: 1,
+        }]
+    };
+    let mut results = Vec::new();
+    for (route, config) in [("single backend", &single_backend), ("pipeline", &pipeline)] {
+        let long = extract_mixed_ocr_native(LONG_LAYER, &boundary(LONG_LAYER), &[1], &pdf, config, None)
+            .await
+            .unwrap();
+        let short = extract_mixed_ocr_native(TITLE, &boundary(TITLE), &[1], &pdf, config, None)
+            .await
+            .unwrap();
+        results.push((route, long.0, long.1, short.0));
+    }
+    crate::plugins::unregister_ocr_backend(BACKEND).unwrap();
+
+    for (route, long_text, long_replaced, short_text) in results {
+        assert_eq!(
+            long_text, LONG_LAYER,
+            "{route}: a page the OCR text alone does not replace stays native"
+        );
+        assert!(
+            long_replaced.is_empty(),
+            "{route}: no replacement for the substantial layer"
+        );
+        assert_eq!(
+            short_text,
+            format!("{TITLE}\n\n{NOISY}"),
+            "{route}: the short layer goes first"
+        );
+    }
 }

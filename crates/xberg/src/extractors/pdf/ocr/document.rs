@@ -110,7 +110,7 @@ pub(super) fn assemble_mixed_ocr_page_document(
 /// Tesseract emits LF, but the VLM backend (`crate::llm::vlm_ocr`) returns the model's
 /// markdown verbatim out of an HTTP JSON body, which routinely carries `\r\n`. Splitting
 /// raw would fold the entire page into a single block element (#316).
-#[cfg(all(any(feature = "ocr", feature = "ocr-pipeline"), feature = "pdf"))]
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
 pub(super) fn flat_ocr_page_document(text: &str) -> crate::types::internal::InternalDocument {
     use crate::types::internal::{ElementKind, InternalDocument, InternalElement};
     use crate::types::ocr_elements::OcrElementLevel;
@@ -150,7 +150,9 @@ pub(crate) fn clean_native_page_layers(
     }
     let mut layers = ahash::AHashMap::new();
     for boundary in boundaries {
-        if page_counts.get(&boundary.page_number) != Some(&1) || pages.is_some_and(|p| !p.contains(&boundary.page_number)) {
+        if page_counts.get(&boundary.page_number) != Some(&1)
+            || pages.is_some_and(|p| !p.contains(&boundary.page_number))
+        {
             continue;
         }
         let Some(layer) = native_text.get(boundary.byte_start..boundary.byte_end) else {
@@ -163,43 +165,100 @@ pub(crate) fn clean_native_page_layers(
     layers
 }
 /// The lines of a clean text layer that the OCR text does not already hold, or `None` when the
-/// OCR text holds every line. Lines compare as lowercase letters and digits, so a scan with a
-/// short invisible sidecar does not repeat its words. ~keep
+/// OCR text holds every line. A line is held only when each of its words is a whole word of the
+/// OCR text (letters and digits, lowercase): the letters of a layer word that occur in the OCR
+/// text only across a word boundary are not evidence that the word was read. ~keep
 #[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
 pub(crate) fn layer_lines_absent_from_ocr(layer: &str, ocr_text: &str) -> Option<String> {
-    fn key(text: &str) -> String {
-        text.chars()
-            .filter(|c| c.is_alphanumeric())
-            .flat_map(char::to_lowercase)
-            .collect()
+    fn words(text: &str) -> impl Iterator<Item = String> + '_ {
+        text.split(|c: char| !c.is_alphanumeric())
+            .filter(|word| !word.is_empty())
+            .map(str::to_lowercase)
     }
-    let ocr_key = key(ocr_text);
+    let ocr_words: std::collections::HashSet<String> = words(ocr_text).collect();
     let kept: Vec<&str> = layer
         .lines()
         .map(str::trim)
-        .filter(|line| {
-            let line_key = key(line);
-            !line_key.is_empty() && !ocr_key.contains(&line_key)
-        })
+        .filter(|line| words(line).any(|word| !ocr_words.contains(&word)))
         .collect();
     (!kept.is_empty()).then(|| kept.join("\n"))
 }
-/// Put the text layer first on a structured OCR page. Relationships of the page shift by the
-/// number of layer elements; the layer holds no table or image. ~keep
-#[cfg(all(any(feature = "ocr", feature = "ocr-pipeline"), feature = "pdf"))]
-pub(super) fn prepend_layer_to_page_document(page_doc: &mut crate::types::internal::InternalDocument, layer: &str) {
+/// Put layer lines first on a structured OCR document, before its first element of `page`
+/// (before the first element when `page` is `None`, or when no element belongs to the page).
+/// Relationships shift by the number of layer elements; the layer holds no table or image. ~keep
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+pub(super) fn insert_layer_into_document(
+    doc: &mut crate::types::internal::InternalDocument,
+    page: Option<u32>,
+    layer: &str,
+) {
     use crate::types::internal::RelationshipTarget;
 
-    let mut elements = flat_ocr_page_document(layer).elements;
-    let shift = elements.len() as u32;
-    for relationship in &mut page_doc.relationships {
-        relationship.source += shift;
-        if let RelationshipTarget::Index(index) = &mut relationship.target {
+    let at = page
+        .and_then(|page| doc.elements.iter().position(|element| element.page == Some(page)))
+        .unwrap_or(0);
+    let mut layer_elements = flat_ocr_page_document(layer).elements;
+    for element in &mut layer_elements {
+        element.page = page;
+    }
+    let shift = layer_elements.len() as u32;
+    let at_u32 = at as u32;
+    for relationship in &mut doc.relationships {
+        if relationship.source >= at_u32 {
+            relationship.source += shift;
+        }
+        if let RelationshipTarget::Index(index) = &mut relationship.target
+            && *index >= at_u32
+        {
             *index += shift;
         }
     }
-    elements.append(&mut page_doc.elements);
-    page_doc.elements = elements;
+    doc.elements.splice(at..at, layer_elements);
+}
+/// For a whole-document OCR run: put the text layer first on every page whose OCR text got the
+/// recognition-noise verdict, in the flat text, the page texts and the structured document. The
+/// run has already scored and chosen its stage on the OCR text alone. ~keep
+#[cfg(any(feature = "ocr", feature = "ocr-pipeline"))]
+pub(super) fn put_layers_first_in_run(
+    text: &mut String,
+    page_texts: &mut [String],
+    mut doc: Option<&mut crate::types::internal::InternalDocument>,
+    layers: &ahash::AHashMap<u32, String>,
+    verdicts: &[super::scoring::OcrPageNoiseVerdict],
+    page_index_offset: usize,
+) {
+    let mut pages: Vec<u32> = verdicts
+        .iter()
+        .filter(|verdict| !verdict.discarded)
+        .map(|verdict| verdict.page_index as u32 + 1)
+        .collect();
+    pages.sort_unstable();
+    pages.dedup();
+    let mut cursor = 0usize;
+    for page in pages {
+        let Some(layer) = layers.get(&page) else { continue };
+        let Some(local) = (page as usize).checked_sub(page_index_offset + 1) else {
+            continue;
+        };
+        let Some(page_text) = page_texts.get_mut(local) else {
+            continue;
+        };
+        let Some(missing) = layer_lines_absent_from_ocr(layer, page_text) else {
+            continue;
+        };
+        let with_layer = format!("{missing}\n\n{page_text}");
+        if !page_text.is_empty()
+            && let Some(found) = text[cursor..].find(page_text.as_str())
+        {
+            let start = cursor + found;
+            text.replace_range(start..start + page_text.len(), &with_layer);
+            cursor = start + with_layer.len();
+        }
+        *page_text = with_layer;
+        if let Some(doc) = doc.as_deref_mut() {
+            insert_layer_into_document(doc, Some(page), &missing);
+        }
+    }
 }
 /// Attach a page's OCR tables and OCR elements to its structured document.
 ///
