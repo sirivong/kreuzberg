@@ -7,6 +7,7 @@ run = 'SWAP_SIZE_GIB="${SWAP_SIZE_GIB:-16}" bash scripts/ci/benchmarks/setup-bui
 
 ["benchmark:validate:scripts"]
 description = "Validate benchmark workflow configuration and Python adapters"
+depends = ["benchmark:validate:parsebench", "benchmark:validate:olmocr"]
 run = [
   "scripts/ci/benchmarks/validate-workflow-build-config.sh",
   "python3 -m unittest scripts/ci/benchmarks/test_validate_workflow_matrix.py",

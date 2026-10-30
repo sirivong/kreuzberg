@@ -47,6 +47,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **(ci): Run ParseBench and olmOCR harness controls in benchmark script validation.**
+  Initialize the pinned corpus metadata without downloading benchmark PDF datasets.
 - **(dependencies): Update Liter LLM to 2.4.2 and refresh Rust dependency locks.**
   Elixir native builds now require Brotli decompressor 6.2 or later within the compatible major version.
 - **(development): Follow shared toolchain baseline 1.12.0 and agent conventions 1.5.1.**

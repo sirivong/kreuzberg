@@ -74,6 +74,8 @@ jobs:
       UV_PYTHON_PREFERENCE: only-system
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Install Python and uv
         uses: xberg-io/actions/setup-mise@v1
         with:
