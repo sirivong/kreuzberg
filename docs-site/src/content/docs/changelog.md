@@ -113,6 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **(development): Keep generated skill summaries within Claude and Codex context budgets.**
 - **(ci): Refresh governance server tracking for ai-rulez 5.9.3 validation.**
 - **(vtt): Reject overflowing timestamps and decode character references in speaker annotations.** (#2330, #2329)
 - **(bindings): Keep Rust-only structured rendering and recovery APIs outside generated language bindings.**

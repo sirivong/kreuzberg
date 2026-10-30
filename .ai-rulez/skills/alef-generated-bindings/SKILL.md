@@ -1,7 +1,7 @@
 ---
 type: Playbook
 title: Alef Generated Bindings
-description: "Xberg on top of the shared Alef workflow: output locations, alef.toml sections, regen-breaking core edits, FFI JSON bridge. Use when editing bindings."
+description: "Edit Alef bindings: output paths, configuration, core regeneration and FFI JSON."
 paths:
   - "alef.toml"
   - "packages/**"

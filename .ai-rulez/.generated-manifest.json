@@ -83,7 +83,6 @@
     ".claude/rules/rust.md",
     ".claude/rules/shell.md",
     ".claude/rules/typescript.md",
-    ".claude/settings.json",
     ".claude/skills/agent-coordination/SKILL.md",
     ".claude/skills/alef-generated-bindings/SKILL.md",
     ".claude/skills/alef/SKILL.md",
@@ -155,12 +154,6 @@
     "CLAUDE.md",
     "opencode.json"
   ],
-  "merged": {
-    ".claude/settings.json": [],
-    ".codex/config.toml": [],
-    ".mcp.json": [],
-    "opencode.json": []
-  },
   "servers": {
     ".codex/config.toml": [
       [

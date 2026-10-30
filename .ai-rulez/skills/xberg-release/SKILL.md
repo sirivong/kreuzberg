@@ -1,7 +1,7 @@
 ---
 type: Playbook
 title: Xberg Release
-description: "Xberg release on top of the shared release-workflow: mise run version:sync to bindings and chart, CI/Publish/Benchmarks readiness. Use before a release."
+description: "Prepare Xberg releases: version sync, generated bindings, chart and CI gates."
 x-ai-rulez:
   kind: skill
   id: xberg-release
