@@ -114,6 +114,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **(pdf): Preserve separate values during leftward reading-order jumps.**
+  Adjacent values such as `5.55` and `16` no longer fuse when their baselines differ slightly.
+
 - **(tables): Preserve declared headers across PDF table fragments.**
   HTML and document structure distinguish physical header rows from labels inherited from another fragment,
   while keeping multiline headers and existing table anchors. (#2332)
