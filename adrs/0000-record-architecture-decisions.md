@@ -30,7 +30,7 @@ Records follow MADR 4 as `adrlint new` generates it, numbered from 0000. Records
 already in force when the log started, dated to the commit that made each one. Org-wide decisions (the polyrepo, alef
 bindings, licensing, the mise baseline and tasks, poly, ai-rulez, action pins, runner labels, the docs theme,
 feature-flag names, language tooling, Renovate, shared assets) are cited as `org ADR-NNNN`, not restated. The index is
-`docs/adr-index.md`, outside the log.
+`docs-site/src/content/docs/reference/architecture-decisions.md`, outside the log.
 
 ### Consequences
 

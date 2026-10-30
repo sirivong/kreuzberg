@@ -11,9 +11,9 @@ decision-makers: ["Na'aman Hirschfeld"]
 The JVM had three routes into the Rust core. The Java package bound the C FFI crate through Panama's Foreign
 Function & Memory API since 03c0c0399f ("feat(java): add Panama FFI bindings for Java 22+", 2025-11-14). A separate
 Kotlin/JVM package, `packages/kotlin`, depended on JNA (`net.java.dev.jna:jna`) and wrapped the alef-emitted Java
-facade. An Android AAR, `packages/kotlin-android`, loaded a JNI library built from the `-jni` crate. alef v0.16.0
-split Kotlin into a dedicated `kotlin_android` backend that emits a self-contained AAR project and no longer emitted
-`packages/kotlin`. alef generates every binding, as
+facade. An Android AAR, `packages/kotlin-android`, loaded `kreuzberg_ffi` and called it through Kotlin `external fun`
+declarations; there was no `-jni` crate yet. alef v0.16.0 split Kotlin into a dedicated `kotlin_android` backend
+that emits a self-contained AAR project and no longer emitted `packages/kotlin`. alef generates every binding, as
 [org ADR-0002 (Rust cores with alef-generated bindings)](https://github.com/xberg-io/agent-conventions/blob/main/adrs/0002-rust-cores-with-alef-generated-bindings.md)
 decides.
 
@@ -32,8 +32,9 @@ Android distribution lives under packages/kotlin-android/".
 
 * `alef.toml` `[crates.java]` sets `ffi_style = "panama"`: the Java package calls `xberg-ffi`, the same C ABI that
   Go, C#, Zig and Swift use, and binds exactly `[crates.ffi]`'s feature set.
-* `crates/xberg-jni` exists only for `packages/kotlin-android`. cc3b153131 (2026-06-12) declared `[crates.jni]` for
-  the JNI shim, "Paired with kotlin_android backend".
+* The JNI half settled after this decision. e31cba78d5 (2026-05-30) added the `-jni` shim crate for JNI symbol
+  resolution, and cc3b153131 (2026-06-12) declared `[crates.jni]` for it, "Paired with kotlin_android backend".
+  `crates/xberg-jni` exists only for `packages/kotlin-android`.
 * The Java package requires Java 25 with `--enable-preview` and `--enable-native-access=ALL-UNNAMED`.
 
 ### Consequences
@@ -47,8 +48,8 @@ Android distribution lives under packages/kotlin-android/".
 
 ### Confirmation
 
-* `alef.toml:2383` sets `ffi_style = "panama"` under `[crates.java]` (`:2381`). `[crates.kotlin_android]` (`:2623`)
-  and `[crates.jni]` (`:2719`) configure the Android path.
+* `alef.toml:2386` sets `ffi_style = "panama"` under `[crates.java]` (`:2384`). `[crates.kotlin_android]` (`:2626`)
+  and `[crates.jni]` (`:2722`) configure the Android path.
 * `packages/java/pom.xml:53` sets `maven.compiler.release` to 25.
 * The crate-structure skill states that the Java package does not go through `xberg-jni`
   (`.ai-rulez/skills/crate-structure/SKILL.md:21`).
