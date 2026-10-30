@@ -118,6 +118,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **(models): Reject ambiguous or incomplete pinned model inventories before downloading.** (#2336)
+  Duplicate paths, unsafe portable filenames, empty supplied manifests and unpinned external weights fail validation.
+
 - **(pdf): Keep superscripts and formatting on their source characters after text repair.** (#2275)
   Annotation ranges follow ligature expansion, absorbed spaces and Unicode normalization.
 - **(tables): Retain OCR table headers, spans and cell geometry in image and PDF output.** (#2332)
