@@ -1136,7 +1136,7 @@ fn build_comrak_ast_with_table_mode<'a>(
                         anchor.append(mk_text(arena, &format!("[TABLE:{table_id}]")));
                         parent.append(anchor);
                     }
-                    let has_header = table.columns.is_some()
+                    let has_header = table.has_header_row()
                         || (table_mode == TableRenderMode::Markdown
                             && !matches!(doc.source_format.as_str(), "csv" | "orgmode" | "typst"));
                     match build_table(arena, &table.cells, has_header, elem_attributes, table_mode) {
@@ -1725,6 +1725,7 @@ mod tests {
     fn should_escape_declared_table_headers_and_body_cells_in_html() {
         let mut document = table_header_document("pdf", true);
         document.tables[0].cells[0][0] = "<Name & role>".to_owned();
+        document.tables[0].columns = Some(document.tables[0].cells[0].clone());
         document.tables[0].cells[1][0] = "<script>alert(1)</script>".to_owned();
         assert_eq!(
             crate::rendering::render_html(&document),

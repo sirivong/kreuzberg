@@ -114,6 +114,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **(tables): Preserve declared headers across PDF table fragments.**
+  HTML and document structure distinguish physical header rows from labels inherited from another fragment,
+  while keeping multiline headers and existing table anchors. (#2332)
+
 - **(pdf): Render recognized formulas missing from OCR body elements.**
   Preserve page order, existing list ownership and element references; retain math in metadata with a warning
   when no safe same-page insertion boundary exists. (#2331)

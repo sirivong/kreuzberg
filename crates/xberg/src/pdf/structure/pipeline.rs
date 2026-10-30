@@ -4178,8 +4178,7 @@ fn stitch_fragmented_tables(
     result
 }
 
-/// Assign a stable, deterministic `table_id` (and, when missing, `columns`) to
-/// every table in `tables`, in the given order.
+/// Assign a stable, deterministic `table_id` to every table in `tables`, in the given order.
 ///
 /// Ids are sequential (`"table-1"`, `"table-2"`, ...) rather than derived from
 /// randomness or wall-clock time, so the same input document always produces
@@ -4200,9 +4199,6 @@ fn stitch_fragmented_tables(
 fn assign_deterministic_table_ids(tables: &mut [crate::types::Table]) {
     for (index, table) in tables.iter_mut().enumerate() {
         table.table_id = Some(format!("table-{}", index + 1));
-        if table.columns.is_none() {
-            table.columns = table.cells.first().cloned();
-        }
     }
 }
 
@@ -4263,7 +4259,7 @@ fn fragments_are_stitchable(prev: &crate::types::Table, next: &crate::types::Tab
 
 /// Merge a chain of >= 2 stitchable fragments into one table.
 ///
-/// The topmost fragment's rows collapse into the header; every other
+/// The topmost fragment's rows collapse into the first row; every other
 /// fragment's rows collapse into one data row apiece. See
 /// [`stitch_fragmented_tables`] for why a whole-fragment column merge is used
 /// instead of trying to re-derive a header/data split.
@@ -4304,7 +4300,11 @@ fn merge_table_chain(chain: Vec<crate::types::Table>, all_page_segments: &[Vec<S
     }
 
     let markdown = crate::pdf::table_reconstruct::table_to_markdown(&rows);
-    let columns = rows.first().cloned();
+    let columns = if chain[0].has_header_row() {
+        rows.first().cloned()
+    } else {
+        chain.iter().find_map(|table| table.columns.clone())
+    };
     crate::types::Table {
         cells: rows,
         markdown,
