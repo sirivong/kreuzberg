@@ -30,7 +30,6 @@ ruby = "3.4.12"
 dotnet = "10.0.403"
 zig = "0.17.0"
 "github:Goldziher/poly" = "0.31.2"
-"github:Goldziher/ai-rulez" = "5.9.3"
 "github:Goldziher/adrlint" = "0.4.0"
 "github:xberg-io/alef" = "0.115.6"
 cargo-deny = "0.20.2"
@@ -159,16 +158,18 @@ run = "bash scripts/ci/docker/check-dockerfile-crate-coverage.sh"
 # ---- Governance and plugin ---------------------------------------------------------------------
 
 [tasks."governance:test"]
-description = "Test the ai-rulez installations across CI and release workflows"
+description = "Test that ai-rulez stays unpinned across mise, CI and release workflows"
 run = "python3 scripts/tests/test_governance_runtime.py"
 
 [tasks."governance:generate"]
-description = "Generate local AI governance files with the reviewed ai-rulez CLI"
-run = "ai-rulez generate"
+description = "Generate local AI governance files with the latest ai-rulez"
+tools = { node = "26.12.1" }
+run = "npx -y ai-rulez@latest generate"
 
 [tasks."governance:validate"]
 description = "Validate the root AI governance configuration"
-run = "ai-rulez validate"
+tools = { node = "26.12.1" }
+run = "npx -y ai-rulez@latest validate"
 
 [tasks."plugin:test"]
 description = "Check OpenCode v2 tools and packed Pi resources"
