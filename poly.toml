@@ -15,7 +15,7 @@ exclude = [
   "/.ai-rulez/.generated-manifest.json",
   "/plugin/.ai-rulez/.generated-manifest.json",
   # The vendored Bats helper is copied byte-identical from xberg-io/actions, whose shell is
-  # tab-indented; reformatting it here would break `task test:scripts:lib:check`. Excluded from
+  # tab-indented; reformatting it here would break `mise run test:scripts:lib:check`. Excluded from
   # discovery rather than from fmt alone because poly has no per-engine exclude -- and the file
   # is linted and formatted in the repo that owns it. ~keep
   "scripts/tests/lib/**",
@@ -311,8 +311,8 @@ root = "packages/elixir"
 
 [per-file-ignores]
 "packages/python/xberg/__init__.py" = ["F811"]
-# CI helper tests run under stdlib `python3 -m unittest` (see .task/workflows/benchmark.yml),
-# in jobs that install Task and nothing else -- no uv, no virtualenv, no pytest. PT027 wants
+# CI helper tests run under stdlib `python3 -m unittest` (see `benchmark:validate:scripts` in
+# mise-tasks/benchmark.toml), in jobs that install mise's Python and uv but no pytest. PT027 wants
 # `pytest.raises` over `assertRaises`, and taking that advice here makes the file import pytest
 # and the job dies on ModuleNotFoundError. Scoped to these two globs so PT027 still gates
 # everywhere the repo genuinely uses pytest. ~keep

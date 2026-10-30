@@ -35,7 +35,6 @@ node_package_manager = "pnpm"
 
 [workspace.ownership]
 user_owned = [
-  "Taskfile.yml",
   "e2e/csharp/Xberg.E2eTests.csproj",
   "e2e/dart/pubspec.yaml",
   "e2e/go/go.mod",
@@ -388,7 +387,7 @@ exclude = [
   # lint rules (docstring/annotation/complexity checks fire on generator structure, not
   # human choices). The real gate is execution + freshness, both already wired: the CI E2E
   # workflow's `e2e-tests` matrix runs all 14 languages, and the `e2e-freshness` job
-  # (`task e2e:verify`) regenerates and diffs the tree so a stale commit fails CI. `poly
+  # (`mise run e2e:verify`) regenerates and diffs the tree so a stale commit fails CI. `poly
   # lint e2e/**` reporting "0 files linted, exit 0" is therefore not a silent gap -- do not
   # remove this exclude to "fix" that read without first replacing execution+freshness with
   # something at least as strong. ~keep
