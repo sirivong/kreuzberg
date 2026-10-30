@@ -23,9 +23,11 @@ use super::constants::{FULL_LINE_FRACTION, MIN_BLOCKS_FOR_FONT_HEADING, MIN_HEAD
 use super::lines::{is_cjk_char, segments_need_space};
 use super::paragraphs::{merge_continuation_paragraphs, split_embedded_list_items};
 use super::text_repair::{
-    MIN_LIGATURE_WITNESS_WORD_LEN, WordWitnesses, apply_to_all_segments, clean_duplicate_punctuation,
-    collapse_spaced_hyphens, expand_ligatures_with_space_absorption, normalize_text_encoding, normalize_unicode_text,
-    repair_contextual_ligatures, repair_ligature_spaces,
+    MIN_LIGATURE_WITNESS_WORD_LEN, RepairedText, TextReplacement, WordWitnesses, apply_to_all_segments,
+    clean_duplicate_punctuation, collapse_spaced_hyphens, expand_ligatures_with_space_absorption,
+    expand_ligatures_with_space_absorption_mapped, normalize_text_encoding, normalize_unicode_text,
+    normalize_unicode_text_mapped, repair_contextual_ligatures, repair_contextual_ligatures_mapped,
+    repair_ligature_spaces,
 };
 use super::types::{LayoutHint, LayoutHintClass, PdfParagraph};
 
@@ -4098,16 +4100,7 @@ fn build_document_structure(
         if elem.text.is_empty() {
             continue;
         }
-        let t1 = repair_contextual_ligatures(&elem.text);
-        let t2 = expand_ligatures_with_space_absorption(&t1);
-        let t3 = normalize_unicode_text(&t2);
-        if let Cow::Owned(normalized) = t3 {
-            elem.text = normalized;
-        } else if let Cow::Owned(normalized) = t2 {
-            elem.text = normalized;
-        } else if let Cow::Owned(normalized) = t1 {
-            elem.text = normalized;
-        }
+        normalize_element_text(elem);
     }
 
     tracing::debug!(
@@ -4116,6 +4109,218 @@ fn build_document_structure(
     );
 
     Ok(doc)
+}
+
+type MappedElementRepair = for<'a> fn(&'a str, bool) -> RepairedText<'a>;
+
+fn normalize_element_text(elem: &mut crate::types::internal::InternalElement) {
+    if elem.annotations.is_empty() {
+        normalize_unannotated_element_text(elem);
+        return;
+    }
+    let repairs: [MappedElementRepair; 3] = [
+        repair_contextual_ligatures_mapped,
+        expand_ligatures_with_space_absorption_mapped,
+        normalize_unicode_text_mapped,
+    ];
+    for repair in repairs {
+        let repaired = repair(&elem.text, true);
+        remap_repaired_annotations(&mut elem.annotations, &repaired.replacements);
+        if let Cow::Owned(normalized) = repaired.text {
+            elem.text = normalized;
+        }
+    }
+}
+
+fn normalize_unannotated_element_text(elem: &mut crate::types::internal::InternalElement) {
+    let t1 = repair_contextual_ligatures(&elem.text);
+    let t2 = expand_ligatures_with_space_absorption(&t1);
+    let t3 = normalize_unicode_text(&t2);
+    if let Cow::Owned(normalized) = t3 {
+        elem.text = normalized;
+    } else if let Cow::Owned(normalized) = t2 {
+        elem.text = normalized;
+    } else if let Cow::Owned(normalized) = t1 {
+        elem.text = normalized;
+    }
+}
+
+enum AnnotationBoundary {
+    Start,
+    End,
+}
+
+fn remap_repaired_annotations(annotations: &mut Vec<crate::types::TextAnnotation>, replacements: &[TextReplacement]) {
+    if replacements.is_empty() {
+        return;
+    }
+    annotations.retain_mut(|annotation| {
+        annotation.start = u32::try_from(repaired_annotation_boundary(
+            annotation.start as usize,
+            replacements,
+            AnnotationBoundary::Start,
+        ))
+        .unwrap_or(u32::MAX);
+        annotation.end = u32::try_from(repaired_annotation_boundary(
+            annotation.end as usize,
+            replacements,
+            AnnotationBoundary::End,
+        ))
+        .unwrap_or(u32::MAX);
+        annotation.start < annotation.end
+    });
+}
+
+fn repaired_annotation_boundary(
+    offset: usize,
+    replacements: &[TextReplacement],
+    boundary: AnnotationBoundary,
+) -> usize {
+    let preceding = replacements.partition_point(|replacement| replacement.before.start < offset);
+    let Some(replacement) = preceding.checked_sub(1).map(|index| &replacements[index]) else {
+        return offset;
+    };
+    if offset < replacement.before.end {
+        // ~keep Ranges inside a replaced glyph cover its complete expansion; a deleted source space maps to an empty range.
+        return match boundary {
+            AnnotationBoundary::Start => replacement.after.start,
+            AnnotationBoundary::End => replacement.after.end,
+        };
+    }
+    replacement.after.end.saturating_add(offset - replacement.before.end)
+}
+
+#[cfg(test)]
+mod annotation_text_repair_tests {
+    use crate::types::internal::InternalElement;
+    use crate::types::internal_builder::InternalDocumentBuilder;
+    use crate::types::{AnnotationKind, TextAnnotation};
+
+    fn annotation(text: &str, token: &str, kind: AnnotationKind) -> TextAnnotation {
+        let start = text.find(token).expect("source token is present") as u32;
+        TextAnnotation {
+            start,
+            end: start + token.len() as u32,
+            kind,
+        }
+    }
+
+    fn normalized(text: &str, annotations: Vec<TextAnnotation>) -> InternalElement {
+        let mut builder = InternalDocumentBuilder::new("pdf");
+        builder.push_paragraph(text, annotations, None, None);
+        let mut element = builder.build().elements.pop().unwrap();
+        super::normalize_element_text(&mut element);
+        element
+    }
+
+    #[test]
+    fn expansion_preserves_script_and_overlapping_style_byte_ranges() {
+        let source = "a*z mod (231-1)";
+        let expected = "attz mod (231-1)";
+        let ranges = |text| {
+            vec![
+                annotation(text, "31", AnnotationKind::Superscript),
+                annotation(text, text, AnnotationKind::Bold),
+                annotation(
+                    text,
+                    if text == source { "a*z" } else { "attz" },
+                    AnnotationKind::Italic,
+                ),
+                annotation(text, "mod", AnnotationKind::Underline),
+            ]
+        };
+        let result = normalized(source, ranges(source));
+        assert_eq!(result.text, expected);
+        assert_eq!(result.annotations, ranges(expected));
+    }
+
+    #[test]
+    fn contraction_and_space_absorption_preserve_script_ranges() {
+        let source = "‘ﬁ eld’ 231";
+        let expected = "'field' 231";
+        let result = normalized(
+            source,
+            vec![
+                annotation(source, "31", AnnotationKind::Superscript),
+                annotation(source, "‘ﬁ eld’", AnnotationKind::Bold),
+                annotation(source, "eld", AnnotationKind::Italic),
+            ],
+        );
+        assert_eq!(result.text, expected);
+        assert_eq!(
+            result.annotations,
+            vec![
+                annotation(expected, "31", AnnotationKind::Superscript),
+                annotation(expected, "'field'", AnnotationKind::Bold),
+                annotation(expected, "eld", AnnotationKind::Italic),
+            ]
+        );
+    }
+
+    #[test]
+    fn multibyte_prefix_and_unrelated_annotation_keep_their_boundaries() {
+        let source = "é #ne 31";
+        let expected = "é fine 31";
+        let ranges = |text| {
+            vec![
+                annotation(text, "é", AnnotationKind::Italic),
+                annotation(text, "31", AnnotationKind::Superscript),
+                annotation(text, text, AnnotationKind::Bold),
+            ]
+        };
+        let result = normalized(source, ranges(source));
+        assert_eq!(result.text, expected);
+        assert_eq!(result.annotations, ranges(expected));
+    }
+
+    #[test]
+    fn boundaries_inside_replaced_ligature_cover_expansion_and_deleted_space_vanishes() {
+        let source = "ﬃ x";
+        let result = normalized(
+            source,
+            vec![
+                TextAnnotation {
+                    start: 1,
+                    end: 2,
+                    kind: AnnotationKind::Superscript,
+                },
+                TextAnnotation {
+                    start: 3,
+                    end: 4,
+                    kind: AnnotationKind::Underline,
+                },
+                annotation(source, source, AnnotationKind::Bold),
+            ],
+        );
+        assert_eq!(result.text, "ffix");
+        assert_eq!(
+            result.annotations,
+            vec![
+                TextAnnotation {
+                    start: 0,
+                    end: 3,
+                    kind: AnnotationKind::Superscript
+                },
+                TextAnnotation {
+                    start: 0,
+                    end: 4,
+                    kind: AnnotationKind::Bold
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn unchanged_text_keeps_all_original_annotation_ranges() {
+        let source = "é atom 31";
+        let annotations = vec![
+            annotation(source, "é", AnnotationKind::Italic),
+            annotation(source, "31", AnnotationKind::Superscript),
+        ];
+        let result = normalized(source, annotations.clone());
+        assert_eq!(result.text, source);
+        assert_eq!(result.annotations, annotations);
+    }
 }
 
 /// Maximum vertical gap (PDF points) between one fragment's bottom edge and the

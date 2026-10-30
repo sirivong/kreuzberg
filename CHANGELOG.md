@@ -118,6 +118,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **(pdf): Keep superscripts and formatting on their source characters after text repair.** (#2275)
+  Annotation ranges follow ligature expansion, absorbed spaces and Unicode normalization.
 - **(tables): Retain OCR table headers, spans and cell geometry in image and PDF output.** (#2332)
   PDF table elements and retained cells use the same final page coordinates.
 - **(tables): Preserve native TATR headers, merged cells and cell coordinates through PDF assembly.** (#2332)
