@@ -6,6 +6,25 @@ The dataset revision is `2805a1d940f95a203e0ae4b88be9934f7765b3fc`; the official
 
 Sources: [pinned public dataset](https://huggingface.co/datasets/llamaindex/ParseBench/tree/2805a1d940f95a203e0ae4b88be9934f7765b3fc) and [pinned evaluator](https://github.com/run-llama/ParseBench/tree/328c71109e0b955f66583c33ec95ac52d9749db4). PDF downloads were verified against the pinned dataset tree's Git blob SHA-1 or LFS SHA-256, then recorded with local SHA-256. Raw HTML hashes also match the curated corpus manifest. Thirty-four PDFs reused the verified local public cache; 469 were downloaded from the pinned public revision.
 
+## Reproduce acquisition and staging
+
+The corpus submodule supplies the reference-only downloader and generated upstream inventory. Initialize it at the recorded Git pin before acquisition. Keep both the cache and qualification stage outside every Git checkout; PDF content rights remain unreviewed, independently of the Apache-2.0 annotation license.
+
+```sh
+python test_documents/scripts/fetch_benchmark_upstreams.py --source parsebench-tables --root /external/path/benchmark-cache
+python tools/benchmark-harness/parsebench_html/stage.py --corpus-root test_documents --cache-root /external/path/benchmark-cache --output /external/path/new-stage
+```
+
+The staging adapter performs no downloads or extraction. It verifies all 503 PDF pins and the independently frozen original `table.jsonl` hash through the corpus helper, checks unique source IDs against the PDF inventory, and copies the original PDF bytes plus UTF-8 bytes of each raw `expected_markdown` HTML string. It preserves every upstream row and its original evaluation `rule`, without Markdown conversion or ground-truth normalization. The resulting `stage.json` uses the existing runner contract, includes source/evaluator revisions, inventory hash, attribution and license URI, and is deterministic for the same inputs. Output must be absent or empty.
+
+Optionally supply `--curated-manifest test_documents/ground_truth/corpus_manifest.json` to attach existing reference metadata. A verdict never filters the 503 records; missing curation is explicitly `UNREVIEWED`. Supplied entries must match the pinned revision and original oracle hash. The manifest records the curation file hash separately. `--registry` can select another copy of the generated upstream inventory; the child helper still requires its complete pinned source identities and counts, and staging independently requires the frozen original JSONL hash.
+
+Run the staging controls with the corpus helper available at `test_documents`, or set `XBERG_BENCHMARK_CORPUS_ROOT` to its checkout when testing an isolated worktree:
+
+```sh
+python -m unittest discover -s tools/benchmark-harness/tests -p 'test_parsebench_html_staging.py'
+```
+
 ## Local evidence
 
 On 2026-10-30 the verified external stage contained 503 unique, hash-verified PDFs (79,310,139 bytes), 503 hash-verified original HTML oracles, and `stage.json` with per-file SHA-256, source metadata, curation, and licenses. All 503 PDFs opened in PyMuPDF, with 503 pages total. The raw `table.jsonl` SHA-256 is `66129fcc9e68ae0bf40e7d41f540002ceff9bedf46d6dafff2321ba2b7ab5231`; the curated corpus manifest SHA-256 is `bbf64a1f8e617993d00dcac63d987c77fb232eb070db3e2fc22829661525ec65`.

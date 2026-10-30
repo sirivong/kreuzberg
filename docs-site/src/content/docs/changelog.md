@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **(benchmarks): Fetch pinned ParseBench and olmOCR inputs as upstream references.**
+  The corpus submodule records 1,493 file hashes and source license notices; offline staging preserves raw table oracles.
+
 - **(benchmarks): Reproduce full ParseBench HTML table comparisons with the official evaluator.** (#2332)
   Pin inputs, model artifacts, executable and configuration identities; retain extraction failures and metric exclusions.
 
