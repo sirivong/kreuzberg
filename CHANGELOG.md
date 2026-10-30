@@ -114,6 +114,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **(pdf): Retain each text run’s baseline when cached form objects reuse source span IDs.**
+  Raw script geometry no longer inherits a different run’s baseline after sorting.
+
 - **(pdf): Preserve separate values during leftward reading-order jumps.**
   Adjacent values such as `5.55` and `16` no longer fuse when their baselines differ slightly.
 
