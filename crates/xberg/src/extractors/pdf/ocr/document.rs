@@ -220,7 +220,7 @@ pub(super) fn rescale_ocr_bboxes_to_page_points(
     let scale_y = f64::from(page_height_pt) / f64::from(image_height_px);
 
     if let Some(doc) = doc {
-        rescale_document_bboxes(doc, scale_x, scale_y);
+        rescale_document_bboxes(doc, scale_x, scale_y, tables);
     }
 
     let page_height_pt_f64 = f64::from(page_height_pt);
@@ -257,12 +257,22 @@ pub(super) fn place_public_ocr_bboxes(doc: &mut crate::types::internal::Internal
                     doc,
                     f64::from(raster.0) / f64::from(processed.0),
                     f64::from(raster.1) / f64::from(processed.1),
+                    &[],
                 );
+                // Detached page owners scale-flip table rectangles later; preserve their top-left raster origin. ~keep
+                for bbox in doc.tables.iter_mut().filter_map(|table| table.bounding_box.as_mut()) {
+                    bbox.x0 *= f64::from(raster.0) / f64::from(processed.0);
+                    bbox.x1 *= f64::from(raster.0) / f64::from(processed.0);
+                    bbox.y0 *= f64::from(raster.1) / f64::from(processed.1);
+                    bbox.y1 *= f64::from(raster.1) / f64::from(processed.1);
+                }
             }
             f64::from(raster.1)
         }
         PublicOcrOutputFrame::PdfPage { raster, points } => {
-            rescale_ocr_bboxes_to_page_points(Some(doc), &mut [], raster.0, raster.1, points.0, points.1);
+            let mut tables = std::mem::take(&mut doc.tables);
+            rescale_ocr_bboxes_to_page_points(Some(doc), &mut tables, raster.0, raster.1, points.0, points.1);
+            doc.tables = tables;
             f64::from(points.1)
         }
     };
@@ -276,18 +286,28 @@ fn flip_document_bboxes_to_bottom_left(doc: &mut crate::types::internal::Interna
             flip_bbox_to_bottom_left(bbox, height);
         }
     }
+    crate::types::internal::table_grid::transform_retained_grid_bboxes(doc, &[], |bbox| {
+        flip_bbox_to_bottom_left(bbox, height)
+    });
 }
 
 #[cfg(all(feature = "pdf", any(feature = "ocr", feature = "ocr-pipeline")))]
-fn rescale_document_bboxes(doc: &mut crate::types::internal::InternalDocument, scale_x: f64, scale_y: f64) {
-    for element in &mut doc.elements {
-        if let Some(bbox) = element.bbox.as_mut() {
-            bbox.x0 *= scale_x;
-            bbox.x1 *= scale_x;
-            bbox.y0 *= scale_y;
-            bbox.y1 *= scale_y;
-        }
+fn rescale_document_bboxes(
+    doc: &mut crate::types::internal::InternalDocument,
+    scale_x: f64,
+    scale_y: f64,
+    tables: &[crate::types::Table],
+) {
+    let scale = |bbox: &mut crate::types::BoundingBox| {
+        bbox.x0 *= scale_x;
+        bbox.x1 *= scale_x;
+        bbox.y0 *= scale_y;
+        bbox.y1 *= scale_y;
+    };
+    for bbox in doc.elements.iter_mut().filter_map(|element| element.bbox.as_mut()) {
+        scale(bbox);
     }
+    crate::types::internal::table_grid::transform_retained_grid_bboxes(doc, tables, scale);
 }
 
 #[cfg(all(feature = "pdf", any(feature = "ocr", feature = "ocr-pipeline")))]
@@ -541,8 +561,8 @@ pub(super) fn formula_bbox_to_page_points(
         ));
     }
 }
-/// Flip the bboxes of a document's table elements from a top-left to a bottom-left
-/// origin, in points.
+/// Place table elements at their converted table rectangles, falling back to a
+/// top-left to bottom-left flip when no table rectangle is available.
 ///
 /// `crate::pdf::structure::assembly::push_table_element` copies `Table::bounding_box`
 /// verbatim onto the table's element, so on the pipeline route that element inherits the
@@ -553,13 +573,18 @@ pub(super) fn formula_bbox_to_page_points(
 #[cfg(all(any(feature = "ocr", feature = "ocr-pipeline"), feature = "pdf"))]
 pub(super) fn flip_table_element_bboxes_to_bottom_left(
     doc: &mut crate::types::internal::InternalDocument,
+    tables: &[crate::types::Table],
     page_height_pt: f32,
 ) {
     let page_height_pt = f64::from(page_height_pt);
     for element in &mut doc.elements {
-        if matches!(element.kind, crate::types::internal::ElementKind::Table { .. })
-            && let Some(bbox) = element.bbox.as_mut()
-        {
+        let crate::types::internal::ElementKind::Table { table_index } = element.kind else {
+            continue;
+        };
+        // Public OCR elements may already be bottom-left; the converted table is authoritative. ~keep
+        if let Some(bbox) = tables.get(table_index as usize).and_then(|table| table.bounding_box) {
+            element.bbox = Some(bbox);
+        } else if let Some(bbox) = element.bbox.as_mut() {
             flip_bbox_to_bottom_left(bbox, page_height_pt);
         }
     }
@@ -608,7 +633,7 @@ pub(super) fn build_pipeline_ocr_page_document(
         page_height_pt,
     );
     if raster_width_px != 0 && raster_height_px != 0 {
-        flip_table_element_bboxes_to_bottom_left(&mut doc, page_height_pt);
+        flip_table_element_bboxes_to_bottom_left(&mut doc, &assembled_tables, page_height_pt);
     }
     doc.tables = assembled_tables;
     rescale_ocr_bboxes_to_page_points(
@@ -2901,3 +2926,7 @@ mod tests {
         assert!(!restructured_document_retains_prose(&pages, &[], &empty));
     }
 }
+
+#[cfg(all(test, feature = "pdf", feature = "ocr"))]
+#[path = "document/table_grid_geometry_tests.rs"]
+mod table_grid_geometry_tests;

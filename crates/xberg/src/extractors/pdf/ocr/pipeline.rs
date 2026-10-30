@@ -2705,6 +2705,8 @@ pub(super) async fn extract_with_ocr_for_page(
     let mut retry_texts_outside_tables: Vec<Option<String>> = vec![None; total_pages];
     #[allow(unused_mut)]
     let mut collected_tables: Vec<crate::types::Table> = Vec::new();
+    #[cfg(all(feature = "layout-detection", any(feature = "ocr", feature = "ocr-wasm")))]
+    let mut collected_table_grids = Vec::new();
     let mut all_ocr_elements: Vec<crate::types::OcrElement> = Vec::new();
     let mut accumulated_llm_usage: Vec<crate::types::LlmUsage> = Vec::new();
     let mut accumulated_formulas: Vec<crate::types::Formula> = Vec::new();
@@ -3593,15 +3595,25 @@ pub(super) async fn extract_with_ocr_for_page(
                     crate::ocr::layout_assembly::RecognizedTablesOutcome::default()
                 };
 
-                for rt in &recognized_tables.tables {
-                    if !rt.markdown.is_empty() {
-                        // The id is this table's 1-based position in `collected_tables`;
-                        // pages are processed strictly in increasing `page_idx` order
-                        // above, so push order is deterministic document order. ~keep
-                        let table_index = collected_tables.len();
-                        collected_tables.push(recognized_table_to_public_table(rt, document_page_number, table_index));
+                let table_frame = if let Some((pdf, _, _)) = lazy_pdf_render_state.as_ref() {
+                    RecognizedTableFrame::PdfPage {
+                        raster: (ocr_render_width, ocr_render_height),
+                        points: page_dimensions_pt(pdf, page_idx),
                     }
-                }
+                } else if xobject_document.is_some() {
+                    RecognizedTableFrame::DetachedPdfRaster {
+                        height: ocr_render_height,
+                    }
+                } else {
+                    RecognizedTableFrame::ImagePixels
+                };
+                append_recognized_tables(
+                    &recognized_tables,
+                    document_page_number,
+                    table_frame,
+                    &mut collected_tables,
+                    &mut collected_table_grids,
+                );
 
                 if let Some(ref ocr_doc) = ocr_result.ocr_internal_document {
                     // Same lookup as the per-page `page_rotation_degrees` computed above for
@@ -4060,6 +4072,19 @@ pub(super) async fn extract_with_ocr_for_page(
         let mut document = ocr_doc.unwrap_or_else(|| crate::types::internal::InternalDocument::new("pdf"));
         super::document::merge_structured_ocr_pages_into_internal_document(&mut document, &accepted, &public_ocr_pages);
         Some(document)
+    };
+
+    #[cfg(all(feature = "layout-detection", any(feature = "ocr", feature = "ocr-wasm")))]
+    let ocr_doc = match ocr_doc {
+        Some(mut document) => {
+            crate::types::internal::table_grid::attach_recognized_table_grids(&mut document, &collected_table_grids)
+                .map_err(|error| crate::XbergError::Parsing {
+                    message: "Failed to retain recognized PDF OCR table geometry".to_owned(),
+                    source: Some(Box::new(error)),
+                })?;
+            Some(document)
+        }
+        None => None,
     };
 
     #[cfg(feature = "pdf")]
@@ -5833,3 +5858,79 @@ pub(super) fn inject_layout_config_to_backend(
 ))]
 #[path = "tracing_tests.rs"]
 mod tracing_tests;
+
+#[cfg(all(feature = "layout-detection", any(feature = "ocr", feature = "ocr-wasm")))]
+#[derive(Clone, Copy)]
+enum RecognizedTableFrame {
+    ImagePixels,
+    DetachedPdfRaster { height: u32 },
+    PdfPage { raster: (u32, u32), points: (f32, f32) },
+}
+
+#[cfg(all(feature = "layout-detection", any(feature = "ocr", feature = "ocr-wasm")))]
+impl RecognizedTableFrame {
+    fn place(self, table: &mut crate::types::Table, grid: Option<&mut crate::types::TableGrid>) {
+        let (scale, height, place_table) = match self {
+            Self::ImagePixels => return,
+            Self::DetachedPdfRaster { height } => ((1.0, 1.0), f64::from(height), false),
+            Self::PdfPage { raster, points } if raster.0 != 0 && raster.1 != 0 => (
+                (
+                    f64::from(points.0) / f64::from(raster.0),
+                    f64::from(points.1) / f64::from(raster.1),
+                ),
+                f64::from(points.1),
+                true,
+            ),
+            Self::PdfPage { .. } => return,
+        };
+        let place = |bbox: &mut crate::types::BoundingBox| {
+            let top = bbox.y0;
+            bbox.x0 *= scale.0;
+            bbox.x1 *= scale.0;
+            bbox.y0 = height - bbox.y1 * scale.1;
+            bbox.y1 = height - top * scale.1;
+        };
+        if place_table && let Some(bbox) = table.bounding_box.as_mut() {
+            place(bbox);
+        }
+        // Detached page assembly expects table rectangles in top-left raster pixels, but its
+        // retained cell boxes already share the bottom-left raster frame of document elements.
+        // The page owner later scales those cells and separately scale-flips tables exactly once. ~keep
+        if let Some(grid) = grid {
+            for bbox in grid.cells.iter_mut().filter_map(|cell| cell.bbox.as_mut()) {
+                place(bbox);
+            }
+        }
+    }
+}
+
+#[cfg(all(feature = "layout-detection", any(feature = "ocr", feature = "ocr-wasm")))]
+fn append_recognized_tables(
+    outcome: &crate::ocr::layout_assembly::RecognizedTablesOutcome,
+    page_number: u32,
+    frame: RecognizedTableFrame,
+    tables: &mut Vec<crate::types::Table>,
+    grids: &mut Vec<crate::types::internal::table_grid::TableGridSidecar>,
+) {
+    for (index, recognized) in outcome.tables.iter().enumerate() {
+        if recognized.markdown.is_empty() {
+            continue;
+        }
+        let mut sidecar = outcome.sidecar_at(index, page_number);
+        let mut table = sidecar
+            .as_ref()
+            .map(|sidecar| sidecar.table.clone())
+            .unwrap_or_else(|| recognized_table_to_public_table(recognized, page_number, tables.len()));
+        table.table_id = Some(format!("table-{}", tables.len() + 1));
+        frame.place(&mut table, sidecar.as_mut().map(|sidecar| &mut sidecar.grid));
+        if let Some(mut sidecar) = sidecar {
+            sidecar.table = table.clone();
+            grids.push(sidecar);
+        }
+        tables.push(table);
+    }
+}
+
+#[cfg(all(test, feature = "layout-detection", feature = "ocr"))]
+#[path = "pipeline/recognized_table_grid_tests.rs"]
+mod recognized_table_grid_tests;

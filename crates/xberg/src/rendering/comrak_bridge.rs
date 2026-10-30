@@ -807,13 +807,16 @@ fn build_table<'a>(
     Some(table_node)
 }
 
-#[cfg(feature = "pdf")]
+#[cfg(any(
+    feature = "pdf",
+    all(feature = "layout-detection", any(feature = "ocr", feature = "ocr-wasm"))
+))]
 fn build_retained_grid_html<'a>(
     arena: &'a comrak::Arena<'a>,
     table: &crate::types::Table,
     attributes: Option<&ahash::AHashMap<String, String>>,
 ) -> Option<&'a AstNode<'a>> {
-    let grid = crate::pdf::structure::table_grid::retained_grid(table, attributes)?;
+    let grid = crate::types::internal::table_grid::retained_grid(table, attributes)?;
     let occupied = validated_grid_occupancy(table, &grid)?;
     let anchors: ahash::AHashMap<_, _> = grid.cells.iter().map(|cell| ((cell.row, cell.col), cell)).collect();
     let mut annotations = super::table_math::read_annotations(attributes, &table.cells);
@@ -845,7 +848,10 @@ fn build_retained_grid_html<'a>(
     ))
 }
 
-#[cfg(feature = "pdf")]
+#[cfg(any(
+    feature = "pdf",
+    all(feature = "layout-detection", any(feature = "ocr", feature = "ocr-wasm"))
+))]
 fn validated_grid_occupancy(table: &crate::types::Table, grid: &crate::types::TableGrid) -> Option<Vec<Vec<bool>>> {
     if grid.rows == 0 || grid.cols == 0 {
         return None;
@@ -871,7 +877,10 @@ fn validated_grid_occupancy(table: &crate::types::Table, grid: &crate::types::Ta
     Some(occupied)
 }
 
-#[cfg(feature = "pdf")]
+#[cfg(any(
+    feature = "pdf",
+    all(feature = "layout-detection", any(feature = "ocr", feature = "ocr-wasm"))
+))]
 fn append_grid_html_cell<'a>(
     arena: &'a comrak::Arena<'a>,
     cell: &crate::types::GridCell,
@@ -1228,7 +1237,10 @@ fn build_comrak_ast_with_table_mode<'a>(
                         anchor.append(mk_text(arena, &format!("[TABLE:{table_id}]")));
                         parent.append(anchor);
                     }
-                    #[cfg(feature = "pdf")]
+                    #[cfg(any(
+                        feature = "pdf",
+                        all(feature = "layout-detection", any(feature = "ocr", feature = "ocr-wasm"))
+                    ))]
                     if table_mode == TableRenderMode::Html
                         && let Some(table_node) = build_retained_grid_html(arena, table, elem_attributes)
                     {

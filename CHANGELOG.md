@@ -116,6 +116,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **(tables): Retain OCR table headers, spans and cell geometry in image and PDF output.** (#2332)
+  PDF table elements and retained cells use the same final page coordinates.
 - **(tables): Preserve native TATR headers, merged cells and cell coordinates through PDF assembly.** (#2332)
   HTML retains row and column spans, and stale or ambiguous table geometry is discarded.
 - **(pdf): Retain each text run’s baseline when cached form objects reuse source span IDs.**
