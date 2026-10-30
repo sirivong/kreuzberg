@@ -1,50 +1,60 @@
-"""Check that every ai-rulez installation takes the version this checkout pins or expects."""
+"""Check that ai-rulez is never pinned and always runs its latest release (org ADR-0015)."""
 
 from pathlib import Path
 import re
 import tomllib
 import unittest
 
+SETUP_AI_RULEZ = "xberg-io/actions/setup-ai-rulez@v1"
 
-def _locked_ai_rulez_installs(path: Path, *, require_python: bool) -> int:
+
+def _latest_ai_rulez_installs(path: Path) -> int:
     source = path.read_text()
-    for forbidden in ("xberg-io/actions/setup-ai-rulez@", "ai-rulez-version:", "source-revision:"):
-        assert forbidden not in source, f"{path} bypasses the locked mise installer: {forbidden}"
-    assert "github:Goldziher/ai-rulez@" not in source, f"{path} overrides the mise.toml ai-rulez pin"
-    assert re.search(r"MISE_\w*AI_RULEZ\w*_VERSION", source) is None, f"{path} overrides the mise.toml pin"
-    assert "AI_RULEZ_VERSION" not in source, f"{path} overrides the mise.toml ai-rulez pin"
-    installs = 0
-    for match in re.finditer(r"(?m)^ +install-args: ([^\n]+)", source):
-        tools = match.group(1).split()
-        if "github:Goldziher/ai-rulez" not in tools:
-            continue
-        if require_python:
-            assert "python" in tools, f"{path} omits Python from the CI governance installation"
-        actions = re.findall(r"(?m)^ +(?:- )?uses: ([^\n]+)", source[: match.start()])
-        assert actions and actions[-1] == "xberg-io/actions/setup-mise@v1", f"{path} uses a non-mise installer"
-        installs += 1
-    return installs
+    assert "github:Goldziher/ai-rulez" not in source, f"{path} installs ai-rulez through mise"
+    assert "ai-rulez-version:" not in source, f"{path} passes an ai-rulez version"
+    assert "source-revision:" not in source, f"{path} builds a pinned ai-rulez revision"
+    assert re.search(r"AI_RULEZ\w*_VERSION", source) is None, f"{path} pins ai-rulez through the environment"
+    return len(re.findall(rf"(?m)^ +(?:- )?uses: {re.escape(SETUP_AI_RULEZ)}$", source))
+
+
+def _hook_revision(sources: list[dict]) -> str | None:
+    found = [source for source in sources if source.get("id") == "ai-rulez"]
+    assert len(found) == 1, found
+    return found[0].get("revision")
 
 
 class GovernanceRuntimeTests(unittest.TestCase):
-    """mise.toml pins ai-rulez exactly, so the tasks run it without a runtime version check."""
+    """No mise pin, no literal version, setup-ai-rulez in CI, npx in tasks and the hook source on v5."""
 
-    def test_should_use_locked_mise_for_ci_and_release_installations(self) -> None:
-        """Three CI installs and six release installs use the pinned mise toolchain."""
-        root = Path(__file__).resolve().parents[2]
-        mise = (root / "mise.toml").read_text()
-        ai_rulez_pin = tomllib.loads(mise)["tools"]["github:Goldziher/ai-rulez"]
-        assert re.fullmatch(r"\d+\.\d+\.\d+", ai_rulez_pin) is not None
-        task_sources = [mise, *(path.read_text() for path in (root / "mise-tasks").rglob("*") if path.is_file())]
-        assert len(task_sources) > 1, "mise-tasks/ holds no task files"
-        for source in task_sources:
-            assert "AI_RULEZ_VERSION" not in source, "a task overrides the mise.toml ai-rulez pin"
+    root = Path(__file__).resolve().parents[2]
+
+    def test_should_not_pin_ai_rulez_in_any_mise_config(self) -> None:
+        """No mise config or task pins ai-rulez; tasks run it through npx at latest."""
+        configs = sorted(self.root.glob("mise*.toml"))
+        assert configs, self.root
+        for path in configs:
+            assert "github:Goldziher/ai-rulez" not in tomllib.loads(path.read_text()).get("tools", {}), path
+        tasks = [path for path in (self.root / "mise-tasks").rglob("*") if path.is_file()]
+        assert tasks, "mise-tasks/ holds no task files"
+        for path in [*configs, *tasks]:
+            source = path.read_text()
+            assert re.search(r"AI_RULEZ\w*_VERSION", source) is None, f"{path} pins ai-rulez through the environment"
+            assert re.search(r"ai-rulez@(?!latest\b)", source) is None, f"{path} runs a pinned ai-rulez"
+
+    def test_should_install_the_latest_release_in_ci_and_release_workflows(self) -> None:
+        """Two CI installs and six release installs use setup-ai-rulez, which takes the latest release."""
         release_paths = {"publish.yaml", "plugin-artifacts.yaml"}
         installs = {"ci": 0, "release": 0}
-        for path in (root / ".github/workflows").glob("*"):
-            kind = "release" if path.name in release_paths else "ci"
-            installs[kind] += _locked_ai_rulez_installs(path, require_python=kind == "ci")
-        assert installs == {"ci": 3, "release": 6}, installs
+        for path in (self.root / ".github/workflows").glob("*"):
+            installs["release" if path.name in release_paths else "ci"] += _latest_ai_rulez_installs(path)
+        assert installs == {"ci": 2, "release": 6}, installs
+
+    def test_should_follow_the_floating_major_tag_for_the_hook_source(self) -> None:
+        """alef.toml and the poly.toml it renders take the ai-rulez hooks from v5."""
+        alef = tomllib.loads((self.root / "alef.toml").read_text())
+        poly = tomllib.loads((self.root / "poly.toml").read_text())
+        assert _hook_revision(alef["workspace"]["poly"]["hooks-sources"]) == "v5"
+        assert _hook_revision(poly["hooks"]["sources"]) == "v5"
 
 
 if __name__ == "__main__":
