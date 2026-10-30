@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **(benchmarks): Reproduce olmOCR comparisons with the original offline evaluator.** (#2331)
+  Pin all 984 PDFs and 6,090 tests; preserve model activation evidence, failures and complete group results.
+
 - **(benchmarks): Fetch pinned ParseBench and olmOCR inputs as upstream references.**
   The corpus submodule records 1,493 file hashes and source license notices; offline staging preserves raw table oracles.
 
