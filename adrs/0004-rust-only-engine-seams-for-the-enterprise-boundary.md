@@ -13,7 +13,10 @@ Rust callers of `xberg`, xberg-enterprise among them, could reach the extraction
 are MIT and xberg-enterprise is proprietary
 ([org ADR-0003 (Licensing line)](https://github.com/xberg-io/agent-conventions/blob/main/adrs/0003-licensing-line.md)),
 so an extension point must keep the generic mechanism in this repository and let the commercial implementation live
-outside it. The enterprise side of this decision is recorded in xberg-enterprise ADR-0049 (2026-06-27), which its
+outside it. xberg-enterprise's worker layered its own structured-extraction orchestration over `extract()`, so that
+mechanism existed in the worker rather than the core; 990fcbe2e8 (2026-06-29) upstreamed the generic part as
+`engine::structured`, "ported from the enterprise worker", with "every enterprise policy ... a parameter, not
+embedded". The enterprise side of this decision is recorded in xberg-enterprise ADR-0049 (2026-06-27), which its
 ADR-0076 supersedes; both are private.
 
 ## Considered Options

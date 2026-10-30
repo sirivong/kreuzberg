@@ -17,7 +17,7 @@ d409616f03). 124ba41808 (2026-05-07) then removed Pdfium and made `pdf_oxide` th
 ## Considered Options
 
 * Pdfium as the default, with `pdf_oxide` as an alternative backend (2026-03-15 to 2026-05-07)
-* `pdf_oxide` as the only PDF backend (2026-05-07 to 2026-08-21)
+* `pdf_oxide` as the only PDF backend (2026-05-07 to 2026-08-19)
 * The pure-Rust engine as the default, with Pdfium selectable through `PdfConfig.backend`
 
 ## Decision Outcome
