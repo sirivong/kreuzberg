@@ -487,6 +487,7 @@ jobs:
         uses: xberg-io/actions/setup-mise@v1
         with:
           install-args: python uv
+      # BEAM stays on its setup action until mise's Erlang/Elixir install is evaluated. ~keep
       - name: Install Elixir formatter
         uses: xberg-io/actions/setup-elixir@v1
         with:
@@ -507,6 +508,7 @@ jobs:
       # `[crates.e2e.format] dart` runs `dart format` on e2e/dart during `alef e2e generate`,
       # and alef 0.95.0 fails the run on a formatter exit code instead of deferring it, so
       # this job needs the same SDK the dart e2e leg and the snippet gate below use. ~keep
+      # Dart/Flutter stay on their setup action (toolchain-management rule). ~keep
       - name: Setup Dart
         uses: dart-lang/setup-dart@v1
         with:
@@ -593,6 +595,7 @@ jobs:
           # moves with whichever freezed pub picks, so read the error's own
           # "requires SDK version" rather than assuming the previous floor. ~keep
           sdk: "3.13.7"
+      # BEAM stays on its setup action until mise's Erlang/Elixir install is evaluated. ~keep
       - name: Setup Elixir
         uses: xberg-io/actions/setup-elixir@v1
         with:

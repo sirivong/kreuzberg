@@ -1353,6 +1353,7 @@ jobs:
           fetch-depth: 0
 
           submodules: false
+      # PHP stays on its setup action (toolchain-management rule). ~keep
       - uses: xberg-io/actions/setup-php@v1
         with:
           php-version: ${{ matrix.php }}
@@ -2489,6 +2490,7 @@ jobs:
         shell: bash
         run: echo "ImageOS=win25" >> "$GITHUB_ENV"
 
+      # BEAM stays on its setup action until mise's Erlang/Elixir install is evaluated. ~keep
       - uses: erlef/setup-beam@v1
         with:
           elixir-version: "1.17"
@@ -4415,6 +4417,7 @@ jobs:
             fi
           done
 
+      # The Android SDK/NDK stays on its setup action (toolchain-management rule). ~keep
       - uses: android-actions/setup-android@v4
         with:
           packages: "platforms;android-36 build-tools;36.0.0"
@@ -4461,6 +4464,7 @@ jobs:
           done
         shell: bash
 
+      # dotnet stays on its setup action: mise.lock cannot lock it (toolchain-management rule). ~keep
       - uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "8.0.x"
@@ -4555,6 +4559,7 @@ jobs:
 
           submodules: false
       - uses: xberg-io/actions/setup-rust@v1
+      # BEAM stays on its setup action until mise's Erlang/Elixir install is evaluated. ~keep
       - uses: erlef/setup-beam@v1
         with:
           elixir-version: "1.17"

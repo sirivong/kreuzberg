@@ -1416,6 +1416,7 @@ jobs:
           cache-key-prefix: profiling
           use-sccache: true
 
+      # dotnet stays on its setup action: mise.lock cannot lock it (toolchain-management rule). ~keep
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
