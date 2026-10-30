@@ -36,6 +36,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **(dependencies): Update Liter LLM to 2.4.2 and refresh Rust dependency locks.**
+  Elixir native builds now require Brotli decompressor 6.2 or later within the compatible major version.
 - **(development): Follow shared toolchain baseline 1.11.0 and agent conventions 1.4.0.**
 - **(ocr): Add regression coverage for caller-selected image budgets in direct and staged OCR.** (#2325)
 - **(ci): Run governance, fixture, archive and OCR-cache contract tests, and document manual OCR-cache acceptance.**
