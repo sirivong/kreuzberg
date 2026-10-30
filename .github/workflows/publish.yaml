@@ -5463,13 +5463,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.checkout_ref }}
-      # ~keep Release paths pin ai-rulez (mise.toml) so a new upstream release cannot break a release with no
-      # repo change; CI validation runs latest and flags regeneration first. Bump with the poly hook revision.
-      - name: Install Node, pnpm and ai-rulez
+      - name: Install Node and pnpm
         uses: xberg-io/actions/setup-mise@v1
         with:
-          install-args: node pnpm github:Goldziher/ai-rulez
+          install-args: node pnpm
           config-ref: ${{ github.sha }}
+      - name: Install ai-rulez
+        uses: xberg-io/actions/setup-ai-rulez@v1
       - name: Install pnpm workspace dependencies
         shell: bash
         run: pnpm install --no-frozen-lockfile
@@ -5523,13 +5523,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ needs.prepare.outputs.checkout_ref }}
-      # ~keep Release paths pin ai-rulez (mise.toml) so a new upstream release cannot break a release with no
-      # repo change; CI validation runs latest and flags regeneration first. Bump with the poly hook revision.
-      - name: Install Python, uv and ai-rulez
+      - name: Install Python and uv
         uses: xberg-io/actions/setup-mise@v1
         with:
-          install-args: python uv github:Goldziher/ai-rulez
+          install-args: python uv
           config-ref: ${{ github.sha }}
+      - name: Install ai-rulez
+        uses: xberg-io/actions/setup-ai-rulez@v1
       - name: Resolve the mise Python version
         id: mise-python
         shell: bash
@@ -5566,13 +5566,8 @@ jobs:
         with:
           ref: ${{ needs.prepare.outputs.tag }}
           fetch-depth: 0
-      # ~keep Release paths pin ai-rulez (mise.toml) so a new upstream release cannot break a release with no
-      # repo change; CI validation runs latest and flags regeneration first. Bump with the poly hook revision.
       - name: Install ai-rulez
-        uses: xberg-io/actions/setup-mise@v1
-        with:
-          install-args: github:Goldziher/ai-rulez
-          config-ref: ${{ github.sha }}
+        uses: xberg-io/actions/setup-ai-rulez@v1
       - name: Verify public skill exports
         run: python3 scripts/sync_public_skills.py --check
       - name: Package all supported plugin runtimes
@@ -5640,12 +5635,12 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
-      # ~keep Release paths pin ai-rulez (mise.toml) so a new upstream release cannot break a release with no
-      # repo change; CI validation runs latest and flags regeneration first. Bump with the poly hook revision.
-      - name: Install Node, pnpm and ai-rulez
+      - name: Install Node and pnpm
         uses: xberg-io/actions/setup-mise@v1
         with:
-          install-args: node pnpm github:Goldziher/ai-rulez
+          install-args: node pnpm
+      - name: Install ai-rulez
+        uses: xberg-io/actions/setup-ai-rulez@v1
       - name: Verify plugin versions and generated resources
         uses: xberg-io/actions/verify-ai-rulez-plugin@v1
         with:
@@ -5711,12 +5706,12 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
-      # ~keep Release paths pin ai-rulez (mise.toml) so a new upstream release cannot break a release with no
-      # repo change; CI validation runs latest and flags regeneration first. Bump with the poly hook revision.
-      - name: Install Python, uv and ai-rulez
+      - name: Install Python and uv
         uses: xberg-io/actions/setup-mise@v1
         with:
-          install-args: python uv github:Goldziher/ai-rulez
+          install-args: python uv
+      - name: Install ai-rulez
+        uses: xberg-io/actions/setup-ai-rulez@v1
       - name: Resolve the mise Python version
         id: mise-python
         shell: bash
