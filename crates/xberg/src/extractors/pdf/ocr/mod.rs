@@ -104,6 +104,8 @@ mod photo_layer_tests;
 mod plausibility_tests;
 #[cfg(all(test, any(feature = "ocr", feature = "ocr-pipeline")))]
 mod recognition_noise_tests;
+#[cfg(all(test, feature = "ocr", feature = "tokio-runtime"))]
+mod security_limits_tests;
 #[cfg(all(test, feature = "ocr"))]
 mod tests;
 
