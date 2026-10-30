@@ -78,6 +78,7 @@ values = [
   "/.ai-rulez-generated.json",
   "tools/benchmark-harness/cohorts/**",
   "skills/**",
+  "adrs/**",
 ]
 
 [[entries]]
@@ -158,6 +159,7 @@ values = [
   ".ai-rulez-generated.json",
   "tools/benchmark-harness/cohorts/**",
   "skills/**",
+  "adrs/**",
   "packages/swift/Sources/RustBridge/xberg-swift.swift",
   "packages/zig/src/xberg.zig",
   "docs-site/src/content/docs/reference/api-*.md",
@@ -231,6 +233,7 @@ values = [
   ".ai-rulez-generated.json",
   "tools/benchmark-harness/cohorts/**",
   "skills/**",
+  "adrs/**",
 ]
 
 [[entries]]
@@ -301,6 +304,7 @@ values = [
   ".ai-rulez-generated.json",
   "tools/benchmark-harness/cohorts/**",
   "skills/**",
+  "adrs/**",
 ]
 
 [[entries]]
