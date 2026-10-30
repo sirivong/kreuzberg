@@ -737,6 +737,12 @@ fn append_annotated_span<'a>(
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum TableRenderMode {
+    Markdown,
+    Html,
+}
+
 /// Build a comrak `Table` subtree from a 2-D cell grid.
 ///
 /// Returns `None` when the grid has no columns at all (every row is empty).
@@ -751,12 +757,13 @@ fn build_table<'a>(
     cells: &[Vec<String>],
     has_header: bool,
     attributes: Option<&ahash::AHashMap<String, String>>,
+    mode: TableRenderMode,
 ) -> Option<&'a AstNode<'a>> {
     let num_cols = cells.iter().map(|r| r.len()).max().unwrap_or(0);
     if num_cols == 0 {
         return None;
     }
-    let synthetic_header_rows = usize::from(!has_header);
+    let synthetic_header_rows = usize::from(!has_header && mode == TableRenderMode::Markdown);
     let mut annotations = super::table_math::read_annotations(attributes, cells);
     for (cell, scripts) in super::table_scripts::read_annotations(attributes, cells) {
         annotations.entry(cell).or_default().extend(scripts);
@@ -772,7 +779,7 @@ fn build_table<'a>(
         })),
     );
 
-    if !has_header {
+    if synthetic_header_rows > 0 {
         let header_row = mk(arena, NodeValue::TableRow(true));
         for _ in 0..num_cols {
             header_row.append(mk(arena, NodeValue::TableCell));
@@ -891,6 +898,19 @@ enum ContainerKind {
 /// body content.  Footnotes are appended after body elements.  Non-body
 /// elements (headers, footers) are excluded.
 pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Arena<'a>) -> &'a AstNode<'a> {
+    build_comrak_ast_with_table_mode(doc, arena, TableRenderMode::Markdown)
+}
+
+/// Build HTML tables without the header rows required by GFM syntax.
+pub(crate) fn build_html_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Arena<'a>) -> &'a AstNode<'a> {
+    build_comrak_ast_with_table_mode(doc, arena, TableRenderMode::Html)
+}
+
+fn build_comrak_ast_with_table_mode<'a>(
+    doc: &InternalDocument,
+    arena: &'a comrak::Arena<'a>,
+    table_mode: TableRenderMode,
+) -> &'a AstNode<'a> {
     let root = mk(arena, NodeValue::Document);
     let footnotes = FootnoteCollector::new(doc);
     let mut state = RenderState::default();
@@ -1116,9 +1136,10 @@ pub(crate) fn build_comrak_ast<'a>(doc: &InternalDocument, arena: &'a comrak::Ar
                         anchor.append(mk_text(arena, &format!("[TABLE:{table_id}]")));
                         parent.append(anchor);
                     }
-                    let has_header =
-                        !matches!(doc.source_format.as_str(), "csv" | "orgmode" | "typst") || table.columns.is_some();
-                    match build_table(arena, &table.cells, has_header, elem_attributes) {
+                    let has_header = table.columns.is_some()
+                        || (table_mode == TableRenderMode::Markdown
+                            && !matches!(doc.source_format.as_str(), "csv" | "orgmode" | "typst"));
+                    match build_table(arena, &table.cells, has_header, elem_attributes, table_mode) {
                         Some(table_node) => {
                             tracing::trace!(table_index, rows = table.cells.len(), "rendering table");
                             parent.append(table_node);
@@ -1613,6 +1634,107 @@ mod tests {
         let out = render(&doc);
         assert!(out.contains("Name"), "got: {}", out);
         assert!(out.contains("Alice"), "got: {}", out);
+    }
+
+    fn table_header_document(source_format: &str, has_header: bool) -> InternalDocument {
+        let cells = vec![
+            vec!["A1".to_owned(), "B1".to_owned()],
+            vec!["A2".to_owned(), "B2".to_owned()],
+        ];
+        let columns = has_header.then(|| cells[0].clone());
+        let mut builder = InternalDocumentBuilder::new(source_format);
+        builder.push_table(
+            crate::types::Table {
+                cells,
+                columns,
+                ..Default::default()
+            },
+            None,
+            None,
+        );
+        builder.build()
+    }
+
+    fn assert_headerless_table_html(source_format: &str) {
+        let document = table_header_document(source_format, false);
+        assert_eq!(document.tables[0].columns, None);
+        assert_eq!(
+            crate::rendering::render_html(&document),
+            concat!(
+                "<table>\n<tbody>\n<tr>\n<td>A1</td>\n<td>B1</td>\n</tr>\n",
+                "<tr>\n<td>A2</td>\n<td>B2</td>\n</tr>\n</tbody>\n</table>\n"
+            ),
+            "HTML must retain both data rows without inventing a header for {source_format}"
+        );
+    }
+
+    #[test]
+    fn should_not_promote_headerless_pdf_table_data_to_html_headers() {
+        assert_headerless_table_html("pdf");
+    }
+
+    #[test]
+    fn should_not_add_an_empty_html_header_to_a_headerless_csv_table() {
+        assert_headerless_table_html("csv");
+    }
+
+    #[test]
+    fn should_balance_the_body_of_a_single_row_headerless_html_table() {
+        let mut document = table_header_document("csv", false);
+        document.tables[0].cells.truncate(1);
+        assert_eq!(
+            crate::rendering::render_html(&document),
+            "<table>\n<tbody>\n<tr>\n<td>A1</td>\n<td>B1</td>\n</tr>\n</tbody>\n</table>\n"
+        );
+    }
+
+    #[test]
+    fn should_retain_a_declared_table_header_in_html() {
+        let document = table_header_document("pdf", true);
+        assert_eq!(
+            crate::rendering::render_html(&document),
+            concat!(
+                "<table>\n<thead>\n<tr>\n<th>A1</th>\n<th>B1</th>\n</tr>\n</thead>\n",
+                "<tbody>\n<tr>\n<td>A2</td>\n<td>B2</td>\n</tr>\n</tbody>\n</table>\n"
+            )
+        );
+    }
+
+    #[test]
+    fn should_not_add_an_empty_body_to_a_header_only_html_table() {
+        let mut document = table_header_document("pdf", true);
+        document.tables[0].cells.truncate(1);
+        assert_eq!(
+            crate::rendering::render_html(&document),
+            "<table>\n<thead>\n<tr>\n<th>A1</th>\n<th>B1</th>\n</tr>\n</thead>\n</table>\n"
+        );
+    }
+
+    #[test]
+    fn should_keep_existing_markdown_table_header_conventions() {
+        for (source_format, expected) in [
+            ("pdf", "| A1 | B1 |\n| --- | --- |\n| A2 | B2 |\n"),
+            ("csv", "|  |  |\n| --- | --- |\n| A1 | B1 |\n| A2 | B2 |\n"),
+        ] {
+            let document = table_header_document(source_format, false);
+            assert_eq!(crate::rendering::render_markdown(&document), expected);
+        }
+    }
+
+    #[test]
+    fn should_escape_declared_table_headers_and_body_cells_in_html() {
+        let mut document = table_header_document("pdf", true);
+        document.tables[0].cells[0][0] = "<Name & role>".to_owned();
+        document.tables[0].cells[1][0] = "<script>alert(1)</script>".to_owned();
+        assert_eq!(
+            crate::rendering::render_html(&document),
+            concat!(
+                "<table>\n<thead>\n<tr>\n<th>&lt;Name &amp; role&gt;</th>\n<th>B1</th>\n",
+                "</tr>\n</thead>\n<tbody>\n<tr>\n",
+                "<td>&lt;script&gt;alert(1)&lt;/script&gt;</td>\n<td>B2</td>\n",
+                "</tr>\n</tbody>\n</table>\n"
+            )
+        );
     }
 
     #[test]
