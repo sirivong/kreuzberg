@@ -116,6 +116,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **(pdf): Render recognized formulas missing from OCR body elements.**
+  Preserve page order, existing list ownership and element references; retain math in metadata with a warning
+  when no safe same-page insertion boundary exists. (#2331)
+
 - **(ci): Install governance tools through the locked mise toolchain.**
   Generation and validation now use the reviewed AI-Rulez and Python versions.
 - **(rendering): Honor table header metadata in HTML and preserve headerless data rows.** (#2332)
