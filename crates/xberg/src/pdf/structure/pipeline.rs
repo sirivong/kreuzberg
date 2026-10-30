@@ -3549,6 +3549,8 @@ fn build_document_structure(
 
     let mut layout_tables: Vec<crate::types::Table> = Vec::new();
     #[cfg(feature = "layout-detection")]
+    let mut table_grid_sidecars = Vec::new();
+    #[cfg(feature = "layout-detection")]
     let mut table_model_warning = None;
     if let Some(hints_pages) = layout_hints {
         struct TablePageData {
@@ -3668,7 +3670,7 @@ fn build_document_structure(
             if has_table_model {
                 if let (Some(images @ [_, ..]), Some(results @ [_, ..])) = (layout_images, layout_results) {
                     #[cfg(not(target_arch = "wasm32"))]
-                    let recognized_tables: Vec<Vec<crate::types::Table>> = table_pages
+                    let recognized_tables: Vec<super::table_grid::RecognizedNativeTables> = table_pages
                         .iter()
                         .map(|tp| {
                             if let Some(variant) = slanet_variant {
@@ -3677,7 +3679,7 @@ fn build_document_structure(
                                     tracing::warn!("SLANeXT model unavailable in worker thread");
                                     table_model_warning
                                         .get_or_insert_with(|| table_model_load_failed_warning(model_name));
-                                    return heuristic_tables(tp);
+                                    return heuristic_tables(tp).into();
                                 };
 
                                 if let (Some(page_image), Some(page_result)) =
@@ -3716,17 +3718,17 @@ fn build_document_structure(
                                         classifier_arg,
                                     );
                                     if !slanet_tables.is_empty() {
-                                        return slanet_tables;
+                                        return slanet_tables.into();
                                     }
                                 }
 
-                                heuristic_tables(tp)
+                                heuristic_tables(tp).into()
                             } else {
                                 let Some(mut tatr) = (loaders.tatr)(acceleration, session_thread_budget) else {
                                     tracing::warn!("TATR model unavailable in worker thread");
                                     table_model_warning
                                         .get_or_insert_with(|| table_model_load_failed_warning(model_name));
-                                    return heuristic_tables(tp);
+                                    return heuristic_tables(tp).into();
                                 };
 
                                 if let (Some(page_image), Some(page_result)) =
@@ -3745,17 +3747,17 @@ fn build_document_structure(
                                         },
                                         &mut tatr,
                                     );
-                                    if !tatr_tables.is_empty() {
+                                    if !tatr_tables.tables.is_empty() {
                                         return tatr_tables;
                                     }
                                 }
 
-                                heuristic_tables(tp)
+                                heuristic_tables(tp).into()
                             }
                         })
                         .collect();
                     #[cfg(target_arch = "wasm32")]
-                    let recognized_tables: Vec<Vec<crate::types::Table>> = table_pages
+                    let recognized_tables: Vec<super::table_grid::RecognizedNativeTables> = table_pages
                         .iter()
                         .map(|tp| {
                             if let (Some(page_image), Some(page_result)) =
@@ -3764,7 +3766,7 @@ fn build_document_structure(
                                 let hints = &hints_pages[tp.page_idx];
                                 let Some(mut tatr) = (loaders.tatr)(acceleration, session_thread_budget) else {
                                     table_model_warning.get_or_insert_with(|| table_model_load_failed_warning("TATR"));
-                                    return heuristic_tables(tp);
+                                    return heuristic_tables(tp).into();
                                 };
                                 let tatr_tables = super::regions::recognize_tables_for_native_page(
                                     page_image,
@@ -3778,16 +3780,19 @@ fn build_document_structure(
                                     },
                                     &mut tatr,
                                 );
-                                if !tatr_tables.is_empty() {
+                                if !tatr_tables.tables.is_empty() {
                                     return tatr_tables;
                                 }
-                                heuristic_tables(tp)
+                                heuristic_tables(tp).into()
                             } else {
-                                Vec::new()
+                                Default::default()
                             }
                         })
                         .collect();
-                    layout_tables.extend(recognized_tables.into_iter().flatten());
+                    for recognized in recognized_tables {
+                        layout_tables.extend(recognized.tables);
+                        table_grid_sidecars.extend(recognized.grids);
+                    }
                 } else {
                     for tp in &table_pages {
                         if cancel_token.is_some_and(|t| t.is_cancelled()) {
@@ -4068,7 +4073,14 @@ fn build_document_structure(
         &witnesses.hyphens,
     );
     #[cfg(feature = "layout-detection")]
-    doc.processing_warnings.extend(table_model_warning);
+    {
+        super::table_grid::attach_table_grids(&mut doc, &table_grid_sidecars).map_err(|error| {
+            crate::pdf::error::PdfError::ExtractionFailed(format!(
+                "Failed to retain recognized table geometry: {error}"
+            ))
+        })?;
+        doc.processing_warnings.extend(table_model_warning);
+    }
 
     for elem in &mut doc.elements {
         let retain_furniture = match elem.layer {
