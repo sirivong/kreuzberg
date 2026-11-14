@@ -15,6 +15,24 @@ use super::{
     types::{ApiState, DoclingCompatDocument, DoclingCompatResponse, OpenWebDocumentMetadata, OpenWebDocumentResponse},
 };
 
+fn openweb_config(
+    operator: &crate::core::config::ExtractionConfig,
+    config_json: Option<&str>,
+) -> Result<crate::core::config::ExtractionConfig, ApiError> {
+    use crate::core::config::{merge, request_security};
+
+    let validation_error = |message| ApiError::validation(crate::error::XbergError::validation(message));
+    if let Some(json) = config_json {
+        let raw = serde_json::from_str(json)
+            .map_err(|error| validation_error(format!("Failed to parse override JSON: {error}")))?;
+        request_security::validate_caller_extraction_config(&raw).map_err(validation_error)?;
+    }
+
+    let mut config = merge::build_config_from_json(operator, config_json).map_err(validation_error)?;
+    request_security::adopt_operator_crawl_egress(&mut config, operator);
+    Ok(config)
+}
+
 async fn resolve_openweb_bytes(
     data: Vec<u8>,
     mime_type: String,
@@ -76,8 +94,7 @@ pub(crate) async fn openweb_external_handler(
     // Honor the server's user config as the base, then merge the per-request config
     // supplied via the `X-Config` header (JSON) — same capability as `/extract`.
     let config_json = headers.get("X-Config").and_then(|value| value.to_str().ok());
-    let mut config = crate::core::config::merge::build_config_from_json(&state.default_config, config_json)
-        .map_err(|e| ApiError::validation(crate::error::XbergError::validation(e)))?;
+    let mut config = openweb_config(&state.default_config, config_json)?;
     // OpenWebUI's external loader consumes rendered content, so default to Markdown only
     // when neither the user's server config nor the request selects a format (`Plain` is
     // the struct default, i.e. "unspecified").
@@ -138,8 +155,7 @@ pub(crate) async fn openweb_docling_handler(
 
     // Honor the server's user config as the base, then merge the per-request config —
     // same capability as `/extract`.
-    let mut config = crate::core::config::merge::build_config_from_json(&state.default_config, config_json.as_deref())
-        .map_err(|e| ApiError::validation(crate::error::XbergError::validation(e)))?;
+    let mut config = openweb_config(&state.default_config, config_json.as_deref())?;
     if config.output_format == crate::core::config::OutputFormat::Plain {
         config.output_format = crate::core::config::OutputFormat::Markdown;
     }
@@ -258,6 +274,36 @@ mod tests {
     use tower::ServiceExt;
 
     use super::*;
+
+    #[test]
+    fn openweb_config_rejects_caller_transport_settings_before_merge() {
+        let operator = crate::ExtractionConfig::default();
+        let error = openweb_config(
+            &operator,
+            Some(r#"{"ner":{"llm":{"load_env":false}},"use_cache":"invalid"}"#),
+        )
+        .expect_err("caller transport settings must be rejected");
+        assert_eq!(error.status, StatusCode::BAD_REQUEST);
+        assert!(error.body.message.contains("ner.llm.load_env"), "{:?}", error.body);
+    }
+
+    #[test]
+    #[cfg(feature = "url-config-types")]
+    fn openweb_config_preserves_operator_egress_and_valid_overrides() {
+        let mut operator = crate::ExtractionConfig::default();
+        operator.url.crawl.ssrf.max_redirects = 2;
+        operator.output_format = crate::core::config::OutputFormat::Json;
+
+        let config = openweb_config(
+            &operator,
+            Some(r#"{"url":{"crawl":{"max_depth":3}},"use_cache":false}"#),
+        )
+        .unwrap();
+        assert_eq!(config.url.crawl.max_depth, Some(3));
+        assert_eq!(config.url.crawl.ssrf.max_redirects, 2);
+        assert_eq!(config.output_format, operator.output_format);
+        assert!(!config.use_cache);
+    }
 
     /// Tiny real fixture (39 bytes) from the shared `test_documents` corpus: plain text,
     /// no OCR/network required, extracts to non-empty Markdown quickly.
