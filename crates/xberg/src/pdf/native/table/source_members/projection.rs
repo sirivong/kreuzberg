@@ -3,6 +3,7 @@ use ahash::{AHashMap, AHashSet};
 
 #[derive(Default)]
 pub(crate) struct CertifiedRuns {
+    pub(crate) redistributed: Vec<SegmentKey>,
     pub(crate) contained: Vec<Vec<SegmentKey>>,
     pub(crate) painted_overhangs: Vec<Vec<SegmentKey>>,
     pub(crate) recovered_lines: Vec<SegmentKey>,
@@ -184,6 +185,23 @@ fn page(
         let Some((owner, bounds)) = owner else {
             continue;
         };
+        for keys in &source.redistributed {
+            work.charge(segments.len())?;
+            let counts = segments
+                .iter()
+                .map(SegmentKey::from)
+                .fold(AHashMap::new(), |mut counts, key| {
+                    *counts.entry(key).or_insert(0usize) += 1;
+                    counts
+                });
+            if keys.iter().all(|key| counts.get(key) == Some(&1)) {
+                owned
+                    .entry(owner)
+                    .or_default()
+                    .redistributed
+                    .extend(keys.iter().cloned());
+            }
+        }
         for runs in &source.members {
             if let Some(groups) = cell(&index, runs, bounds, &mut work)? {
                 if !groups.iter().flatten().all(|key| all_keys.insert(key.clone())) {

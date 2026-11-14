@@ -2342,6 +2342,7 @@ mod tests {
             let mut members = ahash::AHashMap::from_iter([(
                 0,
                 crate::pdf::native::table::source_members::CertifiedRuns {
+                    redistributed: Vec::new(),
                     contained: vec![vec![orphan_key.clone(), sibling_key.clone()]],
                     painted_overhangs: Vec::new(),
                     recovered_lines: Vec::new(),
@@ -2528,6 +2529,7 @@ mod tests {
         let members = ahash::AHashMap::from_iter([(
             0,
             crate::pdf::native::table::source_members::CertifiedRuns {
+                redistributed: Vec::new(),
                 contained: Vec::new(),
                 painted_overhangs: painted,
                 recovered_lines: Vec::new(),
@@ -4051,6 +4053,25 @@ mod tests {
             let labels = page_element_labels(&document);
             assert_eq!(labels.len(), expected.len(), "unexpected elements: {labels:?}");
             assert!(expected.iter().all(|label| labels.contains(label)), "{labels:?}");
+        }
+    }
+
+    #[test]
+    fn should_suppress_decimal_residue_only_when_the_grid_carries_the_whole_values() {
+        for (paragraph_text, cells, suppressed) in [
+            ("216.0 338.0 245.0 054.0 505", &["0.216.0.338.0.245.0.054.0.505"][..], false),
+            ("4.56 4.79 4.88 5.00", &["22.40", "27.67", "32.82", "23.14"][..], false),
+            ("4.56 4.79 4.88 5.00", &["4.56", "4.79", "4.88", "5.00"][..], true),
+            ("11.38 10.48 11.00 10.83", &["11.38", "10.48", "11.00", "10.83"][..], true),
+        ] {
+            let markdown = format!("| {} |", cells.join(" | "));
+            let mut table = make_table_in_box(&markdown, 40.0, 560.0, 800.0);
+            table.cells = vec![cells.iter().map(|cell| (*cell).to_string()).collect()];
+            let paragraph = make_paragraph_in_box(paragraph_text, 760.0, 40.0, 560.0);
+            let document = assemble_internal_document(vec![vec![paragraph]], &[table], None, &[], &Default::default());
+            let labels = page_element_labels(&document);
+            assert_eq!(labels.contains(&paragraph_text), !suppressed, "{labels:?}");
+            assert!(labels.contains(&"<table>"), "{labels:?}");
         }
     }
 

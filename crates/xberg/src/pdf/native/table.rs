@@ -269,10 +269,22 @@ fn append_page_tables(
     }
     let source_spans = scripts::page_spans(doc, page_idx, warnings);
     let capture_members = extracted.len() <= source_members::MAX_CAPTURE_TABLES;
-    for extracted_table in extracted {
+    let source_chars = std::cell::OnceCell::new();
+    let source_paths = std::cell::OnceCell::new();
+    for mut extracted_table in extracted {
         if extracted_table.rows.is_empty() || extracted_table.col_count == 0 {
             continue;
         }
+        let repaired = restore_ruled_decimal_rows(&mut extracted_table, || {
+            (
+                source_chars
+                    .get_or_init(|| doc.doc.extract_chars(page_idx).unwrap_or_default())
+                    .as_slice(),
+                source_paths
+                    .get_or_init(|| doc.doc.extract_paths(page_idx).unwrap_or_default())
+                    .as_slice(),
+            )
+        });
         let (cells, markdown, grid) = convert_extracted_table(&extracted_table);
         if markdown.trim().is_empty() || cells.len() < 2 || cells.iter().all(|row| row.len() < 2) {
             continue;
@@ -294,12 +306,178 @@ fn append_page_tables(
             scripts: scripts::capture(&extracted_table, &table.cells, &source_spans),
             complete_leading_header: complete_leading_header(&extracted_table),
             source_members: capture_members
-                .then(|| source_members::capture(&extracted_table, &table, ownership))
+                .then(|| {
+                    source_members::capture_with_redistributed_spans(
+                        &extracted_table,
+                        &table,
+                        ownership,
+                        &repaired,
+                        &source_spans,
+                    )
+                })
                 .flatten(),
             table,
             grid,
         });
     }
+}
+
+fn is_unsigned_decimal(text: &str) -> bool {
+    text.split_once('.').is_some_and(|(whole, fraction)| {
+        !whole.is_empty()
+            && !fraction.is_empty()
+            && whole.bytes().chain(fraction.bytes()).all(|byte| byte.is_ascii_digit())
+    })
+}
+
+const DECIMAL_ROW_TOLERANCE: f32 = 0.5;
+
+fn restore_ruled_decimal_rows<'a>(
+    table: &mut xberg_native_pdf::structure::table_extractor::Table,
+    source: impl Fn() -> (
+        &'a [xberg_native_pdf::layout::TextChar],
+        &'a [xberg_native_pdf::elements::PathContent],
+    ),
+) -> Vec<xberg_native_pdf::layout::TextSpan> {
+    let mut repaired = Vec::new();
+    for row in table.rows.iter_mut().filter(|row| !row.is_header) {
+        let Some(index) = row.cells.iter().position(|cell| {
+            let text = cell_text_in_reading_order(cell);
+            text.bytes().filter(|byte| *byte == b'.').take(2).count() == 2
+                && text.bytes().all(|byte| byte == b'.' || byte.is_ascii_digit())
+        }) else {
+            continue;
+        };
+        let start = row.cells[..index]
+            .iter()
+            .rposition(|cell| !cell.text.trim().is_empty())
+            .map_or(0, |previous| previous + 1);
+        let end = row.cells[index + 1..]
+            .iter()
+            .position(|cell| !cell.text.trim().is_empty())
+            .map_or(row.cells.len(), |next| index + 1 + next);
+        let cells = &mut row.cells[start..end];
+        if cells.len() < 2
+            || cells
+                .iter()
+                .any(|cell| cell.colspan != 1 || cell.rowspan != 1 || cell.is_header)
+        {
+            continue;
+        }
+        let (chars, paths) = source();
+        let Some(spans) = split_ruled_decimal_span(cells, index - start, chars, paths) else {
+            continue;
+        };
+        repaired.push(cells[index - start].spans[0].clone());
+        for (cell, span) in cells.iter_mut().zip(spans) {
+            cell.text.clone_from(&span.text);
+            cell.mcids = span.mcid.into_iter().collect();
+            cell.spans = vec![span];
+        }
+    }
+    repaired
+}
+
+fn split_ruled_decimal_span(
+    cells: &[xberg_native_pdf::structure::table_extractor::TableCell],
+    index: usize,
+    chars: &[xberg_native_pdf::layout::TextChar],
+    paths: &[xberg_native_pdf::elements::PathContent],
+) -> Option<Vec<xberg_native_pdf::layout::TextSpan>> {
+    let [original] = cells[index].spans.as_slice() else {
+        return None;
+    };
+    if original.rotation_degrees != 0.0 || original.mirrored {
+        return None;
+    }
+    let bounds = cells.iter().map(|cell| cell.bbox).collect::<Option<Vec<_>>>()?;
+    let mut groups = Vec::with_capacity(bounds.len());
+    for &cell in &bounds {
+        let mut group: Vec<_> = chars
+            .iter()
+            .filter(|glyph| {
+                !glyph.char.is_whitespace()
+                    && glyph.origin_x > cell.x
+                    && glyph.origin_x < cell.right()
+                    && glyph.origin_y > cell.y
+                    && glyph.origin_y < cell.y + cell.height
+            })
+            .collect();
+        group.sort_by(|left, right| left.origin_x.total_cmp(&right.origin_x));
+        if group.windows(2).any(|pair| pair[0].origin_x >= pair[1].origin_x) {
+            return None;
+        }
+        groups.push(group);
+    }
+    let glyphs = groups.iter().flatten().copied().collect::<Vec<_>>();
+    let baseline = glyphs.first()?.origin_y;
+    if !decimal_row_has_common_baseline(&glyphs, baseline) || !decimal_row_has_dividers(&bounds, paths, baseline) {
+        return None;
+    }
+    let spans = groups
+        .iter()
+        .map(|group| decimal_cell_span(original, group))
+        .collect::<Option<Vec<_>>>()?;
+    let values: Vec<_> = spans.iter().map(|span| span.text.as_str()).collect();
+    let original_text = original.text.trim();
+    let first = glyphs.first()?;
+    let last = glyphs.last()?;
+    if (values.concat() != original_text && values.join(".") != original_text)
+        || (first.origin_x - original.bbox.x).abs() > DECIMAL_ROW_TOLERANCE
+        || (last.bbox.right() - original.bbox.right()).abs() > DECIMAL_ROW_TOLERANCE
+        || (baseline - original.bbox.y).abs() > DECIMAL_ROW_TOLERANCE
+        || glyphs.iter().any(|glyph| glyph.mcid != original.mcid)
+    {
+        return None;
+    }
+    groups
+        .into_iter()
+        .map(|group| decimal_cell_span(original, &group))
+        .collect()
+}
+
+fn decimal_row_has_common_baseline(glyphs: &[&xberg_native_pdf::layout::TextChar], baseline: f32) -> bool {
+    glyphs
+        .iter()
+        .all(|glyph| glyph.rotation_degrees == 0.0 && (glyph.origin_y - baseline).abs() <= DECIMAL_ROW_TOLERANCE)
+}
+
+fn decimal_row_has_dividers(
+    bounds: &[xberg_native_pdf::geometry::Rect],
+    paths: &[xberg_native_pdf::elements::PathContent],
+    baseline: f32,
+) -> bool {
+    bounds.windows(2).all(|pair| {
+        let x = pair[0].right();
+        (x - pair[1].x).abs() <= DECIMAL_ROW_TOLERANCE
+            && paths.iter().any(|path| {
+                let line = path.rendered_bbox();
+                path.stroke_color.is_some()
+                    && path.is_vertical_line(DECIMAL_ROW_TOLERANCE)
+                    && (line.center().x - x).abs() <= DECIMAL_ROW_TOLERANCE
+                    && line.y < baseline
+                    && baseline < line.y + line.height
+            })
+    })
+}
+
+fn decimal_cell_span(
+    original: &xberg_native_pdf::layout::TextSpan,
+    glyphs: &[&xberg_native_pdf::layout::TextChar],
+) -> Option<xberg_native_pdf::layout::TextSpan> {
+    let text: String = glyphs.iter().map(|glyph| glyph.char).collect();
+    if !is_unsigned_decimal(&text) {
+        return None;
+    }
+    let first = glyphs.first()?;
+    let last = glyphs.last()?;
+    let mut span = original.clone();
+    span.text = text;
+    span.bbox.x = first.origin_x;
+    span.bbox.width = last.bbox.right() - first.origin_x;
+    span.char_x_offsets = glyphs.iter().map(|glyph| glyph.origin_x).collect();
+    span.char_widths = glyphs.iter().map(|glyph| glyph.bbox.width).collect();
+    Some(span)
 }
 
 /// Build the `ProcessingWarning` for a page whose native (strict-mode) table detection
@@ -2404,6 +2582,66 @@ mod header_metadata_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ruled_decimal_repair_rejects_identical_text_on_unrelated_baselines() {
+        use xberg_native_pdf::{
+            elements::PathContent,
+            geometry::Rect,
+            layout::{TextChar, TextSpan},
+            structure::table_extractor::TableCell,
+        };
+
+        let bounds = [Rect::new(0.0, 0.0, 10.0, 10.0), Rect::new(10.0, 0.0, 10.0, 10.0)];
+        let original = TextSpan {
+            text: "0.2160.338".into(),
+            bbox: Rect::new(1.0, 2.0, 15.0, 4.0),
+            mcid: Some(7),
+            ..Default::default()
+        };
+        let cells = bounds.map(|bbox| TableCell {
+            text: String::new(),
+            spans: Vec::new(),
+            colspan: 1,
+            rowspan: 1,
+            mcids: Vec::new(),
+            bbox: Some(bbox),
+            is_header: false,
+        });
+        let mut cells = cells;
+        cells[0].spans.push(original);
+        let paths = [PathContent::line(10.0, 0.0, 10.0, 10.0)];
+        let mut glyphs: Vec<_> = ["0.216", "0.338"]
+            .into_iter()
+            .enumerate()
+            .flat_map(|(column, value)| {
+                value.chars().enumerate().map(move |(index, char)| {
+                    let x = (column * 10 + index + 1) as f32;
+                    TextChar {
+                        char,
+                        bbox: Rect::new(x, 2.0, 1.0, 4.0),
+                        origin_x: x,
+                        origin_y: 2.0,
+                        mcid: Some(7),
+                        ..Default::default()
+                    }
+                })
+            })
+            .collect();
+        let repaired = split_ruled_decimal_span(&cells, 0, &glyphs, &paths).expect("one ruled baseline");
+        assert_eq!(
+            repaired.iter().map(|span| span.text.as_str()).collect::<Vec<_>>(),
+            ["0.216", "0.338"]
+        );
+        assert!(repaired.iter().all(|span| span.mcid == Some(7)));
+        assert!(split_ruled_decimal_span(&cells, 0, &glyphs, &[]).is_none());
+
+        for glyph in &mut glyphs[5..] {
+            glyph.origin_y = 5.0;
+            glyph.bbox.y = 5.0;
+        }
+        assert!(split_ruled_decimal_span(&cells, 0, &glyphs, &paths).is_none());
+    }
 
     #[test]
     fn converted_spans_reserve_columns_without_duplicating_text() {

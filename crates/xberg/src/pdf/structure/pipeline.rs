@@ -4257,6 +4257,23 @@ fn build_document_structure_with_native(
 
     let table_members =
         crate::pdf::native::table::source_members::project(&all_page_segments, table_sources, &emitted_tables);
+    for (&table_index, members) in &table_members {
+        if members.redistributed.is_empty() {
+            continue;
+        }
+        if let Some(segments) = emitted_tables[table_index]
+            .page_number
+            .checked_sub(1)
+            .and_then(|index| all_page_segments.get_mut(index as usize))
+        {
+            let keys: ahash::AHashSet<_> = members.redistributed.iter().collect();
+            segments.retain(|segment| {
+                !keys.contains(&crate::pdf::native::hierarchy::script_evidence::SegmentKey::from(
+                    segment,
+                ))
+            });
+        }
+    }
     let extracted_table_bboxes_by_page = table_bboxes_by_page(&emitted_tables);
     tracing::debug!(
         native_tables = tables.len(),

@@ -26,6 +26,7 @@ pub(crate) struct TableSources {
     members: Vec<Vec<Run>>,
     paint_overhangs: Vec<Run>,
     recovered_lines: Vec<Run>,
+    redistributed: Vec<Vec<SegmentKey>>,
     recovered_tracks: Vec<(f32, f32)>,
     replaces_empty_ruled_route: bool,
 }
@@ -287,11 +288,69 @@ fn paint_overhang(
     Run::capture(span)
 }
 
+fn redistributed_keys(original: &TextSpan, source: &[TextSpan]) -> Option<Vec<SegmentKey>> {
+    let mut spans: Vec<_> = source
+        .iter()
+        .filter(|span| {
+            (span.bbox.y - original.bbox.y).abs() <= super::DECIMAL_ROW_TOLERANCE
+                && span.bbox.x >= original.bbox.x - super::DECIMAL_ROW_TOLERANCE
+                && span.bbox.right() <= original.bbox.right() + super::DECIMAL_ROW_TOLERANCE
+        })
+        .collect();
+    spans.sort_by(|left, right| left.bbox.x.total_cmp(&right.bbox.x));
+    if (spans.first()?.bbox.x - original.bbox.x).abs() > super::DECIMAL_ROW_TOLERANCE
+        || (spans.last()?.bbox.right() - original.bbox.right()).abs() > super::DECIMAL_ROW_TOLERANCE
+        || spans.windows(2).any(|pair| pair[0].bbox.x >= pair[1].bbox.x)
+        || spans
+            .iter()
+            .any(|span| span.rotation_degrees != 0.0 || span.mcid != original.mcid)
+        || spans.iter().map(|span| span.text.as_str()).collect::<String>() != original.text
+    {
+        return None;
+    }
+    Some(
+        spans
+            .into_iter()
+            .map(|span| {
+                SegmentKey::from(&SegmentData {
+                    text: span.text.clone(),
+                    x: span.bbox.x,
+                    y: span.bbox.y,
+                    width: span.bbox.width,
+                    height: span.bbox.height,
+                    font_size: span.font_size,
+                    is_bold: span.font_weight == xberg_native_pdf::layout::FontWeight::Bold,
+                    is_italic: span.is_italic,
+                    is_monospace: span.is_monospace,
+                    baseline_y: span.bbox.y,
+                    rotation_degrees: span.rotation_degrees,
+                    assigned_role: None,
+                })
+            })
+            .collect(),
+    )
+}
+
+#[cfg(test)]
 pub(super) fn capture(
     native: &NativeTable,
     table: &Table,
     ownership: Option<&PaintedCellOwnership>,
 ) -> Option<TableSources> {
+    capture_with_redistributed_spans(native, table, ownership, &[], &Default::default())
+}
+
+pub(super) fn capture_with_redistributed_spans(
+    native: &NativeTable,
+    table: &Table,
+    ownership: Option<&PaintedCellOwnership>,
+    repaired: &[TextSpan],
+    source: &super::scripts::PageSpans,
+) -> Option<TableSources> {
+    let redistributed: Vec<_> = repaired
+        .iter()
+        .filter_map(|span| redistributed_keys(span, &source.spans))
+        .collect();
     let text_bytes = table_text_size(table)?;
     let identity_work = text_bytes + table.cells.len() + table.cells.iter().map(Vec::len).sum::<usize>();
     source_size(native)?;
@@ -323,24 +382,26 @@ pub(super) fn capture(
             }
         },
     );
-    (!members.is_empty() || !paint_overhangs.is_empty() || !recovered_lines.is_empty()).then(|| TableSources {
-        page: table.page_number,
-        bbox,
-        cells: table.cells.clone(),
-        markdown: table.markdown.clone(),
-        identity_work,
-        members,
-        paint_overhangs,
-        recovered_lines,
-        replaces_empty_ruled_route: native
-            .bbox
-            .is_some_and(|bounds| ownership.is_some_and(|evidence| evidence.certifies_new_ruled_table(bounds))),
-        recovered_tracks: if recovered {
-            recovered_track_edges(native)
-        } else {
-            Vec::new()
-        },
-    })
+    (!members.is_empty() || !paint_overhangs.is_empty() || !recovered_lines.is_empty() || !redistributed.is_empty())
+        .then(|| TableSources {
+            page: table.page_number,
+            bbox,
+            cells: table.cells.clone(),
+            markdown: table.markdown.clone(),
+            identity_work,
+            members,
+            paint_overhangs,
+            recovered_lines,
+            redistributed,
+            replaces_empty_ruled_route: native
+                .bbox
+                .is_some_and(|bounds| ownership.is_some_and(|evidence| evidence.certifies_new_ruled_table(bounds))),
+            recovered_tracks: if recovered {
+                recovered_track_edges(native)
+            } else {
+                Vec::new()
+            },
+        })
 }
 
 #[cfg(test)]
