@@ -3287,7 +3287,9 @@ impl ImageExtractor {
         let include_words = false;
         enable_image_ocr_elements(&mut ocr_config_with_format, include_words);
         #[cfg(not(target_arch = "wasm32"))]
-        if is_implicit_horizontal_tesseract(ocr_config) {
+        if is_implicit_horizontal_tesseract(ocr_config)
+            || (config.output_format == crate::core::config::OutputFormat::Markdown && psm6_tesseract.is_some())
+        {
             enable_image_ocr_elements(&mut ocr_config_with_format, true);
         }
 
@@ -3506,6 +3508,17 @@ impl ImageExtractor {
             Self::mark_ocr_extraction(&mut doc);
 
             doc.prebuilt_ocr_elements = ocr_elements;
+
+            #[cfg(not(target_arch = "wasm32"))]
+            if config.output_format == crate::core::config::OutputFormat::Markdown
+                && psm6_tesseract.is_some()
+                && !has_public_ocr_structure
+                && ocr_tables.is_empty()
+                && ocr_extraction_result.page_contents.is_none()
+                && image_table_reread::shows_column_structure(&doc)
+            {
+                mark_leader_rows(&mut doc);
+            }
 
             let page_tables: Vec<std::sync::Arc<crate::types::Table>> = ocr_tables
                 .into_iter()

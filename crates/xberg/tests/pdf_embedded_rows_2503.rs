@@ -77,3 +77,47 @@ fn assert_table(text: &str, table: [&str; 9], psm: Option<u8>, explicit_image: b
         assert!(text.contains(&table.join("\n\n")), "{context}\n{text}");
     }
 }
+
+#[tokio::test]
+#[ignore = "requires XBERG_2503_EMBEDDED_96_PDF and pinned English tessdata"]
+async fn embedded_markdown_keeps_recognized_96_dpi_table_rows() {
+    let bytes = std::fs::read(std::env::var_os("XBERG_2503_EMBEDDED_96_PDF").unwrap()).unwrap();
+    for psm in [None, Some(6)] {
+        let mut config = serde_json::json!({
+            "use_cache": false,
+            "output_format": "markdown",
+            "ocr": {"enabled": true, "backend": "tesseract", "language": ["eng"]},
+            "pages": {"extract_pages": true}
+        });
+        if let Some(psm) = psm {
+            config["ocr"]["tesseract_config"] = serde_json::json!({"psm": psm});
+        }
+        let config: ExtractionConfig = serde_json::from_value(config).unwrap();
+        let batch = xberg::extract(
+            ExtractInput::from_bytes(bytes.clone(), "application/pdf", None),
+            &config,
+        )
+        .await
+        .unwrap();
+        assert!(batch.errors.is_empty());
+        let [result] = batch.results.as_slice() else {
+            panic!("expected one extraction");
+        };
+        for text in [&result.content, &result.pages.as_ref().unwrap()[0].content] {
+            assert_eq!(text.matches(HEADING).count(), 1);
+            assert_eq!(
+                text.lines()
+                    .filter(|line| line.contains("Library hours") && line.contains("25."))
+                    .count(),
+                1,
+                "PSM {psm:?}: keep the literal OCR value"
+            );
+            assert!(
+                text.lines().any(|line| line.contains("Signal timing")
+                    && line.contains("432,439")
+                    && !line.contains("Pool repairs")),
+                "PSM {psm:?}: adjacent table rows must remain separate"
+            );
+        }
+    }
+}

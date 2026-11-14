@@ -38,7 +38,16 @@ impl<'a> Word<'a> {
 }
 
 pub(super) fn assemble(document: &ExtractedDocument) -> Option<String> {
-    if !document.tables.is_empty() || !document.processing_warnings.is_empty() {
+    if !document.processing_warnings.is_empty() {
+        return None;
+    }
+    if let [table] = document.tables.as_slice()
+        && !table.cells.is_empty()
+        && document.content.trim() == crate::rendering::common::render_table_markdown(&table.cells).trim()
+    {
+        return Some(crate::rendering::common::render_table_plain(&table.cells));
+    }
+    if !document.tables.is_empty() {
         return None;
     }
     let mut words = document

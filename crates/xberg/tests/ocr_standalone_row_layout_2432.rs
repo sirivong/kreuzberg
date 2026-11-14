@@ -223,3 +223,20 @@ fn markdown_picture_without_a_table_gets_no_table() {
         .collect::<Vec<_>>();
     assert!(piped.is_empty(), "pipe lines in a non-table picture: {piped:?}");
 }
+
+#[test]
+fn explicit_psm6_markdown_keeps_the_standalone_ocr_rows_in_both_outputs() {
+    let config: ExtractionConfig = serde_json::from_value(serde_json::json!({
+        "use_cache": false,
+        "output_format": "markdown",
+        "ocr": {"enabled": true, "backend": "tesseract", "language": ["eng"],
+                "tesseract_config": {"psm": 6}},
+        "pages": {"extract_pages": true}
+    }))
+    .unwrap();
+    let result = helpers::extract_bytes_document_blocking(IMAGE, "image/png", &config).unwrap();
+    let page = &result.pages.as_ref().unwrap()[0];
+    let row = "Water service 42 299,751 684.57";
+    assert_eq!(page.content.lines().filter(|line| line.trim() == row).count(), 1);
+    assert_eq!(result.content.lines().filter(|line| line.trim() == row).count(), 1);
+}
