@@ -44,6 +44,41 @@ fn proof_clone(object: &Object, max_bytes: usize) -> Option<(Object, usize)> {
     Some((object.clone(), max_bytes - remaining))
 }
 
+fn proof_object_body(input: &[u8], reference: ObjectRef) -> Option<&[u8]> {
+    use crate::lexer::{Token, token};
+
+    let (input, Token::Integer(id)) = token(input).ok()? else {
+        return None;
+    };
+    let (input, Token::Integer(generation)) = token(input).ok()? else {
+        return None;
+    };
+    let (input, Token::ObjStart) = token(input).ok()? else {
+        return None;
+    };
+    (id == i64::from(reference.id) && generation == i64::from(reference.generation) && keyword_boundary(input))
+        .then_some(input)
+}
+
+fn stream_length(dict: &HashMap<String, Object>) -> Option<usize> {
+    usize::try_from(dict.get("Length")?.as_integer()?).ok()
+}
+
+fn stream_end(input: &[u8]) -> Option<&[u8]> {
+    use crate::lexer::{Token, token};
+
+    let (tail, Token::StreamEnd) = token(input).ok()? else {
+        return None;
+    };
+    keyword_boundary(tail).then_some(tail)
+}
+
+fn keyword_boundary(input: &[u8]) -> bool {
+    input
+        .first()
+        .is_some_and(|byte| matches!(byte, 0 | 9 | 10 | 12 | 13 | 32 | b'<' | b'[' | b'%'))
+}
+
 impl PdfDocument {
     /// Resolve an object whose copy or ordinary uncompressed read fits a proof work budget.
     /// Returns `None` for opaque recovery paths or work without a certified bound.
@@ -72,20 +107,7 @@ impl PdfDocument {
     }
 
     fn proof_object_span(&self, reference: ObjectRef, max_bytes: usize) -> Option<(u64, usize)> {
-        if self.is_encrypted() || self.xref_reconstructed {
-            return None;
-        }
-        let entry = self.xref.get(reference.id)?;
-        if !entry.in_use
-            || entry.entry_type != crate::xref::XRefEntryType::Uncompressed
-            || entry.generation != reference.generation
-        {
-            return None;
-        }
-        let tail = self
-            .source_bytes
-            .as_slice()
-            .get(usize::try_from(entry.offset).ok()?..)?;
+        let (offset, tail) = self.proof_object_source(reference)?;
         let input = &tail[..tail
             .len()
             .min(MAX_PROOF_OBJECT_INPUT)
@@ -103,7 +125,93 @@ impl PdfDocument {
         let marker = find_substring(body, b"endobj")?;
         let last_line = body[marker..].iter().position(|&byte| byte == b'\n')?;
         let extent = header_end + marker + last_line + 2;
-        Some((entry.offset, extent * PROOF_OBJECT_PARSE_FACTOR))
+        Some((offset, extent * PROOF_OBJECT_PARSE_FACTOR))
+    }
+
+    fn proof_object_source(&self, reference: ObjectRef) -> Option<(u64, &[u8])> {
+        if self.is_encrypted() || self.xref_reconstructed {
+            return None;
+        }
+        let entry = self.xref.get(reference.id)?;
+        if !entry.in_use
+            || entry.entry_type != crate::xref::XRefEntryType::Uncompressed
+            || entry.generation != reference.generation
+        {
+            return None;
+        }
+        let tail = self
+            .source_bytes
+            .as_slice()
+            .get(usize::try_from(entry.offset).ok()?..)?;
+        Some((entry.offset, tail))
+    }
+
+    pub(super) fn resolve_density_object(&self, object: &Object, remaining: &mut usize) -> Option<Object> {
+        use crate::lexer::{Token, token};
+        use crate::parser::{parse_stream_header, parse_strict_object};
+
+        let (object, charge) = if let Some(reference) = object.as_reference() {
+            let (_, source) = self.proof_object_source(reference)?;
+            let limit = source
+                .len()
+                .min(MAX_PROOF_OBJECT_INPUT)
+                .min(*remaining / PROOF_OBJECT_PARSE_FACTOR);
+            let body = proof_object_body(&source[..limit], reference)?;
+            let (tail, object) = parse_strict_object(body).ok()?;
+            let (tail, object) =
+                if matches!(object, Object::Dictionary(_)) && matches!(token(tail), Ok((_, Token::StreamStart))) {
+                    let (payload, dict) = parse_stream_header(body)?;
+                    let length = stream_length(&dict)?;
+                    let data = payload.get(..length)?;
+                    let tail = stream_end(payload.get(length..)?)?;
+                    (
+                        tail,
+                        Object::Stream {
+                            dict,
+                            data: bytes::Bytes::copy_from_slice(data),
+                        },
+                    )
+                } else {
+                    (tail, object)
+                };
+            let (tail, Token::ObjEnd) = token(tail).ok()? else {
+                return None;
+            };
+            if !keyword_boundary(tail) {
+                return None;
+            }
+            (object, (limit - tail.len() + 1) * PROOF_OBJECT_PARSE_FACTOR)
+        } else {
+            proof_clone(object, *remaining)?
+        };
+        *remaining = remaining.checked_sub(charge)?;
+        Some(object)
+    }
+
+    pub(super) fn prove_image_stream(&self, reference: ObjectRef, remaining: &mut usize) -> Option<()> {
+        use crate::lexer::{Token, token};
+
+        const MAX_HEADER: usize = 1024;
+        const MAX_TRAILER: usize = 32;
+        let (_, source) = self.proof_object_source(reference)?;
+        let limit = source.len().min(MAX_HEADER).min(*remaining / PROOF_OBJECT_PARSE_FACTOR);
+        let body = proof_object_body(&source[..limit], reference)?;
+        let (payload, dictionary) = crate::parser::parse_stream_header(body)?;
+        if dictionary.get("Subtype")?.as_name()? != "Image" {
+            return None;
+        }
+        let payload_start = limit - payload.len();
+        let suffix = source.get(payload_start.checked_add(stream_length(&dictionary)?)?..)?;
+        let suffix = &suffix[..suffix.len().min(MAX_TRAILER)];
+        let (tail, Token::ObjEnd) = token(stream_end(suffix)?).ok()? else {
+            return None;
+        };
+        if !keyword_boundary(tail) {
+            return None;
+        }
+        *remaining =
+            remaining.checked_sub((payload_start + suffix.len() - tail.len() + 1) * PROOF_OBJECT_PARSE_FACTOR)?;
+        Some(())
     }
 
     /// Get the PDF version.

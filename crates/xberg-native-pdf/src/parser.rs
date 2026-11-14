@@ -186,7 +186,15 @@ pub fn decode_literal_string_escapes(raw: &[u8]) -> Vec<u8> {
 /// - Nested structures are malformed (unclosed arrays/dicts)
 /// - Hex strings contain invalid hex digits
 pub fn parse_object(input: &[u8]) -> IResult<&[u8], Object> {
-    parse_object_at_depth(input, 0)
+    parse_object_at_depth(input, 0, false)
+}
+
+pub(crate) fn parse_strict_object(input: &[u8]) -> IResult<&[u8], Object> {
+    parse_object_at_depth(input, 0, true)
+}
+
+fn checked_reference(id: i64, generation: i64) -> Option<ObjectRef> {
+    Some(ObjectRef::new(u32::try_from(id).ok()?, u16::try_from(generation).ok()?))
 }
 
 /// Depth-tracking implementation behind [`parse_object`].
@@ -195,7 +203,8 @@ pub fn parse_object(input: &[u8]) -> IResult<&[u8], Object> {
 /// increases by 1 each time `parse_array`/`parse_dictionary` recurse back
 /// into this function for an element/value. See [`MAX_OBJECT_NESTING_DEPTH`]
 /// for why this exists.
-fn parse_object_at_depth(input: &[u8], depth: usize) -> IResult<&[u8], Object> {
+fn parse_object_at_depth(input: &[u8], depth: usize, strict: bool) -> IResult<&[u8], Object> {
+    let object_input = input;
     let (input, tok) = token(input)?;
 
     match tok {
@@ -210,7 +219,14 @@ fn parse_object_at_depth(input: &[u8], depth: usize) -> IResult<&[u8], Object> {
             if let Ok((input2, Token::Integer(generation))) = token(input)
                 && let Ok((input3, Token::R)) = token(input2)
             {
-                return Ok((input3, Object::Reference(ObjectRef::new(i as u32, generation as u16))));
+                let reference = if strict {
+                    checked_reference(i, generation).ok_or_else(|| {
+                        nom::Err::Failure(nom::error::Error::new(object_input, nom::error::ErrorKind::Verify))
+                    })?
+                } else {
+                    ObjectRef::new(i as u32, generation as u16)
+                };
+                return Ok((input3, Object::Reference(reference)));
             }
 
             Ok((input, Object::Integer(i)))
@@ -234,12 +250,12 @@ fn parse_object_at_depth(input: &[u8], depth: usize) -> IResult<&[u8], Object> {
 
         Token::Name(name) => Ok((input, Object::Name(name))),
 
-        Token::ArrayStart => parse_array(input, depth),
+        Token::ArrayStart => parse_array(input, depth, strict),
 
         Token::DictStart => {
-            let (remaining, dict_obj) = parse_dictionary(input, depth)?;
+            let (remaining, dict_obj) = parse_dictionary(input, depth, strict)?;
 
-            if let Ok((stream_input, Token::StreamStart)) = token(remaining) {
+            if !strict && let Ok((stream_input, Token::StreamStart)) = token(remaining) {
                 let dict = match dict_obj {
                     Object::Dictionary(d) => d,
                     _ => {
@@ -425,7 +441,7 @@ fn find_endstream(input: &[u8]) -> Option<usize> {
 /// - Array is not properly closed with `]`
 /// - Array contains malformed objects
 /// - Nesting depth exceeds [`MAX_OBJECT_NESTING_DEPTH`]
-fn parse_array(input: &[u8], depth: usize) -> IResult<&[u8], Object> {
+fn parse_array(input: &[u8], depth: usize, strict: bool) -> IResult<&[u8], Object> {
     if depth >= MAX_OBJECT_NESTING_DEPTH {
         return Err(nom::Err::Failure(nom::error::Error::new(
             input,
@@ -447,13 +463,13 @@ fn parse_array(input: &[u8], depth: usize) -> IResult<&[u8], Object> {
 
                 // Otherwise, we need to parse this as an object
                 // Put the token back by re-parsing from remaining ~keep
-                match parse_object_at_depth(remaining, depth + 1) {
+                match parse_object_at_depth(remaining, depth + 1, strict) {
                     Ok((inp, obj)) => {
                         objects.push(obj);
                         remaining = inp;
                     }
                     Err(e) => {
-                        if remaining.is_empty() {
+                        if !strict && remaining.is_empty() {
                             // Unclosed array, but return what we have ~keep
                             return Ok((remaining, Object::Array(objects)));
                         }
@@ -461,13 +477,28 @@ fn parse_array(input: &[u8], depth: usize) -> IResult<&[u8], Object> {
                     }
                 }
             }
-            Err(nom::Err::Incomplete(_)) | Err(nom::Err::Error(_)) if remaining.is_empty() => {
+            Err(nom::Err::Incomplete(_)) | Err(nom::Err::Error(_)) if !strict && remaining.is_empty() => {
                 // Hit EOF before closing array - return what we have ~keep
                 return Ok((remaining, Object::Array(objects)));
             }
             Err(e) => return Err(e),
         }
     }
+}
+
+/// Parse a stream dictionary and leave its payload in the input slice.
+pub(crate) fn parse_stream_header(input: &[u8]) -> Option<(&[u8], HashMap<String, Object>)> {
+    let (input, Token::DictStart) = token(input).ok()? else {
+        return None;
+    };
+    let (input, Object::Dictionary(dict)) = parse_dictionary(input, 0, true).ok()? else {
+        return None;
+    };
+    let (input, Token::StreamStart) = token(input).ok()? else {
+        return None;
+    };
+    let payload = input.strip_prefix(b"\r\n").or_else(|| input.strip_prefix(b"\n"))?;
+    Some((payload, dict))
 }
 
 /// Parse a PDF dictionary: `<< /Key1 value1 /Key2 value2 ... >>`
@@ -494,7 +525,7 @@ fn parse_array(input: &[u8], depth: usize) -> IResult<&[u8], Object> {
 /// - A key is not a name
 /// - Values are malformed
 /// - Nesting depth exceeds [`MAX_OBJECT_NESTING_DEPTH`]
-fn parse_dictionary(input: &[u8], depth: usize) -> IResult<&[u8], Object> {
+fn parse_dictionary(input: &[u8], depth: usize, strict: bool) -> IResult<&[u8], Object> {
     if depth >= MAX_OBJECT_NESTING_DEPTH {
         return Err(nom::Err::Failure(nom::error::Error::new(
             input,
@@ -518,7 +549,10 @@ fn parse_dictionary(input: &[u8], depth: usize) -> IResult<&[u8], Object> {
                     Token::Name(key) => {
                         // Parse the value; fall back to lenient token for bare words
                         // (e.g. `OBJR` without a `/` prefix in malformed PDFs) ~keep
-                        let value_result = parse_object_at_depth(inp, depth + 1).or_else(|_| {
+                        let value_result = parse_object_at_depth(inp, depth + 1, strict).or_else(|error| {
+                            if strict {
+                                return Err(error);
+                            }
                             token_lenient(inp).and_then(|(inp2, tok)| {
                                 if let Token::Name(name) = tok {
                                     Ok((inp2, Object::Name(name)))
@@ -529,11 +563,16 @@ fn parse_dictionary(input: &[u8], depth: usize) -> IResult<&[u8], Object> {
                         });
                         match value_result {
                             Ok((inp, value)) => {
-                                dict.insert(key, value);
+                                if dict.insert(key, value).is_some() && strict {
+                                    return Err(nom::Err::Error(nom::error::Error::new(
+                                        remaining,
+                                        nom::error::ErrorKind::Verify,
+                                    )));
+                                }
                                 remaining = inp;
                             }
                             Err(e) => {
-                                if inp.is_empty() {
+                                if !strict && inp.is_empty() {
                                     // Incomplete dictionary, return what we have ~keep
                                     return Ok((inp, Object::Dictionary(dict)));
                                 }
@@ -544,7 +583,7 @@ fn parse_dictionary(input: &[u8], depth: usize) -> IResult<&[u8], Object> {
                     _ => {
                         // Invalid dictionary - key must be a name
                         // But if we hit EOF, return what we have ~keep
-                        if remaining.is_empty() {
+                        if !strict && remaining.is_empty() {
                             return Ok((remaining, Object::Dictionary(dict)));
                         }
                         return Err(nom::Err::Error(nom::error::Error::new(
@@ -554,7 +593,7 @@ fn parse_dictionary(input: &[u8], depth: usize) -> IResult<&[u8], Object> {
                     }
                 }
             }
-            Err(nom::Err::Incomplete(_)) | Err(nom::Err::Error(_)) if remaining.is_empty() => {
+            Err(nom::Err::Incomplete(_)) | Err(nom::Err::Error(_)) if !strict && remaining.is_empty() => {
                 // Hit EOF before closing dictionary - return what we have ~keep
                 return Ok((remaining, Object::Dictionary(dict)));
             }

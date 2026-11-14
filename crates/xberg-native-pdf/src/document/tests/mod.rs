@@ -7,7 +7,7 @@
 //! `tests.rs` grew to 8,362 lines and tripped `file-too-long`/`function-too-long`.
 //! Shared fixtures and helpers used by more than one topic live in `common`. ~keep
 
-mod common;
+pub(super) mod common;
 mod pdf_fixtures;
 
 mod annotations;

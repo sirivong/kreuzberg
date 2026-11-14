@@ -276,6 +276,16 @@ impl PdfDocument {
         Ok((Self::apply_mixed_rtl_line_pass(text), spans))
     }
 
+    /// Reuse a conservative small-text density probe across planning and rendering.
+    #[doc(hidden)]
+    pub fn has_small_painted_text_for_ocr(&self) -> bool {
+        self.small_painted_text_evidence(|| self.probe_small_painted_text())
+    }
+
+    fn small_painted_text_evidence(&self, probe: impl FnOnce() -> bool) -> bool {
+        *self.small_painted_text.get_or_init(probe)
+    }
+
     /// Extract text from a page, excluding content from specified layers and inks.
     ///
     /// Uses the same full text assembly pipeline as [`extract_text`](Self::extract_text)
@@ -2284,6 +2294,25 @@ impl PdfDocument {
             .insert(page_index, std::sync::Arc::clone(&content_data));
 
         Ok(content_data)
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn small_painted_text_probe_reuses_positive_and_negative_evidence() {
+    for expected in [true, false] {
+        let doc = PdfDocument::from_bytes(super::tests::common::build_minimal_pdf(b"")).unwrap();
+        let calls = std::cell::Cell::new(0);
+        for _ in 0..2 {
+            assert_eq!(
+                doc.small_painted_text_evidence(|| {
+                    calls.set(calls.get() + 1);
+                    expected
+                }),
+                expected
+            );
+        }
+        assert_eq!(calls.get(), 1);
     }
 }
 

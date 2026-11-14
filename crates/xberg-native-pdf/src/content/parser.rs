@@ -156,6 +156,23 @@ pub fn parse_content_stream(data: &[u8]) -> Result<Vec<Operator>> {
 pub fn visit_complete_content_stream(
     data: &[u8],
     operator_limit: usize,
+    visit: impl FnMut(Operator) -> bool,
+) -> Result<bool> {
+    visit_content_stream(data, operator_limit, false, visit)
+}
+
+pub(crate) fn visit_strict_content_stream(
+    data: &[u8],
+    operator_limit: usize,
+    visit: impl FnMut(Operator) -> bool,
+) -> Result<bool> {
+    visit_content_stream(data, operator_limit, true, visit)
+}
+
+fn visit_content_stream(
+    data: &[u8],
+    operator_limit: usize,
+    strict: bool,
     mut visit: impl FnMut(Operator) -> bool,
 ) -> Result<bool> {
     let mut input = data;
@@ -173,7 +190,7 @@ pub fn visit_complete_content_stream(
         if remaining == 0 {
             return Err(invalid());
         }
-        let (next, op) = parse_operator_with_operands(rest).map_err(|_| invalid())?;
+        let (next, op) = parse_operator(rest, strict).map_err(|_| invalid())?;
         if next.len() >= rest.len() {
             return Err(invalid());
         }
@@ -2238,6 +2255,10 @@ fn skip_hex_string_for_et_scan(data: &[u8], start: usize) -> usize {
 /// allocation for the common case (most PDF operators have 0-6 operands).
 /// Only spills to the heap for rare operators with more than 6 operands.
 fn parse_operator_with_operands(input: &[u8]) -> IResult<&[u8], Operator> {
+    parse_operator(input, false)
+}
+
+fn parse_operator(input: &[u8], strict: bool) -> IResult<&[u8], Operator> {
     let mut operands: SmallVec<[Object; 6]> = SmallVec::new();
     let mut remaining = input;
 
@@ -2255,6 +2276,13 @@ fn parse_operator_with_operands(input: &[u8]) -> IResult<&[u8], Operator> {
         if is_operator_start(remaining[0]) {
             let (rest, op_name) = parse_operator_name(remaining)?;
 
+            if strict && !strict_operands(op_name, &operands) {
+                return Err(nom::Err::Error(nom::error::Error::new(
+                    remaining,
+                    nom::error::ErrorKind::Verify,
+                )));
+            }
+
             if op_name == "BI" {
                 // Parse inline image: BI <dict entries> ID <binary data> EI ~keep
                 return parse_inline_image(rest);
@@ -2264,10 +2292,58 @@ fn parse_operator_with_operands(input: &[u8]) -> IResult<&[u8], Operator> {
             return Ok((rest, op));
         }
 
-        let (inp, obj) = parse_object(remaining)?;
+        let (inp, obj) = if strict {
+            crate::parser::parse_strict_object(remaining)?
+        } else {
+            parse_object(remaining)?
+        };
         operands.push(obj);
         remaining = inp;
     }
+}
+
+// The audit supports the operators whose effects the density probe can account for.
+fn strict_operands(name: &str, operands: &[Object]) -> bool {
+    let signature = match name {
+        "q" | "Q" | "BT" | "ET" | "T*" | "EMC" | "h" | "S" | "s" | "f" | "F" | "f*" | "B" | "B*" | "b" | "b*" | "n" => {
+            ""
+        }
+        "Tf" => "an",
+        "Tr" => "r",
+        "Tj" | "'" => "s",
+        "TJ" => "t",
+        "\"" => "nns",
+        "Td" | "TD" | "m" | "l" => "nn",
+        "Tm" | "cm" | "c" => "nnnnnn",
+        "v" | "y" | "re" | "k" | "K" => "nnnn",
+        "rg" | "RG" => "nnn",
+        "Tc" | "Tw" | "Tz" | "TL" | "Ts" | "w" | "M" | "i" | "g" | "G" => "n",
+        "j" | "J" => "i",
+        "d" => "dn",
+        "gs" | "Do" | "BMC" | "ri" => "a",
+        "BDC" => "ap",
+        _ => return false,
+    };
+    operands.len() == signature.len()
+        && signature.bytes().zip(operands).all(|(kind, object)| match kind {
+            b'n' => probe_number(object),
+            b'i' => matches!(object.as_integer(), Some(0..=2)),
+            b'r' => matches!(object.as_integer(), Some(0..=7)),
+            b'a' => object.as_name().is_some(),
+            b's' => matches!(object, Object::String(_)),
+            b'p' => matches!(object, Object::Name(_) | Object::Dictionary(_)),
+            b'd' => object.as_array().is_some_and(|values| values.iter().all(probe_number)),
+            b't' => object.as_array().is_some_and(|values| {
+                values
+                    .iter()
+                    .all(|value| matches!(value, Object::String(_)) || probe_number(value))
+            }),
+            _ => false,
+        })
+}
+
+fn probe_number(object: &Object) -> bool {
+    object.as_integer().is_some() || object.as_real().is_some_and(|value| (value as f32).is_finite())
 }
 
 /// Check if a byte could start an operator name.

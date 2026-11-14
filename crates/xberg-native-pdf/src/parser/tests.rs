@@ -1,6 +1,35 @@
 use super::*;
 
 #[test]
+fn strict_object_parses_an_ordinary_indirect_reference() {
+    assert_eq!(
+        parse_strict_object(b"10 2 R /Next").unwrap(),
+        (&b" /Next"[..], Object::Reference(ObjectRef::new(10, 2)))
+    );
+}
+
+#[test]
+fn strict_reference_conversion_checks_integer_boundaries() {
+    assert_eq!(checked_reference(1, 0), Some(ObjectRef::new(1, 0)));
+    assert_eq!(
+        checked_reference(i64::from(u32::MAX), i64::from(u16::MAX)),
+        Some(ObjectRef::new(u32::MAX, u16::MAX))
+    );
+    for (id, generation) in [
+        (-1, 0),
+        (i64::from(u32::MAX) + 1, 0),
+        (1, -1),
+        (1, i64::from(u16::MAX) + 1),
+    ] {
+        assert_eq!(
+            checked_reference(id, generation),
+            None,
+            "reference ({id}, {generation})"
+        );
+    }
+}
+
+#[test]
 fn test_parse_null() {
     let input = b"null";
     let (remaining, obj) = parse_object(input).unwrap();

@@ -873,6 +873,8 @@ pub struct PdfDocument {
     /// the second from cache. Cleared by redaction (`erase_region` /
     /// `clear_erase_regions`), the only span-affecting mutation.
     page_spans_cache: Mutex<BoundedEntryCache<usize, std::sync::Arc<Vec<crate::layout::TextSpan>>>>,
+    /// Small-text density evidence for a single-page document.
+    small_painted_text: std::sync::OnceLock<bool>,
     /// Per-page lightweight search index (page text + span bounding boxes,
     /// no fonts/glyph widths) built lazily by `search()`/`search_page()` and
     /// reused across repeated calls on the same document. Unlike
@@ -1911,6 +1913,7 @@ mod picture_text;
 mod reading_order;
 mod rect_api;
 mod redaction;
+mod small_text_probe;
 mod span_postprocess;
 mod spans_text;
 mod tables;

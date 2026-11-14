@@ -235,6 +235,19 @@ impl<'doc> TextExtractor<'doc> {
         self.pen_continuations.clear();
     }
 
+    pub(crate) fn density_probe_font_height(&self) -> f32 {
+        let state = self.state_stack.current();
+        // The renderer applies the text matrix before the CTM. The c and d
+        // components map a unit vector along the glyph's vertical axis.
+        let text_to_page = state.text_matrix.multiply(&state.ctm);
+        state.font_size.abs() * text_to_page.c.hypot(text_to_page.d)
+    }
+
+    pub(crate) fn finish_density_probe(mut self) -> Option<Vec<TextSpan>> {
+        self.flush_tj_span_buffer().ok()?;
+        Some(std::mem::take(&mut self.spans))
+    }
+
     /// Public wrapper for execute_operator (normally private).
     pub fn execute_operator_public(&mut self, op: crate::content::Operator) -> Result<()> {
         self.execute_operator(op)
