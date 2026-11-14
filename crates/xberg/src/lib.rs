@@ -936,6 +936,16 @@ pub use enrich::{ChunkClassificationEnrichmentConfig, ClassificationEnrichmentCo
 #[cfg(feature = "captioning")]
 pub use enrich::CaptioningEnrichmentConfig;
 
+#[cfg(all(
+    test,
+    feature = "pdf",
+    feature = "ocr",
+    feature = "tokio-runtime",
+    feature = "bundle-tessdata-eng"
+))]
+#[path = "../tests/embedded_psm6_2327/cache.rs"]
+mod embedded_psm6_cache_tests;
+
 #[cfg(test)]
 mod public_api_compile_tests {
     #[test]

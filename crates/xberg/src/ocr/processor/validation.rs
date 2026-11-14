@@ -198,6 +198,11 @@ pub(crate) fn tessdata_search_dirs(override_path: Option<&Path>, tessdata_env: &
             .into_owned(),
     );
 
+    #[cfg(test)]
+    if env::var_os("XBERG_TEST_2327_TESSDATA_ONLY").is_some() {
+        return dirs;
+    }
+
     for path in SYSTEM_TESSDATA_PATHS {
         dirs.push((*path).to_string());
     }
