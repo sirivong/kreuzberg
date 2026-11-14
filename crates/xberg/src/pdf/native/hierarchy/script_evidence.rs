@@ -315,6 +315,36 @@ fn has_indented_variable_source(base: &TextSpan, script: &TextSpan) -> bool {
         && has_matching_source_evidence_with_leading_offset(base, script, true)
 }
 
+fn has_indented_exponent_context(spans: &[TextSpan], base: &TextSpan, script: &TextSpan) -> bool {
+    if !has_indented_variable_source(base, script) || script.bbox.x >= base.bbox.right() {
+        return true;
+    }
+    let Some(label_sequence) = base.sequence.checked_sub(1) else {
+        return false;
+    };
+    let Some(operator_sequence) = script.sequence.checked_add(1) else {
+        return false;
+    };
+    let mut labels = spans.iter().filter(|span| span.sequence == label_sequence);
+    let mut operators = spans.iter().filter(|span| span.sequence == operator_sequence);
+    let (Some(label), Some(operator)) = (labels.next(), operators.next()) else {
+        return false;
+    };
+    // The raised digit must sit inside a numbered expression with a source-backed continuation. ~keep
+    labels.next().is_none()
+        && operators.next().is_none()
+        && same_context(base, label)
+        && same_context(base, operator)
+        && has_adjacent_source(script, operator)
+        && label.text.strip_suffix('.').is_some_and(is_numeric_span)
+        && matches!(operator.text.as_str(), "−" | "+" | "×" | "÷" | "=")
+        && baseline(label) == baseline(base)
+        && baseline(operator) == baseline(base)
+        && label.bbox.right().to_bits() == base.bbox.x.to_bits()
+        && operator.bbox.x >= script.bbox.right()
+        && operator.bbox.x - script.bbox.right() <= base.font_size * ROW_CANDIDATE_MAX_SHIFT_EM
+}
+
 fn has_adjacent_ordinal_source(base: &TextSpan, suffix: &TextSpan) -> bool {
     let Some(last) = base.text.bytes().last().filter(u8::is_ascii_digit) else {
         return false;
@@ -538,6 +568,9 @@ fn collect_owners(spans: &[TextSpan], projected: &[SegmentData]) -> Vec<ScriptOw
         let [base] = candidates.as_slice() else {
             continue;
         };
+        if !has_indented_exponent_context(spans, &spans[*base], &spans[first]) {
+            continue;
+        }
         let Some(members) = complete_run(spans, *base, first, &occupied_sequences) else {
             continue;
         };
