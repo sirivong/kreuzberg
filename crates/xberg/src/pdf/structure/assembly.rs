@@ -1257,9 +1257,7 @@ fn native_volume_limit_end(text: &str, annotations: &[TextAnnotation], start: us
     let mut end = start;
     let mut subscript = None;
     for expected in "V(ψm)→+∞".chars() {
-        let Some((offset, ch)) = chars.next() else {
-            return None;
-        };
+        let (offset, ch) = chars.next()?;
         if ch != expected {
             return None;
         }
