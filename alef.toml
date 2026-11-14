@@ -260,7 +260,7 @@ manifest = "packages/elixir/mix.exs"
 cwd = "packages/java"
 manifest = "packages/java/pom.xml"
 before = [
-  "if [ -x /usr/libexec/java_home ]; then JAVA_HOME=$(/usr/libexec/java_home -v 25); else JAVA_HOME=$(java -XshowSettings:properties -version 2>&1 | sed -n 's/ *java.home = //p'); fi; export JAVA_HOME; if [ ! -d target/classes ]; then mvn -q -Dcheckstyle.skip -DskipTests compile; fi && mvn -q -DskipTests dependency:copy-dependencies",
+  "JAVA_HOME=$(java -XshowSettings:properties -version 2>&1 | sed -n 's/ *java.home = //p'); test -x \"$JAVA_HOME/bin/java\" || exit 1; export JAVA_HOME; if [ ! -d target/classes ]; then mvn -q -Dcheckstyle.skip -DskipTests compile; fi && mvn -q -DskipTests dependency:copy-dependencies",
 ]
 
 [workspace.docs.snippets.sessions.csharp]
