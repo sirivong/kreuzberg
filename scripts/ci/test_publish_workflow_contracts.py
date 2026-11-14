@@ -1394,3 +1394,33 @@ if __name__ == "__main__":
     for name, test in list(globals().items()):
         if name.startswith("test_") and callable(test):
             test()
+
+
+def test_linux_cli_archives_pass_clean_installer_smoke_before_upload() -> None:
+    workflow = WORKFLOW.read_text()
+    for job, libc, image in (
+        ("cli-binaries", "gnu", "ubuntu:24.04"),
+        ("cli-binaries-musl", "musl", "debian:12-slim"),
+    ):
+        block = job_block(workflow, job)
+        for arch in ("x86_64", "aarch64"):
+            assert f"target: {arch}-unknown-linux-{libc}" in block
+        package = block.index('tar -czf "${STAGE}.tar.gz" "$STAGE"')
+        smoke = block.index("- name: Smoke test packaged Linux CLI in a clean container")
+        upload = block.index("uses: actions/upload-artifact@", package)
+        checkout = block.index("- name: Checkout Linux CLI installer verification tools")
+        assert package < checkout < smoke < upload
+        tools = block[checkout:smoke]
+        assert "ref: ${{ github.workflow_sha }}" in tools
+        assert "scripts/install.sh" in tools
+        assert "scripts/ci/smoke-test-cli-installer.sh" in tools
+        gate = block[smoke:upload]
+        assert "docker run --rm --network none" in gate
+        assert f" {image} " in gate
+        assert "/src/.cli-release-tools/scripts/ci/smoke-test-cli-installer.sh" in gate
+        assert f'"$VERSION" {libc}' in gate
+        assert "continue-on-error" not in gate
+        if libc == "gnu":
+            assert "if: endsWith(matrix.target, '-unknown-linux-gnu')" in gate
+        else:
+            assert "if:" not in gate

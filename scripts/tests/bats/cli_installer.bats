@@ -6,16 +6,18 @@ setup() {
 	REPOSITORY_ROOT="$(cd "$BATS_TEST_DIRNAME/../../.." && pwd -P)"
 	cd "$XBERG_WORK" || return
 	export XBERG_INSTALL="$XBERG_WORK/installed" XBERG_VERSION=1.4.0
+	unset XBERG_LINUX_LIBC
 	export CLI_SYSTEM=Linux CLI_ARCH=arm64 CLI_TARGET=aarch64-unknown-linux-musl
 	export CLI_ARCHIVE="$XBERG_WORK/cli.tar.gz"
-	unset CURL_STATUS NO_RELEASE
+	unset CURL_STATUS NO_RELEASE GNU_STATUS GNU_HTTP GNU_ARCHIVE
 	xberg_stub uname 'case "$1" in -s) printf "%s\n" "$CLI_SYSTEM" ;; -m) printf "%s\n" "$CLI_ARCH" ;; *) exit 97 ;; esac'
 	xberg_stub ldd 'printf "musl libc\n"'
 	xberg_stub curl \
 		'printf "%s\n" "$*" >>"$XBERG_TRACE"' \
 		'[ "${CURL_STATUS:-0}" = 0 ] || exit "$CURL_STATUS"' \
 		'case "$*" in *api.github.com*) if [ "${NO_RELEASE:-false}" = true ]; then printf "[]\n"; else printf "{\"tag_name\": \"v1.4.0\"}\n"; fi; exit 0 ;; esac' \
-		'while [ "$#" -gt 0 ]; do if [ "$1" = -o ]; then cp "$CLI_ARCHIVE" "$2"; exit; fi; shift; done' \
+		'archive="$CLI_ARCHIVE"; case "$*" in *-linux-gnu.tar.gz*) if [ -n "${GNU_STATUS:-}" ]; then printf "%s" "$GNU_HTTP"; exit "$GNU_STATUS"; fi; archive="${GNU_ARCHIVE:-$archive}" ;; esac' \
+		'while [ "$#" -gt 0 ]; do if [ "$1" = -o ]; then cp "$archive" "$2"; exit; fi; shift; done' \
 		'exit 91'
 }
 
@@ -46,7 +48,7 @@ make_cli_archive() {
 
 @test "CLI installer should resolve the latest release and normalize the macOS amd64 target" {
 	unset XBERG_VERSION
-	export CLI_SYSTEM=Darwin CLI_ARCH=amd64 CLI_TARGET=x86_64-apple-darwin
+	export CLI_SYSTEM=Darwin CLI_ARCH=amd64 CLI_TARGET=x86_64-apple-darwin XBERG_LINUX_LIBC=ignored
 	make_cli_archive
 	run bash "$REPOSITORY_ROOT/scripts/install.sh"
 	xberg_assert_status 0
@@ -54,6 +56,8 @@ make_cli_archive() {
 	grep -Fq 'releases/download/v1.4.0/xberg-cli-x86_64-apple-darwin.tar.gz' "$XBERG_TRACE"
 	[ "$(wc -l <"$XBERG_TRACE" | tr -d '[:space:]')" -eq 2 ]
 	cmp "source/xberg-cli-$CLI_TARGET/xberg" "$XBERG_INSTALL/xberg"
+	xberg_assert_file "$XBERG_INSTALL/libsupport.dylib" 'flat runtime bytes'
+	xberg_assert_file "$XBERG_INSTALL/lib/libheif/libheif.so" 'nested runtime bytes'
 }
 
 @test "CLI installer should reject unsupported operating systems before network access" {
@@ -111,4 +115,83 @@ make_cli_archive() {
 	xberg_assert_status 9
 	[ ! -e "$XBERG_INSTALL/xberg" ]
 	[[ "$output" != *'Installed xberg to'* ]]
+}
+
+@test "CLI installer should fall back to musl when the GNU asset returns HTTP 404" {
+	export CLI_ARCH=amd64 CLI_TARGET=x86_64-unknown-linux-musl GNU_STATUS=22 GNU_HTTP=404
+	xberg_stub ldd 'printf "GNU libc 2.36\n"'
+	make_cli_archive
+	run bash "$REPOSITORY_ROOT/scripts/install.sh"
+	xberg_assert_status 0
+	xberg_assert_output_contains 'Verified: xberg 1.4.0'
+	grep -Fq 'releases/download/v1.4.0/xberg-cli-x86_64-unknown-linux-musl.tar.gz' "$XBERG_TRACE"
+}
+
+@test "CLI installer should prefer compatible GNU and preserve its flat runtime siblings" {
+	export CLI_ARCH=amd64 CLI_TARGET=x86_64-unknown-linux-gnu
+	xberg_stub ldd 'printf "GNU libc 2.39\n"'
+	make_cli_archive
+	local stage="source/xberg-cli-$CLI_TARGET"
+	printf 'flat runtime bytes\n' >"$stage/libheif.so.1"
+	printf '#!/usr/bin/env bash\n[ -f "${0%%/*}/libheif.so.1" ] || exit 1\nprintf "xberg 1.4.0\\n"\n' >"$stage/xberg"
+	tar -czf "$CLI_ARCHIVE" -C source "xberg-cli-$CLI_TARGET"
+	run bash "$REPOSITORY_ROOT/scripts/install.sh"
+	xberg_assert_status 0
+	xberg_assert_file "$XBERG_INSTALL/libheif.so.1" 'flat runtime bytes'
+	xberg_assert_output_contains 'Verified: xberg 1.4.0'
+	grep -Fq 'releases/download/v1.4.0/xberg-cli-x86_64-unknown-linux-gnu.tar.gz' "$XBERG_TRACE"
+	[ "$(wc -l <"$XBERG_TRACE" | tr -d '[:space:]')" -eq 1 ]
+}
+
+@test "CLI installer should reject incompatible Linux archives before replacing an existing CLI" {
+	make_cli_archive
+	local stage="source/xberg-cli-$CLI_TARGET"
+	printf '#!/usr/bin/env bash\necho loader-error >&2\nexit 1\n' >"$stage/xberg"
+	tar -czf "$CLI_ARCHIVE" -C source "xberg-cli-$CLI_TARGET"
+	mkdir -p "$XBERG_INSTALL"
+	printf 'existing executable\n' >"$XBERG_INSTALL/xberg"
+	run bash "$REPOSITORY_ROOT/scripts/install.sh"
+	xberg_assert_status 1
+	xberg_assert_output_contains 'loader-error'
+	xberg_assert_file "$XBERG_INSTALL/xberg" 'existing executable'
+}
+
+
+@test "CLI installer should fall back when the GNU executable cannot start" {
+	export CLI_ARCH=amd64 CLI_TARGET=x86_64-unknown-linux-musl
+	xberg_stub ldd 'printf "GNU libc 2.36\n"'
+	make_cli_archive
+	local stage="source/xberg-cli-x86_64-unknown-linux-gnu"
+	mkdir -p "$stage"
+	printf '#!/usr/bin/env bash\necho GLIBC_2.38-not-found >&2\nexit 1\n' >"$stage/xberg"
+	export GNU_ARCHIVE="$XBERG_WORK/gnu.tar.gz"
+	tar -czf "$GNU_ARCHIVE" -C source "xberg-cli-x86_64-unknown-linux-gnu"
+	run bash "$REPOSITORY_ROOT/scripts/install.sh"
+	xberg_assert_status 0
+	xberg_assert_output_contains 'GLIBC_2.38-not-found'
+	xberg_assert_output_contains 'Verified: xberg 1.4.0'
+	[ "$(wc -l <"$XBERG_TRACE" | tr -d '[:space:]')" -eq 2 ]
+}
+
+@test "CLI installer should not fall back on server or transport errors" {
+	export CLI_ARCH=amd64 CLI_TARGET=x86_64-unknown-linux-musl
+	xberg_stub ldd 'printf "GNU libc 2.36\n"'
+	make_cli_archive
+	for failure in '22 503' '28 000'; do
+		read -r GNU_STATUS GNU_HTTP <<<"$failure"
+		export GNU_STATUS GNU_HTTP
+		: >"$XBERG_TRACE"
+		run bash "$REPOSITORY_ROOT/scripts/install.sh"
+		xberg_assert_status "$GNU_STATUS"
+		[ "$(wc -l <"$XBERG_TRACE" | tr -d '[:space:]')" -eq 1 ]
+		[ ! -e "$XBERG_INSTALL/xberg" ]
+	done
+}
+
+@test "CLI installer should not fall back for an explicit GNU selection" {
+	export CLI_ARCH=amd64 XBERG_LINUX_LIBC=gnu GNU_STATUS=22 GNU_HTTP=404
+	run bash "$REPOSITORY_ROOT/scripts/install.sh"
+	xberg_assert_status 22
+	[ "$(wc -l <"$XBERG_TRACE" | tr -d '[:space:]')" -eq 1 ]
+	[ ! -e "$XBERG_INSTALL/xberg" ]
 }

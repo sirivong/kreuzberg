@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-#   XBERG_VERSION  - Specific version to install (default: latest)
+#   XBERG_VERSION    - Specific version to install (default: latest)
+#   XBERG_LINUX_LIBC - Linux archive variant: musl or gnu (default: auto)
 
 set -euo pipefail
 
@@ -41,25 +42,25 @@ detect_arch() {
 
 detect_libc() {
   if [ -e /lib/ld-musl-x86_64.so.1 ] || [ -e /lib/ld-musl-aarch64.so.1 ]; then
-    echo "musl"
-  elif ldd --version 2>&1 | grep -qi musl; then
-    echo "musl"
+    echo musl
   else
-    echo "gnu"
+    local version
+    version="$(ldd --version 2>&1 || true)"
+    case "$version" in *musl*) echo musl ;; *) echo gnu ;; esac
   fi
 }
 
 detect_target() {
-  local os arch
-  os="$(detect_os)"
-  arch="$(detect_arch)"
-
-  case "${os}-${arch}" in
-  linux-x86_64) echo "x86_64-unknown-linux-$(detect_libc)" ;;
-  linux-aarch64) echo "aarch64-unknown-linux-$(detect_libc)" ;;
-  darwin-x86_64) echo "x86_64-apple-darwin" ;;
-  darwin-aarch64) echo "aarch64-apple-darwin" ;;
-  *) error "unsupported platform: ${os}-${arch}" ;;
+  local os="$1" arch="$2" libc
+  case "$os" in
+  linux)
+    libc="${XBERG_LINUX_LIBC:-$(detect_libc)}"
+    case "$libc" in
+    musl | gnu) echo "${arch}-unknown-linux-${libc}" ;;
+    *) error "XBERG_LINUX_LIBC must be musl or gnu" ;;
+    esac
+    ;;
+  darwin) echo "${arch}-apple-darwin" ;;
   esac
 }
 
@@ -84,7 +85,7 @@ install() {
 
   os="$(detect_os)"
   arch="$(detect_arch)"
-  target="$(detect_target)"
+  target="$(detect_target "$os" "$arch")"
 
   if [ -n "${XBERG_VERSION:-}" ]; then
     version="${XBERG_VERSION}"
@@ -109,26 +110,52 @@ install() {
 
   mkdir -p "$install_dir"
 
-  local artifact="xberg-cli-${target}.tar.gz"
-  local url="https://github.com/${REPO}/releases/download/${version}/${artifact}"
-
-  info "Downloading ${url}"
-
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "$tmpdir"' EXIT
 
-  curl -fsSL "$url" -o "${tmpdir}/${artifact}"
+  local stage_dir binary_path version_output artifact url http_status status
+  while :; do
+    artifact="xberg-cli-${target}.tar.gz"
+    url="https://github.com/${REPO}/releases/download/${version}/${artifact}"
+    info "Downloading ${url}"
+    if http_status="$(curl -fsSL -w '%{http_code}' "$url" -o "${tmpdir}/${artifact}")"; then
+      tar -xzf "${tmpdir}/${artifact}" -C "$tmpdir"
+      stage_dir="${tmpdir}/xberg-cli-${target}"
+      binary_path="${stage_dir}/${BINARY_NAME}"
+      [ -f "$binary_path" ] || error "binary not found in archive at ${binary_path}"
+      if [ "$os" != linux ]; then
+        break
+      fi
+      chmod +x "$binary_path"
+      if [ -f "${stage_dir}/${BINARY_NAME}.bin" ]; then
+        chmod +x "${stage_dir}/${BINARY_NAME}.bin"
+      fi
+      if version_output="$("$binary_path" --version 2>&1)"; then
+        break
+      fi
+      if [ -n "${XBERG_LINUX_LIBC:-}" ] || [[ "$target" != *-linux-gnu ]]; then
+        error "archive for ${target} cannot run on this host: ${version_output}"
+      fi
+      warn "Archive for ${target} cannot run on this host: ${version_output}"
+    else
+      status=$?
+      if [ "$status" != 22 ] || [ "$http_status" != 404 ] ||
+        [ -n "${XBERG_LINUX_LIBC:-}" ] || [[ "$target" != *-linux-gnu ]]; then
+        exit "$status"
+      fi
+      warn "Archive for ${target} is unavailable (HTTP 404)"
+    fi
+    target="${arch}-unknown-linux-musl"
+    info "Trying ${target}"
+  done
 
-  tar -xzf "${tmpdir}/${artifact}" -C "$tmpdir"
-
-  local stage_dir="${tmpdir}/xberg-cli-${target}"
-  local binary_path="${stage_dir}/${BINARY_NAME}"
-  if [ ! -f "$binary_path" ]; then
-    error "binary not found in archive at ${binary_path}"
+  if [ "$os" = linux ]; then
+    local library
+    for library in "${stage_dir}"/*.so "${stage_dir}"/*.so.*; do
+      [ -f "$library" ] || continue
+      cp "$library" "$install_dir/"
+    done
   fi
-
-  cp "$binary_path" "${install_dir}/${BINARY_NAME}"
-  chmod +x "${install_dir}/${BINARY_NAME}"
 
   if [ -f "${stage_dir}/${BINARY_NAME}.bin" ]; then
     cp "${stage_dir}/${BINARY_NAME}.bin" "${install_dir}/${BINARY_NAME}.bin"
@@ -148,11 +175,16 @@ install() {
     info "Installed runtime library $(basename "$dylib") to ${install_dir}/"
   done
 
-  info "Installed ${BINARY_NAME} to ${install_dir}/${BINARY_NAME}"
+  cp "$binary_path" "${install_dir}/${BINARY_NAME}"
+  chmod +x "${install_dir}/${BINARY_NAME}"
 
-  if "${install_dir}/${BINARY_NAME}" --version >/dev/null 2>&1; then
-    info "Verified: $("${install_dir}/${BINARY_NAME}" --version)"
+  if version_output="$("${install_dir}/${BINARY_NAME}" --version 2>&1)"; then
+    info "Installed ${BINARY_NAME} to ${install_dir}/${BINARY_NAME}"
+    info "Verified: ${version_output}"
+  elif [ "$os" = linux ]; then
+    error "installed CLI failed verification: ${version_output}"
   else
+    info "Installed ${BINARY_NAME} to ${install_dir}/${BINARY_NAME}"
     warn "Binary installed but --version check failed"
   fi
 

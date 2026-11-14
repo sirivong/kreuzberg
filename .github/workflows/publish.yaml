@@ -1930,6 +1930,33 @@ jobs:
             tar -czf "${STAGE}.tar.gz" "$STAGE"
           fi
 
+      - name: Checkout Linux CLI installer verification tools
+        if: endsWith(matrix.target, '-unknown-linux-gnu')
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .cli-release-tools
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/install.sh
+            scripts/ci/smoke-test-cli-installer.sh
+            scripts/ci/fixtures/musl-python-smoke.pdf
+            crates/xberg/tests/fixtures/office/merged_cells.docx
+
+      - name: Smoke test packaged Linux CLI in a clean container
+        if: endsWith(matrix.target, '-unknown-linux-gnu')
+        env:
+          TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n '/^\[workspace.package\]$/,/^\[/s/^version = "\([^"]*\)".*/\1/p' Cargo.toml)"
+          test -n "$VERSION"
+          docker pull ubuntu:24.04
+          docker run --rm --network none -v "$PWD:/src:ro" ubuntu:24.04 \
+            bash /src/.cli-release-tools/scripts/ci/smoke-test-cli-installer.sh "/src/xberg-cli-${TARGET}.tar.gz" "$VERSION" gnu
+
       - uses: actions/upload-artifact@v7
         with:
           name: cli-${{ matrix.target }}
@@ -1989,6 +2016,31 @@ jobs:
           cp -a build-output/lib/. "$STAGE/lib/"
           chmod +x "$STAGE/xberg"
           tar -czf "${STAGE}.tar.gz" "$STAGE"
+
+      - name: Checkout Linux CLI installer verification tools
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.workflow_sha }}
+          path: .cli-release-tools
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/install.sh
+            scripts/ci/smoke-test-cli-installer.sh
+            scripts/ci/fixtures/musl-python-smoke.pdf
+            crates/xberg/tests/fixtures/office/merged_cells.docx
+
+      - name: Smoke test packaged Linux CLI in a clean container
+        env:
+          TARGET: ${{ matrix.target }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(sed -n '/^\[workspace.package\]$/,/^\[/s/^version = "\([^"]*\)".*/\1/p' Cargo.toml)"
+          test -n "$VERSION"
+          docker pull debian:12-slim
+          docker run --rm --network none -v "$PWD:/src:ro" debian:12-slim \
+            bash /src/.cli-release-tools/scripts/ci/smoke-test-cli-installer.sh "/src/xberg-cli-${TARGET}.tar.gz" "$VERSION" musl
 
       - uses: actions/upload-artifact@v7
         with:
