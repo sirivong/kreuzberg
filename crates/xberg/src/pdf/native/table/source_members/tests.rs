@@ -470,3 +470,39 @@ fn recovered_line_certifies_complete_split_words_and_rejects_changed_boundaries(
     tagged[0].assigned_role = Some(2);
     assert!(projected(tagged).is_empty());
 }
+
+#[test]
+fn redistributed_spans_require_unique_complete_source_and_table_ownership() {
+    let (mut segments, mut source, table) = fixture();
+    source.members.clear();
+    let currency = glyph("¥", 445.0, 640.0, 2.0);
+    let value = glyph("10.83 ", 447.0, 640.0, 8.0);
+    let keys = [SegmentKey::from(&currency), SegmentKey::from(&value)];
+    source.redistributed.push(keys.to_vec());
+    segments.extend([currency, value]);
+    let projected = |segments, sources: &[&TableSources], tables: &[Table]| {
+        project(&[segments], sources, tables)
+            .into_values()
+            .flat_map(|runs| runs.redistributed)
+            .collect::<AHashSet<_>>()
+    };
+    assert_eq!(
+        projected(segments.clone(), &[&source], std::slice::from_ref(&table)),
+        keys.into_iter().collect()
+    );
+
+    let mut partial = segments.clone();
+    partial.pop();
+    assert!(projected(partial, &[&source], std::slice::from_ref(&table)).is_empty());
+
+    let mut respaced = segments.clone();
+    respaced.last_mut().unwrap().text = "10.83".into();
+    assert!(projected(respaced, &[&source], std::slice::from_ref(&table)).is_empty());
+
+    let (_, mut other, mut competing) = fixture();
+    competing.markdown.push(' ');
+    other.markdown.clone_from(&competing.markdown);
+    other.members.clear();
+    other.redistributed.clone_from(&source.redistributed);
+    assert!(projected(segments, &[&source, &other], &[table, competing]).is_empty());
+}

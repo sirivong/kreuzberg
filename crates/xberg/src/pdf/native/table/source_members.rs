@@ -289,6 +289,15 @@ fn paint_overhang(
 }
 
 fn redistributed_keys(original: &TextSpan, source: &[TextSpan]) -> Option<Vec<SegmentKey>> {
+    if let Some(exact) = source.iter().find(|span| {
+        span.sequence == original.sequence
+            && span.bbox == original.bbox
+            && span.text == original.text
+            && span.mcid == original.mcid
+            && span.mcid_scope == original.mcid_scope
+    }) {
+        return Some(vec![redistributed_key(exact)]);
+    }
     let mut spans: Vec<_> = source
         .iter()
         .filter(|span| {
@@ -308,27 +317,24 @@ fn redistributed_keys(original: &TextSpan, source: &[TextSpan]) -> Option<Vec<Se
     {
         return None;
     }
-    Some(
-        spans
-            .into_iter()
-            .map(|span| {
-                SegmentKey::from(&SegmentData {
-                    text: span.text.clone(),
-                    x: span.bbox.x,
-                    y: span.bbox.y,
-                    width: span.bbox.width,
-                    height: span.bbox.height,
-                    font_size: span.font_size,
-                    is_bold: span.font_weight == xberg_native_pdf::layout::FontWeight::Bold,
-                    is_italic: span.is_italic,
-                    is_monospace: span.is_monospace,
-                    baseline_y: span.bbox.y,
-                    rotation_degrees: span.rotation_degrees,
-                    assigned_role: None,
-                })
-            })
-            .collect(),
-    )
+    Some(spans.into_iter().map(redistributed_key).collect())
+}
+
+fn redistributed_key(span: &TextSpan) -> SegmentKey {
+    SegmentKey::from(&SegmentData {
+        text: span.text.clone(),
+        x: span.bbox.x,
+        y: span.bbox.y,
+        width: span.bbox.width,
+        height: span.bbox.height,
+        font_size: span.font_size,
+        is_bold: span.font_weight == xberg_native_pdf::layout::FontWeight::Bold,
+        is_italic: span.is_italic,
+        is_monospace: span.is_monospace,
+        baseline_y: span.bbox.y,
+        rotation_degrees: span.rotation_degrees,
+        assigned_role: None,
+    })
 }
 
 #[cfg(test)]
@@ -337,7 +343,7 @@ pub(super) fn capture(
     table: &Table,
     ownership: Option<&PaintedCellOwnership>,
 ) -> Option<TableSources> {
-    capture_with_redistributed_spans(native, table, ownership, &[], &Default::default())
+    capture_with_redistributed_spans(native, table, ownership, &[], &Default::default(), &[])
 }
 
 pub(super) fn capture_with_redistributed_spans(
@@ -346,10 +352,18 @@ pub(super) fn capture_with_redistributed_spans(
     ownership: Option<&PaintedCellOwnership>,
     repaired: &[TextSpan],
     source: &super::scripts::PageSpans,
+    recovered: &[Vec<TextSpan>],
 ) -> Option<TableSources> {
     let redistributed: Vec<_> = repaired
         .iter()
         .filter_map(|span| redistributed_keys(span, &source.spans))
+        .chain(recovered.iter().filter_map(|group| {
+            group
+                .iter()
+                .map(|span| redistributed_keys(span, &source.spans))
+                .collect::<Option<Vec<_>>>()
+                .map(|keys| keys.into_iter().flatten().collect())
+        }))
         .collect();
     let text_bytes = table_text_size(table)?;
     let identity_work = text_bytes + table.cells.len() + table.cells.iter().map(Vec::len).sum::<usize>();

@@ -285,6 +285,16 @@ fn append_page_tables(
                     .as_slice(),
             )
         });
+        let recovered_sources = restore_open_year_columns(&mut extracted_table, &source_spans.spans, || {
+            (
+                source_chars
+                    .get_or_init(|| doc.doc.extract_chars(page_idx).unwrap_or_default())
+                    .as_slice(),
+                source_paths
+                    .get_or_init(|| doc.doc.extract_paths(page_idx).unwrap_or_default())
+                    .as_slice(),
+            )
+        });
         let (cells, markdown, grid) = convert_extracted_table(&extracted_table);
         if markdown.trim().is_empty() || cells.len() < 2 || cells.iter().all(|row| row.len() < 2) {
             continue;
@@ -313,6 +323,7 @@ fn append_page_tables(
                         ownership,
                         &repaired,
                         &source_spans,
+                        &recovered_sources,
                     )
                 })
                 .flatten(),
@@ -320,6 +331,235 @@ fn append_page_tables(
             grid,
         });
     }
+}
+
+fn restore_open_year_columns<'a>(
+    table: &mut xberg_native_pdf::structure::table_extractor::Table,
+    spans: &[xberg_native_pdf::layout::TextSpan],
+    source: impl FnOnce() -> (
+        &'a [xberg_native_pdf::layout::TextChar],
+        &'a [xberg_native_pdf::elements::PathContent],
+    ),
+) -> Vec<Vec<xberg_native_pdf::layout::TextSpan>> {
+    let Some(bounds) = table.bbox else { return Vec::new() };
+    let Some(header) = table.rows.first() else {
+        return Vec::new();
+    };
+    let [first, second, third] = header.cells.as_slice() else {
+        return Vec::new();
+    };
+    let year = |cell| {
+        cell_text_in_reading_order(cell)
+            .strip_prefix("CY ")?
+            .parse::<u16>()
+            .ok()
+    };
+    let (Some(first_year), Some(second_year), Some(third_year)) = (year(first), year(second), year(third)) else {
+        return Vec::new();
+    };
+    if first_year.checked_add(1) != Some(second_year) || second_year.checked_add(1) != Some(third_year) {
+        return Vec::new();
+    }
+    let Some(next_year) = third_year.checked_add(1) else {
+        return Vec::new();
+    };
+    let (Some(left), Some(right)) = (first.bbox, third.bbox) else {
+        return Vec::new();
+    };
+    let inner_left = left.x;
+    let inner_right = right.right();
+    let outer_right = inner_right + right.width;
+    let (glyphs, rules) = source();
+    let Some(outer_left) = year_header_left_edge(rules, left, inner_right) else {
+        return Vec::new();
+    };
+    let Some(columns) = table
+        .rows
+        .iter()
+        .map(|row| open_year_row(row, spans, glyphs, [outer_left, inner_left, inner_right, outer_right]))
+        .collect::<Option<Vec<_>>>()
+    else {
+        return Vec::new();
+    };
+    if columns.len() < 3 || cell_text_in_reading_order(&columns[0].1) != format!("CY {next_year}") {
+        return Vec::new();
+    }
+    let mut sources = Vec::new();
+    for (row, (label, value, original)) in table.rows.iter_mut().zip(columns) {
+        sources.push(original);
+        row.cells.insert(0, label);
+        row.cells.push(value);
+    }
+    table.col_count += 2;
+    table.bbox = Some(xberg_native_pdf::geometry::Rect::new(
+        outer_left,
+        bounds.y,
+        outer_right - outer_left,
+        bounds.height,
+    ));
+    sources
+}
+
+fn year_header_left_edge(
+    paths: &[xberg_native_pdf::elements::PathContent],
+    header: xberg_native_pdf::geometry::Rect,
+    inner_right: f32,
+) -> Option<f32> {
+    let rule_at = |y: f32| {
+        let mut matching = paths.iter().filter(|path| {
+            let bbox = path.rendered_bbox();
+            path.stroke_color.is_some()
+                && path.is_horizontal_line(DECIMAL_ROW_TOLERANCE)
+                && (bbox.center().y - y).abs() <= DECIMAL_ROW_TOLERANCE
+                && bbox.x < header.x
+                && bbox.right() > inner_right
+        });
+        let edge = matching.next()?.rendered_bbox();
+        matching.next().is_none().then_some(edge)
+    };
+    let bottom = rule_at(header.y)?;
+    let top = rule_at(header.y + header.height)?;
+    ((bottom.x - top.x).abs() <= DECIMAL_ROW_TOLERANCE && (bottom.right() - top.right()).abs() <= DECIMAL_ROW_TOLERANCE)
+        .then_some(top.x)
+}
+
+fn open_year_row(
+    row: &xberg_native_pdf::structure::table_extractor::TableRow,
+    spans: &[xberg_native_pdf::layout::TextSpan],
+    glyphs: &[xberg_native_pdf::layout::TextChar],
+    [outer_left, inner_left, inner_right, outer_right]: [f32; 4],
+) -> Option<(
+    xberg_native_pdf::structure::table_extractor::TableCell,
+    xberg_native_pdf::structure::table_extractor::TableCell,
+    Vec<xberg_native_pdf::layout::TextSpan>,
+)> {
+    use xberg_native_pdf::{geometry::Rect, layout::TextSpan, structure::table_extractor::TableCell};
+    let [first, second, third] = row.cells.as_slice() else {
+        return None;
+    };
+    if row.cells.iter().any(|cell| cell.rowspan != 1 || cell.colspan != 1) {
+        return None;
+    }
+    let band = first.bbox?;
+    let baseline = first.spans.first()?.bbox.y;
+    if [second, third].iter().any(|cell| {
+        cell.spans
+            .first()
+            .is_none_or(|span| (span.bbox.y - baseline).abs() > DECIMAL_ROW_TOLERANCE)
+    }) {
+        return None;
+    }
+    let label_spans = spans
+        .iter()
+        .filter(|span| {
+            span.rotation_degrees == 0.0
+                && span.bbox.x >= outer_left
+                && span.bbox.right() <= inner_left
+                && span.bbox.y >= baseline - DECIMAL_ROW_TOLERANCE
+                && span.bbox.y <= baseline + DECIMAL_ROW_TOLERANCE
+        })
+        .cloned()
+        .collect::<Vec<_>>();
+    let on_baseline =
+        |span: &&TextSpan| span.rotation_degrees == 0.0 && (span.bbox.y - baseline).abs() <= DECIMAL_ROW_TOLERANCE;
+    let mut values: Vec<_> = spans
+        .iter()
+        .filter(on_baseline)
+        .filter(|span| span.bbox.x >= inner_right && span.bbox.right() <= outer_right)
+        .cloned()
+        .collect();
+    values.sort_by(|a, b| a.bbox.x.total_cmp(&b.bbox.x));
+    let mut originals = values.clone();
+    if values.is_empty() {
+        let expected = [first, second, third].map(cell_text_in_reading_order);
+        let mut recovered = spans.iter().filter(on_baseline).filter_map(|span| {
+            let words: Vec<_> = span.text.split_whitespace().collect();
+            let (&value, preceding) = words.split_last()?;
+            if words.len() < 2
+                || words.len() > 4
+                || span.bbox.x < band.x
+                || span.bbox.x >= inner_right
+                || span.bbox.right() <= inner_right
+                || expected
+                    .iter()
+                    .rev()
+                    .zip(preceding.iter().rev())
+                    .any(|(cell, word)| cell.trim_start_matches(['¥', '$']) != *word)
+            {
+                return None;
+            }
+            let recovered = bounded_year_value(span, value, glyphs, inner_right, outer_right)?;
+            Some((recovered, span.clone()))
+        });
+        let (value, original) = recovered.next()?;
+        values.push(value);
+        originals.push(original);
+        if recovered.next().is_some() {
+            return None;
+        }
+    }
+    if !row.is_header {
+        let text: String = values.iter().map(|span| span.text.trim()).collect();
+        if !is_numeric_word(&text) || values.len() > 2 {
+            return None;
+        }
+        if values.len() == 2 {
+            if values[0].text.trim() != "¥" && values[0].text.trim() != "$" {
+                return None;
+            }
+            let mut sign = values.remove(0);
+            let number = values.remove(0);
+            sign.text.push_str(number.text.trim());
+            sign.bbox.width = number.bbox.right() - sign.bbox.x;
+            sign.char_widths.clear();
+            sign.char_x_offsets.clear();
+            values.push(sign);
+        }
+    }
+    let cell = |spans: Vec<TextSpan>, left, right| TableCell {
+        text: spans.iter().map(|span| span.text.trim()).collect::<Vec<_>>().join(" "),
+        mcids: spans.iter().filter_map(|span| span.mcid).collect(),
+        spans,
+        rowspan: 1,
+        colspan: 1,
+        bbox: Some(Rect::new(left, band.y, right - left, band.height)),
+        is_header: row.is_header,
+    };
+    Some((
+        cell(label_spans, outer_left, inner_left),
+        cell(values, inner_right, outer_right),
+        originals,
+    ))
+}
+
+fn bounded_year_value(
+    span: &xberg_native_pdf::layout::TextSpan,
+    value: &str,
+    glyphs: &[xberg_native_pdf::layout::TextChar],
+    left: f32,
+    right: f32,
+) -> Option<xberg_native_pdf::layout::TextSpan> {
+    let mut glyphs: Vec<_> = glyphs
+        .iter()
+        .filter(|glyph| {
+            glyph.rotation_degrees == 0.0
+                && glyph.mcid == span.mcid
+                && (glyph.origin_y - span.bbox.y).abs() <= DECIMAL_ROW_TOLERANCE
+                && glyph.origin_x >= left
+                && glyph.origin_x < right
+                && !glyph.char.is_whitespace()
+        })
+        .collect();
+    glyphs.sort_by(|a, b| a.origin_x.total_cmp(&b.origin_x));
+    if glyphs.windows(2).any(|pair| pair[0].origin_x >= pair[1].origin_x)
+        || glyphs
+            .iter()
+            .any(|glyph| glyph.bbox.x < left || glyph.bbox.right() > right)
+        || glyphs.iter().map(|glyph| glyph.char).collect::<String>() != value
+    {
+        return None;
+    }
+    decimal_cell_span(span, &glyphs)
 }
 
 fn is_unsigned_decimal(text: &str) -> bool {
@@ -2582,6 +2822,37 @@ mod header_metadata_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recovered_year_token_requires_glyphs_inside_the_column() {
+        use xberg_native_pdf::{
+            geometry::Rect,
+            layout::{TextChar, TextSpan},
+        };
+        let source = TextSpan {
+            text: "4.56 5.00".into(),
+            bbox: Rect::new(1.0, 2.0, 30.0, 8.0),
+            ..Default::default()
+        };
+        let mut glyphs: Vec<_> = "5.00"
+            .chars()
+            .enumerate()
+            .map(|(index, char)| {
+                let x = 12.0 + index as f32;
+                TextChar {
+                    char,
+                    origin_x: x,
+                    origin_y: 2.0,
+                    bbox: Rect::new(x, 2.0, 1.0, 8.0),
+                    ..Default::default()
+                }
+            })
+            .collect();
+        let value = bounded_year_value(&source, "5.00", &glyphs, 10.0, 16.0).unwrap();
+        assert_eq!(value.bbox, Rect::new(12.0, 2.0, 4.0, 8.0));
+        glyphs[3].bbox.width = 2.0;
+        assert!(bounded_year_value(&source, "5.00", &glyphs, 10.0, 16.0).is_none());
+    }
 
     #[test]
     fn ruled_decimal_repair_rejects_identical_text_on_unrelated_baselines() {
