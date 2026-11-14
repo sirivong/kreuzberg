@@ -295,14 +295,24 @@ fn has_adjacent_numeric_source(base: &TextSpan, script: &TextSpan, occupied_sequ
     );
     let simple_base = numeric_base || (base.text.len() == 1 && base.text.as_bytes()[0].is_ascii_alphabetic());
     let bracket_base = base.text.ends_with([')', ']']) && is_numeric_span(&script.text);
-    numeric_suffix
-        && (simple_base || bracket_base)
-        && (has_adjacent_source(base, script)
-            // A separately positioned numeric suffix can start at the next text object. ~keep
-            || (simple_base
-                && base.sequence.checked_add(2) == Some(script.sequence)
-                && !occupied_sequences.contains(&(script.sequence - 1))
-                && has_matching_source_evidence(base, script)))
+    let empty_source_gap =
+        base.sequence.checked_add(2) == Some(script.sequence) && !occupied_sequences.contains(&(script.sequence - 1));
+    let ordinary = (simple_base || bracket_base) && has_adjacent_source(base, script)
+        // A separately positioned numeric suffix can start at the next text object. ~keep
+        || simple_base && empty_source_gap && has_matching_source_evidence(base, script);
+    numeric_suffix && (ordinary || empty_source_gap && has_indented_variable_source(base, script))
+}
+
+fn has_indented_variable_source(base: &TextSpan, script: &TextSpan) -> bool {
+    let [b' ', variable] = base.text.as_bytes() else {
+        return false;
+    };
+    // A leading positioning space changes the left edge of this span while its right edge
+    // still belongs to the single mapped variable. Require an unsigned exponent. ~keep
+    variable.is_ascii_alphabetic()
+        && base.offset_semantic
+        && is_numeric_span(&script.text)
+        && has_matching_source_evidence_with_leading_offset(base, script, true)
 }
 
 fn has_adjacent_ordinal_source(base: &TextSpan, suffix: &TextSpan) -> bool {
@@ -329,13 +339,22 @@ fn has_adjacent_source(left: &TextSpan, right: &TextSpan) -> bool {
 }
 
 fn has_matching_source_evidence(left: &TextSpan, right: &TextSpan) -> bool {
+    has_matching_source_evidence_with_leading_offset(left, right, false)
+}
+
+fn has_matching_source_evidence_with_leading_offset(
+    left: &TextSpan,
+    right: &TextSpan,
+    allow_left_offset: bool,
+) -> bool {
     left.mcid_scope.is_some()
         && left.mcid_scope == right.mcid_scope
         && left.mcid == right.mcid
+        && (allow_left_offset || !left.offset_semantic)
+        && !right.offset_semantic
         && [left, right].into_iter().all(|span| {
             span.provenance == Some(MappingProvenance::ToUnicode)
                 && !span.split_boundary_before
-                && !span.offset_semantic
                 // Span splitting can synthesize offsets. Do not use those to admit overlap. ~keep
                 && span.char_x_offsets.is_empty()
         })

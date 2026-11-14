@@ -42,6 +42,29 @@ fn should_attach_a_numeric_suffix_with_only_glyph_edge_overhang() {
 }
 
 #[test]
+fn should_attach_an_unsigned_exponent_to_an_indented_variable_across_an_empty_source_gap() {
+    let mut base = span(" c", 100.0, 700.0, 20.0, 12.0);
+    base.offset_semantic = true;
+    base.sequence = 30;
+    base.provenance = Some(MappingProvenance::ToUnicode);
+    let mut script = span("2", 119.997, 704.34, 4.0, 8.0);
+    script.sequence = 32;
+    script.provenance = base.provenance;
+    assert_eq!(page(vec![base.clone(), script.clone()]).owners.len(), 1);
+
+    for unsupported in ["  c", " ac", " 9", "c "] {
+        let mut other = base.clone();
+        other.text = unsupported.into();
+        assert!(page(vec![other, script.clone()]).owners.is_empty(), "{unsupported}");
+    }
+    let mut intervening = span("unrelated", 300.0, 600.0, 40.0, 12.0);
+    intervening.sequence = 31;
+    assert!(page(vec![base.clone(), intervening, script.clone()]).owners.is_empty());
+    script.text = "−2".into();
+    assert!(page(vec![base, script]).owners.is_empty());
+}
+
+#[test]
 fn should_reject_a_numeric_suffix_when_the_source_gap_contains_a_span() {
     let mut base = span("R", 100.0, 700.0, 20.0, 12.0);
     base.sequence = 30;
