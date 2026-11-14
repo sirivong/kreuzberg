@@ -208,7 +208,7 @@ fn page(
     let mut work = Work::default();
     let index = SourceIndex::new(segments, &mut work)?;
     let mut owned = AHashMap::<usize, CertifiedRuns>::new();
-    let mut all_keys = AHashSet::new();
+    let mut ordinary_owners = AHashMap::new();
     let mut redistributed_owners = AHashMap::new();
     let mut redistributed_groups = Vec::new();
     for source in sources {
@@ -231,7 +231,11 @@ fn page(
         )?;
         for runs in &source.members {
             if let Some(groups) = cell(&index, runs, bounds, &mut work)? {
-                if !groups.iter().flatten().all(|key| all_keys.insert(key.clone())) {
+                if !groups
+                    .iter()
+                    .flatten()
+                    .all(|key| ordinary_owners.insert(key.clone(), owner).is_none())
+                {
                     return None;
                 }
                 owned.entry(owner).or_default().contained.extend(groups);
@@ -242,7 +246,10 @@ fn page(
             if within_table(line, bounds)
                 && let Some(keys) = index.run(line, &mut work, true)?
             {
-                if !keys.iter().all(|key| all_keys.insert(key.clone())) {
+                if !keys
+                    .iter()
+                    .all(|key| ordinary_owners.insert(key.clone(), owner).is_none())
+                {
                     return None;
                 }
                 owned.entry(owner).or_default().recovered_lines.extend(keys);
@@ -256,7 +263,10 @@ fn page(
             if within_table(run, bounds)
                 && let Some(keys) = index.run(run, &mut work, false)?
             {
-                if !keys.iter().all(|key| all_keys.insert(key.clone())) {
+                if !keys
+                    .iter()
+                    .all(|key| ordinary_owners.insert(key.clone(), owner).is_none())
+                {
                     return None;
                 }
                 owned.entry(owner).or_default().painted_overhangs.push(keys);
@@ -264,10 +274,10 @@ fn page(
         }
     }
     for (owner, keys) in redistributed_groups {
-        if keys
-            .iter()
-            .all(|key| redistributed_owners.get(key) == Some(&Some(owner)))
-        {
+        if keys.iter().all(|key| {
+            redistributed_owners.get(key) == Some(&Some(owner))
+                && ordinary_owners.get(key).is_none_or(|&ordinary| ordinary == owner)
+        }) {
             owned.entry(owner).or_default().redistributed.extend(keys);
         }
     }

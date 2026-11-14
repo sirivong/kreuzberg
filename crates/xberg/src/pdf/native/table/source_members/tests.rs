@@ -506,3 +506,40 @@ fn redistributed_spans_require_unique_complete_source_and_table_ownership() {
     other.redistributed.clone_from(&source.redistributed);
     assert!(projected(segments, &[&source, &other], &[table, competing]).is_empty());
 }
+
+#[test]
+fn ordinary_table_claims_conflict_with_redistribution_only_across_owners() {
+    let (segments, ordinary, table) = fixture();
+    let ordinary_keys = owned(segments.clone(), &ordinary, table.clone());
+    let shared = SegmentKey::from(&segments[3]);
+    let other = SegmentKey::from(&segments[0]);
+    assert!(ordinary_keys.contains(&shared));
+    assert!(!ordinary_keys.contains(&other));
+    let group = vec![shared, other];
+
+    let (_, mut redistributing, mut competing) = fixture();
+    competing.markdown.push(' ');
+    redistributing.markdown.clone_from(&competing.markdown);
+    redistributing.members.clear();
+    redistributing.redistributed.push(group.clone());
+    let projected = project(
+        &[segments.clone()],
+        &[&redistributing, &ordinary],
+        &[competing, table.clone()],
+    );
+    assert!(projected.get(&0).is_none_or(|runs| runs.redistributed.is_empty()));
+    assert_eq!(
+        projected[&1]
+            .contained
+            .iter()
+            .flatten()
+            .cloned()
+            .collect::<AHashSet<_>>(),
+        ordinary_keys
+    );
+
+    let (_, mut same_owner, _) = fixture();
+    same_owner.redistributed.push(group.clone());
+    let projected = project(&[segments], &[&same_owner], &[table]);
+    assert_eq!(projected[&0].redistributed, group);
+}
