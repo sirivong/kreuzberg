@@ -4111,14 +4111,10 @@ fn build_image_internal_document(
 /// Plain keeps the element's line breaks (#2503).
 #[cfg(all(feature = "ocr", not(target_arch = "wasm32")))]
 fn mark_leader_rows(doc: &mut InternalDocument) {
-    use crate::types::internal::{ElementKind, MARKDOWN_ROW_LINES_ATTRIBUTE};
+    use crate::types::internal::MARKDOWN_ROW_LINES_ATTRIBUTE;
 
-    for element in doc
-        .elements
-        .iter_mut()
-        .filter(|element| element.kind == ElementKind::Paragraph && element.text.contains('\n'))
-    {
-        element
+    for index in image_table_reread::row_backed_paragraphs(doc) {
+        doc.elements[index]
             .attributes
             .get_or_insert_with(Default::default)
             .insert(MARKDOWN_ROW_LINES_ATTRIBUTE.to_string(), String::new());
